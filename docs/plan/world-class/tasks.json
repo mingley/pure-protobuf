@@ -10311,7 +10311,11 @@
    ],
    "status": "in_progress",
    "implementer": "server_streaming",
-   "notes": " Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure."
+   "notes": " Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure. Four transport boundary/error/live-producer/cancel tests passed on integrated unchanged production streaming runtime. Experimental closed-producer yield patch remains separate and unqualified until paired original-threshold controls pass.",
+   "evidence": [
+    "pbrs-grpc/tests/sv09_streaming.rs",
+    "docs/evidence/current-improvements/integration.json"
+   ]
   },
   {
    "id": "CL-08",
@@ -11836,7 +11840,7 @@
    "priority": "P0",
    "executor": "small",
    "size": "M",
-   "status": "in_progress",
+   "status": "done",
    "implementer": "production_resources",
    "depends_on": [
     "QG-05",
@@ -11879,7 +11883,11 @@
    "relates": [
     "QG-06"
    ],
-   "notes": "Split before work on 2026-10-02 under renewed execution authorization. Tooling/short diagnostics can proceed independently of the incomplete SB-24 campaign; production qualification remains with parent QG-06."
+   "notes": "Bounded tooling complete at source ac6811e7: v3 30-second finite-limit diagnostic passed68cycles/8704exact replies with recovered tracked resources. Both earlier failed fixtures and builder compatibility invariant failures are preserved.1193native gates,3characterizations,16Python guards and scoped strict lint/format passed. This closes only the reproducible tooling slice; parent QG-06 full24hTLS/fault/operator qualification stays open/not_run.",
+   "evidence": [
+    "docs/evidence/current-h2-soak.md",
+    "docs/evidence/current-h2-smoke/qualification.json"
+   ]
   },
   {
    "id": "TC-30a",

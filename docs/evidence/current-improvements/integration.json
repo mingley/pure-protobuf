@@ -1,0 +1,13 @@
+{
+  "source_commit": "ce82a1a7",
+  "source_tier": "exact integrated main source before resource tooling merge",
+  "command": "cargo test --locked -p pbrs-grpc --features tonic --test sv09_streaming --test cl07_preface --test tonic_transport -- --test-threads=1",
+  "exit_code": 0,
+  "passed": 23,
+  "failed": 0,
+  "ignored": 0,
+  "log": "docs/evidence/current-improvements/tonic-stream-integration.log",
+  "sha256": "7b069db75ae46f155de6aa0417b6dff812554ef11f3c394dfc8a3dd2efc0582d",
+  "performance_qualified": false,
+  "production_qualified": false
+}

@@ -1,0 +1,66 @@
+   Compiling syn v2.0.119
+   Compiling tracing-attributes v0.1.31
+   Compiling futures-util v0.3.34
+   Compiling tracing v0.1.44
+warning: pbrs@0.2.0: wrote conformance descriptor set
+   Compiling h2 v0.4.19
+   Compiling rustls v0.23.45
+   Compiling hyper v1.11.0
+   Compiling hyper-util v0.1.20
+   Compiling tower v0.5.3
+   Compiling pin-project-internal v1.1.13
+   Compiling tokio-stream v0.1.19
+   Compiling axum v0.8.9
+   Compiling pin-project v1.1.13
+   Compiling hyper-timeout v0.5.2
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/verify-main/pbrs-grpc)
+   Compiling tokio-rustls v0.26.4
+   Compiling serde v1.0.229
+   Compiling tonic v0.14.6
+   Compiling rustls-graviola v0.2.1
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/verify-main)
+   Compiling flate2 v1.1.10
+   Compiling futures-executor v0.3.34
+   Compiling opentelemetry_sdk v0.31.0
+    Finished `test` profile [unoptimized] target(s) in 1m 08s
+     Running tests/cl07_preface.rs (target/debug/deps/cl07_preface-ac88cffbae0078a4)
+
+running 10 tests
+test cancelling_eager_handshake_drops_transport ... ok
+test eager_connect_waits_for_settings_and_positive_stream_cap ... ok
+test h2_api_can_pipeline_headers_before_peer_settings ... ok
+test lazy_channel_does_not_dial_until_polled_rpc_and_cancel_closes_handshake ... ok
+test lazy_first_rpc_deadline_bounds_settings_wait ... ok
+test lazy_first_rpc_waits_for_peer_settings_zero_then_one ... ok
+test peer_stream_cap_one_serializes_first_two_requests ... ok
+test silent_peer_connect_timeout_drops_transport ... ok
+test wait_for_ready_deadline_bounds_settings_wait ... ok
+test wait_for_ready_retries_closed_handshake_before_opening_first_stream ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+
+     Running tests/sv09_streaming.rs (target/debug/deps/sv09_streaming-b74e145f0516142a)
+
+running 4 tests
+test cancellation_wakes_a_producer_waiting_after_its_first_reply ... ok
+test closed_bursts_flush_successes_before_the_terminal_error ... ok
+test closed_bursts_keep_order_across_the_wire_batch_boundary ... ok
+test live_producers_keep_refilling_small_bounded_channels ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/tonic_transport.rs (target/debug/deps/tonic_transport-0c3b97565e629ad8)
+
+running 9 tests
+test cancelling_future_before_headers_resets_peer ... ok
+test channel_timeout_covers_stream_body_without_polling_and_resets_peer ... ok
+test dropping_response_releases_native_rpc_concurrency_slot ... ok
+test dropping_response_resets_stalled_peer ... ok
+test early_terminal_rejection_preserves_status_details_and_metadata_during_upload ... ok
+test grpc_timeout_covers_headers_and_resets_stream ... ok
+test preframed_data_and_terminal_trailers_pass_without_codec_changes ... ok
+test tonic_feature_exposes_the_transport_contract ... ok
+test unsupported_native_security_and_resource_policies_fail_before_dispatch ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
