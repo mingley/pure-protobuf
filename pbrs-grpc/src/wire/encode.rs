@@ -75,21 +75,6 @@ impl SegSink {
         self.total_len += n;
     }
 
-    fn encode_payload<T: CodecMessage>(&mut self, msg: &T) -> Result<(), Status> {
-        let before = self.head.len();
-        if let Some(encoded) = msg.encode_contiguous(&mut self.head) {
-            encoded?;
-            let wrote =
-                self.head.len().checked_sub(before).ok_or_else(|| {
-                    Status::internal("contiguous codec removed existing frame bytes")
-                })?;
-            self.note_head_wrote(wrote);
-            Ok(())
-        } else {
-            msg.encode_payload(self)
-        }
-    }
-
     pub(crate) fn checkpoint(&self) -> SinkCheckpoint {
         SinkCheckpoint {
             segs: self.segs.len(),
@@ -219,7 +204,7 @@ pub(crate) fn frame_from_msg<T: CodecMessage>(msg: &T, len: usize) -> Result<Seg
     sink.reserve(codec::HEADER_LEN + len);
     sink.put_u8(0);
     sink.put_slice(&prefix.to_be_bytes());
-    sink.encode_payload(msg)?;
+    msg.encode_payload(&mut sink)?;
     let shared = sink.shared_len();
     let frame = sink.finish();
     crate::copy_counts::note_encode(len.saturating_sub(shared));
@@ -312,13 +297,9 @@ pub(crate) fn append_frame<T: CodecMessage>(
     sink.reserve(codec::HEADER_LEN + len);
     sink.put_u8(0);
     sink.put_slice(&prefix.to_be_bytes());
-    sink.encode_payload(msg)?;
+    msg.encode_payload(sink)?;
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "cl08_contiguous_tests.rs"]
-mod cl08_contiguous_tests;
 
 #[cfg(test)]
 mod tests {

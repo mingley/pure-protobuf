@@ -6,7 +6,7 @@
 //! boundaries so handlers still work with their prost-build message types.
 
 use crate::{CodecMessage, Framed, MessageLimits, Status, StreamSender as NativeSender};
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 use futures_core::Stream as FuturesStream;
 use prost::Message as ProstMessage;
 use std::pin::Pin;
@@ -41,14 +41,6 @@ where
     fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status> {
         out.put_slice(&self.encode_to_vec()?);
         Ok(())
-    }
-
-    fn encode_contiguous(&self, out: &mut BytesMut) -> Option<Result<(), Status>> {
-        Some(
-            self.0
-                .encode(out)
-                .map_err(|e| Status::internal(e.to_string())),
-        )
     }
 
     fn encode_to_vec(&self) -> Result<Vec<u8>, Status> {
