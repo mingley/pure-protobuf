@@ -181,6 +181,7 @@ mod tests {
     use crate::hello::HelloRequest;
     use crate::limits::MessageLimits;
     use crate::wire::encode::frame_from_msg;
+    #[cfg(feature = "copy-counts")]
     use crate::wire::frame_reader::FrameReader;
     use bytes::BytesMut;
     use pbrs::Serialize;
