@@ -90,13 +90,13 @@ impl Service<Request<TonicBody>> for Probe {
             if let Some(encoding) = probe.encoding {
                 response = response.header("grpc-encoding", encoding);
             }
-            Ok(response
+            response
                 .body(Frames {
                     frames,
                     state: probe.state,
                     pending_tail: probe.pending_tail,
                 })
-                .expect("response"))
+                .map_err(|error| tonic::Status::internal(error.to_string()))
         })
     }
 }
@@ -142,6 +142,10 @@ struct Fixture {
     state: Arc<State>,
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "transport fixture setup must fail the test on error"
+)]
 async fn connect(service: Probe, config: ServerConfig, window: u32) -> Fixture {
     let state = service.state.clone();
     let (client, io) = tokio::io::duplex(64 * 1024);
@@ -164,6 +168,7 @@ async fn connect(service: Probe, config: ServerConfig, window: u32) -> Fixture {
     }
 }
 
+#[expect(clippy::expect_used, reason = "the fixed test request must be valid")]
 fn request() -> Request<()> {
     Request::builder()
         .method("POST")
@@ -173,6 +178,10 @@ fn request() -> Request<()> {
         .expect("request")
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "unexpected fixture transport failures must fail the test"
+)]
 async fn exchange(
     fixture: &mut Fixture,
     request: Request<()>,
@@ -190,6 +199,10 @@ async fn exchange(
     collect(response.await.expect("response")).await
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "unexpected DATA, credit or trailer failures must fail the test"
+)]
 async fn collect(response: Response<h2::RecvStream>) -> (Bytes, http::HeaderMap, http::HeaderMap) {
     let headers = response.headers().clone();
     let mut body = response.into_body();
@@ -385,6 +398,10 @@ async fn deadline_while_waiting_for_output_prefix_drops_body_and_recovers_rpc_sl
     }
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "missing server lifecycle progress must fail the test"
+)]
 async fn wait_counter(counter: &AtomicUsize, expected: usize) {
     tokio::time::timeout(Duration::from_secs(2), async {
         while counter.load(Ordering::SeqCst) != expected {
