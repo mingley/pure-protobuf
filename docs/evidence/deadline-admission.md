@@ -19,7 +19,14 @@ it produces the same late HEADERS/DATA/CANCEL sequence. Thus the defect also
 occurs when the original peer limit is unchanged. This is a request-admission
 defect, rather than an assertion that a particular scheduler run is flaky.
 
-`pbrs-grpc/tests/deadline_admission.rs` is currently a **red regression**.
+The retained [diagnostic source](deadline-admission/deadline_admission.rs)
+is a **red regression**, outside Cargo's default integration-test discovery.
+It was originally compiled from `pbrs-grpc/tests/deadline_admission.rs` at proof
+commits `bac42c8e` and `a944c9a5`, and relocated with its exact bytes unchanged.
+The archived compiler commands and source hashes refer to that original
+location. Replaying the commands against the retained source requires changing
+only the source path to `docs/evidence/deadline-admission/deadline_admission.rs`.
+The original failing `retry_safety` fixture remains unchanged and active.
 There is no production fix in this proof. The source base is
 `a8545803b90717102fe29c5b48378a74d68d863c`; its client, transport, and original
 retry fixture are unchanged from the failing source.
