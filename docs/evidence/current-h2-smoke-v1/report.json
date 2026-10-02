@@ -1,0 +1,1390 @@
+{
+  "schema": "pbrs.current-h2-smoke.v1",
+  "source": {
+    "commit": "34ef27e528e102aa8b1f6bd610acb4d124363efe",
+    "tree": "812b54ecf4f4622d86c3969c7d1a74fe15b20316",
+    "dirty": false,
+    "cargo_lock_sha256": "143bd380614c258637da68df0e839157955b0c294a5faf563e927034d557a76e"
+  },
+  "host": {
+    "system": "Linux",
+    "node": "a6f398f51d0e",
+    "release": "6.18.44",
+    "version": "#1 SMP Sat Sep 26 20:02:31 UTC 2026",
+    "machine": "x86_64",
+    "processor": ""
+  },
+  "seed": 20261002,
+  "tools": {
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.0\nLLVM version: 23.1.1",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]"
+  },
+  "binary": {
+    "path": "/workspace/scratch/work/qg06a/target/debug/deps/resource_qualification-d915e67fe0f12d0d",
+    "sha256": "7260ac5978feea6c9deca8d1341143b71731eb4002ae3e19b2c034137a9c15fa"
+  },
+  "commands": {
+    "build": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "pbrs-grpc",
+      "--test",
+      "resource_qualification",
+      "--no-run",
+      "--message-format=json"
+    ],
+    "test": [
+      "/workspace/scratch/work/qg06a/target/debug/deps/resource_qualification-d915e67fe0f12d0d",
+      "--exact",
+      "current_h2_resource_smoke",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ]
+  },
+  "settings": {
+    "transport": "tcp_loopback_plaintext",
+    "compression": "none",
+    "runtime_workers": 2,
+    "max_connections": 4,
+    "max_h2_streams_per_connection": 8,
+    "max_active_rpcs": 2,
+    "max_message_bytes": 65536,
+    "per_stream_send_buffer_bytes": 16384,
+    "client_byte_budget_bytes": 262144,
+    "server_byte_budget_bytes": 262144,
+    "client_stream_receive_window_bytes": 1024,
+    "client_connection_receive_window_bytes": 4096,
+    "server_deadline_ms": 300,
+    "drain_grace_ms": 150,
+    "slow_reader_hold_ms": 60,
+    "slow_reader_responses": 16,
+    "slow_reader_response_bytes": 2048,
+    "recovery_rss_tolerance_bytes": 33554432,
+    "recovery_fd_tolerance": 1,
+    "recovery_tokio_task_tolerance": 2
+  },
+  "process_limits": {
+    "address_space": {
+      "soft": 1073741824,
+      "hard": 1073741824
+    },
+    "file_descriptors": {
+      "soft": 128,
+      "hard": 128
+    },
+    "same_uid_processes": {
+      "soft": 4096,
+      "hard": 4096
+    },
+    "cpu_seconds": {
+      "soft": 60,
+      "hard": 60
+    }
+  },
+  "process_limits_requested": {
+    "address_space": {
+      "soft": 1073741824,
+      "hard": 1073741824
+    },
+    "file_descriptors": {
+      "soft": 128,
+      "hard": 128
+    },
+    "same_uid_processes": {
+      "soft": 4096,
+      "hard": 4096
+    },
+    "cpu_seconds": {
+      "soft": 60,
+      "hard": 60
+    }
+  },
+  "duration_requested_seconds": 30.0,
+  "duration_actual_seconds": 2.222412680999696,
+  "events": [
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 0,
+      "admitted_calls_peak": 0,
+      "admitted_calls_started": 0,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 0,
+      "client_byte_tokens": 0,
+      "client_token_peak": 0,
+      "cycle": 0,
+      "file_descriptors": 7,
+      "os_threads": 4,
+      "phase": "baseline",
+      "rss_bytes": 5836800,
+      "rss_hwm_bytes": 6561792,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 0,
+      "server_byte_tokens": 0,
+      "server_token_peak": 0,
+      "tokio_alive_tasks": 0
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 1,
+      "admitted_calls_peak": 1,
+      "admitted_calls_started": 1,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 28,
+      "client_byte_tokens": 0,
+      "client_token_peak": 1,
+      "cycle": 1,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "warmup",
+      "rss_bytes": 10731520,
+      "rss_hwm_bytes": 10731520,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 28,
+      "server_byte_tokens": 0,
+      "server_token_peak": 1,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 1,
+      "admitted_calls_ended": 1,
+      "admitted_calls_peak": 1,
+      "admitted_calls_started": 2,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 1,
+      "cycle": 1,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "slow_reader",
+      "rss_bytes": 11190272,
+      "rss_hwm_bytes": 11190272,
+      "server_allocated_bytes": 16448,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 8,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 5
+    },
+    {
+      "admitted_calls_active": 2,
+      "admitted_calls_ended": 3,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 5,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 1,
+      "cycle": 1,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "overload",
+      "rss_bytes": 11251712,
+      "rss_hwm_bytes": 11251712,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 7
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 5,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 5,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 1,
+      "cycle": 1,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "cancelled",
+      "rss_bytes": 11251712,
+      "rss_hwm_bytes": 11251712,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 6,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 6,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 1,
+      "cycle": 1,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "deadline",
+      "rss_bytes": 11251712,
+      "rss_hwm_bytes": 11251712,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 7,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 7,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 1,
+      "cycle": 1,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "recovered",
+      "rss_bytes": 11251712,
+      "rss_hwm_bytes": 11251712,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 7,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 7,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 1,
+      "cycle": 1,
+      "file_descriptors": 7,
+      "os_threads": 4,
+      "phase": "drain",
+      "rss_bytes": 11251712,
+      "rss_hwm_bytes": 11251712,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 0
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 8,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 8,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 28,
+      "client_byte_tokens": 0,
+      "client_token_peak": 1,
+      "cycle": 2,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "warmup",
+      "rss_bytes": 11264000,
+      "rss_hwm_bytes": 11264000,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 28,
+      "server_byte_tokens": 0,
+      "server_token_peak": 1,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 1,
+      "admitted_calls_ended": 8,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 9,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 1,
+      "cycle": 2,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "slow_reader",
+      "rss_bytes": 11362304,
+      "rss_hwm_bytes": 11362304,
+      "server_allocated_bytes": 16448,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 8,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 5
+    },
+    {
+      "admitted_calls_active": 2,
+      "admitted_calls_ended": 10,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 12,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 2,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "overload",
+      "rss_bytes": 11378688,
+      "rss_hwm_bytes": 11378688,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 7
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 12,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 12,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 2,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "cancelled",
+      "rss_bytes": 11378688,
+      "rss_hwm_bytes": 11378688,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 13,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 13,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 2,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "deadline",
+      "rss_bytes": 11378688,
+      "rss_hwm_bytes": 11378688,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 14,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 14,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 2,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "recovered",
+      "rss_bytes": 11378688,
+      "rss_hwm_bytes": 11378688,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 14,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 14,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 2,
+      "file_descriptors": 7,
+      "os_threads": 4,
+      "phase": "drain",
+      "rss_bytes": 11378688,
+      "rss_hwm_bytes": 11378688,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 0
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 15,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 15,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 28,
+      "client_byte_tokens": 0,
+      "client_token_peak": 1,
+      "cycle": 3,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "warmup",
+      "rss_bytes": 11378688,
+      "rss_hwm_bytes": 11378688,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 28,
+      "server_byte_tokens": 0,
+      "server_token_peak": 1,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 1,
+      "admitted_calls_ended": 15,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 16,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 1,
+      "cycle": 3,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "slow_reader",
+      "rss_bytes": 11411456,
+      "rss_hwm_bytes": 11411456,
+      "server_allocated_bytes": 16448,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 8,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 5
+    },
+    {
+      "admitted_calls_active": 2,
+      "admitted_calls_ended": 17,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 19,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 3,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "overload",
+      "rss_bytes": 11411456,
+      "rss_hwm_bytes": 11411456,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 7
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 19,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 19,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 3,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "cancelled",
+      "rss_bytes": 11411456,
+      "rss_hwm_bytes": 11411456,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 20,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 20,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 3,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "deadline",
+      "rss_bytes": 11411456,
+      "rss_hwm_bytes": 11411456,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 21,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 21,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 3,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "recovered",
+      "rss_bytes": 11411456,
+      "rss_hwm_bytes": 11411456,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 21,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 21,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 3,
+      "file_descriptors": 7,
+      "os_threads": 4,
+      "phase": "drain",
+      "rss_bytes": 11411456,
+      "rss_hwm_bytes": 11411456,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 0
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 22,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 22,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 28,
+      "client_byte_tokens": 0,
+      "client_token_peak": 1,
+      "cycle": 4,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "warmup",
+      "rss_bytes": 11411456,
+      "rss_hwm_bytes": 11411456,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 28,
+      "server_byte_tokens": 0,
+      "server_token_peak": 1,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 1,
+      "admitted_calls_ended": 22,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 23,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 1,
+      "cycle": 4,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "slow_reader",
+      "rss_bytes": 11436032,
+      "rss_hwm_bytes": 11436032,
+      "server_allocated_bytes": 16448,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 8,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 5
+    },
+    {
+      "admitted_calls_active": 2,
+      "admitted_calls_ended": 24,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 26,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 4,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "overload",
+      "rss_bytes": 11436032,
+      "rss_hwm_bytes": 11436032,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 7
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 26,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 26,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 4,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "cancelled",
+      "rss_bytes": 11436032,
+      "rss_hwm_bytes": 11436032,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 27,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 27,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 4,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "deadline",
+      "rss_bytes": 11436032,
+      "rss_hwm_bytes": 11436032,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 28,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 28,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 4,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "recovered",
+      "rss_bytes": 11436032,
+      "rss_hwm_bytes": 11436032,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 28,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 28,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 4,
+      "file_descriptors": 7,
+      "os_threads": 4,
+      "phase": "drain",
+      "rss_bytes": 11436032,
+      "rss_hwm_bytes": 11436032,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 0
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 29,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 29,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 28,
+      "client_byte_tokens": 0,
+      "client_token_peak": 1,
+      "cycle": 5,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "warmup",
+      "rss_bytes": 11436032,
+      "rss_hwm_bytes": 11436032,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 28,
+      "server_byte_tokens": 0,
+      "server_token_peak": 1,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 1,
+      "admitted_calls_ended": 29,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 30,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 1,
+      "cycle": 5,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "slow_reader",
+      "rss_bytes": 11444224,
+      "rss_hwm_bytes": 11444224,
+      "server_allocated_bytes": 16448,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 8,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 5
+    },
+    {
+      "admitted_calls_active": 2,
+      "admitted_calls_ended": 31,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 33,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 5,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "overload",
+      "rss_bytes": 11444224,
+      "rss_hwm_bytes": 11444224,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 7
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 33,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 33,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 5,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "cancelled",
+      "rss_bytes": 11444224,
+      "rss_hwm_bytes": 11444224,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 34,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 34,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 5,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "deadline",
+      "rss_bytes": 11444224,
+      "rss_hwm_bytes": 11444224,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 35,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 35,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 5,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "recovered",
+      "rss_bytes": 11444224,
+      "rss_hwm_bytes": 11444224,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 3
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 35,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 35,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 32792,
+      "client_byte_tokens": 0,
+      "client_token_peak": 2,
+      "cycle": 5,
+      "file_descriptors": 7,
+      "os_threads": 4,
+      "phase": "drain",
+      "rss_bytes": 11444224,
+      "rss_hwm_bytes": 11444224,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 16448,
+      "server_byte_tokens": 0,
+      "server_token_peak": 8,
+      "tokio_alive_tasks": 0
+    },
+    {
+      "admitted_calls_active": 0,
+      "admitted_calls_ended": 36,
+      "admitted_calls_peak": 3,
+      "admitted_calls_started": 36,
+      "client_allocated_bytes": 0,
+      "client_byte_peak": 28,
+      "client_byte_tokens": 0,
+      "client_token_peak": 1,
+      "cycle": 6,
+      "file_descriptors": 10,
+      "os_threads": 4,
+      "phase": "warmup",
+      "rss_bytes": 11452416,
+      "rss_hwm_bytes": 11452416,
+      "server_allocated_bytes": 0,
+      "server_byte_peak": 28,
+      "server_byte_tokens": 0,
+      "server_token_peak": 1,
+      "tokio_alive_tasks": 3
+    }
+  ],
+  "process_samples": [
+    {
+      "elapsed_seconds": 0.0019509049998305272,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 11968512,
+        "VmHWM": 90112,
+        "VmRSS": 90112
+      },
+      "os_threads": 1,
+      "file_descriptors": 3
+    },
+    {
+      "elapsed_seconds": 0.05236962799972389,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11190272,
+        "VmRSS": 11190272
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 0.10277691800001776,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11251712,
+        "VmRSS": 11251712
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 0.15321342599963828,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11251712,
+        "VmRSS": 11251712
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 0.2036380919998919,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11251712,
+        "VmRSS": 11251712
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 0.2540614669997012,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11251712,
+        "VmRSS": 11251712
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 0.3045413500003633,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11251712,
+        "VmRSS": 11251712
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 0.3549646230003418,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11251712,
+        "VmRSS": 11251712
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 0.4055469329996413,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11251712,
+        "VmRSS": 11251712
+      },
+      "os_threads": 4,
+      "file_descriptors": 6
+    },
+    {
+      "elapsed_seconds": 0.4559518799997022,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11362304,
+        "VmRSS": 11362304
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 0.5063782489996811,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11378688,
+        "VmRSS": 11378688
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 0.5567988689999765,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11378688,
+        "VmRSS": 11378688
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 0.607459265000216,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11378688,
+        "VmRSS": 11378688
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 0.6578817770005116,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11378688,
+        "VmRSS": 11378688
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 0.708336497998971,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11378688,
+        "VmRSS": 11378688
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 0.7587526419993083,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11378688,
+        "VmRSS": 11378688
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 0.8091743479999423,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11378688,
+        "VmRSS": 11378688
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 0.8595924239998567,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11411456,
+        "VmRSS": 11411456
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 0.9099979669990717,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11411456,
+        "VmRSS": 11411456
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 0.9604930879995663,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11411456,
+        "VmRSS": 11411456
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 1.011050406999857,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11411456,
+        "VmRSS": 11411456
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 1.061489421999795,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11411456,
+        "VmRSS": 11411456
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 1.1119296540000505,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11411456,
+        "VmRSS": 11411456
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 1.162383962999229,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11411456,
+        "VmRSS": 11411456
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 1.2128074140000535,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11411456,
+        "VmRSS": 11411456
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 1.2632208909999463,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11411456,
+        "VmRSS": 11411456
+      },
+      "os_threads": 4,
+      "file_descriptors": 6
+    },
+    {
+      "elapsed_seconds": 1.3137096789996576,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11436032,
+        "VmRSS": 11436032
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 1.364119383999423,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11436032,
+        "VmRSS": 11436032
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 1.4145649950005463,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11436032,
+        "VmRSS": 11436032
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 1.465068847999646,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11436032,
+        "VmRSS": 11436032
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 1.5155524740002875,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11436032,
+        "VmRSS": 11436032
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 1.5659559790001367,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11436032,
+        "VmRSS": 11436032
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 1.6164223849991686,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11436032,
+        "VmRSS": 11436032
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 1.6667997370004741,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11436032,
+        "VmRSS": 11436032
+      },
+      "os_threads": 4,
+      "file_descriptors": 6
+    },
+    {
+      "elapsed_seconds": 1.7172244190005586,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11444224,
+        "VmRSS": 11444224
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 1.7676283059990965,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11444224,
+        "VmRSS": 11444224
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 1.8182743580000533,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11444224,
+        "VmRSS": 11444224
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 1.8687480440003128,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11444224,
+        "VmRSS": 11444224
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 1.9191816299990023,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11444224,
+        "VmRSS": 11444224
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 1.9696120280004834,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11444224,
+        "VmRSS": 11444224
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 2.020031979000123,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11444224,
+        "VmRSS": 11444224
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 2.0704599900000176,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11444224,
+        "VmRSS": 11444224
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    },
+    {
+      "elapsed_seconds": 2.1208604559997184,
+      "pid": 149115,
+      "memory_bytes": {
+        "VmSize": 223023104,
+        "VmHWM": 11493376,
+        "VmRSS": 11493376
+      },
+      "os_threads": 4,
+      "file_descriptors": 9
+    }
+  ],
+  "exit_code": 101,
+  "qualification": {
+    "qualified": false,
+    "tier": "shared-host-diagnostic",
+    "soak_24h": {
+      "status": "not_run",
+      "reason": "this instrumented smoke is not the complete QG-06 campaign"
+    },
+    "not_run": [
+      "TLS/compression profiles",
+      "injected RST_STREAM/GOAWAY",
+      "independent peer",
+      "mixed 1 MiB messages",
+      "allocator high-water",
+      "kernel socket memory",
+      "dedicated-host latency/goodput qualification",
+      "24-hour acceptance"
+    ]
+  },
+  "smoke": {
+    "status": "failed",
+    "failures": [
+      "admitted-call peak exceeds frozen limit",
+      "incomplete, duplicated or reordered cycle phases",
+      "missing or incomplete requested duration",
+      "resource test child failed"
+    ]
+  }
+}

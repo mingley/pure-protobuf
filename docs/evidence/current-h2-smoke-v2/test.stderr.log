@@ -1,0 +1,9 @@
+
+thread 'current_h2_resource_smoke' (161034) panicked at pbrs-grpc/tests/resource_qualification.rs:281:9:
+assertion `left == right` failed: slow consumer must hold the response stream open
+  left: 0
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'tokio-rt-worker' (161035) panicked at pbrs-grpc/tests/resource_qualification.rs:238:35:
+shutdown signal: RecvError(())

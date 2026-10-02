@@ -1,0 +1,16 @@
+// Temporary diagnostic assertions appended to resource_qualification.rs.
+// Expected failures preserve existing shipping behavior; these are not
+// committed as ordinary passing tests. Existing imports/constants apply.
+#[test]
+fn intended_default_setting_equality() {
+ let server=Server::new(GreeterServer::new(Echo));
+ let explicit=Server::new(GreeterServer::new(Echo)).max_send_buffer_size(server.send_buffer_size());
+ assert_eq!(server.byte_budget_limit(), explicit.byte_budget_limit());
+}
+#[test]
+fn intended_independent_tracker_configuration() {
+ let tracker=ByteBudgetTracker::with_limit(BYTE_BUDGET);
+ let _permit=tracker.try_acquire(7).unwrap();
+ let server=Server::new(GreeterServer::new(Echo)).with_byte_budget_tracker(tracker).config(ServerConfig::default().max_send_buffer_size(SEND_BUFFER));
+ assert_eq!(server.byte_budget_allocated(),7);
+}

@@ -1,0 +1,34 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/qg06a)
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/qg06a/pbrs-grpc)
+    Finished `test` profile [unoptimized] target(s) in 49.43s
+     Running tests/resource_qualification.rs (target/debug/deps/resource_qualification-d915e67fe0f12d0d)
+
+running 2 tests
+test intended_independent_tracker_configuration ... FAILED
+test intended_default_setting_equality ... FAILED
+
+failures:
+
+---- intended_independent_tracker_configuration stdout ----
+
+thread 'intended_independent_tracker_configuration' (141751) panicked at pbrs-grpc/tests/resource_qualification.rs:402:2:
+assertion `left == right` failed
+  left: 0
+ right: 7
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- intended_default_setting_equality stdout ----
+
+thread 'intended_default_setting_equality' (141750) panicked at pbrs-grpc/tests/resource_qualification.rs:395:2:
+assertion `left == right` failed
+  left: None
+ right: Some(1048576)
+
+
+failures:
+    intended_default_setting_equality
+    intended_independent_tracker_configuration
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p pbrs-grpc --test resource_qualification`

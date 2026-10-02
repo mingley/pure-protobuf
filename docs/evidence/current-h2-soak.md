@@ -114,9 +114,72 @@ first and attaches its separate tracker last.
 
 ## Results and remaining qualification
 
-The completed run and gate results are recorded below after execution. A short
-instrumented shared-host run is diagnostic evidence only. The complete
-24-hour profile, TLS/compression, independent peers, injected RST_STREAM/GOAWAY,
-mixed 1 MiB messages, allocator high-water, kernel socket memory and
-dedicated-host latency/goodput qualification remain `not_run`. Duration alone
-cannot convert this deliberately narrower scenario into production acceptance.
+All three attempts remain visible; the two failed fixture versions are not
+rewritten as passes. The final source pin is
+`ac6811e73f13130a064a0e9c8662503c961d0fc2`; the named native regression gates
+exercise the unchanged shipping code from assigned base `cf3eee22`.
+
+| Attempt | Frozen source | Exact fixture | Result/raw evidence |
+|---|---|---|---|
+| v1 | `34ef27e528e102aa8b1f6bd610acb4d124363efe` | 16 replies, all lifecycle callbacks, active-call assertion | [Failed report](current-h2-smoke-v1/report.json), [stderr](current-h2-smoke-v1/test.stderr.log), [events](current-h2-smoke-v1/events.jsonl) |
+| v2 | `ae4ac38326a8a4d0a1b94d25b0e7dda66fbe5ad4` | 16 replies, selected streaming callbacks, outbound queue 1, active-call assertion | [Failed report](current-h2-smoke-v2/report.json), [stderr](current-h2-smoke-v2/test.stderr.log), [events](current-h2-smoke-v2/events.jsonl) |
+| v3 | `ac6811e73f13130a064a0e9c8662503c961d0fc2` | 128 replies, bounded producer with independent stable-progress/done observations | [Passed diagnostic report](current-h2-smoke-v3/report.json), [stdout](current-h2-smoke-v3/test.stdout.log), [events](current-h2-smoke-v3/events.jsonl) |
+
+The v1 lifecycle peak of three included the rejected unary's start/end callbacks;
+it was not evidence of three admitted RPC slots. Both early versions assumed
+that a paused application reader must keep the server lifecycle active. v1
+completed five cycles before failing this assertion; v2 completed ten. Source
+review showed that received streams are pull based and the client queue knob
+controls outbound requests. A small response can also finish at the server
+after entering bounded HTTP/2 buffers. The failed active-call assumption was
+replaced by the independently observed bounded producer in v3. The secondary
+shutdown `RecvError` in both failed stderr logs followed the assertion dropping
+its shutdown sender; it is preserved rather than presented as an independent
+production defect. No deadline, message cap, byte budget, process limit or
+recovery tolerance was relaxed.
+
+The 30-second v3 diagnostic passed with child/runner exits zero and no validator
+failures. It ran for 30.52 seconds on a shared host with concurrent jobs=1 Rust
+builds, making no comparative CPU, latency or throughput claim. It recorded
+477 phase events and 604 independent `/proc` samples across 68 complete cycles,
+272 selected streaming-call starts/ends, 68 expected overflow rejections and
+68 expected deadline expirations. All 8,704 slow-reader responses were checked
+for exact contents and count. During each pause, producer progress remained
+unchanged at 20–27 messages between the 30 ms/60 ms observations, and the producer
+was unfinished. Every cycle completed all 128 messages after reading resumed.
+
+| Resource | Baseline | Load/observed peak | Every final drain |
+|---|---:|---:|---:|
+| Process RSS | 5,767,168 bytes | 11,644,928 bytes (`VmHWM` and phase maximum) | At most 11,644,928 bytes; below baseline + 32 MiB |
+| File descriptors | 7 | 10 | 7 |
+| OS threads | 4 (test harness plus two runtime workers) | 4 | 4 |
+| Tokio alive tasks | 0 | 7 | 0 |
+| Observed streaming calls | 0 | 2 | 0; 272 starts = 272 ends cumulatively |
+| Accounted server/client bytes | 0/0 | Exact lifetime peaks 16,448/29 bytes | 0/0 |
+| Server/client byte-permit tokens | 0/0 | Exact lifetime peaks 8/1 | 0/0 |
+
+Tracker peaks cover each tracker lifetime, including its warmup; they do not
+bound HTTP/2-owned buffers, application memory or RSS. The low client accounted
+peak is not an estimate of all received-response memory. All values remain
+separately labeled. The executable launch SHA256 was
+`e25d6216a30ac5d6326aeffee12f67701b265c3a07b69e635ee1d3beaaf2e6a1`, checked
+unchanged after execution. Effective soft/hard limits were 1 GiB address space,
+128 descriptors, 4,096 same-UID processes/threads and 60 CPU seconds. The full
+commands, Cargo artifact records, Rust 1.99.0/Cargo 1.99.0/Python 3.12.14 pins,
+source/tree/lockfile pins, kernel and host details are retained in the reports.
+
+| Gate | Result/evidence |
+|---|---|
+| `cargo test --locked -p pbrs-grpc --test resource_qualification --test hostile --test message_size --test rpc --test gaps --test tls --test serving` | [1,193 passed](current-h2-native-gates.log), one explicitly ignored diagnostic |
+| Current ordinary characterization executable `--test-threads=1` | [3 passed, 1 deliberately ignored](current-h2-characterization-final.log); the ignored diagnostic was separately executed above |
+| `cargo clippy --locked -p pbrs-grpc --test resource_qualification -- -D warnings` | [Passed](current-h2-clippy-final.log); the [initial two lint failures](current-h2-clippy-initial-failure.log) are retained |
+| `python3 -m unittest discover -s tests -p test_current_h2_soak.py -v` | [16 passed](current-h2-python-guards.log), including malformed evidence, incomplete phases, source/binary drift, finite limits, recovery and blocked-producer guards |
+| `cargo fmt --all --check`; `git diff --check` | Passed |
+| `python3 scripts/current-h2-soak.py --validate docs/evidence/current-h2-smoke-v3/report.json` | Passed with `qualified: false` |
+| Temporary intended builder invariants | [2 expected failures](current-h2-intended-invariants.log), with [exact temporary assertions](current-h2-intended-invariants.rs.txt); the shipping compatibility policy was not changed |
+
+The complete 24-hour profile, TLS/compression, independent peers, injected
+RST_STREAM/GOAWAY, mixed 1 MiB messages, allocator high-water, kernel socket
+memory and dedicated-host latency/goodput qualification remain `not_run`.
+QG-06 remains open. Duration alone cannot convert this narrower instrumented
+scenario into production acceptance.

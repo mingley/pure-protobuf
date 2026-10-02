@@ -1,0 +1,11 @@
+Source/runtime candidate ac6811e73f13130a064a0e9c8662503c961d0fc2; existing current executable, no recompile.
+Command: /workspace/scratch/work/qg06a/target/debug/deps/resource_qualification-d915e67fe0f12d0d --test-threads=1
+
+running 4 tests
+test current_h2_resource_smoke ... ignored, use scripts/current-h2-soak.py to freeze source and finite process limits
+test router_has_the_same_coupled_budget_and_ordering_policy ... ok
+test server_builder_order_controls_shared_tracker_identity ... ok
+test server_default_and_explicit_default_have_distinct_budget_policy ... ok
+
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
