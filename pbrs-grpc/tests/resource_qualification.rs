@@ -13,23 +13,71 @@
 
 mod common;
 
-use common::{Echo, name_of, req};
-use pbrs_grpc::hello::{GreeterClient, GreeterServer};
+use common::{Echo, name_of, reply, req};
+use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{
     ByteBudgetTracker, CallLabels, Channel, ChannelConfig, Code, LifecycleObserver, Request,
-    Server, ServerConfig, Status,
+    Response, Server, ServerConfig, Status, Streaming,
 };
 use serde_json::json;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 
 const SEND_BUFFER: usize = 16 * 1024;
 const BYTE_BUDGET: usize = 256 * 1024;
 const RSS_RECOVERY_TOLERANCE: u64 = 32 * 1024 * 1024;
+
+struct FlowControlledEcho {
+    sent: Arc<AtomicUsize>,
+    done: Arc<AtomicBool>,
+}
+
+impl Greeter for FlowControlledEcho {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Echo.say_hello(request).await
+    }
+
+    async fn client_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Echo.client_hello(request).await
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        let (sender, stream) = Streaming::channel(4);
+        let sent = self.sent.clone();
+        let done = self.done.clone();
+        drop(tokio::spawn(async move {
+            let response = reply("s".repeat(2048));
+            for _ in 0..128 {
+                if sender.send(response.clone()).await.is_err() {
+                    break;
+                }
+                sent.fetch_add(1, Ordering::SeqCst);
+            }
+            done.store(true, Ordering::SeqCst);
+        }));
+        Ok(Response::new(stream))
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        Echo.stream_hello(request).await
+    }
+}
 
 #[test]
 fn server_default_and_explicit_default_have_distinct_budget_policy() {
@@ -100,6 +148,8 @@ struct Calls {
     peak: Arc<AtomicUsize>,
     started: Arc<AtomicUsize>,
     ended: Arc<AtomicUsize>,
+    producer_sent: Arc<AtomicUsize>,
+    producer_done: Arc<AtomicBool>,
 }
 
 impl LifecycleObserver for Calls {
@@ -157,6 +207,8 @@ fn snapshot(
         "observed_streaming_calls_peak": calls.peak.load(Ordering::SeqCst),
         "observed_streaming_calls_started": calls.started.load(Ordering::SeqCst),
         "observed_streaming_calls_ended": calls.ended.load(Ordering::SeqCst),
+        "producer_sent_messages": calls.producer_sent.load(Ordering::SeqCst),
+        "producer_done": calls.producer_done.load(Ordering::SeqCst),
         "server_allocated_bytes": server.allocated(), "client_allocated_bytes": client.allocated(),
         "server_byte_peak": server.peak_allocated(), "client_byte_peak": client.peak_allocated(),
         "server_byte_tokens": server.active_byte_permit_tokens(),
@@ -216,19 +268,24 @@ async fn current_h2_resource_smoke() {
     let mut cycle = 0;
     while cycle == 0 || started.elapsed() < Duration::from_secs(duration) {
         cycle += 1;
+        calls.producer_sent.store(0, Ordering::SeqCst);
+        calls.producer_done.store(false, Ordering::SeqCst);
         let server_tracker = ByteBudgetTracker::with_limit(BYTE_BUDGET);
         let client_tracker = ByteBudgetTracker::with_limit(BYTE_BUDGET);
-        let server = Server::new(GreeterServer::new(Echo))
-            .max_concurrent_connections(4)
-            .max_concurrent_streams(8)
-            .max_concurrent_rpcs(2)
-            .max_decoding_message_size(64 * 1024)
-            .max_encoding_message_size(64 * 1024)
-            .max_send_buffer_size(SEND_BUFFER)
-            .timeout(Duration::from_millis(300))
-            .max_connection_age_grace(Duration::from_millis(150))
-            .with_byte_budget_tracker(server_tracker.clone())
-            .observer(calls.clone());
+        let server = Server::new(GreeterServer::new(FlowControlledEcho {
+            sent: calls.producer_sent.clone(),
+            done: calls.producer_done.clone(),
+        }))
+        .max_concurrent_connections(4)
+        .max_concurrent_streams(8)
+        .max_concurrent_rpcs(2)
+        .max_decoding_message_size(64 * 1024)
+        .max_encoding_message_size(64 * 1024)
+        .max_send_buffer_size(SEND_BUFFER)
+        .timeout(Duration::from_millis(300))
+        .max_connection_age_grace(Duration::from_millis(150))
+        .with_byte_budget_tracker(server_tracker.clone())
+        .observer(calls.clone());
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
         let addr = listener.local_addr().expect("address");
         let (stop_tx, stop_rx) = tokio::sync::oneshot::channel();
@@ -269,35 +326,47 @@ async fn current_h2_resource_smoke() {
 
         // Deliberately hold the consumer without reading; then validate every response.
         let part = "s".repeat(2048);
-        let payload = std::iter::repeat_n(part.as_str(), 16)
-            .collect::<Vec<_>>()
-            .join(",");
         let mut slow = client
-            .server_hello(Request::new(req(&payload)))
+            .server_hello(Request::new(req("slow-reader")))
             .await
             .expect("slow reader")
             .into_inner();
-        tokio::time::sleep(Duration::from_millis(60)).await;
-        assert_eq!(
-            calls.active.load(Ordering::SeqCst),
-            1,
-            "slow consumer must hold the response stream open"
-        );
-        record(&snapshot(
+        tokio::time::sleep(Duration::from_millis(30)).await;
+        let first_progress = calls.producer_sent.load(Ordering::SeqCst);
+        tokio::time::sleep(Duration::from_millis(30)).await;
+        let second_progress = calls.producer_sent.load(Ordering::SeqCst);
+        let mut slow_event = snapshot(
             "slow_reader",
             cycle,
             &calls,
             &server_tracker,
             &client_tracker,
-        ));
+        );
+        slow_event["producer_progress_after_30_ms"] = json!(first_progress);
+        slow_event["producer_progress_after_60_ms"] = json!(second_progress);
+        record(&slow_event);
+        assert!(
+            first_progress > 0 && second_progress < 128,
+            "producer must be underway and unfinished"
+        );
+        assert_eq!(
+            first_progress, second_progress,
+            "paused reader must stop producer progress"
+        );
+        assert!(
+            !calls.producer_done.load(Ordering::SeqCst),
+            "producer must be blocked"
+        );
         let mut received = 0;
         while let Some(reply) = slow.message().await.expect("stream response") {
             assert_eq!(name_of(&reply), part);
             received += 1;
         }
-        assert_eq!(received, 16);
+        assert_eq!(received, 128);
         drop(slow);
         wait_for_idle(&calls, &server_tracker, &client_tracker).await;
+        assert_eq!(calls.producer_sent.load(Ordering::SeqCst), 128);
+        assert!(calls.producer_done.load(Ordering::SeqCst));
 
         let (tx1, future1) = client.client_hello(Request::new(()));
         let (tx2, future2) = client.client_hello(Request::new(()));

@@ -22,9 +22,15 @@ def complete_report():
         event = {key: 0 for key in SOAK.GAUGES}
         event.update(cycle=cycle, phase=phase, rss_bytes=1000000, rss_hwm_bytes=1100000,
                      file_descriptors=6, os_threads=3, tokio_alive_tasks=0)
+        event.update(producer_sent_messages=0, producer_done=False)
+        if phase == "slow_reader":
+            event.update(producer_sent_messages=12, producer_progress_after_30_ms=12,
+                         producer_progress_after_60_ms=12)
+        if phase in ("overload", "cancelled", "deadline", "recovered", "drain"):
+            event.update(producer_sent_messages=128, producer_done=True)
         events.append(event)
     limits = {key: {"soft": 1024, "hard": 1024} for key in SOAK.LIMIT_NAMES}
-    return {"schema": "pbrs.current-h2-smoke.v2",
+    return {"schema": "pbrs.current-h2-smoke.v3",
             "source": {"commit": "a" * 40, "tree": "b" * 40, "dirty": False, "cargo_lock_sha256": "c" * 64},
             "binary": {"sha256": "d" * 64}, "tools": {"rustc": "rustc", "cargo": "cargo", "python": "python"},
             "commands": {"build": ["cargo", "test"], "test": ["test-executable"]},
@@ -175,6 +181,16 @@ class CurrentH2EvidenceTest(unittest.TestCase):
             self.assertEqual(SOAK.executable_drift(executable, launch), ["executable changed during execution"])
             executable.unlink()
             self.assertEqual(SOAK.executable_drift(executable, launch), ["executable disappeared during execution"])
+
+    def test_slow_reader_requires_independent_blocked_and_completed_producer(self):
+        for update in ({"producer_progress_after_60_ms": 13}, {"producer_done": True},
+                       {"producer_progress_after_30_ms": 128, "producer_progress_after_60_ms": 128}):
+            report = complete_report()
+            report["events"][2].update(update)
+            self.assertIn("missing or invalid independent slow-producer progress", SOAK.validate_report(report))
+        report = complete_report()
+        report["events"][-1]["producer_sent_messages"] = 127
+        self.assertIn("response producer did not finish exact delivery", SOAK.validate_report(report))
 
 
 if __name__ == "__main__":

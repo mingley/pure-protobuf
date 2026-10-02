@@ -29,9 +29,9 @@ SETTINGS = {"transport": "tcp_loopback_plaintext", "compression": "none", "runti
             "max_message_bytes": 65536, "per_stream_send_buffer_bytes": 16384,
             "client_byte_budget_bytes": 262144, "server_byte_budget_bytes": 262144,
             "client_stream_receive_window_bytes": 1024, "client_connection_receive_window_bytes": 4096,
-            "client_decoded_stream_queue_messages": 1,
+            "client_outbound_stream_queue_messages": 1, "server_response_queue_messages": 4,
             "server_deadline_ms": 300, "drain_grace_ms": 150,
-            "slow_reader_hold_ms": 60, "slow_reader_responses": 16,
+            "slow_reader_hold_ms": 60, "slow_reader_responses": 128,
             "slow_reader_response_bytes": 2048,
             "recovery_rss_tolerance_bytes": 32 * 1024 * 1024,
             "recovery_fd_tolerance": 1, "recovery_tokio_task_tolerance": 2}
@@ -113,7 +113,7 @@ def observe_process(pid, elapsed):
 
 def validate_report(report):
     errors = []
-    if report.get("schema") != "pbrs.current-h2-smoke.v2":
+    if report.get("schema") != "pbrs.current-h2-smoke.v3":
         errors.append("unknown evidence schema")
     source = report.get("source", {})
     if not re.fullmatch(r"[0-9a-f]{40}", str(source.get("commit", ""))) or source.get("dirty") is not False:
@@ -167,6 +167,15 @@ def validate_report(report):
             errors.append("invalid process RSS accounting")
         if event["observed_streaming_calls_peak"] > SETTINGS["max_active_rpcs"]:
             errors.append("observed streaming-call peak exceeds frozen limit")
+        if event.get("phase") == "slow_reader":
+            first, second = event.get("producer_progress_after_30_ms"), event.get("producer_progress_after_60_ms")
+            if (type(first) is not int or type(second) is not int or first != second
+                    or first <= 0 or second >= SETTINGS["slow_reader_responses"]
+                    or event.get("producer_done") is not False):
+                errors.append("missing or invalid independent slow-producer progress")
+        if event.get("phase") in ("overload", "cancelled", "deadline", "recovered", "drain"):
+            if event.get("producer_sent_messages") != SETTINGS["slow_reader_responses"] or event.get("producer_done") is not True:
+                errors.append("response producer did not finish exact delivery")
         for side in ("client", "server"):
             if event[f"{side}_byte_peak"] > SETTINGS[f"{side}_byte_budget_bytes"]:
                 errors.append("accounted byte peak exceeds tracker budget")
@@ -257,7 +266,7 @@ def run(args):
                 events.append(json.loads(line))
             except json.JSONDecodeError as error:
                 failures.append(f"invalid raw event: {error}")
-    report = {"schema": "pbrs.current-h2-smoke.v2", "source": source,
+    report = {"schema": "pbrs.current-h2-smoke.v3", "source": source,
               "host": dict(platform.uname()._asdict()), "seed": args.seed,
               "tools": {"rustc": command(["rustc", "-Vv"]), "cargo": command(["cargo", "-V"]),
                         "python": sys.version},

@@ -37,15 +37,21 @@ without TLS or compression. Per cycle, it admits at most two RPCs, permits four
 connections/eight HTTP/2 streams per connection, caps encoded/decoded messages
 at 64 KiB, sets a 16 KiB per-stream send threshold and independently attaches
 256 KiB client/server byte trackers last. It uses a 300 ms server deadline,
-150 ms drain grace and a 60 ms deliberately paused reader of sixteen 2 KiB
+150 ms drain grace and a 60 ms deliberately paused reader of 128 separate 2 KiB
 response messages. The seed identifies deterministic request labels; this is
 not a randomized fault campaign.
 
-The client advertises a 1 KiB stream receive window and 4 KiB connection receive
-window at connection establishment and bounds its decoded stream queue to one
-message. The deliberately paused consumer must
-leave its server-streaming call active, exercising flow-control backpressure
-rather than merely postponing reads after the whole response has been queued.
+The client advertises a 1 KiB stream receive window and a 4 KiB connection
+receive target at connection establishment. The RFC's initial connection
+credit still applies; the fixture does not assume it starts below 65,535 bytes.
+Received streams decode directly on the reader without a pump or decoded queue.
+A four-message bounded server producer emits a 256 KiB response to a small
+request. Its positive sent-message count must remain unchanged between the
+30 ms and 60 ms pause observations, with the producer unfinished. Resuming reads
+must deliver all 128 exact messages and finish the producer. This independent
+progress observation demonstrates application backpressure; a server lifecycle
+callback alone cannot show whether bytes remain in bounded HTTP/2 buffers.
+Client outbound request-stream queues hold at most one message, a distinct knob.
 
 Each cycle records warmup, slow reader, overload, cancellation, deadline,
 successful recovery probe and drain, following one initial process baseline.
@@ -71,7 +77,7 @@ client/server RSS separately or quantify allocator/socket memory.
 
 The predeclared post-drain tolerances are baseline plus 32 MiB RSS, one file
 descriptor and two Tokio tasks. Calls, accounted bytes and byte-permit tokens
-must return to exactly zero; admitted starts must equal ends and tracker peaks
+must return to exactly zero; observed streaming starts must equal ends and tracker peaks
 must remain below their 256 KiB budgets. These are diagnostic recovery bounds,
 not proposed production budgets. The independent report validator rejects
 missing gauges, incomplete/duplicated/reordered phases, nonfinite limits,
