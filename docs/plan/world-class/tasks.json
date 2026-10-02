@@ -9115,7 +9115,7 @@
     "docs/guides/codegen.md",
     "tests/",
     "src/lib.rs",
-    "docs/evidence/gn-11-sharing.md"
+    "docs/evidence/gn-11-wkt-sharing.md"
    ],
    "deliverable": "Emit each referenced google.protobuf type once per generated crate (or ship a pbrs::wkt module) instead of a private copy per file, and make the documented extern_path escape hatch work.",
    "accept": [
@@ -9955,7 +9955,12 @@
    ],
    "status": "in_progress",
    "implementer": "gn13_cold_client",
-   "notes": " Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure. Default preface pipelining was rejected by preserved-settings/admission/retry behavioral tests; retain the negative investigation and keep the cold/TLS P4 performance acceptance open."
+   "notes": " Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure. Default preface pipelining was rejected by preserved-settings/admission/retry behavioral tests; retain the negative investigation and keep the cold/TLS P4 performance acceptance open.",
+   "evidence": [
+    "docs/evidence/cl-07.md",
+    "docs/evidence/cl-07/pins.json",
+    "pbrs-grpc/tests/cl07_preface.rs"
+   ]
   },
   {
    "id": "QG-08",
