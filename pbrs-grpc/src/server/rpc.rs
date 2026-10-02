@@ -1234,76 +1234,79 @@ impl Rpc {
         let on_reset = cancel_tx.clone();
         let obs_clone = observer.clone();
         let labels_clone = owned_labels.clone();
-        let outcome = wrap_timeout(timeout, async {
-            #[cfg(feature = "grpc-web")]
-            let framed = if web.is_some_and(crate::web::Mode::is_text) {
-                crate::web::read_one_text_message::<Req>(
+        let outcome = {
+            let request_phase = async {
+                #[cfg(feature = "grpc-web")]
+                let framed = if web.is_some_and(crate::web::Mode::is_text) {
+                    crate::web::read_one_text_message::<Req>(
+                        &mut recv,
+                        limits,
+                        config.accepts_compressed(),
+                        request_codec,
+                        binlog.as_ref(),
+                    )
+                    .await?
+                } else {
+                    read_one_message::<Req>(
+                        &mut recv,
+                        limits,
+                        config.accepts_compressed(),
+                        request_codec,
+                        binlog.as_ref(),
+                    )
+                    .await?
+                };
+                #[cfg(not(feature = "grpc-web"))]
+                let framed = read_one_message::<Req>(
                     &mut recv,
                     limits,
                     config.accepts_compressed(),
                     request_codec,
                     binlog.as_ref(),
                 )
-                .await?
-            } else {
-                read_one_message::<Req>(
-                    &mut recv,
-                    limits,
-                    config.accepts_compressed(),
-                    request_codec,
-                    binlog.as_ref(),
+                .await?;
+                if let Some(socket) = channelz_socket {
+                    crate::channelz::Registry::global().note_messages(socket, false, 1);
+                }
+                if let (Some(obs), Some(labels)) = (&obs_clone, &labels_clone) {
+                    obs.on_bytes_received(&labels.as_borrowed(), 0);
+                }
+                let mut req = Request::from_metadata(
+                    framed.message,
+                    metadata,
+                    remote_addr,
+                    local_addr,
+                    peer_identity,
                 )
-                .await?
+                .with_extensions(extensions)
+                .with_http(authority, scheme, path.clone());
+                if let Some(config) = diagnostic_config {
+                    req.set_diagnostic_config(config);
+                }
+                req.set_compressed(framed.compressed);
+                req.set_peer_cred(peer_cred);
+                req.set_limits(limits);
+                req.set_peer_timeout(peer_timeout);
+                req.set_rpc_timeout(rpc_timeout);
+                req.set_accepts_gzip(peer_accepts_gzip);
+                req.set_compresses_outbound(prefer_gzip);
+                req.set_gzip_level(config.gzip_level());
+                req.set_accepts_compressed(config.accepts_compressed());
+                req.set_concurrent_rpc_limit(config.concurrent_rpc_limit());
+                req.set_send_buffer_size(config.send_buffer_size());
+                req.set_encoding(encoding);
+                req.set_cancel(cancel_rx);
+                if let Some(d) = timeout {
+                    req.set_timeout(d);
+                }
+                if let Some(at) = deadline {
+                    req.set_deadline(at);
+                }
+                run_handler(&mut respond, on_reset, handler(req), binlog.as_ref()).await
             };
-            #[cfg(not(feature = "grpc-web"))]
-            let framed = read_one_message::<Req>(
-                &mut recv,
-                limits,
-                config.accepts_compressed(),
-                request_codec,
-                binlog.as_ref(),
-            )
-            .await?;
-            if let Some(socket) = channelz_socket {
-                crate::channelz::Registry::global().note_messages(socket, false, 1);
-            }
-            if let (Some(obs), Some(labels)) = (&obs_clone, &labels_clone) {
-                obs.on_bytes_received(&labels.as_borrowed(), 0);
-            }
-            let mut req = Request::from_metadata(
-                framed.message,
-                metadata,
-                remote_addr,
-                local_addr,
-                peer_identity,
-            )
-            .with_extensions(extensions)
-            .with_http(authority, scheme, path.clone());
-            if let Some(config) = diagnostic_config {
-                req.set_diagnostic_config(config);
-            }
-            req.set_compressed(framed.compressed);
-            req.set_peer_cred(peer_cred);
-            req.set_limits(limits);
-            req.set_peer_timeout(peer_timeout);
-            req.set_rpc_timeout(rpc_timeout);
-            req.set_accepts_gzip(peer_accepts_gzip);
-            req.set_compresses_outbound(prefer_gzip);
-            req.set_gzip_level(config.gzip_level());
-            req.set_accepts_compressed(config.accepts_compressed());
-            req.set_concurrent_rpc_limit(config.concurrent_rpc_limit());
-            req.set_send_buffer_size(config.send_buffer_size());
-            req.set_encoding(encoding);
-            req.set_cancel(cancel_rx);
-            if let Some(d) = timeout {
-                req.set_timeout(d);
-            }
-            if let Some(at) = deadline {
-                req.set_deadline(at);
-            }
-            run_handler(&mut respond, on_reset, handler(req), binlog.as_ref()).await
-        })
-        .await;
+            tokio::pin!(request_phase);
+            wrap_timeout(timeout, request_phase.as_mut()).await
+        };
         notify_deadline(&outcome, &cancel_tx);
         if matches!(&outcome, Err(s) if s.code() == Code::DeadlineExceeded) {
             if let (Some(obs), Some(labels)) = (&observer, &owned_labels) {
@@ -1453,10 +1456,12 @@ impl Rpc {
         let (cancel_tx, cancel_rx) = watch::channel(false);
         let on_reset = cancel_tx.clone();
         req.set_cancel(cancel_rx);
-        let outcome = wrap_timeout(timeout, async {
-            run_handler(&mut respond, on_reset, handler(req), binlog.as_ref()).await
-        })
-        .await;
+        let outcome = {
+            let request_phase =
+                async { run_handler(&mut respond, on_reset, handler(req), binlog.as_ref()).await };
+            tokio::pin!(request_phase);
+            wrap_timeout(timeout, request_phase.as_mut()).await
+        };
         notify_deadline(&outcome, &cancel_tx);
         if matches!(&outcome, Err(s) if s.code() == Code::DeadlineExceeded) {
             if let (Some(obs), Some(labels)) = (&observer, &owned_labels) {
