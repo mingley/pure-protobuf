@@ -10342,12 +10342,13 @@
    ],
    "status": "in_progress",
    "implementer": "server_streaming",
-   "notes": " Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure. Four transport boundary/error/live-producer/cancel tests passed on integrated unchanged production streaming runtime. Experimental closed-producer yield patch remains separate and unqualified until paired original-threshold controls pass. 2026-10-02: five independent streaming regressions and source-pinned current attribution/evidence 4deca0e4 integrated. Matched native prost stream still loses 10.887% instructions and 7.848% heap bytes to tonic, despite lower allocation count. Closed-producer-only yield candidate 0f7fb8fd is rejected: original N200/400x3 screen improves instructions 1.534%, allocations 0.026%, bytes 0.0015%, below unchanged 2% target. Runtime restored exactly to baseline in fc109a11; no rejected runtime change ships. Full archived 51 artifacts/hashes include both experiment patches and raw profiles; allocation-stack/sampled profilers remain not_run. Future-construction copy costs are the next reviewed hypothesis, coordinated with CL-08; parent full acceptance remains open.",
+   "notes": " Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure. Four transport boundary/error/live-producer/cancel tests passed on integrated unchanged production streaming runtime. Experimental closed-producer yield patch remains separate and unqualified until paired original-threshold controls pass. 2026-10-02: five independent streaming regressions and source-pinned current attribution/evidence 4deca0e4 integrated. Matched native prost stream still loses 10.887% instructions and 7.848% heap bytes to tonic, despite lower allocation count. Closed-producer-only yield candidate 0f7fb8fd is rejected: original N200/400x3 screen improves instructions 1.534%, allocations 0.026%, bytes 0.0015%, below unchanged 2% target. Runtime restored exactly to baseline in fc109a11; no rejected runtime change ships. Full archived 51 artifacts/hashes include both experiment patches and raw profiles; allocation-stack/sampled profilers remain not_run. Future-construction copy costs are the next reviewed hypothesis, coordinated with CL-08; parent full acceptance remains open. Inline-writer source1ea1d3a0 is rejected and reverted: primaryIR−0.362%, allocations−1.754% miss the unchanged≥2% target despite exactly3096B fewer bytes. Four cancellation/drop-order regressions plus narrowed fixture lint corrections remain; strictlib/all-testsClippy and4+5scoped regressions pass atb6c2c69f. Coordinator verifies33 primary-proof and7 restored-lint archive members. Runtime boxed helper is unchanged. New safe allocation-before-construction diagnostic is separate and unqualified.",
    "evidence": [
     "pbrs-grpc/tests/sv09_streaming.rs",
     "docs/evidence/current-improvements/integration.json",
     "docs/evidence/sv-09.md",
-    "docs/evidence/sv-09/manifest.json"
+    "docs/evidence/sv-09/manifest.json",
+    "docs/evidence/sv-09-inline-writer.md"
    ],
    "reviewer": "coordinator"
   },
@@ -10399,10 +10400,12 @@
    ],
    "status": "in_progress",
    "implementer": "gn13_prost_encoding",
-   "notes": "Claimed 2026-10-02 for a bounded safe prost contiguous-buffer encoding experiment. Exclusive initial scope is codec.rs, codec/prost.rs, wire/encode.rs and dedicated tests/evidence; client/server and benchmark mutations require coordination with SV-09/SB-21. Hypothesis and additive default-method API are reviewed before editing. All prost ledger cells, unchanged control thresholds, limits, compression, shared native segments and batch rollback must remain qualified before shipping or closure. 2026-10-02 candidate2321d736 is rejected and reverted at9f3205cf: full original20-row comparator exits1 despite primary IR/alloc/byte gains; syscall/futex controls regress. All122 eligible native ledger rows reduce allocation count/bytes, but58 still exceed tonic bytes at both Ns, and12 map rows remain blocked. Coordinator verifies59 artifact hashes,240 original children/metrics and2928 unique allocator children. No candidate runtime/API ships. Independent cold-handshake future-size experiment is unqualified pending release/cold/TLS/ledger measurements.",
+   "notes": "Claimed 2026-10-02 for a bounded safe prost contiguous-buffer encoding experiment. Exclusive initial scope is codec.rs, codec/prost.rs, wire/encode.rs and dedicated tests/evidence; client/server and benchmark mutations require coordination with SV-09/SB-21. Hypothesis and additive default-method API are reviewed before editing. All prost ledger cells, unchanged control thresholds, limits, compression, shared native segments and batch rollback must remain qualified before shipping or closure. 2026-10-02 candidate2321d736 is rejected and reverted at9f3205cf: full original20-row comparator exits1 despite primary IR/alloc/byte gains; syscall/futex controls regress. All122 eligible native ledger rows reduce allocation count/bytes, but58 still exceed tonic bytes at both Ns, and12 map rows remain blocked. Coordinator verifies59 artifact hashes,240 original children/metrics and2928 unique allocator children. No candidate runtime/API ships. Independent cold-handshake future-size experiment is unqualified pending release/cold/TLS/ledger measurements. Cold-handshake source6a4d0620 remains unqualified and is reverted inmain at5ae2f1a4. PrimaryIR−7.136%/bytes−9.005% with unchanged count are diagnostic; original futex+3.410% comparator exits1. Both unchanged binaries also drift >1% in whole-process syscall/futex counts. Coordinator verifies45 artifact hashes and36 rawCG children/IR/alloc medians.18 separate strace summaries were not retained by the frozen wrapper; rawsyscall provenance is incomplete. Existing20 helper also ignores passedprepare/warmup values and uses defaultworkers. No thresholds/defaults/fixtures changed and no full20/ledger/coldTLS qualification claimed.",
    "evidence": [
     "docs/evidence/cl-08.md",
-    "docs/evidence/cl-08/qualification.json"
+    "docs/evidence/cl-08/qualification.json",
+    "docs/evidence/cl-08-cold-stage-1.md",
+    "docs/evidence/cl-08-cold-stage-1/collector-scope-audit.md"
    ]
   },
   {
@@ -12194,6 +12197,48 @@
     "SB-32"
    ],
    "notes": "Scope reviewed before editing. Existing TC30a unsupported-policy fixture moves only the two now-supported identity cap cases into meaningful cap tests; all other rejection assertions remain. Native finite-budget ownership and opaque codec inflation/recompression require separately qualified work."
+  },
+  {
+   "id": "CL-07a",
+   "title": "Resolve expired HTTP/2 stream admission reaching business dispatch",
+   "lane": "CL",
+   "milestone": "M2",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "status": "in_progress",
+   "implementer": "gn13_deadline_admission",
+   "depends_on": [],
+   "read": [
+    "pbrs-grpc/src/client/call.rs",
+    "pbrs-grpc/src/client/pool.rs",
+    "pbrs-grpc/src/transport/h2.rs",
+    "pbrs-grpc/tests/retry_safety.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/client/",
+    "pbrs-grpc/src/transport/",
+    "pbrs-grpc/tests/retry_safety.rs",
+    "docs/evidence/deadline-admission.md"
+   ],
+   "deliverable": "Investigate and fix the integrated failing deadline/stream-cap admission regression with deterministic source evidence before any production mutation.",
+   "accept": [
+    "Retain first failing all-features source/log/ELF pins; explain whether SETTINGS negotiation, pending H2 stream reservation or deadline cancellation permits business dispatch.",
+    "A passing rerun or relaxed timing tolerance cannot close the issue. Add a deterministic meaningful regression and preserve deadline/cancellation/slot semantics under allfour shapes.",
+    "Source change stays bounded/reviewed with no dependency/default/wire-policy change; relevant strict/native/TLS/lifecycle gates pass."
+   ],
+   "checks": [
+    "native-rpc",
+    "clippy"
+   ],
+   "scoreboard": [
+    "C2"
+   ],
+   "relates": [
+    "CL-07",
+    "TC-29"
+   ],
+   "notes": "First source de0bcdf2 integrated all-features run fails retry_safety scenario_d_deadline_expires_waiting_for_slot_returns_deadline_exceeded: call2_executions1 instead of0 after50ms deadline, while sole stream is occupied. Source unchanged from prior scoped passing gates; retain failure and investigate rather than hide host contention."
   }
  ],
  "last_audit": {
