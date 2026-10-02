@@ -1,0 +1,40 @@
+{
+  "schema": "cl08-cold-stage1-qualification/1",
+  "source_before": "ea3089b69fc20d64048973bc5f787dda1d266988",
+  "source_after": "6a4d06200ade81eb4831db6cecf6f05d539cc5c8",
+  "shipping_runtime_base": "cf3eee22c6b06324e299f81b76915651471d8025",
+  "source_delta": "single default cold-dial Box::pin handshake await",
+  "layout": {
+    "acquire_before": 8032,
+    "acquire_after": 2344,
+    "grab_in_before": 8504,
+    "grab_in_after": 2816,
+    "handshake": 7784,
+    "public_call_wrapper": 32,
+    "actual_boxed_rpc_body": "not_measured",
+    "profile": "unoptimized test"
+  },
+  "semantic_tests": {
+    "passed": 507,
+    "failed": 0,
+    "ignored": 0
+  },
+  "clippy": {
+    "state": "passed_after_infrastructure_retry",
+    "first_attempt": "failed_OS28_before_compilation",
+    "threshold_or_source_waiver": false
+  },
+  "format": "passed",
+  "release_instructions": "not_run",
+  "release_allocation_counts_bytes": "not_run",
+  "cold_tls_performance": "not_run",
+  "comparative_wall": "not_run",
+  "integration": "not_qualified",
+  "optional_lb_boxing": "not_implemented",
+  "parent_state": "open",
+  "artifact_budget": {
+    "limit": 2147483648,
+    "after_semantics": 1647121855,
+    "after_strict": 1614049333
+  }
+}

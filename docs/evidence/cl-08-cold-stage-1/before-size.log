@@ -1,0 +1,85 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.24
+   Compiling libc v0.2.189
+   Compiling syn v3.0.3
+   Compiling bytes v1.12.1
+   Compiling pin-project-lite v0.2.17
+   Compiling cfg-if v1.0.4
+   Compiling futures-core v0.3.34
+   Compiling getrandom v0.3.4
+   Compiling zeroize v1.9.0
+   Compiling serde_core v1.0.229
+   Compiling rustls-pki-types v1.15.1
+   Compiling tokio-macros v2.7.2
+   Compiling socket2 v0.6.5
+   Compiling mio v1.2.2
+   Compiling zmij v1.0.23
+   Compiling itoa v1.0.18
+   Compiling once_cell v1.21.4
+   Compiling futures-sink v0.3.34
+   Compiling zerocopy v0.8.57
+   Compiling tokio v1.53.1
+   Compiling serde_json v1.0.151
+   Compiling paste v1.0.15
+   Compiling serde v1.0.229
+   Compiling thiserror v2.0.21
+   Compiling anyhow v1.0.104
+   Compiling untrusted v0.9.0
+   Compiling rustls v0.23.45
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/cl08-cold)
+   Compiling slab v0.4.12
+   Compiling memchr v2.8.3
+   Compiling rustls-webpki v0.103.15
+   Compiling ppv-lite86 v0.2.21
+   Compiling rand_core v0.9.5
+   Compiling thiserror-impl v2.0.21
+   Compiling futures-macro v0.3.34
+   Compiling simdutf8 v0.1.5
+   Compiling either v1.18.0
+   Compiling crc32fast v1.5.1
+   Compiling futures-task v0.3.34
+   Compiling subtle v2.6.1
+   Compiling futures-util v0.3.34
+   Compiling itertools v0.14.0
+   Compiling rand_chacha v0.9.0
+   Compiling tracing-core v0.1.36
+   Compiling syn v2.0.119
+   Compiling simd-adler32 v0.3.10
+   Compiling adler2 v2.0.1
+   Compiling hashbrown v0.17.1
+   Compiling equivalent v1.0.2
+   Compiling indexmap v2.14.0
+   Compiling miniz_oxide v0.9.1
+   Compiling prost-derive v0.14.4
+   Compiling tracing v0.1.44
+   Compiling rand v0.9.5
+   Compiling opentelemetry v0.31.0
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/cl08-cold/pbrs-grpc)
+   Compiling futures-executor v0.3.34
+   Compiling tokio-util v0.7.19
+   Compiling tokio-stream v0.1.19
+   Compiling http v1.5.0
+   Compiling graviola v0.2.1
+   Compiling futures-channel v0.3.34
+   Compiling fnv v1.0.7
+   Compiling atomic-waker v1.1.2
+   Compiling percent-encoding v2.3.2
+   Compiling opentelemetry_sdk v0.31.0
+   Compiling h2 v0.4.19
+   Compiling rustls-graviola v0.2.1
+   Compiling flate2 v1.1.10
+   Compiling prost v0.14.4
+   Compiling tokio-rustls v0.26.4
+   Compiling webpki-roots v1.0.9
+   Compiling rustls-pemfile v2.2.0
+   Compiling base64 v0.22.1
+    Finished `test` profile [unoptimized] target(s) in 1m 47s
+     Running unittests src/lib.rs (/workspace/scratch/work/cl07/target/debug/deps/pbrs_grpc-b57bdcacb2bbd833)
+
+running 1 test
+CL08_FUTURE_SIZES {"acquire_bytes":8032,"grab_in_bytes":8504,"handshake_bytes":7784,"public_call_wrapper_bytes":32,"boxed_rpc_body_bytes":null,"polled":false}
+test client::pool::cl08_future_sizes::report_unpolled_future_sizes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 438 filtered out; finished in 0.00s
+

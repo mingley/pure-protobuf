@@ -1,0 +1,65 @@
+{
+  "schema": "cl08-cold-artifacts/1",
+  "files": [
+    {
+      "path": "docs/evidence/cl-08-cold-stage-1.md",
+      "bytes": 5414,
+      "sha256": "40859077832c1633b52eef4c21afbbf2908d43a1215d58e57ede71897778c65a"
+    },
+    {
+      "path": "docs/evidence/cl-08-cold-stage-1/after-size.log",
+      "bytes": 664,
+      "sha256": "4eda92fc40fc10cf02b6c0870935f073d5302ecd1683694e86a2403adfb7a205"
+    },
+    {
+      "path": "docs/evidence/cl-08-cold-stage-1/before-size.log",
+      "bytes": 2941,
+      "sha256": "b25d5cf0b6c8ccd536707aa6474e9f21d99dcf02891538f6e1987934ddf2d00e"
+    },
+    {
+      "path": "docs/evidence/cl-08-cold-stage-1/cl08-cold-clippy-first-os28.log",
+      "bytes": 170,
+      "sha256": "c8d30a707e4979fe87c47e806c257c8612729c5a847955acc11df859c972a339"
+    },
+    {
+      "path": "docs/evidence/cl-08-cold-stage-1/cl08-cold-clippy.log",
+      "bytes": 2084,
+      "sha256": "52c1e774f678bdbf9ca1f673aff9f7efedf37cb188f5e1cd3741fceaa5d41a9b"
+    },
+    {
+      "path": "docs/evidence/cl-08-cold-stage-1/cl08-cold-format.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/evidence/cl-08-cold-stage-1/cl08-cold-pruned-completed-debug.json",
+      "bytes": 1967,
+      "sha256": "168832ee0b09be70a14ceed5c675ceb5f220f6425abaedb954623b61ff223267"
+    },
+    {
+      "path": "docs/evidence/cl-08-cold-stage-1/cl08-cold-semantic-gates.log",
+      "bytes": 34606,
+      "sha256": "d205bad14dc7c3f89da059ac753800538dd5cd5152eafe013194b0e0c4731c86"
+    },
+    {
+      "path": "docs/evidence/cl-08-cold-stage-1/cold-box.patch",
+      "bytes": 660,
+      "sha256": "1525ca466c4bebe94edcd1b79728ebb156a15f70f74115fd569d0681f3e6c733"
+    },
+    {
+      "path": "docs/evidence/cl-08-cold-stage-1/probe.patch",
+      "bytes": 1721,
+      "sha256": "ae37219f7f5976c6f68ebef47fc75c1878c70b40217c6106dd06013f767846b4"
+    },
+    {
+      "path": "docs/evidence/cl-08-cold-stage-1/qualification.json",
+      "bytes": 1223,
+      "sha256": "e4b8d1536b43e4336dbed4bd3ac1b82f3a4f0ef0ae83dd9219b5718c0fb5d9a3"
+    },
+    {
+      "path": "docs/evidence/cl-08-cold-stage-1/size-report.json",
+      "bytes": 1437,
+      "sha256": "b73cf5980a5d0620cad9673a65fbbea26800d8eb727fd93a8ffc178a82b711e0"
+    }
+  ]
+}

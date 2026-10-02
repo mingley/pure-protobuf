@@ -1,0 +1,62 @@
+{
+  "reason": "507 semantic tests finished; OS28 host pressure; remove only owned completed debug executables",
+  "files": [
+    {
+      "path": "/workspace/scratch/work/cl07/target/debug/deps/pbrs_grpc_http2_client-d0d9c25f0a8e58ff",
+      "bytes": 16406312
+    },
+    {
+      "path": "/workspace/scratch/work/cl07/target/debug/deps/pbrs_grpc_interop_server-95ae342a2325e4c3",
+      "bytes": 15169504
+    },
+    {
+      "path": "/workspace/scratch/work/cl07/target/debug/deps/lifecycle-68916b032714aa4f",
+      "bytes": 31552488
+    },
+    {
+      "path": "/workspace/scratch/work/cl07/target/debug/deps/pbrs_grpc_hello-d2b1cf69851901ac",
+      "bytes": 19804840
+    },
+    {
+      "path": "/workspace/scratch/work/cl07/target/debug/deps/cl07_preface-7e43efbb6a7ac930",
+      "bytes": 17989432
+    },
+    {
+      "path": "/workspace/scratch/work/cl07/target/debug/deps/pbrs_grpc-b57bdcacb2bbd833",
+      "bytes": 37472640
+    },
+    {
+      "path": "/workspace/scratch/work/cl07/target/debug/deps/pbrs_grpc_interop_client-3f48f0240771a30b",
+      "bytes": 21466272
+    },
+    {
+      "path": "/workspace/scratch/work/cl07/target/debug/deps/retry_safety-128a626cda657d34",
+      "bytes": 27958872
+    },
+    {
+      "path": "/workspace/scratch/work/cl07/target/debug/deps/regress_timeout-165591bfeac89a62",
+      "bytes": 2842888
+    },
+    {
+      "path": "/workspace/scratch/work/cl07/target/debug/deps/tls-8146e326a13fb827",
+      "bytes": 28964488
+    },
+    {
+      "path": "/workspace/scratch/work/cl07/target/debug/pbrs-grpc-hello",
+      "bytes": 19804840
+    },
+    {
+      "path": "/workspace/scratch/work/cl07/target/debug/pbrs-grpc-interop-client",
+      "bytes": 21466272
+    },
+    {
+      "path": "/workspace/scratch/work/cl07/target/debug/pbrs-grpc-http2-client",
+      "bytes": 16406312
+    },
+    {
+      "path": "/workspace/scratch/work/cl07/target/debug/pbrs-grpc-interop-server",
+      "bytes": 15169504
+    }
+  ],
+  "bytes_removed": 292474664
+}

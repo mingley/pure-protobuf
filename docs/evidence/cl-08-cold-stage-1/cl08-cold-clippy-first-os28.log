@@ -1,0 +1,4 @@
+error: failed to create directory `/workspace/scratch/work/cl07/target/debug/.fingerprint/pbrs-grpc-c087f17b4f809ce5`
+
+Caused by:
+  No space left on device (os error 28)
