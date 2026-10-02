@@ -1,0 +1,17 @@
+Upstream Linux v6.12, adc218676eef25575469234709c2d87185ca223a
+kernel/sched/core.c
+
+9931: #ifdef CONFIG_CFS_BANDWIDTH
+9932: 	{
+9933: 		.name = "max",
+9934: 		.flags = CFTYPE_NOT_ON_ROOT,
+9935: 		.seq_show = cpu_max_show,
+9936: 		.write = cpu_max_write,
+9937: 	},
+9938: 	{
+9939: 		.name = "max.burst",
+9940: 		.flags = CFTYPE_NOT_ON_ROOT,
+9941: 		.read_u64 = cpu_cfs_burst_read_u64,
+9942: 		.write_u64 = cpu_cfs_burst_write_u64,
+9943: 	},
+

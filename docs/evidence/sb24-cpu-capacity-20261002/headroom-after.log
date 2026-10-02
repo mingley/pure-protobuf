@@ -1,0 +1,6 @@
+..........................ss............
+----------------------------------------------------------------------
+Ran 40 tests in 0.009s
+
+OK (skipped=2)
+[STACK-MATRIX] claim preflight blocked: this runner uses loopback; effective peer settings, dedicated host topology, generator/reference headroom and aligned endpoint measurement windows are not independently verified. Use diagnostic mode to collect wiring evidence; no defaults or scripted settings certify equality.

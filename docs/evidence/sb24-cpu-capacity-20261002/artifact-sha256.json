@@ -1,0 +1,16 @@
+{
+  "capacity-after.log": "01dc82a7a924a2939db90c5ce990961cb7311851be6c99fa4033152ab00c07b2",
+  "capacity-before.log": "7a9a70895fa807d2fac5f0af8a5b3cc032047c6378ac583ed3295bfc0f7ed132",
+  "conn-self-test.log": "7a4838d465cbb402336f63cca2d36c3d4b59335c3a8a80886103161dea2c85f6",
+  "extended-self-test.log": "9eccedcd36c51db5e15bc89db59e359c1fff4e4cc1b6880e82b98cf82004f7e3",
+  "headroom-after.log": "82569a904ad0364a4177e987b6b472c9f6347a8ab07e4b24ab69727ba607bc8e",
+  "headroom-before.log": "665abd8ca5d87df1c9f4c8483d33196a4b6fe10cb1711d6b9f6f8a049caf128e",
+  "host-capacity-fixture.py": "bbac8677ff93965faaa9bab406bab77fa2ed85d587ea4c34ba7121f6059c3f67",
+  "linux-source-pins.json": "2cf7683643bc5d2b067c4415723671935149491372b7b4c06a5b9ba9752aecb1",
+  "linux-v6.12-cgroup-v1.c.excerpts.txt": "12fed1294766f00dcc4d7fa1d9e97c83120b3c1c1ee4627fb857a0bf75833f63",
+  "linux-v6.12-cgroup-v2.rst.excerpts.txt": "c984ce4e7dec5e1897e9a13d84f98d452635c06a716242a8c8adb1773246adf9",
+  "linux-v6.12-cgroup.c.excerpts.txt": "70017bfc27bab1432b43f60b1234f9634dbcac02599bad44d5c38053234c371f",
+  "linux-v6.12-ref.txt": "dc324e48642d6208e209f3c86b300f3a5f8bedfa71b55f932eb5acca4535bf54",
+  "linux-v6.12-sched-core.c.excerpts.txt": "b68964606f4f48c639fa7bd6321f73abfaed4587259c30bd44344a0449dbaf30",
+  "real-host-failclosed.json": "5473f5999954c78afcc8cafb83b69a74c6e23a9055b940424c7e132089e66c29"
+}

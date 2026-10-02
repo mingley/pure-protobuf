@@ -131,3 +131,12 @@ as independent evidence, not assigned to a load session. The smoke waits for the
 probe observation to settle before recording each load's log offsets. Every native
 endpoint must emit exactly one observed handshake for each single-connection load.
 No native cipher-policy API was changed. These differences remain a claim blocker.
+
+## CPU capacity follow-up
+
+The [2026-10-02 capacity correction](sb24-cpu-capacity-20261002.md) replaces the
+observed-thread denominator with enforced affinity and genuine-root quota proof.
+It retains the original invalid stack rows, source-informed root/namespace
+fixtures and real-host fail-closed output. This host's ambiguous cgroup root
+cannot certify capacity; low observed CPU alone does not establish headroom.
+Required peer coverage, effective settings and campaign qualification remain open.

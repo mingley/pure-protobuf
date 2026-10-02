@@ -1,0 +1,16 @@
+Upstream Linux v6.12, adc218676eef25575469234709c2d87185ca223a
+kernel/cgroup/cgroup-v1.c
+
+643: 	{
+644: 		.name = "cgroup.sane_behavior",
+645: 		.flags = CFTYPE_ONLY_ON_ROOT,
+646: 		.seq_show = cgroup_sane_behavior_show,
+647: 	},
+
+662: 	{
+663: 		.name = "release_agent",
+664: 		.flags = CFTYPE_ONLY_ON_ROOT,
+665: 		.seq_show = cgroup_release_agent_show,
+666: 		.write = cgroup_release_agent_write,
+667: 		.max_write_len = PATH_MAX - 1,
+

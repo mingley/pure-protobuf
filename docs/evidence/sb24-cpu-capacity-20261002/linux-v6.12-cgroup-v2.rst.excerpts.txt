@@ -1,0 +1,43 @@
+Upstream Linux v6.12, adc218676eef25575469234709c2d87185ca223a
+Documentation/admin-guide/cgroup-v2.rst
+
+414: Each non-root cgroup has a "cgroup.events" file which contains
+415: "populated" field indicating whether the cgroup's sub-hierarchy has
+416: live processes in it.  Its value is 0 if there is no live process in
+417: the cgroup and its descendants; otherwise, 1.  poll and [id]notify
+418: events are triggered when the value changes.  This can be used, for
+419: example, to start a clean-up operation after all processes of a given
+420: sub-hierarchy have exited.  The populated state updates and
+
+2839: The Root and Views
+2840: ------------------
+2841: 
+2842: The 'cgroupns root' for a cgroup namespace is the cgroup in which the
+2843: process calling unshare(2) is running.  For example, if a process in
+2844: /batchjobs/container_id1 cgroup calls unshare, cgroup
+2845: /batchjobs/container_id1 becomes the cgroupns root.  For the
+2846: init_cgroup_ns, this is the real root ('/') cgroup.
+2847: 
+2848: The cgroupns root cgroup does not change even if the namespace creator
+2849: process later moves to a different cgroup::
+2850: 
+2851:   # ~/unshare -c # unshare cgroupns in some cgroup
+2852:   # cat /proc/self/cgroup
+2853:   0::/
+2854:   # mkdir sub_cgrp_1
+2855:   # echo 0 > sub_cgrp_1/cgroup.procs
+2856:   # cat /proc/self/cgroup
+2857:   0::/sub_cgrp_1
+
+2922: running inside a non-init cgroup namespace::
+2923: 
+2924:   # mount -t cgroup2 none $MOUNT_POINT
+2925: 
+2926: This will mount the unified cgroup hierarchy with cgroupns root as the
+2927: filesystem root.  The process needs CAP_SYS_ADMIN against its user and
+2928: mount namespaces.
+2929: 
+2930: The virtualization of /proc/self/cgroup file combined with restricting
+2931: the view of cgroup hierarchy by namespace-private cgroupfs mount
+2932: provides a properly isolated cgroup view inside the container.
+
