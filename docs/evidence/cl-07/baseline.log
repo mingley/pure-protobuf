@@ -1,0 +1,19 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/cl07)
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/cl07/pbrs-grpc)
+    Finished `test` profile [unoptimized] target(s) in 45.83s
+     Running tests/cl07_preface.rs (target/debug/deps/cl07_preface-891694739de905b0)
+
+running 10 tests
+test cancelling_eager_handshake_drops_transport ... ok
+test eager_connect_waits_for_settings_and_positive_stream_cap ... ok
+test h2_api_can_pipeline_headers_before_peer_settings ... ok
+test lazy_channel_does_not_dial_until_polled_rpc_and_cancel_closes_handshake ... ok
+test lazy_first_rpc_deadline_bounds_settings_wait ... ok
+test lazy_first_rpc_waits_for_peer_settings_zero_then_one ... ok
+test peer_stream_cap_one_serializes_first_two_requests ... ok
+test silent_peer_connect_timeout_drops_transport ... ok
+test wait_for_ready_deadline_bounds_settings_wait ... ok
+test wait_for_ready_retries_closed_handshake_before_opening_first_stream ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+
