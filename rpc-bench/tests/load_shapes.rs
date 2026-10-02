@@ -29,7 +29,7 @@ fn run_load(args: &[&str]) -> (i32, String) {
                     text.push_str(&String::from_utf8_lossy(&out.stderr));
                     panic!("load {args:?} hung past 60s: {text}");
                 }
-                std::thread::sleep(Duration::from_millis(50));
+                std::thread::park_timeout(Duration::from_millis(50));
             }
         }
     }
@@ -174,10 +174,10 @@ fn read_ready_port(child: &mut std::process::Child) -> u16 {
             Ok(_) => {
                 if let Some(rest) = line.strip_prefix("READY ") {
                     for kv in rest.split_whitespace() {
-                        if let Some(value) = kv.strip_prefix("port=") {
-                            if let Ok(port) = value.parse::<u16>() {
-                                return port;
-                            }
+                        if let Some(value) = kv.strip_prefix("port=")
+                            && let Ok(port) = value.parse::<u16>()
+                        {
+                            return port;
                         }
                     }
                 }
