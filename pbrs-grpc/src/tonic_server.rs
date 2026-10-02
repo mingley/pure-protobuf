@@ -23,8 +23,14 @@
 //!
 //! Tonic owns opaque message framing, codecs, its default 4 MiB decoding cap,
 //! outbound message limits and opt-in compression. Configure those on the
-//! generated tonic server. Native custom message limits/compression settings,
-//! finite byte budgets, response hooks, binary logging, lifecycle observers
+//! generated tonic server. Explicit native message-cap overrides additionally
+//! restrict identity-coded messages without protobuf decoding or DATA copies.
+//! Each direction retains the default forwarding path unless its cap changes;
+//! a native cap cannot enlarge tonic's own configured cap. Configured inbound
+//! caps reject nonidentity encoding before readiness; configured outbound caps
+//! reject nonidentity response encoding after the handler, before headers.
+//! Compressed opaque messages need a separate inflate guard. Native compression
+//! settings, finite byte budgets, response hooks, binary logging, lifecycle observers
 //! and grpc-web cannot currently apply to these bodies: they fail with
 //! `FAILED_PRECONDITION` before Tower readiness or business dispatch. This
 //! includes a native send-buffer setting that implicitly enables a finite
@@ -48,6 +54,8 @@ use tokio::time::Instant;
 use tonic::body::Body as TonicBody;
 use tonic::server::NamedService;
 use tower::Service as TowerService;
+
+mod opaque;
 
 /// A tonic-generated named service mounted in the native gRPC kernel.
 #[derive(Debug)]
@@ -123,6 +131,12 @@ where
     const NAME: &'static str = N::NAME;
 
     async fn call(&self, rpc: Rpc) {
+        if rpc.limits() != ServerConfig::default().limits() {
+            // Keep the framing state and cap-body boxes out of the default
+            // path. The cold future owns them only for explicit overrides.
+            Box::pin(call_identity_capped(self, rpc)).await;
+            return;
+        }
         if let Some(policy) = unsupported_policy(&rpc) {
             rpc.reject(Status::failed_precondition(format!(
                 "tonic server transport cannot apply native {policy}; configure opaque-body policies on the tonic service"
@@ -212,9 +226,6 @@ where
 
 fn unsupported_policy(rpc: &Rpc) -> Option<&'static str> {
     let defaults = ServerConfig::default();
-    if rpc.limits() != defaults.limits() {
-        return Some("message limits");
-    }
     if rpc.config.accepts_compressed() != defaults.accepts_compressed()
         || rpc.config.compresses_outbound() != defaults.compresses_outbound()
         || rpc.config.gzip_level() != defaults.gzip_level()
@@ -240,6 +251,141 @@ fn unsupported_policy(rpc: &Rpc) -> Option<&'static str> {
         return Some("grpc-web");
     }
     None
+}
+
+async fn call_identity_capped<N, S, B>(server: &TonicServer<N, S>, rpc: Rpc)
+where
+    N: NamedService + 'static,
+    S: TowerService<http::Request<TonicBody>, Response = http::Response<B>>
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+    S::Future: Send,
+    S::Error: Into<tonic::codegen::StdError>,
+    B: Body<Data = Bytes> + Send,
+    B::Error: Into<tonic::codegen::StdError>,
+{
+    if let Some(policy) = unsupported_policy(&rpc) {
+        rpc.reject(Status::failed_precondition(format!(
+            "tonic server transport cannot apply native {policy}; configure opaque-body policies on the tonic service"
+        )));
+        return;
+    }
+    let limits = rpc.limits();
+    let defaults = ServerConfig::default().limits();
+    let cap_input = limits.max_decoding() != defaults.max_decoding();
+    let cap_output = limits.max_encoding() != defaults.max_encoding();
+    if cap_input && crate::wire::grpc_encoding(rpc.request.headers()).is_some() {
+        rpc.reject(opaque::compressed_policy());
+        return;
+    }
+    let deadline = rpc.deadline();
+    let mut accounting = Accounting::new(rpc.channelz_server, rpc.channelz_socket);
+    let Rpc {
+        request,
+        mut respond,
+        config,
+        metadata,
+        extensions,
+        ..
+    } = rpc;
+    let (mut parts, recv) = request.into_parts();
+    let original = Metadata::from_headers(&parts.headers);
+    for name in original.keys() {
+        parts.headers.remove(name);
+    }
+    if let Err(status) = metadata.write_to(&mut parts.headers) {
+        crate::wire::send_trailers_only(&mut respond, status, &Metadata::new());
+        return;
+    }
+    parts.extensions.extend(extensions);
+    let (cancel, cancelled) = watch::channel(false);
+    let incoming = IncomingBody::new(recv, cancelled);
+    let body = if cap_input {
+        TonicBody::new(opaque::CappedBody::new(
+            incoming,
+            limits,
+            opaque::Direction::Decode,
+        ))
+    } else {
+        TonicBody::new(incoming)
+    };
+    let request = http::Request::from_parts(parts, body);
+    let mut service = server.inner.clone();
+    hold_cancel(CancelOnDrop(cancel.clone()), async {
+        let handler = async {
+            poll_fn(|cx| service.poll_ready(cx))
+                .await
+                .map_err(service_error)?;
+            service.call(request).await.map_err(service_error)
+        };
+        let outcome = tokio::select! {
+            biased;
+            () = wait_deadline(deadline) => {
+                cancel.send(true).ok();
+                Err(Status::deadline_exceeded())
+            }
+            result = run_handler(&mut respond, cancel.clone(), handler, None) => result,
+        };
+        let response = match outcome {
+            Ok(response) => response,
+            Err(status) => {
+                crate::wire::send_trailers_only(&mut respond, status, &Metadata::new());
+                return;
+            }
+        };
+        // Unlike request encoding, the response encoding is only observable
+        // after business dispatch. Reject before emitting response headers.
+        if cap_output && crate::wire::grpc_encoding(response.headers()).is_some() {
+            crate::wire::send_trailers_only(
+                &mut respond,
+                opaque::compressed_policy(),
+                &Metadata::new(),
+            );
+            return;
+        }
+        let (parts, body) = response.into_parts();
+        let end = body.is_end_stream();
+        let header_ok = end && successful_status(&parts.headers);
+        let Ok(mut send) = respond.send_response(http::Response::from_parts(parts, ()), end) else {
+            return;
+        };
+        if end {
+            accounting.ok = header_ok;
+            return;
+        }
+        let writer = async {
+            if cap_output {
+                drain_response(
+                    &mut send,
+                    opaque::CappedBody::new(body, limits, opaque::Direction::Encode),
+                    config.send_buffer_size(),
+                )
+                .await
+            } else {
+                drain_response(&mut send, body, config.send_buffer_size()).await
+            }
+        };
+        let result = tokio::select! {
+            biased;
+            () = wait_deadline(deadline) => {
+                cancel.send(true).ok();
+                Err(Status::deadline_exceeded())
+            }
+            result = writer => result,
+        };
+        match result {
+            Ok(ok) => accounting.ok = ok,
+            Err(status) => {
+                cancel.send(true).ok();
+                if let Ok(trailers) = crate::wire::grpc_trailers(&status) {
+                    send.send_trailers(trailers).ok();
+                }
+            }
+        }
+    })
+    .await;
 }
 
 fn service_error<E: Into<tonic::codegen::StdError>>(error: E) -> Status {

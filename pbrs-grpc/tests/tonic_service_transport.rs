@@ -324,8 +324,6 @@ async fn ordinary_tower_layer_retains_generated_service_routing_name() {
 async fn opaque_native_policies_fail_before_tower_readiness_and_dispatch() {
     let defaults = ServerConfig::default();
     let variants = [
-        defaults.max_decoding_message_size(8),
-        defaults.max_encoding_message_size(8),
         defaults.accept_compressed(false),
         defaults.send_compressed(true),
         defaults.gzip_compression_level(8),

@@ -473,14 +473,29 @@ where
     T: Service<http::Request<Body>, Response = http::Response<Body>>,
     T::Error: Into<tonic::codegen::StdError>,
 {
-    let mut client = routeguide::route_guide_client::RouteGuideClient::new(transport)
-        .send_compressed(tonic::codec::CompressionEncoding::Gzip)
-        .accept_compressed(tonic::codec::CompressionEncoding::Gzip);
+    all_shapes_codec(transport, true).await
+}
+
+async fn all_shapes_codec<T>(transport: T, gzip: bool) -> Result<(), BoxError>
+where
+    T: Service<http::Request<Body>, Response = http::Response<Body>>,
+    T::Error: Into<tonic::codegen::StdError>,
+{
+    let mut client = routeguide::route_guide_client::RouteGuideClient::new(transport);
+    if gzip {
+        client = client
+            .send_compressed(tonic::codec::CompressionEncoding::Gzip)
+            .accept_compressed(tonic::codec::CompressionEncoding::Gzip);
+    }
     let response = client.get_feature(authorized(point(10))).await?;
-    assert_eq!(
-        response.metadata().get("grpc-encoding").expect("gzip"),
-        "gzip"
-    );
+    if gzip {
+        assert_eq!(
+            response.metadata().get("grpc-encoding").expect("gzip"),
+            "gzip"
+        );
+    } else {
+        assert!(response.metadata().get("grpc-encoding").is_none());
+    }
     assert_eq!(
         response.metadata().get("x-initial").expect("metadata"),
         "preserved"
@@ -529,6 +544,117 @@ where
     assert_eq!(chat.message().await?.expect("first"), note("one"));
     assert_eq!(chat.message().await?.expect("second"), note("two"));
     assert!(chat.message().await?.is_none());
+    Ok(())
+}
+
+#[tokio::test]
+async fn native_identity_caps_qualify_all_shapes_plaintext_and_mtls() -> Result<(), BoxError> {
+    let config = ServerConfig::default()
+        .max_decoding_message_size(8192)
+        .max_encoding_message_size(8192);
+    let (addr, state, _server) = server(config, Some((16_384, 16_384)), false).await?;
+    all_shapes_codec(
+        tonic::transport::Endpoint::from_shared(format!("http://{addr}"))?
+            .connect()
+            .await?,
+        false,
+    )
+    .await?;
+    all_shapes_codec(Channel::connect(addr).await?, false).await?;
+    assert_eq!(state.calls.load(Ordering::SeqCst), 8);
+
+    let (addr, state, _server) = server(config, Some((16_384, 16_384)), true).await?;
+    let tls = ClientTls::ca_mtls(
+        "localhost",
+        CA,
+        Identity::from_pem(CLIENT_CERT, CLIENT_KEY)?,
+    )?;
+    all_shapes_codec(Channel::connect_tls(addr, tls).await?, false).await?;
+    assert_eq!(state.calls.load(Ordering::SeqCst), 4);
+    assert_eq!(state.tls.load(Ordering::SeqCst), 4);
+    Ok(())
+}
+
+#[tokio::test]
+async fn native_identity_caps_reject_inbound_and_outbound_for_all_shapes() -> Result<(), BoxError> {
+    for inbound in [true, false] {
+        let config = if inbound {
+            ServerConfig::default().max_decoding_message_size(1)
+        } else {
+            ServerConfig::default().max_encoding_message_size(1)
+        };
+        let (addr, state, _server) = server(config, None, false).await?;
+        let mut client =
+            routeguide::route_guide_client::RouteGuideClient::new(Channel::connect(addr).await?);
+        let error = client
+            .get_feature(authorized(point(10)))
+            .await
+            .expect_err("native cap");
+        assert_eq!(error.code(), tonic::Code::ResourceExhausted);
+
+        let error = match client
+            .list_features(authorized(routeguide::Rectangle {
+                lo: Some(point(1)),
+                hi: Some(point(2)),
+            }))
+            .await
+        {
+            Err(error) => error,
+            Ok(response) => response
+                .into_inner()
+                .message()
+                .await
+                .expect_err("native output cap"),
+        };
+        assert_eq!(error.code(), tonic::Code::ResourceExhausted);
+
+        let error = client
+            .record_route(authorized(tokio_stream::iter([
+                point(1),
+                point(2),
+                point(3),
+            ])))
+            .await
+            .expect_err("native cap");
+        assert_eq!(error.code(), tonic::Code::ResourceExhausted);
+
+        let error = match client
+            .route_chat(authorized(tokio_stream::iter([note("one")])))
+            .await
+        {
+            Err(error) => error,
+            Ok(response) => response
+                .into_inner()
+                .message()
+                .await
+                .expect_err("native streamed cap"),
+        };
+        assert_eq!(error.code(), tonic::Code::ResourceExhausted);
+        // Streaming handlers receive their stream before reading its messages.
+        assert_eq!(
+            state.calls.load(Ordering::SeqCst),
+            if inbound { 2 } else { 4 }
+        );
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn native_identity_caps_do_not_enlarge_generated_codec_caps() -> Result<(), BoxError> {
+    for (limits, calls) in [((1, usize::MAX), 0), ((16_384, 8), 1)] {
+        let config = ServerConfig::default()
+            .max_decoding_message_size(8192)
+            .max_encoding_message_size(8192);
+        let (addr, state, _server) = server(config, Some(limits), false).await?;
+        let mut client =
+            routeguide::route_guide_client::RouteGuideClient::new(Channel::connect(addr).await?);
+        let error = client
+            .get_feature(authorized(point(10)))
+            .await
+            .expect_err("tonic cap remains");
+        assert_eq!(error.code(), tonic::Code::OutOfRange);
+        assert_eq!(state.calls.load(Ordering::SeqCst), calls);
+    }
     Ok(())
 }
 
