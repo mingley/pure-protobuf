@@ -9,11 +9,15 @@
 use super::{CancelOnDrop, hold_cancel};
 use std::future::{Future, poll_fn};
 use std::pin::Pin;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::sync::watch;
 
-type Events = Arc<Mutex<Vec<(&'static str, bool)>>>;
+#[expect(
+    clippy::disallowed_types,
+    reason = "synchronous poll/drop event recording; each lock guard ends within its statement before any await"
+)]
+type Events = Arc<std::sync::Mutex<Vec<(&'static str, bool)>>>;
 
 #[derive(Clone, Copy)]
 enum Mode {
@@ -60,7 +64,7 @@ impl Drop for Writer {
 
 fn prepare(mode: Mode) -> (CancelOnDrop, Writer, watch::Receiver<bool>, Events) {
     let (tx, cancelled) = watch::channel(false);
-    let events = Arc::new(Mutex::new(Vec::new()));
+    let events = Events::default();
     (
         CancelOnDrop(tx),
         Writer {

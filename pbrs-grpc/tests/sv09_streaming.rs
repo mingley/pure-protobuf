@@ -138,9 +138,15 @@ async fn live_producers_keep_refilling_small_bounded_channels() {
     }
 }
 
+#[expect(
+    clippy::disallowed_types,
+    reason = "a single synchronous take of the producer completion sender; the lock guard ends before the RPC await"
+)]
+type CancellationSender = std::sync::Mutex<Option<oneshot::Sender<()>>>;
+
 struct Waiting {
     sent: Arc<Notify>,
-    cancelled: std::sync::Mutex<Option<oneshot::Sender<()>>>,
+    cancelled: CancellationSender,
 }
 
 impl Service for Waiting {
@@ -169,7 +175,7 @@ async fn cancellation_wakes_a_producer_waiting_after_its_first_reply() {
     let (cancelled, observed) = oneshot::channel();
     let (channel, _server) = connect(Waiting {
         sent: sent.clone(),
-        cancelled: std::sync::Mutex::new(Some(cancelled)),
+        cancelled: CancellationSender::from(Some(cancelled)),
     })
     .await;
     let mut stream = channel
