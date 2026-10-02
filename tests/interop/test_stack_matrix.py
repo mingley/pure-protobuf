@@ -307,13 +307,17 @@ class CommandBuilderTest(unittest.TestCase):
     def test_to_step_reads_metrics(self):
         metrics = {
             "offered_rpcs": 200,
+            "dispatched_rpcs": 200,
             "successful_rpcs": 200,
             "failed_rpcs": 0,
             "timeouts": 0,
             "queue_overflows": 0,
+            "status_errors": {},
             "throughput_qps": 199.5,
             "duration_nanos": 1_000_000_000,
-            "e2e_latency_nanos": {"p50_nanos": 1_000_000, "p99_nanos": 5_000_000},
+            "e2e_latency_nanos": {"p50_nanos": 1_000_000, "p99_nanos": 5_000_000,
+                "histogram": {"total_count": 200, "buckets": [{"count": 200}]}},
+            "service_latency_nanos": {"histogram": {"total_count": 200, "buckets": [{"count": 200}]}},
         }
         step = run.to_step(200.0, metrics, False)
         self.assertEqual(step.offered_calls, 200)
@@ -321,6 +325,26 @@ class CommandBuilderTest(unittest.TestCase):
         self.assertAlmostEqual(step.p99_s, 0.005)
         checked = slo.check_step(step, 0.010)
         self.assertTrue(checked.valid)
+
+    def test_load_accounting_rejects_missing_counts_and_lost_latency_samples(self):
+        import copy
+        metrics = {"offered_rpcs": 12, "dispatched_rpcs": 10, "successful_rpcs": 8,
+                   "failed_rpcs": 2, "timeouts": 1, "queue_overflows": 2,
+                   "duration_nanos": 1_000_000_000, "status_errors": {"UNFINISHED": 1},
+                   "service_latency_nanos": {"histogram": {"total_count": 10, "buckets": [{"count": 10}]}},
+                   "e2e_latency_nanos": {"histogram": {"total_count": 10, "buckets": [{"count": 10}]}}}
+        oracle = run.validate_load_accounting(metrics)
+        self.assertEqual((oracle["completed"], oracle["unfinished"]), (9, 1))
+        for key, value in (("dispatched_rpcs", None), ("offered_rpcs", 13),
+                           ("successful_rpcs", 9), ("timeouts", 3), ("queue_overflows", False)):
+            damaged = copy.deepcopy(metrics)
+            damaged[key] = value
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                run.validate_load_accounting(damaged)
+        damaged = copy.deepcopy(metrics)
+        damaged["e2e_latency_nanos"]["histogram"]["buckets"][0]["count"] = 9
+        with self.assertRaisesRegex(ValueError, "does not reconcile"):
+            run.validate_load_accounting(damaged)
 
     def test_summarize_cpu_per_rpc(self):
         step = slo.StepResult(offered_rate=1.0, successful_calls=1000, success_qps=999.0,

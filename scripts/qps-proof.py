@@ -53,6 +53,59 @@ def execution_plan(scenarios: list[str], directions: list[str], repeats: int, se
     return {"schema_version": 1, "seed": seed, "repeats": repeats, "runs": runs}
 
 
+def field(value: dict, snake: str, default=None):
+    parts = snake.split("_")
+    camel = parts[0] + "".join(part.title() for part in parts[1:])
+    return value.get(snake, value.get(camel, default))
+
+
+def arrival_profile(scenario: dict) -> dict:
+    """The canonical offered load is aggregate, independent of slot count."""
+    config = field(scenario, "client_config", {})
+    poisson = field(config, "load_params", {}).get("poisson")
+    if poisson is None:
+        return {"distribution": "closed_loop", "claim_eligible": False}
+    rate = field(poisson, "offered_load")
+    channels = field(config, "client_channels", 1)
+    per_channel = field(config, "outstanding_rpcs_per_channel", 1)
+    if (type(rate) not in (int, float) or not math.isfinite(rate) or rate <= 0
+            or type(channels) is not int or channels < 1
+            or type(per_channel) is not int or per_channel < 1):
+        raise ValueError("invalid aggregate offered rate or slot count")
+    slots = channels * per_channel
+    return {"distribution": "poisson", "aggregate_offered_qps": rate, "slot_limit": slots,
+            "native_and_overlaid_go_rate_semantics": "one aggregate arrival chain",
+            "arrival_seed": "5eed20260918", "arrival_prng": "SplitMix64",
+            "unmodified_go_configured_per_slot_qps": rate / slots,
+            "unmodified_go_uncorrected_aggregate_qps": rate * slots,
+            "claim_eligible": False}
+
+
+def validate_effective_scenario(result: dict, prepared: dict) -> None:
+    """Verify protocol metadata, including smoke overrides, against frozen input."""
+    actual = result["scenario"]
+    for key in ("name", "warmup_seconds", "benchmark_seconds"):
+        if field(actual, key, 0) != field(prepared, key, 0):
+            raise ValueError(f"driver effective scenario differs from prepared {key}")
+    wanted_config = field(prepared, "client_config", {})
+    actual_config = field(actual, "client_config", {})
+    for key in ("client_channels", "outstanding_rpcs_per_channel", "rpc_type"):
+        default = "UNARY" if key == "rpc_type" else None
+        if field(actual_config, key, default) != field(wanted_config, key, default):
+            raise ValueError(f"driver effective client config differs from prepared {key}")
+    if arrival_profile(actual) != arrival_profile(prepared):
+        raise ValueError("driver effective aggregate arrival profile differs from prepared scenario")
+    for group, keys in (("histogram_params", ("resolution", "max_possible")),):
+        for key in keys:
+            if field(field(actual_config, group, {}), key) != field(field(wanted_config, group, {}), key):
+                raise ValueError(f"driver effective client config differs from prepared {group}.{key}")
+    for key in ("req_size", "resp_size"):
+        wanted_payload = field(field(wanted_config, "payload_config", {}), "simple_params", {})
+        actual_payload = field(field(actual_config, "payload_config", {}), "simple_params", {})
+        if field(actual_payload, key, 0) != field(wanted_payload, key, 0):
+            raise ValueError(f"driver effective payload differs from prepared {key}")
+
+
 def validate_accounting(window: object) -> None:
     if not isinstance(window, dict) or window.get("schema_version") != 1:
         raise ValueError("missing supported independent worker accounting")
@@ -270,8 +323,12 @@ def main() -> int:
             validate_result(result, args.kind)
             if args.scenario:
                 scenario = json.loads(args.scenario.read_text())["scenarios"][0]
+                if args.kind == "go":
+                    validate_effective_scenario(result, scenario)
                 windows = accounting_from_log(args.worker_log) if args.worker_log else []
                 proof = validate_measurement(result, args.kind, scenario, windows, args.claims)
+                proof["arrival_profile"] = arrival_profile(scenario)
+                proof["effective_scenario_verified"] = args.kind == "go"
                 if args.proof_output:
                     args.proof_output.write_text(json.dumps(proof, indent=2) + "\n")
             elif args.claims:

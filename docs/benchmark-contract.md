@@ -295,6 +295,17 @@ and carried-in completions across resets; a mark has no drain. The QPS runner's
 duration and driver counts; upstream peers without equivalent accounting fail
 the check. This is an accounting preflight, not full claim qualification. See
 [SB-21](evidence/sb21-claims-scenarios.md) for semantics and limitations.
+For Poisson reference-client cells, the QPS harness uses an explicitly labeled
+**overlaid pinned grpc-go benchmark client**. The original worker starts one
+arrival chain per configured slot at the full `offered_load`; the overlay uses
+one aggregate SplitMix64 schedule, with the same seed, rounded exponential
+intervals and slot bound as the native worker. It retains delayed scheduled
+arrivals and independently counts admission, rejection, completion and carry-in.
+Its streaming unit matches the native worker: a new stream, one request message
+and one reply per offered call. The original Go transport, codec, server and
+closed-loop paths remain upstream. Exact upstream module, overlay, dependency
+and binary hashes are retained; source or binary drift stops the run. A successful
+accounting preflight still does not establish generator or reference headroom.
 The separate `rpc-bench load` report also carries both latency definitions. A per-channel semaphore enforces
 the requested outstanding-call limit; a call is assigned to a free channel
 or rejected visibly, not silently queued behind a saturated channel.

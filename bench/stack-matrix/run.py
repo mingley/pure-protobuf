@@ -182,7 +182,43 @@ def parse_metrics(out_path: Path) -> Dict[str, Any]:
         raise ValueError(f"load wrote no valid metrics at {out_path}: {e}")
 
 
+def validate_load_accounting(metrics: Dict[str, Any]) -> Dict[str, Any]:
+    """Reconcile terminal load counters and both measured latency histograms."""
+    required = ("offered_rpcs", "dispatched_rpcs", "successful_rpcs", "failed_rpcs",
+                "timeouts", "queue_overflows", "duration_nanos")
+    for key in required:
+        if type(metrics.get(key)) is not int or metrics[key] < 0:
+            raise ValueError(f"missing/invalid independent load counter {key}")
+    offered, dispatched = metrics["offered_rpcs"], metrics["dispatched_rpcs"]
+    if offered != dispatched + metrics["queue_overflows"]:
+        raise ValueError("load offered != dispatched + rejected")
+    if dispatched != metrics["successful_rpcs"] + metrics["failed_rpcs"]:
+        raise ValueError("load dispatched != successful + failed (including terminal unfinished)")
+    if metrics["timeouts"] > metrics["failed_rpcs"] or metrics["duration_nanos"] <= 0:
+        raise ValueError("load timeout count or measurement duration is inconsistent")
+    errors = metrics.get("status_errors")
+    if not isinstance(errors, dict) or any(type(count) is not int or count < 0 for count in errors.values()):
+        raise ValueError("load omitted independent failure/unfinished status counts")
+    unfinished = errors.get("UNFINISHED", 0)
+    if unfinished > metrics["failed_rpcs"]:
+        raise ValueError("load unfinished exceeds failed calls")
+    for key in ("service_latency_nanos", "e2e_latency_nanos"):
+        histogram = (metrics.get(key) or {}).get("histogram", {})
+        buckets = histogram.get("buckets")
+        if (histogram.get("total_count") != dispatched or not isinstance(buckets, list)
+                or any(not isinstance(bucket, dict) or type(bucket.get("count")) is not int
+                       or bucket["count"] < 0 for bucket in buckets)
+                or sum(bucket["count"] for bucket in buckets) != dispatched):
+            raise ValueError(f"load {key} does not reconcile with terminal dispatched calls")
+    return {"verified": True, "window_kind": "arrival_window_with_terminal_drain",
+            "offered": offered, "dispatched": dispatched, "completed": dispatched - unfinished,
+            "rejected": metrics["queue_overflows"], "timed_out": metrics["timeouts"],
+            "unfinished": unfinished, "latency_samples": dispatched,
+            "unfinished_latency_policy": "terminal drain samples; any unfinished invalidates the SLO"}
+
+
 def to_step(rate: float, metrics: Dict[str, Any], gen_saturated: bool) -> slo_mod.StepResult:
+    validate_load_accounting(metrics)
     e2e = metrics.get("e2e_latency_nanos") or {}
     qps = metrics.get("throughput_qps")
     if qps is None:
@@ -311,6 +347,7 @@ class CellRunner:
         # This is a contract validity check even when CPU sampling has spare capacity.
         step = to_step(rate, metrics, bool(sat_check.get("saturated")) or lag_saturated)
         resources = {
+            "accounting": validate_load_accounting(metrics),
             "client": client_res,
             "server": server_res,
             "saturation": sat_check,
@@ -332,7 +369,8 @@ class CellRunner:
             metrics = parse_metrics(path)
             if metrics.get("successful_rpcs", 0) <= 0 or metrics.get("failed_rpcs", 0):
                 raise RuntimeError("warmup failed or completed no calls")
-            return {"metrics_file": path.name, "duration_s": self.params["warmup_s"],
+            return {"accounting": validate_load_accounting(metrics),
+                    "metrics_file": path.name, "duration_s": self.params["warmup_s"],
                     "successful_rpcs": metrics["successful_rpcs"]}
         finally:
             self._terminate(proc)

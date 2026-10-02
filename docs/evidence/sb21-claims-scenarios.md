@@ -144,3 +144,42 @@ points, and run on declared controlled hosts. The full
 [benchmark contract](../benchmark-contract.md), including samples and paired
 95% intervals, remains mandatory. Five repeats or a successful accounting
 preflight does not qualify a claim.
+
+## Aggregate-arrival harness follow-up
+
+The new benchmark-only Go overlay replaces the pinned client's Poisson
+arrival/accounting leaf. It uses one aggregate SplitMix64 chain at the canonical
+scenario rate with seed `0x5eed20260918`, positive rounded exponential intervals,
+the same configured slot cap as native and a five-second per-call deadline.
+Delayed arrivals retain their scheduled times. Independent admission and outcome
+counters feed atomic completion-mark windows, including rejected calls, failures,
+timeouts, carry-in, unfinished calls and both service/scheduled latency histograms.
+`STREAMING` explicitly matches native's current new-stream/one-message/one-reply
+unit rather than upstream Go's persistent-stream message loop. Transport, codec,
+server and all original closed-loop paths stay pinned upstream.
+
+The original benchmark client SHA-256 is
+`73ae33ebad3f1bf2f5e0196bb28b06d96618594dfe650b2de0ef6e410be5f464`;
+the complete pinned module source tree SHA-256 is
+`743826376a0fbdca8e0550dd587c83281b597a7b637a187b7c5b7e3c5e556266`.
+Preparation rejects drift before creating an overlay. Go does not permit build
+overlays under its module cache, so the harness copies that exact module into
+its generated target directory and uses a generated modfile replacement. The
+repository's Go module/dependency lockfiles remain unchanged. Run manifests also
+retain the helper, patched client, build overlay, generated modfile/checksum and
+worker binary hashes; skip-build execution verifies these hashes again.
+
+Native and Go tests share an independently derived twelve-interval vector at
+5,000 aggregate QPS. The proof records the legacy 64-slot interpretation explicitly:
+5,000 configured QPS means 320,000 nominal aggregate QPS for the original worker;
+5,000 aggregate would require 78.125 QPS per legacy slot. The overlaid client uses
+5,000 directly as an aggregate rate and does not repair or infer reported counts.
+The driver now consumes the prepared scenario, including actual smoke overrides,
+and verifies emitted load/slot/shape/payload/duration metadata. Missing or inconsistent
+stack load counters and service/scheduled histogram counts fail before SLO rating;
+the existing scheduling-lag and server-headroom thresholds remain unchanged.
+
+The archived native and failed Go runs above remain unchanged and tested. The
+overlay is explicitly an **overlaid pinned grpc-go benchmark client**, not an
+unmodified official worker. Real two-harness smoke/headroom validation and all
+claim qualification requirements remain pending until recorded below.
