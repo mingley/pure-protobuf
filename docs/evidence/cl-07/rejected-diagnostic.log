@@ -1,0 +1,83 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/cl07)
+warning: pbrs@0.2.0: wrote conformance descriptor set
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/cl07/pbrs-grpc)
+    Finished `test` profile [unoptimized] target(s) in 47.71s
+     Running tests/cl07_preface.rs (target/debug/deps/cl07_preface-891694739de905b0)
+
+running 10 tests
+test cancelling_eager_handshake_drops_transport ... FAILED
+test eager_connect_waits_for_settings_and_positive_stream_cap ... FAILED
+test h2_api_can_pipeline_headers_before_peer_settings ... ok
+test lazy_channel_does_not_dial_until_polled_rpc_and_cancel_closes_handshake ... FAILED
+test lazy_first_rpc_deadline_bounds_settings_wait ... FAILED
+test lazy_first_rpc_waits_for_peer_settings_zero_then_one ... FAILED
+test peer_stream_cap_one_serializes_first_two_requests ... ok
+test silent_peer_connect_timeout_drops_transport ... FAILED
+test wait_for_ready_deadline_bounds_settings_wait ... FAILED
+test wait_for_ready_retries_closed_handshake_before_opening_first_stream ... FAILED
+
+failures:
+
+---- cancelling_eager_handshake_drops_transport stdout ----
+
+thread 'cancelling_eager_handshake_drops_transport' (142429) panicked at pbrs-grpc/tests/cl07_preface.rs:174:14:
+aborted connect: Ok(Channel { authority: "[REDACTED]", endpoint: "[REDACTED]", connections: 1, tls: false, https: false, interceptors: 0, response_interceptors: 0, config: ChannelConfig { limits: MessageLimits { max_decoding: Some(4194304), max_encoding: None }, connections: 1, initial_stream_window_size: 16777216, initial_connection_window_size: 16777216, adaptive_window: false, adaptive_initial_window_size: 65535, adaptive_max_window_size: 16777216, max_frame_size: 1048576, max_concurrent_streams: 256, max_send_buffer_size: 1048576, max_header_list_size: 16384, header_table_size: 4096, data_frame_budget: 25600, max_pending_accept_reset_streams: 20, max_local_error_reset_streams: 1024, max_concurrent_reset_streams: 50, reset_stream_duration: 1s, stream_buffer: 16, keep_alive_interval: None, keep_alive_timeout: 20s, tcp_keepalive: None, tcp_keepalive_interval: None, tcp_keepalive_retries: None, local_address: None, connect_timeout: 20s, max_connection_idle: None, max_connection_age: None, max_connection_age_grace: 10s, send_compressed: false, accept_compressed: true, gzip_compression_level: 1, compression_codec: Gzip, compression_algorithm: Gzip, timeout: None, wait_for_ready: false, max_concurrent_rpcs: None, health_checking: true }, byte_budget_allocated: 0, user_agent: "[REDACTED]", observer: false, binary_logger: false })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- eager_connect_waits_for_settings_and_positive_stream_cap stdout ----
+
+thread 'eager_connect_waits_for_settings_and_positive_stream_cap' (142430) panicked at pbrs-grpc/tests/cl07_preface.rs:128:5:
+silent peer must not look connected
+
+---- lazy_channel_does_not_dial_until_polled_rpc_and_cancel_closes_handshake stdout ----
+
+thread 'lazy_channel_does_not_dial_until_polled_rpc_and_cancel_closes_handshake' (142432) panicked at pbrs-grpc/tests/cl07_preface.rs:82:13:
+assertion `left != right` failed: HEADERS before stream admission
+  left: 1
+ right: 1
+
+---- lazy_first_rpc_deadline_bounds_settings_wait stdout ----
+
+thread 'lazy_first_rpc_deadline_bounds_settings_wait' (142433) panicked at pbrs-grpc/tests/cl07_preface.rs:82:13:
+assertion `left != right` failed: HEADERS before stream admission
+  left: 1
+ right: 1
+
+---- lazy_first_rpc_waits_for_peer_settings_zero_then_one stdout ----
+
+thread 'lazy_first_rpc_waits_for_peer_settings_zero_then_one' (142434) panicked at pbrs-grpc/tests/cl07_preface.rs:82:13:
+assertion `left != right` failed: HEADERS before stream admission
+  left: 1
+ right: 1
+
+---- silent_peer_connect_timeout_drops_transport stdout ----
+
+thread 'silent_peer_connect_timeout_drops_transport' (142436) panicked at pbrs-grpc/tests/cl07_preface.rs:157:10:
+silent peer cannot finish connect: Channel { authority: "[REDACTED]", endpoint: "[REDACTED]", connections: 1, tls: false, https: false, interceptors: 0, response_interceptors: 0, config: ChannelConfig { limits: MessageLimits { max_decoding: Some(4194304), max_encoding: None }, connections: 1, initial_stream_window_size: 16777216, initial_connection_window_size: 16777216, adaptive_window: false, adaptive_initial_window_size: 65535, adaptive_max_window_size: 16777216, max_frame_size: 1048576, max_concurrent_streams: 256, max_send_buffer_size: 1048576, max_header_list_size: 16384, header_table_size: 4096, data_frame_budget: 25600, max_pending_accept_reset_streams: 20, max_local_error_reset_streams: 1024, max_concurrent_reset_streams: 50, reset_stream_duration: 1s, stream_buffer: 16, keep_alive_interval: None, keep_alive_timeout: 20s, tcp_keepalive: None, tcp_keepalive_interval: None, tcp_keepalive_retries: None, local_address: None, connect_timeout: 100ms, max_connection_idle: None, max_connection_age: None, max_connection_age_grace: 10s, send_compressed: false, accept_compressed: true, gzip_compression_level: 1, compression_codec: Gzip, compression_algorithm: Gzip, timeout: None, wait_for_ready: false, max_concurrent_rpcs: None, health_checking: true }, byte_budget_allocated: 0, user_agent: "[REDACTED]", observer: false, binary_logger: false }
+
+---- wait_for_ready_deadline_bounds_settings_wait stdout ----
+
+thread 'wait_for_ready_deadline_bounds_settings_wait' (142437) panicked at pbrs-grpc/tests/cl07_preface.rs:82:13:
+assertion `left != right` failed: HEADERS before stream admission
+  left: 1
+ right: 1
+
+---- wait_for_ready_retries_closed_handshake_before_opening_first_stream stdout ----
+
+thread 'wait_for_ready_retries_closed_handshake_before_opening_first_stream' (142438) panicked at pbrs-grpc/tests/cl07_preface.rs:289:10:
+retry: Elapsed(())
+
+
+failures:
+    cancelling_eager_handshake_drops_transport
+    eager_connect_waits_for_settings_and_positive_stream_cap
+    lazy_channel_does_not_dial_until_polled_rpc_and_cancel_closes_handshake
+    lazy_first_rpc_deadline_bounds_settings_wait
+    lazy_first_rpc_waits_for_peer_settings_zero_then_one
+    silent_peer_connect_timeout_drops_transport
+    wait_for_ready_deadline_bounds_settings_wait
+    wait_for_ready_retries_closed_handshake_before_opening_first_stream
+
+test result: FAILED. 2 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.05s
+
+error: test failed, to rerun pass `-p pbrs-grpc --test cl07_preface`

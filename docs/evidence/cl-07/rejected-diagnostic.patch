@@ -1,0 +1,16 @@
+diff --git a/pbrs-grpc/src/client/pool.rs b/pbrs-grpc/src/client/pool.rs
+index 60fa466d..6a4ec0dc 100644
+--- a/pbrs-grpc/src/client/pool.rs
++++ b/pbrs-grpc/src/client/pool.rs
+@@ -3423,8 +3423,9 @@ pub(crate) async fn finish_h2<IO>(config: ChannelConfig, io: IO) -> Result<Diale
+ where
+     IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+ {
+-    let (send, mut conn) = config
+-        .h2_builder()
++    let mut builder = config.h2_builder();
++    builder.initial_max_send_streams(1);
++    let (send, mut conn) = builder
+         .handshake(io)
+         .await
+         .map_err(|e| Status::unavailable(e.to_string()))?;

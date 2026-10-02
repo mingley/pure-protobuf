@@ -1,0 +1,161 @@
+{
+  "source_revision": "cf3eee22c6b06324e299f81b76915651471d8025",
+  "investigation": "negative correctness result; no retained runtime optimization",
+  "shipping_sources": {
+    "Cargo.lock": {
+      "sha256": "143bd380614c258637da68df0e839157955b0c294a5faf563e927034d557a76e",
+      "matches_base": true
+    },
+    "pbrs-grpc/src/config.rs": {
+      "sha256": "9ecd390ae51b5583c8bd19149034b0ab75fac98790718d65b03aad3808f60232",
+      "matches_base": true
+    },
+    "pbrs-grpc/src/client/channel.rs": {
+      "sha256": "c78dd03ececf20ec2adecc6a35b40fe70de384946871eb72a3a3549ec4ac693b",
+      "matches_base": true
+    },
+    "pbrs-grpc/src/client/pool.rs": {
+      "sha256": "760d9edbd6ccaa5177c8495804e3e8c323096f206b089aa8e420d56dc5a61094",
+      "matches_base": true
+    },
+    "pbrs-grpc/src/transport/h2.rs": {
+      "sha256": "d3b5760e9dbdcd6ba46fda3fed68c94a5cdd5f4f682d587f11e829edf4a5c675",
+      "matches_base": true
+    }
+  },
+  "h2_registry_archive_sha256": "ef8e5e5a340588f4452631496976cf8636d4a7ecf600239fdc27615d2530bc16",
+  "test_source_sha256": "1d9902cd3eb7a14cb19019a8f8ef91dac4647b43ffe85f1bac2da1ad566241ef",
+  "diagnostic_patch_sha256": "b8e634bc7c43b83f6af5921b9d291c6e3855305e28a8dba41eda3907ddc1dcf7",
+  "rustc": {
+    "release": "1.99.0",
+    "commit_hash": "b940084d7eb6a299eb4bfeb8e34901bc051e7ac4",
+    "host": "x86_64-unknown-linux-gnu",
+    "llvm": "23.1.1"
+  },
+  "cargo": "1.99.0 (5f94df478 2026-08-27)",
+  "logs": {
+    "rejected-diagnostic.log": {
+      "sha256": "8c02d906e528da7e5792dcca69793effe6c4c3ce7c852e70dcf534691f41f772",
+      "test_summaries": [
+        {
+          "result": "FAILED",
+          "passed": 2,
+          "failed": 8,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0
+        }
+      ]
+    },
+    "restored-gates.log": {
+      "sha256": "2f8043f427c38c4eb18f9f122ee2a1fab36b267f3608a866845f5d86176eb52f",
+      "test_summaries": [
+        {
+          "result": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0
+        },
+        {
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0
+        },
+        {
+          "result": "ok",
+          "passed": 40,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0
+        },
+        {
+          "result": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0
+        },
+        {
+          "result": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0
+        },
+        {
+          "result": "ok",
+          "passed": 26,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0
+        }
+      ]
+    },
+    "baseline.log": {
+      "sha256": "e5c9e868fd9a801281b2c5325fd614c76dbf5a2afaa018038350ed665b13b8a7",
+      "test_summaries": [
+        {
+          "result": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0
+        }
+      ]
+    },
+    "clippy.log": {
+      "sha256": "64a0c6e65cd07f0f0d81b3d46e88563073ba415af87a3e38e2bd1277171dc27b",
+      "exit_code": 0
+    },
+    "format.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exit_code": 0
+    }
+  },
+  "clippy": {
+    "status": "passed",
+    "exit_code": 0,
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "-p",
+      "pbrs-grpc",
+      "--lib",
+      "--test",
+      "cl07_preface",
+      "--",
+      "-D",
+      "warnings"
+    ]
+  },
+  "performance": {
+    "devloop_json": "not_run",
+    "flamegraph": "not_run",
+    "instructions_allocations": "not_run",
+    "cold_tls_p4": "unqualified"
+  },
+  "format": {
+    "status": "passed",
+    "exit_code": 0,
+    "command": [
+      "cargo",
+      "fmt",
+      "--package",
+      "pbrs-grpc",
+      "--",
+      "--check"
+    ]
+  },
+  "target_bytes_after_checks": 821923155
+}
