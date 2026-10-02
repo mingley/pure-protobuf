@@ -10,11 +10,21 @@ license = "MIT OR Apache-2.0"
 # harness consumes this library when registering SB-26b measurements.
 [workspace]
 
+[features]
+default = []
+bridge = ["dep:protobuf-tonic"]
+
 [dependencies]
 pbrs = { path = "../../.." }
 prost = "0.14"
+protobuf-tonic = { path = "../../../protobuf-tonic", optional = true }
 serde_json = "1"
 
 [build-dependencies]
 pbrs = { path = "../../.." }
 prost-build = "0.14"
+
+[[bin]]
+name = "bridge-inventory"
+path = "src/bin/bridge-inventory.rs"
+required-features = ["bridge"]

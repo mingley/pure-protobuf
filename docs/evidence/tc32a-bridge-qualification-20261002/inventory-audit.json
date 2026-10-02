@@ -1,0 +1,99 @@
+{
+  "source_commit": "754cb6c2e3a7c0cf592f64f33807e257b00ec648",
+  "source_clean": true,
+  "cells": 336,
+  "specimens": 84,
+  "passed_semantic_cells": 336,
+  "timing_guard_passed": 324,
+  "map_timing_blocked": 12,
+  "numeric_cost": "not_run",
+  "inventory_sha256": "aa2c7238d08617ea320ba96e3432b675946c171c3ef32d9877f593b26564d9be",
+  "binary_path": "/workspace/scratch/work/tc32a/target/semantic/debug/bridge-inventory",
+  "binary_sha256": "e87496461ce7ecc2dbe1e56221b531f841a31448ebc9a85568b6e4addc74455f",
+  "map_rows": [
+    {
+      "id": "codec.adoption.bridge.prost_to_pbrs.maps.n8.api_only",
+      "source_bytes": 4678,
+      "target_reencoded_bytes": 4682,
+      "source_output_equal_wire": false,
+      "status": "blocked"
+    },
+    {
+      "id": "codec.adoption.bridge.prost_to_pbrs.maps.n8.read_all",
+      "source_bytes": 4678,
+      "target_reencoded_bytes": 4682,
+      "source_output_equal_wire": false,
+      "status": "blocked"
+    },
+    {
+      "id": "codec.adoption.bridge.pbrs_to_prost.maps.n8.api_only",
+      "source_bytes": 4682,
+      "target_reencoded_bytes": 4678,
+      "source_output_equal_wire": false,
+      "status": "blocked"
+    },
+    {
+      "id": "codec.adoption.bridge.pbrs_to_prost.maps.n8.read_all",
+      "source_bytes": 4682,
+      "target_reencoded_bytes": 4678,
+      "source_output_equal_wire": false,
+      "status": "blocked"
+    },
+    {
+      "id": "codec.adoption.bridge.prost_to_pbrs.maps.n64.api_only",
+      "source_bytes": 6831,
+      "target_reencoded_bytes": 6835,
+      "source_output_equal_wire": false,
+      "status": "blocked"
+    },
+    {
+      "id": "codec.adoption.bridge.prost_to_pbrs.maps.n64.read_all",
+      "source_bytes": 6831,
+      "target_reencoded_bytes": 6835,
+      "source_output_equal_wire": false,
+      "status": "blocked"
+    },
+    {
+      "id": "codec.adoption.bridge.pbrs_to_prost.maps.n64.api_only",
+      "source_bytes": 6835,
+      "target_reencoded_bytes": 6831,
+      "source_output_equal_wire": false,
+      "status": "blocked"
+    },
+    {
+      "id": "codec.adoption.bridge.pbrs_to_prost.maps.n64.read_all",
+      "source_bytes": 6835,
+      "target_reencoded_bytes": 6831,
+      "source_output_equal_wire": false,
+      "status": "blocked"
+    },
+    {
+      "id": "codec.adoption.bridge.prost_to_pbrs.maps.n512.api_only",
+      "source_bytes": 24647,
+      "target_reencoded_bytes": 24651,
+      "source_output_equal_wire": false,
+      "status": "blocked"
+    },
+    {
+      "id": "codec.adoption.bridge.prost_to_pbrs.maps.n512.read_all",
+      "source_bytes": 24647,
+      "target_reencoded_bytes": 24651,
+      "source_output_equal_wire": false,
+      "status": "blocked"
+    },
+    {
+      "id": "codec.adoption.bridge.pbrs_to_prost.maps.n512.api_only",
+      "source_bytes": 24651,
+      "target_reencoded_bytes": 24647,
+      "source_output_equal_wire": false,
+      "status": "blocked"
+    },
+    {
+      "id": "codec.adoption.bridge.pbrs_to_prost.maps.n512.read_all",
+      "source_bytes": 24651,
+      "target_reencoded_bytes": 24647,
+      "source_output_equal_wire": false,
+      "status": "blocked"
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+warning: pbrs@0.2.0: wrote conformance descriptor set
+   Compiling pbrs-adoption-corpus v0.0.0 (/workspace/scratch/work/tc32a/bench/devloop/adoption)
+    Finished `test` profile [unoptimized] target(s) in 22.13s
+     Running unittests src/lib.rs (target/semantic/debug/deps/pbrs_adoption_corpus-133779356497428f)
+
+running 21 tests
+test bridge::tests::every_options_field_walk_distinguishes_explicit_defaults ... ok
+test bridge::tests::full_equality_rejects_removed_present_default_even_with_equal_checksums - should panic ... ok
+test bridge::tests::missing_or_unequal_actual_source_identity_is_rejected ... ok
+test bridge::tests::semantic_map_success_cannot_certify_timing - should panic ... ok
+test bridge::tests::full_equality_rejects_changed_last_entity_even_with_equal_checksums - should panic ... ok
+test corpus::tests::any_sizes_and_nested_payload_fields_are_observed ... ok
+test corpus::tests::every_sparse_field_preserves_and_reads_present_defaults ... ok
+test corpus::tests::map_read_walk_is_independent_of_entry_order ... ok
+test corpus::tests::option_consumers_cross_decode_all_fields ... ok
+test corpus::tests::recursive_query_matrix_keeps_depth_and_all_typed_variants ... ok
+test corpus::tests::typed_oneofs_read_present_defaults_and_absence ... ok
+test generated_ownership_tests::native_google_owners_and_compatibility_aliases_stay_independent_of_prost ... ok
+test corpus::tests::every_corpus_cross_decodes_and_reads_equally ... ok
+test rpc::tests::maps_cannot_enter_a_timing_window_with_unequal_wire_work - should panic ... ok
+test rpc::tests::all_64_rpc_specimens_check_full_values_reads_and_expose_unequal_wire_work ... ok
+test rpc::tests::rpc_oracle_rejects_changes_in_the_last_entity - should panic ... ok
+test workloads::tests::map_input_bytes_match_independent_processes ... ok
+test workloads::tests::map_input_order_is_stable_and_preserves_full_values_and_lengths ... ok
+test bridge::tests::complete_registry_and_actual_apis_cover_all_public_specimens ... ok
+test workloads::tests::every_cell_qualifies_fresh_decode_read_and_fully_read_clone ... ok
+test bridge::tests::actual_source_inputs_match_independent_processes ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.33s
+
+     Running unittests src/bin/bridge-inventory.rs (target/semantic/debug/deps/bridge_inventory-1223ee152a8b09fc)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/codec-inventory.rs (target/semantic/debug/deps/codec_inventory-c1c1e7da55c0df6f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/inventory.rs (target/semantic/debug/deps/inventory-8852839deda28c73)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/rpc-inventory.rs (target/semantic/debug/deps/rpc_inventory-e0b0e9fc19e05dcf)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests pbrs_adoption_corpus
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

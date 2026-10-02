@@ -43,6 +43,49 @@ options schemas/tests; their checked-in outputs must only change through that
 script. `--check` also verifies formatting using the installed rustfmt, whose
 version is recorded in qualification evidence.
 
+## Actual mixed-runtime bridge qualification
+
+The optional `bridge` feature adds the existing `protobuf-tonic` path adapter
+to this benchmark consumer. It is off by default; ordinary builds keep the
+original dependency graph. Its `bridge-inventory` binary requires that feature:
+
+```sh
+cargo test --locked --manifest-path bench/devloop/adoption/Cargo.toml --features bridge
+cargo clippy --locked --manifest-path bench/devloop/adoption/Cargo.toml \
+  --features bridge --all-targets -- -D warnings
+cargo run --locked --manifest-path bench/devloop/adoption/Cargo.toml \
+  --features bridge --bin bridge-inventory
+```
+
+`bridge::CELLS` registers 336 conversion definitions: all 64 runtime specimens
+plus the twenty generated public option records, each in both directions and
+with API-only/read-all modes. Both modes call the actual
+`protobuf_tonic::prost_to_pbrs` or `pbrs_to_prost` function, consume the owned
+target and drop it before returning. Read-all additionally consumes every target
+field and nested Any payload. Sources are fully read during preparation; these
+definitions describe conversions from prepared sources, without charging fresh
+fixture construction inside a conversion operation.
+
+Preparation exercises both actual API round trips, independent ordinary decoding,
+full equality and complete read checksums. Generated option walks distinguish
+absent fields from every explicitly present default; their sixteen-field recipes
+match the existing option fixtures. The existing schemas, recipes, 512 codec
+definitions and 512 RPC definitions remain unchanged.
+
+Wire qualification records the common fixture and the actual source encoder's
+separate bytes, lengths and fingerprints, plus target re-encoded wire. The combined
+input identity binds future N/2N/replay checks to the actual API source wire.
+Map preparation may stabilize the common fixture only. Every timed conversion
+retains the API's own serialization, including prost's process-dependent HashMap
+order and pbrs's existing default-entry bytes. All maps receive semantic coverage,
+but their twelve cost definitions remain blocked for qualified timing.
+`BridgeCase::require_timing_qualification` rejects them explicitly.
+
+The inventory executes the conversion definitions as a correctness check. It
+reports numeric costs and instructions as `not_run`; it does not add standalone
+codec totals or count buffer allocations by inspection. TC32b owns parent devloop
+registration and the existing exact allocation/N2N collector measurements.
+
 There are 64 inventory specimens: 48 recursive queries, three entity lists,
 ten sparse presence patterns and three map sizes. Full equality is checked by
 decoding pbrs's wire output into the independent generated prost type. Two

@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-02",
+  "source_commit": "754cb6c2e3a7c0cf592f64f33807e257b00ec648",
+  "implementation_commits": [
+    "7ecee2242d0a445fc74a3a8a77b9cac47918d4f5",
+    "754cb6c2e3a7c0cf592f64f33807e257b00ec648"
+  ],
+  "base_commit": "d789ada52b46442065da57891dd65ed6697e06b9",
+  "working_directory": "/workspace/scratch/work/tc32a",
+  "environment": {
+    "setup": "source /workspace/pure-protobuf/work/toolchain/env.sh",
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_TARGET_DIR": "/workspace/scratch/work/tc32a/target/semantic",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0"
+  },
+  "gates": [
+    {
+      "command": "cargo test --offline --locked --manifest-path bench/devloop/adoption/Cargo.toml --features bridge",
+      "log": "bridge-tests-final.log",
+      "status": "passed",
+      "library_tests": 21
+    },
+    {
+      "command": "cargo test --offline --locked --manifest-path bench/devloop/adoption/Cargo.toml",
+      "log": "default-tests.log",
+      "status": "passed",
+      "library_tests": 14
+    },
+    {
+      "command": "cargo clippy --offline --locked --manifest-path bench/devloop/adoption/Cargo.toml --features bridge --all-targets -- -D warnings",
+      "log": "bridge-clippy.log",
+      "status": "passed"
+    },
+    {
+      "command": "cargo run --offline --locked --manifest-path bench/devloop/adoption/Cargo.toml --features bridge --bin bridge-inventory",
+      "log": "bridge-inventory.log",
+      "status": "passed",
+      "stdout": "bridge-inventory.json"
+    },
+    {
+      "command": "python3 bench/devloop/adoption/generate.py --check",
+      "log": "generate-check.log",
+      "status": "passed"
+    },
+    {
+      "command": "python3 docs/evidence/tc32a-bridge-qualification-20261002/audit-inventory.py",
+      "log": "inventory-independent-audit.log",
+      "status": "passed"
+    }
+  ],
+  "retained_failed_attempts": [
+    {
+      "artifact": "lock-audit-first-failed.json",
+      "status": "rejected_before_compilation",
+      "reason": "Eight newly resolved registry versions differed from reviewed root lock. Existing 49 adoption package pins were unchanged. The approved offline precise pin commands and complete final root-equivalent audit are retained."
+    },
+    {
+      "artifact": "bridge-clippy-first-failed.log",
+      "status": "failed",
+      "reason": "Twenty generated prost option constructors reassigned fields after Default::default. Commit 754cb6c2 uses complete struct literals; final strict gate passed without adding lint allowances."
+    }
+  ],
+  "operational_limits": [
+    "First cold compile paused during another lane quiet lease; build-resume-identity.json records owned cargo/rustc process identity before resuming. The rustc working directory is its registry crate source, with cargo parent and owned target output verified.",
+    "The first resume check rejected that registry working directory; corrected process ownership validation then resumed only the two recorded stopped processes. This was not a build or qualification success.",
+    "Shared free space dropped below 2 GiB while the first compile was completing; no new builds started until root freed completed caches. No ENOSPC occurred in this lane. Final owned semantic target was 915 MiB.",
+    "The inventory binary is debug and is used only for semantic and wire qualification. No allocation, instruction or wall-time cost campaign was run."
+  ],
+  "numeric_cost": "not_run; TC32b collector integration and source-pinned stable measurements remain pending",
+  "shipping_change": false,
+  "default_dependency_graph_changed": false,
+  "old_generated_outputs_unchanged": 25
+}
