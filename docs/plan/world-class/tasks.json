@@ -7117,7 +7117,10 @@
     "docs/benchmark-contract.md",
     "rpc-bench/README.md",
     "docs/evidence/sb21-claims-scenarios.md",
-    "docs/evidence/sb21-accounting-smoke.json"
+    "docs/evidence/sb21-accounting-smoke.json",
+    "scripts/qps-go-overlay.py",
+    "scripts/qps-go-accounting.go",
+    "tests/interop/test_qps_go_overlay.py"
    ],
    "deliverable": "Define open-loop, contract-duration (15 s warmup, 60 s measurement, paired randomized runs) variants of the SB-10 official scenarios and the SB-17 grpc_bench workload, with offered-load and failure accounting, so E1/E2 claims do not rely on closed-loop diagnostic runs.",
    "accept": [
@@ -9110,7 +9113,9 @@
     "src/codegen/",
     "docs/codegen-layout.md",
     "docs/guides/codegen.md",
-    "tests/"
+    "tests/",
+    "src/lib.rs",
+    "docs/evidence/gn-11-sharing.md"
    ],
    "deliverable": "Emit each referenced google.protobuf type once per generated crate (or ship a pbrs::wkt module) instead of a private copy per file, and make the documented extern_path escape hatch work.",
    "accept": [
@@ -9519,7 +9524,9 @@
     "pbrs-grpc/src/client/",
     "pbrs-grpc/Cargo.toml",
     "pbrs-grpc/tests/",
-    "tests/interop/tonic/"
+    "tests/interop/tonic/",
+    "pbrs-grpc/tests/tonic_transport.rs",
+    "docs/evidence/tc-29.md"
    ],
    "deliverable": "Behind an opt-in feature, pbrs_grpc::Channel and resolver-managed channels act as the transport for unmodified tonic-generated clients. They implement tower::Service<http::Request<tonic::body::Body>> with a response body tonic's client accepts. Swapping the transport under an existing client is then a one-line channel change.",
    "accept": [
@@ -9926,7 +9933,9 @@
    "write": [
     "pbrs-grpc/src/client/",
     "pbrs-grpc/src/transport/",
-    "pbrs-grpc/tests/"
+    "pbrs-grpc/tests/",
+    "pbrs-grpc/tests/cl07_settings.rs",
+    "docs/evidence/cl-07.md"
    ],
    "deliverable": "CL-06 found that the client waits for peer SETTINGS before sending its first stream, which costs cold-start latency against tonic. Pipeline the first request behind the preface where RFC 9113 allows it, keeping lazy-connect, wait-for-ready, deadline, cancellation and stream-cap semantics.",
    "accept": [
@@ -10258,7 +10267,9 @@
     "pbrs-grpc/src/server/",
     "pbrs-grpc/src/stream.rs",
     "pbrs-grpc/src/client/streaming.rs",
-    "bench/devloop/"
+    "bench/devloop/",
+    "pbrs-grpc/tests/sv09_streaming.rs",
+    "docs/evidence/sv-09.md"
    ],
    "deliverable": "With prost messages, server streaming costs 170,930 instructions per RPC against tonic's 150,409 (TC-03 cells). Attribute the difference to producer yield and batching, per-message frame writes, channel hops and codec buffer reuse, then remove it.",
    "accept": [
