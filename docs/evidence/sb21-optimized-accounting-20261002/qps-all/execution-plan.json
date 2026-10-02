@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "seed": 210022,
+  "repeats": 2,
+  "runs": [
+    {
+      "repeat": 1,
+      "scenario": "claims_unary_poisson_5000qps",
+      "direction": "ref_client_to_native_server"
+    },
+    {
+      "repeat": 1,
+      "scenario": "claims_unary_poisson_5000qps",
+      "direction": "native_client_to_ref_server"
+    },
+    {
+      "repeat": 1,
+      "scenario": "claims_unary_poisson_5000qps",
+      "direction": "native_pair"
+    },
+    {
+      "repeat": 2,
+      "scenario": "claims_unary_poisson_5000qps",
+      "direction": "native_pair"
+    },
+    {
+      "repeat": 2,
+      "scenario": "claims_unary_poisson_5000qps",
+      "direction": "ref_client_to_native_server"
+    },
+    {
+      "repeat": 2,
+      "scenario": "claims_unary_poisson_5000qps",
+      "direction": "native_client_to_ref_server"
+    }
+  ]
+}

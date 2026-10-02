@@ -190,3 +190,10 @@ all ten invalid frozen stack rows, the current unmodified-Go diagnostic, exact
 source/binary/SDK pins and complete pre-existing strict-Clippy failures. Headroom
 and performance qualification remain blocked; the observed-thread-count CPU
 normalization defect is explicitly retained for SB-24.
+
+## Optimized accounting follow-up
+
+The [2026-10-02 release replay](sb21-optimized-accounting-20261002.md) retains seven
+fixed-5,000-QPS native/Go accounting rows with zero rejections/failures/timeouts.
+It keeps source/binary pins, short diagnostic windows and unverified CPU capacity
+explicit; it does not close headroom or qualification acceptance.
