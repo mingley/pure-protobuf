@@ -1,0 +1,37 @@
+{
+  "schema": "cl08-qualification/1",
+  "baseline_source": "cf3eee22c6b06324e299f81b76915651471d8025",
+  "candidate_source": "2321d736c0e9ed1b3323d24d99b2cc437c594774",
+  "disposition": "rejected_for_integration",
+  "coordinator_review": "retain original failed comparison; no integration or threshold change",
+  "parent_state": "open",
+  "full_frozen_compare": {
+    "exit_code": 1,
+    "state": "failed",
+    "log": "logs/cl08-callgrind-compare.log"
+  },
+  "primary_instruction_allocation_byte_controls": {
+    "state": "passed",
+    "cells": 20,
+    "raw_children": 240,
+    "thresholds_unchanged": true
+  },
+  "allocator_ledger": {
+    "raw_children": 2928,
+    "eligible_profile_rows": 244,
+    "eligible_native_rows": 122,
+    "native_rows_above_tonic_bytes_at_both_n": 58,
+    "blocked_map_profile_rows": 12,
+    "instructions": "not_run"
+  },
+  "correctness": {
+    "semantic_passed": 519,
+    "rpc_bench_passed": 189,
+    "failed": 0,
+    "ignored": 0,
+    "clippy": "passed",
+    "format": "passed"
+  },
+  "instructions_scope": "20 original controls only; no all-ledger CPU, throughput or latency claim",
+  "shipping_collector_or_threshold_changes": false
+}

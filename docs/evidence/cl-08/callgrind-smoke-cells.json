@@ -1,0 +1,22 @@
+[
+  "codec.pbrs.fresh_encode",
+  "codec.pbrs.cached_encode",
+  "codec.pbrs.owned_decode",
+  "codec.pbrs.parse_touch",
+  "codec.prost.fresh_encode",
+  "codec.prost.cached_encode",
+  "codec.prost.owned_decode",
+  "codec.prost.parse_touch",
+  "codec.v4.fresh_encode",
+  "codec.v4.cached_encode",
+  "codec.v4.owned_decode",
+  "codec.v4.parse_touch",
+  "rpc.pbrs.unary",
+  "rpc.pbrs.server_stream",
+  "rpc.tonic.unary",
+  "rpc.tonic.server_stream",
+  "rpc.prost.unary",
+  "rpc.prost.server_stream",
+  "rpc.tonic_prost.unary",
+  "rpc.tonic_prost.server_stream"
+]

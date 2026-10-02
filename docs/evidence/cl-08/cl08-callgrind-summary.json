@@ -1,0 +1,786 @@
+{
+  "schema": "cl08-callgrind-summary/1",
+  "scope": [
+    "codec.pbrs.fresh_encode",
+    "codec.pbrs.cached_encode",
+    "codec.pbrs.owned_decode",
+    "codec.pbrs.parse_touch",
+    "codec.prost.fresh_encode",
+    "codec.prost.cached_encode",
+    "codec.prost.owned_decode",
+    "codec.prost.parse_touch",
+    "codec.v4.fresh_encode",
+    "codec.v4.cached_encode",
+    "codec.v4.owned_decode",
+    "codec.v4.parse_touch",
+    "rpc.pbrs.unary",
+    "rpc.pbrs.server_stream",
+    "rpc.tonic.unary",
+    "rpc.tonic.server_stream",
+    "rpc.prost.unary",
+    "rpc.prost.server_stream",
+    "rpc.tonic_prost.unary",
+    "rpc.tonic_prost.server_stream"
+  ],
+  "rows": [
+    {
+      "id": "codec.pbrs.fresh_encode",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 5792.52,
+          "after": 5792.115,
+          "relative_delta": -6.991775600268187e-05
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 4.0,
+          "after": 4.0,
+          "relative_delta": 0.0
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 143.0,
+          "after": 143.0,
+          "relative_delta": 0.0
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 0.44,
+          "after": 0.44,
+          "relative_delta": 0.0
+        },
+        "locks": {
+          "status": "measured",
+          "before": 0.0,
+          "after": 0.0,
+          "relative_delta": null
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    },
+    {
+      "id": "codec.pbrs.cached_encode",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 1531.285,
+          "after": 1531.53,
+          "relative_delta": 0.0001599963429406615
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 1.0,
+          "after": 1.0,
+          "relative_delta": 0.0
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 87.0,
+          "after": 87.0,
+          "relative_delta": 0.0
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 0.44,
+          "after": 0.44,
+          "relative_delta": 0.0
+        },
+        "locks": {
+          "status": "measured",
+          "before": 0.0,
+          "after": 0.0,
+          "relative_delta": null
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    },
+    {
+      "id": "codec.pbrs.owned_decode",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 5388.185,
+          "after": 5388.01,
+          "relative_delta": -3.24784690949145e-05
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 7.0,
+          "after": 7.0,
+          "relative_delta": 0.0
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 1072.0,
+          "after": 1072.0,
+          "relative_delta": 0.0
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 0.44,
+          "after": 0.44,
+          "relative_delta": 0.0
+        },
+        "locks": {
+          "status": "measured",
+          "before": 0.0,
+          "after": 0.0,
+          "relative_delta": null
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    },
+    {
+      "id": "codec.pbrs.parse_touch",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 8159.885,
+          "after": 8171.93,
+          "relative_delta": 0.0014761237443910143
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 12.0,
+          "after": 12.0,
+          "relative_delta": 0.0
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 1216.0,
+          "after": 1216.0,
+          "relative_delta": 0.0
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 0.44,
+          "after": 0.44,
+          "relative_delta": 0.0
+        },
+        "locks": {
+          "status": "measured",
+          "before": 0.0,
+          "after": 0.0,
+          "relative_delta": null
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    },
+    {
+      "id": "codec.prost.fresh_encode",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 4914.23,
+          "after": 4914.285,
+          "relative_delta": 1.119198735107861e-05
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 5.0,
+          "after": 5.0,
+          "relative_delta": 0.0
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 248.0,
+          "after": 248.0,
+          "relative_delta": 0.0
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 0.44,
+          "after": 0.44,
+          "relative_delta": 0.0
+        },
+        "locks": {
+          "status": "measured",
+          "before": 0.0,
+          "after": 0.0,
+          "relative_delta": null
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    },
+    {
+      "id": "codec.prost.cached_encode",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 4883.46,
+          "after": 4883.685,
+          "relative_delta": 4.6073890233638404e-05
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 5.0,
+          "after": 5.0,
+          "relative_delta": 0.0
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 248.0,
+          "after": 248.0,
+          "relative_delta": 0.0
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 0.44,
+          "after": 0.44,
+          "relative_delta": 0.0
+        },
+        "locks": {
+          "status": "measured",
+          "before": 0.0,
+          "after": 0.0,
+          "relative_delta": null
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    },
+    {
+      "id": "codec.prost.owned_decode",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 8165.73,
+          "after": 8163.81,
+          "relative_delta": -0.00023512900867395364
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 10.0,
+          "after": 10.0,
+          "relative_delta": 0.0
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 277.0,
+          "after": 277.0,
+          "relative_delta": 0.0
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 0.44,
+          "after": 0.44,
+          "relative_delta": 0.0
+        },
+        "locks": {
+          "status": "measured",
+          "before": 0.0,
+          "after": 0.0,
+          "relative_delta": null
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    },
+    {
+      "id": "codec.prost.parse_touch",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 8324.785,
+          "after": 8322.94,
+          "relative_delta": -0.00022162734533076172
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 10.0,
+          "after": 10.0,
+          "relative_delta": 0.0
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 277.0,
+          "after": 277.0,
+          "relative_delta": 0.0
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 0.44,
+          "after": 0.44,
+          "relative_delta": 0.0
+        },
+        "locks": {
+          "status": "measured",
+          "before": 0.0,
+          "after": 0.0,
+          "relative_delta": null
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    },
+    {
+      "id": "codec.v4.fresh_encode",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 6702.25,
+          "after": 6701.37,
+          "relative_delta": -0.00013129919057034713
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 1.0,
+          "after": 1.0,
+          "relative_delta": 0.0
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 87.0,
+          "after": 87.0,
+          "relative_delta": 0.0
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 0.44,
+          "after": 0.44,
+          "relative_delta": 0.0
+        },
+        "locks": {
+          "status": "measured",
+          "before": 0.0,
+          "after": 0.0,
+          "relative_delta": null
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    },
+    {
+      "id": "codec.v4.cached_encode",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 6705.315,
+          "after": 6705.145,
+          "relative_delta": -2.5353022191972082e-05
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 1.0,
+          "after": 1.0,
+          "relative_delta": 0.0
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 87.0,
+          "after": 87.0,
+          "relative_delta": 0.0
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 0.44,
+          "after": 0.44,
+          "relative_delta": 0.0
+        },
+        "locks": {
+          "status": "measured",
+          "before": 0.0,
+          "after": 0.0,
+          "relative_delta": null
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    },
+    {
+      "id": "codec.v4.owned_decode",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 8274.33,
+          "after": 8273.4,
+          "relative_delta": -0.00011239580727385674
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 0.0,
+          "after": 0.0,
+          "relative_delta": null
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 0.0,
+          "after": 0.0,
+          "relative_delta": null
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 0.44,
+          "after": 0.44,
+          "relative_delta": 0.0
+        },
+        "locks": {
+          "status": "measured",
+          "before": 0.0,
+          "after": 0.0,
+          "relative_delta": null
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    },
+    {
+      "id": "codec.v4.parse_touch",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 10796.975,
+          "after": 10797.005,
+          "relative_delta": 2.7785560306322694e-06
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 0.0,
+          "after": 0.0,
+          "relative_delta": null
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 0.0,
+          "after": 0.0,
+          "relative_delta": null
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 0.44,
+          "after": 0.44,
+          "relative_delta": 0.0
+        },
+        "locks": {
+          "status": "measured",
+          "before": 0.0,
+          "after": 0.0,
+          "relative_delta": null
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    },
+    {
+      "id": "rpc.pbrs.unary",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 131719.245,
+          "after": 130706.935,
+          "relative_delta": -0.007685361391192287
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 38.01,
+          "after": 38.01,
+          "relative_delta": 0.0
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 42610.68,
+          "after": 42610.68,
+          "relative_delta": 0.0
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 15.745,
+          "after": 16.705,
+          "relative_delta": 0.06097173705938388
+        },
+        "locks": {
+          "status": "measured",
+          "before": 4.68,
+          "after": 5.58,
+          "relative_delta": 0.1923076923076924
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    },
+    {
+      "id": "rpc.pbrs.server_stream",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 161710.24,
+          "after": 161543.42,
+          "relative_delta": -0.0010315982463446835
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 53.025,
+          "after": 53.025,
+          "relative_delta": 0.0
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 52541.64,
+          "after": 52541.64,
+          "relative_delta": 0.0
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 29.915,
+          "after": 29.42,
+          "relative_delta": -0.016546882834698226
+        },
+        "locks": {
+          "status": "measured",
+          "before": 15.445,
+          "after": 15.045,
+          "relative_delta": -0.02589834898025253
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    },
+    {
+      "id": "rpc.tonic.unary",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 129015.785,
+          "after": 129117.975,
+          "relative_delta": 0.0007920736210689438
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 71.41,
+          "after": 71.42,
+          "relative_delta": 0.00014003640946653293
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 49190.365,
+          "after": 49190.63,
+          "relative_delta": 5.387233861741378e-06
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 30.065,
+          "after": 29.82,
+          "relative_delta": -0.008149010477299217
+        },
+        "locks": {
+          "status": "measured",
+          "before": 11.04,
+          "after": 10.76,
+          "relative_delta": -0.025362318840579653
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    },
+    {
+      "id": "rpc.tonic.server_stream",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 142259.745,
+          "after": 142287.405,
+          "relative_delta": 0.00019443307732629138
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 81.46,
+          "after": 81.43,
+          "relative_delta": -0.00036827890989426626
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 58075.105,
+          "after": 58074.31,
+          "relative_delta": -1.3689170256438273e-05
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 36.575,
+          "after": 35.985,
+          "relative_delta": -0.016131237183868854
+        },
+        "locks": {
+          "status": "measured",
+          "before": 14.435,
+          "after": 14.145,
+          "relative_delta": -0.020090058884655416
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    },
+    {
+      "id": "rpc.prost.unary",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 127655.295,
+          "after": 127372.26,
+          "relative_delta": -0.002217181825477772
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 38.0,
+          "after": 36.0,
+          "relative_delta": -0.05263157894736842
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 40081.0,
+          "after": 38027.0,
+          "relative_delta": -0.0512462263915571
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 15.685,
+          "after": 15.835,
+          "relative_delta": 0.009563277016257593
+        },
+        "locks": {
+          "status": "measured",
+          "before": 4.765,
+          "after": 4.925,
+          "relative_delta": 0.03357817418677862
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    },
+    {
+      "id": "rpc.prost.server_stream",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 158480.545,
+          "after": 157565.155,
+          "relative_delta": -0.005776040207332792
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 57.025,
+          "after": 52.025,
+          "relative_delta": -0.08768084173608066
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 62632.64,
+          "after": 57495.64,
+          "relative_delta": -0.08201793825072679
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 30.355,
+          "after": 30.945,
+          "relative_delta": 0.019436666117608296
+        },
+        "locks": {
+          "status": "measured",
+          "before": 14.845,
+          "after": 15.055,
+          "relative_delta": 0.01414617716402823
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    },
+    {
+      "id": "rpc.tonic_prost.unary",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 128188.075,
+          "after": 128806.215,
+          "relative_delta": 0.004822133416076335
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 71.395,
+          "after": 71.41,
+          "relative_delta": 0.00021009874641082104
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 49186.26,
+          "after": 49190.365,
+          "relative_delta": 8.345826659713353e-05
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 29.585,
+          "after": 29.95,
+          "relative_delta": 0.012337333107993863
+        },
+        "locks": {
+          "status": "measured",
+          "before": 10.545,
+          "after": 11.06,
+          "relative_delta": 0.048838311996206786
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    },
+    {
+      "id": "rpc.tonic_prost.server_stream",
+      "metrics": {
+        "instructions": {
+          "status": "measured",
+          "before": 142711.645,
+          "after": 143200.54,
+          "relative_delta": 0.003425754079143427
+        },
+        "allocs": {
+          "status": "measured",
+          "before": 81.44,
+          "after": 81.47,
+          "relative_delta": 0.00036836935166995505
+        },
+        "alloc_bytes": {
+          "status": "measured",
+          "before": 58074.575,
+          "after": 58075.37,
+          "relative_delta": 1.368929518649994e-05
+        },
+        "syscalls": {
+          "status": "measured",
+          "before": 35.89,
+          "after": 36.115,
+          "relative_delta": 0.006269155753691876
+        },
+        "locks": {
+          "status": "measured",
+          "before": 14.42,
+          "after": 14.355,
+          "relative_delta": -0.004507628294036027
+        }
+      },
+      "wall": "noisy shared-host diagnostic only"
+    }
+  ],
+  "primary_regressions": [],
+  "diagnostic_regressions": [
+    {
+      "row": "rpc.pbrs.unary",
+      "metric": "syscalls",
+      "delta": 0.06097173705938388,
+      "original_limit": 0.02
+    },
+    {
+      "row": "rpc.pbrs.unary",
+      "metric": "locks",
+      "delta": 0.1923076923076924,
+      "original_limit": 0.02
+    },
+    {
+      "row": "rpc.prost.unary",
+      "metric": "locks",
+      "delta": 0.03357817418677862,
+      "original_limit": 0.02
+    },
+    {
+      "row": "rpc.tonic_prost.unary",
+      "metric": "locks",
+      "delta": 0.048838311996206786,
+      "original_limit": 0.02
+    }
+  ],
+  "targets": [
+    {
+      "row": "rpc.prost.unary",
+      "allocation_improvement_at_least_2_percent": true,
+      "bytes_at_or_below_tonic": true
+    },
+    {
+      "row": "rpc.prost.server_stream",
+      "allocation_improvement_at_least_2_percent": true,
+      "bytes_at_or_below_tonic": true
+    }
+  ]
+}

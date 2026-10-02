@@ -1,0 +1,17 @@
+completed rpc.adoption.native_prost.query.d3.v0.unary
+completed rpc.adoption.native_prost.query.d3.v0.server_stream
+completed rpc.adoption.tonic_prost.query.d3.v0.unary
+completed rpc.adoption.tonic_prost.query.d3.v0.server_stream
+completed rpc.adoption.native_prost.query.d8.v7.unary
+completed rpc.adoption.native_prost.query.d8.v7.server_stream
+completed rpc.adoption.tonic_prost.query.d8.v7.unary
+completed rpc.adoption.tonic_prost.query.d8.v7.server_stream
+completed rpc.adoption.native_prost.entities.n1000.unary
+completed rpc.adoption.native_prost.entities.n1000.server_stream
+completed rpc.adoption.tonic_prost.entities.n1000.unary
+completed rpc.adoption.tonic_prost.entities.n1000.server_stream
+completed rpc.adoption.native_prost.sparse.v9.unary
+completed rpc.adoption.native_prost.sparse.v9.server_stream
+completed rpc.adoption.tonic_prost.sparse.v9.unary
+completed rpc.adoption.tonic_prost.sparse.v9.server_stream
+validated 32 raw children in 18.367s

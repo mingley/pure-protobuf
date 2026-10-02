@@ -1,0 +1,53 @@
+--------------------------------------------------------------------------------
+Profile data file 'work/profiles/before.rpc.prost.server_stream.400.callgrind.out' (creator: callgrind-3.24.0)
+--------------------------------------------------------------------------------
+I1 cache: 
+D1 cache: 
+LL cache: 
+Timerange: Basic block 0 - 18606773
+Trigger: Program termination
+Profiled target:  /workspace/scratch/work/sv09/work/bin/devloop-before run-cell rpc.prost.server_stream --iters 400 --prepare-iters 400 (PID 148697, part 1)
+Events recorded:  Ir
+Events shown:     Ir
+Event sort order: Ir
+Thresholds:       85
+Include dirs:     
+User annotated:   
+Auto-annotation:  off
+
+--------------------------------------------------------------------------------
+Ir                  
+--------------------------------------------------------------------------------
+64,504,248 (100.0%)  PROGRAM TOTALS
+
+--------------------------------------------------------------------------------
+Ir                   file:function
+--------------------------------------------------------------------------------
+47,967,279 (74.36%)  ???:0x00000000000928e0 [/usr/lib/x86_64-linux-gnu/libc.so.6]
+47,903,588 (74.26%)  ???:<std::sys::thread::unix::Thread>::new::thread_start [/workspace/scratch/work/sv09/work/bin/devloop-before]
+47,888,458 (74.24%)  ???:<std::thread::lifecycle::spawn_unchecked<<tokio::runtime::blocking::pool::Spawner>::spawn_thread::{closure#0}, ()>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0} [/workspace/scratch/work/sv09/work/bin/devloop-before]
+47,887,002 (74.24%)  ???:std::sys::backtrace::__rust_begin_short_backtrace::<<tokio::runtime::blocking::pool::Spawner>::spawn_thread::{closure#0}, ()> [/workspace/scratch/work/sv09/work/bin/devloop-before]
+47,881,347 (74.23%)  ???:tokio::runtime::task::raw::poll::<tokio::runtime::blocking::task::BlockingTask<<tokio::runtime::scheduler::multi_thread::worker::Launch>::launch::{closure#0}>, tokio::runtime::blocking::schedule::BlockingSchedule> [/workspace/scratch/work/sv09/work/bin/devloop-before]
+47,880,407 (74.23%)  ???:tokio::runtime::scheduler::multi_thread::worker::run [/workspace/scratch/work/sv09/work/bin/devloop-before]
+43,047,498 (66.74%)  ???:<tokio::runtime::scheduler::multi_thread::worker::Context>::run_task [/workspace/scratch/work/sv09/work/bin/devloop-before]
+32,106,755 (49.77%)  ???:(below main) [/usr/lib/x86_64-linux-gnu/libc.so.6]
+18,647,280 (28.91%)  ???:tokio::runtime::task::raw::poll::<pbrs_grpc::server::connection::serve_io_in<pbrs_grpc::rt::TokioRuntime, pbrs_grpc::server::router::Router, tokio_rustls::server::TlsStream<tokio::net::tcp::stream::TcpStream>>::{closure#0}::{closure#10}, alloc::sync::Arc<tokio::runtime::scheduler::multi_thread::handle::Handle>> [/workspace/scratch/work/sv09/work/bin/devloop-before]
+18,082,132 (28.03%)  ???:pbrs_grpc::server::connection::serve_io_in::<pbrs_grpc::rt::TokioRuntime, pbrs_grpc::server::router::Router, tokio_rustls::server::TlsStream<tokio::net::tcp::stream::TcpStream>>::{closure#0}::{closure#10} [/workspace/scratch/work/sv09/work/bin/devloop-before]
+17,453,448 (27.06%)  ???:<pbrs_grpc::server::router::Router as pbrs_grpc::server::dispatch::Dispatch>::dispatch::{closure#0} [/workspace/scratch/work/sv09/work/bin/devloop-before]
+17,266,839 (26.77%)  ???:0x0000000000162b40 [/usr/lib/x86_64-linux-gnu/libc.so.6]
+16,536,941 (25.64%)  ???:0x000000000001d2c0 [/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2]
+16,053,196 (24.89%)  ???:0x0000000000029c30 [/usr/lib/x86_64-linux-gnu/libc.so.6]
+16,050,640 (24.88%)  ???:main [/workspace/scratch/work/sv09/work/bin/devloop-before]
+16,050,629 (24.88%)  ???:std::rt::lang_start_internal [/workspace/scratch/work/sv09/work/bin/devloop-before]
+15,950,600 (24.73%)  ???:std::rt::lang_start::<()>::{closure#0} [/workspace/scratch/work/sv09/work/bin/devloop-before]
+15,950,594 (24.73%)  ???:std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()> [/workspace/scratch/work/sv09/work/bin/devloop-before]
+15,950,590 (24.73%)  ???:devloop::main [/workspace/scratch/work/sv09/work/bin/devloop-before]
+15,946,571 (24.72%)  ???:devloop::cmd_run_cell [/workspace/scratch/work/sv09/work/bin/devloop-before]
+15,816,808 (24.52%)  ???:devloop::cmd_run_cell::{closure#1} [/workspace/scratch/work/sv09/work/bin/devloop-before]
+12,241,819 (18.98%)  ???:tokio::runtime::task::raw::poll::<pbrs_grpc::server::accept::accept_loop_with_slots<pbrs_grpc::server::router::Router, core::future::pending::Pending<()>>::{closure#0}::{closure#2}, alloc::sync::Arc<tokio::runtime::scheduler::multi_thread::handle::Handle>> [/workspace/scratch/work/sv09/work/bin/devloop-before]
+12,234,131 (18.97%)  ???:<devloop::ProstNativeEchod as pbrs_grpc::server::dispatch::Service>::call::{closure#0} [/workspace/scratch/work/sv09/work/bin/devloop-before]
+12,088,110 (18.74%)  ???:pbrs_grpc::server::accept::accept_loop_with_slots::<pbrs_grpc::server::router::Router, core::future::pending::Pending<()>>::{closure#0}::{closure#2} [/workspace/scratch/work/sv09/work/bin/devloop-before]
+12,015,400 (18.63%)  ???:<pbrs_grpc::server::rpc::Rpc>::server_streaming::<pbrs_grpc::codec::prost::Message<devloop::echo::EchoRequest>, pbrs_grpc::codec::prost::Message<devloop::echo::EchoReply>, <devloop::ProstNativeEchod as pbrs_grpc::server::dispatch::Service>::call::{closure#0}::{closure#1}, <devloop::ProstNativeEchod as pbrs_grpc::server::dispatch::Service>::call::{closure#0}::{closure#1}::{closure#0}>::{closure#0} [/workspace/scratch/work/sv09/work/bin/devloop-before]
+10,192,270 (15.80%)  ???:<pbrs_grpc::transport::h2::ServerConnection<tokio::net::tcp::stream::TcpStream> as pbrs_grpc::transport::ServerConnection>::poll_accept [/workspace/scratch/work/sv09/work/bin/devloop-before]
+ 9,472,390 (14.68%)  ???:tokio::runtime::task::raw::poll::<pbrs_grpc::client::pool::finish_h2<tokio::net::tcp::stream::TcpStream>::{closure#0}::{closure#2}, alloc::sync::Arc<tokio::runtime::scheduler::multi_thread::handle::Handle>> [/workspace/scratch/work/sv09/work/bin/devloop-before]
+

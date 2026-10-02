@@ -1,0 +1,102 @@
+
+work/bin/devloop-candidate:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+000000000081d550 <<devloop::adoption_rpc::Echo<pbrs_grpc::codec::prost::Message<pbrs_adoption_corpus::prost_types::Sparse>> as pbrs_grpc::server::dispatch::DynService>::dispatch>:
+  81d550:	53                   	push   %rbx
+  81d551:	48 81 ec 00 10 00 00 	sub    $0x1000,%rsp
+  81d558:	48 c7 04 24 00 00 00 	movq   $0x0,(%rsp)
+  81d55f:	00 
+  81d560:	48 81 ec 00 10 00 00 	sub    $0x1000,%rsp
+  81d567:	48 c7 04 24 00 00 00 	movq   $0x0,(%rsp)
+  81d56e:	00 
+  81d56f:	48 81 ec 00 10 00 00 	sub    $0x1000,%rsp
+  81d576:	48 c7 04 24 00 00 00 	movq   $0x0,(%rsp)
+  81d57d:	00 
+  81d57e:	48 81 ec 00 10 00 00 	sub    $0x1000,%rsp
+  81d585:	48 c7 04 24 00 00 00 	movq   $0x0,(%rsp)
+  81d58c:	00 
+  81d58d:	48 81 ec 00 10 00 00 	sub    $0x1000,%rsp
+  81d594:	48 c7 04 24 00 00 00 	movq   $0x0,(%rsp)
+  81d59b:	00 
+  81d59c:	48 81 ec 00 10 00 00 	sub    $0x1000,%rsp
+  81d5a3:	48 c7 04 24 00 00 00 	movq   $0x0,(%rsp)
+  81d5aa:	00 
+  81d5ab:	48 81 ec 00 10 00 00 	sub    $0x1000,%rsp
+  81d5b2:	48 c7 04 24 00 00 00 	movq   $0x0,(%rsp)
+  81d5b9:	00 
+  81d5ba:	48 81 ec 10 07 00 00 	sub    $0x710,%rsp
+  81d5c1:	48 89 bc 24 c0 03 00 	mov    %rdi,0x3c0(%rsp)
+  81d5c8:	00 
+  81d5c9:	48 89 e7             	mov    %rsp,%rdi
+  81d5cc:	ba c0 03 00 00       	mov    $0x3c0,%edx
+  81d5d1:	ff 15 99 be 52 00    	call   *0x52be99(%rip)        # d49470 <memcpy@GLIBC_2.14>
+  81d5d7:	c6 84 24 88 07 00 00 	movb   $0x0,0x788(%rsp)
+  81d5de:	00 
+  81d5df:	bf 10 77 00 00       	mov    $0x7710,%edi
+  81d5e4:	ff 15 b6 be 52 00    	call   *0x52beb6(%rip)        # d494a0 <malloc@GLIBC_2.2.5>
+  81d5ea:	48 85 c0             	test   %rax,%rax
+  81d5ed:	74 48                	je     81d637 <<devloop::adoption_rpc::Echo<pbrs_grpc::codec::prost::Message<pbrs_adoption_corpus::prost_types::Sparse>> as pbrs_grpc::server::dispatch::DynService>::dispatch+0xe7>
+  81d5ef:	48 8b 0d 1a 43 53 00 	mov    0x53431a(%rip),%rcx        # d51910 <devloop::ALLOC_ARMED>
+  81d5f6:	48 83 f9 01          	cmp    $0x1,%rcx
+  81d5fa:	75 14                	jne    81d610 <<devloop::adoption_rpc::Echo<pbrs_grpc::codec::prost::Message<pbrs_adoption_corpus::prost_types::Sparse>> as pbrs_grpc::server::dispatch::DynService>::dispatch+0xc0>
+  81d5fc:	f0 48 ff 05 1c 43 53 	lock incq 0x53431c(%rip)        # d51920 <devloop::ALLOC_COUNT>
+  81d603:	00 
+  81d604:	f0 48 81 05 08 43 53 	lock addq $0x7710,0x534308(%rip)        # d51918 <devloop::ALLOC_BYTES>
+  81d60b:	00 10 77 00 00 
+  81d610:	48 89 e6             	mov    %rsp,%rsi
+  81d613:	ba 10 77 00 00       	mov    $0x7710,%edx
+  81d618:	48 89 c7             	mov    %rax,%rdi
+  81d61b:	48 89 c3             	mov    %rax,%rbx
+  81d61e:	ff 15 4c be 52 00    	call   *0x52be4c(%rip)        # d49470 <memcpy@GLIBC_2.14>
+  81d624:	48 8d 15 3d 3a 50 00 	lea    0x503a3d(%rip),%rdx        # d21068 <anon.5d0660bf846720b84d5030bddeaa2fb9.402.llvm.3542948293797346914+0x12490>
+  81d62b:	48 89 d8             	mov    %rbx,%rax
+  81d62e:	48 81 c4 10 77 00 00 	add    $0x7710,%rsp
+  81d635:	5b                   	pop    %rbx
+  81d636:	c3                   	ret
+  81d637:	bf 08 00 00 00       	mov    $0x8,%edi
+  81d63c:	be 10 77 00 00       	mov    $0x7710,%esi
+  81d641:	ff 15 01 bf 52 00    	call   *0x52bf01(%rip)        # d49548 <_DYNAMIC+0x310>
+  81d647:	0f 0b                	ud2
+  81d649:	48 89 c3             	mov    %rax,%rbx
+  81d64c:	48 89 e7             	mov    %rsp,%rdi
+  81d64f:	e8 7c 18 ba ff       	call   3beed0 <core::ptr::drop_glue::<<devloop::adoption_rpc::Echo<pbrs_grpc::codec::prost::Message<pbrs_adoption_corpus::prost_types::Sparse>> as pbrs_grpc::server::dispatch::Service>::call::{closure#0}>>
+  81d654:	48 89 df             	mov    %rbx,%rdi
+  81d657:	e8 04 f1 4e 00       	call   d0c760 <_Unwind_Resume@plt>
+  81d65c:	ff 15 fe be 52 00    	call   *0x52befe(%rip)        # d49560 <_DYNAMIC+0x328>
+  81d662:	cc                   	int3
+  81d663:	cc                   	int3
+  81d664:	cc                   	int3
+  81d665:	cc                   	int3
+  81d666:	cc                   	int3
+  81d667:	cc                   	int3
+  81d668:	cc                   	int3
+  81d669:	cc                   	int3
+  81d66a:	cc                   	int3
+  81d66b:	cc                   	int3
+  81d66c:	cc                   	int3
+  81d66d:	cc                   	int3
+  81d66e:	cc                   	int3
+  81d66f:	cc                   	int3
+
+000000000081d670 <<devloop::adoption_rpc::Echo<pbrs_grpc::codec::prost::Message<pbrs_adoption_corpus::prost_types::MapHeavy>> as pbrs_grpc::server::dispatch::DynService>::dispatch>:
+  81d670:	53                   	push   %rbx
+  81d671:	48 81 ec 00 10 00 00 	sub    $0x1000,%rsp
+  81d678:	48 c7 04 24 00 00 00 	movq   $0x0,(%rsp)
+  81d67f:	00 
+  81d680:	48 81 ec 00 10 00 00 	sub    $0x1000,%rsp
+  81d687:	48 c7 04 24 00 00 00 	movq   $0x0,(%rsp)
+  81d68e:	00 
+  81d68f:	48 81 ec 00 10 00 00 	sub    $0x1000,%rsp
+  81d696:	48 c7 04 24 00 00 00 	movq   $0x0,(%rsp)
+  81d69d:	00 
+  81d69e:	48 81 ec d0 00 00 00 	sub    $0xd0,%rsp
+  81d6a5:	48 89 bc 24 c0 03 00 	mov    %rdi,0x3c0(%rsp)
+  81d6ac:	00 
+  81d6ad:	48 89 e7             	mov    %rsp,%rdi
+  81d6b0:	ba c0 03 00 00       	mov    $0x3c0,%edx
+  81d6b5:	ff                   	.byte 0xff
+  81d6b6:	15                   	.byte 0x15
+  81d6b7:	b5                   	.byte 0xb5

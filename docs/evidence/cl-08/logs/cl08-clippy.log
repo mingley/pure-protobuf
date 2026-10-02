@@ -1,0 +1,5 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/cl08)
+warning: pbrs@0.2.0: wrote conformance descriptor set
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/cl08/pbrs-grpc)
+    Checking prost v0.14.4
+    Finished `dev` profile [unoptimized] target(s) in 37.91s

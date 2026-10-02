@@ -1,0 +1,53 @@
+
+work/bin/devloop-before:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000814800 <<devloop::ProstNativeEchod as pbrs_grpc::server::dispatch::DynService>::dispatch>:
+  814800:	53                   	push   %rbx
+  814801:	48 81 ec 00 10 00 00 	sub    $0x1000,%rsp
+  814808:	48 c7 04 24 00 00 00 	movq   $0x0,(%rsp)
+  81480f:	00 
+  814810:	48 81 ec 00 10 00 00 	sub    $0x1000,%rsp
+  814817:	48 c7 04 24 00 00 00 	movq   $0x0,(%rsp)
+  81481e:	00 
+  81481f:	48 81 ec 10 0d 00 00 	sub    $0xd10,%rsp
+  814826:	48 89 bc 24 c0 03 00 	mov    %rdi,0x3c0(%rsp)
+  81482d:	00 
+  81482e:	48 89 e7             	mov    %rsp,%rdi
+  814831:	ba c0 03 00 00       	mov    $0x3c0,%edx
+  814836:	ff 15 b4 bb 52 00    	call   *0x52bbb4(%rip)        # d403f0 <memcpy@GLIBC_2.14>
+  81483c:	c6 84 24 88 07 00 00 	movb   $0x0,0x788(%rsp)
+  814843:	00 
+  814844:	bf 10 2d 00 00       	mov    $0x2d10,%edi
+  814849:	ff 15 d1 bb 52 00    	call   *0x52bbd1(%rip)        # d40420 <malloc@GLIBC_2.2.5>
+  81484f:	48 85 c0             	test   %rax,%rax
+  814852:	74 48                	je     81489c <<devloop::ProstNativeEchod as pbrs_grpc::server::dispatch::DynService>::dispatch+0x9c>
+  814854:	48 8b 0d 2d 40 53 00 	mov    0x53402d(%rip),%rcx        # d48888 <devloop::ALLOC_ARMED>
+  81485b:	48 83 f9 01          	cmp    $0x1,%rcx
+  81485f:	75 14                	jne    814875 <<devloop::ProstNativeEchod as pbrs_grpc::server::dispatch::DynService>::dispatch+0x75>
+  814861:	f0 48 ff 05 2f 40 53 	lock incq 0x53402f(%rip)        # d48898 <devloop::ALLOC_COUNT>
+  814868:	00 
+  814869:	f0 48 81 05 1b 40 53 	lock addq $0x2d10,0x53401b(%rip)        # d48890 <devloop::ALLOC_BYTES>
+  814870:	00 10 2d 00 00 
+  814875:	48 89 e6             	mov    %rsp,%rsi
+  814878:	ba 10 2d 00 00       	mov    $0x2d10,%edx
+  81487d:	48 89 c7             	mov    %rax,%rdi
+  814880:	48 89 c3             	mov    %rax,%rbx
+  814883:	ff 15 67 bb 52 00    	call   *0x52bb67(%rip)        # d403f0 <memcpy@GLIBC_2.14>
+  814889:	48 8d 15 18 38 50 00 	lea    0x503818(%rip),%rdx        # d180a8 <anon.5d0660bf846720b84d5030bddeaa2fb9.402.llvm.3542948293797346914+0x12550>
+  814890:	48 89 d8             	mov    %rbx,%rax
+  814893:	48 81 c4 10 2d 00 00 	add    $0x2d10,%rsp
+  81489a:	5b                   	pop    %rbx
+  81489b:	c3                   	ret
+  81489c:	bf 08 00 00 00       	mov    $0x8,%edi
+  8148a1:	be 10 2d 00 00       	mov    $0x2d10,%esi
+  8148a6:	ff 15 1c bc 52 00    	call   *0x52bc1c(%rip)        # d404c8 <_DYNAMIC+0x310>
+  8148ac:	0f 0b                	ud2
+  8148ae:	48 89 c3             	mov    %rax,%rbx
+  8148b1:	48 89 e7             	mov    %rsp,%rdi
+  8148b4:	e8 67 fb b9 ff       	call   3b4420 <core::ptr::drop_glue::<<devloop::ProstNativeEchod as pbrs_grpc::server::dispatch::Service>::call::{closure#0}>>
+  8148b9:	48 89 df             	mov    %rbx,%rdi
+  8148bc:	e8 1f ee 4e 00       	call   d036e0 <_Unwind_Resume@plt>
+  8148c1:	ff 15 19 bc 52 00    	call   *0x52bc19(%rip)        # d404e0 <_DYNAMIC+0x328>

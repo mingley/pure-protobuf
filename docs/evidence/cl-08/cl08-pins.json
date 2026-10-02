@@ -1,0 +1,70 @@
+{
+  "source_before": "cf3eee22c6b06324e299f81b76915651471d8025",
+  "source_after": "2321d736c0e9ed1b3323d24d99b2cc437c594774",
+  "host": {
+    "system": "Linux-6.18.44-x86_64-with-glibc2.41",
+    "architecture": "x86_64",
+    "kernel": "6.18.44"
+  },
+  "tools": {
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "valgrind": "valgrind-3.24.0",
+    "protoc": "libprotoc 35.1"
+  },
+  "flags": {
+    "release_profile": "thinLTO,codegen-units1,opt3",
+    "CARGO_INCREMENTAL": "0",
+    "RUSTFLAGS": null,
+    "CARGO_ENCODED_RUSTFLAGS": null,
+    "CARGO_BUILD_TARGET": null,
+    "CARGO_PROFILE_RELEASE_overrides": {}
+  },
+  "binary_before": {
+    "path": "/workspace/scratch/work/sv09/work/bin/devloop-before",
+    "sha256": "73fa59c733f0637b22ce8d58f035aa45cb13f0b7efc4c8e9bb4cdddcef54e0b9"
+  },
+  "binary_after": {
+    "path": "work/bin/devloop-candidate",
+    "sha256": "efef1e7b44fd9b6f6defe08b0396879571035a65c411aa522c1f1b9fc5ad7f93"
+  },
+  "input_oracle_binary": {
+    "path": "work/bin/cl08-inputs",
+    "sha256": "8e9273bec48cd2466dd922306f4b97cfe41e74d41a9adf71d69f0bdb275847b6"
+  },
+  "input_oracle_source": {
+    "path": "work/qualification/cl08-inputs.rs",
+    "sha256": "717c448eef940ba96b3d0d90d9dc66dd4718afb5c7bd80d99246c5c73c578ea9"
+  },
+  "tool_pins": [
+    {
+      "path": "/workspace/pure-protobuf/work/toolchain/deb/usr/bin/valgrind",
+      "sha256": "4652774bd116cb49951ef74115ad4237cad5021b2bd4d80002f09d986ec438b9"
+    },
+    {
+      "path": "/workspace/pure-protobuf/work/toolchain/deb/usr/bin/valgrind.bin",
+      "sha256": "333955eab1162f0b5031e7f238e0aece3ee5c6e1ea00f1b93cdb52baa3242179"
+    },
+    {
+      "path": "/workspace/pure-protobuf/target/conformance-build/protoc",
+      "sha256": "ba5165ada96fc34d1295b2056ab8ea99756f7896a0ef0449d07f721595702b28"
+    }
+  ],
+  "collector_pin": {
+    "path": "bench/devloop/src/main.rs",
+    "sha256": "163e699803214eb098d5236cba8ee8f8ad6cf927245a0c953303dc226240c9c8"
+  },
+  "raw_wrapper_pin": {
+    "path": "bench/devloop/adoption/capture-callgrind.py",
+    "sha256": "3655030fd4fbf64f6354e97144ea08042f20bf07c6de52dcc3523a7a80c8cd56"
+  },
+  "lock_pin": {
+    "path": "bench/devloop/Cargo.lock",
+    "sha256": "971414022803d3c1a19e32ef4909d1ef897b2e800e6c3574554c31be978e504b"
+  },
+  "resource_budget": {
+    "limit_owned_cargo_artifacts_bytes": 2147483648,
+    "post_semantic_gate_bytes": 2125495473,
+    "debug_cache_pruned_before_release": true
+  }
+}
