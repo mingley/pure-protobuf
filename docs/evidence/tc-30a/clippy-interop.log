@@ -1,0 +1,6 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/tc29)
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/tc29/pbrs-grpc)
+   Compiling protobuf-tonic v0.1.0-alpha.2 (/workspace/scratch/work/tc29/protobuf-tonic)
+   Compiling pbrs-grpc-example-tonic-ports v0.1.0 (/workspace/scratch/work/tc29/examples/tonic-ports)
+    Checking pbrs-tonic-interop v0.1.0 (/workspace/scratch/work/tc29/tests/interop/tonic)
+    Finished `dev` profile [unoptimized] target(s) in 1m 00s

@@ -84,6 +84,13 @@ pub struct ConnectionInfo {
     /// Transport `:scheme` when the accept loop knows it. `None` keeps the
     /// peer's `:scheme` ([`Incoming`] / [`Server::serve_connection`]).
     scheme: Option<&'static str>,
+    // Tonic's TLS fields are private. Capture its exact typed information
+    // from the completed handshake, then share its certificate Arc per RPC.
+    #[cfg(feature = "tonic")]
+    tonic_tls:
+        Option<tonic::transport::server::TlsConnectInfo<tonic::transport::server::TcpConnectInfo>>,
+    #[cfg(all(unix, feature = "tonic"))]
+    tonic_uds: Option<tonic::transport::server::UdsConnectInfo>,
 }
 
 impl std::fmt::Debug for ConnectionInfo {
@@ -207,6 +214,10 @@ impl ConnectionInfo {
             #[cfg(unix)]
             uds_peer_addr: None,
             scheme: Some("http"),
+            #[cfg(feature = "tonic")]
+            tonic_tls: None,
+            #[cfg(all(unix, feature = "tonic"))]
+            tonic_uds: None,
         }
     }
 
@@ -223,7 +234,47 @@ impl ConnectionInfo {
             #[cfg(unix)]
             uds_peer_addr: None,
             scheme: Some("https"),
+            #[cfg(feature = "tonic")]
+            tonic_tls: None,
+            #[cfg(all(unix, feature = "tonic"))]
+            tonic_uds: None,
         }
+    }
+
+    /// Retain exact tonic TLS information from a custom accepted stream.
+    ///
+    /// Obtain `info` with [`tonic::transport::server::Connected::connect_info`]
+    /// on the actual stream after its TLS handshake and verification. Built-in
+    /// TLS accept loops fill this automatically. Custom [`Incoming::peer`]
+    /// implementations can attach it alongside the native address/identity
+    /// builders; this method preserves those native fields. Certificate bytes
+    /// alone cannot construct tonic's private TLS information.
+    ///
+    /// [`Server::serve_connection`] has no peer-info input; use
+    /// [`Server::serve_with_incoming`] for custom connection facts.
+    #[cfg(feature = "tonic")]
+    #[must_use]
+    pub fn with_tonic_tls(
+        mut self,
+        info: tonic::transport::server::TlsConnectInfo<tonic::transport::server::TcpConnectInfo>,
+    ) -> Self {
+        self.tonic_tls = Some(info);
+        self
+    }
+
+    /// Retain exact tonic Unix information from a custom accepted socket.
+    ///
+    /// Obtain `info` with [`tonic::transport::server::Connected::connect_info`]
+    /// on that socket. Built-in Unix accept loops fill this automatically.
+    /// Custom [`Incoming::peer`] implementations can attach it alongside
+    /// [`Self::with_peer_cred`]; this method preserves native fields and does
+    /// not manufacture Tokio's private credential value. Use
+    /// [`Server::serve_with_incoming`] when supplying custom connection facts.
+    #[cfg(all(unix, feature = "tonic"))]
+    #[must_use]
+    pub fn with_tonic_uds(mut self, info: tonic::transport::server::UdsConnectInfo) -> Self {
+        self.tonic_uds = Some(info);
+        self
     }
 
     #[cfg(unix)]
@@ -238,6 +289,10 @@ impl ConnectionInfo {
             cred,
             uds_peer_addr: peer_addr.map(Arc::new),
             scheme: Some("http"),
+            #[cfg(feature = "tonic")]
+            tonic_tls: None,
+            #[cfg(feature = "tonic")]
+            tonic_uds: None,
         }
     }
 }
@@ -264,12 +319,25 @@ pub(crate) fn incoming_rpc(
     } else if peer.remote.is_some() || peer.local.is_some() {
         extensions.insert(tcp_info);
     }
+    #[cfg(feature = "tonic")]
+    if let Some(tls_info) = peer.tonic_tls {
+        extensions.insert(tls_info);
+    } else if peer.scheme != Some("https") && (peer.remote.is_some() || peer.local.is_some()) {
+        extensions.insert(tonic::transport::server::TcpConnectInfo {
+            local_addr: peer.local,
+            remote_addr: peer.remote,
+        });
+    }
     #[cfg(unix)]
     if peer.uds_peer_addr.is_some() || peer.cred.is_some() {
         extensions.insert(UdsConnectInfo {
             peer_addr: peer.uds_peer_addr.clone(),
             peer_cred: peer.cred,
         });
+    }
+    #[cfg(all(unix, feature = "tonic"))]
+    if let Some(uds_info) = peer.tonic_uds {
+        extensions.insert(uds_info);
     }
     Rpc {
         request,

@@ -1094,6 +1094,8 @@ pub mod web;
 pub mod tower_client;
 #[cfg(feature = "tower")]
 pub mod tower_server;
+#[cfg(feature = "tonic")]
+pub mod tonic_server;
 
 pub mod channelz;
 pub mod health;

@@ -1,0 +1,56 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/tc29)
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/tc29/pbrs-grpc)
+   Compiling protobuf-tonic v0.1.0-alpha.2 (/workspace/scratch/work/tc29/protobuf-tonic)
+   Compiling pbrs-grpc-example-tonic-ports v0.1.0 (/workspace/scratch/work/tc29/examples/tonic-ports)
+   Compiling pbrs-tonic-interop v0.1.0 (/workspace/scratch/work/tc29/tests/interop/tonic)
+    Finished `test` profile [unoptimized] target(s) in 1m 50s
+     Running unittests src/main.rs (target/debug/deps/tonic_interop-1386a821cdc2ae83)
+
+running 3 tests
+test tests::zstd_codec_interops_with_c_zstd_peer ... ok
+test tests::tonic_web_client_talks_to_pbrs_grpc_web_server ... ok
+test tests::zstd_server_falls_back_for_gzip_only_tonic_peer ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/example_ports.rs (target/debug/deps/example_ports-f343ba0b59ab9a84)
+
+running 4 tests
+test helloworld_cross_stack ... ok
+test compression_and_error_details_cross_stack ... ok
+test routeguide_cross_stack_all_shapes ... ok
+test streaming_cross_stack ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/transport_clients.rs (target/debug/deps/transport_clients-93d07ef04389c195)
+
+running 8 tests
+test bidi_transmits_after_response_headers_and_closes_when_producer_is_idle ... ok
+test generated_client_enforces_encode_and_decode_limits ... ok
+test generated_client_all_shapes_interceptor_gzip_metadata_and_terminal_status ... ok
+test generated_client_uses_resolver_managed_channel ... ok
+test generated_client_uses_native_tc22_server_without_stub_edits ... ok
+test generated_interceptor_rejection_never_reaches_peer ... ok
+test live_bidi_encoder_error_preserves_local_status_after_headers ... ok
+test generated_client_preserves_grpc_timeout_deadline ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/transport_services.rs (target/debug/deps/transport_services-85fa66d44c124999)
+
+running 11 tests
+test generated_server_owns_decoding_and_encoding_limits ... ok
+test native_auth_rejection_prevents_generated_dispatch ... ok
+test custom_incoming_public_tonic_unix_builder_preserves_native_fields_and_extensions ... ok
+test native_server_deadline_drops_generated_unary_handler ... ok
+test reset_after_headers_cancels_idle_bidi_upload_and_generated_body ... ok
+test reset_before_headers_cancels_generated_unary_handler ... ok
+test mtls_stamps_native_and_tonic_typed_connect_info_for_generated_layers ... ok
+test peer_deadline_drops_generated_streaming_producer_after_headers ... ok
+test graceful_shutdown_keeps_active_generated_bidi_until_client_cancels ... ok
+test unchanged_generated_server_all_shapes_layers_interceptors_gzip_both_transports ... ok
+test unix_stamps_actual_tonic_credentials_for_generated_all_shapes ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+

@@ -1,0 +1,30 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/tc29)
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/tc29/pbrs-grpc)
+   Compiling protobuf-tonic v0.1.0-alpha.2 (/workspace/scratch/work/tc29/protobuf-tonic)
+   Compiling pbrs-grpc-example-tonic-ports v0.1.0 (/workspace/scratch/work/tc29/examples/tonic-ports)
+   Compiling pbrs-tonic-interop v0.1.0 (/workspace/scratch/work/tc29/tests/interop/tonic)
+error: this `if` statement can be collapsed
+   --> tests/transport_services.rs:94:9
+    |
+ 94 | /         if let Some(native_addr) = native.peer_addr() {
+ 95 | |             if tonic
+ 96 | |                 .peer_addr
+ 97 | |                 .as_ref()
+...   |
+102 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+ 94 ~         if let Some(native_addr) = native.peer_addr()
+ 95 ~             && tonic
+ 96 |                 .peer_addr
+...
+100 |                 return Err(Status::internal("Unix peer address inconsistent"));
+101 ~             }
+    |
+
+error: could not compile `pbrs-tonic-interop` (test "transport_services") due to 1 previous error

@@ -1,0 +1,136 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/tc29)
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/tc29/pbrs-grpc)
+    Finished `test` profile [unoptimized] target(s) in 1m 17s
+     Running tests/connect_info.rs (target/debug/deps/connect_info-25e090ced9cdfacd)
+
+running 4 tests
+test uds_handler_reads_tonic_connect_info_extension ... ok
+test tcp_handler_reads_tonic_connect_info_extension ... ok
+test tls_handler_reads_tonic_connect_info_extension ... ok
+test mtls_handler_reads_tonic_connect_info_extension ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/hostile.rs (target/debug/deps/hostile-3bcb8da492caf60e)
+
+running 40 tests
+test a_compressed_flag_is_refused_when_inbound_gzip_is_off ... ok
+test a_giant_declared_length_is_refused_from_the_header ... ok
+test a_malformed_path_is_unimplemented_not_a_panic ... ok
+test a_legitimate_compressed_frame_still_round_trips ... ok
+test a_non_grpc_content_type_on_an_unknown_method_is_still_415 ... ok
+test a_hostile_stream_does_not_take_the_server_down ... ok
+test a_reserved_compressed_flag_is_a_protocol_error ... ok
+test a_truncated_frame_is_not_an_empty_message ... ok
+test an_empty_body_decodes_to_a_default_message ... ok
+test a_non_post_is_http_405 ... ok
+test an_unknown_method_is_unimplemented ... ok
+test a_non_grpc_content_type_is_http_415 ... ok
+test an_unknown_service_is_unimplemented ... ok
+test an_unsupported_encoding_is_unimplemented_and_advertises_what_works ... ok
+test deflate_coding_is_refused_when_inbound_compression_is_off ... ok
+test deflate_configured_server_falls_back_to_gzip_only_peer ... ok
+test deflate_request_decodes_and_gets_a_reply ... ok
+test expired_timeout_before_dispatch_is_trailers_only ... ok
+test an_identity_encoding_header_is_the_same_as_omitting_it ... ok
+test garbage_protobuf_bytes_are_an_error_not_a_panic ... ok
+test gzip_bytes_under_deflate_coding_are_an_error ... ok
+test gzip_is_unimplemented_when_the_server_opts_out_of_inbound_gzip ... ok
+test h2c_ignores_a_peer_https_scheme ... ok
+test immediate_unimplemented_is_trailers_only ... ok
+test metadata_beyond_the_header_list_cap_is_refused ... ok
+test oversize_message_is_resource_exhausted_not_a_hang ... ok
+test process_rpc_cap_rejection_is_trailers_only ... ok
+test continuation_flood_drops_that_connection ... ok
+test regression_bad_metadata_encodings_safely_rejected ... ok
+test regression_chunk_fragmentation_preserves_message_stream ... ok
+test grpc_proto_content_type_subtypes_are_accepted ... ok
+test regression_http2_single_byte_data_chunks_serve_cleanly ... ok
+test regression_invalid_frame_lengths_and_flags_safely_rejected ... ok
+test rst_flood_beyond_pending_reset_cap_drops_that_connection ... ok
+test protocol_error_rst_flood_drops_that_connection ... ok
+test two_messages_on_a_unary_path_are_refused ... ok
+test unfinished_headers_do_not_take_the_accept_loop_down ... ok
+test small_data_flood_drops_that_connection ... ok
+test regression_compression_bomb_fails_within_byte_and_time_budgets ... ok
+test a_gzip_bomb_cannot_outgrow_the_cap ... ok
+
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.93s
+
+     Running tests/retry_safety.rs (target/debug/deps/retry_safety-30d1191c920602c6)
+
+running 18 tests
+test request_body_arriving_after_headers_does_not_stall_server ... ok
+test request_send_window_stall_obeys_cancellation ... ok
+test caller_driven_streams_keep_method_retry_policy_inert_after_send ... ok
+test explicit_unary_policy_cannot_replay_after_response_headers ... ok
+test response_headers_during_upload_prevent_policy_replay_after_reset ... ok
+test scenario_a_refused_stream_retries_safely ... ok
+test scenario_b_server_streaming_drops_after_request_dispatched_baseline_retries ... ok
+test scenario_b_unary_drops_after_request_dispatched_baseline_retries ... ok
+test scenario_a_connection_refused_wait_for_ready_retries_safely ... ok
+test scenario_c_unary_response_headers_committed_no_retry_on_stream_error ... ok
+test scenario_c_server_streaming_response_headers_committed_no_retry ... ok
+test request_send_window_stall_obeys_deadline_for_both_single_request_shapes ... ok
+test scenario_d_deadline_expires_waiting_for_slot_returns_deadline_exceeded ... ok
+test scenario_d_deadline_expires_waiting_for_connection_returns_deadline_exceeded ... ok
+test trailers_only_rejection_survives_early_request_body_reset ... ok
+test scenario_d_deadline_preserved_and_remaining_timeout_decreases_across_retry ... ok
+test response_headers_during_upload_prevent_policy_replay_after_attempt_timeout ... ok
+test seeded_unary_side_effect_histories_preserve_unknown_outcomes ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+
+     Running tests/tls.rs (target/debug/deps/tls-6ef7b9887f02e1bd)
+
+running 26 tests
+test caller_configs_propagate_wrong_trust_and_name_failures ... ok
+test a_tls_client_interceptor_sees_https_scheme ... ok
+test caller_configs_preserve_required_mtls_on_every_shape ... ok
+test cleartext_still_works ... ok
+test caller_configs_reject_missing_required_client_identity ... ok
+test caller_configs_require_h2_and_a_valid_server_name ... ok
+test key_log_file_opt_in_still_serves_tls ... ok
+test h2c_client_cannot_speak_tls ... ok
+test mtls_client_interceptor_rejects_with_typed_status ... ok
+test a_dead_tls_channel_redials ... ok
+test mtls_exposes_the_client_certificate ... ok
+test mtls_send_compressed_gzips_every_shape ... ok
+test mtls_requires_a_client_certificate ... ok
+test mtls_server_interceptor_rejects_with_typed_status ... ok
+test mtls_unary ... ok
+test serve_tls_until_shutdown_serves_then_drains ... ok
+test optional_mtls_allows_anonymous_and_records_verified_client_certificate ... ok
+test tls_client_interceptor_rejects_with_typed_status ... ok
+test replacing_tls_policy_requires_fresh_client_identity ... ok
+test tls_handlers_see_https_scheme_and_authority ... ok
+test tls_requests_use_the_https_scheme ... ok
+test tls_server_interceptor_rejects_with_typed_status ... ok
+test tls_send_compressed_gzips_every_shape ... ok
+test unary_over_tls ... ok
+test h2c_keepalive_still_serves ... ok
+test wrong_ca_is_unauthenticated ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests/tonic_server.rs (target/debug/deps/tonic_server-1471df49c084821b)
+
+running 2 tests
+test tonic_tls_connect_info_keeps_peer_certificate_api_available ... ok
+test generated_service_mounts_in_tonic_and_exposes_tonic_connect_info ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/tower_client.rs (target/debug/deps/tower_client-2237732b8ff98708)
+
+running 7 tests
+test request_stream_errors_reach_the_native_call_without_replay ... ok
+test arbitrary_input_streams_work_and_early_replies_release_idle_inputs ... ok
+test dropping_calls_and_received_streams_stops_idle_request_producers ... ok
+test streaming_shapes_through_balance_and_retry_preserve_envelopes ... ok
+test tower_layers_wrap_unary_channel_without_buffering_default_path ... ok
+test streaming_trailing_errors_survive_balance_and_retry ... ok
+test streaming_adapters_keep_deadlines_after_headers_and_with_idle_producers ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+

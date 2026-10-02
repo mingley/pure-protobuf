@@ -1,0 +1,29 @@
+{
+  "id": "clippy-interop",
+  "command_argv": [
+    "cargo",
+    "clippy",
+    "--locked",
+    "--manifest-path",
+    "tests/interop/tonic/Cargo.toml",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "exit_code": 101,
+  "started_utc": "2026-10-02T20:38:55.163555+00:00",
+  "finished_utc": "2026-10-02T20:39:46.979363+00:00",
+  "log": "docs/evidence/tc-30a/clippy-interop-initial.log",
+  "log_sha256": "c460a9e28f67edc839f6efcbf10f63bb43865a9d4f1f68fe18ec68d50a3fd1ad",
+  "source_file_sha256": {
+    "pbrs-grpc/src/lib.rs": "b92121d12bd4b3c8dce20c0c72861ae67df56ae3a7122ed0c7510d1dcdaf25b4",
+    "pbrs-grpc/src/tonic_server.rs": "fcf1a2150e39cffffae0c6b33126a27d843903983a706a24d030c48ccca61e35",
+    "pbrs-grpc/src/server/accept.rs": "f1244c01baaa4fedec5c8f890016d95967ea04fe38f622a50c32876ea8f1cade",
+    "pbrs-grpc/src/server/connection.rs": "6ad6a630365fb20b183d9e2b286162300fe9907536eff96a271c2392632a277a",
+    "pbrs-grpc/tests/tonic_service_transport.rs": "7fcb009837c813ac029f075f735ced290ce97d0c45a1da4ae9929f789460fc68",
+    "tests/interop/tonic/tests/transport_services.rs": "adefefc47c82f264f236a8a6fdb7660d344d3e47371c98ce42ef00a0ad55fc79"
+  },
+  "source_unchanged_during_check": true,
+  "attempt_id": "clippy-interop-initial"
+}
