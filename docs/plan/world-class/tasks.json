@@ -11665,7 +11665,9 @@
    "size": "S",
    "status": "in_progress",
    "implementer": "Codex",
-   "depends_on": [],
+   "depends_on": [
+    "GN-14"
+   ],
    "read": [
     "src/codegen/messages.rs",
     "tests/plugin.rs",
@@ -11695,6 +11697,51 @@
     "GN-12"
    ],
    "notes": "Split from GN-12 after current pinned generation exposes 56 deprecated-type/field warnings in AliasedEnum implementations. Strict Clippy rejects the candidate; stale bindings are not merged and the checks are not weakened."
+  },
+  {
+   "id": "GN-14",
+   "title": "Read the correct EnumOptions deprecation field",
+   "lane": "GN",
+   "milestone": "M0",
+   "priority": "P0",
+   "executor": "small",
+   "size": "S",
+   "status": "in_progress",
+   "implementer": "Codex",
+   "depends_on": [],
+   "read": [
+    "src/dynamic.rs",
+    "tests/dynamic.rs",
+    "vendor/google/SHA",
+    "tests/fixtures/codegen-lints/"
+   ],
+   "write": [
+    "src/dynamic.rs",
+    "tests/dynamic.rs",
+    "tests/fixtures/codegen-lints/",
+    "docs/evidence/",
+    "docs/plan/world-class/tasks.json"
+   ],
+   "deliverable": "Parse pinned EnumOptions.deprecated from field 3 and keep field 2 allow_alias independent, preserving accurate descriptor/codegen public deprecation annotations.",
+   "accept": [
+    "Reproduce false deprecation for nondeprecated aliased enums and missed deprecation for actually deprecated nonaliased enums before correcting the field mapping.",
+    "All combinations of allow_alias and deprecated preserve their independent meanings; custom enum options remain intact.",
+    "Descriptor/core/codegen checks and pinned regenerated conformance pass; no dependency or protobuf wire-semantic change."
+   ],
+   "checks": [
+    "core-lib",
+    "codegen",
+    "conformance",
+    "docs-contract"
+   ],
+   "scoreboard": [
+    "F1"
+   ],
+   "relates": [
+    "GN-13",
+    "GN-12"
+   ],
+   "notes": "Split during GN-13 execution at 03e2201d: pinned descriptor.proto defines EnumOptions.allow_alias=2 and deprecated=3, while parse_enum_options uses field 2 for deprecated. Coordinator approved this bounded correctness leaf under the user execution authorization before regeneration."
   }
  ],
  "last_audit": {
