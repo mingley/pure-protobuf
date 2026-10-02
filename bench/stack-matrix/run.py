@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import math
 import os
 import subprocess
 import sys
@@ -79,7 +80,7 @@ STAGE_PARAMS = {
     },
 }
 
-# Server CPU fraction (of pinned CPUs) above which a client cell has no
+# Server CPU fraction (of verified effective capacity) above which a client cell has no
 # verified server headroom and is invalid, not rated.
 HEADROOM_MAX_SERVER_FRACTION = 0.80
 
@@ -558,10 +559,15 @@ def check_headroom(
         server_res.get("system_cpu_seconds") or 0.0
     )
     avg_pct = (cpu_s / wall_s) * 100.0 if wall_s > 0 else float("inf")
-    # The pin is the budget; unpinned hosts budget one core and carry the
-    # caveat that multicore headroom is unverifiable there.
-    budget = 100.0 * cpus
-    ok = bool(pinned and server_res.get("supported") and wall_s > 0
+    capacity = server_res.get("cpu_capacity", {})
+    effective = capacity.get("effective_cpu_capacity")
+    verified = bool(capacity.get("verified") is True and isinstance(effective, (int, float))
+                    and not isinstance(effective, bool) and math.isfinite(effective)
+                    and effective > 0 and capacity.get("affinity_cpu_count") == cpus)
+    # A configured pin alone cannot reveal a lower fractional cgroup quota.
+    budget = 100.0 * min(cpus, effective) if verified else None
+    delta_verified = server_res.get("cpu_delta_verified") is True
+    ok = bool(pinned and verified and delta_verified and server_res.get("supported") and wall_s > 0
               and avg_pct < HEADROOM_MAX_SERVER_FRACTION * budget)
     return {
         "ok": ok,
@@ -569,10 +575,14 @@ def check_headroom(
         "server_cpu_seconds": round(cpu_s, 6),
         "wall_s": wall_s,
         "budget_cpu_pct": budget,
+        "effective_cpu_capacity": effective if verified else None,
+        "capacity_verified": verified,
+        "cpu_delta_verified": delta_verified,
         "pinned": pinned,
         "reason": ""
         if ok
-        else ("resource sampling or pinned CPU budget unverified" if not pinned or not server_res.get("supported")
+        else ("resource sampling, actual affinity or effective CPU capacity unverified"
+              if not pinned or not server_res.get("supported") or not verified or not delta_verified
               else f"server at {avg_pct:.1f}% of {budget:.0f}% budget (>{HEADROOM_MAX_SERVER_FRACTION:.0%})"),
     }
 
