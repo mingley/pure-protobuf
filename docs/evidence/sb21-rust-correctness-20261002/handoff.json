@@ -1,0 +1,188 @@
+{
+  "source_pin": "57a073ebd0fdf7246f9c198c4996975217f59813",
+  "base_pin": "30da0badd14b027d1004b0889c98eb5479978707",
+  "branch": "mingley/sb21-rust-lints",
+  "clean_tracked_source": true,
+  "commits": [
+    "011e68cb4517a13937190463c02c4568c6d79b36 chore(bench): clarify synchronous snapshots and canonical resource types",
+    "ec7128363a8090406b64743f0cdb9210a7c87be3 chore(bench): preserve synchronous accounting lock contracts",
+    "92926107617672721798a889574b3cbedee12824 refactor(bench): group run options and simplify equivalent control flow",
+    "9520e4998daeeda75dfd115c13d8e9153093db13 fix(bench): count missing fresh-stream reply as an RPC failure",
+    "57a073ebd0fdf7246f9c198c4996975217f59813 test(bench): match supported tonic TLS client policy"
+  ],
+  "toolchain": {
+    "rustc": "1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)",
+    "protoc": "35.1"
+  },
+  "cargo_lock_sha256": "8f294f7fcc95d32118344e33d996b7d0dddc95cb4e4c89d7287c42bf1878eae1",
+  "configuration": {
+    "jobs": 1,
+    "target_dir": "/workspace/scratch/work/sb21lint/target/native",
+    "target_size_mib_observed": 908,
+    "environment": "shared host with concurrent jobs1 builds; no performance measurement or qualification claim"
+  },
+  "results": {
+    "fresh_stream_first_red": {
+      "exit": 101,
+      "passed": 0,
+      "failed": 1,
+      "source": "92926107617672721798a889574b3cbedee12824 plus no-reply-regression-before-fix.patch",
+      "interpretation": "actual peer received exactly one request and shut down; old helper accepted clean zero-reply EOF as success and failed the intended Unknown-status assertion"
+    },
+    "fresh_stream_fixed": {
+      "exit": 0,
+      "passed": 1,
+      "failed": 0,
+      "source_pin": "9520e4998daeeda75dfd115c13d8e9153093db13"
+    },
+    "first_all_target_tests": {
+      "exit": 101,
+      "source_pin": "9520e4998daeeda75dfd115c13d8e9153093db13",
+      "interpretation": "84 bin and 1 fairness passed; load-shapes 6 passed, 1 stale tonic TLS fixture failed; later test targets not run in that attempt"
+    },
+    "final_all_target_tests": {
+      "exit": 0,
+      "passed": 180,
+      "failed": 0,
+      "target_counts": {
+        "bin": 84,
+        "fairness": 1,
+        "load_shapes": 7,
+        "tonic_fairness": 1,
+        "worker": 87
+      },
+      "command": "CARGO_BUILD_JOBS=1 CARGO_TARGET_DIR=/workspace/scratch/work/sb21lint/target/native cargo test --locked --manifest-path rpc-bench/Cargo.toml --all-targets -- --test-threads=1"
+    },
+    "first_clippy_attempt": {
+      "exit": 101,
+      "interpretation": "ENOSPC before source checking while making target fingerprint directory; retained infrastructure failure"
+    },
+    "final_all_target_clippy": {
+      "exit": 0,
+      "command": "CARGO_BUILD_JOBS=1 CARGO_TARGET_DIR=/workspace/scratch/work/sb21lint/target/native cargo clippy --locked --manifest-path rpc-bench/Cargo.toml --all-targets -- -D warnings"
+    },
+    "format_check": {
+      "exit": 0,
+      "command": "cargo fmt --manifest-path rpc-bench/Cargo.toml --all -- --check"
+    },
+    "diff_check": {
+      "exit": 0,
+      "command": "git diff --check"
+    },
+    "context_call_audit": {
+      "exit": 0,
+      "former_argument_lists_preserved": 28,
+      "counts": {
+        "make_latency_run": 8,
+        "make_qps_run": 4,
+        "make_streaming_run": 12,
+        "load_native_channel": 2,
+        "run_load_tonic": 1,
+        "run_load_prost": 1
+      }
+    }
+  },
+  "duplicate_test_accounting": "Canonical resources module removes ten duplicate executions from each bin/worker target: original bin94 becomes84; original worker96 plus one EOF regression minus ten duplicates becomes87. Canonical ten resource tests remain.",
+  "review": {
+    "EOF": "gn12 read-only no blocker at9520e499; no independent execution by reviewer",
+    "lint_cleanup": "gn12 read-only no blocker at57a073eb; inspected options/default equivalence, one-check error loops, reconstructed28 caller arguments and synchronous guards; no builds/edits"
+  },
+  "limitations": [
+    "No throughput/latency/CPU comparison rerun; preserved existing SB21 diagnostics unchanged.",
+    "No production qualification or claim-grade benchmark result.",
+    "Original lint logs were copied read-only from SB21 lane; their source provenance remains that lane record."
+  ],
+  "artifacts": [
+    {
+      "path": "work/sb21lint/all-target-clippy-enospc.exit",
+      "bytes": 16,
+      "sha256": "509c896a4e2961247a2ea8a4db31ee6e6dfe9926007dc0505e55777e5f64995e"
+    },
+    {
+      "path": "work/sb21lint/all-target-clippy-enospc.log",
+      "bytes": 186,
+      "sha256": "bedcef3db45d20a6649138af6449f59d80a7fd98d68c2bfab50066ee46dfae50"
+    },
+    {
+      "path": "work/sb21lint/all-target-clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "work/sb21lint/all-target-clippy.log",
+      "bytes": 2684,
+      "sha256": "4cb9a735398d5f2b1ae90a52b91b5eab5ee7d7fa575fdb77f491289788d27f6b"
+    },
+    {
+      "path": "work/sb21lint/all-target-tests-final.exit",
+      "bytes": 14,
+      "sha256": "ed163d69a09ddc0ffcbdf126a42d5745a93449fa7a39354788e948b7ac795c04"
+    },
+    {
+      "path": "work/sb21lint/all-target-tests-final.log",
+      "bytes": 13854,
+      "sha256": "580aeea5013bed7f74c06465befdb62aa0ce454602de90506ca51a0f07242fe4"
+    },
+    {
+      "path": "work/sb21lint/all-target-tests.exit",
+      "bytes": 16,
+      "sha256": "509c896a4e2961247a2ea8a4db31ee6e6dfe9926007dc0505e55777e5f64995e"
+    },
+    {
+      "path": "work/sb21lint/all-target-tests.log",
+      "bytes": 8087,
+      "sha256": "e07ff15bde5406fda7d392c2d798a9157da050e788f256068ab6c82a4dfeb2c2"
+    },
+    {
+      "path": "work/sb21lint/audit_context_calls.py",
+      "bytes": 3878,
+      "sha256": "0efaef31478f589cf4adac9ad9354b11b06d72ae22039cf37cd0e1ce87096f6f"
+    },
+    {
+      "path": "work/sb21lint/context-audit-final.txt",
+      "bytes": 334,
+      "sha256": "fd78815a9a9223ae7432ef123ea072fde3f5bc108e1530cd0db9a2837c03c4e7"
+    },
+    {
+      "path": "work/sb21lint/context-audit.txt",
+      "bytes": 334,
+      "sha256": "fd78815a9a9223ae7432ef123ea072fde3f5bc108e1530cd0db9a2837c03c4e7"
+    },
+    {
+      "path": "work/sb21lint/no-reply-before-fix.exit",
+      "bytes": 16,
+      "sha256": "509c896a4e2961247a2ea8a4db31ee6e6dfe9926007dc0505e55777e5f64995e"
+    },
+    {
+      "path": "work/sb21lint/no-reply-before-fix.log",
+      "bytes": 4597,
+      "sha256": "dca030a2cf850216d9e0af2bd845c728a39b1fdd9a53e2b4aaa69f32d073f8d5"
+    },
+    {
+      "path": "work/sb21lint/no-reply-fixed.exit",
+      "bytes": 14,
+      "sha256": "ed163d69a09ddc0ffcbdf126a42d5745a93449fa7a39354788e948b7ac795c04"
+    },
+    {
+      "path": "work/sb21lint/no-reply-fixed.log",
+      "bytes": 651,
+      "sha256": "bfc15d12eafde4734329eb2e196dcbf39e52a605e6b23b9fc26b1b199b2b229d"
+    },
+    {
+      "path": "work/sb21lint/no-reply-regression-before-fix.patch",
+      "bytes": 5065,
+      "sha256": "2575250c9687add5ffeafa5929dad8bcc05764a1bd2bf47acf1f013fcf03295f"
+    },
+    {
+      "path": "work/sb21lint/original-native-bin-clippy.log",
+      "bytes": 29753,
+      "sha256": "550cd499d2be78c41e6894cf27d1e8039cf4c874d57b6a77c14d116c5ac98a45"
+    },
+    {
+      "path": "work/sb21lint/original-native-owned-clippy.log",
+      "bytes": 22564,
+      "sha256": "0f21b1fce5c5ecf9de3d921fb16c33a880c5acf7291d65caedb12137c4a8600c"
+    }
+  ]
+}
