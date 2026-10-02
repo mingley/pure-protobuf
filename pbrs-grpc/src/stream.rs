@@ -454,6 +454,17 @@ impl<T> Streaming<T> {
         }
         taken
     }
+
+    /// Whether yielding can let an application producer refill its queue.
+    ///
+    /// A closed channel may still contain messages, but no sender can add
+    /// more. A wire-backed stream has no application queue to refill.
+    pub(crate) fn may_refill_channel(&self) -> bool {
+        match &self.source {
+            Source::Channel(rx) => !rx.is_closed(),
+            Source::Wire(_) => false,
+        }
+    }
 }
 
 impl<T> std::fmt::Debug for Streaming<T> {

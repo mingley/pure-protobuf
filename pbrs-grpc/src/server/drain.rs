@@ -716,11 +716,12 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
         }
         // More than one message queued means the producer is running ahead of
         // the network and is bounded by its channel depth, so one scheduling
-        // turn lets it top the queue up and doubles the write size. Exactly one
-        // means it is not ahead — a request/response stream, say — and must not
-        // pay a turn of latency for nothing.
+        // turn lets it top the queue up and doubles the write size. A closed
+        // producer cannot refill it. Exactly one means it is not ahead — a
+        // request/response stream, say — and must not pay a turn of latency
+        // for nothing.
         let room = OutBatch::BURST - items.len();
-        if items.len() > 1 && room > 0 {
+        if items.len() > 1 && room > 0 && stream.may_refill_channel() {
             let_producer_catch_up().await;
             stream.try_recv_many(&mut items, room);
         }
