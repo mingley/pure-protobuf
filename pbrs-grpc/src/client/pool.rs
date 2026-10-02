@@ -841,7 +841,7 @@ impl ChannelInner {
             drop(lease);
             let dial_start = tokio::time::Instant::now();
             self.note_channel_dial_start();
-            match Box::pin(handshake(&self.endpoint, self.dial, self.tls.as_ref())).await {
+            match handshake(&self.endpoint, self.dial, self.tls.as_ref()).await {
                 Ok(dialed) => {
                     if let Some(obs) = observer {
                         if r#gen > 0 || attempt > 0 {
