@@ -402,4 +402,45 @@ mod tests {
             }
         }
     }
+
+    #[tokio::test]
+    async fn explicit_producer_error_preserves_status_details_and_metadata() {
+        let dropped = Arc::new(AtomicUsize::new(0));
+        let mut metadata = tonic::metadata::MetadataMap::new();
+        metadata.insert("x-terminal", "retained".parse().expect("metadata"));
+        let failure = tonic::Status::with_details_and_metadata(
+            tonic::Code::PermissionDenied,
+            "explicit producer failure",
+            Bytes::from_static(b"details"),
+            metadata,
+        );
+        let mut body = CappedBody::new(
+            Chunks {
+                frames: VecDeque::from([
+                    Ok(Frame::data(Bytes::from_static(b"\x00\x00"))),
+                    Err(failure),
+                ]),
+                dropped: dropped.clone(),
+            },
+            MessageLimits::default().with_max_encoding(8),
+            Direction::Encode,
+        );
+        let error = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx))
+            .await
+            .expect("error frame")
+            .expect_err("withheld partial prefix");
+        assert_eq!(error.code(), tonic::Code::PermissionDenied);
+        assert_eq!(error.message(), "explicit producer failure");
+        assert_eq!(error.details(), b"details");
+        assert_eq!(
+            error.metadata().get("x-terminal").expect("metadata"),
+            "retained"
+        );
+        assert_eq!(dropped.load(Ordering::SeqCst), 1);
+        assert!(
+            poll_fn(|cx| Pin::new(&mut body).poll_frame(cx))
+                .await
+                .is_none()
+        );
+    }
 }

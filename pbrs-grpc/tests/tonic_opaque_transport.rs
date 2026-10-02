@@ -32,6 +32,14 @@ struct State {
     ready: AtomicUsize,
     calls: AtomicUsize,
     dropped: AtomicUsize,
+    input_dropped: AtomicUsize,
+}
+
+struct InputDrop(Arc<State>);
+impl Drop for InputDrop {
+    fn drop(&mut self) {
+        self.0.input_dropped.fetch_add(1, Ordering::SeqCst);
+    }
 }
 
 impl NamedService for Probe {
@@ -54,6 +62,7 @@ impl Service<Request<TonicBody>> for Probe {
         Box::pin(async move {
             let mut frames = VecDeque::new();
             if probe.read_input {
+                let _guard = InputDrop(probe.state.clone());
                 let mut body = request.into_body();
                 while let Some(frame) = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await {
                     if let Ok(bytes) = frame?.into_data() {
@@ -178,7 +187,10 @@ async fn exchange(
         send.send_data(bytes, upload.peek().is_none())
             .expect("upload");
     }
-    let response = response.await.expect("response");
+    collect(response.await.expect("response")).await
+}
+
+async fn collect(response: Response<h2::RecvStream>) -> (Bytes, http::HeaderMap, http::HeaderMap) {
     let headers = response.headers().clone();
     let mut body = response.into_body();
     let mut bytes = BytesMut::new();
@@ -370,5 +382,97 @@ async fn deadline_while_waiting_for_output_prefix_drops_body_and_recovers_rpc_sl
         assert_eq!(terminal.get("grpc-status").expect("status"), "4");
         assert_eq!(fixture.state.calls.load(Ordering::SeqCst), call);
         assert_eq!(fixture.state.dropped.load(Ordering::SeqCst), call);
+    }
+}
+
+async fn wait_counter(counter: &AtomicUsize, expected: usize) {
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while counter.load(Ordering::SeqCst) != expected {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("server lifecycle progress");
+}
+
+#[tokio::test]
+async fn reset_during_partial_input_prefix_drops_reader_and_next_rpc_succeeds() {
+    let mut echo = probe(Vec::new());
+    echo.read_input = true;
+    let mut fixture = connect(
+        echo,
+        ServerConfig::default()
+            .max_decoding_message_size(3)
+            .max_concurrent_rpcs(1),
+        65_535,
+    )
+    .await;
+    let (response, mut send) = fixture
+        .client
+        .send_request(request(), false)
+        .expect("request");
+    send.send_data(Bytes::from_static(b"\x00\x00"), false)
+        .expect("partial prefix");
+    wait_counter(&fixture.state.calls, 1).await;
+    send.send_reset(h2::Reason::CANCEL);
+    assert!(response.await.is_err());
+    wait_counter(&fixture.state.input_dropped, 1).await;
+    let wire = Bytes::from_static(b"\x00\x00\x00\x00\x00");
+    let (bytes, terminal, _) = exchange(&mut fixture, request(), vec![wire.clone()]).await;
+    assert_eq!(bytes, wire);
+    assert_eq!(terminal.get("grpc-status").expect("status"), "0");
+    assert_eq!(fixture.state.calls.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test]
+async fn deadline_during_open_partial_input_prefix_drops_reader() {
+    let mut echo = probe(Vec::new());
+    echo.read_input = true;
+    let mut fixture = connect(
+        echo,
+        ServerConfig::default().max_decoding_message_size(3),
+        65_535,
+    )
+    .await;
+    let mut request = request();
+    request
+        .headers_mut()
+        .insert("grpc-timeout", http::HeaderValue::from_static("50m"));
+    let (response, mut send) = fixture
+        .client
+        .send_request(request, false)
+        .expect("request");
+    send.send_data(Bytes::from_static(b"\x00\x00"), false)
+        .expect("partial prefix");
+    let (bytes, terminal, _) = collect(response.await.expect("response")).await;
+    assert!(bytes.is_empty());
+    assert_eq!(terminal.get("grpc-status").expect("status"), "4");
+    assert_eq!(fixture.state.input_dropped.load(Ordering::SeqCst), 1);
+    drop(send);
+}
+
+#[tokio::test]
+async fn reset_during_partial_output_prefix_drops_producer_and_recovers_rpc_slot() {
+    let mut pending = probe(vec![Bytes::from_static(b"\x00\x00")]);
+    pending.pending_tail = true;
+    let mut fixture = connect(
+        pending,
+        ServerConfig::default()
+            .max_encoding_message_size(3)
+            .max_concurrent_rpcs(1),
+        65_535,
+    )
+    .await;
+    for call in 1..=2 {
+        let (response, mut send) = fixture
+            .client
+            .send_request(request(), true)
+            .expect("request");
+        let response = response.await.expect("headers before partial prefix");
+        assert!(!response.headers().contains_key("grpc-status"));
+        send.send_reset(h2::Reason::CANCEL);
+        drop(response);
+        wait_counter(&fixture.state.dropped, call).await;
+        assert_eq!(fixture.state.calls.load(Ordering::SeqCst), call);
     }
 }
