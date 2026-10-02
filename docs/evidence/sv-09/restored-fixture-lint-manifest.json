@@ -1,0 +1,29 @@
+{
+  "source": "b6c2c69f8fd0498119591d4aa600df62b758745d",
+  "runtime_baseline": "cf3eee22c6b06324e299f81b76915651471d8025",
+  "checks": {
+    "strict_clippy_exit": 0,
+    "initial_clippy_exit": 101,
+    "unit_passed": 4,
+    "integration_passed": 5,
+    "ignored": 0
+  },
+  "env": {
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_TARGET_DIR": "target/sv09-devloop",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "features": "prost,copy-counts"
+  },
+  "files": {
+    "work/profiles/hold-cancel-restored-clippy-red.log": "64d78d32e067a027b36ebc7f3e11516b95e0aaec3bb0407409e349732ec0f24a",
+    "work/profiles/hold-cancel-restored-clippy-final.log": "6308123923bf8b7a69238c71ceff8e46154130bae9116db3ab0dfff5d053b467",
+    "work/profiles/hold-cancel-restored-unit-final.log": "25c947a73b9c5a2ec285b789ed8ba40d9d71e45ef9e83308c81d84975706872e",
+    "work/profiles/hold-cancel-restored-streaming-final.log": "e7154ff7bad3cfaeaa9d1ab2fd77de856ca8cd4ad502ec3234ddd9e92ef32887",
+    "work/profiles/hold-cancel-debug-clean.log": "3ba4006768c65f7406f8c3ad763974e78dcfc8a4a5c705962fd82f60eb06ae01",
+    "pbrs-grpc/src/server/sv09_cancel_tests.rs": "03a7d4e5287c86cf4421ec9954ec5d847d70b9a6bcb7508cc9974989d03a7ead",
+    "pbrs-grpc/tests/sv09_streaming.rs": "1ba057ec7eedbecc2e715689afcec41c14d1504f3048d3a60a0be227d34e26b6"
+  },
+  "archive_sha256": "eb0ecdbd1e15b0c4efb82f4a028fe39c7ad98598f9433af0a5bdbe92d3f8a4dd"
+}

@@ -101,3 +101,20 @@ exit status. Allocation-stack tracing and sampled flamegraphs remain `not_run`
 for the reasons recorded in the current-source attribution evidence. Existing
 Callgrind profiles provide instruction attribution without inventing unavailable
 allocation-stack evidence.
+
+## Restored-source fixture lint proof
+
+Fixture-only source `b6c2c69f8fd0498119591d4aa600df62b758745d` passes strict
+`cargo clippy -p pbrs-grpc --lib --tests --features prost,copy-counts -- -D warnings`,
+then all four cancellation unit tests and all five streaming integration tests.
+The original strict run fails on the older Waiting fixture's two standard Mutex
+references. Narrow, reasoned type-alias expectations retain its single-use sender
+take and the new synchronous poll/drop event recording. Every lock guard ends
+within its statement before any await; no runtime policy or helper changes.
+
+`sv-09/restored-fixture-lint-proof.tar.gz` retains the original red lint, final
+green lint and nine test results, exact final fixture sources and completed-debug
+cache cleanup log. Hashes, source and build environment are recorded in
+`sv-09/restored-fixture-lint-manifest.json`. After retaining proof, the isolated
+target's completed debug artifacts were pruned; the retained release cache is
+942 MB. This fixture proof does not qualify either rejected runtime experiment.
