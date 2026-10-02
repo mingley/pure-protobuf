@@ -1,0 +1,4 @@
+codec.adoption.pbrs.maps.n8.fresh_encode instructions: REGRESSED 160774.3 -> 162444.2 (+1.04%, limit 1%)
+codec.adoption.pbrs.maps.n64.owned_decode instructions: REGRESSED 177658.0 -> 180184.2 (+1.42%, limit 1%)
+codec.adoption.pbrs.maps.n64.fully_read_clone instructions: REGRESSED 68003.9 -> 68802.3 (+1.17%, limit 1%)
+codec.adoption.pbrs.maps.n512.read_all syscalls: REGRESSED 0.4 -> 0.4 (+1.10%, limit 1%)

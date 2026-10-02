@@ -1,0 +1,14 @@
+   Compiling bytes v1.12.1
+   Compiling serde_core v1.0.229
+   Compiling prost v0.14.4
+   Compiling zmij v1.0.23
+   Compiling memchr v2.8.3
+   Compiling itoa v1.0.18
+   Compiling prost-types v0.14.4
+   Compiling serde v1.0.229
+   Compiling serde_json v1.0.151
+   Compiling simdutf8 v0.1.5
+   Compiling prost-build v0.14.4
+   Compiling pbrs v0.2.0 (/workspace/pure-protobuf/work/sb31)
+   Compiling pbrs-adoption-corpus v0.0.0 (/workspace/pure-protobuf/work/sb31/bench/devloop/adoption)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3m 36s

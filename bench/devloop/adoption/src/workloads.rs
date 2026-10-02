@@ -314,6 +314,45 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
+    fn map_input_bytes_match_independent_processes() {
+        const CHILD_SIZE: &str = "PBRS_MAP_INPUT_TEST_CHILD_SIZE";
+        const OUTPUT: &str = "__MAP_INPUT_BYTES__ ";
+        let bytes = |n| {
+            stable_map_wire(maps(n).encode_to_vec())
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>()
+        };
+        // Spawn this same test in a fresh process, with its own HashMap seed.
+        // Compare complete bytes rather than relying on a fingerprint alone.
+        if let Ok(n) = std::env::var(CHILD_SIZE) {
+            println!("{OUTPUT}{}", bytes(n.parse().unwrap()));
+            return;
+        }
+        for n in [8, 64, 512] {
+            let expected = bytes(n);
+            for _ in 0..4 {
+                let child = std::process::Command::new(std::env::current_exe().unwrap())
+                    .args([
+                        "--exact",
+                        "workloads::tests::map_input_bytes_match_independent_processes",
+                        "--nocapture",
+                    ])
+                    .env(CHILD_SIZE, n.to_string())
+                    .output()
+                    .unwrap();
+                assert!(child.status.success());
+                let stdout = String::from_utf8(child.stdout).unwrap();
+                let actual = stdout
+                    .lines()
+                    .find_map(|line| line.strip_prefix(OUTPUT))
+                    .expect("child emitted complete map input bytes");
+                assert_eq!(actual, expected, "map size {n}");
+            }
+        }
+    }
+
+    #[test]
     fn map_input_order_is_stable_and_preserves_full_values_and_lengths() {
         for n in [8, 64, 512] {
             let specimen = maps(n);

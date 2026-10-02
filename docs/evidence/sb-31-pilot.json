@@ -1,0 +1,147 @@
+{
+  "schema": "devloop/1",
+  "host": {
+    "os": "linux",
+    "arch": "x86_64",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "perf": false,
+    "strace": true,
+    "valgrind": true
+  },
+  "devloop_commit": "4355c682e10d9dac066f8ab15a6ec9d13a911358",
+  "cells": [
+    {
+      "id": "codec.adoption.pbrs.maps.n512.owned_decode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 931575.375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:0094218e21c0b475",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 437.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 215960.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 5.6875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 7962750.875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.17391053038995616,
+      "copy_counts": {
+        "wire_calls": 111.0,
+        "wire_bytes": 29847.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.maps.n512.read_all",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 16,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 2194171.375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:0094218e21c0b475",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 491.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 368216.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 5.6875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 12180063.125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.12497163229211682,
+      "copy_counts": {
+        "wire_calls": 119.0,
+        "wire_bytes": 32727.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    }
+  ]
+}

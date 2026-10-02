@@ -1,0 +1,36 @@
+    Blocking waiting for file lock on package cache
+   Compiling v4_tat v0.0.1 (/workspace/pure-protobuf/work/sb31/v4_tat)
+   Compiling protobuf v4.35.1-release
+   Compiling tonic v0.14.6
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/pure-protobuf/work/sb31/pbrs-grpc)
+   Compiling prost-types v0.13.5
+   Compiling pbrs-adoption-corpus v0.0.0 (/workspace/pure-protobuf/work/sb31/bench/devloop/adoption)
+   Compiling flate2 v1.1.10
+   Compiling prost_tat v0.0.1 (/workspace/pure-protobuf/work/sb31/prost_tat)
+   Compiling rustls-graviola v0.2.1
+   Compiling devloop v0.1.0 (/workspace/pure-protobuf/work/sb31/bench/devloop)
+   Compiling tokio-rustls v0.26.5
+   Compiling webpki-roots v1.0.9
+   Compiling rustls-pemfile v2.2.0
+   Compiling tonic-prost v0.14.6
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7m 17s
+     Running unittests src/main.rs (target/sb31-devloop/debug/deps/devloop-9e2f78ba722389fc)
+
+running 14 tests
+test adoption_rpc::tests::tonic_listener_preserves_default_tcp_nodelay ... ok
+test counters::tests::strace_missing_or_malformed_summary_is_not_a_measured_zero ... ok
+test counters::tests::perf_reads_event_after_empty_unit ... ok
+test counters::tests::callgrind_reads_summary_and_rejects_invalid_counts ... ok
+test counters::tests::perf_rejects_unavailable_nonfinite_ambiguous_or_wrong_events ... ok
+test counters::tests::strace_total_is_last_column_with_optional_error_count ... ok
+test input_tests::differential_collection_rejects_every_missing_fingerprint_combination ... ok
+test input_tests::different_inputs_reject_differential_counts - should panic ... ok
+test input_tests::matching_input_and_legacy_non_adoption_cells_are_accepted ... ok
+test input_tests::missing_input_identifier_rejects_differential_counts - should panic ... ok
+test map_cells::tests::fixtures_exercise_every_entry_and_last_key ... ok
+test input_tests::report_comparison_accepts_matching_inputs_and_readable_legacy_reports ... ok
+test input_tests::report_comparison_rejects_missing_or_unequal_inputs_in_either_direction ... ok
+test text_cells::tests::all_cells_execute_against_round_tripping_fixtures ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+

@@ -1,0 +1,1599 @@
+{
+  "schema": "devloop/1",
+  "host": {
+    "os": "linux",
+    "arch": "x86_64",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "perf": false,
+    "strace": true,
+    "valgrind": true
+  },
+  "devloop_commit": "4355c682e10d9dac066f8ab15a6ec9d13a911358",
+  "cells": [
+    {
+      "id": "codec.adoption.pbrs.maps.n8.fresh_encode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 160774.27734375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:3415f6efcea7172c",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 333.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 25515.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.30859375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 844308.07421875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.02930153382073426,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 189.0,
+        "emit_bytes": 7104.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.maps.n8.owned_decode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 87407.484375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:3415f6efcea7172c",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 122.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 23400.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.30859375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 467032.8203125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0699938987974388,
+      "copy_counts": {
+        "wire_calls": 10.0,
+        "wire_bytes": 8969.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.maps.n8.read_all",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 161923.54296875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:3415f6efcea7172c",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 160.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 28968.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.30859375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 710844.65625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.028407753434176692,
+      "copy_counts": {
+        "wire_calls": 18.0,
+        "wire_bytes": 11849.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.maps.n8.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 34321.99609375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:3415f6efcea7172c",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 109.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 8320.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.30859375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 148702.59765625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.026482798780554127,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.prost.maps.n8.fresh_encode",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 157832.07421875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:3415f6efcea7172c",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 240.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 19431.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.30859375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 731163.66015625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.019520277297478857,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.prost.maps.n8.owned_decode",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 109598.84765625,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:3415f6efcea7172c",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 174.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 20459.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.30859375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 522116.54296875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.11611604256788138,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.prost.maps.n8.read_all",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 162914.953125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:3415f6efcea7172c",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 206.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 26191.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.30859375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 699383.3671875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.11047354284421979,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.prost.maps.n8.fully_read_clone",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 57728.96875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:3415f6efcea7172c",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 159.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 10718.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.30859375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 264741.9375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.006604375184966104,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.maps.n64.fresh_encode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 556264.96484375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 497.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 48073.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.3125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 3212366.24609375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.006508870717712181,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 335.0,
+        "emit_bytes": 8484.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.maps.n64.owned_decode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 177658.03515625,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 162.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 44744.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.3125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 914954.31640625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.004146397179510716,
+      "copy_counts": {
+        "wire_calls": 21.0,
+        "wire_bytes": 11221.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.maps.n64.read_all",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 402350.203125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 208.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 61832.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.3125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1902827.57421875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.006100634794934539,
+      "copy_counts": {
+        "wire_calls": 29.0,
+        "wire_bytes": 14101.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.maps.n64.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 68003.90234375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 132.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 18200.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.3125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 291069.8984375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0185702424728979,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.prost.maps.n64.fresh_encode",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 342208.609375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 375.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 33229.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.3125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1528241.13671875,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.03647218440786337,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.prost.maps.n64.owned_decode",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 333787.734375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 326.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 42096.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.3125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1472193.3125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.007362313420045628,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.prost.maps.n64.read_all",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 404737.63671875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 358.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 47828.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.3125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1646952.05078125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.04597018334873206,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.prost.maps.n64.fully_read_clone",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 124823.10546875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 294.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 22090.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.3125,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 579893.3828125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.011991716320659759,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.maps.n512.fresh_encode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 17598319.171875,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:0094218e21c0b475",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1757.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 228859.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.35546875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 119204845.75,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.10784318214842792,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 2036.0,
+        "emit_bytes": 20654.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.maps.n512.owned_decode",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 939191.49609375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:0094218e21c0b475",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 437.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 215960.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.35546875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 5855315.3515625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.026424323930553526,
+      "copy_counts": {
+        "wire_calls": 111.0,
+        "wire_bytes": 29847.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.maps.n512.read_all",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 2275422.5234375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:0094218e21c0b475",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 491.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 368216.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.35546875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 12495433.7578125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.05157349198810577,
+      "copy_counts": {
+        "wire_calls": 119.0,
+        "wire_bytes": 32727.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.pbrs.maps.n512.fully_read_clone",
+      "kind": "codec",
+      "codec": "pbrs",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 242364.90234375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:0094218e21c0b475",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 311.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 97040.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.35546875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 997376.53125,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0451173844368152,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.prost.maps.n512.fresh_encode",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 1733418.40234375,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:0094218e21c0b475",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1450.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 144135.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.35546875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 7711916.375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.016411676030338065,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.prost.maps.n512.owned_decode",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 1938661.67578125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:0094218e21c0b475",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1497.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 214576.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.35546875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 9004786.2109375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0488904708535856,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.prost.maps.n512.read_all",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 2157663.83203125,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:0094218e21c0b475",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1529.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 220308.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.359375,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 8590904.234375,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.027025985326834517,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    },
+    {
+      "id": "codec.adoption.prost.maps.n512.fully_read_clone",
+      "kind": "codec",
+      "codec": "prost",
+      "iters": 256,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 598633.00390625,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "input_wire_fingerprint": "fnv1a64:0094218e21c0b475",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 1369.0,
+          "unit": "heap allocs per op (exact)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 113114.0,
+          "unit": "heap bytes per op (exact)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 0.35546875,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 0.0,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 2748661.25390625,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.04082239433642363,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 0.0,
+        "chunk_slice_bytes": 0.0,
+        "encode_calls": 0.0,
+        "encode_bytes": 0.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    }
+  ]
+}
