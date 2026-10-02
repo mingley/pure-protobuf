@@ -1090,12 +1090,12 @@ pub mod timeout;
 #[cfg(feature = "grpc-web")]
 pub mod web;
 
+#[cfg(feature = "tonic")]
+pub mod tonic_server;
 #[cfg(feature = "tower")]
 pub mod tower_client;
 #[cfg(feature = "tower")]
 pub mod tower_server;
-#[cfg(feature = "tonic")]
-pub mod tonic_server;
 
 pub mod channelz;
 pub mod health;
