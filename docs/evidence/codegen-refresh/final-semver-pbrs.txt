@@ -1,0 +1,10 @@
+    Building pbrs v0.2.0 (current)
+       Built [   6.027s] (current)
+     Parsing pbrs v0.2.0 (current)
+      Parsed [   0.122s] (current)
+     Parsing pbrs v0.2.0 (baseline, cached)
+      Parsed [   0.116s] (baseline)
+    Checking pbrs v0.2.0 -> v0.2.0 (assume minor change)
+     Checked [   0.456s] 196 checks: 196 pass, 58 skip
+     Summary no semver update required
+    Finished [   7.245s] pbrs

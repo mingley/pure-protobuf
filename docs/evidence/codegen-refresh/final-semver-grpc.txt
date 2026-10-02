@@ -1,0 +1,10 @@
+    Building pbrs-grpc v0.1.0-alpha.2 (current)
+       Built [  46.133s] (current)
+     Parsing pbrs-grpc v0.1.0-alpha.2 (current)
+      Parsed [   0.176s] (current)
+     Parsing pbrs-grpc v0.1.0-alpha.2 (baseline, cached)
+      Parsed [   0.135s] (baseline)
+    Checking pbrs-grpc v0.1.0-alpha.2 -> v0.1.0-alpha.2 (assume minor change)
+     Checked [   0.592s] 196 checks: 196 pass, 58 skip
+     Summary no semver update required
+    Finished [  48.301s] pbrs-grpc

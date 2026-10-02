@@ -1,0 +1,57 @@
+protobuf v35.1 already at /workspace/pure-protobuf/third_party/protobuf
+using cmake protoc: /workspace/pure-protobuf/target/conformance-build/protoc (libprotoc 35.1)
+pinned conformance runner has no Edition 2024 cases; max-2023 remains the qualification ceiling
+    Blocking waiting for file lock on package cache
+   Compiling serde_core v1.0.229
+   Compiling zmij v1.0.23
+   Compiling serde_json v1.0.151
+   Compiling paste v1.0.15
+   Compiling serde v1.0.229
+   Compiling pbrs v0.2.0 (/workspace/pure-protobuf)
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+warning: pbrs@0.2.0: wrote conformance descriptor set
+   Compiling simdutf8 v0.1.5
+   Compiling bytes v1.12.1
+    Finished `release` profile [optimized] target(s) in 1m 16s
+===== required run 1 =====
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1790957763.281776   59094 fork_pipe_runner.cc:178] /workspace/pure-protobuf/target/release/conformance
+CONFORMANCE TEST BEGIN ====================================
+
+CONFORMANCE SUITE PASSED: 5631 successes, 0 skipped, 0 expected failures, 0 unexpected failures.
+
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1790957763.775891   70386 fork_pipe_runner.cc:178] /workspace/pure-protobuf/target/release/conformance
+CONFORMANCE TEST BEGIN ====================================
+
+CONFORMANCE SUITE PASSED: 909 successes, 0 skipped, 0 expected failures, 0 unexpected failures.
+
+===== required run 2 =====
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1790957763.877706   72211 fork_pipe_runner.cc:178] /workspace/pure-protobuf/target/release/conformance
+CONFORMANCE TEST BEGIN ====================================
+
+CONFORMANCE SUITE PASSED: 5631 successes, 0 skipped, 0 expected failures, 0 unexpected failures.
+
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1790957764.513901   83518 fork_pipe_runner.cc:178] /workspace/pure-protobuf/target/release/conformance
+CONFORMANCE TEST BEGIN ====================================
+
+CONFORMANCE SUITE PASSED: 909 successes, 0 skipped, 0 expected failures, 0 unexpected failures.
+
+===== recommended =====
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1790957764.591436   85348 fork_pipe_runner.cc:178] /workspace/pure-protobuf/target/release/conformance
+CONFORMANCE TEST BEGIN ====================================
+
+CONFORMANCE SUITE PASSED: 5631 successes, 0 skipped, 0 expected failures, 0 unexpected failures.
+
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1790957765.097692   96643 fork_pipe_runner.cc:178] /workspace/pure-protobuf/target/release/conformance
+CONFORMANCE TEST BEGIN ====================================
+
+CONFORMANCE SUITE PASSED: 909 successes, 0 skipped, 0 expected failures, 0 unexpected failures.
+
+Conformance summary written to /workspace/pure-protobuf/target/conformance-out/summary.json
+PASS: all conformance passes completed successfully

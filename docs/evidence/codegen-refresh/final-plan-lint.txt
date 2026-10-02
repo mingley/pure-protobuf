@@ -1,0 +1,1 @@
+plans OK: 388 cards, 32 checks, no cycles

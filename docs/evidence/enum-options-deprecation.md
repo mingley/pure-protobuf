@@ -52,5 +52,7 @@ above passed after provisioning the pinned compiler.
 
 `cargo test --locked -p pbrs --lib` also passed all 96 core library tests.
 
-Full codegen and regenerated pinned conformance gates are coordinated
-with GN-13 and GN-12. This evidence alone does not close those integration gates.
+Full codegen and regenerated pinned conformance gates pass in the
+[integrated GN-12 acceptance](codegen-refresh/README.md), including the complete
+workspace descriptor/core/plugin tests. The recorded reader regression and
+integration outputs together close the bounded field-mapping correction.

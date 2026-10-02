@@ -57,5 +57,7 @@ Nested consumers use the existing shared integration-consumer target and
 serialized Cargo helper.
 
 Full codegen, documentation and regenerated bundled Clippy/rustdoc/conformance
-gates are coordinated with GN-12. This targeted evidence does not replace those
-integration gates.
+gates pass in the [integrated GN-12 acceptance](codegen-refresh/README.md).
+The complete workspace run also executes this strict consumer regression and
+both expected external-caller rejections. This targeted proof and the retained
+integration outputs together close the bounded correctness repair.

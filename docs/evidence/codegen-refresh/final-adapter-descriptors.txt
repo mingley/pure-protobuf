@@ -1,0 +1,12 @@
+   Compiling memchr v2.8.3
+warning: pbrs@0.2.0: wrote conformance descriptor set
+   Compiling serde_json v1.0.151
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/verify-main)
+    Finished `test` profile [unoptimized] target(s) in 16.93s
+     Running tests/onboarding.rs (target/debug/deps/onboarding-b52752425d43f52d)
+
+running 1 test
+test adapter_descriptor_sets_match_pinned_protoc_and_generated_output ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.07s
+

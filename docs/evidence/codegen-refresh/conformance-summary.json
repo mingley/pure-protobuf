@@ -1,0 +1,55 @@
+{
+  "runner_pin": "v35.1",
+  "runner_sha": "35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03",
+  "git_commit": "bbe9f6fb6d238e369a0a1bac3774ef682b54bab4",
+  "dirty_source": false,
+  "timestamp": "2026-10-02T16:14:47Z",
+  "maximum_edition": "2023",
+  "test_counts": {
+    "required_run_1": 5631,
+    "required_run_2": 5631,
+    "recommended": 5631,
+    "required_text_run_1": 909,
+    "required_text_run_2": 909,
+    "recommended_text": 909,
+    "total_failures": 0
+  },
+  "runs": {
+    "required_run_1": {
+      "status": "passed",
+      "successes": 5631,
+      "text_successes": 909,
+      "skipped": 0,
+      "text_skipped": 0,
+      "expected_failures": 0,
+      "text_expected_failures": 0,
+      "unexpected_failures": 0,
+      "text_unexpected_failures": 0
+    },
+    "required_run_2": {
+      "status": "passed",
+      "successes": 5631,
+      "text_successes": 909,
+      "skipped": 0,
+      "text_skipped": 0,
+      "expected_failures": 0,
+      "text_expected_failures": 0,
+      "unexpected_failures": 0,
+      "text_unexpected_failures": 0
+    },
+    "recommended": {
+      "status": "passed",
+      "successes": 5631,
+      "text_successes": 909,
+      "skipped": 0,
+      "text_skipped": 0,
+      "expected_failures": 0,
+      "text_expected_failures": 0,
+      "unexpected_failures": 0,
+      "text_unexpected_failures": 0
+    }
+  },
+  "validation_errors": [],
+  "overall_status": "passed",
+  "overall_passed": true
+}

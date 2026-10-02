@@ -1,0 +1,171 @@
+{
+  "date": "2026-10-02",
+  "purpose": "GN-12/GN-13/GN-14 correctness and API acceptance; no performance qualification",
+  "runtime_source": "bbe9f6fb6d238e369a0a1bac3774ef682b54bab4",
+  "workspace_source": "d10305e481071d2d0e0a18f768512eaeb040775f",
+  "workspace_tree": "ce969adb36ff921da5fd7dda4b670b3e36d8e17d",
+  "acceptance_worktree_commit": "512a81883291099ce817c93396fdace4c5d5354c",
+  "acceptance_worktree_tree": "ce969adb36ff921da5fd7dda4b670b3e36d8e17d",
+  "acceptance_worktree": "/workspace/scratch/work/verify-main",
+  "toolchain": {
+    "rustc": "1.99.0 (b940084d7 2026-09-28)",
+    "cargo_semver_checks": "0.50.0",
+    "protoc": "libprotoc 35.1",
+    "protobuf_pin": "v35.1",
+    "protobuf_sha": "35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03"
+  },
+  "environment": {
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_BUILD_JOBS": "2"
+  },
+  "checks": [
+    {
+      "command": "cargo test --locked --workspace",
+      "source": "d10305e481071d2d0e0a18f768512eaeb040775f",
+      "status": "passed",
+      "successful_suites": 120,
+      "passed": 3263,
+      "failed": 0,
+      "ignored": 5,
+      "log": "final-workspace.txt"
+    },
+    {
+      "command": "cargo clippy --workspace --all-targets --all-features -- -D warnings",
+      "source": "d10305e481071d2d0e0a18f768512eaeb040775f",
+      "status": "passed",
+      "log": "final-clippy.txt"
+    },
+    {
+      "command": "RUSTDOCFLAGS='-D warnings' cargo doc --locked --workspace --no-deps",
+      "source": "d10305e481071d2d0e0a18f768512eaeb040775f",
+      "status": "passed",
+      "log": "final-rustdoc.txt"
+    },
+    {
+      "command": "cargo fmt --check",
+      "source": "d10305e481071d2d0e0a18f768512eaeb040775f",
+      "status": "passed",
+      "log": "final-format.txt"
+    },
+    {
+      "command": "./scripts/conformance.sh",
+      "source": "bbe9f6fb6d238e369a0a1bac3774ef682b54bab4",
+      "status": "passed",
+      "runs": 3,
+      "binary_json_each": 5631,
+      "text_each": 909,
+      "skipped": 0,
+      "unexpected_failures": 0,
+      "log": "final-conformance.txt",
+      "summary": "conformance-summary.json"
+    },
+    {
+      "command": "./scripts/regen-generated.sh --check",
+      "source": "d10305e481071d2d0e0a18f768512eaeb040775f",
+      "status": "passed",
+      "bindings": 13,
+      "log": "final-main-regen-check.txt"
+    },
+    {
+      "command": "./scripts/test-rust-out-shared.sh",
+      "source": "bbe9f6fb6d238e369a0a1bac3774ef682b54bab4",
+      "status": "passed",
+      "original_crates": 19,
+      "original_tests": 233,
+      "regression_tests": 6,
+      "documented_exclusions": 7,
+      "log": "final-upstream-shared.txt"
+    },
+    {
+      "command": "cargo test --locked -p pbrs --test onboarding adapter_descriptor_sets_match_pinned_protoc_and_generated_output -- --exact --ignored",
+      "source": "d10305e481071d2d0e0a18f768512eaeb040775f",
+      "status": "passed",
+      "passed": 1,
+      "log": "final-adapter-descriptors.txt"
+    },
+    {
+      "command": "cargo semver-checks check-release --release-type minor --package pbrs --baseline-version 0.2.0",
+      "source": "bbe9f6fb6d238e369a0a1bac3774ef682b54bab4",
+      "status": "passed",
+      "checks_passed": 196,
+      "tool_skipped": 58,
+      "log": "final-semver-pbrs.txt"
+    },
+    {
+      "command": "cargo semver-checks check-release --release-type minor --package pbrs-grpc --baseline-version 0.1.0-alpha.2",
+      "source": "bbe9f6fb6d238e369a0a1bac3774ef682b54bab4",
+      "status": "passed",
+      "checks_passed": 196,
+      "tool_skipped": 58,
+      "log": "final-semver-grpc.txt"
+    },
+    {
+      "command": "cargo semver-checks check-release --release-type minor --package protobuf-tonic --baseline-version 0.1.0-alpha.2",
+      "source": "bbe9f6fb6d238e369a0a1bac3774ef682b54bab4",
+      "status": "passed",
+      "checks_passed": 196,
+      "tool_skipped": 58,
+      "log": "final-semver-tonic.txt"
+    },
+    {
+      "command": "python3 -B -m unittest tests.test_plan_lint tests.test_plan_status tests.test_regen_generated -q",
+      "status": "passed",
+      "passed": 22,
+      "log": "final-plan-regeneration-tests.txt"
+    },
+    {
+      "command": "python3 scripts/plan-lint.py --all",
+      "status": "passed",
+      "cards": 388,
+      "checks": 32,
+      "cycles": 0,
+      "log": "final-plan-lint.txt"
+    }
+  ],
+  "limits": [
+    "Local verified gates, not a claim that GitHub CI has completed.",
+    "The external acceptance worktree has the exact d10305e4 source tree. In-repository toolchain/worktree scratch causes documentation discovery to include third-party README files; scratch was not hidden by weakening the checker.",
+    "The four initial bundled-WKT test failures expected stale tree-based text parsing. d10305e4 strengthens assertions to require the existing streaming TextReader helper used for fresh generated output. The final complete run passes all 17 WKT tests.",
+    "Five workspace ignores comprise one pinned adapter-descriptor test run explicitly afterward, two Edition 2024 compiler-36.1 tests, and two existing rustdoc snippets. Edition 2024 remains outside the conformance maximum Edition 2023 profile.",
+    "Upstream shared exclusions remain seven documented exclusions (five files plus two scoped); they are not counted as passes.",
+    "Semver tool skips 58 unsupported/inapplicable checks per package; 196 checks pass per package against published baselines.",
+    "Registered legacy codec smoke failed before regeneration (four losses), afterward (three), and during a quiet rerun without concurrent builds/replays (two). All failed outputs remain retained; performance qualification is not implied by correctness acceptance."
+  ],
+  "legacy_card_checks": {
+    "codec-bench": {
+      "command": "cargo build --release --locked --manifest-path bench/Cargo.toml && bench/target/release/bench",
+      "status": "failed",
+      "tier": "historical shared-host wall-time smoke; no performance qualification",
+      "before_regeneration": {
+        "exit_code": 1,
+        "losses": 4,
+        "log": "codecbench.txt"
+      },
+      "after_regeneration": {
+        "exit_code": 1,
+        "losses": 3,
+        "log": "final-codecbench.txt"
+      },
+      "quiet_after_regeneration": {
+        "exit_code": 1,
+        "losses": [
+          "strings vs google-protobuf 0.36",
+          "strings vs buffa view"
+        ],
+        "log": "quiet-codecbench.txt",
+        "binary_sha256": "ccd807906cd3c5c0ca5ecb67336e8f146fd460ab09e0b890d7d2540b92354f19",
+        "concurrent_compilation_or_benchmark_replay": false
+      }
+    },
+    "rpc-bench-tests": {
+      "command": "cargo test --locked --manifest-path rpc-bench/Cargo.toml --bin rpc-bench --test worker --test fairness",
+      "status": "passed",
+      "bin_passed": 93,
+      "worker_passed": 95,
+      "fairness_passed": 1,
+      "log": "rpcbench-tests.txt"
+    }
+  }
+}

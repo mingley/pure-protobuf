@@ -101,6 +101,11 @@ remains byte-identical at SHA-256
 `c6b8a803152aed5db0065006955e633ee0852947df81adad6a36cfb1ca968d56`.
 No generated files were hand-edited to produce the committed output.
 
-The coordinator owns final conformance, core/generated/WKT, strict Clippy and
-rustdoc, formatting, package-consumer and public-semver results on the
-integrated main source. The script proofs above do not qualify those gates.
+The coordinator completed the [integrated acceptance](codegen-refresh/README.md)
+on the regenerated main source: all 3,263 workspace tests, strict Clippy and
+rustdoc, formatting, pinned conformance and upstream shared consumers pass.
+Published-baseline semver checks pass for all three public packages. The final
+workspace assertions additionally verify streaming text parsing in the refreshed
+bundled WKTs. Exact commands, raw outputs, source trees and remaining external
+limitations are retained there; the script proofs above remain separate from
+those integration gates.

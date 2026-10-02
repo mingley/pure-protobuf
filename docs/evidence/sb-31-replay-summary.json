@@ -1483,10 +1483,13 @@
   "legacy_card_checks": {
     "codec-bench": {
       "owner": "coordinator",
-      "outcome": "two failed historical diagnostic smoke measurements",
+      "outcome": "three failed historical diagnostic smoke measurements",
       "pre_regeneration_losses": 4,
       "post_regeneration_losses": 3,
-      "performance_qualification": false
+      "performance_qualification": false,
+      "quiet_post_regeneration_losses": 2,
+      "quiet_post_regeneration_exit_code": 1,
+      "raw_logs": "docs/evidence/codegen-refresh/"
     },
     "rpc-bench-tests": {
       "owner": "coordinator",

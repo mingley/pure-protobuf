@@ -1,0 +1,10 @@
+    Building protobuf-tonic v0.1.0-alpha.2 (current)
+       Built [  46.007s] (current)
+     Parsing protobuf-tonic v0.1.0-alpha.2 (current)
+      Parsed [   0.004s] (current)
+     Parsing protobuf-tonic v0.1.0-alpha.2 (baseline, cached)
+      Parsed [   0.005s] (baseline)
+    Checking protobuf-tonic v0.1.0-alpha.2 -> v0.1.0-alpha.2 (assume minor change)
+     Checked [   0.026s] 196 checks: 196 pass, 58 skip
+     Summary no semver update required
+    Finished [  47.170s] protobuf-tonic
