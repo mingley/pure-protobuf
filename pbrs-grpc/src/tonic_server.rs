@@ -27,9 +27,15 @@
 //! restrict identity-coded messages without protobuf decoding or DATA copies.
 //! Each direction retains the default forwarding path unless its cap changes;
 //! a native cap cannot enlarge tonic's own configured cap. Configured inbound
-//! caps reject nonidentity encoding before readiness; configured outbound caps
+//! finite decoding caps also validate gzip requests with the native encoded and
+//! inflated bounds. Gzip messages are withheld until validated, then their
+//! original DATA views are forwarded; tonic inflates again when decoding.
+//! The guard bounds logical retained bytes and descriptor count, while Bytes
+//! backing allocations and tonic's private decoded buffers remain opaque.
+//! Other encodings and unlimited changed decoding caps reject compressed input
+//! before readiness; configured outbound caps
 //! reject nonidentity response encoding after the handler, before headers.
-//! Compressed opaque messages need a separate inflate guard. Native compression
+//! Compressed opaque responses need a separate bounded retention policy. Native compression
 //! settings, finite byte budgets, response hooks, binary logging, lifecycle observers
 //! and grpc-web cannot currently apply to these bodies: they fail with
 //! `FAILED_PRECONDITION` before Tower readiness or business dispatch. This
@@ -55,6 +61,7 @@ use tonic::body::Body as TonicBody;
 use tonic::server::NamedService;
 use tower::Service as TowerService;
 
+mod gzip;
 mod opaque;
 
 /// A tonic-generated named service mounted in the native gRPC kernel.
@@ -276,10 +283,21 @@ where
     let defaults = ServerConfig::default().limits();
     let cap_input = limits.max_decoding() != defaults.max_decoding();
     let cap_output = limits.max_encoding() != defaults.max_encoding();
-    if cap_input && crate::wire::grpc_encoding(rpc.request.headers()).is_some() {
-        rpc.reject(opaque::compressed_policy());
-        return;
-    }
+    let input_gzip = if cap_input {
+        match (
+            crate::wire::grpc_encoding(rpc.request.headers()),
+            limits.max_decoding(),
+        ) {
+            (Some("gzip"), Some(max)) => Some(max),
+            (Some(_), _) => {
+                rpc.reject(opaque::compressed_policy());
+                return;
+            }
+            (None, _) => None,
+        }
+    } else {
+        None
+    };
     let deadline = rpc.deadline();
     let mut accounting = Accounting::new(rpc.channelz_server, rpc.channelz_socket);
     let Rpc {
@@ -302,7 +320,9 @@ where
     parts.extensions.extend(extensions);
     let (cancel, cancelled) = watch::channel(false);
     let incoming = IncomingBody::new(recv, cancelled);
-    let body = if cap_input {
+    let body = if let Some(max) = input_gzip {
+        TonicBody::new(gzip::GzipBody::new(incoming, limits, max))
+    } else if cap_input {
         TonicBody::new(opaque::CappedBody::new(
             incoming,
             limits,

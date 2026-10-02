@@ -232,6 +232,66 @@ fn probe(output: Vec<Bytes>) -> Probe {
     }
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "gzip test fixtures must encode successfully"
+)]
+fn gzip_wire(payload: &[u8]) -> Bytes {
+    let encoded = pbrs_grpc::gzip::encode(payload).expect("gzip");
+    let len = u32::try_from(encoded.len()).expect("small fixture");
+    let mut wire = vec![1];
+    wire.extend_from_slice(&len.to_be_bytes());
+    wire.extend_from_slice(&encoded);
+    Bytes::from(wire)
+}
+
+#[test]
+fn native_gzip_decoder_uses_first_member_and_ignores_encoded_tail() {
+    let first = pbrs_grpc::gzip::encode(b"one").expect("first");
+    for tail in [
+        pbrs_grpc::gzip::encode(b"two").expect("second"),
+        vec![255, 0, 123],
+    ] {
+        let joined = [first.as_slice(), tail.as_slice()].concat();
+        assert_eq!(
+            pbrs_grpc::gzip::decode_limited(
+                &joined,
+                pbrs_grpc::MessageLimits::default().with_max_decoding(3),
+            )
+            .expect("first member only"),
+            b"one"
+        );
+    }
+}
+
+#[tokio::test]
+async fn finite_inbound_gzip_cap_preserves_original_encoded_frame() {
+    let wire = gzip_wire(b"abc");
+    let mut echo = probe(Vec::new());
+    echo.read_input = true;
+    let mut fixture = connect(
+        echo,
+        ServerConfig::default()
+            .max_decoding_message_size(64)
+            .initial_stream_window_size(1),
+        1,
+    )
+    .await;
+    let mut req = request();
+    req.headers_mut()
+        .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
+    let upload = (0..wire.len())
+        .map(|offset| wire.slice(offset..offset + 1))
+        .collect();
+    let (bytes, terminal, _) =
+        tokio::time::timeout(Duration::from_secs(2), exchange(&mut fixture, req, upload))
+            .await
+            .expect("tiny windows must progress");
+    assert_eq!(terminal.get("grpc-status").expect("status"), "0");
+    assert_eq!(bytes, wire);
+    assert_eq!(fixture.state.calls.load(Ordering::SeqCst), 1);
+}
+
 async fn response(
     output: Vec<Bytes>,
     config: ServerConfig,
@@ -322,7 +382,7 @@ async fn identity_input_caps_reject_header_claim_before_payload_arrives() {
 }
 
 #[tokio::test]
-async fn configured_compressed_input_rejects_before_readiness_but_output_after_handler() {
+async fn unsupported_compressed_input_rejects_before_readiness_but_output_after_handler() {
     let mut fixture = connect(
         probe(Vec::new()),
         ServerConfig::default().max_decoding_message_size(3),
@@ -332,7 +392,7 @@ async fn configured_compressed_input_rejects_before_readiness_but_output_after_h
     let mut compressed = request();
     compressed
         .headers_mut()
-        .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
+        .insert("grpc-encoding", http::HeaderValue::from_static("deflate"));
     let (bytes, terminal, _) = exchange(&mut fixture, compressed, Vec::new()).await;
     assert!(bytes.is_empty());
     assert_eq!(terminal.get("grpc-status").expect("status"), "9");
