@@ -1,0 +1,7 @@
+syntax = "proto2";
+package wktsharing;
+import "opt_a.proto";
+message OptC {
+  option (hint) = "c";
+  optional int32 id = 1;
+}

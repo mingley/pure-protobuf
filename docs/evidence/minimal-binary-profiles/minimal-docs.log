@@ -1,0 +1,31 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/gn11)
+    Finished `test` profile [unoptimized] target(s) in 0.53s
+     Running tests/documentation.rs (target/base/debug/deps/documentation-8d65a7dcd7e49a96)
+
+running 24 tests
+test test_anchor_cache_never_treats_unreadable_targets_as_empty ... ok
+test test_documentation_map_references_and_anchors_are_valid ... ok
+test test_documentation_map_rejects_repository_escape ... ok
+test test_claim_provenance_contract ... ok
+test test_evidence_links_and_rustdoc_navigation_contract ... ok
+test test_documented_versions_match_cargo_manifests ... ok
+test test_http2_transport_mapping_caveats_contract ... ok
+test test_license_and_crate_naming_notes_contract ... ok
+test test_link_checker_detects_broken_link_and_anchor ... ok
+test test_link_checker_rejects_missing_examples_and_stale_generated_references ... ok
+test test_local_link_checker_rejects_repository_escape ... ok
+test test_markdown_discovery_rejects_out_of_repo_directory_links ... ok
+test test_all_critical_caveats_pass_on_repository_docs ... ok
+test test_protobuf_snippet_syntax_validator_detects_errors ... ok
+test test_documentation_links_and_anchors_are_valid ... ok
+test test_named_recipe_fences_still_receive_negative_syntax_checks ... ok
+test test_published_prose_has_no_unqualified_superlatives ... ok
+test test_security_tls_verifier_and_alpn_contract ... ok
+test test_tonic_support_boundary_matches_manifest ... ok
+test test_transparent_retry_boundaries_contract ... ok
+test test_unsupported_and_untested_boundaries_contract ... ok
+test test_removing_or_altering_critical_caveat_fails ... ok
+test test_rust_snippet_syntax_validator_detects_errors ... ok
+test test_guide_code_blocks_are_syntactically_valid ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.97s

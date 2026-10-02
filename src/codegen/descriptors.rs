@@ -177,17 +177,6 @@ pub fn generate_from_code_generator_request(
         }
     }
 
-    let mut stem_counts: std::collections::BTreeMap<String, usize> =
-        std::collections::BTreeMap::new();
-    for target in &targets {
-        let norm = normalize_proto_path_str(target);
-        let stem = Path::new(&norm)
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("generated");
-        *stem_counts.entry(stem.to_string()).or_default() += 1;
-    }
-
     let mut type_files = std::collections::BTreeMap::new();
     // Per-type facts are derived here, once per request, instead of once
     // per (target, type) in the emission loops below.
@@ -234,6 +223,73 @@ pub fn generate_from_code_generator_request(
         }
     }
     TYPE_FILES.with(|c| *c.borrow_mut() = type_files);
+
+    // A single input keeps self-contained WKT copies for include! consumers.
+    // Multi-input builds give imported google.protobuf files one owner in the
+    // existing crate-root registry. Inspect the per-type facts once rather than
+    // repeating descriptor lookups for each requested target.
+    let requested_targets: std::collections::BTreeSet<_> = targets.iter().cloned().collect();
+    let requested_matcher = FileMatcher::for_slice(&targets);
+    let share_wkt = targets.len() > 1 && !resolved.no_wkt;
+    let facade = format!(
+        "{}::wkt::",
+        resolved
+            .runtime_crate
+            .as_deref()
+            .unwrap_or("pbrs")
+            .trim_start_matches(':')
+    );
+    let mut shared_files = std::collections::BTreeSet::new();
+    for facts in msg_facts.iter().chain(&enum_facts) {
+        if facts.is_wkt && facts.is_extern && requested_matcher.matches(&facts.file) {
+            return Err(CodegenError::InvalidParameter {
+                key: "extern_path".into(),
+                detail: format!(
+                    "extern_path maps requested google.protobuf type {} in {}; remove this target or its external mapping",
+                    facts.name, facts.file
+                ),
+            });
+        }
+        if facts.is_extern && !facts.is_map_entry {
+            if let Some(path) = match_extern_type(&facts.name) {
+                let normalized = path.trim_start_matches(':');
+                let destination = normalized
+                    .strip_prefix("pbrs::wkt::")
+                    .or_else(|| normalized.strip_prefix(&facade))
+                    .or_else(|| {
+                        (normalized == "pbrs::wkt" || normalized == facade.trim_end_matches(':'))
+                            .then_some("")
+                    });
+                if destination.is_some_and(|name| !bundled_wkt_type(name)) {
+                    return Err(CodegenError::InvalidParameter {
+                        key: "extern_path".into(),
+                        detail: format!(
+                            "pbrs::wkt does not provide {path} for {}; generate its source separately and map it to that module",
+                            facts.name
+                        ),
+                    });
+                }
+            }
+        }
+        if share_wkt && facts.is_wkt && !facts.is_extern && !requested_matcher.matches(&facts.file)
+        {
+            shared_files.insert(facts.file.clone());
+        }
+    }
+    targets.extend(shared_files);
+    targets.sort();
+    targets.dedup();
+
+    let mut stem_counts: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
+    for target in &requested_targets {
+        let norm = normalize_proto_path_str(target);
+        let stem = Path::new(&norm)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("generated");
+        *stem_counts.entry(stem.to_string()).or_default() += 1;
+    }
 
     // Every emitted file embeds the same descriptor bytes; render the hex
     // block once and share it rather than re-formatting per target.
@@ -341,9 +397,10 @@ use pbrs::UnknownFields;\n\n"
                 if facts.is_extern {
                     continue;
                 }
-                let emit_wkt = facts.is_wkt && !target_is_wkt && !resolved.no_wkt;
                 let emit_deps = resolved.emit_deps;
                 let ff = file_facts(&file_memo, &facts.file, &all_matcher, &mut scratch);
+                let emit_wkt =
+                    facts.is_wkt && !target_is_wkt && !resolved.no_wkt && !ff.in_any_target;
                 let is_target_file = target_matcher.matches(&facts.file);
                 let is_pub_import = !pub_matcher.is_empty() && pub_matcher.matches(&facts.file);
                 let is_same_stem_non_target = ff.stem == target_stem && !ff.in_any_target;
@@ -373,9 +430,10 @@ use pbrs::UnknownFields;\n\n"
                 if facts.is_extern {
                     continue;
                 }
-                let emit_wkt = facts.is_wkt && !target_is_wkt && !resolved.no_wkt;
                 let emit_deps = resolved.emit_deps;
                 let ff = file_facts(&file_memo, &facts.file, &all_matcher, &mut scratch);
+                let emit_wkt =
+                    facts.is_wkt && !target_is_wkt && !resolved.no_wkt && !ff.in_any_target;
                 let is_target_file = target_matcher.matches(&facts.file);
                 let is_pub_import = !pub_matcher.is_empty() && pub_matcher.matches(&facts.file);
                 let is_same_stem_non_target = ff.stem == target_stem && !ff.in_any_target;
@@ -536,7 +594,10 @@ use pbrs::UnknownFields;\n\n"
             .and_then(|s| s.to_str())
             .unwrap_or("generated");
         let root_rs = format!("{stem}.rs");
-        if stem_counts.get(stem) == Some(&1) && root_rs != rel_rs {
+        if requested_targets.contains(target)
+            && stem_counts.get(stem) == Some(&1)
+            && root_rs != rel_rs
+        {
             partial.push((root_rs, src));
         }
         Ok(partial)
@@ -598,6 +659,30 @@ use pbrs::UnknownFields;\n\n"
     out_files.sort_by(|a, b| a.0.cmp(&b.0));
     out_files.dedup_by(|a, b| a.0 == b.0);
     Ok(out_files)
+}
+
+fn bundled_wkt_type(name: &str) -> bool {
+    matches!(
+        name,
+        "Any"
+            | "Duration"
+            | "Timestamp"
+            | "Empty"
+            | "FieldMask"
+            | "Struct"
+            | "PbValue"
+            | "ListValue"
+            | "NullValue"
+            | "BoolValue"
+            | "BytesValue"
+            | "DoubleValue"
+            | "FloatValue"
+            | "Int32Value"
+            | "Int64Value"
+            | "StringValue"
+            | "UInt32Value"
+            | "UInt64Value"
+    )
 }
 
 /// Publish a resolved plugin/request configuration to this thread's

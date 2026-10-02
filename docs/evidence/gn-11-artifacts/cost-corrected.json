@@ -1,0 +1,128 @@
+{
+  "qualification": "dev-loop, local diagnostic only",
+  "runtime_source": "cf3eee22c6b06324e299f81b76915651471d8025",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "profile": {
+    "jobs": 1,
+    "debug": 0,
+    "incremental": false
+  },
+  "main_sha256": "67da4c922e090cdb6d587a9d80c2f252fa150676c5bf3982b29f09cfc8ed8e74",
+  "watched_protobuf_directory": "present and empty; same committed vendored FDS fallback",
+  "vendored_fds_sha256": "03b4f586925bb91792337b844fa50f5a623232603b83eecf2e31fb6f0700c40a",
+  "lock_sha256": {
+    "before": "637f045f7ba45af728e935a558e271dbac439bc8a3c1c4e90bdd227a478969b5",
+    "after": "de5579f18f0537b76021c053af44ae86b89f011867941d6d38caca6911848f31"
+  },
+  "plugin_sha256": "82e1fef25b44e60ad4cb537f5e876de28de11d1d0d0fba9dd49b69293c1e29d0",
+  "records": [
+    {
+      "label": "before",
+      "phases": [
+        {
+          "phase": "cold_check",
+          "command": [
+            "cargo",
+            "check",
+            "--offline",
+            "--manifest-path",
+            "/workspace/scratch/work/gn11/target/gn11-measurements-corrected/before/Cargo.toml"
+          ],
+          "seconds": 18.92112335800084,
+          "exit": 0
+        },
+        {
+          "phase": "warm_check",
+          "command": [
+            "cargo",
+            "check",
+            "--offline",
+            "--manifest-path",
+            "/workspace/scratch/work/gn11/target/gn11-measurements-corrected/before/Cargo.toml"
+          ],
+          "seconds": 0.02820623299885483,
+          "exit": 0
+        },
+        {
+          "phase": "build",
+          "command": [
+            "cargo",
+            "build",
+            "--offline",
+            "--manifest-path",
+            "/workspace/scratch/work/gn11/target/gn11-measurements-corrected/before/Cargo.toml"
+          ],
+          "seconds": 26.090539550999893,
+          "exit": 0
+        },
+        {
+          "phase": "run",
+          "command": [
+            "cargo",
+            "run",
+            "--quiet",
+            "--offline",
+            "--manifest-path",
+            "/workspace/scratch/work/gn11/target/gn11-measurements-corrected/before/Cargo.toml"
+          ],
+          "seconds": 0.028250599998500547,
+          "exit": 0
+        }
+      ]
+    },
+    {
+      "label": "after",
+      "phases": [
+        {
+          "phase": "cold_check",
+          "command": [
+            "cargo",
+            "check",
+            "--offline",
+            "--manifest-path",
+            "/workspace/scratch/work/gn11/target/gn11-measurements-corrected/after/Cargo.toml"
+          ],
+          "seconds": 14.262771269999575,
+          "exit": 0
+        },
+        {
+          "phase": "warm_check",
+          "command": [
+            "cargo",
+            "check",
+            "--offline",
+            "--manifest-path",
+            "/workspace/scratch/work/gn11/target/gn11-measurements-corrected/after/Cargo.toml"
+          ],
+          "seconds": 0.02363193500059424,
+          "exit": 0
+        },
+        {
+          "phase": "build",
+          "command": [
+            "cargo",
+            "build",
+            "--offline",
+            "--manifest-path",
+            "/workspace/scratch/work/gn11/target/gn11-measurements-corrected/after/Cargo.toml"
+          ],
+          "seconds": 24.38102964800055,
+          "exit": 0
+        },
+        {
+          "phase": "run",
+          "command": [
+            "cargo",
+            "run",
+            "--quiet",
+            "--offline",
+            "--manifest-path",
+            "/workspace/scratch/work/gn11/target/gn11-measurements-corrected/after/Cargo.toml"
+          ],
+          "seconds": 0.024910340000133147,
+          "exit": 0
+        }
+      ]
+    }
+  ]
+}

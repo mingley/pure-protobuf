@@ -1,0 +1,29 @@
+UNQUALIFIED: independent paired-host evidence is missing; /tmp/tmpbgk2f1ag/target/codegen-bench/report/summary.json
+======================================================================
+ERROR: test_python_command_keeps_timing_and_raw_logs_separate (test_run.CorpusTests.test_python_command_keeps_timing_and_raw_logs_separate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/gn11/bench/codegen/test_run.py", line 434, in test_python_command_keeps_timing_and_raw_logs_separate
+    result = harness.timed_command(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/work/gn11/bench/codegen/run.py", line 1545, in timed_command
+    raise BenchmarkError(f"requires /usr/bin/time on Linux or macOS (found {system})")
+run.BenchmarkError: requires /usr/bin/time on Linux or macOS (found Linux)
+
+======================================================================
+FAIL: test_failed_phase_retains_failure_and_logs (test_run.CorpusTests.test_failed_phase_retains_failure_and_logs)
+----------------------------------------------------------------------
+run.BenchmarkError: requires /usr/bin/time on Linux or macOS (found Linux)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/scratch/work/gn11/bench/codegen/test_run.py", line 477, in test_failed_phase_retains_failure_and_logs
+    with self.assertRaisesRegex(harness.BenchmarkError, "exited 7"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "exited 7" does not match "requires /usr/bin/time on Linux or macOS (found Linux)"
+
+----------------------------------------------------------------------
+Ran 62 tests in 1.159s
+
+FAILED (failures=1, errors=1, skipped=1)

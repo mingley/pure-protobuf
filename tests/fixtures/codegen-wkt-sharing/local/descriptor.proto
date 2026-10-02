@@ -1,0 +1,6 @@
+syntax = "proto3";
+package shared.alias;
+import "google/protobuf/descriptor.proto";
+message LocalMarker {
+  google.protobuf.DescriptorProto descriptor = 1;
+}

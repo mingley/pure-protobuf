@@ -1,0 +1,13 @@
+warning: pbrs@0.2.0: wrote conformance descriptor set
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/gn11)
+    Finished `test` profile [unoptimized] target(s) in 19.84s
+     Running tests/codegen_wkt_sharing.rs (target/base/debug/deps/codegen_wkt_sharing-0c51fd7b22c990f3)
+
+running 5 tests
+test bundled_wkt_mapping_rejects_unsupported_descriptor_types ... ok
+test documented_bundled_wkt_mapping_compiles ... ok
+test explicitly_requested_mapped_google_file_is_rejected ... ok
+test imported_descriptor_types_are_emitted_once_in_multi_file_output ... ok
+test multi_file_wkt_fields_share_one_type_and_single_file_stays_standalone ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 21.32s

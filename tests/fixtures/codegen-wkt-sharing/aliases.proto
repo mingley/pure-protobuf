@@ -1,0 +1,7 @@
+syntax = "proto3";
+package custom;
+
+message EmptyAlias {}
+message AliasHolder {
+  EmptyAlias item = 1;
+}

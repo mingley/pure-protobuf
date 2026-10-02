@@ -1,0 +1,271 @@
+warning: pbrs@0.2.0: wrote conformance descriptor set
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/gn11)
+    Finished `test` profile [unoptimized] target(s) in 0.48s
+     Running tests/codegen_wkt_sharing.rs (target/base/debug/deps/codegen_wkt_sharing-0c51fd7b22c990f3)
+
+running 5 tests
+test bundled_wkt_mapping_rejects_unsupported_descriptor_types ... FAILED
+test documented_bundled_wkt_mapping_compiles ... FAILED
+test explicitly_requested_mapped_google_file_is_rejected ... FAILED
+test imported_descriptor_types_are_emitted_once_in_multi_file_output ... FAILED
+test multi_file_wkt_fields_share_one_type_and_single_file_stays_standalone ... FAILED
+
+failures:
+
+---- bundled_wkt_mapping_rejects_unsupported_descriptor_types stdout ----
+cargo:rerun-if-env-changed=PROTOC
+cargo:rerun-if-env-changed=PURE_PROTOBUF_*
+cargo:rerun-if-env-changed=PURE_PROTOBUF_STUBS
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_DEPS
+cargo:rerun-if-env-changed=PURE_PROTOBUF_NO_WKT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_SHARED_POOL
+cargo:rerun-if-env-changed=PURE_PROTOBUF_NO_REFLECT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_JSON
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_TEXT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_RUNTIME_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_GRPC_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_TONIC_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_INCLUDE_SOURCE_INFO
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/tests/fixtures/codegen-wkt-sharing/opt_b.proto
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/third_party/protobuf/src/google/protobuf/descriptor.proto
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/tests/fixtures/codegen-wkt-sharing/opt_a.proto
+
+thread 'bundled_wkt_mapping_rejects_unsupported_descriptor_types' (136307) panicked at tests/codegen_wkt_sharing.rs:128:10:
+bundled facade has no descriptor types: "/workspace/scratch/work/gn11/target/gn11-tests/unsupported-facade"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- documented_bundled_wkt_mapping_compiles stdout ----
+cargo:rerun-if-env-changed=PROTOC
+cargo:rerun-if-env-changed=PURE_PROTOBUF_*
+cargo:rerun-if-env-changed=PURE_PROTOBUF_STUBS
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_DEPS
+cargo:rerun-if-env-changed=PURE_PROTOBUF_NO_WKT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_SHARED_POOL
+cargo:rerun-if-env-changed=PURE_PROTOBUF_NO_REFLECT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_JSON
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_TEXT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_RUNTIME_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_GRPC_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_TONIC_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_INCLUDE_SOURCE_INFO
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/tests/fixtures/codegen-wkt-sharing/wkt_a.proto
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/third_party/protobuf/src/google/protobuf/struct.proto
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/third_party/protobuf/src/google/protobuf/timestamp.proto
+
+thread 'documented_bundled_wkt_mapping_compiles' (136309) panicked at tests/codegen_wkt_sharing.rs:41:5:
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:124:37
+    |
+124 |     time: pbrs::rt::LazyMsg<::pbrs::wkt::Timestamp>,
+    |                                     ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:125:38
+    |
+125 |     value: pbrs::rt::LazyMsg<::pbrs::wkt::PbValue>,
+    |                                      ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:155:36
+    |
+155 |     pub fn time(&self) -> &::pbrs::wkt::Timestamp { static DEFAULT: std::sync::OnceLock<::pbrs::wkt::Timestamp> = std::sync::OnceLo...
+    |                                    ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:155:97
+    |
+155 | ... { static DEFAULT: std::sync::OnceLock<::pbrs::wkt::Timestamp> = std::sync::OnceLock::new(); self.time.as_deref().unwrap_or_else...
+    |                                                   ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:157:47
+    |
+157 |     pub fn time_opt(&self) -> Option<&::pbrs::wkt::Timestamp> { self.time.as_deref() }
+    |                                               ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:159:40
+    |
+159 |     pub fn time_view(&self) -> ::pbrs::wkt::TimestampView<'_> { ::pbrs::wkt::TimestampView(self.time()) }
+    |                                        ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:159:73
+    |
+159 |     pub fn time_view(&self) -> ::pbrs::wkt::TimestampView<'_> { ::pbrs::wkt::TimestampView(self.time()) }
+    |                                                                         ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:161:43
+    |
+161 |     pub fn set_time(&mut self, v: ::pbrs::wkt::Timestamp) {
+    |                                           ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:166:48
+    |
+166 |     pub fn time_mut(&mut self) -> &mut ::pbrs::wkt::Timestamp { self.cached_size.dirty(); self.time.get_or_insert() }
+    |                                                ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:174:37
+    |
+174 |     pub fn value(&self) -> &::pbrs::wkt::PbValue { static DEFAULT: std::sync::OnceLock<::pbrs::wkt::PbValue> = std::sync::OnceLock:...
+    |                                     ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:174:96
+    |
+174 | ... { static DEFAULT: std::sync::OnceLock<::pbrs::wkt::PbValue> = std::sync::OnceLock::new(); self.value.as_deref().unwrap_or_else(...
+    |                                                   ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:176:48
+    |
+176 |     pub fn value_opt(&self) -> Option<&::pbrs::wkt::PbValue> { self.value.as_deref() }
+    |                                                ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:178:41
+    |
+178 |     pub fn value_view(&self) -> ::pbrs::wkt::PbValueView<'_> { ::pbrs::wkt::PbValueView(self.value()) }
+    |                                         ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:178:72
+    |
+178 |     pub fn value_view(&self) -> ::pbrs::wkt::PbValueView<'_> { ::pbrs::wkt::PbValueView(self.value()) }
+    |                                                                        ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:180:44
+    |
+180 |     pub fn set_value(&mut self, v: ::pbrs::wkt::PbValue) {
+    |                                            ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:185:49
+    |
+185 |     pub fn value_mut(&mut self) -> &mut ::pbrs::wkt::PbValue { self.cached_size.dirty(); self.value.get_or_insert() }
+    |                                                 ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:204:208
+    |
+204 | ...true, None)?; } else { let mut ip = 0; ::pbrs::wkt::Timestamp::validate_inner(&pbrs::rt::Wire::ensure(wire, data).window(s, e), ...
+    |                                                   ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:211:210
+    |
+211 | ...true, None)?; } else { let mut ip = 0; ::pbrs::wkt::PbValue::validate_inner(&pbrs::rt::Wire::ensure(wire, data).window(s, e), &m...
+    |                                                   ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:231:115
+    |
+231 | ..._len_span(data, pos)?; let mut ip = 0; ::pbrs::wkt::Timestamp::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?; }
+    |                                                   ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+   --> src/../../wkt_a.rs:235:115
+    |
+235 | ..._len_span(data, pos)?; let mut ip = 0; ::pbrs::wkt::PbValue::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?; }
+    |                                                   ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+ --> src/main.rs:6:23
+  |
+6 |     let mut t = pbrs::wkt::Timestamp::new();
+  |                       ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+ --> src/main.rs:9:18
+  |
+9 |     let _: pbrs::wkt::PbValue = Default::default();
+  |                  ^^^ could not find `wkt` in `pbrs`
+
+error[E0433]: cannot find `wkt` in `pbrs`
+  --> src/main.rs:10:18
+   |
+10 |     let _: pbrs::wkt::NullValue = Default::default();
+   |                  ^^^ could not find `wkt` in `pbrs`
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `gn11-facade` (bin "gn11-facade") due to 23 previous errors
+
+
+---- explicitly_requested_mapped_google_file_is_rejected stdout ----
+cargo:rerun-if-env-changed=PROTOC
+cargo:rerun-if-env-changed=PURE_PROTOBUF_*
+cargo:rerun-if-env-changed=PURE_PROTOBUF_STUBS
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_DEPS
+cargo:rerun-if-env-changed=PURE_PROTOBUF_NO_WKT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_SHARED_POOL
+cargo:rerun-if-env-changed=PURE_PROTOBUF_NO_REFLECT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_JSON
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_TEXT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_RUNTIME_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_GRPC_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_TONIC_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_INCLUDE_SOURCE_INFO
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/third_party/protobuf/src/google/protobuf/timestamp.proto
+
+thread 'explicitly_requested_mapped_google_file_is_rejected' (136726) panicked at tests/codegen_wkt_sharing.rs:120:7:
+mapped explicit target must not silently become empty: ()
+
+---- imported_descriptor_types_are_emitted_once_in_multi_file_output stdout ----
+cargo:rerun-if-env-changed=PROTOC
+cargo:rerun-if-env-changed=PURE_PROTOBUF_*
+cargo:rerun-if-env-changed=PURE_PROTOBUF_STUBS
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_DEPS
+cargo:rerun-if-env-changed=PURE_PROTOBUF_NO_WKT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_SHARED_POOL
+cargo:rerun-if-env-changed=PURE_PROTOBUF_NO_REFLECT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_JSON
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_TEXT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_RUNTIME_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_GRPC_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_TONIC_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_INCLUDE_SOURCE_INFO
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/tests/fixtures/codegen-wkt-sharing/opt_a.proto
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/tests/fixtures/codegen-wkt-sharing/opt_b.proto
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/tests/fixtures/codegen-wkt-sharing/opt_c.proto
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/third_party/protobuf/src/google/protobuf/descriptor.proto
+
+thread 'imported_descriptor_types_are_emitted_once_in_multi_file_output' (136728) panicked at tests/codegen_wkt_sharing.rs:49:9:
+private descriptors remain in opt_a.rs
+
+---- multi_file_wkt_fields_share_one_type_and_single_file_stays_standalone stdout ----
+cargo:rerun-if-env-changed=PROTOC
+cargo:rerun-if-env-changed=PURE_PROTOBUF_*
+cargo:rerun-if-env-changed=PURE_PROTOBUF_STUBS
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_DEPS
+cargo:rerun-if-env-changed=PURE_PROTOBUF_NO_WKT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_SHARED_POOL
+cargo:rerun-if-env-changed=PURE_PROTOBUF_NO_REFLECT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_JSON
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_TEXT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_RUNTIME_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_GRPC_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_TONIC_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_INCLUDE_SOURCE_INFO
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/tests/fixtures/codegen-wkt-sharing/wkt_a.proto
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/tests/fixtures/codegen-wkt-sharing/wkt_b.proto
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/third_party/protobuf/src/google/protobuf/struct.proto
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/third_party/protobuf/src/google/protobuf/timestamp.proto
+
+thread 'multi_file_wkt_fields_share_one_type_and_single_file_stays_standalone' (136733) panicked at tests/codegen_wkt_sharing.rs:70:5:
+assertion failed: !std::fs::read_to_string(multiple.join("wkt_a.rs")).unwrap().contains("pub struct Timestamp {")
+
+
+failures:
+    bundled_wkt_mapping_rejects_unsupported_descriptor_types
+    documented_bundled_wkt_mapping_compiles
+    explicitly_requested_mapped_google_file_is_rejected
+    imported_descriptor_types_are_emitted_once_in_multi_file_output
+    multi_file_wkt_fields_share_one_type_and_single_file_stays_standalone
+
+test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 24.36s
+
+error: test failed, to rerun pass `--test codegen_wkt_sharing`

@@ -1,0 +1,32 @@
+{
+  "files": {
+    "opt_a.rs": {
+      "bytes": 419576,
+      "lines": 4942,
+      "descriptor_defs": 0
+    },
+    "mod.rs": {
+      "bytes": 233,
+      "lines": 11,
+      "descriptor_defs": 0
+    },
+    "opt_c.rs": {
+      "bytes": 427926,
+      "lines": 5121,
+      "descriptor_defs": 0
+    },
+    "opt_b.rs": {
+      "bytes": 427926,
+      "lines": 5121,
+      "descriptor_defs": 0
+    },
+    "google/protobuf/descriptor.rs": {
+      "bytes": 1122645,
+      "lines": 16218,
+      "descriptor_defs": 1
+    }
+  },
+  "bytes": 2398306,
+  "lines": 31413,
+  "descriptor_defs": 1
+}

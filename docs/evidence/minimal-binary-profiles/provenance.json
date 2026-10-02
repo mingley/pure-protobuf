@@ -1,0 +1,30 @@
+{
+  "base_commit": "4f4c87d4553572c61fe340167cd1360eb207f672",
+  "manifest_sha256": "f5534592582743ef3d6fbac8b8a9c3b4bdcb4d21a6718c2f84bcfe20e1833c39",
+  "default_features_unchanged": true,
+  "dependencies_and_package_unchanged": true,
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "protoc": "libprotoc 35.1",
+  "default_and_codegen_only_outputs_equal": true,
+  "cli_output_sha256": {
+    "aliases.rs": "0eda9d1e8de4506e2106ae82d576dff23abab1696c314cf2aab5725f694be90e",
+    "mod.rs": "73927b40dfaec7fb019a93d089d2c33834e795107142008009addd40cbefb66e"
+  },
+  "fixture_sha256": "53602f058863c74c7f190124de0bde6106e544924e4bfc4ca8954940725f9617",
+  "artifact_sha256": {
+    "before-codegen-disabled.log": "223552d0298fd95a06df52312da95b53fbd3e9c626eef5d9246f3615ba4e6a51",
+    "cli-output-equality.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "codegen-only-cli-build.log": "93a2a5c255aadbe3d50a431dcaacfb75da37e9f5c228e34ade4751f574777a65",
+    "codegen-only-cli-run.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "conformance-enabled-build.log": "b1eb81a4c0b8651dea327664e783f1b9637df933ff4fca1a472e924dade017a3",
+    "conformance-eof-smoke.json": "e5413710a54dbe5d00d126393c51ec4d06b5c55ed34e0c6553a4ae98454d8b24",
+    "default-cli-build.log": "88c3a96c382f1d91c3be7afe84efd9d304b9444cb85f78612c1ce9a7d60fd206",
+    "default-cli-run.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "final-doc-links.log": "be68a338443e0e6a1cd99fbc0dd3c2b5d9e1a95b5345d800366578efdf4994b0",
+    "intermediate-conformance-disabled-check.log": "a31f234fdfa0ca4abd76413ab6e6fc77fbc3dd71dafbc8a5c71bde8833fab92b",
+    "intermediate-conformance-disabled-docs.log": "45fd51c25e1d8adb80f485a35cecbb17d0024e226006356c6f64e4e034524551",
+    "minimal-check.log": "492249c9f550482a9a491739745144c5a474b15b27fd7de5717f8cd83c68916d",
+    "minimal-docs.log": "8f73ee52d7de8947287efceb4b81f31c32b5f279f1252d26f82ad4ed7707c0c3",
+    "raw-logs.tar.gz": "c81689c6217dc3ef85acb6a0ec76e5cf541cf61241e1cf45b6cbc44192c95dc9"
+  }
+}

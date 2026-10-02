@@ -1,0 +1,59 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/gn11)
+error[E0433]: cannot find `codegen` in `pbrs`
+  --> src/bin/protoc-gen-pbrs.rs:10:19
+   |
+10 |             pbrs::codegen::encode_code_generator_response_error(&format!("stdin read error: {e}"));
+   |                   ^^^^^^^ could not find `codegen` in `pbrs`
+   |
+note: found an item that was configured out
+  --> src/lib.rs:71:9
+   |
+70 | #[cfg(feature = "codegen")]
+   |       ------------------- the item is gated behind the `codegen` feature
+71 | pub mod codegen;
+   |         ^^^^^^^
+
+error[E0433]: cannot find `codegen` in `pbrs`
+  --> src/bin/protoc-gen-pbrs.rs:14:17
+   |
+14 |     match pbrs::codegen::generate_from_code_generator_request(&stdin) {
+   |                 ^^^^^^^ could not find `codegen` in `pbrs`
+   |
+note: found an item that was configured out
+  --> src/lib.rs:71:9
+   |
+70 | #[cfg(feature = "codegen")]
+   |       ------------------- the item is gated behind the `codegen` feature
+71 | pub mod codegen;
+   |         ^^^^^^^
+
+error[E0433]: cannot find `codegen` in `pbrs`
+  --> src/bin/protoc-gen-pbrs.rs:16:29
+   |
+16 |             let out = pbrs::codegen::encode_code_generator_response(&files);
+   |                             ^^^^^^^ could not find `codegen` in `pbrs`
+   |
+note: found an item that was configured out
+  --> src/lib.rs:71:9
+   |
+70 | #[cfg(feature = "codegen")]
+   |       ------------------- the item is gated behind the `codegen` feature
+71 | pub mod codegen;
+   |         ^^^^^^^
+
+error[E0433]: cannot find `codegen` in `pbrs`
+  --> src/bin/protoc-gen-pbrs.rs:20:29
+   |
+20 |             let out = pbrs::codegen::encode_code_generator_response_error(&e.to_string());
+   |                             ^^^^^^^ could not find `codegen` in `pbrs`
+   |
+note: found an item that was configured out
+  --> src/lib.rs:71:9
+   |
+70 | #[cfg(feature = "codegen")]
+   |       ------------------- the item is gated behind the `codegen` feature
+71 | pub mod codegen;
+   |         ^^^^^^^
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `pbrs` (bin "protoc-gen-pbrs") due to 4 previous errors

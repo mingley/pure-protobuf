@@ -1,0 +1,25 @@
+{
+  "command": "CARGO_BUILD_JOBS=1 CARGO_TARGET_DIR=target/base bash scripts/regen-generated.sh --check",
+  "exit": 0,
+  "nonmutating_snapshot_equal": true,
+  "snapshot": {
+    "bindings": {
+      "/workspace/scratch/work/gn11/src/generated/any.rs": "efd576ce03947a85d78fcc4773ae1316b0937a3d57e506f5de3cd1b519b0d87d",
+      "/workspace/scratch/work/gn11/src/generated/duration.rs": "06bd20f51007b8a4c0711b1e5002151714898edfb55bdafe864f393eeb33f0cd",
+      "/workspace/scratch/work/gn11/src/generated/empty.rs": "ae6d015198898bc191d0d30c9b2351dd71d076ff5af04d4d3baacc7bd45a62e5",
+      "/workspace/scratch/work/gn11/src/generated/field_mask.rs": "ace8c253e940aa50dbb5356a4a2914002b74d3647b820160e9a81e4bb600abb8",
+      "/workspace/scratch/work/gn11/src/generated/mod.rs": "c6b8a803152aed5db0065006955e633ee0852947df81adad6a36cfb1ca968d56",
+      "/workspace/scratch/work/gn11/src/generated/struct.rs": "78f8b7532d3d158dbbddf90a28a4d8082221b7fdc63bb2fd5933e971e662f6ab",
+      "/workspace/scratch/work/gn11/src/generated/test_messages_edition2023.rs": "3d07c34433e132ab3260f19c8efd98fd76c32fe57bb63caae81b77d13590c65f",
+      "/workspace/scratch/work/gn11/src/generated/test_messages_edition_unstable.rs": "35d35bfa9759802486ac74d3e4fbc95e1ef39abebadf1ed57b28fd693be8f0ea",
+      "/workspace/scratch/work/gn11/src/generated/test_messages_proto2.rs": "a4411070da25f5279c913ffa1cf75f3a10669af6235ed048d1dbb42333811f7e",
+      "/workspace/scratch/work/gn11/src/generated/test_messages_proto2_editions.rs": "08943c2d27080857c5ecdb852ebeff13940865f2801de01cf84cfa8af5e4f2bd",
+      "/workspace/scratch/work/gn11/src/generated/test_messages_proto3.rs": "8edf61afbaf4b93a8e01ad6623f5690c771177771c449f0f54f27bed18a4100a",
+      "/workspace/scratch/work/gn11/src/generated/test_messages_proto3_editions.rs": "2cdc566e356c58aa59982092911f24d4566210b648927e366385567dd68342e5",
+      "/workspace/scratch/work/gn11/src/generated/timestamp.rs": "a9c2f1e68adce3dc06fda940c738abbd1e0172662058647a1c2ca4b370457813",
+      "/workspace/scratch/work/gn11/src/generated/wrappers.rs": "2aed5cfd78afaa8c89336c1d86ee537818f7a1e0ac5a762375ae12413e52cbfd"
+    },
+    "status": " M docs/codegen-layout.md\n M src/codegen/descriptors.rs\n M tests/codegen_wkt_sharing.rs\n M tests/fixtures/codegen-wkt-sharing/README.md\n M tests/support/wkt_consumer.rs\n?? docs/evidence/gn-11-artifacts/b3-after.json\n?? docs/evidence/gn-11-artifacts/b3-before.json\n?? docs/evidence/gn-11-artifacts/cost-corrected.json\n?? docs/evidence/gn-11-artifacts/cost-first-invalid.json\n?? docs/evidence/gn-11-artifacts/final-plugin-build.log\n?? docs/evidence/gn-11-artifacts/focused-gates.log\n?? docs/evidence/gn-11-artifacts/format-final.log\n?? docs/evidence/gn-11-artifacts/generated-output.tar.gz\n?? docs/evidence/gn-11-artifacts/gnu-time-provenance.json\n?? docs/evidence/gn-11-artifacts/harness-corrected.log\n?? docs/evidence/gn-11-artifacts/harness-first-missing-time.log\n?? docs/evidence/gn-11-artifacts/measurement-driver.py\n?? docs/evidence/gn-11-artifacts/prototype-corrected-after.log\n?? docs/evidence/gn-11-artifacts/prototype-first-after.log\n?? docs/evidence/gn-11-artifacts/provenance.json\n?? docs/evidence/gn-11-artifacts/raw-measurements.tar.gz\n?? docs/evidence/gn-11-artifacts/regen-safety.log\n?? docs/evidence/gn-11-artifacts/regression-before.log\n?? docs/evidence/gn-11-wkt-sharing.md\n?? tests/fixtures/codegen-wkt-sharing/aliases.fds\n?? tests/fixtures/codegen-wkt-sharing/aliases.proto\n",
+    "diff_sha256": "a910fae7d5f486881e9ed34923b053b56214b0aa24242757db0b56a95ade181b"
+  }
+}

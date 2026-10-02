@@ -2021,3 +2021,34 @@ fn test_tonic_support_boundary_matches_manifest() {
         1
     );
 }
+
+// The documented standard-WKT escape hatch must generate a compiling consumer.
+#[cfg(feature = "codegen")]
+#[path = "support/wkt_consumer.rs"]
+mod wkt_consumer;
+
+#[cfg(feature = "codegen")]
+#[test]
+fn documented_bundled_wkt_mapping_compiles() {
+    assert!(
+        include_str!("../docs/codegen-layout.md")
+            .contains(".extern_path(\".google.protobuf\", \"::pbrs::wkt\")")
+    );
+    let output = wkt_consumer::generate("facade", &["wkt_a.proto"], Some("::pbrs::wkt")).unwrap();
+    wkt_consumer::compile(
+        &output,
+        "facade",
+        r#"
+mod nested { include!("../../wkt_a.rs"); }
+fn main() {
+    let mut a = nested::EventA::new();
+    a.time_mut().set_seconds(37);
+    let mut t = pbrs::wkt::Timestamp::new();
+    pbrs::CopyFrom::copy_from(&mut t, a.time());
+    assert_eq!(t.seconds(), 37);
+    let _: pbrs::wkt::PbValue = Default::default();
+    let _: pbrs::wkt::NullValue = Default::default();
+}
+"#,
+    );
+}

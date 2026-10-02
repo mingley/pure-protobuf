@@ -78,6 +78,16 @@ pub mod gen_support;
 pub mod gencode;
 #[cfg(feature = "conformance")]
 mod generated;
+/// Shared standard `google.protobuf` message and enum types.
+///
+/// Available with the `conformance` feature (enabled by default). Descriptor
+/// schema types such as `DescriptorProto` are not part of this module.
+#[cfg(feature = "conformance")]
+pub mod wkt {
+    pub use crate::generated::{
+        any::*, duration::*, empty::*, field_mask::*, pb_struct::*, timestamp::*, wrappers::*,
+    };
+}
 mod internal;
 #[cfg(feature = "json")]
 pub mod json;

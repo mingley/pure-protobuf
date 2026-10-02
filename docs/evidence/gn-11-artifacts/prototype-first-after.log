@@ -1,0 +1,194 @@
+warning: pbrs@0.2.0: wrote conformance descriptor set
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/gn11)
+    Finished `test` profile [unoptimized] target(s) in 21.17s
+     Running tests/codegen_wkt_sharing.rs (target/base/debug/deps/codegen_wkt_sharing-0c51fd7b22c990f3)
+
+running 5 tests
+test bundled_wkt_mapping_rejects_unsupported_descriptor_types ... ok
+test documented_bundled_wkt_mapping_compiles ... FAILED
+test explicitly_requested_mapped_google_file_is_rejected ... ok
+test imported_descriptor_types_are_emitted_once_in_multi_file_output ... ok
+test multi_file_wkt_fields_share_one_type_and_single_file_stays_standalone ... FAILED
+
+failures:
+
+---- documented_bundled_wkt_mapping_compiles stdout ----
+cargo:rerun-if-env-changed=PROTOC
+cargo:rerun-if-env-changed=PURE_PROTOBUF_*
+cargo:rerun-if-env-changed=PURE_PROTOBUF_STUBS
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_DEPS
+cargo:rerun-if-env-changed=PURE_PROTOBUF_NO_WKT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_SHARED_POOL
+cargo:rerun-if-env-changed=PURE_PROTOBUF_NO_REFLECT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_JSON
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_TEXT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_RUNTIME_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_GRPC_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_TONIC_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_INCLUDE_SOURCE_INFO
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/tests/fixtures/codegen-wkt-sharing/wkt_a.proto
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/third_party/protobuf/src/google/protobuf/struct.proto
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/third_party/protobuf/src/google/protobuf/timestamp.proto
+
+thread 'documented_bundled_wkt_mapping_compiles' (138451) panicked at tests/codegen_wkt_sharing.rs:57:5:
+error[E0425]: cannot find type `TimestampView` in module `::pbrs::wkt`
+   --> src/../../wkt_a.rs:159:45
+    |
+159 |     pub fn time_view(&self) -> ::pbrs::wkt::TimestampView<'_> { ::pbrs::wkt::TimestampView(self.time()) }
+    |                                             ^^^^^^^^^^^^^
+    |
+   ::: /workspace/scratch/work/gn11/src/generated/timestamp.rs:215:5
+    |
+215 |     pub struct Timestamp {
+    |     -------------------- similarly named struct `Timestamp` defined here
+    |
+help: a struct with a similar name exists
+    |
+159 -     pub fn time_view(&self) -> ::pbrs::wkt::TimestampView<'_> { ::pbrs::wkt::TimestampView(self.time()) }
+159 +     pub fn time_view(&self) -> ::pbrs::wkt::Timestamp<'_> { ::pbrs::wkt::TimestampView(self.time()) }
+    |
+
+error[E0425]: cannot find function, tuple struct or tuple variant `TimestampView` in module `::pbrs::wkt`
+   --> src/../../wkt_a.rs:159:78
+    |
+159 |     pub fn time_view(&self) -> ::pbrs::wkt::TimestampView<'_> { ::pbrs::wkt::TimestampView(self.time()) }
+    |                                                                              ^^^^^^^^^^^^^ not found in `::pbrs::wkt`
+
+error[E0425]: cannot find type `PbValueView` in module `::pbrs::wkt`
+   --> src/../../wkt_a.rs:178:46
+    |
+178 |     pub fn value_view(&self) -> ::pbrs::wkt::PbValueView<'_> { ::pbrs::wkt::PbValueView(self.value()) }
+    |                                              ^^^^^^^^^^^ not found in `::pbrs::wkt`
+
+error[E0425]: cannot find function, tuple struct or tuple variant `PbValueView` in module `::pbrs::wkt`
+   --> src/../../wkt_a.rs:178:77
+    |
+178 |     pub fn value_view(&self) -> ::pbrs::wkt::PbValueView<'_> { ::pbrs::wkt::PbValueView(self.value()) }
+    |                                                                             ^^^^^^^^^^^ not found in `::pbrs::wkt`
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `gn11-facade` (bin "gn11-facade") due to 4 previous errors
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- multi_file_wkt_fields_share_one_type_and_single_file_stays_standalone stdout ----
+cargo:rerun-if-env-changed=PROTOC
+cargo:rerun-if-env-changed=PURE_PROTOBUF_*
+cargo:rerun-if-env-changed=PURE_PROTOBUF_STUBS
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_DEPS
+cargo:rerun-if-env-changed=PURE_PROTOBUF_NO_WKT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_SHARED_POOL
+cargo:rerun-if-env-changed=PURE_PROTOBUF_NO_REFLECT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_JSON
+cargo:rerun-if-env-changed=PURE_PROTOBUF_EMIT_TEXT
+cargo:rerun-if-env-changed=PURE_PROTOBUF_RUNTIME_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_GRPC_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_TONIC_CRATE
+cargo:rerun-if-env-changed=PURE_PROTOBUF_INCLUDE_SOURCE_INFO
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/tests/fixtures/codegen-wkt-sharing/wkt_a.proto
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/tests/fixtures/codegen-wkt-sharing/wkt_b.proto
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/third_party/protobuf/src/google/protobuf/struct.proto
+cargo:rerun-if-changed=/workspace/scratch/work/gn11/third_party/protobuf/src/google/protobuf/timestamp.proto
+
+thread 'multi_file_wkt_fields_share_one_type_and_single_file_stays_standalone' (139098) panicked at tests/codegen_wkt_sharing.rs:57:5:
+warning: ambiguous glob re-exports
+   --> src/../../google/protobuf/struct.rs:838:9
+    |
+838 | pub use __gen_google_protobuf_struct_proto::*;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the name `FILE_DESCRIPTOR_SET` in the value namespace is first re-exported here
+    |
+   ::: src/../../google/protobuf/timestamp.rs:315:9
+    |
+315 | pub use __gen_google_protobuf_timestamp_proto::*;
+    |         ---------------------------------------- but the name `FILE_DESCRIPTOR_SET` in the value namespace is also re-exported here
+    |
+    = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+error[E0277]: the trait bound `&mut __gen_google_protobuf_timestamp_proto::Timestamp: CopyFrom` is not satisfied
+   --> src/main.rs:7:31
+    |
+  7 |     pbrs::CopyFrom::copy_from(&mut b.time_mut(), a.time());
+    |     ------------------------- ^^^^^^^^^^^^^^^^^ the trait `pbrs::runtime::UpbGetArena` is not implemented for `&mut __gen_google_protobuf_timestamp_proto::Timestamp`
+    |     |
+    |     required by a bound introduced by this call
+    |
+help: the trait `CopyFrom` is implemented for `__gen_google_protobuf_timestamp_proto::Timestamp`
+   --> src/../../google/protobuf/timestamp.rs:312:1
+    |
+312 | pbrs::impl_typed_message!(Timestamp, TimestampView, TimestampMut);
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: required for `&mut __gen_google_protobuf_timestamp_proto::Timestamp` to implement `CopyFrom`
+    = note: this error originates in the macro `pbrs::impl_typed_message` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `&mut __gen_google_protobuf_timestamp_proto::Timestamp: CopyFrom` is not satisfied
+   --> src/main.rs:7:31
+    |
+  7 |     pbrs::CopyFrom::copy_from(&mut b.time_mut(), a.time());
+    |     ------------------------- ^^^^^^^^^^^^^^^^^ the trait `pbrs::runtime::UpbGetMessagePtr` is not implemented for `&mut __gen_google_protobuf_timestamp_proto::Timestamp`
+    |     |
+    |     required by a bound introduced by this call
+    |
+help: the trait `CopyFrom` is implemented for `__gen_google_protobuf_timestamp_proto::Timestamp`
+   --> src/../../google/protobuf/timestamp.rs:312:1
+    |
+312 | pbrs::impl_typed_message!(Timestamp, TimestampView, TimestampMut);
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: required for `&mut __gen_google_protobuf_timestamp_proto::Timestamp` to implement `CopyFrom`
+    = note: this error originates in the macro `pbrs::impl_typed_message` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `&mut __gen_google_protobuf_timestamp_proto::Timestamp: CopyFrom` is not satisfied
+   --> src/main.rs:7:31
+    |
+  7 |     pbrs::CopyFrom::copy_from(&mut b.time_mut(), a.time());
+    |     ------------------------- ^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |     |
+    |     required by a bound introduced by this call
+    |
+help: the trait `pbrs::runtime::AssociatedMiniTable` is not implemented for `__gen_google_protobuf_timestamp_proto::Timestamp`
+   --> src/../../google/protobuf/timestamp.rs:131:1
+    |
+131 | pub struct Timestamp {
+    | ^^^^^^^^^^^^^^^^^^^^
+help: the trait `CopyFrom` is implemented for `__gen_google_protobuf_timestamp_proto::Timestamp`
+   --> src/../../google/protobuf/timestamp.rs:312:1
+    |
+312 | pbrs::impl_typed_message!(Timestamp, TimestampView, TimestampMut);
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: required for `&mut __gen_google_protobuf_timestamp_proto::Timestamp` to implement `CopyFrom`
+    = note: this error originates in the macro `pbrs::impl_typed_message` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `TimestampView<'a>: UpbGetMessagePtr` is not satisfied
+   --> src/main.rs:7:31
+    |
+  7 |     pbrs::CopyFrom::copy_from(&mut b.time_mut(), a.time());
+    |     ------------------------- ^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+    |     |
+    |     required by a bound introduced by this call
+    |
+help: the trait `for<'a> pbrs::runtime::UpbGetMessagePtr` is not implemented for `__gen_google_protobuf_timestamp_proto::TimestampView<'a>`
+   --> src/../../google/protobuf/timestamp.rs:312:1
+    |
+312 | pbrs::impl_typed_message!(Timestamp, TimestampView, TimestampMut);
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+help: the trait `CopyFrom` is implemented for `__gen_google_protobuf_timestamp_proto::Timestamp`
+   --> src/../../google/protobuf/timestamp.rs:312:1
+    |
+312 | pbrs::impl_typed_message!(Timestamp, TimestampView, TimestampMut);
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: required for `&mut __gen_google_protobuf_timestamp_proto::Timestamp` to implement `CopyFrom`
+    = note: the full name for the type has been written to '/workspace/scratch/work/gn11/target/integration-consumers/debug/deps/gn11_multi_wkt-39d81bd260aa111c.long-type-924271270154551633.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = note: this error originates in the macro `pbrs::impl_typed_message` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `gn11-multi-wkt` (bin "gn11-multi-wkt") due to 4 previous errors; 1 warning emitted
+
+
+
+failures:
+    documented_bundled_wkt_mapping_compiles
+    multi_file_wkt_fields_share_one_type_and_single_file_stays_standalone
+
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 22.68s
+
+error: test failed, to rerun pass `--test codegen_wkt_sharing`
