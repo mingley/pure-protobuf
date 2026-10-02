@@ -11,10 +11,29 @@ import statistics
 from pathlib import Path
 
 PREFIX = 'codec.adoption.bridge.'
+REFERENCE_SHA256 = 'aa2c7238d08617ea320ba96e3432b675946c171c3ef32d9877f593b26564d9be'
 
 
 def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+PINNED_SOURCES = ('bench/devloop/Cargo.toml', 'bench/devloop/Cargo.lock',
+                  'bench/devloop/src/main.rs', 'bench/devloop/adoption/Cargo.toml',
+                  'bench/devloop/adoption/generate.py', 'bench/devloop/adoption/src/bridge.rs',
+                  'bench/devloop/adoption/src/bridge_cells.rs', 'bench/devloop/adoption/src/bridge_options.rs',
+                  'protobuf-tonic/src/lib.rs', 'scripts/measure-tc32-bridges.py',
+                  'scripts/audit-tc32-bridges.py')
+
+
+def validate_build_pin(pin):
+    require(pin['profile'] == 'release' and 'bridge' in pin['features'], 'wrong build profile/feature')
+    require(re.fullmatch(r'[0-9a-f]{40}', pin['protobuf_source_commit']) is not None, 'missing upstream source pin')
+    require(set(PINNED_SOURCES) <= pin['source_sha256'].keys(), 'missing source/dependency/generator pins')
+    require(all(re.fullmatch(r'[0-9a-f]{64}', value) is not None for value in pin['source_sha256'].values()), 'malformed source pin')
+    require({'rustc', 'cargo', 'protoc'} <= pin['tools'].keys(), 'missing compiler/tool pins')
+    for tool in pin['tools'].values():
+        require(tool['path'] and tool['version'] and re.fullmatch(r'[0-9a-f]{64}', tool['sha256']) is not None, 'malformed tool pin')
 
 
 def expected_ids():
@@ -81,12 +100,19 @@ def rebuild(directory):
     require(meta['warmup'] == 100 and meta['prepare_iters'] == 2 * meta['iters'] and meta['repeats'] == 3, 'preparation/repeat contract changed')
     require(meta['iters'] > 0 and re.fullmatch(r'[0-9a-f]{40}', meta['source_commit']) is not None, 'invalid source/N')
     require(re.fullmatch(r'[0-9a-f]{64}', meta['binary']['sha256']) is not None, 'missing binary pin')
+    validate_build_pin(meta['build_pin'])
     require(meta['build_pin']['source_commit'] == meta['source_commit'] and meta['build_pin']['binary_sha256'] == meta['binary']['sha256'] and meta['build_pin']['profile'] == 'release', 'source/build provenance mismatch')
     for name, expected in meta['artifact_sha256'].items():
         require(sha(directory / name) == expected, 'artifact hash mismatch: ' + name)
     require(json.loads((directory / 'build-pin.json').read_text()) == meta['build_pin'], 'build pin changed')
     require((directory / 'original-registry.txt').read_text().splitlines() == meta['original_registry_rows'], 'original registry proof changed')
     inventory = inventory_rows(json.loads((directory / 'inventory.json').read_text()))
+    require(sha(directory / 'reference-inventory.json') == REFERENCE_SHA256, 'retained TC32a oracle changed')
+    reference = inventory_rows(json.loads((directory / 'reference-inventory.json').read_text()))
+    for row, qualification in inventory.items():
+        require(all(qualification[k] == reference[row][k] for k in ('api', 'specimen', 'direction', 'mode', 'read_checksum', 'common_wire_bytes', 'common_wire_fingerprint')), 'retained complete-work oracle differs')
+        if qualification['timing_qualification'] == 'passed':
+            require(qualification == reference[row], 'non-map actual API wire/semantic oracle changed')
     selected = meta['selected_cells']
     require(selected and len(set(selected)) == len(selected), 'missing/duplicate selection')
     eligible = {r['id'] for r in inventory.values() if r['timing_qualification'] == 'passed'}

@@ -21,10 +21,14 @@ class BridgeAuditTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory(dir=scratch)
         self.addCleanup(self.temporary.cleanup)
         self.directory = Path(self.temporary.name)
-        self.inventory = json.loads((ROOT / 'docs/evidence/tc32a-bridge-qualification-20261002/bridge-inventory.json').read_text())
+        reference = ROOT / 'docs/evidence/tc32a-bridge-qualification-20261002/bridge-inventory.json'
+        self.inventory = json.loads(reference.read_text())
+        (self.directory / 'reference-inventory.json').write_bytes(reference.read_bytes())
         self.row = 'codec.adoption.bridge.prost_to_pbrs.entities.n1000.read_all'
         qualified = next(r for r in self.inventory['cells'] if r['id'] == self.row)
-        self.pin = {'source_commit': 'a' * 40, 'binary_sha256': 'b' * 64, 'profile': 'release', 'fixture': True}
+        self.pin = {'source_commit': 'a' * 40, 'binary_sha256': 'b' * 64, 'profile': 'release', 'fixture': True, 'features': ['bridge'], 'protobuf_source_commit': 'd' * 40,
+                    'source_sha256': {path: 'e' * 64 for path in audit.PINNED_SOURCES},
+                    'tools': {name: {'path': '/fixture/' + name, 'version': 'fixture', 'sha256': 'f' * 64} for name in ('rustc', 'cargo', 'protoc')}}
         self.meta = {'schema': 'tc32-bridge-cost/1', 'completed': True, 'source_commit': 'a' * 40,
                      'binary': {'path': '/fixture/devloop', 'sha256': 'b' * 64}, 'build_pin': self.pin,
                      'iters': 16, 'prepare_iters': 32, 'warmup': 100, 'repeats': 3,
@@ -61,7 +65,7 @@ class BridgeAuditTests(unittest.TestCase):
     def save(self):
         (self.directory / 'inventory.json').write_text(json.dumps(self.inventory))
         (self.directory / 'raw.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in self.records))
-        self.meta['artifact_sha256'] = {name: audit.sha(self.directory / name) for name in ('inventory.json', 'raw.jsonl', 'registry.txt', 'original-registry.txt', 'build-pin.json')}
+        self.meta['artifact_sha256'] = {name: audit.sha(self.directory / name) for name in ('inventory.json', 'raw.jsonl', 'registry.txt', 'original-registry.txt', 'build-pin.json', 'reference-inventory.json')}
         (self.directory / 'metadata.json').write_text(json.dumps(self.meta))
 
     def reject(self):
@@ -81,6 +85,16 @@ class BridgeAuditTests(unittest.TestCase):
         record = self.records[0]
         record['qualification']['read_checksum'] ^= 1
         record['stderr'] = record['stderr'].replace('__QUALIFICATION__ ' + json.dumps(next(r for r in self.inventory['cells'] if r['id'] == self.row)), '__QUALIFICATION__ ' + json.dumps(record['qualification']))
+        self.reject()
+
+    def test_changed_preflight_and_children_cannot_replace_retained_complete_oracle(self):
+        row = next(r for r in self.inventory['cells'] if r['id'] == self.row)
+        row['read_checksum'] ^= 1
+        for record in self.records:
+            record['qualification'] = copy.deepcopy(row)
+            record['stderr'] = '__CHILD__ ' + json.dumps(record['child']) + '\n__QUALIFICATION__ ' + json.dumps(row) + '\n'
+            if record['collector'] == 'callgrind':
+                record['stderr'] += f"==123== I   refs: {record['instruction_total']:,}\n"
         self.reject()
 
     def test_missing_child_or_duplicate_child_rejected(self):
@@ -138,6 +152,13 @@ class BridgeAuditTests(unittest.TestCase):
         result = audit.compare_replays(first, copy.deepcopy(first))
         self.assertFalse(result['comparison_passed'])
         self.assertEqual(len(result['unavailable_rows']), 1)
+
+    def test_missing_build_tool_or_source_pin_rejected(self):
+        self.meta['build_pin']['source_sha256'].pop('bench/devloop/Cargo.lock')
+        self.reject()
+        self.meta['build_pin']['source_sha256']['bench/devloop/Cargo.lock'] = 'e' * 64
+        self.meta['build_pin']['tools'].pop('protoc')
+        self.reject()
 
     def test_binary_drift_and_old_registry_order_rejected(self):
         self.records[0]['after_sha256'] = 'c' * 64

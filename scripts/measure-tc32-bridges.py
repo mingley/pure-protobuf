@@ -56,7 +56,12 @@ def main():
     binary = args.binary.resolve()
     pin = json.loads(args.build_pin.read_text())
     source, expected = pin['source_commit'], pin['binary_sha256']
-    audit.require(pin['profile'] == 'release', 'debug binary is not a cost qualification executable')
+    audit.validate_build_pin(pin)
+    for path, expected_source in pin['source_sha256'].items():
+        audit.require(audit.sha(root / path) == expected_source, 'source pin drift: ' + path)
+    for tool in pin['tools'].values():
+        audit.require(audit.sha(tool['path']) == tool['sha256'], 'compiler/tool pin drift')
+    audit.require(git(root / 'third_party/protobuf', 'rev-parse', 'HEAD') == pin['protobuf_source_commit'], 'upstream source pin drift')
     audit.require(args.iters > 0, 'N must be positive')
     frozen(root, source, binary, expected)
     args.out.mkdir(parents=True, exist_ok=False)
@@ -64,6 +69,9 @@ def main():
     (out / 'graphs').mkdir()
     shutil.copyfile(args.build_pin, out / 'build-pin.json')
     shutil.copyfile(args.original_registry, out / 'original-registry.txt')
+    reference = root / 'docs/evidence/tc32a-bridge-qualification-20261002/bridge-inventory.json'
+    audit.require(audit.sha(reference) == audit.REFERENCE_SHA256, 'retained TC32a oracle changed')
+    shutil.copyfile(reference, out / 'reference-inventory.json')
     meta = {'schema': 'tc32-bridge-cost/1', 'source_commit': source, 'binary': {'path': str(binary), 'sha256': expected},
             'build_pin': pin, 'iters': args.iters, 'prepare_iters': 2 * args.iters, 'warmup': 100, 'repeats': 3,
             'completed': False, 'tools': {}, 'full_eligible_coverage': False,
@@ -131,7 +139,7 @@ def main():
                                                   uncompressed_graph_sha256=original_sha, instruction_total=total)
                                 record['validated'] = True
                             except subprocess.TimeoutExpired as error:
-                                record.update(returncode=None, error=str(error), stdout=(error.stdout or b'').decode('utf-8', errors='replace'), stderr=(error.stderr or b'').decode('utf-8', errors='replace'))
+                                record.update(returncode=None, error=str(error), stdout=error.stdout.decode('utf-8', errors='replace') if isinstance(error.stdout, bytes) else (error.stdout or ''), stderr=error.stderr.decode('utf-8', errors='replace') if isinstance(error.stderr, bytes) else (error.stderr or ''))
                             except Exception as error:
                                 record['error'] = str(error)
                             ledger.write(json.dumps(record) + '\n')
@@ -140,7 +148,7 @@ def main():
                 print('completed ' + cell, flush=True)
         frozen(root, source, binary, expected)
         meta.update(completed=True, elapsed_seconds_diagnostic=time.monotonic() - start,
-                    artifact_sha256={name: audit.sha(out / name) for name in ('raw.jsonl', 'inventory.json', 'registry.txt', 'build-pin.json', 'original-registry.txt')})
+                    artifact_sha256={name: audit.sha(out / name) for name in ('raw.jsonl', 'inventory.json', 'registry.txt', 'build-pin.json', 'original-registry.txt', 'reference-inventory.json')})
         (out / 'metadata.json').write_text(json.dumps(meta, indent=2) + '\n')
         report = audit.rebuild(out)
         (out / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
