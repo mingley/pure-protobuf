@@ -1,0 +1,197 @@
+"""Negative acceptance cases for retained current-h2 smoke evidence."""
+
+import copy
+import hashlib
+import importlib.util
+from pathlib import Path
+import resource
+import tempfile
+import unittest
+from unittest import mock
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SPEC = importlib.util.spec_from_file_location("current_h2_soak", ROOT / "scripts/current-h2-soak.py")
+SOAK = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(SOAK)
+
+
+def complete_report():
+    events = []
+    for cycle, phase in [(0, "baseline")] + [(1, phase) for phase in SOAK.PHASES]:
+        event = {key: 0 for key in SOAK.GAUGES}
+        event.update(cycle=cycle, phase=phase, rss_bytes=1000000, rss_hwm_bytes=1100000,
+                     file_descriptors=6, os_threads=3, tokio_alive_tasks=0)
+        event.update(producer_sent_messages=0, producer_done=False)
+        if phase == "slow_reader":
+            event.update(producer_sent_messages=12, producer_progress_after_30_ms=12,
+                         producer_progress_after_60_ms=12)
+        if phase in ("overload", "cancelled", "deadline", "recovered", "drain"):
+            event.update(producer_sent_messages=128, producer_done=True)
+        events.append(event)
+    limits = {key: {"soft": 1024, "hard": 1024} for key in SOAK.LIMIT_NAMES}
+    return {"schema": "pbrs.current-h2-smoke.v3",
+            "source": {"commit": "a" * 40, "tree": "b" * 40, "dirty": False, "cargo_lock_sha256": "c" * 64},
+            "binary": {"sha256": "d" * 64}, "tools": {"rustc": "rustc", "cargo": "cargo", "python": "python"},
+            "commands": {"build": ["cargo", "test"], "test": ["test-executable"]},
+            "duration_requested_seconds": 1, "duration_actual_seconds": 1.1,
+            "settings": SOAK.SETTINGS.copy(), "process_limits": {
+                key: {"soft": 1024, "hard": 1024} for key in SOAK.LIMIT_NAMES},
+            "process_limits_requested": limits,
+            "exit_code": 0, "events": events,
+            "process_samples": [{"elapsed_seconds": 0.01, "pid": 123,
+                                 "memory_bytes": {"VmRSS": 1000000, "VmHWM": 1100000,
+                                                  "VmSize": 2000000},
+                                 "os_threads": 3, "file_descriptors": 6}],
+            "qualification": {"qualified": False, "soak_24h": {"status": "not_run"}}}
+
+
+class CurrentH2EvidenceTest(unittest.TestCase):
+    def test_complete_diagnostic_is_valid_and_unqualified(self):
+        self.assertEqual(SOAK.validate_report(complete_report()), [])
+
+    def test_missing_wrong_and_dirty_source_rejected_before_build(self):
+        for pin in (None, "", "a" * 8, "z" * 40):
+            with self.subTest(pin=pin), mock.patch.object(SOAK, "command") as command:
+                with self.assertRaises(ValueError):
+                    SOAK.freeze_source(pin)
+                command.assert_not_called()
+        with mock.patch.object(SOAK, "command", return_value="a" * 40), self.assertRaisesRegex(ValueError, "differs"):
+            SOAK.freeze_source("b" * 40)
+        with mock.patch.object(SOAK, "command", side_effect=["a" * 40, " M dirty.rs"]), self.assertRaisesRegex(ValueError, "clean"):
+            SOAK.freeze_source("a" * 40)
+
+    def test_retained_dirty_missing_or_short_pin_rejected(self):
+        for source in ({}, {"commit": "a" * 8, "dirty": False},
+                       {"commit": "a" * 40, "dirty": True}):
+            report = complete_report()
+            report["source"] = source
+            self.assertIn("missing or dirty source pin", SOAK.validate_report(report))
+
+    def test_incomplete_tool_binary_lock_pins_and_duration_rejected(self):
+        for key in ("tools", "binary", "commands", "duration_actual_seconds"):
+            report = complete_report()
+            del report[key]
+            self.assertTrue(SOAK.validate_report(report))
+        report = complete_report()
+        del report["source"]["cargo_lock_sha256"]
+        self.assertIn("missing Cargo lockfile pin", SOAK.validate_report(report))
+        report = complete_report()
+        report["duration_requested_seconds"] = 86400
+        self.assertIn("missing or incomplete requested duration", SOAK.validate_report(report))
+
+    def test_effective_limits_must_match_the_frozen_request(self):
+        report = complete_report()
+        report["process_limits"]["file_descriptors"] = {"soft": 2048, "hard": 2048}
+        self.assertIn("effective process limits differ from frozen requested limits", SOAK.validate_report(report))
+
+    def test_retained_failure_cannot_be_revalidated_as_a_pass(self):
+        report = complete_report()
+        report["smoke"] = {"status": "failed", "failures": ["source changed during execution"]}
+        self.assertIn("retained smoke has unresolved failures", SOAK.validate_report(report))
+
+    def test_infinite_zero_negative_and_string_limits_rejected(self):
+        for key in SOAK.LIMIT_NAMES:
+            for invalid in (-1, 0, float("inf"), None, "unlimited", True):
+                with self.subTest(key=key, value=invalid):
+                    report = complete_report()
+                    report["process_limits"][key]["hard"] = invalid
+                    self.assertIn(f"nonfinite or invalid {key} process limit", SOAK.validate_report(report))
+        with self.assertRaises(ValueError):
+            SOAK.finite_limits(1, resource.RLIM_INFINITY, 128, 4096)
+
+    def test_incomplete_duplicate_reordered_and_missing_baseline_rejected(self):
+        for change in (lambda events: events.pop(3), lambda events: events.append(events[-1]),
+                       lambda events: events.reverse()):
+            report = complete_report()
+            change(report["events"])
+            self.assertTrue(SOAK.validate_report(report))
+        report = complete_report()
+        report["events"] = []
+        self.assertIn("missing baseline phase accounting", SOAK.validate_report(report))
+
+    def test_missing_gauges_never_coerced_to_zero(self):
+        for gauge in SOAK.GAUGES:
+            report = complete_report()
+            del report["events"][-1][gauge]
+            self.assertIn("missing or invalid resource gauge", SOAK.validate_report(report))
+
+    def test_post_fault_leaks_and_incomplete_calls_rejected(self):
+        for gauge in ("observed_streaming_calls_active", "server_allocated_bytes", "client_allocated_bytes",
+                      "server_byte_tokens", "client_byte_tokens"):
+            report = complete_report()
+            report["events"][-1][gauge] = 1
+            self.assertIn("post-fault permits or observed streaming calls failed to recover", SOAK.validate_report(report))
+        report = complete_report()
+        report["events"][-1]["observed_streaming_calls_started"] = 1
+        self.assertIn("observed streaming-call start/end accounting incomplete", SOAK.validate_report(report))
+
+    def test_predeclared_recovery_tolerances_and_budget_are_enforced(self):
+        cases = [("rss_bytes", SOAK.SETTINGS["recovery_rss_tolerance_bytes"], "RSS"),
+                 ("file_descriptors", SOAK.SETTINGS["recovery_fd_tolerance"], "descriptors"),
+                 ("tokio_alive_tasks", SOAK.SETTINGS["recovery_tokio_task_tolerance"], "Tokio tasks")]
+        for gauge, tolerance, message in cases:
+            report = complete_report()
+            report["events"][-1][gauge] += tolerance + 1
+            report["events"][-1]["rss_hwm_bytes"] = max(report["events"][-1]["rss_hwm_bytes"], report["events"][-1]["rss_bytes"])
+            self.assertTrue(any(message in error for error in SOAK.validate_report(report)))
+        report = complete_report()
+        report["events"][2]["server_byte_peak"] = SOAK.SETTINGS["server_byte_budget_bytes"] + 1
+        self.assertIn("accounted byte peak exceeds tracker budget", SOAK.validate_report(report))
+
+    def test_process_samples_and_failed_child_are_required(self):
+        report = complete_report()
+        report["process_samples"] = []
+        self.assertIn("missing independent process sampling", SOAK.validate_report(report))
+        report = complete_report()
+        report["exit_code"] = 1
+        self.assertIn("resource test child failed", SOAK.validate_report(report))
+        report = complete_report()
+        report["process_samples"] = [{"memory_bytes": {"VmRSS": 1}}]
+        self.assertIn("incomplete independent process sample", SOAK.validate_report(report))
+
+    def test_frozen_settings_and_qualification_claim_rejected(self):
+        report = complete_report()
+        report["settings"]["max_active_rpcs"] = 0
+        self.assertIn("settings differ from frozen scenario", SOAK.validate_report(report))
+        report = complete_report()
+        report["qualification"]["qualified"] = True
+        self.assertTrue(any("production qualification" in error for error in SOAK.validate_report(report)))
+        report["qualification"]["soak_24h"]["status"] = "passed"
+        self.assertTrue(any("24-hour" in error for error in SOAK.validate_report(report)))
+
+    def test_exact_cargo_artifact_selected_without_stale_path_fallback(self):
+        current = {"reason": "compiler-artifact", "manifest_path": str(ROOT / "pbrs-grpc/Cargo.toml"),
+                   "target": {"name": "resource_qualification", "kind": ["test"]},
+                   "executable": "/tmp/target/debug/deps/resource_qualification-current"}
+        old = copy.deepcopy(current)
+        old["target"]["name"] = "old"
+        self.assertEqual(SOAK.test_executable([old, current]), Path(current["executable"]))
+        for entries in ([], [old], [current, current]):
+            with self.assertRaises(ValueError):
+                SOAK.test_executable(entries)
+
+    def test_replaced_or_removed_executable_cannot_change_the_launch_pin(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable = Path(directory) / "test-binary"
+            executable.write_bytes(b"original")
+            launch = hashlib.sha256(executable.read_bytes()).hexdigest()
+            self.assertEqual(SOAK.executable_drift(executable, launch), [])
+            executable.write_bytes(b"replacement")
+            self.assertEqual(SOAK.executable_drift(executable, launch), ["executable changed during execution"])
+            executable.unlink()
+            self.assertEqual(SOAK.executable_drift(executable, launch), ["executable disappeared during execution"])
+
+    def test_slow_reader_requires_independent_blocked_and_completed_producer(self):
+        for update in ({"producer_progress_after_60_ms": 13}, {"producer_done": True},
+                       {"producer_progress_after_30_ms": 128, "producer_progress_after_60_ms": 128}):
+            report = complete_report()
+            report["events"][2].update(update)
+            self.assertIn("missing or invalid independent slow-producer progress", SOAK.validate_report(report))
+        report = complete_report()
+        report["events"][-1]["producer_sent_messages"] = 127
+        self.assertIn("response producer did not finish exact delivery", SOAK.validate_report(report))
+
+
+if __name__ == "__main__":
+    unittest.main()

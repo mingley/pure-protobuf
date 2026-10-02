@@ -1,0 +1,92 @@
+    Checking libc v0.2.189
+    Checking pin-project-lite v0.2.17
+    Checking cfg-if v1.0.4
+    Checking futures-core v0.3.34
+    Checking bytes v1.12.1
+    Checking zeroize v1.9.0
+    Checking rustls-pki-types v1.15.1
+    Checking getrandom v0.3.4
+    Checking socket2 v0.6.5
+    Checking mio v1.2.2
+    Checking once_cell v1.21.4
+    Checking futures-sink v0.3.34
+    Checking tokio v1.53.1
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/qg06a)
+    Checking slab v0.4.12
+    Checking itoa v1.0.18
+    Checking untrusted v0.9.0
+    Checking rustls-webpki v0.103.15
+    Checking zerocopy v0.8.57
+    Checking serde_core v1.0.229
+    Checking subtle v2.6.1
+    Checking rustls v0.23.45
+    Checking ppv-lite86 v0.2.21
+    Checking tracing-core v0.1.36
+    Checking rand_core v0.9.5
+    Checking zmij v1.0.23
+    Checking hashbrown v0.17.1
+    Checking futures-task v0.3.34
+    Checking equivalent v1.0.2
+    Checking memchr v2.8.3
+    Checking simd-adler32 v0.3.10
+    Checking adler2 v2.0.1
+    Checking miniz_oxide v0.9.1
+    Checking serde_json v1.0.151
+    Checking indexmap v2.14.0
+    Checking futures-util v0.3.34
+    Checking thiserror v2.0.21
+    Checking rand_chacha v0.9.0
+    Checking tracing v0.1.44
+    Checking crc32fast v1.5.1
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/qg06a/pbrs-grpc)
+    Checking serde v1.0.229
+    Checking http v1.5.0
+    Checking tokio-util v0.7.19
+    Checking graviola v0.2.1
+    Checking fnv v1.0.7
+    Checking atomic-waker v1.1.2
+    Checking simdutf8 v0.1.5
+    Checking h2 v0.4.19
+    Checking rustls-graviola v0.2.1
+    Checking flate2 v1.1.10
+    Checking rand v0.9.5
+    Checking opentelemetry v0.31.0
+    Checking futures-executor v0.3.34
+    Checking tokio-rustls v0.26.4
+    Checking tokio-stream v0.1.19
+    Checking webpki-roots v1.0.9
+    Checking rustls-pemfile v2.2.0
+    Checking futures-channel v0.3.34
+    Checking percent-encoding v2.3.2
+    Checking base64 v0.22.1
+    Checking opentelemetry_sdk v0.31.0
+error: this assertion has a constant value
+   --> pbrs-grpc/tests/resource_qualification.rs:194:5
+    |
+194 | /     assert!(
+195 | |         cfg!(target_os = "linux"),
+196 | |         "qualification accounting requires Linux"
+197 | |     );
+    | |_____^
+    |
+    = help: consider moving this into a const block: `const { assert!(..) }`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#assertions_on_constants
+    = note: `-D clippy::assertions-on-constants` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::assertions_on_constants)]`
+
+error: non-binding `let` on an expression with `#[must_use]` type
+   --> pbrs-grpc/tests/resource_qualification.rs:233:21
+    |
+233 |                     let _ = stop_rx.await;
+    |                     ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: consider explicitly using expression value
+note: type is `std::result::Result`
+   --> pbrs-grpc/tests/resource_qualification.rs:233:29
+    |
+233 |                     let _ = stop_rx.await;
+    |                             ^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#let_underscore_must_use
+    = note: requested on the command line with `-D clippy::let-underscore-must-use`
+
+error: could not compile `pbrs-grpc` (test "resource_qualification") due to 2 previous errors
