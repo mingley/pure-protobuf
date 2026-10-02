@@ -1,0 +1,191 @@
+{
+  "cases_requested": [
+    "small"
+  ],
+  "cells": [],
+  "comparison": {
+    "losing_cells": null,
+    "status": "not_run"
+  },
+  "environment": {
+    "repository": {
+      "source_sha256": {
+        "test-only-source": "fixed"
+      }
+    },
+    "tools": {
+      "cargo": {
+        "executable": "/tmp/gn03-coordinator-test-btzettl7/stub-tool"
+      },
+      "protoc": {
+        "executable": "/tmp/gn03-coordinator-test-btzettl7/stub-tool"
+      },
+      "rustc": {
+        "executable": "/tmp/gn03-coordinator-test-btzettl7/stub-tool"
+      }
+    }
+  },
+  "errors": [
+    "Posix[37 chars]ttl7/target/codegen-bench/test-pair/small-defa[39 chars]mer') != Posix[37 chars]ttl7/frozen-generator')"
+  ],
+  "finished_at_utc": "2026-10-02T23:36:32.160775+00:00",
+  "generators": [
+    "pbrs"
+  ],
+  "pbrs_profiles": {
+    "pbrs": {
+      "kind": "nondefault-diagnostic",
+      "raw": {
+        "SB09_PBRS_EMIT_JSON": null,
+        "SB09_PBRS_EMIT_REFLECTION": null,
+        "SB09_PBRS_EMIT_TEXT": null,
+        "SB09_PBRS_RUNTIME_PROFILE": null,
+        "SB09_PBRS_SHARED_DESCRIPTOR_SET": "true",
+        "SB09_PBRS_STUBS": null
+      },
+      "resolved": {
+        "emit_json": true,
+        "emit_reflection": true,
+        "emit_text": true,
+        "runtime_profile": "default",
+        "shared_descriptor_set": true,
+        "stubs": "none"
+      }
+    }
+  },
+  "qualification": {
+    "qualified": false,
+    "reasons": [
+      "no_equivalent_reference_peer",
+      "single_run_diagnostic",
+      "partial_corpus_matrix",
+      "nondefault_pbrs_profile_diagnostic",
+      "incomplete_measurement"
+    ]
+  },
+  "reference": {
+    "reason": "GN03 local default/shared pair; no independent reference",
+    "status": "missing"
+  },
+  "repeats": 1,
+  "schema_version": "cg19/1",
+  "seed": 190019,
+  "setup": {
+    "common_bootstrap": "../bootstrap.json",
+    "generator_binary_path": "../small-default/cases/small/target-r0/release/consumer",
+    "generator_binary_sha256": "0db905001d9c559d666020c814e8bb977bf98137b6afa4e6d47ec4bec9c1b381"
+  },
+  "started_at_utc": "2026-10-02T23:36:32.160596+00:00",
+  "status": "error",
+  "stub_generators": [
+    "pbrs-native"
+  ]
+}
+
+{
+  "cases_requested": [
+    "small"
+  ],
+  "cells": [
+    {
+      "consumer_lock_sha256": "same-locked-consumer",
+      "corpus": {
+        "sha256": "same-input-corpus"
+      },
+      "release_binary": {
+        "path": "cases/small/target-r0/release/consumer",
+        "sha256": "cda253dfde135da6074648b70bada105734c98a48ff19dbdc0736a0b6dbeab6c"
+      },
+      "target_dir": "cases/small/target-r0"
+    }
+  ],
+  "comparison": {
+    "losing_cells": null,
+    "status": "not_run"
+  },
+  "environment": {
+    "repository": {
+      "source_sha256": {
+        "test-only-source": "fixed"
+      }
+    },
+    "tools": {
+      "cargo": {
+        "executable": "/tmp/gn03-coordinator-test-btzettl7/stub-tool"
+      },
+      "protoc": {
+        "executable": "/tmp/gn03-coordinator-test-btzettl7/stub-tool"
+      },
+      "rustc": {
+        "executable": "/tmp/gn03-coordinator-test-btzettl7/stub-tool"
+      }
+    }
+  },
+  "errors": [],
+  "finished_at_utc": "2026-10-02T23:36:32.158892+00:00",
+  "generators": [
+    "pbrs"
+  ],
+  "pbrs_profiles": {
+    "pbrs": {
+      "kind": "ordinary-default",
+      "raw": {
+        "SB09_PBRS_EMIT_JSON": null,
+        "SB09_PBRS_EMIT_REFLECTION": null,
+        "SB09_PBRS_EMIT_TEXT": null,
+        "SB09_PBRS_RUNTIME_PROFILE": null,
+        "SB09_PBRS_SHARED_DESCRIPTOR_SET": null,
+        "SB09_PBRS_STUBS": null
+      },
+      "resolved": {
+        "emit_json": true,
+        "emit_reflection": true,
+        "emit_text": true,
+        "runtime_profile": "default",
+        "shared_descriptor_set": false,
+        "stubs": "none"
+      }
+    }
+  },
+  "qualification": {
+    "qualified": false,
+    "reasons": [
+      "no_equivalent_reference_peer",
+      "single_run_diagnostic",
+      "partial_corpus_matrix"
+    ]
+  },
+  "reference": {
+    "reason": "GN03 local default/shared pair; no independent reference",
+    "status": "missing"
+  },
+  "repeats": 1,
+  "schema_version": "cg19/1",
+  "seed": 190019,
+  "setup": {
+    "common_bootstrap": "../bootstrap.json",
+    "generator_binary_path": "../../../../frozen-generator",
+    "generator_binary_sha256": "0db905001d9c559d666020c814e8bb977bf98137b6afa4e6d47ec4bec9c1b381"
+  },
+  "started_at_utc": "2026-10-02T23:36:32.158280+00:00",
+  "status": "unqualified",
+  "stub_generators": [
+    "pbrs-native"
+  ]
+}
+
+E
+======================================================================
+ERROR: test_both_profiles_use_common_generator_and_preserve_linked_binaries (__main__.PairedCoordinatorTest.test_both_profiles_use_common_generator_and_preserve_linked_binaries)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/gn03/work/test_sb09_paired_screen.py", line 104, in test_both_profiles_use_common_generator_and_preserve_linked_binaries
+    coordinator.main()
+  File "/workspace/scratch/work/gn03/work/sb09-paired-screen.py", line 316, in main
+    raise RuntimeError("incomplete/failed screen retained; stop before next profile")
+RuntimeError: incomplete/failed screen retained; stop before next profile
+
+----------------------------------------------------------------------
+Ran 1 test in 0.027s
+
+FAILED (errors=1)

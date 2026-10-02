@@ -1,0 +1,46 @@
+{
+  "gates.json": {
+    "bytes": 1943,
+    "sha256": "cfe513289f9cdb3288f9c2fe8d0f08360b4134817222f5402c9a8f5353ecc023"
+  },
+  "sb09-coordinator-final.exit": {
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "sb09-coordinator-final.log": {
+    "bytes": 98,
+    "sha256": "20f07600223b8fe9057d561239cc10f6baa6ac50c34daceeab97c28b080b8a20"
+  },
+  "sb09-coordinator-plan-100.json": {
+    "bytes": 410,
+    "sha256": "ccc9974ffb604f0736f548174de84c420fffd6b1819bea518d95afc5c24cc422"
+  },
+  "sb09-coordinator-plan-1000.json": {
+    "bytes": 411,
+    "sha256": "a6c6258e144159d661c5117dd8ba402ea3d43621613fc1ba40b874a6c840b251"
+  },
+  "sb09-coordinator-plan-small.json": {
+    "bytes": 412,
+    "sha256": "5203bdf02e0aae16b06788824a9592552ac1802d5047dded96a9374e6ffc21c3"
+  },
+  "sb09-coordinator-red.exit": {
+    "bytes": 2,
+    "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+  },
+  "sb09-coordinator-red.log": {
+    "bytes": 5350,
+    "sha256": "94addd367decf59e4c8d8a18492411ff680bfab13745aad38ace670e2c97a6f0"
+  },
+  "sb09-paired-screen-red-shim.py": {
+    "bytes": 16757,
+    "sha256": "f9941686fd1b2a64862b05f2e07c828cb3e66fedd67f0326d3bb3ab28d66f7e5"
+  },
+  "sb09-paired-screen.py": {
+    "bytes": 16784,
+    "sha256": "9146637996b827afd224de26ddf10cf0727f134c758b7ca28ae5bb17e98fb084"
+  },
+  "test_sb09_paired_screen.py": {
+    "bytes": 6451,
+    "sha256": "a69dbee45330158b9148601f3ebe1c133ef659445f58f672e12b0f7c78a3499b"
+  }
+}

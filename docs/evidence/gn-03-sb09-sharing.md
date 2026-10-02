@@ -72,3 +72,32 @@ remain in the earlier source qualification record.
 GN03 stays open until actual SB09 cold-check and linked-binary results are
 assessed. Equal, losing, failed, or incomplete cells cannot be replaced by the
 source-size proof, hidden by an aggregate, or converted into a performance claim.
+
+## Coordinator review correction
+
+Before any live capture, root review found that the prepared work-only
+coordinator reused its `binary` local when retaining the first linked consumer.
+That would pass the first consumer's path, after its target was reclaimed, as
+the generator for the second profile. The original prepared script and its
+hash `031f6f252f6b27530ea1ddcf6557b190127cec9079d2c4cd2da2458427a5f5c2`
+remain unchanged in the original artifact directory.
+
+The [additive revision](gn-03-sb09-profile-artifacts/coordinator-v2/artifact-sha256.json)
+uses separate `generator` and `linked_binary` bindings. A main/import guard
+allows a focused orchestration test to run the actual two-profile loop with a
+stub compiler. The test first failed because the second profile received the
+consumer path, and now passes. It verifies that both profiles use the same
+frozen generator path and hash, start with distinct nonexistent targets, and
+retain each linked executable and its fingerprint hashes before cache removal.
+The test's stub compiler produces no performance evidence. The revision retains
+the red and passing logs, exit records, exact test/script sources, and all three
+plan previews. Benchmark source, workloads, release settings, and thresholds
+are unchanged; numeric costs remain **not_run** pending a quiet capture lease.
+
+To replay the no-build orchestration test from a repository checkout, copy the
+two revised scripts into its ignored `work/` directory and run:
+
+```sh
+cp docs/evidence/gn-03-sb09-profile-artifacts/coordinator-v2/{sb09-paired-screen.py,test_sb09_paired_screen.py} work/
+python3 -B work/test_sb09_paired_screen.py
+```
