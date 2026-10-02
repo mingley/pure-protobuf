@@ -964,6 +964,90 @@ async fn worker_rpc_timeout_is_a_counted_error_not_a_missing_sample() {
     assert_eq!(results[0].count(), 1);
 }
 
+struct NoReplyBenchmarkPeer(Arc<AtomicUsize>);
+
+impl benchmark_service::BenchmarkService for NoReplyBenchmarkPeer {
+    async fn streaming_call(
+        &self,
+        request: Request<pbrs_grpc::Streaming<benchmark_service::SimpleRequest>>,
+    ) -> Result<
+        pbrs_grpc::Response<pbrs_grpc::Streaming<benchmark_service::SimpleResponse>>,
+        pbrs_grpc::Status,
+    > {
+        let mut requests = request.into_inner();
+        requests
+            .message()
+            .await?
+            .ok_or_else(|| pbrs_grpc::Status::invalid_argument("expected one request"))?;
+        self.0.fetch_add(1, Ordering::SeqCst);
+        let (sender, replies) = pbrs_grpc::Streaming::channel(1);
+        drop(sender);
+        Ok(pbrs_grpc::Response::new(replies))
+    }
+}
+
+#[tokio::test]
+async fn fresh_stream_ok_eof_without_reply_counts_one_failure_and_no_success() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let requests = Arc::new(AtomicUsize::new(0));
+    let (shutdown, stopped) = tokio::sync::oneshot::channel();
+    let peer =
+        benchmark_service::BenchmarkServiceServer::new(NoReplyBenchmarkPeer(requests.clone()));
+    let server = tokio::spawn(async move {
+        peer.serve_with_shutdown(listener, async {
+            stopped.await.ok();
+        })
+        .await
+    });
+    let client = benchmark_service::BenchmarkServiceClient::new(
+        pbrs_grpc::Channel::connect(addr).await.unwrap(),
+    );
+    let tracker =
+        worker_client::ClientStatsTracker::new(Histogram::new(0.01, 60_000_000_000.0).unwrap());
+    let request = benchmark_service::SimpleRequest::new();
+    let result = worker_client::track_worker_rpc(
+        &tracker,
+        Duration::from_secs(2),
+        worker_client::fresh_streaming_rpc(&client, &request),
+    )
+    .await;
+    shutdown.send(()).unwrap();
+    tokio::time::timeout(Duration::from_secs(2), server)
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        requests.load(Ordering::SeqCst),
+        1,
+        "one real request reached the peer"
+    );
+    assert!(
+        matches!(result, Err(load::RpcCallError::Status(ref code)) if code == "Unknown"),
+        "missing reply must fail with Unknown, got {result:?}"
+    );
+    let (histogram, results) = tracker.snapshot(false);
+    assert_eq!(
+        histogram.count(),
+        1.0,
+        "the failed completed call retains one latency sample"
+    );
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].status_code(), pbrs_grpc::Code::Unknown as i32);
+    assert_eq!(
+        results[0].count(),
+        1,
+        "the empty reply is counted once as a failure"
+    );
+    assert_eq!(
+        histogram.count() - results[0].count() as f64,
+        0.0,
+        "no completed call is counted as success"
+    );
+}
+
 #[tokio::test]
 async fn test_run_client_closed_loop_lifecycle_marks_and_shutdown() {
     let (addr, _quit_tx) = spawn_worker_service().await;
