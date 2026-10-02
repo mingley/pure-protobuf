@@ -1,0 +1,28 @@
+    Checking tokio v1.53.1
+    Checking futures-task v0.3.34
+    Checking futures-util v0.3.34
+    Checking tokio-util v0.7.19
+    Checking getrandom v0.3.4
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/tc29)
+    Checking h2 v0.4.19
+    Checking hyper v1.11.0
+    Checking zerocopy v0.8.57
+    Checking ppv-lite86 v0.2.21
+    Checking hyper-util v0.1.20
+    Checking tower v0.5.3
+    Checking rand_core v0.9.5
+    Checking tokio-stream v0.1.19
+    Checking axum v0.8.9
+    Checking thiserror v2.0.21
+    Checking rand_chacha v0.9.0
+    Checking hyper-timeout v0.5.2
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/tc29/pbrs-grpc)
+    Checking tokio-rustls v0.26.4
+    Checking graviola v0.2.1
+    Checking tonic v0.14.6
+    Checking rustls-graviola v0.2.1
+    Checking rand v0.9.5
+    Checking opentelemetry v0.31.0
+    Checking futures-executor v0.3.34
+    Checking opentelemetry_sdk v0.31.0
+    Finished `dev` profile [unoptimized] target(s) in 55.57s

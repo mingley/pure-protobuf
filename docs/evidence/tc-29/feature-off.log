@@ -1,0 +1,16 @@
+   Compiling syn v3.0.3
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/tc29)
+   Compiling tokio-macros v2.7.2
+   Compiling rustls v0.23.45
+    Checking tokio v1.53.1
+    Checking serde_core v1.0.229
+    Checking memchr v2.8.3
+    Checking serde_json v1.0.151
+    Checking tokio-util v0.7.19
+    Checking tracing v0.1.44
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/tc29/pbrs-grpc)
+    Checking serde v1.0.229
+    Checking h2 v0.4.19
+    Checking rustls-graviola v0.2.1
+    Checking tokio-rustls v0.26.4
+    Finished `dev` profile [unoptimized] target(s) in 47.04s
