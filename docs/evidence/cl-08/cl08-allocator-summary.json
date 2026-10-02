@@ -1,0 +1,4909 @@
+{
+  "schema": "cl08-allocator-summary/1",
+  "raw_children": 2928,
+  "eligible_native_rows": 122,
+  "blocked_native_map_rows": 6,
+  "blocked_total_profile_rows": 12,
+  "instructions": {
+    "status": "not_run",
+    "reason": "allocator-only ledger; no per-ledger CPU claim"
+  },
+  "by_iters": {
+    "64": {
+      "at_or_below_tonic_bytes": 64,
+      "above_tonic_bytes": 58,
+      "allocation_count_regressions": 0,
+      "lower_bytes_than_own_baseline": 122,
+      "lower_allocs_than_own_baseline": 122
+    },
+    "128": {
+      "at_or_below_tonic_bytes": 64,
+      "above_tonic_bytes": 58,
+      "allocation_count_regressions": 0,
+      "lower_bytes_than_own_baseline": 122,
+      "lower_allocs_than_own_baseline": 122
+    }
+  },
+  "comparisons": [
+    {
+      "row": "rpc.adoption.native_prost.entities.n10.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 2000.03125,
+        "bytes": 318980.625
+      },
+      "after": {
+        "allocs": 1995.03125,
+        "bytes": 290850.625
+      },
+      "tonic_after": {
+        "allocs": 2023.03125,
+        "bytes": 368694.828125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 28130.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.entities.n10.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 2000.015625,
+        "bytes": 318948.3125
+      },
+      "after": {
+        "allocs": 1995.015625,
+        "bytes": 290818.3125
+      },
+      "tonic_after": {
+        "allocs": 2023.015625,
+        "bytes": 368662.515625
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 28130.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.entities.n10.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 641.0,
+        "bytes": 115688.0
+      },
+      "after": {
+        "allocs": 639.0,
+        "bytes": 104436.0
+      },
+      "tonic_after": {
+        "allocs": 670.0,
+        "bytes": 138527.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 11252.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.entities.n10.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 641.015625,
+        "bytes": 115720.3125
+      },
+      "after": {
+        "allocs": 639.015625,
+        "bytes": 104468.3125
+      },
+      "tonic_after": {
+        "allocs": 670.015625,
+        "bytes": 138559.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 11252.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.entities.n100.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 19431.03125,
+        "bytes": 2667753.03125
+      },
+      "after": {
+        "allocs": 19426.03125,
+        "bytes": 2385763.03125
+      },
+      "tonic_after": {
+        "allocs": 19501.03125,
+        "bytes": 2944809.484375
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 281990.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.entities.n100.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 19431.015625,
+        "bytes": 2667720.921875
+      },
+      "after": {
+        "allocs": 19426.015625,
+        "bytes": 2385730.921875
+      },
+      "tonic_after": {
+        "allocs": 19501.015625,
+        "bytes": 2944895.4765625
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 281990.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.entities.n100.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 6053.0,
+        "bytes": 983281.0
+      },
+      "after": {
+        "allocs": 6051.0,
+        "bytes": 870485.0
+      },
+      "tonic_after": {
+        "allocs": 6102.0,
+        "bytes": 1210964.640625
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 112796.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.entities.n100.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 6053.015625,
+        "bytes": 983313.515625
+      },
+      "after": {
+        "allocs": 6051.015625,
+        "bytes": 870517.515625
+      },
+      "tonic_after": {
+        "allocs": 6102.015625,
+        "bytes": 1210996.953125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 112796.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.entities.n1000.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 193446.046875,
+        "bytes": 25642919.546875
+      },
+      "after": {
+        "allocs": 193441.046875,
+        "bytes": 22819929.546875
+      },
+      "tonic_after": {
+        "allocs": 193976.625,
+        "bytes": 27781653.515625
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2822990.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.entities.n1000.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 193446.015625,
+        "bytes": 25642886.7109375
+      },
+      "after": {
+        "allocs": 193441.015625,
+        "bytes": 22819896.7109375
+      },
+      "tonic_after": {
+        "allocs": 193977.0390625,
+        "bytes": 27990184.703125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2822990.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.entities.n1000.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 60059.0,
+        "bytes": 9263147.4375
+      },
+      "after": {
+        "allocs": 60057.0,
+        "bytes": 8133951.4375
+      },
+      "tonic_after": {
+        "allocs": 60302.0,
+        "bytes": 12917552.984375
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1129196.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.entities.n1000.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 60059.015625,
+        "bytes": 9263179.75
+      },
+      "after": {
+        "allocs": 60057.015625,
+        "bytes": 8133983.75
+      },
+      "tonic_after": {
+        "allocs": 60302.0625,
+        "bytes": 12917591.6953125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1129196.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v0.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 227.0625,
+        "bytes": 70972.0
+      },
+      "after": {
+        "allocs": 222.03125,
+        "bytes": 70033.625
+      },
+      "tonic_after": {
+        "allocs": 243.03125,
+        "bytes": 70620.625
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 938.375,
+      "allocs_saved_from_before": 5.03125
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v0.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 227.015625,
+        "bytes": 70936.3125
+      },
+      "after": {
+        "allocs": 222.015625,
+        "bytes": 70001.3125
+      },
+      "tonic_after": {
+        "allocs": 243.015625,
+        "bytes": 70588.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 935.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v0.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 89.0625,
+        "bytes": 42366.25
+      },
+      "after": {
+        "allocs": 87.0625,
+        "bytes": 41992.25
+      },
+      "tonic_after": {
+        "allocs": 114.03125,
+        "bytes": 53048.625
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 374.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v0.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 89.078125,
+        "bytes": 42398.5625
+      },
+      "after": {
+        "allocs": 87.078125,
+        "bytes": 42024.5625
+      },
+      "tonic_after": {
+        "allocs": 114.046875,
+        "bytes": 53080.9375
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 374.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v1.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 247.03125,
+        "bytes": 71295.625
+      },
+      "after": {
+        "allocs": 242.03125,
+        "bytes": 70315.625
+      },
+      "tonic_after": {
+        "allocs": 265.09375,
+        "bytes": 71167.875
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 980.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v1.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 247.015625,
+        "bytes": 71263.3125
+      },
+      "after": {
+        "allocs": 242.015625,
+        "bytes": 70283.3125
+      },
+      "tonic_after": {
+        "allocs": 265.078125,
+        "bytes": 71135.5625
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 980.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v1.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 95.0,
+        "bytes": 42209.0
+      },
+      "after": {
+        "allocs": 93.0,
+        "bytes": 41817.0
+      },
+      "tonic_after": {
+        "allocs": 122.0,
+        "bytes": 53064.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 392.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v1.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 95.015625,
+        "bytes": 42241.3125
+      },
+      "after": {
+        "allocs": 93.015625,
+        "bytes": 41849.3125
+      },
+      "tonic_after": {
+        "allocs": 122.015625,
+        "bytes": 53096.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 392.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v2.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 247.03125,
+        "bytes": 71485.625
+      },
+      "after": {
+        "allocs": 242.03125,
+        "bytes": 70455.625
+      },
+      "tonic_after": {
+        "allocs": 265.03125,
+        "bytes": 70970.625
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1030.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v2.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 247.015625,
+        "bytes": 71453.3125
+      },
+      "after": {
+        "allocs": 242.03125,
+        "bytes": 70425.1484375
+      },
+      "tonic_after": {
+        "allocs": 265.015625,
+        "bytes": 70938.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1028.1640625,
+      "allocs_saved_from_before": 4.984375
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v2.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 95.0,
+        "bytes": 42267.0
+      },
+      "after": {
+        "allocs": 93.0,
+        "bytes": 41855.0
+      },
+      "tonic_after": {
+        "allocs": 122.0,
+        "bytes": 53082.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 412.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v2.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 95.015625,
+        "bytes": 42299.3125
+      },
+      "after": {
+        "allocs": 93.015625,
+        "bytes": 41887.3125
+      },
+      "tonic_after": {
+        "allocs": 122.015625,
+        "bytes": 53114.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 412.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v3.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 237.03125,
+        "bytes": 71340.625
+      },
+      "after": {
+        "allocs": 232.09375,
+        "bytes": 70492.765625
+      },
+      "tonic_after": {
+        "allocs": 255.09375,
+        "bytes": 71212.875
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 847.859375,
+      "allocs_saved_from_before": 4.9375
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v3.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 237.015625,
+        "bytes": 71308.3125
+      },
+      "after": {
+        "allocs": 232.015625,
+        "bytes": 70328.3125
+      },
+      "tonic_after": {
+        "allocs": 255.078125,
+        "bytes": 71180.5625
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 980.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v3.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 92.0,
+        "bytes": 42222.0
+      },
+      "after": {
+        "allocs": 90.0,
+        "bytes": 41830.0
+      },
+      "tonic_after": {
+        "allocs": 119.0,
+        "bytes": 53077.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 392.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v3.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 92.015625,
+        "bytes": 42254.3125
+      },
+      "after": {
+        "allocs": 90.015625,
+        "bytes": 41862.3125
+      },
+      "tonic_after": {
+        "allocs": 119.015625,
+        "bytes": 53109.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 392.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v4.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 227.09375,
+        "bytes": 71686.875
+      },
+      "after": {
+        "allocs": 222.09375,
+        "bytes": 70666.875
+      },
+      "tonic_after": {
+        "allocs": 245.03125,
+        "bytes": 70940.625
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1020.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v4.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 227.078125,
+        "bytes": 71654.5625
+      },
+      "after": {
+        "allocs": 222.078125,
+        "bytes": 70634.5625
+      },
+      "tonic_after": {
+        "allocs": 245.015625,
+        "bytes": 70908.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1020.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v4.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 89.0,
+        "bytes": 42249.0
+      },
+      "after": {
+        "allocs": 87.0,
+        "bytes": 41841.0
+      },
+      "tonic_after": {
+        "allocs": 116.0,
+        "bytes": 53072.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 408.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v4.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 89.015625,
+        "bytes": 42281.3125
+      },
+      "after": {
+        "allocs": 87.015625,
+        "bytes": 41873.3125
+      },
+      "tonic_after": {
+        "allocs": 116.015625,
+        "bytes": 53104.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 408.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v5.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 227.03125,
+        "bytes": 71606.625
+      },
+      "after": {
+        "allocs": 222.03125,
+        "bytes": 70541.625
+      },
+      "tonic_after": {
+        "allocs": 243.09375,
+        "bytes": 71177.875
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1065.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v5.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 227.015625,
+        "bytes": 71574.3125
+      },
+      "after": {
+        "allocs": 222.015625,
+        "bytes": 70509.3125
+      },
+      "tonic_after": {
+        "allocs": 243.078125,
+        "bytes": 71145.5625
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1065.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v5.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 89.0,
+        "bytes": 42303.0
+      },
+      "after": {
+        "allocs": 87.0,
+        "bytes": 41877.0
+      },
+      "tonic_after": {
+        "allocs": 114.0,
+        "bytes": 53010.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 426.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v5.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 89.015625,
+        "bytes": 42335.3125
+      },
+      "after": {
+        "allocs": 87.015625,
+        "bytes": 41909.3125
+      },
+      "tonic_after": {
+        "allocs": 114.015625,
+        "bytes": 53042.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 426.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v6.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 247.03125,
+        "bytes": 72055.625
+      },
+      "after": {
+        "allocs": 242.03125,
+        "bytes": 70900.625
+      },
+      "tonic_after": {
+        "allocs": 265.03125,
+        "bytes": 71215.625
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1155.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v6.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 247.015625,
+        "bytes": 72023.3125
+      },
+      "after": {
+        "allocs": 242.03125,
+        "bytes": 70870.34375
+      },
+      "tonic_after": {
+        "allocs": 265.015625,
+        "bytes": 71183.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1152.96875,
+      "allocs_saved_from_before": 4.984375
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v6.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 95.0,
+        "bytes": 42440.0
+      },
+      "after": {
+        "allocs": 93.0,
+        "bytes": 41978.0
+      },
+      "tonic_after": {
+        "allocs": 122.0,
+        "bytes": 53155.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 462.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v6.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 95.015625,
+        "bytes": 42472.3125
+      },
+      "after": {
+        "allocs": 93.015625,
+        "bytes": 42010.3125
+      },
+      "tonic_after": {
+        "allocs": 122.015625,
+        "bytes": 53187.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 462.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v7.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 247.03125,
+        "bytes": 72149.625
+      },
+      "after": {
+        "allocs": 242.03125,
+        "bytes": 70979.625
+      },
+      "tonic_after": {
+        "allocs": 265.09375,
+        "bytes": 71527.875
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1170.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v7.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 247.015625,
+        "bytes": 72117.3125
+      },
+      "after": {
+        "allocs": 242.015625,
+        "bytes": 70947.3125
+      },
+      "tonic_after": {
+        "allocs": 265.0625,
+        "bytes": 71431.25
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1170.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v7.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 95.0,
+        "bytes": 42469.0
+      },
+      "after": {
+        "allocs": 93.0,
+        "bytes": 42001.0
+      },
+      "tonic_after": {
+        "allocs": 122.0,
+        "bytes": 53172.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 468.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v7.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 95.015625,
+        "bytes": 42501.3125
+      },
+      "after": {
+        "allocs": 93.015625,
+        "bytes": 42033.3125
+      },
+      "tonic_after": {
+        "allocs": 122.015625,
+        "bytes": 53204.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 468.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v0.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 267.03125,
+        "bytes": 76604.625
+      },
+      "after": {
+        "allocs": 262.03125,
+        "bytes": 75359.625
+      },
+      "tonic_after": {
+        "allocs": 285.03125,
+        "bytes": 75530.625
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1245.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v0.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 267.03125,
+        "bytes": 76574.484375
+      },
+      "after": {
+        "allocs": 262.015625,
+        "bytes": 75327.3125
+      },
+      "tonic_after": {
+        "allocs": 285.015625,
+        "bytes": 75498.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1247.171875,
+      "allocs_saved_from_before": 5.015625
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v0.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 101.0,
+        "bytes": 44059.0
+      },
+      "after": {
+        "allocs": 99.0,
+        "bytes": 43561.0
+      },
+      "tonic_after": {
+        "allocs": 128.0,
+        "bytes": 54702.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 498.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v0.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 101.015625,
+        "bytes": 44091.3125
+      },
+      "after": {
+        "allocs": 99.015625,
+        "bytes": 43593.3125
+      },
+      "tonic_after": {
+        "allocs": 128.015625,
+        "bytes": 54734.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 498.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v1.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 257.03125,
+        "bytes": 76680.625
+      },
+      "after": {
+        "allocs": 252.03125,
+        "bytes": 75400.625
+      },
+      "tonic_after": {
+        "allocs": 275.03125,
+        "bytes": 75515.625
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1280.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v1.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 257.015625,
+        "bytes": 76648.3125
+      },
+      "after": {
+        "allocs": 252.015625,
+        "bytes": 75368.3125
+      },
+      "tonic_after": {
+        "allocs": 275.015625,
+        "bytes": 75483.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1280.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v1.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 98.0,
+        "bytes": 44082.0
+      },
+      "after": {
+        "allocs": 96.0,
+        "bytes": 43570.0
+      },
+      "tonic_after": {
+        "allocs": 125.0,
+        "bytes": 54697.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 512.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v1.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 98.015625,
+        "bytes": 44114.3125
+      },
+      "after": {
+        "allocs": 96.015625,
+        "bytes": 43602.3125
+      },
+      "tonic_after": {
+        "allocs": 125.015625,
+        "bytes": 54729.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 512.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v2.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 267.03125,
+        "bytes": 77098.625
+      },
+      "after": {
+        "allocs": 262.03125,
+        "bytes": 75713.625
+      },
+      "tonic_after": {
+        "allocs": 283.03125,
+        "bytes": 75580.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1385.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v2.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 267.03125,
+        "bytes": 77068.703125
+      },
+      "after": {
+        "allocs": 262.015625,
+        "bytes": 75681.3125
+      },
+      "tonic_after": {
+        "allocs": 283.015625,
+        "bytes": 75548.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1387.390625,
+      "allocs_saved_from_before": 5.015625
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v2.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 101.0,
+        "bytes": 44209.0
+      },
+      "after": {
+        "allocs": 99.0,
+        "bytes": 43655.0
+      },
+      "tonic_after": {
+        "allocs": 126.0,
+        "bytes": 54660.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 554.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v2.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 101.015625,
+        "bytes": 44241.3125
+      },
+      "after": {
+        "allocs": 99.015625,
+        "bytes": 43687.3125
+      },
+      "tonic_after": {
+        "allocs": 126.015625,
+        "bytes": 54692.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 554.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v3.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 287.03125,
+        "bytes": 77451.625
+      },
+      "after": {
+        "allocs": 282.03125,
+        "bytes": 76011.625
+      },
+      "tonic_after": {
+        "allocs": 305.03125,
+        "bytes": 75870.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1440.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v3.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 287.015625,
+        "bytes": 77419.3125
+      },
+      "after": {
+        "allocs": 282.015625,
+        "bytes": 75979.3125
+      },
+      "tonic_after": {
+        "allocs": 305.015625,
+        "bytes": 75838.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1440.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v3.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 107.0,
+        "bytes": 44317.0
+      },
+      "after": {
+        "allocs": 105.0,
+        "bytes": 43741.0
+      },
+      "tonic_after": {
+        "allocs": 134.03125,
+        "bytes": 54932.625
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 576.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v3.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 107.015625,
+        "bytes": 44349.3125
+      },
+      "after": {
+        "allocs": 105.015625,
+        "bytes": 43773.3125
+      },
+      "tonic_after": {
+        "allocs": 134.046875,
+        "bytes": 54964.9375
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 576.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v4.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 277.03125,
+        "bytes": 77431.625
+      },
+      "after": {
+        "allocs": 272.03125,
+        "bytes": 75991.625
+      },
+      "tonic_after": {
+        "allocs": 295.03125,
+        "bytes": 75850.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1440.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v4.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 277.015625,
+        "bytes": 77399.3125
+      },
+      "after": {
+        "allocs": 272.015625,
+        "bytes": 75959.3125
+      },
+      "tonic_after": {
+        "allocs": 295.015625,
+        "bytes": 75818.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1440.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v4.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 104.0,
+        "bytes": 44311.0
+      },
+      "after": {
+        "allocs": 102.0,
+        "bytes": 43735.0
+      },
+      "tonic_after": {
+        "allocs": 131.03125,
+        "bytes": 54926.625
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 576.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v4.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 104.015625,
+        "bytes": 44343.3125
+      },
+      "after": {
+        "allocs": 102.015625,
+        "bytes": 43767.3125
+      },
+      "tonic_after": {
+        "allocs": 131.046875,
+        "bytes": 54958.9375
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 576.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v5.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 267.03125,
+        "bytes": 77247.625
+      },
+      "after": {
+        "allocs": 262.03125,
+        "bytes": 75872.625
+      },
+      "tonic_after": {
+        "allocs": 285.03125,
+        "bytes": 75835.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1375.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v5.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 267.015625,
+        "bytes": 77215.3125
+      },
+      "after": {
+        "allocs": 262.015625,
+        "bytes": 75840.3125
+      },
+      "tonic_after": {
+        "allocs": 285.015625,
+        "bytes": 75803.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1375.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v5.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 101.0,
+        "bytes": 44254.0
+      },
+      "after": {
+        "allocs": 99.0,
+        "bytes": 43704.0
+      },
+      "tonic_after": {
+        "allocs": 128.0,
+        "bytes": 54793.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 550.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v5.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 101.015625,
+        "bytes": 44286.3125
+      },
+      "after": {
+        "allocs": 99.015625,
+        "bytes": 43736.3125
+      },
+      "tonic_after": {
+        "allocs": 128.015625,
+        "bytes": 54825.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 550.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v6.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 257.03125,
+        "bytes": 77461.625
+      },
+      "after": {
+        "allocs": 252.03125,
+        "bytes": 75996.625
+      },
+      "tonic_after": {
+        "allocs": 275.03125,
+        "bytes": 75815.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1465.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v6.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 257.015625,
+        "bytes": 77429.3125
+      },
+      "after": {
+        "allocs": 252.03125,
+        "bytes": 75966.828125
+      },
+      "tonic_after": {
+        "allocs": 275.015625,
+        "bytes": 75783.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1462.484375,
+      "allocs_saved_from_before": 4.984375
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v6.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 98.0,
+        "bytes": 44320.0
+      },
+      "after": {
+        "allocs": 96.0,
+        "bytes": 43734.0
+      },
+      "tonic_after": {
+        "allocs": 125.0,
+        "bytes": 54787.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 586.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v6.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 98.015625,
+        "bytes": 44352.3125
+      },
+      "after": {
+        "allocs": 96.015625,
+        "bytes": 43766.3125
+      },
+      "tonic_after": {
+        "allocs": 125.015625,
+        "bytes": 54819.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 586.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v7.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 267.03125,
+        "bytes": 77775.625
+      },
+      "after": {
+        "allocs": 262.03125,
+        "bytes": 76245.625
+      },
+      "tonic_after": {
+        "allocs": 283.03125,
+        "bytes": 75880.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1530.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v7.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 267.015625,
+        "bytes": 77743.3125
+      },
+      "after": {
+        "allocs": 262.03125,
+        "bytes": 76215.9296875
+      },
+      "tonic_after": {
+        "allocs": 283.015625,
+        "bytes": 75848.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1527.3828125,
+      "allocs_saved_from_before": 4.984375
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v7.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 101.03125,
+        "bytes": 44543.625
+      },
+      "after": {
+        "allocs": 99.03125,
+        "bytes": 43931.625
+      },
+      "tonic_after": {
+        "allocs": 126.03125,
+        "bytes": 54878.625
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 612.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d4.v7.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 101.046875,
+        "bytes": 44575.9375
+      },
+      "after": {
+        "allocs": 99.046875,
+        "bytes": 43963.9375
+      },
+      "tonic_after": {
+        "allocs": 126.046875,
+        "bytes": 54910.9375
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 612.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v0.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 317.03125,
+        "bytes": 82728.625
+      },
+      "after": {
+        "allocs": 312.03125,
+        "bytes": 81018.625
+      },
+      "tonic_after": {
+        "allocs": 335.03125,
+        "bytes": 80445.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1710.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v0.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 317.015625,
+        "bytes": 82696.3125
+      },
+      "after": {
+        "allocs": 312.015625,
+        "bytes": 80986.3125
+      },
+      "tonic_after": {
+        "allocs": 335.015625,
+        "bytes": 80413.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1710.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v0.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 116.0,
+        "bytes": 46158.0
+      },
+      "after": {
+        "allocs": 114.0,
+        "bytes": 45474.0
+      },
+      "tonic_after": {
+        "allocs": 143.0,
+        "bytes": 56429.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 684.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v0.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 116.015625,
+        "bytes": 46190.3125
+      },
+      "after": {
+        "allocs": 114.015625,
+        "bytes": 45506.3125
+      },
+      "tonic_after": {
+        "allocs": 143.015625,
+        "bytes": 56461.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 684.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v1.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 307.03125,
+        "bytes": 82630.625
+      },
+      "after": {
+        "allocs": 302.03125,
+        "bytes": 80950.625
+      },
+      "tonic_after": {
+        "allocs": 325.03125,
+        "bytes": 80425.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1680.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v1.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 307.015625,
+        "bytes": 82598.3125
+      },
+      "after": {
+        "allocs": 302.015625,
+        "bytes": 80918.3125
+      },
+      "tonic_after": {
+        "allocs": 325.015625,
+        "bytes": 80393.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1680.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v1.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 113.0,
+        "bytes": 46128.0
+      },
+      "after": {
+        "allocs": 111.0,
+        "bytes": 45456.0
+      },
+      "tonic_after": {
+        "allocs": 140.0,
+        "bytes": 56423.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 672.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v1.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 113.015625,
+        "bytes": 46160.3125
+      },
+      "after": {
+        "allocs": 111.015625,
+        "bytes": 45488.3125
+      },
+      "tonic_after": {
+        "allocs": 140.015625,
+        "bytes": 56455.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 672.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v2.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 297.03125,
+        "bytes": 82680.625
+      },
+      "after": {
+        "allocs": 292.03125,
+        "bytes": 80975.625
+      },
+      "tonic_after": {
+        "allocs": 315.03125,
+        "bytes": 80410.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1705.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v2.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 297.015625,
+        "bytes": 82648.3125
+      },
+      "after": {
+        "allocs": 292.015625,
+        "bytes": 80943.3125
+      },
+      "tonic_after": {
+        "allocs": 315.015625,
+        "bytes": 80378.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1705.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v2.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 110.0,
+        "bytes": 46143.0
+      },
+      "after": {
+        "allocs": 108.0,
+        "bytes": 45461.0
+      },
+      "tonic_after": {
+        "allocs": 137.0,
+        "bytes": 56418.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 682.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v2.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 110.015625,
+        "bytes": 46175.3125
+      },
+      "after": {
+        "allocs": 108.015625,
+        "bytes": 45493.3125
+      },
+      "tonic_after": {
+        "allocs": 137.015625,
+        "bytes": 56450.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 682.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v3.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 297.03125,
+        "bytes": 82883.625
+      },
+      "after": {
+        "allocs": 292.03125,
+        "bytes": 81123.625
+      },
+      "tonic_after": {
+        "allocs": 315.03125,
+        "bytes": 80470.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1760.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v3.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 297.015625,
+        "bytes": 82851.3125
+      },
+      "after": {
+        "allocs": 292.046875,
+        "bytes": 81100.2421875
+      },
+      "tonic_after": {
+        "allocs": 315.015625,
+        "bytes": 80438.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1751.0703125,
+      "allocs_saved_from_before": 4.96875
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v3.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 110.0,
+        "bytes": 46205.0
+      },
+      "after": {
+        "allocs": 108.0,
+        "bytes": 45501.0
+      },
+      "tonic_after": {
+        "allocs": 137.0,
+        "bytes": 56436.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 704.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v3.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 110.015625,
+        "bytes": 46237.3125
+      },
+      "after": {
+        "allocs": 108.015625,
+        "bytes": 45533.3125
+      },
+      "tonic_after": {
+        "allocs": 137.015625,
+        "bytes": 56468.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 704.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v4.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 307.03125,
+        "bytes": 83205.625
+      },
+      "after": {
+        "allocs": 302.03125,
+        "bytes": 81375.625
+      },
+      "tonic_after": {
+        "allocs": 325.03125,
+        "bytes": 80610.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1830.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v4.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 307.015625,
+        "bytes": 83173.3125
+      },
+      "after": {
+        "allocs": 302.015625,
+        "bytes": 81343.3125
+      },
+      "tonic_after": {
+        "allocs": 325.015625,
+        "bytes": 80578.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1830.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v4.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 113.0,
+        "bytes": 46303.0
+      },
+      "after": {
+        "allocs": 111.0,
+        "bytes": 45571.0
+      },
+      "tonic_after": {
+        "allocs": 140.0,
+        "bytes": 56478.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 732.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v4.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 113.015625,
+        "bytes": 46335.3125
+      },
+      "after": {
+        "allocs": 111.015625,
+        "bytes": 45603.3125
+      },
+      "tonic_after": {
+        "allocs": 140.015625,
+        "bytes": 56510.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 732.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v5.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 317.03125,
+        "bytes": 83366.625
+      },
+      "after": {
+        "allocs": 312.03125,
+        "bytes": 81526.625
+      },
+      "tonic_after": {
+        "allocs": 335.03125,
+        "bytes": 80745.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1840.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v5.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 317.015625,
+        "bytes": 83334.3125
+      },
+      "after": {
+        "allocs": 312.015625,
+        "bytes": 81494.3125
+      },
+      "tonic_after": {
+        "allocs": 335.015625,
+        "bytes": 80713.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1840.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v5.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 116.0,
+        "bytes": 46352.0
+      },
+      "after": {
+        "allocs": 114.0,
+        "bytes": 45616.0
+      },
+      "tonic_after": {
+        "allocs": 143.0,
+        "bytes": 56519.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 736.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v5.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 116.015625,
+        "bytes": 46384.3125
+      },
+      "after": {
+        "allocs": 114.015625,
+        "bytes": 45648.3125
+      },
+      "tonic_after": {
+        "allocs": 143.015625,
+        "bytes": 56551.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 736.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v6.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 307.03125,
+        "bytes": 83398.625
+      },
+      "after": {
+        "allocs": 302.03125,
+        "bytes": 81538.625
+      },
+      "tonic_after": {
+        "allocs": 325.03125,
+        "bytes": 80725.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1860.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v6.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 307.015625,
+        "bytes": 83366.3125
+      },
+      "after": {
+        "allocs": 302.015625,
+        "bytes": 81506.3125
+      },
+      "tonic_after": {
+        "allocs": 325.015625,
+        "bytes": 80693.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1860.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v6.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 113.0,
+        "bytes": 46362.0
+      },
+      "after": {
+        "allocs": 111.0,
+        "bytes": 45618.0
+      },
+      "tonic_after": {
+        "allocs": 140.0,
+        "bytes": 56513.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 744.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v6.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 113.015625,
+        "bytes": 46394.3125
+      },
+      "after": {
+        "allocs": 111.015625,
+        "bytes": 45650.3125
+      },
+      "tonic_after": {
+        "allocs": 140.015625,
+        "bytes": 56545.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 744.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v7.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 297.03125,
+        "bytes": 83344.625
+      },
+      "after": {
+        "allocs": 292.03125,
+        "bytes": 81499.625
+      },
+      "tonic_after": {
+        "allocs": 315.03125,
+        "bytes": 80710.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1845.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v7.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 297.015625,
+        "bytes": 83312.3125
+      },
+      "after": {
+        "allocs": 292.015625,
+        "bytes": 81467.3125
+      },
+      "tonic_after": {
+        "allocs": 315.015625,
+        "bytes": 80678.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1845.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v7.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 110.0,
+        "bytes": 46345.0
+      },
+      "after": {
+        "allocs": 108.0,
+        "bytes": 45607.0
+      },
+      "tonic_after": {
+        "allocs": 137.0,
+        "bytes": 56508.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 738.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d5.v7.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 110.015625,
+        "bytes": 46377.3125
+      },
+      "after": {
+        "allocs": 108.015625,
+        "bytes": 45639.3125
+      },
+      "tonic_after": {
+        "allocs": 137.015625,
+        "bytes": 56540.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 738.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v0.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 337.03125,
+        "bytes": 88287.625
+      },
+      "after": {
+        "allocs": 332.03125,
+        "bytes": 86237.625
+      },
+      "tonic_after": {
+        "allocs": 355.03125,
+        "bytes": 85120.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2050.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v0.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 337.015625,
+        "bytes": 88255.3125
+      },
+      "after": {
+        "allocs": 332.015625,
+        "bytes": 86205.3125
+      },
+      "tonic_after": {
+        "allocs": 355.015625,
+        "bytes": 85088.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2050.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v0.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 122.0,
+        "bytes": 48085.0
+      },
+      "after": {
+        "allocs": 120.0,
+        "bytes": 47265.0
+      },
+      "tonic_after": {
+        "allocs": 149.0,
+        "bytes": 58084.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 820.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v0.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 122.015625,
+        "bytes": 48117.3125
+      },
+      "after": {
+        "allocs": 120.015625,
+        "bytes": 47297.3125
+      },
+      "tonic_after": {
+        "allocs": 149.015625,
+        "bytes": 58116.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 820.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v1.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 337.03125,
+        "bytes": 88391.625
+      },
+      "after": {
+        "allocs": 332.03125,
+        "bytes": 86326.625
+      },
+      "tonic_after": {
+        "allocs": 355.03125,
+        "bytes": 85185.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2065.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v1.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 337.015625,
+        "bytes": 88359.3125
+      },
+      "after": {
+        "allocs": 332.015625,
+        "bytes": 86294.3125
+      },
+      "tonic_after": {
+        "allocs": 354.9921875,
+        "bytes": 85140.75
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2065.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v1.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 122.0,
+        "bytes": 48116.0
+      },
+      "after": {
+        "allocs": 120.0,
+        "bytes": 47290.0
+      },
+      "tonic_after": {
+        "allocs": 149.0,
+        "bytes": 58103.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 826.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v1.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 122.015625,
+        "bytes": 48148.3125
+      },
+      "after": {
+        "allocs": 120.015625,
+        "bytes": 47322.3125
+      },
+      "tonic_after": {
+        "allocs": 149.015625,
+        "bytes": 58135.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 826.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v2.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 347.03125,
+        "bytes": 88682.625
+      },
+      "after": {
+        "allocs": 342.03125,
+        "bytes": 86557.625
+      },
+      "tonic_after": {
+        "allocs": 365.03125,
+        "bytes": 85320.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2125.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v2.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 347.015625,
+        "bytes": 88650.3125
+      },
+      "after": {
+        "allocs": 342.03125,
+        "bytes": 86528.859375
+      },
+      "tonic_after": {
+        "allocs": 365.015625,
+        "bytes": 85288.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2121.453125,
+      "allocs_saved_from_before": 4.984375
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v2.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 125.0,
+        "bytes": 48205.0
+      },
+      "after": {
+        "allocs": 123.0,
+        "bytes": 47355.0
+      },
+      "tonic_after": {
+        "allocs": 152.0,
+        "bytes": 58144.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 850.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v2.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 125.015625,
+        "bytes": 48237.3125
+      },
+      "after": {
+        "allocs": 123.015625,
+        "bytes": 47387.3125
+      },
+      "tonic_after": {
+        "allocs": 152.015625,
+        "bytes": 58176.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 850.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v3.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 337.03125,
+        "bytes": 88675.625
+      },
+      "after": {
+        "allocs": 332.03125,
+        "bytes": 86545.625
+      },
+      "tonic_after": {
+        "allocs": 355.03125,
+        "bytes": 85300.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2130.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v3.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 337.015625,
+        "bytes": 88643.3125
+      },
+      "after": {
+        "allocs": 332.015625,
+        "bytes": 86513.3125
+      },
+      "tonic_after": {
+        "allocs": 355.015625,
+        "bytes": 85268.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2130.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v3.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 122.0,
+        "bytes": 48203.0
+      },
+      "after": {
+        "allocs": 120.0,
+        "bytes": 47351.0
+      },
+      "tonic_after": {
+        "allocs": 149.0,
+        "bytes": 58138.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 852.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v3.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 122.015625,
+        "bytes": 48235.3125
+      },
+      "after": {
+        "allocs": 120.015625,
+        "bytes": 47383.3125
+      },
+      "tonic_after": {
+        "allocs": 149.015625,
+        "bytes": 58170.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 852.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v4.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 337.03125,
+        "bytes": 88766.625
+      },
+      "after": {
+        "allocs": 332.03125,
+        "bytes": 86626.625
+      },
+      "tonic_after": {
+        "allocs": 355.03125,
+        "bytes": 85365.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2140.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v4.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 337.015625,
+        "bytes": 88734.3125
+      },
+      "after": {
+        "allocs": 332.03125,
+        "bytes": 86597.8828125
+      },
+      "tonic_after": {
+        "allocs": 355.015625,
+        "bytes": 85333.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2136.4296875,
+      "allocs_saved_from_before": 4.984375
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v4.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 122.0,
+        "bytes": 48230.0
+      },
+      "after": {
+        "allocs": 120.0,
+        "bytes": 47374.0
+      },
+      "tonic_after": {
+        "allocs": 149.0,
+        "bytes": 58157.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 856.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v4.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 122.015625,
+        "bytes": 48262.3125
+      },
+      "after": {
+        "allocs": 120.015625,
+        "bytes": 47406.3125
+      },
+      "tonic_after": {
+        "allocs": 149.015625,
+        "bytes": 58189.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 856.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v5.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 337.03125,
+        "bytes": 88925.625
+      },
+      "after": {
+        "allocs": 332.03125,
+        "bytes": 86745.625
+      },
+      "tonic_after": {
+        "allocs": 355.03125,
+        "bytes": 85420.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2180.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v5.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 337.015625,
+        "bytes": 88893.3125
+      },
+      "after": {
+        "allocs": 332.015625,
+        "bytes": 86713.3125
+      },
+      "tonic_after": {
+        "allocs": 355.015625,
+        "bytes": 85388.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2180.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v5.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 122.0,
+        "bytes": 48279.0
+      },
+      "after": {
+        "allocs": 120.0,
+        "bytes": 47407.0
+      },
+      "tonic_after": {
+        "allocs": 149.0,
+        "bytes": 58174.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 872.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v5.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 122.015625,
+        "bytes": 48311.3125
+      },
+      "after": {
+        "allocs": 120.015625,
+        "bytes": 47439.3125
+      },
+      "tonic_after": {
+        "allocs": 149.015625,
+        "bytes": 58206.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 872.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v6.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 337.03125,
+        "bytes": 89159.625
+      },
+      "after": {
+        "allocs": 332.03125,
+        "bytes": 86914.625
+      },
+      "tonic_after": {
+        "allocs": 355.03125,
+        "bytes": 85485.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2245.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v6.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 337.03125,
+        "bytes": 89131.046875
+      },
+      "after": {
+        "allocs": 332.03125,
+        "bytes": 86886.046875
+      },
+      "tonic_after": {
+        "allocs": 355.015625,
+        "bytes": 85453.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2245.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v6.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 122.0,
+        "bytes": 48350.0
+      },
+      "after": {
+        "allocs": 120.0,
+        "bytes": 47452.0
+      },
+      "tonic_after": {
+        "allocs": 149.0,
+        "bytes": 58193.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 898.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v6.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 122.015625,
+        "bytes": 48382.3125
+      },
+      "after": {
+        "allocs": 120.015625,
+        "bytes": 47484.3125
+      },
+      "tonic_after": {
+        "allocs": 149.015625,
+        "bytes": 58225.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 898.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v7.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 347.03125,
+        "bytes": 89320.625
+      },
+      "after": {
+        "allocs": 342.03125,
+        "bytes": 87065.625
+      },
+      "tonic_after": {
+        "allocs": 365.03125,
+        "bytes": 85620.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2255.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v7.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 347.015625,
+        "bytes": 89288.3125
+      },
+      "after": {
+        "allocs": 342.015625,
+        "bytes": 87033.3125
+      },
+      "tonic_after": {
+        "allocs": 365.015625,
+        "bytes": 85588.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2255.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v7.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 125.0,
+        "bytes": 48399.0
+      },
+      "after": {
+        "allocs": 123.0,
+        "bytes": 47497.0
+      },
+      "tonic_after": {
+        "allocs": 152.0,
+        "bytes": 58234.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 902.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d6.v7.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 125.015625,
+        "bytes": 48431.3125
+      },
+      "after": {
+        "allocs": 123.015625,
+        "bytes": 47529.3125
+      },
+      "tonic_after": {
+        "allocs": 152.015625,
+        "bytes": 58266.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 902.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v0.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 377.03125,
+        "bytes": 94136.625
+      },
+      "after": {
+        "allocs": 372.03125,
+        "bytes": 91696.625
+      },
+      "tonic_after": {
+        "allocs": 395.03125,
+        "bytes": 89955.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2440.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v0.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 377.03125,
+        "bytes": 94108.3515625
+      },
+      "after": {
+        "allocs": 372.015625,
+        "bytes": 91664.3125
+      },
+      "tonic_after": {
+        "allocs": 395.015625,
+        "bytes": 89923.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2444.0390625,
+      "allocs_saved_from_before": 5.015625
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v0.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 134.0,
+        "bytes": 50100.0
+      },
+      "after": {
+        "allocs": 132.0,
+        "bytes": 49124.0
+      },
+      "tonic_after": {
+        "allocs": 161.0,
+        "bytes": 59787.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 976.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v0.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 134.015625,
+        "bytes": 50132.3125
+      },
+      "after": {
+        "allocs": 132.015625,
+        "bytes": 49156.3125
+      },
+      "tonic_after": {
+        "allocs": 161.015625,
+        "bytes": 59819.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 976.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v1.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 377.03125,
+        "bytes": 94131.625
+      },
+      "after": {
+        "allocs": 372.03125,
+        "bytes": 91716.625
+      },
+      "tonic_after": {
+        "allocs": 395.03125,
+        "bytes": 90015.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2415.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v1.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 377.015625,
+        "bytes": 94099.3125
+      },
+      "after": {
+        "allocs": 372.03125,
+        "bytes": 91688.3125
+      },
+      "tonic_after": {
+        "allocs": 395.015625,
+        "bytes": 89983.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2411.0,
+      "allocs_saved_from_before": 4.984375
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v1.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 134.0,
+        "bytes": 50098.0
+      },
+      "after": {
+        "allocs": 132.0,
+        "bytes": 49132.0
+      },
+      "tonic_after": {
+        "allocs": 161.0,
+        "bytes": 59805.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 966.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v1.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 134.015625,
+        "bytes": 50130.3125
+      },
+      "after": {
+        "allocs": 132.015625,
+        "bytes": 49164.3125
+      },
+      "tonic_after": {
+        "allocs": 161.015625,
+        "bytes": 59837.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 966.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v2.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 367.03125,
+        "bytes": 94228.625
+      },
+      "after": {
+        "allocs": 362.03125,
+        "bytes": 91768.625
+      },
+      "tonic_after": {
+        "allocs": 385.03125,
+        "bytes": 89995.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2460.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v2.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 367.015625,
+        "bytes": 94196.3125
+      },
+      "after": {
+        "allocs": 362.015625,
+        "bytes": 91736.3125
+      },
+      "tonic_after": {
+        "allocs": 385.015625,
+        "bytes": 89963.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2460.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v2.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 131.0,
+        "bytes": 50128.0
+      },
+      "after": {
+        "allocs": 129.0,
+        "bytes": 49144.0
+      },
+      "tonic_after": {
+        "allocs": 158.0,
+        "bytes": 59799.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 984.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v2.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 131.015625,
+        "bytes": 50160.3125
+      },
+      "after": {
+        "allocs": 129.015625,
+        "bytes": 49176.3125
+      },
+      "tonic_after": {
+        "allocs": 158.015625,
+        "bytes": 59831.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 984.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v3.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 367.03125,
+        "bytes": 94358.625
+      },
+      "after": {
+        "allocs": 362.03125,
+        "bytes": 91873.625
+      },
+      "tonic_after": {
+        "allocs": 385.03125,
+        "bytes": 90060.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2485.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v3.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 367.015625,
+        "bytes": 94326.3125
+      },
+      "after": {
+        "allocs": 362.015625,
+        "bytes": 91841.3125
+      },
+      "tonic_after": {
+        "allocs": 385.015625,
+        "bytes": 90028.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2485.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v3.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 131.0,
+        "bytes": 50167.0
+      },
+      "after": {
+        "allocs": 129.0,
+        "bytes": 49173.0
+      },
+      "tonic_after": {
+        "allocs": 158.0,
+        "bytes": 59818.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 994.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v3.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 131.015625,
+        "bytes": 50199.3125
+      },
+      "after": {
+        "allocs": 129.015625,
+        "bytes": 49205.3125
+      },
+      "tonic_after": {
+        "allocs": 158.015625,
+        "bytes": 59850.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 994.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v4.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 377.03125,
+        "bytes": 94688.625
+      },
+      "after": {
+        "allocs": 372.03125,
+        "bytes": 92128.625
+      },
+      "tonic_after": {
+        "allocs": 395.03125,
+        "bytes": 90195.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2560.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v4.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 377.015625,
+        "bytes": 94656.3125
+      },
+      "after": {
+        "allocs": 372.015625,
+        "bytes": 92096.3125
+      },
+      "tonic_after": {
+        "allocs": 395.015625,
+        "bytes": 90163.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2560.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v4.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 134.0,
+        "bytes": 50268.0
+      },
+      "after": {
+        "allocs": 132.0,
+        "bytes": 49244.0
+      },
+      "tonic_after": {
+        "allocs": 161.0,
+        "bytes": 59859.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1024.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v4.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 134.015625,
+        "bytes": 50300.3125
+      },
+      "after": {
+        "allocs": 132.015625,
+        "bytes": 49276.3125
+      },
+      "tonic_after": {
+        "allocs": 161.015625,
+        "bytes": 59891.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1024.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v5.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 377.03125,
+        "bytes": 94774.625
+      },
+      "after": {
+        "allocs": 372.03125,
+        "bytes": 92204.625
+      },
+      "tonic_after": {
+        "allocs": 395.03125,
+        "bytes": 90255.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2570.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v5.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 377.015625,
+        "bytes": 94742.3125
+      },
+      "after": {
+        "allocs": 372.015625,
+        "bytes": 92172.3125
+      },
+      "tonic_after": {
+        "allocs": 395.015625,
+        "bytes": 90223.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2570.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v5.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 134.0,
+        "bytes": 50294.0
+      },
+      "after": {
+        "allocs": 132.0,
+        "bytes": 49266.0
+      },
+      "tonic_after": {
+        "allocs": 161.0,
+        "bytes": 59877.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1028.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v5.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 134.015625,
+        "bytes": 50326.3125
+      },
+      "after": {
+        "allocs": 132.015625,
+        "bytes": 49298.3125
+      },
+      "tonic_after": {
+        "allocs": 161.015625,
+        "bytes": 59909.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1028.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v6.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 377.03125,
+        "bytes": 94873.625
+      },
+      "after": {
+        "allocs": 372.03125,
+        "bytes": 92288.625
+      },
+      "tonic_after": {
+        "allocs": 395.03125,
+        "bytes": 90315.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2585.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v6.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 377.015625,
+        "bytes": 94841.3125
+      },
+      "after": {
+        "allocs": 372.015625,
+        "bytes": 92256.3125
+      },
+      "tonic_after": {
+        "allocs": 395.015625,
+        "bytes": 90283.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2585.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v6.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 134.0,
+        "bytes": 50324.0
+      },
+      "after": {
+        "allocs": 132.0,
+        "bytes": 49290.0
+      },
+      "tonic_after": {
+        "allocs": 161.0,
+        "bytes": 59895.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1034.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v6.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 134.015625,
+        "bytes": 50356.3125
+      },
+      "after": {
+        "allocs": 132.015625,
+        "bytes": 49322.3125
+      },
+      "tonic_after": {
+        "allocs": 161.015625,
+        "bytes": 59927.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1034.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v7.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 367.03125,
+        "bytes": 94892.625
+      },
+      "after": {
+        "allocs": 362.03125,
+        "bytes": 92292.625
+      },
+      "tonic_after": {
+        "allocs": 385.03125,
+        "bytes": 90295.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2600.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v7.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 367.015625,
+        "bytes": 94860.3125
+      },
+      "after": {
+        "allocs": 362.015625,
+        "bytes": 92260.3125
+      },
+      "tonic_after": {
+        "allocs": 385.015625,
+        "bytes": 90263.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2600.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v7.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 131.0,
+        "bytes": 50330.0
+      },
+      "after": {
+        "allocs": 129.0,
+        "bytes": 49290.0
+      },
+      "tonic_after": {
+        "allocs": 158.0,
+        "bytes": 59889.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1040.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d7.v7.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 131.015625,
+        "bytes": 50362.3125
+      },
+      "after": {
+        "allocs": 129.015625,
+        "bytes": 49322.3125
+      },
+      "tonic_after": {
+        "allocs": 158.015625,
+        "bytes": 59921.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1040.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v0.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 397.03125,
+        "bytes": 99726.625
+      },
+      "after": {
+        "allocs": 392.03125,
+        "bytes": 96936.625
+      },
+      "tonic_after": {
+        "allocs": 415.03125,
+        "bytes": 94635.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2790.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v0.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 397.015625,
+        "bytes": 99694.3125
+      },
+      "after": {
+        "allocs": 392.015625,
+        "bytes": 96904.3125
+      },
+      "tonic_after": {
+        "allocs": 415.015625,
+        "bytes": 94603.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2790.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v0.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 140.0,
+        "bytes": 52036.0
+      },
+      "after": {
+        "allocs": 138.0,
+        "bytes": 50920.0
+      },
+      "tonic_after": {
+        "allocs": 167.0,
+        "bytes": 61443.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1116.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v0.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 140.015625,
+        "bytes": 52068.3125
+      },
+      "after": {
+        "allocs": 138.015625,
+        "bytes": 50952.3125
+      },
+      "tonic_after": {
+        "allocs": 167.015625,
+        "bytes": 61475.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1116.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v1.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 417.03125,
+        "bytes": 100045.625
+      },
+      "after": {
+        "allocs": 412.03125,
+        "bytes": 97215.625
+      },
+      "tonic_after": {
+        "allocs": 435.03125,
+        "bytes": 94850.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2830.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v1.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 417.015625,
+        "bytes": 100013.3125
+      },
+      "after": {
+        "allocs": 412.015625,
+        "bytes": 97183.3125
+      },
+      "tonic_after": {
+        "allocs": 435.015625,
+        "bytes": 94818.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2830.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v1.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 146.0,
+        "bytes": 52133.0
+      },
+      "after": {
+        "allocs": 144.0,
+        "bytes": 51001.0
+      },
+      "tonic_after": {
+        "allocs": 173.0,
+        "bytes": 61508.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1132.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v1.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 146.015625,
+        "bytes": 52165.3125
+      },
+      "after": {
+        "allocs": 144.015625,
+        "bytes": 51033.3125
+      },
+      "tonic_after": {
+        "allocs": 173.015625,
+        "bytes": 61540.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1132.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v2.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 417.03125,
+        "bytes": 100243.625
+      },
+      "after": {
+        "allocs": 412.03125,
+        "bytes": 97358.625
+      },
+      "tonic_after": {
+        "allocs": 435.03125,
+        "bytes": 94905.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2885.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v2.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 417.015625,
+        "bytes": 100211.3125
+      },
+      "after": {
+        "allocs": 412.015625,
+        "bytes": 97326.3125
+      },
+      "tonic_after": {
+        "allocs": 435.015625,
+        "bytes": 94873.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2885.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v2.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 146.0,
+        "bytes": 52194.0
+      },
+      "after": {
+        "allocs": 144.0,
+        "bytes": 51040.0
+      },
+      "tonic_after": {
+        "allocs": 173.0,
+        "bytes": 61525.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1154.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v2.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 146.015625,
+        "bytes": 52226.3125
+      },
+      "after": {
+        "allocs": 144.015625,
+        "bytes": 51072.3125
+      },
+      "tonic_after": {
+        "allocs": 173.015625,
+        "bytes": 61557.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1154.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v3.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 407.03125,
+        "bytes": 100098.625
+      },
+      "after": {
+        "allocs": 402.03125,
+        "bytes": 97263.625
+      },
+      "tonic_after": {
+        "allocs": 425.03125,
+        "bytes": 94890.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2835.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v3.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 407.015625,
+        "bytes": 100066.3125
+      },
+      "after": {
+        "allocs": 402.015625,
+        "bytes": 97231.3125
+      },
+      "tonic_after": {
+        "allocs": 425.015625,
+        "bytes": 94858.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2835.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v3.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 143.0,
+        "bytes": 52149.0
+      },
+      "after": {
+        "allocs": 141.0,
+        "bytes": 51015.0
+      },
+      "tonic_after": {
+        "allocs": 170.0,
+        "bytes": 61520.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1134.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v3.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 143.015625,
+        "bytes": 52181.3125
+      },
+      "after": {
+        "allocs": 141.015625,
+        "bytes": 51047.3125
+      },
+      "tonic_after": {
+        "allocs": 170.015625,
+        "bytes": 61552.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1134.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v4.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 397.03125,
+        "bytes": 100169.625
+      },
+      "after": {
+        "allocs": 392.03125,
+        "bytes": 97299.625
+      },
+      "tonic_after": {
+        "allocs": 415.03125,
+        "bytes": 94870.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2870.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v4.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 397.015625,
+        "bytes": 100137.3125
+      },
+      "after": {
+        "allocs": 392.015625,
+        "bytes": 97267.3125
+      },
+      "tonic_after": {
+        "allocs": 415.015625,
+        "bytes": 94838.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2870.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v4.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 140.0,
+        "bytes": 52171.0
+      },
+      "after": {
+        "allocs": 138.0,
+        "bytes": 51023.0
+      },
+      "tonic_after": {
+        "allocs": 167.0,
+        "bytes": 61514.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1148.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v4.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 140.015625,
+        "bytes": 52203.3125
+      },
+      "after": {
+        "allocs": 138.015625,
+        "bytes": 51055.3125
+      },
+      "tonic_after": {
+        "allocs": 167.015625,
+        "bytes": 61546.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1148.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v5.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 397.03125,
+        "bytes": 100338.625
+      },
+      "after": {
+        "allocs": 392.03125,
+        "bytes": 97428.625
+      },
+      "tonic_after": {
+        "allocs": 415.03125,
+        "bytes": 94935.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2910.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v5.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 397.015625,
+        "bytes": 100306.3125
+      },
+      "after": {
+        "allocs": 392.015625,
+        "bytes": 97396.3125
+      },
+      "tonic_after": {
+        "allocs": 415.015625,
+        "bytes": 94903.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 2910.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v5.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 140.0,
+        "bytes": 52222.0
+      },
+      "after": {
+        "allocs": 138.0,
+        "bytes": 51058.0
+      },
+      "tonic_after": {
+        "allocs": 167.0,
+        "bytes": 61533.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1164.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v5.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 140.015625,
+        "bytes": 52254.3125
+      },
+      "after": {
+        "allocs": 138.015625,
+        "bytes": 51090.3125
+      },
+      "tonic_after": {
+        "allocs": 167.015625,
+        "bytes": 61565.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1164.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v6.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 417.03125,
+        "bytes": 100813.625
+      },
+      "after": {
+        "allocs": 412.03125,
+        "bytes": 97803.625
+      },
+      "tonic_after": {
+        "allocs": 435.03125,
+        "bytes": 95150.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 3010.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v6.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 417.015625,
+        "bytes": 100781.3125
+      },
+      "after": {
+        "allocs": 412.015625,
+        "bytes": 97771.3125
+      },
+      "tonic_after": {
+        "allocs": 435.015625,
+        "bytes": 95118.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 3010.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v6.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 146.0,
+        "bytes": 52367.0
+      },
+      "after": {
+        "allocs": 144.0,
+        "bytes": 51163.0
+      },
+      "tonic_after": {
+        "allocs": 173.0,
+        "bytes": 61598.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1204.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v6.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 146.015625,
+        "bytes": 52399.3125
+      },
+      "after": {
+        "allocs": 144.015625,
+        "bytes": 51195.3125
+      },
+      "tonic_after": {
+        "allocs": 173.015625,
+        "bytes": 61630.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1204.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v7.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 417.03125,
+        "bytes": 100907.625
+      },
+      "after": {
+        "allocs": 412.03125,
+        "bytes": 97882.625
+      },
+      "tonic_after": {
+        "allocs": 435.03125,
+        "bytes": 95205.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 3025.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v7.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 417.015625,
+        "bytes": 100875.3125
+      },
+      "after": {
+        "allocs": 412.015625,
+        "bytes": 97850.3125
+      },
+      "tonic_after": {
+        "allocs": 435.015625,
+        "bytes": 95173.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 3025.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v7.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 146.0,
+        "bytes": 52396.0
+      },
+      "after": {
+        "allocs": 144.0,
+        "bytes": 51186.0
+      },
+      "tonic_after": {
+        "allocs": 173.0,
+        "bytes": 61615.0
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1210.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v7.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 146.015625,
+        "bytes": 52428.3125
+      },
+      "after": {
+        "allocs": 144.015625,
+        "bytes": 51218.3125
+      },
+      "tonic_after": {
+        "allocs": 173.015625,
+        "bytes": 61647.3125
+      },
+      "bytes_at_or_below_tonic": true,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 1210.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v0.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 67.03125,
+        "bytes": 305665.625
+      },
+      "after": {
+        "allocs": 62.03125,
+        "bytes": 305225.625
+      },
+      "tonic_after": {
+        "allocs": 83.03125,
+        "bytes": 137372.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 440.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v0.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 67.015625,
+        "bytes": 305633.3125
+      },
+      "after": {
+        "allocs": 62.015625,
+        "bytes": 305193.3125
+      },
+      "tonic_after": {
+        "allocs": 83.015625,
+        "bytes": 137340.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 440.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v0.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 41.0,
+        "bytes": 71765.0
+      },
+      "after": {
+        "allocs": 39.0,
+        "bytes": 71589.0
+      },
+      "tonic_after": {
+        "allocs": 66.0,
+        "bytes": 54876.0
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 176.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v0.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 41.015625,
+        "bytes": 71797.3125
+      },
+      "after": {
+        "allocs": 39.015625,
+        "bytes": 71621.3125
+      },
+      "tonic_after": {
+        "allocs": 66.015625,
+        "bytes": 54908.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 176.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v1.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 107.03125,
+        "bytes": 306176.625
+      },
+      "after": {
+        "allocs": 102.03125,
+        "bytes": 305651.625
+      },
+      "tonic_after": {
+        "allocs": 125.03125,
+        "bytes": 137742.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 525.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v1.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 107.015625,
+        "bytes": 306144.3125
+      },
+      "after": {
+        "allocs": 102.015625,
+        "bytes": 305619.3125
+      },
+      "tonic_after": {
+        "allocs": 125.015625,
+        "bytes": 137710.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 525.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v1.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 53.0,
+        "bytes": 71921.0
+      },
+      "after": {
+        "allocs": 51.0,
+        "bytes": 71711.0
+      },
+      "tonic_after": {
+        "allocs": 80.0,
+        "bytes": 55044.0
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 210.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v1.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 53.015625,
+        "bytes": 71953.3125
+      },
+      "after": {
+        "allocs": 51.015625,
+        "bytes": 71743.3125
+      },
+      "tonic_after": {
+        "allocs": 80.015625,
+        "bytes": 55076.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 210.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v2.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 67.03125,
+        "bytes": 305593.625
+      },
+      "after": {
+        "allocs": 62.0625,
+        "bytes": 305175.390625
+      },
+      "tonic_after": {
+        "allocs": 83.03125,
+        "bytes": 137352.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 418.234375,
+      "allocs_saved_from_before": 4.96875
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v2.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 67.015625,
+        "bytes": 305561.3125
+      },
+      "after": {
+        "allocs": 62.015625,
+        "bytes": 305141.3125
+      },
+      "tonic_after": {
+        "allocs": 83.015625,
+        "bytes": 137320.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 420.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v2.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 41.0,
+        "bytes": 71743.0
+      },
+      "after": {
+        "allocs": 39.0,
+        "bytes": 71575.0
+      },
+      "tonic_after": {
+        "allocs": 66.03125,
+        "bytes": 54998.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 168.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v2.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 41.015625,
+        "bytes": 71775.3125
+      },
+      "after": {
+        "allocs": 39.015625,
+        "bytes": 71607.3125
+      },
+      "tonic_after": {
+        "allocs": 66.03125,
+        "bytes": 54966.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 168.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v3.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 107.03125,
+        "bytes": 306228.625
+      },
+      "after": {
+        "allocs": 102.03125,
+        "bytes": 305683.625
+      },
+      "tonic_after": {
+        "allocs": 125.03125,
+        "bytes": 137742.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 545.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v3.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 107.015625,
+        "bytes": 306196.3125
+      },
+      "after": {
+        "allocs": 102.015625,
+        "bytes": 305651.3125
+      },
+      "tonic_after": {
+        "allocs": 125.015625,
+        "bytes": 137710.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 545.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v3.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 53.0,
+        "bytes": 71937.0
+      },
+      "after": {
+        "allocs": 51.0,
+        "bytes": 71719.0
+      },
+      "tonic_after": {
+        "allocs": 80.03125,
+        "bytes": 55172.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 218.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v3.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 53.015625,
+        "bytes": 71969.3125
+      },
+      "after": {
+        "allocs": 51.015625,
+        "bytes": 71751.3125
+      },
+      "tonic_after": {
+        "allocs": 80.03125,
+        "bytes": 55140.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 218.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v4.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 67.03125,
+        "bytes": 305655.625
+      },
+      "after": {
+        "allocs": 62.03125,
+        "bytes": 305215.625
+      },
+      "tonic_after": {
+        "allocs": 83.03125,
+        "bytes": 137362.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 440.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v4.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 67.015625,
+        "bytes": 305623.3125
+      },
+      "after": {
+        "allocs": 62.015625,
+        "bytes": 305183.3125
+      },
+      "tonic_after": {
+        "allocs": 83.015625,
+        "bytes": 137330.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 440.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v4.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 41.0,
+        "bytes": 71762.0
+      },
+      "after": {
+        "allocs": 39.0,
+        "bytes": 71586.0
+      },
+      "tonic_after": {
+        "allocs": 66.0,
+        "bytes": 54873.0
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 176.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v4.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 41.015625,
+        "bytes": 71794.3125
+      },
+      "after": {
+        "allocs": 39.015625,
+        "bytes": 71618.3125
+      },
+      "tonic_after": {
+        "allocs": 66.015625,
+        "bytes": 54905.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 176.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v5.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 117.03125,
+        "bytes": 306464.625
+      },
+      "after": {
+        "allocs": 112.03125,
+        "bytes": 305859.625
+      },
+      "tonic_after": {
+        "allocs": 135.03125,
+        "bytes": 137822.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 605.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v5.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 117.015625,
+        "bytes": 306432.3125
+      },
+      "after": {
+        "allocs": 112.015625,
+        "bytes": 305827.3125
+      },
+      "tonic_after": {
+        "allocs": 135.015625,
+        "bytes": 137790.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 605.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v5.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 56.0,
+        "bytes": 72009.0
+      },
+      "after": {
+        "allocs": 54.0,
+        "bytes": 71767.0
+      },
+      "tonic_after": {
+        "allocs": 83.0,
+        "bytes": 55068.0
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 242.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v5.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 56.015625,
+        "bytes": 72041.3125
+      },
+      "after": {
+        "allocs": 54.015625,
+        "bytes": 71799.3125
+      },
+      "tonic_after": {
+        "allocs": 83.015625,
+        "bytes": 55100.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 242.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v6.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 67.03125,
+        "bytes": 305756.625
+      },
+      "after": {
+        "allocs": 62.03125,
+        "bytes": 305281.625
+      },
+      "tonic_after": {
+        "allocs": 83.03125,
+        "bytes": 137372.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 475.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v6.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 67.015625,
+        "bytes": 305724.3125
+      },
+      "after": {
+        "allocs": 62.015625,
+        "bytes": 305249.3125
+      },
+      "tonic_after": {
+        "allocs": 83.015625,
+        "bytes": 137340.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 475.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v6.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 41.0,
+        "bytes": 71793.0
+      },
+      "after": {
+        "allocs": 39.0,
+        "bytes": 71603.0
+      },
+      "tonic_after": {
+        "allocs": 66.0,
+        "bytes": 54876.0
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 190.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v6.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 41.015625,
+        "bytes": 71825.3125
+      },
+      "after": {
+        "allocs": 39.015625,
+        "bytes": 71635.3125
+      },
+      "tonic_after": {
+        "allocs": 66.015625,
+        "bytes": 54908.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 190.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v7.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 117.03125,
+        "bytes": 306368.625
+      },
+      "after": {
+        "allocs": 112.03125,
+        "bytes": 305798.625
+      },
+      "tonic_after": {
+        "allocs": 135.03125,
+        "bytes": 137817.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 570.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v7.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 117.015625,
+        "bytes": 306336.3125
+      },
+      "after": {
+        "allocs": 112.03125,
+        "bytes": 305767.4296875
+      },
+      "tonic_after": {
+        "allocs": 135.015625,
+        "bytes": 137785.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 568.8828125,
+      "allocs_saved_from_before": 4.984375
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v7.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 56.0,
+        "bytes": 71980.0
+      },
+      "after": {
+        "allocs": 54.0,
+        "bytes": 71752.0
+      },
+      "tonic_after": {
+        "allocs": 83.0,
+        "bytes": 55067.0
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 228.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v7.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 56.015625,
+        "bytes": 72012.3125
+      },
+      "after": {
+        "allocs": 54.015625,
+        "bytes": 71784.3125
+      },
+      "tonic_after": {
+        "allocs": 83.015625,
+        "bytes": 55099.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 228.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v8.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 77.03125,
+        "bytes": 305895.625
+      },
+      "after": {
+        "allocs": 72.03125,
+        "bytes": 305405.625
+      },
+      "tonic_after": {
+        "allocs": 93.03125,
+        "bytes": 137472.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 490.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v8.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 77.015625,
+        "bytes": 305863.3125
+      },
+      "after": {
+        "allocs": 72.015625,
+        "bytes": 305373.3125
+      },
+      "tonic_after": {
+        "allocs": 93.015625,
+        "bytes": 137440.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 490.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v8.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 44.0,
+        "bytes": 71835.0
+      },
+      "after": {
+        "allocs": 42.0,
+        "bytes": 71639.0
+      },
+      "tonic_after": {
+        "allocs": 69.0,
+        "bytes": 54906.0
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 196.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v8.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 44.015625,
+        "bytes": 71867.3125
+      },
+      "after": {
+        "allocs": 42.015625,
+        "bytes": 71671.3125
+      },
+      "tonic_after": {
+        "allocs": 69.015625,
+        "bytes": 54938.3125
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 196.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v9.server_stream",
+      "iters": 64,
+      "before": {
+        "allocs": 107.09375,
+        "bytes": 306472.875
+      },
+      "after": {
+        "allocs": 102.09375,
+        "bytes": 305932.875
+      },
+      "tonic_after": {
+        "allocs": 125.125,
+        "bytes": 138128.5
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 540.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v9.server_stream",
+      "iters": 128,
+      "before": {
+        "allocs": 107.0625,
+        "bytes": 306376.25
+      },
+      "after": {
+        "allocs": 102.0625,
+        "bytes": 305836.25
+      },
+      "tonic_after": {
+        "allocs": 125.078125,
+        "bytes": 137967.5625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 540.0,
+      "allocs_saved_from_before": 5.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v9.unary",
+      "iters": 64,
+      "before": {
+        "allocs": 53.03125,
+        "bytes": 72061.625
+      },
+      "after": {
+        "allocs": 51.03125,
+        "bytes": 71845.625
+      },
+      "tonic_after": {
+        "allocs": 80.03125,
+        "bytes": 55172.625
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 216.0,
+      "allocs_saved_from_before": 2.0
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v9.unary",
+      "iters": 128,
+      "before": {
+        "allocs": 53.046875,
+        "bytes": 72093.9375
+      },
+      "after": {
+        "allocs": 51.046875,
+        "bytes": 71877.9375
+      },
+      "tonic_after": {
+        "allocs": 80.046875,
+        "bytes": 55204.9375
+      },
+      "bytes_at_or_below_tonic": false,
+      "no_allocation_count_regression": true,
+      "bytes_saved_from_before": 216.0,
+      "allocs_saved_from_before": 2.0
+    }
+  ]
+}

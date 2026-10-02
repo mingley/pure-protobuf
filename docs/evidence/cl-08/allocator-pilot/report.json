@@ -1,0 +1,376 @@
+{
+  "schema": "cl08-ledger-allocator/1",
+  "sources": {
+    "before": "cf3eee22c6b06324e299f81b76915651471d8025",
+    "after": "2321d736c0e9ed1b3323d24d99b2cc437c594774"
+  },
+  "binaries": {
+    "before": {
+      "path": "/workspace/scratch/work/sv09/work/bin/devloop-before",
+      "sha256": "73fa59c733f0637b22ce8d58f035aa45cb13f0b7efc4c8e9bb4cdddcef54e0b9"
+    },
+    "after": {
+      "path": "/workspace/scratch/work/cl08/work/bin/devloop-candidate",
+      "sha256": "efef1e7b44fd9b6f6defe08b0396879571035a65c411aa522c1f1b9fc5ad7f93"
+    }
+  },
+  "oracle_sha256": "88f34eb08716a9b8e88af1caba9f414791f1325c18076920b9df7f5dc5d50490",
+  "rows_sha256": "e411be4338e79cebcff4be01f51bb37cf385163afd97cf94f82432aed4720de5",
+  "capture_sha256": "9d55c466c82bef1ae42881bb94227302fcb3feca0ac81e2453d791bdf604583d",
+  "warmup": 100,
+  "prepare_iters": 128,
+  "iters": [
+    64
+  ],
+  "repeats": 1,
+  "instructions": {
+    "status": "not_run",
+    "reason": "allocator-only unchanged run-cell path; no CPU claim"
+  },
+  "wall": "shared-host noisy diagnostic; no comparative latency or throughput claim",
+  "selected_rows": [
+    "rpc.adoption.native_prost.query.d3.v0.unary",
+    "rpc.adoption.native_prost.query.d3.v0.server_stream",
+    "rpc.adoption.tonic_prost.query.d3.v0.unary",
+    "rpc.adoption.tonic_prost.query.d3.v0.server_stream",
+    "rpc.adoption.native_prost.query.d8.v7.unary",
+    "rpc.adoption.native_prost.query.d8.v7.server_stream",
+    "rpc.adoption.tonic_prost.query.d8.v7.unary",
+    "rpc.adoption.tonic_prost.query.d8.v7.server_stream",
+    "rpc.adoption.native_prost.entities.n1000.unary",
+    "rpc.adoption.native_prost.entities.n1000.server_stream",
+    "rpc.adoption.tonic_prost.entities.n1000.unary",
+    "rpc.adoption.tonic_prost.entities.n1000.server_stream",
+    "rpc.adoption.native_prost.sparse.v9.unary",
+    "rpc.adoption.native_prost.sparse.v9.server_stream",
+    "rpc.adoption.tonic_prost.sparse.v9.unary",
+    "rpc.adoption.tonic_prost.sparse.v9.server_stream"
+  ],
+  "blocked_maps": 12,
+  "completed": true,
+  "raw_children": 32,
+  "elapsed_seconds_diagnostic": 18.367171109000992,
+  "summaries": [
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v0.unary",
+      "iters": 64,
+      "revision": "before",
+      "repeats": 1,
+      "allocs_per_rpc": 89.0625,
+      "allocated_bytes_per_rpc": 42366.25,
+      "wall_ns_per_rpc_diagnostic": 59133.21875,
+      "elapsed_seconds_diagnostic": 0.025701701999423676
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v0.unary",
+      "iters": 64,
+      "revision": "after",
+      "repeats": 1,
+      "allocs_per_rpc": 87.0625,
+      "allocated_bytes_per_rpc": 41992.25,
+      "wall_ns_per_rpc_diagnostic": 57032.765625,
+      "elapsed_seconds_diagnostic": 0.026146602000153507
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v0.server_stream",
+      "iters": 64,
+      "revision": "before",
+      "repeats": 1,
+      "allocs_per_rpc": 227.03125,
+      "allocated_bytes_per_rpc": 70968.625,
+      "wall_ns_per_rpc_diagnostic": 113980.078125,
+      "elapsed_seconds_diagnostic": 0.03442192300099123
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d3.v0.server_stream",
+      "iters": 64,
+      "revision": "after",
+      "repeats": 1,
+      "allocs_per_rpc": 222.03125,
+      "allocated_bytes_per_rpc": 70033.625,
+      "wall_ns_per_rpc_diagnostic": 155593.171875,
+      "elapsed_seconds_diagnostic": 0.03937421800037555
+    },
+    {
+      "row": "rpc.adoption.tonic_prost.query.d3.v0.unary",
+      "iters": 64,
+      "revision": "before",
+      "repeats": 1,
+      "allocs_per_rpc": 114.03125,
+      "allocated_bytes_per_rpc": 53048.625,
+      "wall_ns_per_rpc_diagnostic": 126531.515625,
+      "elapsed_seconds_diagnostic": 0.03703668399975868
+    },
+    {
+      "row": "rpc.adoption.tonic_prost.query.d3.v0.unary",
+      "iters": 64,
+      "revision": "after",
+      "repeats": 1,
+      "allocs_per_rpc": 114.03125,
+      "allocated_bytes_per_rpc": 53048.625,
+      "wall_ns_per_rpc_diagnostic": 129584.796875,
+      "elapsed_seconds_diagnostic": 0.036957825999706984
+    },
+    {
+      "row": "rpc.adoption.tonic_prost.query.d3.v0.server_stream",
+      "iters": 64,
+      "revision": "before",
+      "repeats": 1,
+      "allocs_per_rpc": 243.03125,
+      "allocated_bytes_per_rpc": 70620.625,
+      "wall_ns_per_rpc_diagnostic": 150247.578125,
+      "elapsed_seconds_diagnostic": 0.04575668500001484
+    },
+    {
+      "row": "rpc.adoption.tonic_prost.query.d3.v0.server_stream",
+      "iters": 64,
+      "revision": "after",
+      "repeats": 1,
+      "allocs_per_rpc": 243.03125,
+      "allocated_bytes_per_rpc": 70620.625,
+      "wall_ns_per_rpc_diagnostic": 139019.75,
+      "elapsed_seconds_diagnostic": 0.05295950399886351
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v7.unary",
+      "iters": 64,
+      "revision": "before",
+      "repeats": 1,
+      "allocs_per_rpc": 146.0,
+      "allocated_bytes_per_rpc": 52396.0,
+      "wall_ns_per_rpc_diagnostic": 90660.015625,
+      "elapsed_seconds_diagnostic": 0.0297429190013645
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v7.unary",
+      "iters": 64,
+      "revision": "after",
+      "repeats": 1,
+      "allocs_per_rpc": 144.0,
+      "allocated_bytes_per_rpc": 51186.0,
+      "wall_ns_per_rpc_diagnostic": 92093.390625,
+      "elapsed_seconds_diagnostic": 0.040091828001095564
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v7.server_stream",
+      "iters": 64,
+      "revision": "before",
+      "repeats": 1,
+      "allocs_per_rpc": 417.03125,
+      "allocated_bytes_per_rpc": 100907.625,
+      "wall_ns_per_rpc_diagnostic": 115965.0625,
+      "elapsed_seconds_diagnostic": 0.05304829600027006
+    },
+    {
+      "row": "rpc.adoption.native_prost.query.d8.v7.server_stream",
+      "iters": 64,
+      "revision": "after",
+      "repeats": 1,
+      "allocs_per_rpc": 412.03125,
+      "allocated_bytes_per_rpc": 97882.625,
+      "wall_ns_per_rpc_diagnostic": 213079.1875,
+      "elapsed_seconds_diagnostic": 0.06672438599889574
+    },
+    {
+      "row": "rpc.adoption.tonic_prost.query.d8.v7.unary",
+      "iters": 64,
+      "revision": "before",
+      "repeats": 1,
+      "allocs_per_rpc": 173.0,
+      "allocated_bytes_per_rpc": 61615.0,
+      "wall_ns_per_rpc_diagnostic": 179684.078125,
+      "elapsed_seconds_diagnostic": 0.04014864099917759
+    },
+    {
+      "row": "rpc.adoption.tonic_prost.query.d8.v7.unary",
+      "iters": 64,
+      "revision": "after",
+      "repeats": 1,
+      "allocs_per_rpc": 173.0,
+      "allocated_bytes_per_rpc": 61615.0,
+      "wall_ns_per_rpc_diagnostic": 123812.171875,
+      "elapsed_seconds_diagnostic": 0.04177946200070437
+    },
+    {
+      "row": "rpc.adoption.tonic_prost.query.d8.v7.server_stream",
+      "iters": 64,
+      "revision": "before",
+      "repeats": 1,
+      "allocs_per_rpc": 435.03125,
+      "allocated_bytes_per_rpc": 95205.625,
+      "wall_ns_per_rpc_diagnostic": 169642.765625,
+      "elapsed_seconds_diagnostic": 0.04493998299949453
+    },
+    {
+      "row": "rpc.adoption.tonic_prost.query.d8.v7.server_stream",
+      "iters": 64,
+      "revision": "after",
+      "repeats": 1,
+      "allocs_per_rpc": 435.03125,
+      "allocated_bytes_per_rpc": 95205.625,
+      "wall_ns_per_rpc_diagnostic": 163739.40625,
+      "elapsed_seconds_diagnostic": 0.04462473400053568
+    },
+    {
+      "row": "rpc.adoption.native_prost.entities.n1000.unary",
+      "iters": 64,
+      "revision": "before",
+      "repeats": 1,
+      "allocs_per_rpc": 60059.0,
+      "allocated_bytes_per_rpc": 9263147.4375,
+      "wall_ns_per_rpc_diagnostic": 7501753.875,
+      "elapsed_seconds_diagnostic": 1.2948062800005573
+    },
+    {
+      "row": "rpc.adoption.native_prost.entities.n1000.unary",
+      "iters": 64,
+      "revision": "after",
+      "repeats": 1,
+      "allocs_per_rpc": 60057.0,
+      "allocated_bytes_per_rpc": 8133951.4375,
+      "wall_ns_per_rpc_diagnostic": 6586294.140625,
+      "elapsed_seconds_diagnostic": 1.0932957380009611
+    },
+    {
+      "row": "rpc.adoption.native_prost.entities.n1000.server_stream",
+      "iters": 64,
+      "revision": "before",
+      "repeats": 1,
+      "allocs_per_rpc": 193446.046875,
+      "allocated_bytes_per_rpc": 25642919.546875,
+      "wall_ns_per_rpc_diagnostic": 18782857.546875,
+      "elapsed_seconds_diagnostic": 3.1451138140000694
+    },
+    {
+      "row": "rpc.adoption.native_prost.entities.n1000.server_stream",
+      "iters": 64,
+      "revision": "after",
+      "repeats": 1,
+      "allocs_per_rpc": 193441.046875,
+      "allocated_bytes_per_rpc": 22819929.546875,
+      "wall_ns_per_rpc_diagnostic": 18526690.984375,
+      "elapsed_seconds_diagnostic": 3.109801124999649
+    },
+    {
+      "row": "rpc.adoption.tonic_prost.entities.n1000.unary",
+      "iters": 64,
+      "revision": "before",
+      "repeats": 1,
+      "allocs_per_rpc": 60302.0,
+      "allocated_bytes_per_rpc": 12917554.8125,
+      "wall_ns_per_rpc_diagnostic": 7121723.6875,
+      "elapsed_seconds_diagnostic": 1.2026198869989457
+    },
+    {
+      "row": "rpc.adoption.tonic_prost.entities.n1000.unary",
+      "iters": 64,
+      "revision": "after",
+      "repeats": 1,
+      "allocs_per_rpc": 60302.09375,
+      "allocated_bytes_per_rpc": 12917559.28125,
+      "wall_ns_per_rpc_diagnostic": 6869460.203125,
+      "elapsed_seconds_diagnostic": 1.1965078220000578
+    },
+    {
+      "row": "rpc.adoption.tonic_prost.entities.n1000.server_stream",
+      "iters": 64,
+      "revision": "before",
+      "repeats": 1,
+      "allocs_per_rpc": 193978.46875,
+      "allocated_bytes_per_rpc": 28595902.890625,
+      "wall_ns_per_rpc_diagnostic": 16884256.4375,
+      "elapsed_seconds_diagnostic": 2.863706516000093
+    },
+    {
+      "row": "rpc.adoption.tonic_prost.entities.n1000.server_stream",
+      "iters": 64,
+      "revision": "after",
+      "repeats": 1,
+      "allocs_per_rpc": 193976.78125,
+      "allocated_bytes_per_rpc": 27842339.859375,
+      "wall_ns_per_rpc_diagnostic": 18835379.921875,
+      "elapsed_seconds_diagnostic": 3.0825526120006543
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v9.unary",
+      "iters": 64,
+      "revision": "before",
+      "repeats": 1,
+      "allocs_per_rpc": 53.03125,
+      "allocated_bytes_per_rpc": 72061.625,
+      "wall_ns_per_rpc_diagnostic": 61572.765625,
+      "elapsed_seconds_diagnostic": 0.025579733000995475
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v9.unary",
+      "iters": 64,
+      "revision": "after",
+      "repeats": 1,
+      "allocs_per_rpc": 51.03125,
+      "allocated_bytes_per_rpc": 71845.625,
+      "wall_ns_per_rpc_diagnostic": 54773.453125,
+      "elapsed_seconds_diagnostic": 0.02405338800053869
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v9.server_stream",
+      "iters": 64,
+      "revision": "before",
+      "repeats": 1,
+      "allocs_per_rpc": 107.09375,
+      "allocated_bytes_per_rpc": 306472.875,
+      "wall_ns_per_rpc_diagnostic": 97466.171875,
+      "elapsed_seconds_diagnostic": 0.030619781000496005
+    },
+    {
+      "row": "rpc.adoption.native_prost.sparse.v9.server_stream",
+      "iters": 64,
+      "revision": "after",
+      "repeats": 1,
+      "allocs_per_rpc": 102.09375,
+      "allocated_bytes_per_rpc": 305932.875,
+      "wall_ns_per_rpc_diagnostic": 120065.640625,
+      "elapsed_seconds_diagnostic": 0.04563748200052942
+    },
+    {
+      "row": "rpc.adoption.tonic_prost.sparse.v9.unary",
+      "iters": 64,
+      "revision": "before",
+      "repeats": 1,
+      "allocs_per_rpc": 80.03125,
+      "allocated_bytes_per_rpc": 55172.625,
+      "wall_ns_per_rpc_diagnostic": 116794.234375,
+      "elapsed_seconds_diagnostic": 0.03945158500027901
+    },
+    {
+      "row": "rpc.adoption.tonic_prost.sparse.v9.unary",
+      "iters": 64,
+      "revision": "after",
+      "repeats": 1,
+      "allocs_per_rpc": 80.03125,
+      "allocated_bytes_per_rpc": 55172.625,
+      "wall_ns_per_rpc_diagnostic": 124880.4375,
+      "elapsed_seconds_diagnostic": 0.03657367400046496
+    },
+    {
+      "row": "rpc.adoption.tonic_prost.sparse.v9.server_stream",
+      "iters": 64,
+      "revision": "before",
+      "repeats": 1,
+      "allocs_per_rpc": 125.125,
+      "allocated_bytes_per_rpc": 138128.5,
+      "wall_ns_per_rpc_diagnostic": 144540.703125,
+      "elapsed_seconds_diagnostic": 0.04033236099894566
+    },
+    {
+      "row": "rpc.adoption.tonic_prost.sparse.v9.server_stream",
+      "iters": 64,
+      "revision": "after",
+      "repeats": 1,
+      "allocs_per_rpc": 125.125,
+      "allocated_bytes_per_rpc": 138128.5,
+      "wall_ns_per_rpc_diagnostic": 146028.6875,
+      "elapsed_seconds_diagnostic": 0.0399070200001006
+    }
+  ],
+  "raw_sha256": "197126579f4ebdd2625c840793903e3b0f138b4559da5e05fd75bdbbf5f8b640"
+}

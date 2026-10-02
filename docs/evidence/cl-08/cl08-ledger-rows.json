@@ -1,0 +1,1282 @@
+[
+  {
+    "id": "rpc.adoption.native_prost.query.d3.v0.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d3.v0.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d3.v0.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d3.v0.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d3.v1.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d3.v1.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d3.v1.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d3.v1.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d3.v2.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d3.v2.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d3.v2.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d3.v2.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d3.v3.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d3.v3.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d3.v3.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d3.v3.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d3.v4.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d3.v4.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d3.v4.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d3.v4.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d3.v5.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d3.v5.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d3.v5.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d3.v5.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d3.v6.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d3.v6.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d3.v6.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d3.v6.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d3.v7.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d3.v7.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d3.v7.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d3.v7.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d4.v0.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d4.v0.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d4.v0.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d4.v0.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d4.v1.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d4.v1.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d4.v1.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d4.v1.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d4.v2.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d4.v2.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d4.v2.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d4.v2.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d4.v3.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d4.v3.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d4.v3.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d4.v3.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d4.v4.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d4.v4.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d4.v4.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d4.v4.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d4.v5.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d4.v5.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d4.v5.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d4.v5.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d4.v6.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d4.v6.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d4.v6.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d4.v6.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d4.v7.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d4.v7.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d4.v7.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d4.v7.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d5.v0.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d5.v0.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d5.v0.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d5.v0.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d5.v1.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d5.v1.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d5.v1.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d5.v1.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d5.v2.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d5.v2.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d5.v2.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d5.v2.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d5.v3.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d5.v3.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d5.v3.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d5.v3.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d5.v4.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d5.v4.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d5.v4.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d5.v4.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d5.v5.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d5.v5.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d5.v5.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d5.v5.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d5.v6.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d5.v6.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d5.v6.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d5.v6.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d5.v7.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d5.v7.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d5.v7.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d5.v7.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d6.v0.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d6.v0.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d6.v0.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d6.v0.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d6.v1.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d6.v1.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d6.v1.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d6.v1.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d6.v2.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d6.v2.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d6.v2.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d6.v2.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d6.v3.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d6.v3.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d6.v3.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d6.v3.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d6.v4.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d6.v4.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d6.v4.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d6.v4.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d6.v5.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d6.v5.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d6.v5.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d6.v5.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d6.v6.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d6.v6.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d6.v6.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d6.v6.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d6.v7.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d6.v7.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d6.v7.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d6.v7.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d7.v0.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d7.v0.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d7.v0.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d7.v0.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d7.v1.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d7.v1.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d7.v1.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d7.v1.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d7.v2.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d7.v2.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d7.v2.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d7.v2.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d7.v3.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d7.v3.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d7.v3.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d7.v3.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d7.v4.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d7.v4.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d7.v4.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d7.v4.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d7.v5.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d7.v5.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d7.v5.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d7.v5.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d7.v6.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d7.v6.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d7.v6.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d7.v6.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d7.v7.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d7.v7.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d7.v7.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d7.v7.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d8.v0.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d8.v0.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d8.v0.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d8.v0.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d8.v1.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d8.v1.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d8.v1.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d8.v1.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d8.v2.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d8.v2.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d8.v2.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d8.v2.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d8.v3.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d8.v3.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d8.v3.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d8.v3.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d8.v4.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d8.v4.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d8.v4.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d8.v4.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d8.v5.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d8.v5.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d8.v5.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d8.v5.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d8.v6.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d8.v6.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d8.v6.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d8.v6.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d8.v7.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.query.d8.v7.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d8.v7.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.query.d8.v7.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.entities.n10.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.entities.n10.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.entities.n10.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.entities.n10.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.entities.n100.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.entities.n100.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.entities.n100.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.entities.n100.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.entities.n1000.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.entities.n1000.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.entities.n1000.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.entities.n1000.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v0.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v0.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v0.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v0.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v1.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v1.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v1.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v1.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v2.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v2.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v2.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v2.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v3.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v3.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v3.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v3.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v4.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v4.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v4.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v4.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v5.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v5.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v5.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v5.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v6.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v6.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v6.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v6.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v7.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v7.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v7.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v7.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v8.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v8.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v8.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v8.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v9.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.sparse.v9.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v9.unary",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.sparse.v9.server_stream",
+    "state": "eligible",
+    "reason": null
+  },
+  {
+    "id": "rpc.adoption.native_prost.maps.n8.unary",
+    "state": "blocked",
+    "reason": "unchanged assert_equal_wire_work preflight: native map wire is 4 bytes longer than prost"
+  },
+  {
+    "id": "rpc.adoption.native_prost.maps.n8.server_stream",
+    "state": "blocked",
+    "reason": "unchanged assert_equal_wire_work preflight: native map wire is 4 bytes longer than prost"
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.maps.n8.unary",
+    "state": "blocked",
+    "reason": "unchanged assert_equal_wire_work preflight: native map wire is 4 bytes longer than prost"
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.maps.n8.server_stream",
+    "state": "blocked",
+    "reason": "unchanged assert_equal_wire_work preflight: native map wire is 4 bytes longer than prost"
+  },
+  {
+    "id": "rpc.adoption.native_prost.maps.n64.unary",
+    "state": "blocked",
+    "reason": "unchanged assert_equal_wire_work preflight: native map wire is 4 bytes longer than prost"
+  },
+  {
+    "id": "rpc.adoption.native_prost.maps.n64.server_stream",
+    "state": "blocked",
+    "reason": "unchanged assert_equal_wire_work preflight: native map wire is 4 bytes longer than prost"
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.maps.n64.unary",
+    "state": "blocked",
+    "reason": "unchanged assert_equal_wire_work preflight: native map wire is 4 bytes longer than prost"
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.maps.n64.server_stream",
+    "state": "blocked",
+    "reason": "unchanged assert_equal_wire_work preflight: native map wire is 4 bytes longer than prost"
+  },
+  {
+    "id": "rpc.adoption.native_prost.maps.n512.unary",
+    "state": "blocked",
+    "reason": "unchanged assert_equal_wire_work preflight: native map wire is 4 bytes longer than prost"
+  },
+  {
+    "id": "rpc.adoption.native_prost.maps.n512.server_stream",
+    "state": "blocked",
+    "reason": "unchanged assert_equal_wire_work preflight: native map wire is 4 bytes longer than prost"
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.maps.n512.unary",
+    "state": "blocked",
+    "reason": "unchanged assert_equal_wire_work preflight: native map wire is 4 bytes longer than prost"
+  },
+  {
+    "id": "rpc.adoption.tonic_prost.maps.n512.server_stream",
+    "state": "blocked",
+    "reason": "unchanged assert_equal_wire_work preflight: native map wire is 4 bytes longer than prost"
+  }
+]

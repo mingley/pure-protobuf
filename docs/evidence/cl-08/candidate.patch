@@ -1,0 +1,431 @@
+diff --git a/pbrs-grpc/src/codec.rs b/pbrs-grpc/src/codec.rs
+index a54871f1..5de911fe 100644
+--- a/pbrs-grpc/src/codec.rs
++++ b/pbrs-grpc/src/codec.rs
+@@ -38,6 +38,21 @@ pub trait CodecMessage: Sized {
+     /// Encode the uncompressed protobuf payload into `out`.
+     fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status>;
+ 
++    /// Optionally append the uncompressed payload directly to a frame buffer.
++    ///
++    /// Return `None` without changing `out` to use [`Self::encode_payload`],
++    /// including its support for shared outbound segments. Return `Some` to
++    /// append only the payload after the existing bytes. Do not change or
++    /// remove those bytes. A failed append returns the same [`Status`] as
++    /// normal encoding; the transport discards the incomplete frame or rolls
++    /// back that append while retaining earlier complete batched messages.
++    ///
++    /// The default declines, preserving existing codec implementations.
++    #[inline]
++    fn encode_contiguous(&self, _out: &mut BytesMut) -> Option<Result<(), Status>> {
++        None
++    }
++
+     /// Materialize the uncompressed protobuf payload for compressed sends.
+     fn encode_to_vec(&self) -> Result<Vec<u8>, Status> {
+         let mut out = Vec::with_capacity(self.encoded_len());
+diff --git a/pbrs-grpc/src/codec/prost.rs b/pbrs-grpc/src/codec/prost.rs
+index 00823fb3..f186b9f3 100644
+--- a/pbrs-grpc/src/codec/prost.rs
++++ b/pbrs-grpc/src/codec/prost.rs
+@@ -6,7 +6,7 @@
+ //! boundaries so handlers still work with their prost-build message types.
+ 
+ use crate::{CodecMessage, Framed, MessageLimits, Status, StreamSender as NativeSender};
+-use bytes::Bytes;
++use bytes::{Bytes, BytesMut};
+ use futures_core::Stream as FuturesStream;
+ use prost::Message as ProstMessage;
+ use std::pin::Pin;
+@@ -43,6 +43,14 @@ where
+         Ok(())
+     }
+ 
++    fn encode_contiguous(&self, out: &mut BytesMut) -> Option<Result<(), Status>> {
++        Some(
++            self.0
++                .encode(out)
++                .map_err(|e| Status::internal(e.to_string())),
++        )
++    }
++
+     fn encode_to_vec(&self) -> Result<Vec<u8>, Status> {
+         let mut out = Vec::with_capacity(self.0.encoded_len());
+         self.0
+diff --git a/pbrs-grpc/src/wire/cl08_contiguous_tests.rs b/pbrs-grpc/src/wire/cl08_contiguous_tests.rs
+new file mode 100644
+index 00000000..e3df30d6
+--- /dev/null
++++ b/pbrs-grpc/src/wire/cl08_contiguous_tests.rs
+@@ -0,0 +1,243 @@
++//! Direct-frame codec behavior, including the existing batch rollback boundary.
++
++#![allow(
++    clippy::expect_used,
++    clippy::indexing_slicing,
++    reason = "bounded codec regression assertions"
++)]
++
++use super::{SegSink, append_frame, encode_msg};
++use crate::codec::{self, CodecMessage};
++use crate::compression::CompressionAlgorithm;
++use crate::config::ChannelConfig;
++use crate::limits::MessageLimits;
++use crate::status::{Code, Status};
++use crate::stream::Framed;
++use crate::transport::{
++    ClientBuilder, FlowControl, RecvStream, SendRequest, SendStream, ServerBuilder,
++    ServerConnection, h2 as backend,
++};
++use crate::wire::OutBatch;
++use bytes::{Bytes, BytesMut};
++use std::sync::Arc;
++use std::sync::atomic::{AtomicUsize, Ordering};
++use std::time::Duration;
++use tokio::task::JoinHandle;
++
++#[derive(Default)]
++struct Encodes {
++    direct: AtomicUsize,
++    fallback: AtomicUsize,
++}
++
++struct Direct {
++    payload: Bytes,
++    fail: bool,
++    calls: Arc<Encodes>,
++}
++
++impl Direct {
++    fn new(payload: &'static [u8]) -> Self {
++        Self {
++            payload: Bytes::from_static(payload),
++            fail: false,
++            calls: Arc::new(Encodes::default()),
++        }
++    }
++}
++
++impl CodecMessage for Direct {
++    fn encoded_len(&self) -> usize {
++        self.payload.len()
++    }
++
++    fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status> {
++        self.calls.fallback.fetch_add(1, Ordering::SeqCst);
++        out.put_slice(&self.payload);
++        Ok(())
++    }
++
++    fn encode_contiguous(&self, out: &mut BytesMut) -> Option<Result<(), Status>> {
++        self.calls.direct.fetch_add(1, Ordering::SeqCst);
++        if self.fail {
++            out.extend_from_slice(b"partial");
++            Some(Err(Status::internal("injected partial encode failure")))
++        } else {
++            out.extend_from_slice(&self.payload);
++            Some(Ok(()))
++        }
++    }
++
++    fn decode_payload(payload: Bytes) -> Result<Self, Status> {
++        Ok(Self {
++            payload,
++            fail: false,
++            calls: Arc::new(Encodes::default()),
++        })
++    }
++
++    fn empty() -> Self {
++        Self::new(b"")
++    }
++}
++
++#[test]
++fn direct_payload_appends_after_prefix_and_tracks_actual_bytes() {
++    let message = Direct::new(b"payload");
++    let mut sink = SegSink::new();
++    append_frame(&mut sink, &message, None, MessageLimits::new(), 1).expect("append");
++    assert_eq!(sink.len(), codec::HEADER_LEN + message.payload.len());
++    let frame = sink.finish();
++    assert_eq!(frame.seg_count(), 1);
++    assert_eq!(
++        frame.concat(),
++        codec::encode(b"payload", false).expect("frame")
++    );
++    assert_eq!(message.calls.direct.load(Ordering::SeqCst), 1);
++    assert_eq!(message.calls.fallback.load(Ordering::SeqCst), 0);
++}
++
++#[test]
++fn outbound_limit_rejects_before_either_encode_path() {
++    let message = Direct::new(b"payload");
++    let limits = MessageLimits::new().with_max_encoding(message.payload.len() - 1);
++    let error = encode_msg(&message, None, limits, 1).expect_err("over limit");
++    assert_eq!(error.code(), Code::ResourceExhausted);
++    let mut sink = SegSink::new();
++    let error = append_frame(&mut sink, &message, None, limits, 1).expect_err("batch over limit");
++    assert_eq!(error.code(), Code::ResourceExhausted);
++    assert!(sink.is_empty());
++    assert_eq!(message.calls.direct.load(Ordering::SeqCst), 0);
++    assert_eq!(message.calls.fallback.load(Ordering::SeqCst), 0);
++}
++
++#[test]
++fn gzip_stays_on_materialized_payload_path() {
++    let message = Direct::new(b"compress this payload");
++    let frame = encode_msg(
++        &message,
++        Some(CompressionAlgorithm::Gzip),
++        MessageLimits::new(),
++        1,
++    )
++    .expect("gzip frame");
++    let mut bytes = BytesMut::from(frame.concat().as_slice());
++    let framed = codec::pop(&mut bytes)
++        .expect("framing")
++        .expect("complete frame");
++    assert!(framed.compressed);
++    assert_eq!(
++        crate::gzip::decode(&framed.payload).expect("gzip"),
++        message.payload
++    );
++    assert!(bytes.is_empty());
++    assert_eq!(message.calls.direct.load(Ordering::SeqCst), 0);
++    assert_eq!(message.calls.fallback.load(Ordering::SeqCst), 1);
++}
++
++struct AbortOnDrop<T>(JoinHandle<T>);
++
++impl<T> Drop for AbortOnDrop<T> {
++    fn drop(&mut self) {
++        self.0.abort();
++    }
++}
++
++#[tokio::test]
++async fn partial_failure_preserves_previous_batch_and_later_good_append() {
++    let (client_io, server_io) = tokio::io::duplex(65536);
++    let (send, conn) = backend::ClientBuilder::new()
++        .handshake(client_io)
++        .await
++        .expect("client handshake");
++    let _client_driver = AbortOnDrop(tokio::spawn(conn));
++    let mut server = backend::ServerBuilder::new()
++        .handshake(server_io)
++        .await
++        .expect("server handshake");
++    let mut peer = AbortOnDrop(tokio::spawn(async move {
++        let (request, _response) = server.accept().await.expect("stream").expect("request");
++        let _server_driver = AbortOnDrop(tokio::spawn(async move {
++            while server.accept().await.is_some() {}
++        }));
++        let mut body = request.into_body();
++        let mut data = Vec::new();
++        while let Some(chunk) = std::future::poll_fn(|cx| body.poll_data(cx)).await {
++            let chunk = chunk.expect("DATA");
++            body.flow_control()
++                .release_capacity(chunk.len())
++                .expect("window");
++            data.extend_from_slice(&chunk);
++        }
++        data
++    }));
++    let mut send = send.ready().await.expect("ready");
++    let (response, mut stream) = send
++        .send_request(
++            http::Request::builder()
++                .method("POST")
++                .uri("http://localhost/cl08/Batch")
++                .body(())
++                .expect("request"),
++            false,
++        )
++        .expect("open");
++    let mut batch = OutBatch::new(ChannelConfig::new().wire());
++    batch
++        .encode(Framed::new(Direct::new(b"earlier")))
++        .expect("first frame");
++    let mut failing = Direct::new(b"must not escape");
++    failing.fail = true;
++    let error = batch
++        .encode(Framed::new(failing))
++        .expect_err("partial failure");
++    assert_eq!(error.code(), Code::Internal);
++    assert_eq!(error.message(), "injected partial encode failure");
++    batch
++        .encode(Framed::new(Direct::new(b"later")))
++        .expect("later frame");
++    batch
++        .flush(&mut stream)
++        .await
++        .expect("flush retained frames");
++    stream.send_data(Bytes::new(), true).expect("end stream");
++    let bytes = tokio::time::timeout(Duration::from_secs(2), &mut peer.0)
++        .await
++        .expect("bounded receiver")
++        .expect("receiver task");
++    let mut expected = codec::encode(b"earlier", false).expect("earlier").to_vec();
++    expected.extend_from_slice(&codec::encode(b"later", false).expect("later"));
++    assert_eq!(bytes, expected);
++    drop(response);
++}
++
++#[cfg(feature = "prost")]
++#[derive(Clone, PartialEq, prost::Message)]
++struct ProstFields {
++    #[prost(bytes = "vec", tag = "1")]
++    bytes: Vec<u8>,
++    #[prost(string, tag = "2")]
++    text: String,
++    #[prost(sint64, tag = "3")]
++    number: i64,
++}
++
++#[cfg(feature = "prost")]
++#[test]
++fn prost_direct_frames_match_reference_at_length_boundaries() {
++    use crate::codec::prost::Message;
++    use prost::Message as _;
++    for length in [0, 1, 127, 128, 1024, 16383, 16384, 65536, 1024 * 1024] {
++        let message = Message(ProstFields {
++            bytes: vec![0xab; length],
++            text: "boundary".into(),
++            number: -129,
++        });
++        let payload = message.0.encode_to_vec();
++        let expected = codec::encode(&payload, false).expect("reference frame");
++        let framed = encode_msg(&message, None, MessageLimits::new(), 1).expect("direct frame");
++        assert_eq!(framed.concat(), expected, "payload length {length}");
++        assert_eq!(framed.total_len(), expected.len());
++        assert_eq!(framed.seg_count(), 1);
++    }
++}
+diff --git a/pbrs-grpc/src/wire/encode.rs b/pbrs-grpc/src/wire/encode.rs
+index 62e6a2f5..f0622d97 100644
+--- a/pbrs-grpc/src/wire/encode.rs
++++ b/pbrs-grpc/src/wire/encode.rs
+@@ -75,6 +75,21 @@ impl SegSink {
+         self.total_len += n;
+     }
+ 
++    fn encode_payload<T: CodecMessage>(&mut self, msg: &T) -> Result<(), Status> {
++        let before = self.head.len();
++        if let Some(encoded) = msg.encode_contiguous(&mut self.head) {
++            encoded?;
++            let wrote =
++                self.head.len().checked_sub(before).ok_or_else(|| {
++                    Status::internal("contiguous codec removed existing frame bytes")
++                })?;
++            self.note_head_wrote(wrote);
++            Ok(())
++        } else {
++            msg.encode_payload(self)
++        }
++    }
++
+     pub(crate) fn checkpoint(&self) -> SinkCheckpoint {
+         SinkCheckpoint {
+             segs: self.segs.len(),
+@@ -204,7 +219,7 @@ pub(crate) fn frame_from_msg<T: CodecMessage>(msg: &T, len: usize) -> Result<Seg
+     sink.reserve(codec::HEADER_LEN + len);
+     sink.put_u8(0);
+     sink.put_slice(&prefix.to_be_bytes());
+-    msg.encode_payload(&mut sink)?;
++    sink.encode_payload(msg)?;
+     let shared = sink.shared_len();
+     let frame = sink.finish();
+     crate::copy_counts::note_encode(len.saturating_sub(shared));
+@@ -297,10 +312,14 @@ pub(crate) fn append_frame<T: CodecMessage>(
+     sink.reserve(codec::HEADER_LEN + len);
+     sink.put_u8(0);
+     sink.put_slice(&prefix.to_be_bytes());
+-    msg.encode_payload(sink)?;
++    sink.encode_payload(msg)?;
+     Ok(())
+ }
+ 
++#[cfg(test)]
++#[path = "cl08_contiguous_tests.rs"]
++mod cl08_contiguous_tests;
++
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+diff --git a/pbrs-grpc/tests/cl08_contiguous.rs b/pbrs-grpc/tests/cl08_contiguous.rs
+new file mode 100644
+index 00000000..64fdd4c6
+--- /dev/null
++++ b/pbrs-grpc/tests/cl08_contiguous.rs
+@@ -0,0 +1,71 @@
++//! A consumer codec predating the optional contiguous hook keeps compiling and serving.
++
++#![allow(clippy::expect_used, reason = "consumer compatibility regression")]
++
++use bytes::{Bytes, BytesMut};
++use pbrs_grpc::{Channel, CodecMessage, Request, Response, Rpc, Server, Service, Status};
++
++#[derive(Default)]
++struct LegacyCodec(Bytes);
++
++impl CodecMessage for LegacyCodec {
++    fn encoded_len(&self) -> usize {
++        self.0.len()
++    }
++
++    fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status> {
++        out.put_slice(&self.0);
++        Ok(())
++    }
++
++    fn decode_payload(payload: Bytes) -> Result<Self, Status> {
++        Ok(Self(payload))
++    }
++
++    fn empty() -> Self {
++        Self::default()
++    }
++}
++
++struct LegacyEcho;
++
++impl Service for LegacyEcho {
++    const NAME: &'static str = "cl08.Legacy";
++
++    async fn call(&self, rpc: Rpc) {
++        rpc.unary(|request: Request<LegacyCodec>| async move {
++            Ok::<_, Status>(Response::new(request.into_inner()))
++        })
++        .await;
++    }
++}
++
++#[tokio::test]
++async fn existing_consumer_codec_uses_unchanged_default_and_round_trips() {
++    let payload = Bytes::from_static(b"\x0a\x03old");
++    let codec = LegacyCodec(payload.clone());
++    let mut prefix = BytesMut::from(b"existing prefix".as_slice());
++    assert!(codec.encode_contiguous(&mut prefix).is_none());
++    assert_eq!(prefix.as_ref(), b"existing prefix");
++    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
++        .await
++        .expect("listener");
++    let address = listener.local_addr().expect("address");
++    let (stop_tx, stop_rx) = tokio::sync::oneshot::channel();
++    let server = tokio::spawn(async move {
++        Server::new(LegacyEcho)
++            .serve_with_shutdown(listener, async {
++                stop_rx.await.expect("shutdown signal");
++            })
++            .await
++    });
++    let channel = Channel::connect(address).await.expect("connect");
++    let response: Response<LegacyCodec> = channel
++        .unary("/cl08.Legacy/Echo", Request::new(codec))
++        .await
++        .expect("round trip");
++    assert_eq!(response.into_inner().0, payload);
++    drop(channel);
++    stop_tx.send(()).expect("shutdown");
++    server.await.expect("server task").expect("server drain");
++}

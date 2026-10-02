@@ -1,0 +1,31 @@
+{
+  "source": "cf3eee22c6b06324e299f81b76915651471d8025",
+  "binary_sha256": "73fa59c733f0637b22ce8d58f035aa45cb13f0b7efc4c8e9bb4cdddcef54e0b9",
+  "baseline_started_at": "2026-10-02T18:59:10.302622+00:00",
+  "lease_granted_at": "2026-10-02T19:00:23.066990+00:00",
+  "raw_children_completed_before_lease_grant": 10,
+  "contention": "First children were explicitly diagnostic under possible shared build contention; coordinator paused heavy builds at lease grant. No wall or CPU timing qualification claimed.",
+  "flamegraph_sampler": {
+    "status": "not_run",
+    "reason": "No perf/samply/dtrace executable available; retain full Callgrind self/inclusive callgraphs as instruction attribution."
+  },
+  "baseline_start_timestamp_source": "mtime of initially empty redirected collector log before collector output",
+  "baseline_finished_at": "2026-10-02T19:04:06.267821+00:00",
+  "xtree": {
+    "status": "not_run",
+    "attempts": 2,
+    "reason": "Memcheck startup rejected stripped dynamic loader: required strcmp redirection cannot be found without matching libc6-dbg; stderr retained."
+  },
+  "collector_args": [
+    "run",
+    "--cells",
+    "rpc.prost.unary,rpc.tonic_prost.unary,rpc.prost.server_stream,rpc.tonic_prost.server_stream",
+    "--iters",
+    "200",
+    "--repeats",
+    "3",
+    "--out",
+    "work/profiles/before-matched.json"
+  ],
+  "primary_after_comparison_pending": true
+}
