@@ -191,10 +191,9 @@ async fn wait_for_idle(calls: &Calls, server: &ByteBudgetTracker, client: &ByteB
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "use scripts/current-h2-soak.py to freeze source and finite process limits"]
 async fn current_h2_resource_smoke() {
-    assert!(
-        cfg!(target_os = "linux"),
-        "qualification accounting requires Linux"
-    );
+    if !cfg!(target_os = "linux") {
+        panic!("qualification accounting requires Linux");
+    }
     let duration = std::env::var("PBRS_CURRENT_H2_SECONDS")
         .expect("runner duration")
         .parse::<u64>()
@@ -230,7 +229,7 @@ async fn current_h2_resource_smoke() {
         let serving = tokio::spawn(async move {
             server
                 .serve_with_shutdown(listener, async {
-                    let _ = stop_rx.await;
+                    stop_rx.await.expect("shutdown signal");
                 })
                 .await
         });
