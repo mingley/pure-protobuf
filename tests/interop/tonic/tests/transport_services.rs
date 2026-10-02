@@ -468,6 +468,69 @@ fn note(message: &str) -> routeguide::RouteNote {
     }
 }
 
+struct OneFrame(Option<Bytes>);
+impl http_body::Body for OneFrame {
+    type Data = Bytes;
+    type Error = std::convert::Infallible;
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+    ) -> Poll<Option<Result<http_body::Frame<Bytes>, Self::Error>>> {
+        Poll::Ready(self.0.take().map(|bytes| Ok(http_body::Frame::data(bytes))))
+    }
+    fn is_end_stream(&self) -> bool {
+        self.0.is_none()
+    }
+}
+
+#[tokio::test]
+async fn tonic_generated_decoder_uses_first_gzip_member_and_ignores_encoded_tail()
+-> Result<(), BoxError> {
+    use prost::Message;
+    let first = pbrs_grpc::gzip::encode(&point(10).encode_to_vec())?;
+    for tail in [
+        pbrs_grpc::gzip::encode(&point(20).encode_to_vec())?,
+        vec![255, 0, 123],
+    ] {
+        let encoded = [first.as_slice(), tail.as_slice()].concat();
+        let mut wire = vec![1];
+        wire.extend_from_slice(&u32::try_from(encoded.len())?.to_be_bytes());
+        wire.extend_from_slice(&encoded);
+        let state = Arc::new(State::default());
+        let mut service =
+            routeguide::route_guide_server::RouteGuideServer::new(RouteGuide(state.clone()))
+                .accept_compressed(tonic::codec::CompressionEncoding::Gzip);
+        let mut request = http::Request::builder()
+            .method("POST")
+            .uri("/routeguide.RouteGuide/GetFeature")
+            .header("content-type", "application/grpc")
+            .header("grpc-encoding", "gzip")
+            .body(Body::new(OneFrame(Some(Bytes::from(wire)))))?;
+        // Direct generated decoder characterization, independent of transport auth.
+        request.extensions_mut().insert(GeneratedAuthenticated);
+        let response = service.call(request).await?;
+        let headers = response.headers().clone();
+        let mut body = response.into_body();
+        let mut bytes = Vec::new();
+        let mut terminal = headers;
+        while let Some(frame) =
+            futures_util::future::poll_fn(|cx| http_body::Body::poll_frame(Pin::new(&mut body), cx))
+                .await
+        {
+            let frame = frame?;
+            match frame.into_data() {
+                Ok(data) => bytes.extend_from_slice(&data),
+                Err(frame) => terminal = frame.into_trailers().expect("trailers"),
+            }
+        }
+        assert_eq!(terminal.get("grpc-status").expect("status"), "0");
+        let response = routeguide::Feature::decode(bytes.get(5..).expect("framed response"))?;
+        assert_eq!(response.location, Some(point(10)));
+        assert_eq!(state.calls.load(Ordering::SeqCst), 1);
+    }
+    Ok(())
+}
+
 async fn all_shapes<T>(transport: T) -> Result<(), BoxError>
 where
     T: Service<http::Request<Body>, Response = http::Response<Body>>,
