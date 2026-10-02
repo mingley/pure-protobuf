@@ -14,6 +14,7 @@ import argparse
 import atexit
 import ctypes
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -196,6 +197,193 @@ def sample_process(pid: int) -> Optional[ProcessSnapshot]:
     return None
 
 
+def collect_process_cpu_capacity(pid: int, proc_root: Path = Path("/proc")) -> Dict[str, Any]:
+    """Prove a PID's CPU budget; unknown mappings never imply headroom.
+
+    Affinity is the union of the live tasks' enforced masks. A genuine kernel
+    hierarchy root must be established before visible quotas can certify the
+    full ancestor minimum. Namespace roots can hide stricter parent quotas.
+    """
+    proof: Dict[str, Any] = {
+        "pid": pid,
+        "verified": False, "effective_cpu_capacity": None,
+        "affinity_cpus": None, "affinity_cpu_count": None,
+        "quota_cpu_capacity": None, "quota_samples": [],
+        "visible_cpu_capacity": None,
+        "method": "unsupported",
+        "scope": "enforced affinity and proven genuine-root CPU quota hierarchy",
+        "reason": "unsupported platform",
+    }
+    if sys.platform != "linux" or not hasattr(os, "sched_getaffinity"):
+        return proof
+    proof["method"] = "linux-task-affinity+genuine-hierarchy-quota-minimum"
+    try:
+        proc = proc_root / str(pid)
+        # Reading another mount/cgroup namespace through our filesystem would
+        # silently associate its membership with unrelated quota files.
+        for ns in ("mnt", "cgroup"):
+            if os.readlink(proc / "ns" / ns) != os.readlink(proc_root / "self" / "ns" / ns):
+                raise ValueError(f"per-PID {ns} namespace differs from sampler")
+        tasks = list((proc / "task").iterdir())
+        if not tasks:
+            raise ValueError("no live tasks for affinity proof")
+        membership_text = (proc / "cgroup").read_text(encoding="utf-8")
+        for task in tasks:
+            if (task / "cgroup").read_text(encoding="utf-8") != membership_text:
+                raise ValueError("live tasks have unequal CPU cgroup memberships")
+        cpus = set().union(*(os.sched_getaffinity(int(task.name)) for task in tasks))
+        if not cpus:
+            raise ValueError("empty enforced task affinity")
+        proof["affinity_cpus"] = sorted(cpus)
+        proof["affinity_cpu_count"] = len(cpus)
+
+        memberships = []
+        for line in membership_text.splitlines():
+            hierarchy, controllers, membership = line.split(":", 2)
+            if hierarchy == "0" and controllers == "":
+                memberships.append(("cgroup2", membership))
+            elif "cpu" in controllers.split(","):
+                memberships.append(("cgroup", membership))
+        candidates = []
+        for line in (proc / "mountinfo").read_text(encoding="utf-8").splitlines():
+            before, after = line.split(" - ", 1)
+            fields, fs = before.split(), after.split()
+            if len(fields) < 6 or len(fs) < 3:
+                raise ValueError("malformed cgroup mount information")
+            for version, membership in memberships:
+                if fs[0] != version or (version == "cgroup" and "cpu" not in fs[2].split(",")):
+                    continue
+                decode = lambda value: re.sub(r"\\([0-7]{3})", lambda m: chr(int(m[1], 8)), value)
+                candidates.append((version, membership, decode(fields[3]), decode(fields[4]), fields[2]))
+        if len(candidates) != 1:
+            raise ValueError("CPU cgroup membership/mount mapping is missing or ambiguous")
+        version, membership, mount_root, mount, mount_device = candidates[0]
+        proof.update(cgroup_version=version, cgroup_membership=membership,
+                     cgroup_mount_root=mount_root, cgroup_mount=mount)
+        if mount_root != "/":
+            # This exposed file is retained only as an unmapped observation.
+            try:
+                proof["unmapped_mount_root_cpu_max_raw"] = (Path(mount) / "cpu.max").read_text(encoding="utf-8").strip()
+            except OSError:
+                pass
+            raise ValueError("cgroup mount root hides or ambiguously maps ancestors")
+        if not membership.startswith("/") or any(p in (".", "..") for p in membership.split("/")):
+            raise ValueError("invalid absolute CPU cgroup membership")
+        mount_path = Path(mount)
+        if not mount_path.is_absolute():
+            raise ValueError("non-absolute CPU cgroup mount")
+        major, minor = (int(part) for part in mount_device.split(":"))
+        if mount_path.stat().st_dev != os.makedev(major, minor):
+            raise ValueError("quota mount path does not match the per-PID cgroup filesystem device")
+        root_identity = {"verified": False, "method": "kernel root-only interface markers",
+                         "reason": "genuine cgroup hierarchy root not established"}
+        proof["hierarchy_root"] = root_identity
+        try:
+            entries = set(os.listdir(mount_path))
+            if version == "cgroup2":
+                # Linux CFTYPE_NOT_ON_ROOT: these core files and cpu.max are
+                # absent only on the genuine root, not a namespace subgroup.
+                nonroot_files = sorted(entries.intersection({"cgroup.type", "cgroup.events", "cpu.max"}))
+                controllers = (mount_path / "cgroup.controllers").read_text(encoding="utf-8").split()
+                for name in ("cgroup.procs", "cgroup.subtree_control", "cpu.stat"):
+                    with (mount_path / name).open(encoding="utf-8") as interface:
+                        interface.read(64)
+                root_identity.update(nonroot_interfaces_present=nonroot_files,
+                                     cpu_controller_available="cpu" in controllers)
+                root_identity["verified"] = not nonroot_files and "cpu" in controllers
+            else:
+                # Linux CFTYPE_ONLY_ON_ROOT for both v1 core interfaces.
+                for name in ("release_agent", "cgroup.sane_behavior"):
+                    with (mount_path / name).open(encoding="utf-8") as interface:
+                        interface.read(64)
+                root_identity["verified"] = True
+            if root_identity["verified"]:
+                root_identity["reason"] = ""
+        except OSError as exc:
+            root_identity["reason"] = f"root interface proof unavailable: {exc}"
+        group = mount_path / membership.lstrip("/")
+        quotas = []
+        while True:
+            if version == "cgroup2":
+                quota_file = group / "cpu.max"
+                try:
+                    raw = quota_file.read_text(encoding="utf-8").strip()
+                    quota_text, period_text = raw.split()
+                    period = int(period_text)
+                    quota = None if quota_text == "max" else int(quota_text)
+                except FileNotFoundError:
+                    if group != mount_path or not root_identity["verified"]:
+                        raise ValueError(f"CPU quota interface unavailable without genuine-root proof: {quota_file}")
+                    # CFTYPE_NOT_ON_ROOT: genuine v2 root is unthrottled.
+                    raw, quota, period = None, None, 1
+            else:
+                quota_file = group / "cpu.cfs_quota_us"
+                raw_quota = quota_file.read_text(encoding="utf-8").strip()
+                raw_period = (group / "cpu.cfs_period_us").read_text(encoding="utf-8").strip()
+                raw = f"{raw_quota} {raw_period}"
+                quota_value, period = int(raw_quota), int(raw_period)
+                quota = None if quota_value == -1 else quota_value
+            if period <= 0 or (quota is not None and quota <= 0):
+                raise ValueError(f"invalid CPU quota/period at {quota_file}")
+            capacity = quota / period if quota is not None else None
+            if capacity is not None:
+                if not math.isfinite(capacity) or capacity <= 0:
+                    raise ValueError("invalid finite CPU quota capacity")
+                quotas.append(capacity)
+            reading = {"path": str(quota_file), "raw": raw, "cpu_capacity": capacity}
+            if raw is None:
+                reading["interpretation"] = "genuine v2 root: cpu.max absent by CFTYPE_NOT_ON_ROOT"
+            proof["quota_samples"].append(reading)
+            if group == mount_path:
+                break
+            group = group.parent
+        quota_capacity = min(quotas) if quotas else None
+        proof["quota_cpu_capacity"] = quota_capacity
+        proof["visible_cpu_capacity"] = min(len(cpus), quota_capacity) if quotas else float(len(cpus))
+        if not root_identity["verified"]:
+            raise ValueError(root_identity["reason"])
+        proof["effective_cpu_capacity"] = proof["visible_cpu_capacity"]
+        proof["verified"], proof["reason"] = True, ""
+    except (OSError, ValueError, OverflowError) as exc:
+        proof["reason"] = str(exc)
+    return proof
+
+
+def finite_cpu_delta(initial: float, final: float) -> float:
+    """Retain bounded diagnostic counters; verification is a separate guard."""
+    delta = final - initial
+    return max(0.0, delta) if math.isfinite(delta) else 0.0
+
+
+def cpu_counter_window(initial, final) -> Dict[str, Any]:
+    """Prove the interval belonging to a cumulative endpoint CPU delta."""
+    def value(snapshot, name):
+        number = getattr(snapshot, name, None)
+        return number if isinstance(number, (int, float)) and math.isfinite(number) else None
+
+    start = value(initial, "timestamp")
+    end = value(final, "timestamp")
+    duration = end - start if start is not None and end is not None else None
+    if duration is not None and not math.isfinite(duration):
+        duration = None
+    counters = {f"{endpoint}_{name}_seconds": value(snapshot, attribute)
+                for endpoint, snapshot in (("initial", initial), ("final", final))
+                for name, attribute in (("user", "user_s"), ("system", "sys_s"))}
+    reason = ""
+    if initial is None or final is None:
+        reason = "initial or final endpoint CPU snapshot missing"
+    elif duration is None or duration <= 0:
+        reason = "endpoint CPU snapshot timestamps are nonfinite or nonmonotonic"
+    elif any(c is None or c < 0 for c in counters.values()):
+        reason = "endpoint CPU counters are nonfinite or negative"
+    elif (final.user_s < initial.user_s or final.sys_s < initial.sys_s
+          or not math.isfinite(final.total_cpu_s - initial.total_cpu_s)):
+        reason = "endpoint CPU counters are nonmonotonic or overflowed"
+    return {"verified": not reason, "start_monotonic_s": start,
+            "end_monotonic_s": end, "duration_seconds": duration,
+            **counters, "reason": reason}
+
+
 class ProcessResourceMonitor:
     """Monitors, polls, and attributes CPU and memory to client and server processes."""
 
@@ -230,9 +418,12 @@ class ProcessResourceMonitor:
         self.client_max_threads: int = 1
         self.client_cpu_samples: List[float] = []
         self._client_last_snap: Optional[ProcessSnapshot] = None
+        self._capacity_samples: Dict[str, List[Dict[str, Any]]] = {"client": [], "server": []}
+        self._counter_errors: Dict[str, List[str]] = {"client": [], "server": []}
 
         # Capture server initial baseline immediately upon monitor creation
         self.server_initial = sample_process(self.server_pid)
+        self._observe_capacity("server", self.server_pid)
         if self.server_initial:
             self.server_peak_rss = self.server_initial.rss_bytes
             self.server_max_threads = self.server_initial.thread_count
@@ -241,10 +432,46 @@ class ProcessResourceMonitor:
     def set_client_pid(self, client_pid: int) -> None:
         self.client_pid = client_pid
         self.client_initial = sample_process(client_pid)
+        self._observe_capacity("client", client_pid)
         if self.client_initial:
             self.client_peak_rss = self.client_initial.rss_bytes
             self.client_max_threads = self.client_initial.thread_count
             self._client_last_snap = self.client_initial
+
+    def _observe_capacity(self, endpoint: str, pid: int) -> None:
+        proof = collect_process_cpu_capacity(pid)
+        proof["observed_at_monotonic_s"] = time.monotonic()
+        self._capacity_samples[endpoint].append(proof)
+
+    def _capacity_proof(self, endpoint: str) -> Dict[str, Any]:
+        samples = self._capacity_samples[endpoint]
+        if not samples:
+            return {"verified": False, "effective_cpu_capacity": None,
+                    "reason": "CPU capacity was not sampled", "sample_count": 0}
+        proof = dict(samples[-1])
+        proof["sample_count"] = len(samples)
+        observations: Dict[str, Dict[str, Any]] = {}
+        for index, sample in enumerate(samples):
+            values = {key: value for key, value in sample.items() if key != "observed_at_monotonic_s"}
+            key = json.dumps(values, sort_keys=True)
+            if key not in observations:
+                observations[key] = {"first_sample_index": index, "last_sample_index": index,
+                                     "first_monotonic_s": sample.get("observed_at_monotonic_s"),
+                                     "last_monotonic_s": sample.get("observed_at_monotonic_s"),
+                                     "proof": values}
+            observations[key]["last_sample_index"] = index
+            observations[key]["last_monotonic_s"] = sample.get("observed_at_monotonic_s")
+        proof["capacity_observations"] = list(observations.values())
+        unknown = next((s for s in samples if not s["verified"]), None)
+        signature_keys = ("affinity_cpus", "quota_samples", "cgroup_membership", "cgroup_mount",
+                          "cgroup_mount_root", "effective_cpu_capacity")
+        signatures = [json.dumps({key: s.get(key) for key in signature_keys}, sort_keys=True) for s in samples]
+        proof["stable_at_samples"] = len(set(signatures)) == 1
+        if unknown or not proof["stable_at_samples"]:
+            proof["verified"] = False
+            proof["effective_cpu_capacity"] = None
+            proof["reason"] = unknown["reason"] if unknown else "CPU capacity changed during sampling window"
+        return proof
 
     def start(self) -> None:
         self.start_time = time.monotonic()
@@ -262,6 +489,8 @@ class ProcessResourceMonitor:
             if self.client_pid:
                 snap = sample_process(self.client_pid)
                 if snap:
+                    self._check_counter_transition("client", self._client_last_snap, snap)
+                    self._observe_capacity("client", self.client_pid)
                     self.client_peak_rss = max(self.client_peak_rss, snap.rss_bytes)
                     self.client_max_threads = max(self.client_max_threads, snap.thread_count)
                     if self._client_last_snap:
@@ -276,6 +505,8 @@ class ProcessResourceMonitor:
             if self.server_pid:
                 snap = sample_process(self.server_pid)
                 if snap:
+                    self._check_counter_transition("server", self._server_last_snap, snap)
+                    self._observe_capacity("server", self.server_pid)
                     self.server_peak_rss = max(self.server_peak_rss, snap.rss_bytes)
                     self.server_max_threads = max(self.server_max_threads, snap.thread_count)
                     if self._server_last_snap:
@@ -288,6 +519,12 @@ class ProcessResourceMonitor:
 
             self._stop_event.wait(self.poll_interval_s)
 
+    def _check_counter_transition(self, endpoint: str, initial, final) -> None:
+        if initial is not None:
+            window = cpu_counter_window(initial, final)
+            if not window["verified"]:
+                self._counter_errors[endpoint].append(window["reason"])
+
     def stop(self) -> Tuple[Dict, Dict, Dict]:
         self._stop_event.set()
         if self._worker_thread and self._worker_thread.is_alive():
@@ -298,6 +535,8 @@ class ProcessResourceMonitor:
         if self.client_pid:
             final_c = sample_process(self.client_pid)
             if final_c:
+                self._check_counter_transition("client", self._client_last_snap, final_c)
+                self._observe_capacity("client", self.client_pid)
                 self.client_final = final_c
                 self.client_peak_rss = max(self.client_peak_rss, final_c.rss_bytes)
                 self.client_max_threads = max(self.client_max_threads, final_c.thread_count)
@@ -305,11 +544,11 @@ class ProcessResourceMonitor:
         if self.server_pid:
             final_s = sample_process(self.server_pid)
             if final_s:
+                self._check_counter_transition("server", self._server_last_snap, final_s)
+                self._observe_capacity("server", self.server_pid)
                 self.server_final = final_s
                 self.server_peak_rss = max(self.server_peak_rss, final_s.rss_bytes)
                 self.server_max_threads = max(self.server_max_threads, final_s.thread_count)
-
-        duration_s = max(0.001, self.end_time - self.start_time)
 
         # 1. Compute client metrics
         c_init_user = self.client_initial.user_s if self.client_initial else 0.0
@@ -317,8 +556,8 @@ class ProcessResourceMonitor:
         c_final_user = self.client_final.user_s if self.client_final else (self._client_last_snap.user_s if self._client_last_snap else c_init_user)
         c_final_sys = self.client_final.sys_s if self.client_final else (self._client_last_snap.sys_s if self._client_last_snap else c_init_sys)
 
-        client_user_s = max(0.0, c_final_user - c_init_user)
-        client_sys_s = max(0.0, c_final_sys - c_init_sys)
+        client_user_s = finite_cpu_delta(c_init_user, c_final_user)
+        client_sys_s = finite_cpu_delta(c_init_sys, c_final_sys)
         client_total_s = client_user_s + client_sys_s
         client_peak_rss = max(self.client_peak_rss, 1024)
         client_threads = max(self.client_max_threads, 1)
@@ -329,30 +568,42 @@ class ProcessResourceMonitor:
         s_final_user = self.server_final.user_s if self.server_final else (self._server_last_snap.user_s if self._server_last_snap else s_init_user)
         s_final_sys = self.server_final.sys_s if self.server_final else (self._server_last_snap.sys_s if self._server_last_snap else s_init_sys)
 
-        server_user_s = max(0.0, s_final_user - s_init_user)
-        server_sys_s = max(0.0, s_final_sys - s_init_sys)
+        server_user_s = finite_cpu_delta(s_init_user, s_final_user)
+        server_sys_s = finite_cpu_delta(s_init_sys, s_final_sys)
         server_total_s = server_user_s + server_sys_s
         server_peak_rss = max(self.server_peak_rss, 1024)
         server_threads = max(self.server_max_threads, 1)
 
         # 3. Client saturation verification
-        # Utilization relative to available duration & client thread count
-        overall_utilization_pct = (client_total_s / duration_s) * 100.0
-        if self.client_cpu_samples:
-            avg_cpu_pct = sum(self.client_cpu_samples) / len(self.client_cpu_samples)
-            peak_cpu_pct = max(self.client_cpu_samples)
-        else:
-            avg_cpu_pct = overall_utilization_pct
-            peak_cpu_pct = overall_utilization_pct
-
-        # Spare capacity: 100% minus the fraction of client core capacity utilized
-        spare_capacity_pct = max(0.0, 100.0 - (avg_cpu_pct / float(client_threads)))
-        is_saturated = (spare_capacity_pct < (100.0 - self.saturation_threshold_pct)) or (
-            avg_cpu_pct >= self.saturation_threshold_pct * float(client_threads)
-        )
-
-        saturation_status = "FAIL (SATURATED)" if is_saturated else "PASS"
-        if is_saturated:
+        # Raw CPU percentage is core-seconds per wall-second. Thread count is
+        # diagnostic only: extra threads cannot create extra CPU capacity.
+        client_capacity = self._capacity_proof("client")
+        server_capacity = self._capacity_proof("server")
+        client_window = cpu_counter_window(self.client_initial, self.client_final)
+        server_window = cpu_counter_window(self.server_initial, self.server_final)
+        for endpoint, window in (("client", client_window), ("server", server_window)):
+            window["observed_transition_errors"] = self._counter_errors[endpoint]
+            if self._counter_errors[endpoint]:
+                window.update(verified=False, reason=self._counter_errors[endpoint][0])
+        client_delta_verified = client_window["verified"]
+        server_delta_verified = server_window["verified"]
+        # Weight every CPU second by the same endpoint's actual counter window.
+        # Equal weighting of sampled percentages can hide a long busy interval.
+        avg_cpu_pct = (client_total_s / client_window["duration_seconds"] * 100.0
+                       if client_delta_verified else None)
+        finite_samples = [s for s in self.client_cpu_samples if math.isfinite(s)]
+        sample_mean_pct = sum(finite_samples) / len(finite_samples) if finite_samples else None
+        peak_cpu_pct = max(finite_samples) if finite_samples else avg_cpu_pct
+        headroom_verified = bool(client_capacity["verified"] and client_delta_verified)
+        effective_capacity = client_capacity.get("effective_cpu_capacity")
+        utilization_pct = avg_cpu_pct / effective_capacity if headroom_verified else None
+        spare_capacity_pct = max(0.0, 100.0 - utilization_pct) if headroom_verified else None
+        # Unknown budgets conservatively block every existing saturation gate.
+        is_saturated = not headroom_verified or utilization_pct >= self.saturation_threshold_pct
+        saturation_status = "FAIL (UNVERIFIED)" if not headroom_verified else ("FAIL (SATURATED)" if is_saturated else "PASS")
+        if not headroom_verified:
+            saturation_message = f"Client CPU headroom unverified: {client_capacity.get('reason') or client_window['reason']}"
+        elif is_saturated:
             saturation_message = (
                 f"Client load generator reached {avg_cpu_pct:.1f}% CPU utilization "
                 f"(spare capacity: {spare_capacity_pct:.1f}%). Load generator saturated its capacity; "
@@ -361,7 +612,7 @@ class ProcessResourceMonitor:
         else:
             saturation_message = (
                 f"Client load generator maintained {spare_capacity_pct:.1f}% spare CPU capacity "
-                f"(avg CPU: {avg_cpu_pct:.1f}% across {client_threads} threads). "
+                f"(avg CPU: {avg_cpu_pct:.1f}%, effective capacity: {effective_capacity:g} CPUs). "
                 "Headroom alone does not establish a server ceiling."
             )
 
@@ -382,6 +633,9 @@ class ProcessResourceMonitor:
             "user_cpu_nanos": int(client_user_s * 1e9),
             "system_cpu_nanos": int(client_sys_s * 1e9),
             "thread_count": client_threads,
+            "cpu_capacity": client_capacity,
+            "cpu_delta_verified": client_delta_verified,
+            "cpu_counter_window": client_window,
             "cpu_seconds_per_rpc": None,
             "method": client_method,
             "supported": client_supported,
@@ -397,6 +651,9 @@ class ProcessResourceMonitor:
             "user_cpu_nanos": int(server_user_s * 1e9),
             "system_cpu_nanos": int(server_sys_s * 1e9),
             "thread_count": server_threads,
+            "cpu_capacity": server_capacity,
+            "cpu_delta_verified": server_delta_verified,
+            "cpu_counter_window": server_window,
             "cpu_seconds_per_rpc": None,
             "method": server_method,
             "supported": server_supported,
@@ -404,9 +661,15 @@ class ProcessResourceMonitor:
 
         saturation_dict = {
             "saturated": is_saturated,
-            "avg_cpu_pct": round(avg_cpu_pct, 1),
-            "peak_cpu_pct": round(peak_cpu_pct, 1),
-            "spare_capacity_pct": round(spare_capacity_pct, 1),
+            "avg_cpu_pct": round(avg_cpu_pct, 1) if avg_cpu_pct is not None else None,
+            "sample_mean_cpu_pct": round(sample_mean_pct, 1) if sample_mean_pct is not None else None,
+            "peak_cpu_pct": round(peak_cpu_pct, 1) if peak_cpu_pct is not None else None,
+            "cpu_utilization_method": "cumulative_endpoint_delta_over_snapshot_interval",
+            "monitor_wall_seconds": self.end_time - self.start_time,
+            "spare_capacity_pct": round(spare_capacity_pct, 1) if spare_capacity_pct is not None else None,
+            "capacity_utilization_pct": round(utilization_pct, 1) if utilization_pct is not None else None,
+            "effective_cpu_capacity": effective_capacity,
+            "headroom_verified": headroom_verified,
             "status": saturation_status,
             "message": saturation_message,
         }
@@ -508,12 +771,16 @@ def collect_cpu_constraints() -> Dict[str, Any]:
     Mirrors the Rust `CpuConstraints` record: unknown values stay `None`
     (never measured zeros) and `source` names the detection path explicitly.
     """
+    capacity = collect_process_cpu_capacity(os.getpid())
     info: Dict[str, Any] = {
         "effective_cpu_count": None,
-        "affinity_cpus": None,
-        "affinity_count": None,
-        "cgroup_quota_millicpus": None,
-        "source": "unsupported",
+        "affinity_cpus": ",".join(str(c) for c in capacity["affinity_cpus"]) if capacity["affinity_cpus"] else None,
+        "affinity_count": capacity["affinity_cpu_count"],
+        "cgroup_quota_millicpus": int(capacity["quota_cpu_capacity"] * 1000) if capacity["quota_cpu_capacity"] is not None else None,
+        "effective_cpu_capacity": capacity["effective_cpu_capacity"],
+        "capacity_verified": capacity["verified"],
+        "capacity_proof": capacity,
+        "source": capacity["method"],
     }
 
     try:
@@ -521,36 +788,8 @@ def collect_cpu_constraints() -> Dict[str, Any]:
             info["effective_cpu_count"] = os.process_cpu_count()
         else:
             info["effective_cpu_count"] = os.cpu_count()
-        info["source"] = "os-cpu-count"
     except Exception:
         pass
-
-    if hasattr(os, "sched_affinity"):
-        try:
-            cpus = sorted(os.sched_affinity(0))
-            info["affinity_cpus"] = ",".join(str(c) for c in cpus)
-            info["affinity_count"] = len(cpus)
-            info["source"] = "linux-sched-affinity"
-        except Exception:
-            pass
-
-    try:
-        with open("/sys/fs/cgroup/cpu.max", "r", encoding="utf-8") as f:
-            parts = f.read().split()
-        if len(parts) == 2 and parts[0] != "max":
-            quota, period = int(parts[0]), int(parts[1])
-            if period > 0:
-                info["cgroup_quota_millicpus"] = (quota * 1000) // period
-    except Exception:
-        try:
-            with open("/sys/fs/cgroup/cpu/cpu.cfs_quota_us", "r", encoding="utf-8") as f:
-                quota = int(f.read().strip())
-            with open("/sys/fs/cgroup/cpu/cpu.cfs_period_us", "r", encoding="utf-8") as f:
-                period = int(f.read().strip())
-            if quota >= 0 and period > 0:
-                info["cgroup_quota_millicpus"] = (quota * 1000) // period
-        except Exception:
-            pass
 
     return info
 
@@ -832,6 +1071,19 @@ def aggregate_endpoint_resources(samples: List[Dict[str, Any]]) -> Dict[str, Any
     combined["peak_rss_bytes"] = max(s["peak_rss_bytes"] for s in samples)
     combined["peak_rss_mib"] = round(combined["peak_rss_bytes"] / (1024.0 * 1024.0), 3)
     combined["thread_count"] = max(s["thread_count"] for s in samples)
+    capacities = [s.get("cpu_capacity", {}) for s in samples]
+    capacity = dict(capacities[-1])
+    if (not all(c.get("verified") is True for c in capacities)
+            or len({c.get("effective_cpu_capacity") for c in capacities}) != 1):
+        capacity.update(verified=False, effective_cpu_capacity=None,
+                        reason="one or more sequential endpoint CPU budgets unverified or unequal")
+    capacity["process_count"] = len(samples)
+    combined["cpu_capacity"] = capacity
+    combined["cpu_delta_verified"] = all(s.get("cpu_delta_verified") is True for s in samples)
+    # These are different processes and intervals. Never associate summed CPU
+    # counters with only the last process's snapshot timestamps.
+    combined.pop("cpu_counter_window", None)
+    combined["cpu_counter_windows"] = [s.get("cpu_counter_window") for s in samples]
     combined["method"] = f"sum-of-{len(samples)}-{samples[-1]['method']}"
     return combined
 
@@ -854,6 +1106,11 @@ def server_ceiling_exclusion(
         return "load generator saturated"
     if not runs or any(run.get("metrics", {}).get("duration_nanos", 0) < 60_000_000_000 for run in runs):
         return "each scenario needs at least 60 seconds measured after warmup"
+    if (saturation.get("headroom_verified") is not True
+            or any(r.get("cpu_capacity", {}).get("verified") is not True
+                   or r.get("cpu_delta_verified") is not True
+                   for r in (client_resources, server_resources))):
+        return "endpoint CPU capacity/headroom proof is unavailable"
     return None
 
 
@@ -1161,10 +1418,16 @@ def run_single_benchmark(
             server_res = aggregate_endpoint_resources(server_samples)
             sat_check = {
                 "saturated": any(s["saturated"] for s in saturation_samples),
-                "avg_cpu_pct": max(s["avg_cpu_pct"] for s in saturation_samples),
-                "peak_cpu_pct": max(s["peak_cpu_pct"] for s in saturation_samples),
-                "spare_capacity_pct": min(s["spare_capacity_pct"] for s in saturation_samples),
-                "status": "FAIL (SATURATED)" if any(s["saturated"] for s in saturation_samples) else "PASS",
+                "avg_cpu_pct": max(s["avg_cpu_pct"] for s in saturation_samples)
+                    if all(s["avg_cpu_pct"] is not None for s in saturation_samples) else None,
+                "peak_cpu_pct": max((s["peak_cpu_pct"] for s in saturation_samples
+                                     if s["peak_cpu_pct"] is not None), default=None),
+                "endpoint_saturation_checks": saturation_samples,
+                "spare_capacity_pct": min(s["spare_capacity_pct"] for s in saturation_samples)
+                    if all(s.get("headroom_verified") is True for s in saturation_samples) else None,
+                "headroom_verified": all(s.get("headroom_verified") is True for s in saturation_samples),
+                "status": "FAIL (UNVERIFIED)" if any(s.get("headroom_verified") is not True for s in saturation_samples)
+                    else ("FAIL (SATURATED)" if any(s["saturated"] for s in saturation_samples) else "PASS"),
                 "message": "Conservative worst-case across independently sampled reference client processes.",
             }
 
@@ -1246,6 +1509,8 @@ def run_single_benchmark(
             report_data["server_ceiling_valid"] = exclusion is None
             report_data["server_ceiling_reason"] = exclusion
 
+        spare_label = f"{sat_check['spare_capacity_pct']:.1f}%" if sat_check["spare_capacity_pct"] is not None else "unverified"
+        avg_label = f"{sat_check['avg_cpu_pct']:.1f}%" if sat_check["avg_cpu_pct"] is not None else "unverified"
         res_summary = (
             f"[ENDPOINTS] Client ({client_peer}): codec={client_codec}, workload={client_workload}, binary={client_binary}\n"
             f"[ENDPOINTS] Server ({server_peer}): codec={server_codec}, binary={server_binary}\n"
@@ -1253,12 +1518,12 @@ def run_single_benchmark(
             f"peak_rss={client_res['peak_rss_mib']:.1f} MiB, threads={client_res['thread_count']}\n"
             f"[RESOURCES] Server ({server_peer}): user={server_res['user_cpu_seconds']:.4f}s, sys={server_res['system_cpu_seconds']:.4f}s, "
             f"peak_rss={server_res['peak_rss_mib']:.1f} MiB, threads={server_res['thread_count']}\n"
-            f"[SATURATION] Load generator: avg_cpu={sat_check['avg_cpu_pct']:.1f}%, "
-            f"spare_capacity={sat_check['spare_capacity_pct']:.1f}% -> {sat_check['status']}"
+            f"[SATURATION] Load generator: avg_cpu={avg_label}, "
+            f"spare_capacity={spare_label} -> {sat_check['status']}"
         )
         if sat_check["saturated"]:
             res_summary += (
-                "\n[WARNING] Load generator saturated: server ceiling NOT valid for "
+                "\n[WARNING] Load generator headroom failed: server ceiling NOT valid for "
                 f"server={server_peer}, client={client_peer} (see client_saturation_check)."
             )
         summary = f"{client_stdout.strip()}\n{res_summary}"

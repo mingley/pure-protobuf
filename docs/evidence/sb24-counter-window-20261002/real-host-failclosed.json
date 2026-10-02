@@ -1,0 +1,211 @@
+{
+  "kind": "idle-process functional fixture; no RPC or headroom qualification",
+  "claim_eligible": false,
+  "source_commit": "cbf72722fbebe4bff090c5c1e44658a8e46c4df9",
+  "source_clean": true,
+  "source_sha256": {
+    "scripts/rpc-bench-matrix.py": "c5afb70d6c04215f82d7d8704ac22da8e1fde02614ea14e0070c9bc9a0c4987e",
+    "bench/stack-matrix/run.py": "a05baf4491de340b335711d848d2cef2a9e7e1183cd9928b539bf747bbb4b50a",
+    "tests/interop/test_bench_matrix.py": "66990699d40c6a2b4393d46156a4cf4a292a1570ca4ddb9e44007664dc871df4",
+    "tests/interop/test_stack_matrix.py": "0cd296fc4069e612e2481774df117ffd545c1bff7126c7ea55b23f3fcc29b0a2"
+  },
+  "python_version": "3.12.14",
+  "python_binary": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+  "python_binary_sha256": "fa67443527ed9647f760d807e2a38f26340757123e643c4639cf273ed15d5ea7",
+  "kernel_release": "6.18.44",
+  "sampler_poll_interval_seconds": 0.05,
+  "client_resources": {
+    "user_cpu_seconds": 0.0,
+    "system_cpu_seconds": 0.0,
+    "peak_rss_bytes": 7622656,
+    "peak_rss_mib": 7.27,
+    "current_rss_bytes": 7622656,
+    "current_rss_mib": 7.27,
+    "user_cpu_nanos": 0,
+    "system_cpu_nanos": 0,
+    "thread_count": 8,
+    "cpu_capacity": {
+      "pid": 225124,
+      "verified": false,
+      "effective_cpu_capacity": null,
+      "affinity_cpus": [
+        0
+      ],
+      "affinity_cpu_count": 1,
+      "quota_cpu_capacity": null,
+      "quota_samples": [],
+      "visible_cpu_capacity": null,
+      "method": "linux-task-affinity+genuine-hierarchy-quota-minimum",
+      "scope": "enforced affinity and proven genuine-root CPU quota hierarchy",
+      "reason": "cgroup mount root hides or ambiguously maps ancestors",
+      "cgroup_version": "cgroup2",
+      "cgroup_membership": "/",
+      "cgroup_mount_root": "/..",
+      "cgroup_mount": "/sys/fs/cgroup",
+      "unmapped_mount_root_cpu_max_raw": "400000 100000",
+      "observed_at_monotonic_s": 17970.308905175,
+      "sample_count": 6,
+      "capacity_observations": [
+        {
+          "first_sample_index": 0,
+          "last_sample_index": 5,
+          "first_monotonic_s": 17970.098258132,
+          "last_monotonic_s": 17970.308905175,
+          "proof": {
+            "pid": 225124,
+            "verified": false,
+            "effective_cpu_capacity": null,
+            "affinity_cpus": [
+              0
+            ],
+            "affinity_cpu_count": 1,
+            "quota_cpu_capacity": null,
+            "quota_samples": [],
+            "visible_cpu_capacity": null,
+            "method": "linux-task-affinity+genuine-hierarchy-quota-minimum",
+            "scope": "enforced affinity and proven genuine-root CPU quota hierarchy",
+            "reason": "cgroup mount root hides or ambiguously maps ancestors",
+            "cgroup_version": "cgroup2",
+            "cgroup_membership": "/",
+            "cgroup_mount_root": "/..",
+            "cgroup_mount": "/sys/fs/cgroup",
+            "unmapped_mount_root_cpu_max_raw": "400000 100000"
+          }
+        }
+      ],
+      "stable_at_samples": true
+    },
+    "cpu_delta_verified": true,
+    "cpu_counter_window": {
+      "verified": true,
+      "start_monotonic_s": 17970.097653055,
+      "end_monotonic_s": 17970.308069486,
+      "duration_seconds": 0.2104164310003398,
+      "initial_user_seconds": 0.01,
+      "initial_system_seconds": 0.0,
+      "final_user_seconds": 0.01,
+      "final_system_seconds": 0.0,
+      "reason": "",
+      "observed_transition_errors": []
+    },
+    "cpu_seconds_per_rpc": null,
+    "method": "linux-procfs",
+    "supported": true
+  },
+  "server_resources": {
+    "user_cpu_seconds": 0.0,
+    "system_cpu_seconds": 0.0,
+    "peak_rss_bytes": 7520256,
+    "peak_rss_mib": 7.172,
+    "current_rss_bytes": 7520256,
+    "current_rss_mib": 7.172,
+    "user_cpu_nanos": 0,
+    "system_cpu_nanos": 0,
+    "thread_count": 2,
+    "cpu_capacity": {
+      "pid": 225121,
+      "verified": false,
+      "effective_cpu_capacity": null,
+      "affinity_cpus": [
+        0
+      ],
+      "affinity_cpu_count": 1,
+      "quota_cpu_capacity": null,
+      "quota_samples": [],
+      "visible_cpu_capacity": null,
+      "method": "linux-task-affinity+genuine-hierarchy-quota-minimum",
+      "scope": "enforced affinity and proven genuine-root CPU quota hierarchy",
+      "reason": "cgroup mount root hides or ambiguously maps ancestors",
+      "cgroup_version": "cgroup2",
+      "cgroup_membership": "/",
+      "cgroup_mount_root": "/..",
+      "cgroup_mount": "/sys/fs/cgroup",
+      "unmapped_mount_root_cpu_max_raw": "400000 100000",
+      "observed_at_monotonic_s": 17970.309357365,
+      "sample_count": 6,
+      "capacity_observations": [
+        {
+          "first_sample_index": 0,
+          "last_sample_index": 5,
+          "first_monotonic_s": 17970.097645303,
+          "last_monotonic_s": 17970.309357365,
+          "proof": {
+            "pid": 225121,
+            "verified": false,
+            "effective_cpu_capacity": null,
+            "affinity_cpus": [
+              0
+            ],
+            "affinity_cpu_count": 1,
+            "quota_cpu_capacity": null,
+            "quota_samples": [],
+            "visible_cpu_capacity": null,
+            "method": "linux-task-affinity+genuine-hierarchy-quota-minimum",
+            "scope": "enforced affinity and proven genuine-root CPU quota hierarchy",
+            "reason": "cgroup mount root hides or ambiguously maps ancestors",
+            "cgroup_version": "cgroup2",
+            "cgroup_membership": "/",
+            "cgroup_mount_root": "/..",
+            "cgroup_mount": "/sys/fs/cgroup",
+            "unmapped_mount_root_cpu_max_raw": "400000 100000"
+          }
+        }
+      ],
+      "stable_at_samples": true
+    },
+    "cpu_delta_verified": true,
+    "cpu_counter_window": {
+      "verified": true,
+      "start_monotonic_s": 17970.096737627,
+      "end_monotonic_s": 17970.308912916,
+      "duration_seconds": 0.21217528900160687,
+      "initial_user_seconds": 0.01,
+      "initial_system_seconds": 0.0,
+      "final_user_seconds": 0.01,
+      "final_system_seconds": 0.0,
+      "reason": "",
+      "observed_transition_errors": []
+    },
+    "cpu_seconds_per_rpc": null,
+    "method": "linux-procfs",
+    "supported": true
+  },
+  "saturation": {
+    "saturated": true,
+    "avg_cpu_pct": 0.0,
+    "sample_mean_cpu_pct": 0.0,
+    "peak_cpu_pct": 0.0,
+    "cpu_utilization_method": "cumulative_endpoint_delta_over_snapshot_interval",
+    "monitor_wall_seconds": 0.2098028410000552,
+    "spare_capacity_pct": null,
+    "capacity_utilization_pct": null,
+    "effective_cpu_capacity": null,
+    "headroom_verified": false,
+    "status": "FAIL (UNVERIFIED)",
+    "message": "Client CPU headroom unverified: cgroup mount root hides or ambiguously maps ancestors"
+  },
+  "host_capacity": {
+    "pid": 225119,
+    "verified": false,
+    "effective_cpu_capacity": null,
+    "affinity_cpus": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "affinity_cpu_count": 5,
+    "quota_cpu_capacity": null,
+    "quota_samples": [],
+    "visible_cpu_capacity": null,
+    "method": "linux-task-affinity+genuine-hierarchy-quota-minimum",
+    "scope": "enforced affinity and proven genuine-root CPU quota hierarchy",
+    "reason": "cgroup mount root hides or ambiguously maps ancestors",
+    "cgroup_version": "cgroup2",
+    "cgroup_membership": "/",
+    "cgroup_mount_root": "/..",
+    "cgroup_mount": "/sys/fs/cgroup",
+    "unmapped_mount_root_cpu_max_raw": "400000 100000"
+  }
+}

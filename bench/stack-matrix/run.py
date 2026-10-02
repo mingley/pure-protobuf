@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import math
 import os
 import subprocess
 import sys
@@ -79,7 +80,7 @@ STAGE_PARAMS = {
     },
 }
 
-# Server CPU fraction (of pinned CPUs) above which a client cell has no
+# Server CPU fraction (of verified effective capacity) above which a client cell has no
 # verified server headroom and is invalid, not rated.
 HEADROOM_MAX_SERVER_FRACTION = 0.80
 
@@ -554,25 +555,53 @@ def summarize(
 def check_headroom(
     server_res: Dict[str, Any], wall_s: float, cpus: int, pinned: bool
 ) -> Dict[str, Any]:
-    cpu_s = (server_res.get("user_cpu_seconds") or 0.0) + (
-        server_res.get("system_cpu_seconds") or 0.0
-    )
-    avg_pct = (cpu_s / wall_s) * 100.0 if wall_s > 0 else float("inf")
-    # The pin is the budget; unpinned hosts budget one core and carry the
-    # caveat that multicore headroom is unverifiable there.
-    budget = 100.0 * cpus
-    ok = bool(pinned and server_res.get("supported") and wall_s > 0
+    def finite_number(value):
+        return (isinstance(value, (int, float)) and not isinstance(value, bool)
+                and math.isfinite(value))
+
+    user_s = server_res.get("user_cpu_seconds")
+    system_s = server_res.get("system_cpu_seconds")
+    counters_verified = bool(finite_number(user_s) and user_s >= 0
+                             and finite_number(system_s) and system_s >= 0
+                             and math.isfinite(user_s + system_s))
+    cpu_s = user_s + system_s if counters_verified else None
+    window = server_res.get("cpu_counter_window") or {}
+    start, end, duration = (window.get(key) for key in
+                            ("start_monotonic_s", "end_monotonic_s", "duration_seconds"))
+    interval_verified = bool(window.get("verified") is True and finite_number(start)
+                             and finite_number(end) and end > start
+                             and finite_number(duration) and duration > 0
+                             and math.isclose(duration, end - start, rel_tol=1e-12, abs_tol=1e-12))
+    delta_verified = bool(server_res.get("cpu_delta_verified") is True
+                          and counters_verified and interval_verified)
+    avg_pct = cpu_s / duration * 100.0 if delta_verified else None
+    capacity = server_res.get("cpu_capacity", {})
+    effective = capacity.get("effective_cpu_capacity")
+    verified = bool(capacity.get("verified") is True and isinstance(effective, (int, float))
+                    and not isinstance(effective, bool) and math.isfinite(effective)
+                    and effective > 0 and capacity.get("affinity_cpu_count") == cpus)
+    # A configured pin alone cannot reveal a lower fractional cgroup quota.
+    budget = 100.0 * min(cpus, effective) if verified else None
+    ok = bool(pinned and verified and delta_verified and server_res.get("supported")
+              and finite_number(wall_s) and wall_s > 0
               and avg_pct < HEADROOM_MAX_SERVER_FRACTION * budget)
     return {
         "ok": ok,
-        "server_avg_cpu_pct": round(avg_pct, 1),
-        "server_cpu_seconds": round(cpu_s, 6),
+        "server_avg_cpu_pct": round(avg_pct, 1) if avg_pct is not None else None,
+        "server_cpu_seconds": round(cpu_s, 6) if cpu_s is not None else None,
         "wall_s": wall_s,
+        "cpu_counter_window": window,
+        "cpu_utilization_method": "cumulative_endpoint_delta_over_snapshot_interval",
         "budget_cpu_pct": budget,
+        "effective_cpu_capacity": effective if verified else None,
+        "capacity_verified": verified,
+        "cpu_delta_verified": delta_verified,
         "pinned": pinned,
         "reason": ""
         if ok
-        else ("resource sampling or pinned CPU budget unverified" if not pinned or not server_res.get("supported")
+        else ("resource sampling, actual affinity or effective CPU capacity unverified"
+              if (not pinned or not server_res.get("supported") or not verified or not delta_verified
+                  or not finite_number(wall_s) or wall_s <= 0)
               else f"server at {avg_pct:.1f}% of {budget:.0f}% budget (>{HEADROOM_MAX_SERVER_FRACTION:.0%})"),
     }
 

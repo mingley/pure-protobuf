@@ -1,0 +1,83 @@
+{
+  "tag": "v6.12",
+  "peeled_commit": "adc218676eef25575469234709c2d87185ca223a",
+  "files": [
+    {
+      "path": "kernel/sched/core.c",
+      "commit": "adc218676eef25575469234709c2d87185ca223a",
+      "sha256": "4b9bdb7831e1d2b747a9bcbf3e1c7bef187dd1c0555e6cc959fd2118046345bd",
+      "bytes": 278224,
+      "retrieved_url": "https://raw.githubusercontent.com/torvalds/linux/v6.12/kernel/sched/core.c",
+      "pinned_url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/kernel/sched/core.c",
+      "excerpt_line_spans": [
+        [
+          9931,
+          9943
+        ]
+      ]
+    },
+    {
+      "path": "kernel/cgroup/cgroup.c",
+      "commit": "adc218676eef25575469234709c2d87185ca223a",
+      "sha256": "7442351a48fc3daf1f510ca066dfa310821c85062f30b0ea469ca03ede2c7880",
+      "bytes": 192174,
+      "retrieved_url": "https://raw.githubusercontent.com/torvalds/linux/v6.12/kernel/cgroup/cgroup.c",
+      "pinned_url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/kernel/cgroup/cgroup.c",
+      "excerpt_line_spans": [
+        [
+          4293,
+          4302
+        ],
+        [
+          5254,
+          5261
+        ],
+        [
+          5290,
+          5296
+        ]
+      ]
+    },
+    {
+      "path": "kernel/cgroup/cgroup-v1.c",
+      "commit": "adc218676eef25575469234709c2d87185ca223a",
+      "sha256": "2ce9a7c626fb69ad87e42d05271b2beff111cc4c8cda5eafa03f9f808a8ec9b2",
+      "bytes": 36180,
+      "retrieved_url": "https://raw.githubusercontent.com/torvalds/linux/v6.12/kernel/cgroup/cgroup-v1.c",
+      "pinned_url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/kernel/cgroup/cgroup-v1.c",
+      "excerpt_line_spans": [
+        [
+          643,
+          647
+        ],
+        [
+          662,
+          667
+        ]
+      ]
+    },
+    {
+      "path": "Documentation/admin-guide/cgroup-v2.rst",
+      "commit": "adc218676eef25575469234709c2d87185ca223a",
+      "sha256": "ad3bd37498a57cc249326fd5c2d609669b32611fe69d126df3c3abec1539f572",
+      "bytes": 122258,
+      "retrieved_url": "https://raw.githubusercontent.com/torvalds/linux/v6.12/Documentation/admin-guide/cgroup-v2.rst",
+      "pinned_url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/Documentation/admin-guide/cgroup-v2.rst",
+      "excerpt_line_spans": [
+        [
+          414,
+          420
+        ],
+        [
+          2839,
+          2857
+        ],
+        [
+          2922,
+          2932
+        ]
+      ]
+    }
+  ],
+  "use": "source-informed kernel root-marker fixtures; running host kernel is 6.18.44, not a matching-source kernel qualification"
+}

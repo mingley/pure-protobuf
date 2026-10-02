@@ -1,0 +1,38 @@
+................FFFF..........ss............
+======================================================================
+FAIL: test_missing_or_invalid_counter_window_cannot_certify_server_headroom (test_stack_matrix.CommandBuilderTest.test_missing_or_invalid_counter_window_cannot_certify_server_headroom) (window=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/sb24/tests/interop/test_stack_matrix.py", line 413, in test_missing_or_invalid_counter_window_cannot_certify_server_headroom
+    self.assertFalse(out["ok"])
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_missing_or_invalid_counter_window_cannot_certify_server_headroom (test_stack_matrix.CommandBuilderTest.test_missing_or_invalid_counter_window_cannot_certify_server_headroom) (window={'verified': True, 'duration_seconds': 0})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/sb24/tests/interop/test_stack_matrix.py", line 413, in test_missing_or_invalid_counter_window_cannot_certify_server_headroom
+    self.assertFalse(out["ok"])
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_missing_or_invalid_counter_window_cannot_certify_server_headroom (test_stack_matrix.CommandBuilderTest.test_missing_or_invalid_counter_window_cannot_certify_server_headroom) (window={'verified': True, 'start_monotonic_s': 3.0, 'end_monotonic_s': 1.0, 'duration_seconds': 2.0})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/sb24/tests/interop/test_stack_matrix.py", line 413, in test_missing_or_invalid_counter_window_cannot_certify_server_headroom
+    self.assertFalse(out["ok"])
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_server_headroom_uses_endpoint_counter_window_not_probe_timer (test_stack_matrix.CommandBuilderTest.test_server_headroom_uses_endpoint_counter_window_not_probe_timer)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/sb24/tests/interop/test_stack_matrix.py", line 399, in test_server_headroom_uses_endpoint_counter_window_not_probe_timer
+    self.assertEqual(out["server_avg_cpu_pct"], 50.0)
+AssertionError: 10.0 != 50.0
+
+----------------------------------------------------------------------
+Ran 42 tests in 0.037s
+
+FAILED (failures=4, skipped=2)
+[STACK-MATRIX] claim preflight blocked: this runner uses loopback; effective peer settings, dedicated host topology, generator/reference headroom and aligned endpoint measurement windows are not independently verified. Use diagnostic mode to collect wiring evidence; no defaults or scripted settings certify equality.

@@ -1,0 +1,5 @@
+usage: extended_cells.py [-h] [--scenario SCENARIO] [--out-dir OUT_DIR]
+                         [--server-peers SERVER_PEERS] [--smoke]
+                         [--repeats REPEATS] [--include-optional]
+                         [--self-test] [--verbose]
+extended_cells.py: error: unrecognized arguments: --selftest

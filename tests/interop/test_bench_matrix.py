@@ -99,6 +99,8 @@ class EndpointResourcesTest(unittest.TestCase):
         self.assertAlmostEqual(total["system_cpu_seconds"], 0.03)
         self.assertEqual(total["peak_rss_bytes"], 12000)
         self.assertEqual(total["thread_count"], 3)
+        self.assertNotIn("cpu_counter_window", total)
+        self.assertEqual(total["cpu_counter_windows"], [None, None])
 
     def test_unmeasured_endpoint_cannot_be_reported_as_supported(self):
         with self.assertRaisesRegex(ValueError, "resource sampling unavailable"):
@@ -135,6 +137,297 @@ class EndpointResourcesTest(unittest.TestCase):
                 [{"metrics": {"duration_nanos": 60_000_000_000}}],
             ),
         )
+
+
+class CpuCapacityTest(unittest.TestCase):
+    def proof(self, capacity=1.0, verified=True):
+        return {"verified": verified, "effective_cpu_capacity": capacity if verified else None,
+                "affinity_cpus": [0], "affinity_cpu_count": 1,
+                "quota_cpu_capacity": capacity, "quota_samples": [],
+                "reason": "" if verified else "cgroup mapping unavailable"}
+
+    def monitor(self, proof, threads=8, cpu_seconds=0.96, window_seconds=1,
+                samples=None, monitor_seconds=None):
+        snap = bench_matrix.ProcessSnapshot
+        snapshots = [snap(0, 0, 1024, threads, 1, "fixture"),
+                     snap(0, 0, 1024, threads, 1, "fixture"),
+                     snap(cpu_seconds, 0, 1024, threads, 1 + window_seconds, "fixture"),
+                     snap(0, 0, 1024, threads, 1 + window_seconds, "fixture")]
+        with (patch.object(bench_matrix, "sample_process", side_effect=snapshots),
+              patch.object(bench_matrix, "collect_process_cpu_capacity", return_value=proof, create=True),
+              patch.object(bench_matrix.time, "monotonic",
+                           return_value=1 + (window_seconds if monitor_seconds is None else monitor_seconds))):
+            monitor = bench_matrix.ProcessResourceMonitor(111)
+            monitor.set_client_pid(222)
+            monitor.start_time = 1
+            monitor.client_cpu_samples = samples or []
+            return monitor.stop()
+
+    def test_eight_threads_pinned_to_one_cpu_do_not_create_eight_cpu_budget(self):
+        client, _, saturation = self.monitor(self.proof())
+        self.assertTrue(saturation["saturated"])
+        self.assertEqual(saturation["spare_capacity_pct"], 4.0)
+        self.assertEqual(client["cpu_capacity"]["effective_cpu_capacity"], 1)
+        self.assertEqual(client["thread_count"], 8)
+
+    def test_fractional_quota_is_the_utilization_denominator(self):
+        _, _, saturation = self.monitor(self.proof(0.5), cpu_seconds=0.48)
+        self.assertTrue(saturation["saturated"])
+        self.assertEqual(saturation["spare_capacity_pct"], 4.0)
+
+    def test_long_busy_interval_cannot_be_hidden_by_many_short_idle_samples(self):
+        client, _, saturation = self.monitor(self.proof(), cpu_seconds=9.6,
+                                             window_seconds=10, samples=[100] + [0] * 99)
+        # One 9.6s busy interval and 99 idle intervals totaling 0.4s.
+        self.assertTrue(saturation["saturated"])
+        self.assertEqual(saturation["avg_cpu_pct"], 96.0)
+        self.assertEqual(saturation["sample_mean_cpu_pct"], 1.0)
+        self.assertEqual(saturation["spare_capacity_pct"], 4.0)
+        self.assertEqual(client["cpu_counter_window"]["duration_seconds"], 10)
+
+    def test_endpoint_snapshot_interval_is_not_monitor_wall_duration(self):
+        _, _, saturation = self.monitor(self.proof(), cpu_seconds=1,
+                                         window_seconds=2, monitor_seconds=10)
+        self.assertEqual(saturation["avg_cpu_pct"], 50.0)
+
+    def test_nonpositive_endpoint_interval_cannot_certify_cpu_headroom(self):
+        for duration in (0, -1):
+            client, _, saturation = self.monitor(self.proof(), window_seconds=duration,
+                                                 monitor_seconds=1)
+            self.assertFalse(saturation["headroom_verified"])
+            self.assertIsNone(saturation["avg_cpu_pct"])
+            self.assertFalse(client["cpu_counter_window"]["verified"])
+
+    def test_nonfinite_counters_or_timestamps_cannot_certify_cpu_headroom(self):
+        for value in (float("nan"), float("inf")):
+            for kwargs in ({"cpu_seconds": value}, {"window_seconds": value}):
+                with self.subTest(kwargs=kwargs):
+                    client, _, saturation = self.monitor(self.proof(), monitor_seconds=1, **kwargs)
+                    self.assertFalse(client["cpu_delta_verified"])
+                    self.assertFalse(saturation["headroom_verified"])
+                    self.assertIsNone(saturation["avg_cpu_pct"])
+
+    def test_observed_counter_rollback_cannot_be_hidden_by_later_recovery(self):
+        snap = bench_matrix.ProcessSnapshot
+        initial = snap(1, 1, 1024, 8, 1, "fixture")
+        final = snap(2, 2, 1024, 8, 3, "fixture")
+        with (patch.object(bench_matrix, "sample_process", side_effect=[initial, initial, final, final]),
+              patch.object(bench_matrix, "collect_process_cpu_capacity", return_value=self.proof()),
+              patch.object(bench_matrix.time, "monotonic", return_value=3)):
+            monitor = bench_matrix.ProcessResourceMonitor(111)
+            monitor.set_client_pid(222)
+            monitor._check_counter_transition("client", initial, snap(0.5, 1, 1024, 8, 2, "fixture"))
+            monitor.start_time = 1
+            client, _, saturation = monitor.stop()
+        self.assertFalse(saturation["headroom_verified"])
+        self.assertIn("nonmonotonic", client["cpu_counter_window"]["reason"])
+        self.assertEqual(len(client["cpu_counter_window"]["observed_transition_errors"]), 1)
+
+    def test_missing_final_capture_cannot_reuse_last_poll_as_full_window(self):
+        snap = bench_matrix.ProcessSnapshot
+        with (patch.object(bench_matrix, "sample_process",
+                           side_effect=[snap(0, 0, 1024, 2, 1, "fixture"),
+                                        snap(0, 0, 1024, 2, 1, "fixture"), None, None]),
+              patch.object(bench_matrix, "collect_process_cpu_capacity", return_value=self.proof()),
+              patch.object(bench_matrix.time, "monotonic", return_value=3)):
+            monitor = bench_matrix.ProcessResourceMonitor(111)
+            monitor.set_client_pid(222)
+            monitor._client_last_snap = snap(0.5, 0, 1024, 2, 2, "fixture")
+            monitor.start_time = 1
+            client, _, saturation = monitor.stop()
+        self.assertEqual(client["user_cpu_seconds"], 0.5)  # partial diagnostic counter
+        self.assertFalse(saturation["headroom_verified"])
+        self.assertIsNone(saturation["avg_cpu_pct"])
+        self.assertIsNone(client["cpu_counter_window"]["end_monotonic_s"])
+
+    def test_unknown_capacity_fails_headroom_even_at_zero_cpu(self):
+        _, _, saturation = self.monitor(self.proof(verified=False), cpu_seconds=0)
+        self.assertTrue(saturation["saturated"])
+        self.assertFalse(saturation["headroom_verified"])
+        self.assertIsNone(saturation["spare_capacity_pct"])
+        self.assertEqual(saturation["status"], "FAIL (UNVERIFIED)")
+
+    def test_initial_cpu_snapshot_alone_cannot_prove_unused_capacity(self):
+        snap = bench_matrix.ProcessSnapshot
+        with (patch.object(bench_matrix, "sample_process",
+                           side_effect=[snap(0, 0, 1024, 2, 1, "fixture"),
+                                        snap(0, 0, 1024, 2, 1, "fixture"), None, None]),
+              patch.object(bench_matrix, "collect_process_cpu_capacity", return_value=self.proof()),
+              patch.object(bench_matrix.time, "monotonic", return_value=2)):
+            monitor = bench_matrix.ProcessResourceMonitor(111)
+            monitor.set_client_pid(222)
+            monitor.start_time = 1
+            client, _, saturation = monitor.stop()
+        self.assertFalse(client["cpu_delta_verified"])
+        self.assertFalse(saturation["headroom_verified"])
+        self.assertIsNone(saturation["spare_capacity_pct"])
+
+    def test_capacity_change_during_sampling_fails_closed(self):
+        snap = bench_matrix.ProcessSnapshot
+        snapshots = [snap(0, 0, 1024, 2, 1, "fixture"),
+                     snap(0, 0, 1024, 2, 1, "fixture"),
+                     snap(0.1, 0, 1024, 2, 2, "fixture"),
+                     snap(0, 0, 1024, 2, 2, "fixture")]
+        with (patch.object(bench_matrix, "sample_process", side_effect=snapshots),
+              patch.object(bench_matrix, "collect_process_cpu_capacity",
+                           side_effect=[self.proof(), self.proof(), self.proof(0.5), self.proof()], create=True),
+              patch.object(bench_matrix.time, "monotonic", return_value=2)):
+            monitor = bench_matrix.ProcessResourceMonitor(111)
+            monitor.set_client_pid(222)
+            monitor.start_time = 1
+            client, _, saturation = monitor.stop()
+        self.assertFalse(saturation["headroom_verified"])
+        self.assertIn("changed", client["cpu_capacity"]["reason"])
+        self.assertEqual(len(client["cpu_capacity"]["capacity_observations"]), 2)
+
+    def fixture(self, version="v2", root="/", membership="/parent/child", quota="50000 100000"):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        base = Path(temp.name)
+        proc = base / "proc"
+        hierarchy = base / "cgroup"
+        cg = hierarchy / "parent"
+        (cg / "child").mkdir(parents=True)
+        for name in ("self", "123"):
+            ns = proc / name / "ns"
+            ns.mkdir(parents=True)
+            (ns / "mnt").symlink_to("mnt:[1]")
+            (ns / "cgroup").symlink_to("cgroup:[2]")
+        (proc / "123" / "task" / "123").mkdir(parents=True)
+        if version == "v2":
+            (proc / "123" / "cgroup").write_text(f"0::{membership}\n")
+            device = f"{os.major(hierarchy.stat().st_dev)}:{os.minor(hierarchy.stat().st_dev)}"
+            (proc / "123" / "mountinfo").write_text(f"1 0 {device} {root} {hierarchy} rw - cgroup2 cgroup rw\n")
+            # Source-informed genuine v2 root: cpu.max/type/events are
+            # CFTYPE_NOT_ON_ROOT; readable core and CPU interfaces remain.
+            for name, value in (("cgroup.controllers", "cpu io memory"), ("cgroup.procs", ""),
+                                ("cgroup.subtree_control", "cpu"), ("cpu.stat", "usage_usec 0")):
+                (hierarchy / name).write_text(value)
+            (cg / "cpu.max").write_text("200000 100000")
+            (cg / "child" / "cpu.max").write_text(quota)
+        else:
+            (proc / "123" / "cgroup").write_text(f"2:cpu,cpuacct:{membership}\n")
+            device = f"{os.major(hierarchy.stat().st_dev)}:{os.minor(hierarchy.stat().st_dev)}"
+            (proc / "123" / "mountinfo").write_text(f"1 0 {device} {root} {hierarchy} rw - cgroup cgroup rw,cpu,cpuacct\n")
+            (hierarchy / "release_agent").write_text("")
+            (hierarchy / "cgroup.sane_behavior").write_text("0")
+            for path, value in ((hierarchy, "-1"), (cg, "200000"), (cg / "child", quota)):
+                (path / "cpu.cfs_quota_us").write_text(value)
+                (path / "cpu.cfs_period_us").write_text("100000")
+        (proc / "123" / "task" / "123" / "cgroup").write_text((proc / "123" / "cgroup").read_text())
+        return proc, cg
+
+    def collect(self, proc, cpus=(0, 1, 2, 3)):
+        with (patch.object(bench_matrix.sys, "platform", "linux"),
+              patch.object(bench_matrix.os, "sched_getaffinity", return_value=set(cpus))):
+            return bench_matrix.collect_process_cpu_capacity(123, proc_root=proc)
+
+    def test_v2_effective_budget_uses_fractional_child_and_ancestor_minimum(self):
+        proc, cg = self.fixture()
+        proof = self.collect(proc)
+        self.assertTrue(proof["verified"])
+        self.assertEqual(proof["effective_cpu_capacity"], 0.5)
+        self.assertEqual(len(proof["quota_samples"]), 3)
+        self.assertTrue(proof["hierarchy_root"]["verified"])
+        self.assertIsNone(proof["quota_samples"][-1]["raw"])
+        (cg / "child" / "cpu.max").write_text("max 100000")
+        proof = self.collect(proc)
+        self.assertEqual(proof["effective_cpu_capacity"], 2)
+        self.assertEqual(self.collect(proc, cpus=(0,))["effective_cpu_capacity"], 1)
+
+    def test_v1_unlimited_child_still_obeys_ancestor_quota(self):
+        proc, _ = self.fixture(version="v1", quota="-1")
+        proof = self.collect(proc)
+        self.assertTrue(proof["verified"])
+        self.assertEqual(proof["effective_cpu_capacity"], 2)
+
+    def test_enforced_affinity_includes_live_worker_threads(self):
+        proc, _ = self.fixture(quota="max 100000")
+        (proc / "123" / "task" / "124").mkdir()
+        (proc / "123" / "task" / "124" / "cgroup").write_text((proc / "123" / "cgroup").read_text())
+        with patch.object(bench_matrix.os, "sched_getaffinity", side_effect=lambda tid: {tid - 123}):
+            proof = bench_matrix.collect_process_cpu_capacity(123, proc_root=proc)
+        self.assertTrue(proof["verified"])
+        self.assertEqual(proof["affinity_cpus"], [0, 1])
+        self.assertEqual(proof["effective_cpu_capacity"], 2)
+
+    def test_unlimited_visible_hierarchy_uses_affinity_and_never_thread_count(self):
+        proc, cg = self.fixture(quota="max 100000")
+        (cg / "cpu.max").write_text("max 100000")
+        proof = self.collect(proc, cpus=(0, 1))
+        self.assertEqual(proof["effective_cpu_capacity"], 2)
+        self.assertIsNone(proof["quota_cpu_capacity"])
+
+    def test_hidden_mount_root_and_missing_quota_are_unverified(self):
+        proc, cg = self.fixture(root="/..")
+        proof = self.collect(proc)
+        self.assertFalse(proof["verified"])
+        self.assertIsNone(proof["effective_cpu_capacity"])
+        mountinfo = proc / "123" / "mountinfo"
+        mountinfo.write_text(mountinfo.read_text().replace("/..", "/"))
+        (cg / "cpu.max").unlink()
+        self.assertFalse(self.collect(proc)["verified"])
+
+    def test_namespace_root_cannot_certify_capacity_with_hidden_ancestors(self):
+        proc, cg = self.fixture(quota="max 100000")
+        hierarchy = cg.parent
+        (hierarchy / "cpu.max").write_text("400000 100000")
+        (hierarchy / "cgroup.type").write_text("domain")
+        (hierarchy / "cgroup.events").write_text("populated 1\nfrozen 0")
+        proof = self.collect(proc)
+        self.assertFalse(proof["verified"])
+        self.assertEqual(proof["visible_cpu_capacity"], 2)
+        self.assertIsNone(proof["effective_cpu_capacity"])
+        self.assertFalse(proof["hierarchy_root"]["verified"])
+
+    def test_missing_root_markers_or_controller_remain_unverified(self):
+        proc, cg = self.fixture()
+        (cg.parent / "cgroup.controllers").write_text("io memory")
+        self.assertFalse(self.collect(proc)["verified"])
+        (cg.parent / "cgroup.controllers").write_text("cpu")
+        (cg.parent / "cpu.stat").unlink()
+        self.assertFalse(self.collect(proc)["verified"])
+
+    def test_unequal_mounted_device_cannot_prove_root_identity(self):
+        proc, _ = self.fixture()
+        mountinfo = proc / "123" / "mountinfo"
+        fields = mountinfo.read_text().split()
+        major, minor = map(int, fields[2].split(":"))
+        fields[2] = f"{major}:{minor + 1}"
+        mountinfo.write_text(" ".join(fields))
+        self.assertFalse(self.collect(proc)["verified"])
+
+    def test_namespace_mismatch_and_invalid_quota_fail_closed(self):
+        proc, cg = self.fixture()
+        (proc / "123" / "ns" / "mnt").unlink()
+        (proc / "123" / "ns" / "mnt").symlink_to("mnt:[3]")
+        self.assertFalse(self.collect(proc)["verified"])
+        (proc / "123" / "ns" / "mnt").unlink()
+        (proc / "123" / "ns" / "mnt").symlink_to("mnt:[1]")
+        for invalid in ("0 100000", "50000 0", "garbage", "-1 100000"):
+            (cg / "child" / "cpu.max").write_text(invalid)
+            self.assertFalse(self.collect(proc)["verified"], invalid)
+
+    def test_ambiguous_multiple_cpu_mounts_fail_closed(self):
+        proc, _ = self.fixture()
+        mountinfo = proc / "123" / "mountinfo"
+        mountinfo.write_text(mountinfo.read_text() * 2)
+        self.assertFalse(self.collect(proc)["verified"])
+
+    def test_threads_in_unequal_cgroups_cannot_share_a_capacity_proof(self):
+        proc, _ = self.fixture()
+        task = proc / "123" / "task" / "124"
+        task.mkdir()
+        (task / "cgroup").write_text("0::/other\n")
+        proof = self.collect(proc)
+        self.assertFalse(proof["verified"])
+        self.assertIn("unequal", proof["reason"])
+
+    def test_long_run_legacy_resources_still_cannot_certify_server_ceiling(self):
+        reason = bench_matrix.server_ceiling_exclusion(
+            False, "rpc-bench", {"saturated": False}, {"supported": True}, {"supported": True},
+            [{"metrics": {"duration_nanos": 60_000_000_000}}])
+        self.assertIn("capacity/headroom proof", reason)
 
 
 class BenchmarkReportTest(unittest.TestCase):

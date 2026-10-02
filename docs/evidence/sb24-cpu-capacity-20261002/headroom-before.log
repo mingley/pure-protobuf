@@ -1,0 +1,30 @@
+.........FF.F.............ss............
+======================================================================
+FAIL: test_actual_affinity_must_match_the_declared_pin (test_stack_matrix.CommandBuilderTest.test_actual_affinity_must_match_the_declared_pin)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/sb24/tests/interop/test_stack_matrix.py", line 395, in test_actual_affinity_must_match_the_declared_pin
+    self.assertFalse(run.check_headroom(resources, 2.0, 1, True)["ok"])
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_fractional_quota_caps_requested_four_cpu_headroom_budget (test_stack_matrix.CommandBuilderTest.test_fractional_quota_caps_requested_four_cpu_headroom_budget)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/sb24/tests/interop/test_stack_matrix.py", line 382, in test_fractional_quota_caps_requested_four_cpu_headroom_budget
+    self.assertFalse(out["ok"])
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_legacy_resource_records_without_capacity_cannot_prove_headroom (test_stack_matrix.CommandBuilderTest.test_legacy_resource_records_without_capacity_cannot_prove_headroom)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/sb24/tests/interop/test_stack_matrix.py", line 387, in test_legacy_resource_records_without_capacity_cannot_prove_headroom
+    self.assertFalse(out["ok"])
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 40 tests in 0.009s
+
+FAILED (failures=3, skipped=2)
+[STACK-MATRIX] claim preflight blocked: this runner uses loopback; effective peer settings, dedicated host topology, generator/reference headroom and aligned endpoint measurement windows are not independently verified. Use diagnostic mode to collect wiring evidence; no defaults or scripted settings certify equality.

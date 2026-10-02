@@ -1,0 +1,31 @@
+Upstream Linux v6.12, adc218676eef25575469234709c2d87185ca223a
+kernel/cgroup/cgroup.c
+
+4293: 		/* does cft->flags tell us to skip this file on @cgrp? */
+4294: 		if ((cft->flags & __CFTYPE_ONLY_ON_DFL) && !cgroup_on_dfl(cgrp))
+4295: 			continue;
+4296: 		if ((cft->flags & __CFTYPE_NOT_ON_DFL) && cgroup_on_dfl(cgrp))
+4297: 			continue;
+4298: 		if ((cft->flags & CFTYPE_NOT_ON_ROOT) && !cgroup_parent(cgrp))
+4299: 			continue;
+4300: 		if ((cft->flags & CFTYPE_ONLY_ON_ROOT) && cgroup_parent(cgrp))
+4301: 			continue;
+4302: 		if ((cft->flags & CFTYPE_DEBUG) && !cgroup_debug)
+
+5254: /* cgroup core interface files for the default hierarchy */
+5255: static struct cftype cgroup_base_files[] = {
+5256: 	{
+5257: 		.name = "cgroup.type",
+5258: 		.flags = CFTYPE_NOT_ON_ROOT,
+5259: 		.seq_show = cgroup_type_show,
+5260: 		.write = cgroup_type_write,
+5261: 	},
+
+5290: 	},
+5291: 	{
+5292: 		.name = "cgroup.events",
+5293: 		.flags = CFTYPE_NOT_ON_ROOT,
+5294: 		.file_offset = offsetof(struct cgroup, events_file),
+5295: 		.seq_show = cgroup_events_show,
+5296: 	},
+

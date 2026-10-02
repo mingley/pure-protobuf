@@ -1,0 +1,50 @@
+[self-test] PASS scenario-extended-shapes 
+[self-test] PASS scenario-extended-gzip 
+[self-test] PASS scenario-extended-rtt 
+[self-test] PASS scenario-extended-overload 
+[self-test] PASS scenario-invalid-caught 
+[self-test] PASS expand-extended-shapes-peers peers=['cpp', 'go', 'native', 'tonic-pbrs', 'tonic-prost']
+[self-test] PASS expand-extended-shapes-unique n=10
+[self-test] PASS expand-extended-shapes-frozen 
+[self-test] PASS expand-extended-gzip-peers peers=['cpp', 'go', 'native', 'tonic-pbrs', 'tonic-prost']
+[self-test] PASS expand-extended-gzip-unique n=20
+[self-test] PASS expand-extended-gzip-frozen 
+[self-test] PASS expand-extended-rtt-peers peers=['cpp', 'go', 'native', 'tonic-pbrs', 'tonic-prost']
+[self-test] PASS expand-extended-rtt-unique n=30
+[self-test] PASS expand-extended-rtt-frozen 
+[self-test] PASS expand-extended-overload-peers peers=['cpp', 'go', 'native', 'tonic-pbrs', 'tonic-prost']
+[self-test] PASS expand-extended-overload-unique n=5
+[self-test] PASS expand-extended-overload-frozen 
+[self-test] PASS shapes-cover-new [('bidi_pipelined', 'empty'), ('client_stream', '1kib')]
+[self-test] PASS gzip-pairs [('server_stream', 'gzip'), ('server_stream', 'identity'), ('unary', 'gzip'), ('unary', 'identity')]
+[self-test] PASS rtt-profiles [1, 10]
+[self-test] PASS rtt-shape-classes ['client_stream', 'server_stream', 'unary']
+[self-test] PASS overload-flagged n=5
+[self-test] PASS unsupported-pipelined pipelined bidi is frozen but unrunnable at this base: rpc-bench `load --shape=bidi` is lockstep ping
+[self-test] PASS unsupported-gzip official/optional peer response gzip configuration is not implemented or verified; native and tonic 
+[self-test] PASS runnable-client-stream 
+[self-test] PASS argv-client-stream 
+[self-test] PASS argv-rtt 
+[self-test] PASS argv-no-rtt-when-plain 
+[self-test] PASS argv-cell-id sb19-rtt-cpp-unary-1kib-rtt10ms-1cpu
+[self-test] PASS step-accounting-ok offered=1000 successful=990 failed=10 (timeouts=2) rejected=0
+[self-test] PASS step-accounting-gap 
+[self-test] PASS step-gen-saturated 
+[self-test] PASS cap-clean 
+[self-test] PASS cap-rejected 
+[self-test] PASS cap-cpu-first 
+[self-test] PASS goodput-bytes 
+[self-test] PASS goodput-math 1.953125
+[self-test] PASS overload-script-status 
+[self-test] PASS overload-script-search sat=1000.0 sig=rejections_at_cap_10000
+[self-test] PASS overload-script-escalated [('rep1-search1000qps-esc', 1000.0, 10000)]
+[self-test] PASS overload-script-rates e=0.2 t=0.05 r=0.05
+[self-test] PASS overload-script-goodput 2.9296875
+[self-test] PASS overload-script-recovery {'recovered': True, 'recovery_time_s': 8.773000445216894e-06}
+[self-test] PASS overload-script-accounting-invalid accounting mismatch in overload phase (offered=4000 successful=3000 failed=0 (timeouts=0) rejected=0
+[self-test] PASS overload-script-stepdown normal=250.0 downs=1 sig=server_errors
+[self-test] PASS rtt-verdict-pass 
+[self-test] PASS rtt-verdict-unverified unverified: measured p50 0.050ms < 0.5x configured 10ms; the loopback proxy dela
+[self-test] PASS rtt-verdict-slack 
+[self-test] PASS tcp-ping-stub median=0.013ms
+[self-test] 0 failure(s)

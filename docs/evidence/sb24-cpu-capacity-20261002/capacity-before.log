@@ -1,0 +1,98 @@
+.EFFEEFEEE................
+======================================================================
+ERROR: test_capacity_change_during_sampling_fails_closed (test_bench_matrix.CpuCapacityTest.test_capacity_change_during_sampling_fails_closed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/sb24/tests/interop/test_bench_matrix.py", line 194, in test_capacity_change_during_sampling_fails_closed
+    self.assertFalse(saturation["headroom_verified"])
+                     ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+KeyError: 'headroom_verified'
+
+======================================================================
+ERROR: test_hidden_mount_root_and_missing_quota_are_unverified (test_bench_matrix.CpuCapacityTest.test_hidden_mount_root_and_missing_quota_are_unverified)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/sb24/tests/interop/test_bench_matrix.py", line 254, in test_hidden_mount_root_and_missing_quota_are_unverified
+    proof = self.collect(proc)
+            ^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/work/sb24/tests/interop/test_bench_matrix.py", line 226, in collect
+    return bench_matrix.collect_process_cpu_capacity(123, proc_root=proc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'rpc_bench_matrix' has no attribute 'collect_process_cpu_capacity'
+
+======================================================================
+ERROR: test_namespace_mismatch_and_invalid_quota_fail_closed (test_bench_matrix.CpuCapacityTest.test_namespace_mismatch_and_invalid_quota_fail_closed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/sb24/tests/interop/test_bench_matrix.py", line 265, in test_namespace_mismatch_and_invalid_quota_fail_closed
+    self.assertFalse(self.collect(proc)["verified"])
+                     ^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/work/sb24/tests/interop/test_bench_matrix.py", line 226, in collect
+    return bench_matrix.collect_process_cpu_capacity(123, proc_root=proc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'rpc_bench_matrix' has no attribute 'collect_process_cpu_capacity'
+
+======================================================================
+ERROR: test_unlimited_visible_hierarchy_uses_affinity_and_never_thread_count (test_bench_matrix.CpuCapacityTest.test_unlimited_visible_hierarchy_uses_affinity_and_never_thread_count)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/sb24/tests/interop/test_bench_matrix.py", line 248, in test_unlimited_visible_hierarchy_uses_affinity_and_never_thread_count
+    proof = self.collect(proc, cpus=(0, 1))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/work/sb24/tests/interop/test_bench_matrix.py", line 226, in collect
+    return bench_matrix.collect_process_cpu_capacity(123, proc_root=proc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'rpc_bench_matrix' has no attribute 'collect_process_cpu_capacity'
+
+======================================================================
+ERROR: test_v1_unlimited_child_still_obeys_ancestor_quota (test_bench_matrix.CpuCapacityTest.test_v1_unlimited_child_still_obeys_ancestor_quota)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/sb24/tests/interop/test_bench_matrix.py", line 241, in test_v1_unlimited_child_still_obeys_ancestor_quota
+    proof = self.collect(proc)
+            ^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/work/sb24/tests/interop/test_bench_matrix.py", line 226, in collect
+    return bench_matrix.collect_process_cpu_capacity(123, proc_root=proc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'rpc_bench_matrix' has no attribute 'collect_process_cpu_capacity'
+
+======================================================================
+ERROR: test_v2_effective_budget_uses_fractional_child_and_ancestor_minimum (test_bench_matrix.CpuCapacityTest.test_v2_effective_budget_uses_fractional_child_and_ancestor_minimum)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/sb24/tests/interop/test_bench_matrix.py", line 230, in test_v2_effective_budget_uses_fractional_child_and_ancestor_minimum
+    proof = self.collect(proc)
+            ^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/work/sb24/tests/interop/test_bench_matrix.py", line 226, in collect
+    return bench_matrix.collect_process_cpu_capacity(123, proc_root=proc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'rpc_bench_matrix' has no attribute 'collect_process_cpu_capacity'
+
+======================================================================
+FAIL: test_eight_threads_pinned_to_one_cpu_do_not_create_eight_cpu_budget (test_bench_matrix.CpuCapacityTest.test_eight_threads_pinned_to_one_cpu_do_not_create_eight_cpu_budget)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/sb24/tests/interop/test_bench_matrix.py", line 163, in test_eight_threads_pinned_to_one_cpu_do_not_create_eight_cpu_budget
+    self.assertTrue(saturation["saturated"])
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_fractional_quota_is_the_utilization_denominator (test_bench_matrix.CpuCapacityTest.test_fractional_quota_is_the_utilization_denominator)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/sb24/tests/interop/test_bench_matrix.py", line 170, in test_fractional_quota_is_the_utilization_denominator
+    self.assertTrue(saturation["saturated"])
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_unknown_capacity_fails_headroom_even_at_zero_cpu (test_bench_matrix.CpuCapacityTest.test_unknown_capacity_fails_headroom_even_at_zero_cpu)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/sb24/tests/interop/test_bench_matrix.py", line 175, in test_unknown_capacity_fails_headroom_even_at_zero_cpu
+    self.assertTrue(saturation["saturated"])
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 26 tests in 0.095s
+
+FAILED (failures=3, errors=6)

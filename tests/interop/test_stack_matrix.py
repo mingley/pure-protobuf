@@ -361,15 +361,69 @@ class CommandBuilderTest(unittest.TestCase):
         self.assertEqual(out["server_peak_rss_mib"], 12.0)
 
     def test_headroom_budget(self):
-        ok = run.check_headroom({"supported": True, "user_cpu_seconds": 1.0, "system_cpu_seconds": 0.0}, 2.0, 1, True)
+        capacity = {"verified": True, "effective_cpu_capacity": 1.0, "affinity_cpu_count": 1}
+        window = {"verified": True, "start_monotonic_s": 1.0, "end_monotonic_s": 3.0,
+                  "duration_seconds": 2.0}
+        ok = run.check_headroom({"supported": True, "user_cpu_seconds": 1.0, "system_cpu_seconds": 0.0,
+                                 "cpu_capacity": capacity, "cpu_delta_verified": True,
+                                 "cpu_counter_window": window}, 2.0, 1, True)
         self.assertTrue(ok["ok"])  # 50% of one core
-        bad = run.check_headroom({"supported": True, "user_cpu_seconds": 1.9, "system_cpu_seconds": 0.0}, 2.0, 1, True)
+        bad = run.check_headroom({"supported": True, "user_cpu_seconds": 1.9, "system_cpu_seconds": 0.0,
+                                  "cpu_capacity": capacity, "cpu_delta_verified": True,
+                                  "cpu_counter_window": window}, 2.0, 1, True)
         self.assertFalse(bad["ok"])  # 95% of one core
         self.assertIn("95.0%", bad["reason"])
 
     def test_unpinned_or_missing_samples_do_not_prove_headroom(self):
         self.assertFalse(run.check_headroom({"supported": True}, 2.0, 4, False)["ok"])
         self.assertFalse(run.check_headroom({}, 2.0, 4, True)["ok"])
+
+    def test_fractional_quota_caps_requested_four_cpu_headroom_budget(self):
+        resources = {"supported": True, "user_cpu_seconds": 0.9, "system_cpu_seconds": 0.0, "cpu_delta_verified": True,
+                     "cpu_counter_window": {"verified": True, "start_monotonic_s": 1.0,
+                                            "end_monotonic_s": 3.0, "duration_seconds": 2.0},
+                     "cpu_capacity": {"verified": True, "effective_cpu_capacity": 0.5,
+                                      "affinity_cpu_count": 4}}
+        out = run.check_headroom(resources, 2.0, 4, True)
+        self.assertFalse(out["ok"])
+        self.assertEqual(out["budget_cpu_pct"], 50.0)
+
+    def test_server_headroom_uses_endpoint_counter_window_not_probe_timer(self):
+        resources = {"supported": True, "user_cpu_seconds": 1.0, "system_cpu_seconds": 0.0,
+                     "cpu_delta_verified": True,
+                     "cpu_counter_window": {"verified": True, "start_monotonic_s": 1.0,
+                                            "end_monotonic_s": 3.0, "duration_seconds": 2.0},
+                     "cpu_capacity": {"verified": True, "effective_cpu_capacity": 1.0,
+                                      "affinity_cpu_count": 1}}
+        out = run.check_headroom(resources, 10.0, 1, True)
+        self.assertEqual(out["server_avg_cpu_pct"], 50.0)
+        self.assertEqual(out["cpu_counter_window"], resources["cpu_counter_window"])
+        self.assertEqual(out["wall_s"], 10.0)  # diagnostic, not the CPU denominator
+
+    def test_missing_or_invalid_counter_window_cannot_certify_server_headroom(self):
+        resources = {"supported": True, "user_cpu_seconds": 0.0, "cpu_delta_verified": True,
+                     "cpu_capacity": {"verified": True, "effective_cpu_capacity": 1.0,
+                                      "affinity_cpu_count": 1}}
+        for window in (None, {"verified": True, "duration_seconds": 0},
+                       {"verified": True, "start_monotonic_s": 3.0,
+                        "end_monotonic_s": 1.0, "duration_seconds": 2.0}):
+            with self.subTest(window=window):
+                resources["cpu_counter_window"] = window
+                out = run.check_headroom(resources, 10.0, 1, True)
+                self.assertFalse(out["ok"])
+                self.assertIsNone(out["server_avg_cpu_pct"])
+
+    def test_legacy_resource_records_without_capacity_cannot_prove_headroom(self):
+        out = run.check_headroom({"supported": True, "user_cpu_seconds": 0.1}, 2.0, 4, True)
+        self.assertFalse(out["ok"])
+        self.assertIsNone(out["budget_cpu_pct"])
+        self.assertIn("unverified", out["reason"])
+
+    def test_actual_affinity_must_match_the_declared_pin(self):
+        resources = {"supported": True, "user_cpu_seconds": 0.1,
+                     "cpu_capacity": {"verified": True, "effective_cpu_capacity": 4.0,
+                                      "affinity_cpu_count": 4}}
+        self.assertFalse(run.check_headroom(resources, 2.0, 1, True)["ok"])
 
     def test_timeout_is_a_failed_call_not_an_extra_completion(self):
         step = slo.StepResult(offered_rate=1, offered_calls=10, successful_calls=8,
