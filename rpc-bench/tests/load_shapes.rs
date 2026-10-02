@@ -1,7 +1,7 @@
 //! SB-11: the `load` subcommand drives every (transport, shape) cell against
 //! a loopback server with zero failures, and rejects invalid flag mixes.
-//! Fails if any cell errors, reports failures/timeouts, or accepts a mix
-//! the parser must reject (TLS halves, tonic+TLS, BenchmarkService scope).
+//! Fails if any cell errors, reports failures/timeouts, or accepts invalid
+//! TLS pairs, TLS on plaintext loopback, or BenchmarkService flag mixes.
 
 use std::process::{Command, Stdio};
 use std::time::Duration;
@@ -29,7 +29,7 @@ fn run_load(args: &[&str]) -> (i32, String) {
                     text.push_str(&String::from_utf8_lossy(&out.stderr));
                     panic!("load {args:?} hung past 60s: {text}");
                 }
-                std::thread::sleep(Duration::from_millis(50));
+                std::thread::park_timeout(Duration::from_millis(50));
             }
         }
     }
@@ -174,10 +174,10 @@ fn read_ready_port(child: &mut std::process::Child) -> u16 {
             Ok(_) => {
                 if let Some(rest) = line.strip_prefix("READY ") {
                     for kv in rest.split_whitespace() {
-                        if let Some(value) = kv.strip_prefix("port=") {
-                            if let Ok(port) = value.parse::<u16>() {
-                                return port;
-                            }
+                        if let Some(value) = kv.strip_prefix("port=")
+                            && let Ok(port) = value.parse::<u16>()
+                        {
+                            return port;
                         }
                     }
                 }
@@ -304,14 +304,17 @@ fn load_rejects_invalid_flag_mixes() {
     let (code, text) = run_load(&["--tls-ca=/tmp/ca.pem"]);
     assert_eq!(code, 2, "tls-ca alone: {text}");
 
-    // tonic + TLS is explicitly unsupported.
+    // Tonic TLS is supported, but needs an explicit TLS server endpoint.
     let (code, text) = run_load(&[
         "--transport=tonic",
         "--tls-ca=/tmp/ca.pem",
         "--tls-server-name=localhost",
     ]);
-    assert_eq!(code, 2, "tonic+tls: {text}");
-    assert!(text.contains("no TLS support"), "tonic+tls: {text}");
+    assert_eq!(code, 1, "tonic TLS loopback: {text}");
+    assert!(
+        text.contains("TLS needs an explicit --server_addr: the loopback server is plaintext-only"),
+        "tonic TLS loopback: {text}"
+    );
 
     // TLS without an explicit server is rejected before bind.
     let (code, text) = run_load(&["--tls-ca=/tmp/ca.pem", "--tls-server-name=localhost"]);

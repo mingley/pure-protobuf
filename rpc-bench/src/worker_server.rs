@@ -144,12 +144,12 @@ pub(crate) async fn stop_owned_server(
         ))),
         Err(_) => {
             handle.abort();
-            if let Err(error) = handle.await {
-                if !error.is_cancelled() {
-                    return Err(Status::internal(format!(
-                        "benchmark server abort failed: {error}"
-                    )));
-                }
+            if let Err(error) = handle.await
+                && !error.is_cancelled()
+            {
+                return Err(Status::internal(format!(
+                    "benchmark server abort failed: {error}"
+                )));
             }
             Err(Status::unavailable(
                 "benchmark server did not shut down within 5 seconds; aborted",

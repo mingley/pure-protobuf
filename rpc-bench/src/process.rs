@@ -344,6 +344,12 @@ pub struct Counters {
     pub run: Arc<AtomicBool>,
 }
 
+impl Default for Counters {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Counters {
     pub fn new() -> Self {
         Self {
@@ -750,10 +756,11 @@ pub async fn ping_pong_kernel(
             }
         }
         tx.close();
-        while let Some(_) = inbound
+        if inbound
             .message()
             .await
             .map_err(|e| format!("kernel ping_pong drain round {round}: {e}"))?
+            .is_some()
         {
             return Err("kernel ping_pong unexpected extra message after close".to_string());
         }
@@ -801,10 +808,11 @@ pub async fn ping_pong_tonic(
             }
         }
         drop(tx);
-        while let Some(_) = inbound
+        if inbound
             .message()
             .await
             .map_err(|e| format!("tonic ping_pong drain round {round}: {e}"))?
+            .is_some()
         {
             return Err("tonic ping_pong unexpected extra message after close".to_string());
         }
@@ -1038,16 +1046,38 @@ where
 // BenchmarkRun report builder helpers
 // ---------------------------------------------------------------------------
 
+/// Borrowed identity and provenance shared by every report builder.
+pub struct RunContext<'a> {
+    pub scenario_id: &'a str,
+    pub scenario_name: &'a str,
+    pub transport: TransportMode,
+    pub host_info: &'a HostInfo,
+    pub git_commit: &'a str,
+}
+
+/// One already measured QPS round and its unchanged connection settings.
+pub struct QpsRound {
+    pub conc: u32,
+    pub conns: u32,
+    pub dur: Duration,
+    pub round_idx: usize,
+    pub ok: u64,
+    pub err: u64,
+}
+
 pub fn make_latency_run(
-    scenario_id: &str,
-    scenario_name: &str,
+    context: RunContext<'_>,
     req_size: usize,
     resp_size: usize,
-    transport: TransportMode,
     measurement: &LatencyMeasurement,
-    host_info: &HostInfo,
-    git_commit: &str,
 ) -> BenchmarkRun {
+    let RunContext {
+        scenario_id,
+        scenario_name,
+        transport,
+        host_info,
+        git_commit,
+    } = context;
     let dur_nanos = measurement.duration.as_nanos().max(1) as u64;
     let now = SystemTime::now();
     let start_time = now - measurement.duration;
@@ -1101,20 +1131,22 @@ pub fn make_latency_run(
     }
 }
 
-pub fn make_qps_run(
-    scenario_id: &str,
-    scenario_name: &str,
-    transport: TransportMode,
-    conc: u32,
-    conns: u32,
-    dur: Duration,
-    round_idx: usize,
-    ok: u64,
-    err: u64,
-    large: bool,
-    host_info: &HostInfo,
-    git_commit: &str,
-) -> BenchmarkRun {
+pub fn make_qps_run(context: RunContext<'_>, round: QpsRound, large: bool) -> BenchmarkRun {
+    let RunContext {
+        scenario_id,
+        scenario_name,
+        transport,
+        host_info,
+        git_commit,
+    } = context;
+    let QpsRound {
+        conc,
+        conns,
+        dur,
+        round_idx,
+        ok,
+        err,
+    } = round;
     let dur_nanos = dur.as_nanos().max(1) as u64;
     let now = SystemTime::now();
     let start_time = now - dur;
@@ -1173,16 +1205,19 @@ pub fn make_qps_run(
 }
 
 pub fn make_streaming_run(
-    scenario_id: &str,
-    scenario_name: &str,
+    context: RunContext<'_>,
     rpc_type: &str,
-    transport: TransportMode,
     round_idx: usize,
     count: u64,
     dur: Duration,
-    host_info: &HostInfo,
-    git_commit: &str,
 ) -> BenchmarkRun {
+    let RunContext {
+        scenario_id,
+        scenario_name,
+        transport,
+        host_info,
+        git_commit,
+    } = context;
     let dur_nanos = dur.as_nanos().max(1) as u64;
     let now = SystemTime::now();
     let start_time = now - dur;
@@ -1469,24 +1504,28 @@ pub async fn run_client(
             if run_unary {
                 let (empty, large) = latency_kernel(addr, &bench_cfg).await?;
                 runs.push(make_latency_run(
-                    "unary_empty_plaintext",
-                    "Unary Empty Payload (Plaintext)",
+                    RunContext {
+                        scenario_id: "unary_empty_plaintext",
+                        scenario_name: "Unary Empty Payload (Plaintext)",
+                        transport: TransportMode::Native,
+                        host_info: &host_info,
+                        git_commit: &git_commit,
+                    },
                     0,
                     0,
-                    TransportMode::Native,
                     &empty,
-                    &host_info,
-                    &git_commit,
                 ));
                 runs.push(make_latency_run(
-                    "unary_large_plaintext",
-                    "Unary Large Payload (Plaintext)",
+                    RunContext {
+                        scenario_id: "unary_large_plaintext",
+                        scenario_name: "Unary Large Payload (Plaintext)",
+                        transport: TransportMode::Native,
+                        host_info: &host_info,
+                        git_commit: &git_commit,
+                    },
                     LARGE_REQ as usize,
                     LARGE_RESP as usize,
-                    TransportMode::Native,
                     &large,
-                    &host_info,
-                    &git_commit,
                 ));
                 println!(
                     "empty_unary native_p50={} native_p99={}",
@@ -1511,18 +1550,22 @@ pub async fn run_client(
                         .await;
                         for (idx, ok, err_cnt) in r_rounds {
                             runs.push(make_qps_run(
-                                &format!("qps_{shape}_{label}"),
-                                &format!("QPS {shape} {label}"),
-                                TransportMode::Native,
-                                conc,
-                                conns as u32,
-                                dur,
-                                idx,
-                                ok,
-                                err_cnt,
+                                RunContext {
+                                    scenario_id: &format!("qps_{shape}_{label}"),
+                                    scenario_name: &format!("QPS {shape} {label}"),
+                                    transport: TransportMode::Native,
+                                    host_info: &host_info,
+                                    git_commit: &git_commit,
+                                },
+                                QpsRound {
+                                    conc,
+                                    conns: conns as u32,
+                                    dur,
+                                    round_idx: idx,
+                                    ok,
+                                    err: err_cnt,
+                                },
                                 large,
-                                &host_info,
-                                &git_commit,
                             ));
                         }
                         println!(
@@ -1536,15 +1579,17 @@ pub async fn run_client(
                 let s_res = stream_kernel(addr, &bench_cfg).await?;
                 for (idx, count, round_dur) in &s_res.rounds {
                     runs.push(make_streaming_run(
-                        "server_streaming_1kib_download",
-                        "Server Streaming 1 KiB Download",
+                        RunContext {
+                            scenario_id: "server_streaming_1kib_download",
+                            scenario_name: "Server Streaming 1 KiB Download",
+                            transport: TransportMode::Native,
+                            host_info: &host_info,
+                            git_commit: &git_commit,
+                        },
                         "server_streaming",
-                        TransportMode::Native,
                         *idx,
                         *count,
                         *round_dur,
-                        &host_info,
-                        &git_commit,
                     ));
                 }
                 let bytes_per_msg = bench_cfg.stream_size as u64;
@@ -1561,15 +1606,17 @@ pub async fn run_client(
                 let p_res = ping_pong_kernel(addr, &bench_cfg).await?;
                 for (idx, count, round_dur) in &p_res.rounds {
                     runs.push(make_streaming_run(
-                        "bidi_ping_pong_empty",
-                        "Bidirectional Streaming Ping-Pong Empty",
+                        RunContext {
+                            scenario_id: "bidi_ping_pong_empty",
+                            scenario_name: "Bidirectional Streaming Ping-Pong Empty",
+                            transport: TransportMode::Native,
+                            host_info: &host_info,
+                            git_commit: &git_commit,
+                        },
                         "bidi_streaming",
-                        TransportMode::Native,
                         *idx,
                         *count,
                         *round_dur,
-                        &host_info,
-                        &git_commit,
                     ));
                 }
                 println!(
@@ -1582,15 +1629,17 @@ pub async fn run_client(
                 let u_res = upload_kernel(addr, &bench_cfg).await?;
                 for (idx, count, round_dur) in &u_res.rounds {
                     runs.push(make_streaming_run(
-                        "client_streaming_1kib_upload",
-                        "Client Streaming 1 KiB Upload",
+                        RunContext {
+                            scenario_id: "client_streaming_1kib_upload",
+                            scenario_name: "Client Streaming 1 KiB Upload",
+                            transport: TransportMode::Native,
+                            host_info: &host_info,
+                            git_commit: &git_commit,
+                        },
                         "client_streaming",
-                        TransportMode::Native,
                         *idx,
                         *count,
                         *round_dur,
-                        &host_info,
-                        &git_commit,
                     ));
                 }
                 let bytes_per_msg = bench_cfg.stream_size as u64;
@@ -1608,24 +1657,28 @@ pub async fn run_client(
             if run_unary {
                 let (empty, large) = latency_tonic(addr, &bench_cfg).await?;
                 runs.push(make_latency_run(
-                    "unary_empty_plaintext",
-                    "Unary Empty Payload (Plaintext)",
+                    RunContext {
+                        scenario_id: "unary_empty_plaintext",
+                        scenario_name: "Unary Empty Payload (Plaintext)",
+                        transport: TransportMode::Tonic,
+                        host_info: &host_info,
+                        git_commit: &git_commit,
+                    },
                     0,
                     0,
-                    TransportMode::Tonic,
                     &empty,
-                    &host_info,
-                    &git_commit,
                 ));
                 runs.push(make_latency_run(
-                    "unary_large_plaintext",
-                    "Unary Large Payload (Plaintext)",
+                    RunContext {
+                        scenario_id: "unary_large_plaintext",
+                        scenario_name: "Unary Large Payload (Plaintext)",
+                        transport: TransportMode::Tonic,
+                        host_info: &host_info,
+                        git_commit: &git_commit,
+                    },
                     LARGE_REQ as usize,
                     LARGE_RESP as usize,
-                    TransportMode::Tonic,
                     &large,
-                    &host_info,
-                    &git_commit,
                 ));
                 println!(
                     "empty_unary tonic_p50={} tonic_p99={}",
@@ -1650,18 +1703,22 @@ pub async fn run_client(
                         .await;
                         for (idx, ok, err_cnt) in r_rounds {
                             runs.push(make_qps_run(
-                                &format!("qps_{shape}_{label}"),
-                                &format!("QPS {shape} {label}"),
-                                TransportMode::Tonic,
-                                conc,
-                                conns as u32,
-                                dur,
-                                idx,
-                                ok,
-                                err_cnt,
+                                RunContext {
+                                    scenario_id: &format!("qps_{shape}_{label}"),
+                                    scenario_name: &format!("QPS {shape} {label}"),
+                                    transport: TransportMode::Tonic,
+                                    host_info: &host_info,
+                                    git_commit: &git_commit,
+                                },
+                                QpsRound {
+                                    conc,
+                                    conns: conns as u32,
+                                    dur,
+                                    round_idx: idx,
+                                    ok,
+                                    err: err_cnt,
+                                },
                                 large,
-                                &host_info,
-                                &git_commit,
                             ));
                         }
                         println!(
@@ -1675,15 +1732,17 @@ pub async fn run_client(
                 let s_res = stream_tonic(addr, &bench_cfg).await?;
                 for (idx, count, round_dur) in &s_res.rounds {
                     runs.push(make_streaming_run(
-                        "server_streaming_1kib_download",
-                        "Server Streaming 1 KiB Download",
+                        RunContext {
+                            scenario_id: "server_streaming_1kib_download",
+                            scenario_name: "Server Streaming 1 KiB Download",
+                            transport: TransportMode::Tonic,
+                            host_info: &host_info,
+                            git_commit: &git_commit,
+                        },
                         "server_streaming",
-                        TransportMode::Tonic,
                         *idx,
                         *count,
                         *round_dur,
-                        &host_info,
-                        &git_commit,
                     ));
                 }
                 let bytes_per_msg = bench_cfg.stream_size as u64;
@@ -1700,15 +1759,17 @@ pub async fn run_client(
                 let p_res = ping_pong_tonic(addr, &bench_cfg).await?;
                 for (idx, count, round_dur) in &p_res.rounds {
                     runs.push(make_streaming_run(
-                        "bidi_ping_pong_empty",
-                        "Bidirectional Streaming Ping-Pong Empty",
+                        RunContext {
+                            scenario_id: "bidi_ping_pong_empty",
+                            scenario_name: "Bidirectional Streaming Ping-Pong Empty",
+                            transport: TransportMode::Tonic,
+                            host_info: &host_info,
+                            git_commit: &git_commit,
+                        },
                         "bidi_streaming",
-                        TransportMode::Tonic,
                         *idx,
                         *count,
                         *round_dur,
-                        &host_info,
-                        &git_commit,
                     ));
                 }
                 println!(
@@ -1721,15 +1782,17 @@ pub async fn run_client(
                 let u_res = upload_tonic(addr, &bench_cfg).await?;
                 for (idx, count, round_dur) in &u_res.rounds {
                     runs.push(make_streaming_run(
-                        "client_streaming_1kib_upload",
-                        "Client Streaming 1 KiB Upload",
+                        RunContext {
+                            scenario_id: "client_streaming_1kib_upload",
+                            scenario_name: "Client Streaming 1 KiB Upload",
+                            transport: TransportMode::Tonic,
+                            host_info: &host_info,
+                            git_commit: &git_commit,
+                        },
                         "client_streaming",
-                        TransportMode::Tonic,
                         *idx,
                         *count,
                         *round_dur,
-                        &host_info,
-                        &git_commit,
                     ));
                 }
                 let bytes_per_msg = bench_cfg.stream_size as u64;
@@ -1749,10 +1812,10 @@ pub async fn run_client(
         eprintln!("benchmark report validation warning: {e}");
     }
 
-    if config.print_json {
-        if let Ok(json) = report.to_json_pretty() {
-            println!("{json}");
-        }
+    if config.print_json
+        && let Ok(json) = report.to_json_pretty()
+    {
+        println!("{json}");
     }
     if let Some(ref path) = config.output_file {
         if let Err(e) = report.save_to_file(path) {
@@ -1858,45 +1921,53 @@ pub async fn run_smoke(
     let (t_empty, t_large) = latency_tonic(t_addr, &bench_cfg).await?;
 
     runs.push(make_latency_run(
-        "unary_empty_plaintext",
-        "Unary Empty Payload (Plaintext)",
+        RunContext {
+            scenario_id: "unary_empty_plaintext",
+            scenario_name: "Unary Empty Payload (Plaintext)",
+            transport: TransportMode::Native,
+            host_info: &host_info,
+            git_commit: &git_commit,
+        },
         0,
         0,
-        TransportMode::Native,
         &k_empty,
-        &host_info,
-        &git_commit,
     ));
     runs.push(make_latency_run(
-        "unary_empty_plaintext",
-        "Unary Empty Payload (Plaintext)",
+        RunContext {
+            scenario_id: "unary_empty_plaintext",
+            scenario_name: "Unary Empty Payload (Plaintext)",
+            transport: TransportMode::Tonic,
+            host_info: &host_info,
+            git_commit: &git_commit,
+        },
         0,
         0,
-        TransportMode::Tonic,
         &t_empty,
-        &host_info,
-        &git_commit,
     ));
 
     runs.push(make_latency_run(
-        "unary_large_plaintext",
-        "Unary Large Payload (Plaintext)",
+        RunContext {
+            scenario_id: "unary_large_plaintext",
+            scenario_name: "Unary Large Payload (Plaintext)",
+            transport: TransportMode::Native,
+            host_info: &host_info,
+            git_commit: &git_commit,
+        },
         LARGE_REQ as usize,
         LARGE_RESP as usize,
-        TransportMode::Native,
         &k_large,
-        &host_info,
-        &git_commit,
     ));
     runs.push(make_latency_run(
-        "unary_large_plaintext",
-        "Unary Large Payload (Plaintext)",
+        RunContext {
+            scenario_id: "unary_large_plaintext",
+            scenario_name: "Unary Large Payload (Plaintext)",
+            transport: TransportMode::Tonic,
+            host_info: &host_info,
+            git_commit: &git_commit,
+        },
         LARGE_REQ as usize,
         LARGE_RESP as usize,
-        TransportMode::Tonic,
         &t_large,
-        &host_info,
-        &git_commit,
     ));
 
     compare!(
@@ -1933,34 +2004,42 @@ pub async fn run_smoke(
 
             for (idx, ok, err_cnt) in k_rounds {
                 runs.push(make_qps_run(
-                    &format!("qps_{shape}_{label}"),
-                    &format!("QPS {shape} {label}"),
-                    TransportMode::Native,
-                    conc,
-                    conns as u32,
-                    dur,
-                    idx,
-                    ok,
-                    err_cnt,
+                    RunContext {
+                        scenario_id: &format!("qps_{shape}_{label}"),
+                        scenario_name: &format!("QPS {shape} {label}"),
+                        transport: TransportMode::Native,
+                        host_info: &host_info,
+                        git_commit: &git_commit,
+                    },
+                    QpsRound {
+                        conc,
+                        conns: conns as u32,
+                        dur,
+                        round_idx: idx,
+                        ok,
+                        err: err_cnt,
+                    },
                     large,
-                    &host_info,
-                    &git_commit,
                 ));
             }
             for (idx, ok, err_cnt) in t_rounds {
                 runs.push(make_qps_run(
-                    &format!("qps_{shape}_{label}"),
-                    &format!("QPS {shape} {label}"),
-                    TransportMode::Tonic,
-                    conc,
-                    conns as u32,
-                    dur,
-                    idx,
-                    ok,
-                    err_cnt,
+                    RunContext {
+                        scenario_id: &format!("qps_{shape}_{label}"),
+                        scenario_name: &format!("QPS {shape} {label}"),
+                        transport: TransportMode::Tonic,
+                        host_info: &host_info,
+                        git_commit: &git_commit,
+                    },
+                    QpsRound {
+                        conc,
+                        conns: conns as u32,
+                        dur,
+                        round_idx: idx,
+                        ok,
+                        err: err_cnt,
+                    },
                     large,
-                    &host_info,
-                    &git_commit,
                 ));
             }
 
@@ -1975,28 +2054,32 @@ pub async fn run_smoke(
     let t_stream = stream_tonic(t_addr, &bench_cfg).await?;
     for (idx, count, round_dur) in &k_stream.rounds {
         runs.push(make_streaming_run(
-            "server_streaming_1kib_download",
-            "Server Streaming 1 KiB Download",
+            RunContext {
+                scenario_id: "server_streaming_1kib_download",
+                scenario_name: "Server Streaming 1 KiB Download",
+                transport: TransportMode::Native,
+                host_info: &host_info,
+                git_commit: &git_commit,
+            },
             "server_streaming",
-            TransportMode::Native,
             *idx,
             *count,
             *round_dur,
-            &host_info,
-            &git_commit,
         ));
     }
     for (idx, count, round_dur) in &t_stream.rounds {
         runs.push(make_streaming_run(
-            "server_streaming_1kib_download",
-            "Server Streaming 1 KiB Download",
+            RunContext {
+                scenario_id: "server_streaming_1kib_download",
+                scenario_name: "Server Streaming 1 KiB Download",
+                transport: TransportMode::Tonic,
+                host_info: &host_info,
+                git_commit: &git_commit,
+            },
             "server_streaming",
-            TransportMode::Tonic,
             *idx,
             *count,
             *round_dur,
-            &host_info,
-            &git_commit,
         ));
     }
 
@@ -2016,28 +2099,32 @@ pub async fn run_smoke(
     let t_ping = ping_pong_tonic(t_addr, &bench_cfg).await?;
     for (idx, count, round_dur) in &k_ping.rounds {
         runs.push(make_streaming_run(
-            "bidi_ping_pong_empty",
-            "Bidirectional Streaming Ping-Pong Empty",
+            RunContext {
+                scenario_id: "bidi_ping_pong_empty",
+                scenario_name: "Bidirectional Streaming Ping-Pong Empty",
+                transport: TransportMode::Native,
+                host_info: &host_info,
+                git_commit: &git_commit,
+            },
             "bidi_streaming",
-            TransportMode::Native,
             *idx,
             *count,
             *round_dur,
-            &host_info,
-            &git_commit,
         ));
     }
     for (idx, count, round_dur) in &t_ping.rounds {
         runs.push(make_streaming_run(
-            "bidi_ping_pong_empty",
-            "Bidirectional Streaming Ping-Pong Empty",
+            RunContext {
+                scenario_id: "bidi_ping_pong_empty",
+                scenario_name: "Bidirectional Streaming Ping-Pong Empty",
+                transport: TransportMode::Tonic,
+                host_info: &host_info,
+                git_commit: &git_commit,
+            },
             "bidi_streaming",
-            TransportMode::Tonic,
             *idx,
             *count,
             *round_dur,
-            &host_info,
-            &git_commit,
         ));
     }
 
@@ -2053,28 +2140,32 @@ pub async fn run_smoke(
     let t_upload = upload_tonic(t_addr, &bench_cfg).await?;
     for (idx, count, round_dur) in &k_upload.rounds {
         runs.push(make_streaming_run(
-            "client_streaming_1kib_upload",
-            "Client Streaming 1 KiB Upload",
+            RunContext {
+                scenario_id: "client_streaming_1kib_upload",
+                scenario_name: "Client Streaming 1 KiB Upload",
+                transport: TransportMode::Native,
+                host_info: &host_info,
+                git_commit: &git_commit,
+            },
             "client_streaming",
-            TransportMode::Native,
             *idx,
             *count,
             *round_dur,
-            &host_info,
-            &git_commit,
         ));
     }
     for (idx, count, round_dur) in &t_upload.rounds {
         runs.push(make_streaming_run(
-            "client_streaming_1kib_upload",
-            "Client Streaming 1 KiB Upload",
+            RunContext {
+                scenario_id: "client_streaming_1kib_upload",
+                scenario_name: "Client Streaming 1 KiB Upload",
+                transport: TransportMode::Tonic,
+                host_info: &host_info,
+                git_commit: &git_commit,
+            },
             "client_streaming",
-            TransportMode::Tonic,
             *idx,
             *count,
             *round_dur,
-            &host_info,
-            &git_commit,
         ));
     }
 
@@ -2094,10 +2185,10 @@ pub async fn run_smoke(
         eprintln!("benchmark report validation warning: {e}");
     }
 
-    if config.print_json {
-        if let Ok(json) = report.to_json_pretty() {
-            println!("{json}");
-        }
+    if config.print_json
+        && let Ok(json) = report.to_json_pretty()
+    {
+        println!("{json}");
     }
     if let Some(ref path) = config.output_file {
         if let Err(e) = report.save_to_file(path) {
@@ -2403,8 +2494,11 @@ pub fn parse_args(args: &[String]) -> Result<ProcessRole, String> {
         .or_else(|| get_arg_val(args, "--report"))
         .or_else(|| std::env::var("BENCH_REPORT_PATH").ok());
 
-    if !is_smoke && subcmd.is_some() && !subcmd.unwrap().starts_with('-') {
-        return Err(format!("unknown subcommand '{}'", subcmd.unwrap()));
+    if !is_smoke
+        && let Some(subcmd) = subcmd
+        && !subcmd.starts_with('-')
+    {
+        return Err(format!("unknown subcommand '{subcmd}'"));
     }
 
     Ok(ProcessRole::Smoke(SmokeConfig {

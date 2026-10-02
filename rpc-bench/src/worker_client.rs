@@ -23,8 +23,13 @@ pub use proto::*;
 
 use std::collections::BTreeMap;
 use std::future::Future;
+use std::sync::Arc;
+#[expect(
+    clippy::disallowed_types,
+    reason = "benchmark completion-mark locks are synchronous; no guard crosses an await"
+)]
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use pbrs_grpc::{Request, Response, Status, Streaming};
@@ -186,6 +191,10 @@ impl Histogram {
 }
 
 /// Thread-safe accumulator for client latency histogram and error code counts.
+#[expect(
+    clippy::disallowed_types,
+    reason = "synchronous lock preserves atomic completion-window snapshot and reset; no guard crosses an await"
+)]
 pub struct ClientStatsTracker {
     state: Mutex<ClientStatsWindow>,
 }
@@ -210,6 +219,10 @@ struct ClientStatsWindow {
 
 impl ClientStatsTracker {
     /// Create a new tracker wrapping the configured histogram.
+    #[expect(
+        clippy::disallowed_types,
+        reason = "construct synchronous benchmark accounting lock without changing measurement boundaries"
+    )]
     pub fn new(histogram: Histogram) -> Self {
         Self {
             state: Mutex::new(ClientStatsWindow {
@@ -373,6 +386,24 @@ where
     F: Future<Output = Result<(), Status>>,
 {
     track_scheduled_worker_rpc(tracker, Instant::now(), timeout, call).await
+}
+
+/// One request/reply on a fresh stream, as counted by the worker generator.
+pub(crate) async fn fresh_streaming_rpc(
+    client: &BenchmarkServiceClient,
+    template: &crate::benchmark_service::SimpleRequest,
+) -> Result<(), Status> {
+    let (sender, call) = client.streaming_call(Request::new(()));
+    sender
+        .send(template.clone())
+        .await
+        .map_err(|error| Status::internal(error.to_string()))?;
+    let mut stream = call.await?.into_inner();
+    stream.message().await?.ok_or_else(|| {
+        Status::unknown("benchmark streaming call ended before its expected reply")
+    })?;
+    drop(sender);
+    Ok(())
 }
 
 #[cfg(test)]
@@ -926,12 +957,7 @@ pub(crate) async fn run_client(
                         if rpc_type == RpcType::Unary {
                             client.unary_call(Request::new((*template).clone())).await.map(|_| ())
                         } else {
-                            let (sender, call) = client.streaming_call(Request::new(()));
-                            sender.send((*template).clone()).await.map_err(|e| Status::internal(e.to_string()))?;
-                            let mut stream = call.await?.into_inner();
-                            let _ = stream.message().await?;
-                            drop(sender);
-                            Ok(())
+                            fresh_streaming_rpc(client, template.as_ref()).await
                         }
                     }) => res,
                 }

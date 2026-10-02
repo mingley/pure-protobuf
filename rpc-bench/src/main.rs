@@ -626,17 +626,31 @@ pub fn extended_usage() -> String {
     )
 }
 
-/// Connect a native channel, plaintext or TLS-verified against a CA.
-async fn load_native_channel(
-    addr: SocketAddr,
-    tls_ca: Option<&str>,
-    tls_server_name: Option<&str>,
+/// Borrowed native dialing options with the existing window and TLS policy.
+struct NativeChannelOptions<'a> {
+    tls_ca: Option<&'a str>,
+    tls_server_name: Option<&'a str>,
     max_message_size: Option<usize>,
     connections: usize,
     window_mode: NativeWindowMode,
     small_window_size: u32,
     small_window_override: bool,
+}
+
+/// Connect a native channel, plaintext or TLS-verified against a CA.
+async fn load_native_channel(
+    addr: SocketAddr,
+    options: NativeChannelOptions<'_>,
 ) -> Result<pbrs_grpc::Channel, String> {
+    let NativeChannelOptions {
+        tls_ca,
+        tls_server_name,
+        max_message_size,
+        connections,
+        window_mode,
+        small_window_size,
+        small_window_override,
+    } = options;
     let config = native_channel_config(
         connections,
         window_mode,
@@ -810,13 +824,15 @@ async fn run_load_native(
 ) -> Result<load::LoadRecord, String> {
     let channel = load_native_channel(
         addr,
-        tls_ca,
-        tls_server_name,
-        max_message_size,
-        connections,
-        window_mode,
-        small_window_size,
-        small_window_override,
+        NativeChannelOptions {
+            tls_ca,
+            tls_server_name,
+            max_message_size,
+            connections,
+            window_mode,
+            small_window_size,
+            small_window_override,
+        },
     )
     .await?;
     let channel = if gzip {
@@ -989,7 +1005,7 @@ async fn run_load_native(
                             }
                         }
                         tx.close();
-                        while inbound
+                        if inbound
                             .message()
                             .await
                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
@@ -1397,9 +1413,7 @@ fn tonic_load_client(
     }
 }
 
-async fn run_load_tonic(
-    load_gen: &load::LoadGenerator,
-    addr: SocketAddr,
+struct ReferenceLoadOptions<'a> {
     shape: LoadShape,
     req_bytes: usize,
     resp_bytes: usize,
@@ -1407,9 +1421,26 @@ async fn run_load_tonic(
     max_message_size: Option<usize>,
     connections: usize,
     gzip: bool,
-    tls_ca: Option<&str>,
-    tls_name: Option<&str>,
+    tls_ca: Option<&'a str>,
+    tls_name: Option<&'a str>,
+}
+
+async fn run_load_tonic(
+    load_gen: &load::LoadGenerator,
+    addr: SocketAddr,
+    options: ReferenceLoadOptions<'_>,
 ) -> Result<load::LoadRecord, String> {
+    let ReferenceLoadOptions {
+        shape,
+        req_bytes,
+        resp_bytes,
+        stream_msgs,
+        max_message_size,
+        connections,
+        gzip,
+        tls_ca,
+        tls_name,
+    } = options;
     // Pool like the native client: one h2 driver task per connection on
     // both sides, or the peer comparison measures client framing.
     let channel = load_tonic_channel(addr, connections, tls_ca, tls_name).await?;
@@ -1559,7 +1590,7 @@ async fn run_load_tonic(
                             }
                         }
                         drop(tx);
-                        while inbound
+                        if inbound
                             .message()
                             .await
                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
@@ -1594,16 +1625,19 @@ fn prost_load_client(
 async fn run_load_prost(
     load_gen: &load::LoadGenerator,
     addr: SocketAddr,
-    shape: LoadShape,
-    req_bytes: usize,
-    resp_bytes: usize,
-    stream_msgs: u32,
-    max_message_size: Option<usize>,
-    connections: usize,
-    gzip: bool,
-    tls_ca: Option<&str>,
-    tls_name: Option<&str>,
+    options: ReferenceLoadOptions<'_>,
 ) -> Result<load::LoadRecord, String> {
+    let ReferenceLoadOptions {
+        shape,
+        req_bytes,
+        resp_bytes,
+        stream_msgs,
+        max_message_size,
+        connections,
+        gzip,
+        tls_ca,
+        tls_name,
+    } = options;
     // Pool like the native client: one h2 driver task per connection on
     // both sides, or the peer comparison measures client framing.
     let channel = load_tonic_channel(addr, connections, tls_ca, tls_name).await?;
@@ -1753,7 +1787,7 @@ async fn run_load_prost(
                             }
                         }
                         drop(tx);
-                        while inbound
+                        if inbound
                             .message()
                             .await
                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
@@ -1992,15 +2026,17 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
                 run_load_tonic(
                     &load_gen,
                     addr,
-                    shape,
-                    req_bytes,
-                    resp_bytes,
-                    stream_msgs,
-                    opts.max_message_size,
-                    connections,
-                    opts.gzip,
-                    opts.tls_ca.as_deref(),
-                    opts.tls_server_name.as_deref(),
+                    ReferenceLoadOptions {
+                        shape,
+                        req_bytes,
+                        resp_bytes,
+                        stream_msgs,
+                        max_message_size: opts.max_message_size,
+                        connections,
+                        gzip: opts.gzip,
+                        tls_ca: opts.tls_ca.as_deref(),
+                        tls_name: opts.tls_server_name.as_deref(),
+                    },
                 )
                 .await?
             }
@@ -2008,15 +2044,17 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
                 run_load_prost(
                     &load_gen,
                     addr,
-                    shape,
-                    req_bytes,
-                    resp_bytes,
-                    stream_msgs,
-                    opts.max_message_size,
-                    connections,
-                    opts.gzip,
-                    opts.tls_ca.as_deref(),
-                    opts.tls_server_name.as_deref(),
+                    ReferenceLoadOptions {
+                        shape,
+                        req_bytes,
+                        resp_bytes,
+                        stream_msgs,
+                        max_message_size: opts.max_message_size,
+                        connections,
+                        gzip: opts.gzip,
+                        tls_ca: opts.tls_ca.as_deref(),
+                        tls_name: opts.tls_server_name.as_deref(),
+                    },
                 )
                 .await?
             }
@@ -2340,11 +2378,11 @@ async fn run_scale_benchmark(opts: ScaleCliArgs) -> Result<(), String> {
         println!("{}", serde_json::to_string_pretty(&report).unwrap());
     }
     if let Some(path) = &opts.output_file {
-        if let Some(parent) = std::path::Path::new(path).parent() {
-            if !parent.as_os_str().is_empty() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|e| format!("create output dir {}: {e}", parent.display()))?;
-            }
+        if let Some(parent) = std::path::Path::new(path).parent()
+            && !parent.as_os_str().is_empty()
+        {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("create output dir {}: {e}", parent.display()))?;
         }
         std::fs::write(path, serde_json::to_string_pretty(&report).unwrap())
             .map_err(|e| format!("write {path}: {e}"))?;
@@ -2903,13 +2941,15 @@ mod tests {
                 assert_eq!(
                     load_native_channel(
                         addr,
-                        trust.to_str(),
-                        Some(name),
-                        None,
-                        1,
-                        NativeWindowMode::Default,
-                        DEFAULT_SMALL_WINDOW_SIZE,
-                        false
+                        NativeChannelOptions {
+                            tls_ca: trust.to_str(),
+                            tls_server_name: Some(name),
+                            max_message_size: None,
+                            connections: 1,
+                            window_mode: NativeWindowMode::Default,
+                            small_window_size: DEFAULT_SMALL_WINDOW_SIZE,
+                            small_window_override: false,
+                        },
                     )
                     .await
                     .is_ok(),
