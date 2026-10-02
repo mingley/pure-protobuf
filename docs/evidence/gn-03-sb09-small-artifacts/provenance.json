@@ -1,0 +1,43 @@
+{
+  "source_commit": "8b6cc270af49838b3cd4793141ca5b269a795202",
+  "coordinator_sha256": "9146637996b827afd224de26ddf10cf0727f134c758b7ca28ae5bb17e98fb084",
+  "campaign": "target/codegen-bench/gn03-small-pair-20261002-234019",
+  "lease": "root quiet+LTO small off/on lease granted; actual start check 2026-10-02 23:40:19 UTC; other agents and root hold builds/captures",
+  "started_at_utc": "2026-10-02T23:40:47.233771+00:00",
+  "finished_at_utc": "2026-10-02T23:43:29.256649+00:00",
+  "numeric_classification": "unqualified local diagnostic with retained quiet-window exception",
+  "metrics": {
+    "default": {
+      "output.rust_bytes": 135821,
+      "release_binary.size_bytes": 545936,
+      "generation.elapsed_ns": 10029366,
+      "generation.peak_rss_bytes": 9498624,
+      "generation_unchanged.elapsed_ns": 8459721,
+      "generation_unchanged.peak_rss_bytes": 8667136,
+      "check_clean.elapsed_ns": 14264721453,
+      "check_clean.peak_rss_bytes": 1069563904,
+      "check_incremental.elapsed_ns": 167422050,
+      "check_incremental.peak_rss_bytes": 152866816,
+      "build_release.elapsed_ns": 58404685317,
+      "build_release.peak_rss_bytes": 1960259584
+    },
+    "shared": {
+      "output.rust_bytes": 129486,
+      "release_binary.size_bytes": 545936,
+      "generation.elapsed_ns": 7744110,
+      "generation.peak_rss_bytes": 9580544,
+      "generation_unchanged.elapsed_ns": 7894182,
+      "generation_unchanged.peak_rss_bytes": 9515008,
+      "check_clean.elapsed_ns": 13811339891,
+      "check_clean.peak_rss_bytes": 1074823168,
+      "check_incremental.elapsed_ns": 165418437,
+      "check_incremental.peak_rss_bytes": 156176384,
+      "build_release.elapsed_ns": 57624617274,
+      "build_release.peak_rss_bytes": 1961717760
+    }
+  },
+  "archive_members": 156,
+  "tool_execution_command": "source /workspace/pure-protobuf/work/toolchain/env.sh; CARGO_BUILD_JOBS=1 python3 -B work/sb09-paired-screen.py --case small --campaign gn03-small-pair-20261002-234019 --lease <recorded literal lease> --execute",
+  "raw_archive_scope": "all campaign files after completed-target removal, including reports/logs, inputs/generated/consumer source, manifests/locks, source/schema capsules, common generator and both linked ELFs, fingerprints, telemetry, quiet exception sidecar",
+  "no_full_build_cache_retained": true
+}
