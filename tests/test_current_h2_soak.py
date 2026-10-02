@@ -21,9 +21,15 @@ def complete_report():
         event.update(cycle=cycle, phase=phase, rss_bytes=1000000, rss_hwm_bytes=1100000,
                      file_descriptors=6, os_threads=3, tokio_alive_tasks=0)
         events.append(event)
-    return {"source": {"commit": "a" * 40, "tree": "b" * 40, "dirty": False},
+    limits = {key: {"soft": 1024, "hard": 1024} for key in SOAK.LIMIT_NAMES}
+    return {"schema": "pbrs.current-h2-smoke.v1",
+            "source": {"commit": "a" * 40, "tree": "b" * 40, "dirty": False, "cargo_lock_sha256": "c" * 64},
+            "binary": {"sha256": "d" * 64}, "tools": {"rustc": "rustc", "cargo": "cargo", "python": "python"},
+            "commands": {"build": ["cargo", "test"], "test": ["test-executable"]},
+            "duration_requested_seconds": 1, "duration_actual_seconds": 1.1,
             "settings": SOAK.SETTINGS.copy(), "process_limits": {
                 key: {"soft": 1024, "hard": 1024} for key in SOAK.LIMIT_NAMES},
+            "process_limits_requested": limits,
             "exit_code": 0, "events": events,
             "process_samples": [{"elapsed_seconds": 0.01, "pid": 123,
                                  "memory_bytes": {"VmRSS": 1000000, "VmHWM": 1100000,
@@ -52,6 +58,23 @@ class CurrentH2EvidenceTest(unittest.TestCase):
             report = complete_report()
             report["source"] = source
             self.assertIn("missing or dirty source pin", SOAK.validate_report(report))
+
+    def test_incomplete_tool_binary_lock_pins_and_duration_rejected(self):
+        for key in ("tools", "binary", "commands", "duration_actual_seconds"):
+            report = complete_report()
+            del report[key]
+            self.assertTrue(SOAK.validate_report(report))
+        report = complete_report()
+        del report["source"]["cargo_lock_sha256"]
+        self.assertIn("missing Cargo lockfile pin", SOAK.validate_report(report))
+        report = complete_report()
+        report["duration_requested_seconds"] = 86400
+        self.assertIn("missing or incomplete requested duration", SOAK.validate_report(report))
+
+    def test_effective_limits_must_match_the_frozen_request(self):
+        report = complete_report()
+        report["process_limits"]["file_descriptors"] = {"soft": 2048, "hard": 2048}
+        self.assertIn("effective process limits differ from frozen requested limits", SOAK.validate_report(report))
 
     def test_infinite_zero_negative_and_string_limits_rejected(self):
         for key in SOAK.LIMIT_NAMES:

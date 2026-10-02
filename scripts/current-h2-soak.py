@@ -101,11 +101,26 @@ def observe_process(pid, elapsed):
 
 def validate_report(report):
     errors = []
+    if report.get("schema") != "pbrs.current-h2-smoke.v1":
+        errors.append("unknown evidence schema")
     source = report.get("source", {})
     if not re.fullmatch(r"[0-9a-f]{40}", str(source.get("commit", ""))) or source.get("dirty") is not False:
         errors.append("missing or dirty source pin")
     if not re.fullmatch(r"[0-9a-f]{40}", str(source.get("tree", ""))):
         errors.append("missing source tree pin")
+    if not re.fullmatch(r"[0-9a-f]{64}", str(source.get("cargo_lock_sha256", ""))):
+        errors.append("missing Cargo lockfile pin")
+    if not re.fullmatch(r"[0-9a-f]{64}", str(report.get("binary", {}).get("sha256", ""))):
+        errors.append("missing executable pin")
+    if any(not report.get("tools", {}).get(tool) for tool in ("rustc", "cargo", "python")):
+        errors.append("incomplete tool pins")
+    if any(not report.get("commands", {}).get(stage) for stage in ("build", "test")):
+        errors.append("missing exact execution commands")
+    requested, actual = report.get("duration_requested_seconds"), report.get("duration_actual_seconds")
+    if (type(requested) not in (int, float) or type(actual) not in (int, float)
+            or not math.isfinite(requested) or not math.isfinite(actual)
+            or requested < 1 or requested > 86400 or actual < requested):
+        errors.append("missing or incomplete requested duration")
     if report.get("settings") != SETTINGS:
         errors.append("settings differ from frozen scenario")
     for key in LIMIT_NAMES:
@@ -114,6 +129,8 @@ def validate_report(report):
         if (type(soft) is not int or type(hard) is not int
                 or soft <= 0 or hard <= 0 or soft > hard):
             errors.append(f"nonfinite or invalid {key} process limit")
+    if report.get("process_limits_requested") != report.get("process_limits"):
+        errors.append("effective process limits differ from frozen requested limits")
     if report.get("qualification", {}).get("qualified") is not False:
         errors.append("a short diagnostic cannot be accepted as production qualification")
     if report.get("qualification", {}).get("soak_24h", {}).get("status") != "not_run":
@@ -230,7 +247,7 @@ def run(args):
                         "python": sys.version},
               "binary": {"path": str(executable), "sha256": hashlib.sha256(executable.read_bytes()).hexdigest()},
               "commands": {"build": build_command, "test": test_command},
-              "settings": SETTINGS, "process_limits": effective,
+              "settings": SETTINGS, "process_limits": effective, "process_limits_requested": limits,
               "duration_requested_seconds": args.duration, "duration_actual_seconds": time.monotonic() - start,
               "events": events, "process_samples": samples, "exit_code": exit_code,
               "qualification": {"qualified": False, "tier": "shared-host-diagnostic",
