@@ -8902,9 +8902,11 @@
    ],
    "evidence": [
     "docs/evidence/sb24-matrix.md",
-    "docs/evidence/sb24-tls-smoke.json"
+    "docs/evidence/sb24-tls-smoke.json",
+    "docs/evidence/sb24-cpu-capacity-20261002.md",
+    "docs/evidence/sb24-counter-window-20261002.md"
    ],
-   "notes": "Execution 2026-09-29: d9c34c06 TLS follow-up passes 144 wiring cells (1296 successful calls, zero failures/rejections/timeouts) and wrong-CA/wrong-name checks. This is not throughput evidence. Native/native sessions negotiate AES-256 rather than the contract's AES-128; native/tonic sessions show AES-128, while tonic/tonic has a configured single AES-128 suite but no actual load-session telemetry. No core cipher-policy API changed. Keep open for cipher equality, full observed runtime settings, equivalent Go/C++ cells, dedicated-host generator/reference headroom and aligned resource windows, feasible 100k topology, and measured saturation-knee/overload evidence. 2026-10-02: bounded CPU-capacity correction claimed separately from frozen SB-21 evidence. Require per-PID actual task affinity and proven full CPU quota hierarchy, including fractional ancestor quotas; reject missing, ambiguous, namespace-hidden or drifting capacity instead of using thread count/hardware cores. Preserve existing 95% generator/80% server/10% scheduling-lag gates. Accessible quotas alone are diagnostic upper bounds; this host remains unverified. Full task acceptance remains open.",
+   "notes": "Execution 2026-09-29: d9c34c06 TLS follow-up passes 144 wiring cells (1296 successful calls, zero failures/rejections/timeouts) and wrong-CA/wrong-name checks. This is not throughput evidence. Native/native sessions negotiate AES-256 rather than the contract's AES-128; native/tonic sessions show AES-128, while tonic/tonic has a configured single AES-128 suite but no actual load-session telemetry. No core cipher-policy API changed. Keep open for cipher equality, full observed runtime settings, equivalent Go/C++ cells, dedicated-host generator/reference headroom and aligned resource windows, feasible 100k topology, and measured saturation-knee/overload evidence. 2026-10-02: bounded CPU-capacity correction claimed separately from frozen SB-21 evidence. Require per-PID actual task affinity and proven full CPU quota hierarchy, including fractional ancestor quotas; reject missing, ambiguous, namespace-hidden or drifting capacity instead of using thread count/hardware cores. Preserve existing 95% generator/80% server/10% scheduling-lag gates. Accessible quotas alone are diagnostic upper bounds; this host remains unverified. Full task acceptance remains open. 2026-10-02 source daf5407758f1a7edac830513b8f7545931d6a781 and cbf72722fbebe4bff090c5c1e44658a8e46c4df9 implement fail-closed per-PID capacity and cumulative endpoint counter-window guards. Coordinator integrated40 matrix/42 stack tests pass (two credential skips), all11 final proof hashes verified. Real host remains FAIL (UNVERIFIED); measured RPC-window alignment/full claim matrix and dedicated headroom remain open.",
    "implementer": "sb24_capacity_accounting",
    "reviewer": "coordinator"
   },
@@ -9158,14 +9160,15 @@
     "CG-05",
     "CG-19"
    ],
-   "notes": "Completed at d20f88317338f9b433252bc61227544c95287698; evidence 4f4c87d4553572c61fe340167cd1360eb207f672. Multi-input imported Google definitions share one canonical owner; requested aliases remain compatible; single-input output is byte-identical. Pinned option-schema reproducer shrinks Rust output from 3,384,643 to 2,398,306 bytes and DescriptorProto copies 3 to 1. Additive default-feature WKT facade, exact aliases, explicit unsupported mapping diagnostics, compiled consumers and documentation contracts pass. Required codegen gates, pinned onboarding, strict lint/docs/format and nonmutating regeneration pass. Frozen-runtime paired downstream costs are local diagnostics only; integrated conformance follows. Separate 40db064d fixes required feature gates for tooling binaries with minimal/default/codegen/conformance profiles and archived original failures.",
+   "notes": "Completed at d20f88317338f9b433252bc61227544c95287698; evidence 4f4c87d4553572c61fe340167cd1360eb207f672. Multi-input imported Google definitions share one canonical owner; requested aliases remain compatible; single-input output is byte-identical. Pinned option-schema reproducer shrinks Rust output from 3,384,643 to 2,398,306 bytes and DescriptorProto copies 3 to 1. Additive default-feature WKT facade, exact aliases, explicit unsupported mapping diagnostics, compiled consumers and documentation contracts pass. Required codegen gates, pinned onboarding, strict lint/docs/format and nonmutating regeneration pass. Frozen-runtime paired downstream costs are local diagnostics only; integrated conformance follows. Separate 40db064d fixes required feature gates for tooling binaries with minimal/default/codegen/conformance profiles and archived original failures. Adoption consumer forwardfix d789ada52b46442065da57891dd65ed6697e06b9 preserves native/prost/option paths using shared native Any/descriptor owners with application-aware reflection pools.14 consumer tests and strict all-target Clippy pass; coordinator replays64/512/64 inventory oracle equality and verifies7 artifacts/42 archive members. Red20-error baseline and broader ENOSPC attempt retained; no broad-suite or performance completion claim.",
    "status": "done",
    "implementer": "gn12_codegen_wkt",
    "reviewer": "coordinator",
    "evidence": [
     "docs/evidence/gn-11-wkt-sharing.md",
     "docs/evidence/gn-11-artifacts/provenance.json",
-    "docs/evidence/minimal-binary-profiles.md"
+    "docs/evidence/minimal-binary-profiles.md",
+    "docs/evidence/gn-11-adoption-consumer.md"
    ]
   },
   {
@@ -10393,7 +10396,11 @@
    ],
    "status": "in_progress",
    "implementer": "gn13_prost_encoding",
-   "notes": "Claimed 2026-10-02 for a bounded safe prost contiguous-buffer encoding experiment. Exclusive initial scope is codec.rs, codec/prost.rs, wire/encode.rs and dedicated tests/evidence; client/server and benchmark mutations require coordination with SV-09/SB-21. Hypothesis and additive default-method API are reviewed before editing. All prost ledger cells, unchanged control thresholds, limits, compression, shared native segments and batch rollback must remain qualified before shipping or closure."
+   "notes": "Claimed 2026-10-02 for a bounded safe prost contiguous-buffer encoding experiment. Exclusive initial scope is codec.rs, codec/prost.rs, wire/encode.rs and dedicated tests/evidence; client/server and benchmark mutations require coordination with SV-09/SB-21. Hypothesis and additive default-method API are reviewed before editing. All prost ledger cells, unchanged control thresholds, limits, compression, shared native segments and batch rollback must remain qualified before shipping or closure. 2026-10-02 candidate2321d736 is rejected and reverted at9f3205cf: full original20-row comparator exits1 despite primary IR/alloc/byte gains; syscall/futex controls regress. All122 eligible native ledger rows reduce allocation count/bytes, but58 still exceed tonic bytes at both Ns, and12 map rows remain blocked. Coordinator verifies59 artifact hashes,240 original children/metrics and2928 unique allocator children. No candidate runtime/API ships. Independent cold-handshake future-size experiment is unqualified pending release/cold/TLS/ledger measurements.",
+   "evidence": [
+    "docs/evidence/cl-08.md",
+    "docs/evidence/cl-08/qualification.json"
+   ]
   },
   {
    "id": "CL-09",
@@ -11927,7 +11934,7 @@
    "depends_on": [
     "TC-26"
    ],
-   "status": "in_progress",
+   "status": "done",
    "implementer": "tonic_server_transport",
    "read": [
     "pbrs-grpc/src/server/",
@@ -11961,7 +11968,12 @@
     "TC-30",
     "TC-29"
    ],
-   "notes": "Bounded scope expanded after unchanged generated authentication fixtures exposed the reverse transport context boundary. Capture actual tonic Connected TCP/TLS/Unix info from the same completed native accept/handshake, preserve native fields, and offer additive feature-gated trusted custom-acceptor builders. Support ordinary Tower layers without NamedService using a retained name marker and generic Bytes response bodies. Final source must pass genuine mTLS/Unix/custom Incoming and all four shape fixtures before closure; no default graph, TLS provider, verifier, drain or codec policy change."
+   "notes": "Bounded scope expanded after unchanged generated authentication fixtures exposed the reverse transport context boundary. Capture actual tonic Connected TCP/TLS/Unix info from the same completed native accept/handshake, preserve native fields, and offer additive feature-gated trusted custom-acceptor builders. Support ordinary Tower layers without NamedService using a retained name marker and generic Bytes response bodies. Final source must pass genuine mTLS/Unix/custom Incoming and all four shape fixtures before closure; no default graph, TLS provider, verifier, drain or codec policy change. Completed bounded functional leaf 2026-10-02 at source d2a7bc467c31b68c2647d9343258a7fa509b65db, evidence bb546123970bf5334d7b8f643c5c972033755503:144 tests pass, strict native/consumer Clippy and rustdoc, feature-off check/normal graph and scoped formatting pass. Coordinator verified source hashes and all13 attempt/final log hashes; final pin-based peer review has no blocker. TC-30 parent, TC-30b native opaque-body policies and SB-32 actual-adapter performance remain open; unsupported configured typed policies fail before readiness/business dispatch.",
+   "evidence": [
+    "docs/evidence/tc-30a.md",
+    "docs/evidence/tc-30a/validation.json"
+   ],
+   "reviewer": "coordinator"
   },
   {
    "id": "TC-30b",
