@@ -174,7 +174,11 @@ func (slot *qpsSlot) call(ctx context.Context, rpcType testpb.RpcType, reqSize, 
 	callCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	request := &testpb.SimpleRequest{ResponseType: testpb.PayloadType_COMPRESSABLE,
-		ResponseSize: int32(respSize), Payload: benchmark.NewPayload(testpb.PayloadType_COMPRESSABLE, reqSize)}
+		ResponseSize: int32(respSize)}
+	// Match native's absent empty payload, including its protobuf wire presence.
+	if reqSize > 0 {
+		request.Payload = benchmark.NewPayload(testpb.PayloadType_COMPRESSABLE, reqSize)
+	}
 	if rpcType == testpb.RpcType_UNARY {
 		_, err := slot.client.UnaryCall(callCtx, request)
 		return status.Code(err)

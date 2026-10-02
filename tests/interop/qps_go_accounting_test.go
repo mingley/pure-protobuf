@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"io"
-	"math"
 	"net"
 	"sync/atomic"
 	"testing"
@@ -63,6 +62,7 @@ func TestAccountingResetConservesCarryFailuresAndRejections(t *testing.T) {
 
 type delayedQpsServer struct {
 	testpb.UnimplementedBenchmarkServiceServer
+	unexpectedPayload *atomic.Bool
 }
 
 type countedStreamServer struct {
@@ -112,6 +112,10 @@ func TestStreamingArrivalUsesNewStreamOneMessageOneReplyAndExactPayload(t *testi
 			t.Fatalf("stream arrival failed: %v", code)
 		}
 	}
+	deadline := time.Now().Add(time.Second)
+	for counted.replies.Load() < 2 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
 	if counted.streams.Load() != 2 || counted.requests.Load() != 2 || counted.replies.Load() != 2 ||
 		counted.requestBytes.Load() != 256 || counted.responseBytes.Load() != 512 {
 		t.Fatalf("stream work unit/bytes do not match native: streams=%d requests=%d replies=%d bytes=%d/%d",
@@ -119,7 +123,10 @@ func TestStreamingArrivalUsesNewStreamOneMessageOneReplyAndExactPayload(t *testi
 	}
 }
 
-func (delayedQpsServer) UnaryCall(ctx context.Context, _ *testpb.SimpleRequest) (*testpb.SimpleResponse, error) {
+func (s delayedQpsServer) UnaryCall(ctx context.Context, request *testpb.SimpleRequest) (*testpb.SimpleResponse, error) {
+	if request.Payload != nil && s.unexpectedPayload != nil {
+		s.unexpectedPayload.Store(true)
+	}
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -134,7 +141,8 @@ func TestAggregateSchedulerBoundsSlotsAndAccountsRejectedArrivals(t *testing.T) 
 		t.Fatal(err)
 	}
 	server := grpc.NewServer()
-	testpb.RegisterBenchmarkServiceServer(server, delayedQpsServer{})
+	var unexpectedPayload atomic.Bool
+	testpb.RegisterBenchmarkServiceServer(server, delayedQpsServer{unexpectedPayload: &unexpectedPayload})
 	go server.Serve(listener)
 	defer server.Stop()
 	conn, err := grpc.NewClient(listener.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -171,7 +179,11 @@ func TestAggregateSchedulerBoundsSlotsAndAccountsRejectedArrivals(t *testing.T) 
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.completed != a.dispatched || math.IsNaN(float64(a.service.Sum)) || a.scheduled.Sum < a.service.Sum {
+	if a.completed != a.dispatched || a.service.Count != int64(a.completed) ||
+		a.scheduled.Count != int64(a.completed) || a.scheduled.Sum < a.service.Sum {
 		t.Fatal("final independent completion/latency accounting failed")
+	}
+	if unexpectedPayload.Load() {
+		t.Fatal("empty payload wire presence differs from native")
 	}
 }
