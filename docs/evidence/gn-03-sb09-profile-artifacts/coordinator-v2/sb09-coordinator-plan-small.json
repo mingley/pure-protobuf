@@ -1,0 +1,16 @@
+{
+  "case": "small",
+  "profiles": [
+    "default",
+    "shared"
+  ],
+  "jobs": 1,
+  "repeats": 1,
+  "seed": 190019,
+  "generators": [
+    "pbrs"
+  ],
+  "release": "original opt-level3/thin-LTO/codegen-units1; same target after check",
+  "cold_targets": "distinct initially nonexistent per-profile targets; never bootstrap",
+  "qualification": "local single-pair diagnostic; no thresholds or workload changes"
+}

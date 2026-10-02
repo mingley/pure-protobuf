@@ -1,0 +1,40 @@
+{
+  "base_commit": "06e5c06b",
+  "unchanged_benchmark_source_commit": "dea20f7ae6ec5d33fe4d7cb5fe64004cf6263247",
+  "original_prepared_coordinator_sha256": "031f6f252f6b27530ea1ddcf6557b190127cec9079d2c4cd2da2458427a5f5c2",
+  "fix": "separate immutable common generator binding from linked consumer binary during archival",
+  "red_shim": "original orchestration with only a main/import guard; archived reconstruction of the exact script used by the failing test",
+  "commands": [
+    {
+      "command": "python3 -B work/test_sb09_paired_screen.py",
+      "phase": "red",
+      "exit_code": 1,
+      "status": "second profile receives first archived consumer path; failure retained"
+    },
+    {
+      "command": "python3 -B work/test_sb09_paired_screen.py",
+      "phase": "final",
+      "exit_code": 0,
+      "status": "1 passed, no ignored/skipped cases"
+    },
+    {
+      "command": "python3 -B work/sb09-paired-screen.py --case {small,100,1000}",
+      "phase": "preview",
+      "exit_code": 0,
+      "status": "all three plans produced without execute or builds"
+    }
+  ],
+  "test_scope": "actual two-profile coordinator loop; stub compiler, bootstrap and provenance; same generator path/hash for both profiles; distinct initially nonexistent cold targets; both linked executables and fingerprints retained before completed-target removal",
+  "numeric": {
+    "small": "not_run",
+    "100": "not_run",
+    "1000": "not_run"
+  },
+  "tool_execution": "no Cargo/rustc/protoc commands; no live performance capture",
+  "source_sha256": {
+    "bench/codegen/run.py": "cf4cb09d684ca8a976a00ae9ee2ad6ffd05d00326981bb4b71145cda6232cbcd",
+    "bench/codegen/generator.rs": "79e5383d967161094303f04f1f3925d14d74812e6a0c15147057c78d24bad796",
+    "bench/codegen/test_run.py": "560da5720e84604dee908ade0189639bbcb7b7a43b9d94cff403554a60cd282a",
+    "bench/codegen/README.md": "e99472bddf86a6c8fe17da73914327aea5acf3fc95876736f84c9cc660c58c7b"
+  }
+}
