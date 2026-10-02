@@ -1,0 +1,34 @@
+{
+  "source": "e8fc4f2b4acdae53c283e6f6aec3d58add8dabfd + hashed diagnostic-only sources",
+  "runtime_baseline": "cf3eee22c6b06324e299f81b76915651471d8025",
+  "decision": "rejected: replacement whole-slot 11544-byte copy plus 8-byte wrapper remains",
+  "files": {
+    "work/dispatch-probe/Cargo.toml": "136513da6ad6a7738c0c6f9ba87918f0897022fca0e6f3c36cf6d5b49d3bb66e",
+    "work/dispatch-probe/Cargo.lock": "971414022803d3c1a19e32ef4909d1ef897b2e800e6c3574554c31be978e504b",
+    "work/dispatch-probe/build.rs": "363342c939503a1f82d665277192991febfbfd39a4ffb39fa2c0e133bb5e324f",
+    "work/dispatch-probe/src/main.rs": "452f07354efc8404dd1f5ed814ecf3fac38c4bbbaeaa0535526fdc602accf02d",
+    "work/dispatch-probe/src/dispatch_probe.rs": "b021e8d162a9f220a7a768d4d702c7d5080588ff772a14ea2f7c66eee31bbe81",
+    "work/dispatch-probe/src/slot.rs": "793ffa0eae8de8fb5f732db68aff62b3b22a4b49c37bec7004836de03395afdb",
+    "work/dispatch-probe/source.patch": "0c6270129ba7b5f0f593de5d1250a0b37bfc00dd94d6a2f7bd81fef02f2d6240",
+    "work/dispatch-probe/README.md": "880abf0fd7fd8a375d9d73cd586681483c5370948b6567550a05c85712d3b9e0",
+    "work/profiles/dispatch-slot-tests.log": "ca1a9f0a9bac1c51df229ec68021294ea9d0a00d241f63e86ca517bc3a016800",
+    "work/profiles/dispatch-slot-tests-initial.log": "298e21cdc88f19024abb5cc372817f61557c2cd92f06a4f27100cfda55dc259b",
+    "work/profiles/dispatch-probe-release.log": "815eb9fd7b246b0a063c1d5304eb40bb55a5d808bbe6ed1086a8793e92aa2616",
+    "work/profiles/dispatch-probe-layout.log": "de3a7c4c3c429a274604d93fa0767f36f236d5791daded4db5ef3a421e31fb64",
+    "work/profiles/dispatch-probe-symbols.txt": "8f8d909445f992cb106bc97c80937147859f89431b06adc6311f4d4a43d67da2",
+    "work/profiles/dispatch-probe-original.asm.txt": "9b6bccfd0c44552d64a2fa979ed966f2f35f2ca3deaaee049b1ba1fba0ce8820",
+    "work/profiles/dispatch-probe-proposed.asm.txt": "da7be1c03ad346484f53be97b9147552f78bab8bd6aeaa471050fc26bd775beb",
+    "work/profiles/dispatch-probe-actual-dyn.asm.txt": "2936c3acada01d843632c11a2661fe71f19ba11962306248d1756e712b03b175",
+    "work/profiles/dispatch-probe-pins.json": "40ef27616aa406624ec15d1ee2d4e4cbde0ab8e9f3935a09a5f307477598c666"
+  },
+  "symlinks": {
+    "work/dispatch-probe/adoption": "../../bench/devloop/adoption",
+    "work/dispatch-probe/proto": "../../bench/devloop/proto",
+    "work/dispatch-probe/cells": "../../bench/devloop/cells",
+    "work/dispatch-probe/src/blob.rs": "../../../bench/devloop/src/blob.rs",
+    "work/dispatch-probe/src/counters.rs": "../../../bench/devloop/src/counters.rs",
+    "work/dispatch-probe/src/adoption_rpc.rs": "../../../bench/devloop/src/adoption_rpc.rs",
+    "work/corpora": "../bench/corpora"
+  },
+  "archive_sha256": "ef43e0756d38ddbe094b27a1cace152c27bcbef6d04ccac68feb34cef363a94d"
+}
