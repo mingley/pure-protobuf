@@ -1,0 +1,28 @@
+{
+  "id": "format",
+  "command_argv": [
+    "rustfmt",
+    "--edition",
+    "2024",
+    "--check",
+    "pbrs-grpc/src/tonic_server.rs",
+    "pbrs-grpc/src/server/connection.rs",
+    "pbrs-grpc/src/server/accept.rs",
+    "pbrs-grpc/tests/tonic_service_transport.rs",
+    "tests/interop/tonic/tests/transport_services.rs"
+  ],
+  "exit_code": 0,
+  "started_utc": "2026-10-02T20:44:27.093871+00:00",
+  "finished_utc": "2026-10-02T20:44:27.144404+00:00",
+  "log": "docs/evidence/tc-30a/format.log",
+  "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "source_file_sha256": {
+    "pbrs-grpc/src/lib.rs": "b92121d12bd4b3c8dce20c0c72861ae67df56ae3a7122ed0c7510d1dcdaf25b4",
+    "pbrs-grpc/src/tonic_server.rs": "fcf1a2150e39cffffae0c6b33126a27d843903983a706a24d030c48ccca61e35",
+    "pbrs-grpc/src/server/accept.rs": "f1244c01baaa4fedec5c8f890016d95967ea04fe38f622a50c32876ea8f1cade",
+    "pbrs-grpc/src/server/connection.rs": "6ad6a630365fb20b183d9e2b286162300fe9907536eff96a271c2392632a277a",
+    "pbrs-grpc/tests/tonic_service_transport.rs": "7fcb009837c813ac029f075f735ced290ce97d0c45a1da4ae9929f789460fc68",
+    "tests/interop/tonic/tests/transport_services.rs": "f3b0e8b106645ec9ae01149dacebb3f6f6ded26003825c094272a5e431b94572"
+  },
+  "source_unchanged_during_check": true
+}

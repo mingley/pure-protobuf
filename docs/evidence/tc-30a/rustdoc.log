@@ -1,0 +1,5 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/tc29)
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/tc29/pbrs-grpc)
+ Documenting pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/tc29/pbrs-grpc)
+    Finished `dev` profile [unoptimized] target(s) in 41.19s
+   Generated /workspace/scratch/work/tc29/target/doc/pbrs_grpc/index.html and 4 other files

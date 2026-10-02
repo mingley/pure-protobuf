@@ -1,0 +1,38 @@
+{
+  "id": "native-regressions",
+  "command_argv": [
+    "cargo",
+    "test",
+    "--locked",
+    "-p",
+    "pbrs-grpc",
+    "--features",
+    "tonic",
+    "--test",
+    "tower_client",
+    "--test",
+    "tonic_server",
+    "--test",
+    "retry_safety",
+    "--test",
+    "hostile",
+    "--test",
+    "tls",
+    "--test",
+    "connect_info"
+  ],
+  "exit_code": 0,
+  "started_utc": "2026-10-02T20:47:12.086952+00:00",
+  "finished_utc": "2026-10-02T20:48:31.573438+00:00",
+  "log": "docs/evidence/tc-30a/native-regressions.log",
+  "log_sha256": "f50bd8c2b69d70c2e13f347526a32284bbd5818d8ff99d3e06fcd962e492a0d6",
+  "source_file_sha256": {
+    "pbrs-grpc/src/lib.rs": "b92121d12bd4b3c8dce20c0c72861ae67df56ae3a7122ed0c7510d1dcdaf25b4",
+    "pbrs-grpc/src/tonic_server.rs": "fcf1a2150e39cffffae0c6b33126a27d843903983a706a24d030c48ccca61e35",
+    "pbrs-grpc/src/server/accept.rs": "f1244c01baaa4fedec5c8f890016d95967ea04fe38f622a50c32876ea8f1cade",
+    "pbrs-grpc/src/server/connection.rs": "6ad6a630365fb20b183d9e2b286162300fe9907536eff96a271c2392632a277a",
+    "pbrs-grpc/tests/tonic_service_transport.rs": "7fcb009837c813ac029f075f735ced290ce97d0c45a1da4ae9929f789460fc68",
+    "tests/interop/tonic/tests/transport_services.rs": "f3b0e8b106645ec9ae01149dacebb3f6f6ded26003825c094272a5e431b94572"
+  },
+  "source_unchanged_during_check": true
+}
