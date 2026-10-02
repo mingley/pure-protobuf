@@ -46,7 +46,11 @@ impl Prefix {
         loop {
             if self.admitted {
                 if self.emitted < self.queued {
-                    let fragment = std::mem::take(&mut self.fragments[self.emitted]);
+                    let fragment = std::mem::take(
+                        self.fragments
+                            .get_mut(self.emitted)
+                            .ok_or_else(|| Status::internal("invalid gRPC prefix state"))?,
+                    );
                     self.emitted += 1;
                     return Ok(Some(fragment));
                 }
@@ -68,9 +72,15 @@ impl Prefix {
             }
             let n = (5 - self.filled).min(self.data.len());
             let fragment = self.data.split_to(n);
-            self.header[self.filled..self.filled + n].copy_from_slice(&fragment);
+            self.header
+                .get_mut(self.filled..self.filled + n)
+                .ok_or_else(|| Status::internal("invalid gRPC prefix state"))?
+                .copy_from_slice(&fragment);
             self.filled += n;
-            self.fragments[self.queued] = fragment;
+            *self
+                .fragments
+                .get_mut(self.queued)
+                .ok_or_else(|| Status::internal("invalid gRPC prefix state"))? = fragment;
             self.queued += 1;
             if self.filled != 5 {
                 return Ok(None);
