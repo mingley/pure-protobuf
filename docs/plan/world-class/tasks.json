@@ -2939,7 +2939,7 @@
    ],
    "relates": [],
    "status": "in_progress",
-   "notes": "2026-09-29 coordinator: option slice + runtime sharing slice (e494b80f: Arc pool + 64-slot OnceLock cache + COW; lib 85/dynamic 27/codegen_compat 10/plugin 41/clippy/fmt/no-default green; lazy once-per-process on first use achieved) integrated. REMAINDER narrowed: opt-in source-level shared emission only (emitter change in descriptors.rs with standalone-include! tradeoff; SB-09 size/check cells unmoved by construction). Blocked on GN-02/GN-04 landing.",
+   "notes": "2026-09-29 coordinator: option slice + runtime sharing slice (e494b80f: Arc pool + 64-slot OnceLock cache + COW; lib 85/dynamic 27/codegen_compat 10/plugin 41/clippy/fmt/no-default green; lazy once-per-process on first use achieved) integrated. REMAINDER narrowed: opt-in source-level shared emission only (emitter change in descriptors.rs with standalone-include! tradeoff; SB-09 size/check cells unmoved by construction). Blocked on GN-02/GN-04 landing. 2026-10-02: GN-02 and GN-11 source work has landed; GN-04 remains partially qualified but is no longer a source-ownership blocker. Reopened the remaining opt-in source-level descriptor emission design for bounded review; preserve standalone includes and reflection behavior, and measure actual SB-09 binary/check costs before closure.",
    "evidence": [
     "docs/evidence/gn-03-reflection-options.md",
     "docs/evidence/gn-02-generated-shrink.md",
@@ -9142,9 +9142,15 @@
     "CG-05",
     "CG-19"
    ],
-   "notes": "Observed 2026-09-29 while evaluating adoption against a private production-shaped corpus (deeply nested recursive query trees; responses of repeated entity records carrying google.protobuf.Any payloads) with pbrs 18e36617, prost 0.14.3 and tonic 0.14.6: Linux arm64 callgrind (2N-N)/N instructions and exact counting-allocator allocations; dev-loop evidence only, not claim-grade. A 20-file production-shaped closure whose option schemas import descriptor.proto generated 284,377 lines (19.5 MB) versus prost's 1,825 lines (71 KB). Generating google/protobuf once in a separate pass, mounting it at crate::google::protobuf and extern_path-ing the app files cut this to 104,913 lines (8.1 MB) and compiled; debug rebuild of that crate took 7.1-8.2 s vs prost 5.3-6.0 s. Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure.",
-   "status": "in_progress",
-   "implementer": "gn12_codegen_wkt"
+   "notes": "Completed at d20f88317338f9b433252bc61227544c95287698; evidence 4f4c87d4553572c61fe340167cd1360eb207f672. Multi-input imported Google definitions share one canonical owner; requested aliases remain compatible; single-input output is byte-identical. Pinned option-schema reproducer shrinks Rust output from 3,384,643 to 2,398,306 bytes and DescriptorProto copies 3 to 1. Additive default-feature WKT facade, exact aliases, explicit unsupported mapping diagnostics, compiled consumers and documentation contracts pass. Required codegen gates, pinned onboarding, strict lint/docs/format and nonmutating regeneration pass. Frozen-runtime paired downstream costs are local diagnostics only; integrated conformance follows. Separate 40db064d fixes required feature gates for tooling binaries with minimal/default/codegen/conformance profiles and archived original failures.",
+   "status": "done",
+   "implementer": "gn12_codegen_wkt",
+   "reviewer": "coordinator",
+   "evidence": [
+    "docs/evidence/gn-11-wkt-sharing.md",
+    "docs/evidence/gn-11-artifacts/provenance.json",
+    "docs/evidence/minimal-binary-profiles.md"
+   ]
   },
   {
    "id": "PK-26",
