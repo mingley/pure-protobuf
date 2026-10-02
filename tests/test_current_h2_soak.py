@@ -46,8 +46,9 @@ class CurrentH2EvidenceTest(unittest.TestCase):
 
     def test_missing_wrong_and_dirty_source_rejected_before_build(self):
         for pin in (None, "", "a" * 8, "z" * 40):
-            with self.subTest(pin=pin), self.assertRaises(ValueError), mock.patch.object(SOAK, "command") as command:
-                SOAK.freeze_source(pin)
+            with self.subTest(pin=pin), mock.patch.object(SOAK, "command") as command:
+                with self.assertRaises(ValueError):
+                    SOAK.freeze_source(pin)
                 command.assert_not_called()
         with mock.patch.object(SOAK, "command", return_value="a" * 40), self.assertRaisesRegex(ValueError, "differs"):
             SOAK.freeze_source("b" * 40)
