@@ -1,0 +1,154 @@
+{
+  "schema": "pbrs-sb32-functional/1",
+  "status": "functional implementation qualified; complete numeric SB-32 qualification remains open",
+  "source_commit": "8ca03da51ab3723f53858800ca5b8e2a33d0f448",
+  "base_commit": "c9aef45ca2b351f253397d25e6831d3906027339",
+  "environment": {
+    "cargo_build_jobs": 1,
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0",
+    "target": "/workspace/scratch/work/sb32/target",
+    "last_target_bytes": 969163303
+  },
+  "source_file_sha256": {
+    "bench/devloop/Cargo.toml": "eacf52fb8a7784a06ab56604e211e5992008c511c18078f32175f5fc7bf11c43",
+    "bench/devloop/Cargo.lock": "d1a2e8105c86009759c0aa1568a12a446936d46628ec0244af84abc3240b5135",
+    "bench/devloop/build.rs": "38a5d085246cc60c8377ea6a28fe308b13d9e4fdfd20cab45c12d684acf84fdc",
+    "bench/devloop/src/main.rs": "5d88e13f47a3d2cd329a709dd49d707af2c5e8cc9478ba19fa76fc7a2a1ea269",
+    "bench/devloop/src/tonic_transport_rpc.rs": "b75fb3f8dbb687e2833b7a7f9d099c9e9959ef1da9f571edf27cca6452317dc0",
+    "bench/devloop/proto/tonic_transport.proto": "1b7ae57c53961dd9071d803695787ce24d6c1d1591f725588ca466f2f37c4936"
+  },
+  "preserved_source_sha256": {
+    "Cargo.toml": "f5534592582743ef3d6fbac8b8a9c3b4bdcb4d21a6718c2f84bcfe20e1833c39",
+    "Cargo.lock": "143bd380614c258637da68df0e839157955b0c294a5faf563e927034d557a76e",
+    "pbrs-grpc/Cargo.toml": "82273f732b027c700f49ce445fcb7bc98887df1491afae593d15679d96a6f870",
+    "bench/devloop/src/adoption_rpc.rs": "c9497a30742be52c073ce957eb8e4bfa9c2963d354eebceb7fca66cec176e943",
+    "bench/devloop/adoption/Cargo.toml": "ea25658bdd4f3479d1bd313e86f4a01c78f3004773c19bed994fd06604d2df5d",
+    "bench/devloop/adoption/Cargo.lock": "559a54d6e8553d45abbde340ea696a47585c710f6f1c3c153a1a82dd0635e22a",
+    "bench/devloop/adoption/src/rpc.rs": "145d8bfea4a2451fa504b2d59199e4afe3e6da19e08572169ef42aeeac67f7d9",
+    "bench/devloop/adoption/src/cells.rs": "d5c1211d79ba3bdb7dc54844063a3d919de3456ef0cef54c9e0d7b1134f39735",
+    "bench/devloop/adoption/src/corpus.rs": "217b10758f25a306095bfadde76e8157ed3adfa26b4b72792d1368a815ea2358",
+    "bench/devloop/adoption/src/sparse_walks.rs": "594e8cdae5d798fc4f14a6b9becc93c5492557b940c7fe2378db7192c98c080c",
+    "bench/devloop/adoption/src/workloads.rs": "0557880e16913782724ac38831a7fd460cab150da5ade69ef016f581422207cf",
+    "bench/devloop/adoption/proto/adoption.proto": "477b522ca4ffe88bc1ced6ac9c7fa3694a36813bacf413c2002824d845b6e327",
+    "bench/devloop/adoption/proto/sparse.proto": "89c12885c86be0cf80aae58ce20f2672c6c04d1de0eae7c7c368fe9a98fe71c9"
+  },
+  "tools": {
+    "rustc": {
+      "version": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.0\nLLVM version: 23.1.1",
+      "executable": "/workspace/pure-protobuf/work/toolchain/cargo/bin/rustup",
+      "sha256": "dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71"
+    },
+    "cargo": {
+      "version": "cargo 1.99.0 (5f94df478 2026-08-27)",
+      "executable": "/workspace/pure-protobuf/work/toolchain/cargo/bin/rustup",
+      "sha256": "dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71"
+    },
+    "protoc": {
+      "version": "libprotoc 35.1",
+      "executable": "/workspace/pure-protobuf/target/conformance-build/protoc-35.1.0",
+      "sha256": "ba5165ada96fc34d1295b2056ab8ea99756f7896a0ef0449d07f721595702b28"
+    }
+  },
+  "protobuf_checkout_commit": "35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03",
+  "generated_service_sha256": {
+    "target/debug/build/devloop-d2e22d41e4de9401/out/adoption.transport.rs": "b830564fdff24411fd61175f642a96fe6e3c7607ee3970643ebb00a363896ba2",
+    "target/debug/build/devloop-1fbac85621c628ca/out/adoption.transport.rs": "b830564fdff24411fd61175f642a96fe6e3c7607ee3970643ebb00a363896ba2"
+  },
+  "test_binary": {
+    "path": "/workspace/scratch/work/sb32/target/debug/deps/devloop-cb03ed700fd195bf",
+    "sha256": "036a401c6f0e52f24863626d1541ad59602542b6f63cb5bc278d37ca99ee8571",
+    "tier": "unoptimized correctness test executable; no measured release binary"
+  },
+  "gates": [
+    {
+      "name": "Final-source devloop regressions and full network matrix",
+      "record": "final-network-and-regression-tests.record.json",
+      "result": "17 passed; 488 network preflights passed; 24 original map blocks retained",
+      "measurement": false
+    },
+    {
+      "name": "Strict all-target Clippy",
+      "argv": [
+        "cargo",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "bench/devloop/Cargo.toml",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "result": "passed",
+      "log": "clippy-final.log",
+      "timestamps": null,
+      "source_sha256_matches_final": true
+    },
+    {
+      "name": "Scoped formatting",
+      "argv": [
+        "rustfmt",
+        "--edition",
+        "2024",
+        "--check",
+        "bench/devloop/build.rs",
+        "bench/devloop/src/main.rs",
+        "bench/devloop/src/tonic_transport_rpc.rs",
+        "pbrs-grpc/src/lib.rs"
+      ],
+      "result": "passed",
+      "timestamps": null
+    },
+    {
+      "name": "Source whitespace",
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "result": "passed",
+      "timestamps": null
+    }
+  ],
+  "retained_attempts": [
+    {
+      "log": "initial-check.log",
+      "outcome": "failed",
+      "reason": "duplicate default google.protobuf extern path; fixed by service-only compile_well_known_types(true) with existing external corpus ownership"
+    },
+    {
+      "log": "check-after-extern-fix.log",
+      "outcome": "passed",
+      "scope": "pre-FullValueCheck alias all-target compile; final source compiled in later Clippy/test gates"
+    },
+    {
+      "log": "network-and-regression-tests.log",
+      "outcome": "passed",
+      "scope": "pre-FullValueCheck alias 17 tests; superseded by exact final-source suite"
+    },
+    {
+      "log": "clippy.log",
+      "outcome": "failed",
+      "reason": "private optional full-value closure type complexity; named FullValueCheck alias fixed without behavior change"
+    }
+  ],
+  "log_sha256": {
+    "initial-check.log": "bd6e798c3334c8128e2682afba060ff6fbc3f11863bb3fd192e1a91268233767",
+    "check-after-extern-fix.log": "e351e33e82b7bee2bee5285a4944485e47afb3a3b5708aa9b9f0cd1b3567e5b2",
+    "network-and-regression-tests.log": "7ed52aeacb966ebf51ec08d67bb5f0fe437572a006e046f3a48cc5499f003228",
+    "clippy.log": "0eef582e646dbd5c5d1c5023dbb356dd4325db2ab97e961d23c6c3102fc62540",
+    "clippy-final.log": "a2fde32d7a1ebd5d60953a41387a10b160e3b73485f22f3c6584c672acb636d8",
+    "final-network-and-regression-tests.log": "b3078cce6e75172a1c263ded22cd889af3ea726ba75249a9aebdabf02120040b"
+  },
+  "inventory_sha256": "258bb40cc1082bf1806d33d4f664e9f17daac2a9d60a77b739d34e49d81decde",
+  "graph_audit_sha256": "5a612ec71b476fbaf4168640f1feb6ee72edbeaacf26689ca629381fc6bcdf20",
+  "open_qualification": [
+    "SB-32: full original N16/2N32 x3 allocation/byte and differential instruction matrix, all raw children and tools/source/release-binary pins; unchanged reference baseline two-replay stability contract",
+    "24 map cells remain blocked by original equal-wire preflight; PK-30 policy/correction remains separate",
+    "No release LTO, timing or performance collector has run in this implementation lane",
+    "This functional matrix does not establish production latency, fastest implementation leadership, or full TC-29/TC-30 parent completion"
+  ]
+}
