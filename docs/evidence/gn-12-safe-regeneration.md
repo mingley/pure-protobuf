@@ -73,8 +73,34 @@ reported artifact while leaving the stale default executable untouched.
 ## Pinned generation and final gates
 
 Upstream source/compiler pin: `v35.1`,
-`35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03`. Regenerated output and final
-acceptance gates are recorded after the GN-14 enum-option correction and
-GN-13 generated implementation-lint repair are integrated. The coordinator
-owns final conformance, package-consumer and public-semver results; the
-script contracts alone do not qualify those gates.
+`35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03`; compiler `libprotoc 35.1`.
+Local Rust tools: `rustc 1.99.0 (b940084d7 2026-09-28)` and
+`rustfmt 1.10.0-stable (b940084d7e 2026-09-28)`. Rust build artifacts use
+`CARGO_TARGET_DIR=/workspace/pure-protobuf/work/gn12/target/plugin`, with
+development debug info and incremental compilation disabled. The pinned
+compiler remains in `target/conformance-build` through the worktree's shared
+build symlink.
+
+Generation includes the GN-14 enum-option correction (`9fd03a6c`) and GN-13
+implementation-lint repair (`1b050a3c`). The final script revision tested was
+`9f6397b4`, after the Cargo-artifact review correction. Live commands and all
+14 output SHA-256 digests, including the preserved handwritten registry,
+are retained in [the generation proof](gn-12-regeneration-proof.json).
+
+| Actual pinned-source check | Result |
+|---|---|
+| Two consecutive `./scripts/regen-generated.sh` runs | PASS: identical output bytes and mtimes for all 13 bindings; no hierarchy paths added. |
+| Handwritten `mod.rs` and an untracked scratch probe | PASS: bytes and mtimes preserved by both normal runs and both checks. |
+| `./scripts/regen-generated.sh --check` on fresh output | PASS: exit 0; generated files, Git diff and Git status unchanged. |
+| Append an intentional drift comment to `field_mask.rs`, then `--check` | PASS: exit 1 naming FieldMask; all drifted/other files, Git diff and Git status unchanged. The probe restores the original FieldMask bytes and mtime afterward. |
+
+All 13 registered files differ from the original base. FieldMask has only a
+two-line import reorder from the current Edition 2021 rustfmt; the remaining
+12 bindings incorporate the current generator output. The public registry
+remains byte-identical at SHA-256
+`c6b8a803152aed5db0065006955e633ee0852947df81adad6a36cfb1ca968d56`.
+No generated files were hand-edited to produce the committed output.
+
+The coordinator owns final conformance, core/generated/WKT, strict Clippy and
+rustdoc, formatting, package-consumer and public-semver results on the
+integrated main source. The script proofs above do not qualify those gates.

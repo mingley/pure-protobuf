@@ -108,8 +108,8 @@ mod __gen_google_protobuf_field_mask_proto {
         clippy::let_underscore_must_use,
         reason = "ignoring results in generated wire helpers"
     )]
-    use pbrs::UnknownFields;
     use pbrs::prelude::*;
+    use pbrs::UnknownFields;
     use pbrs::{
         Enum, Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
         RepeatedView, SerializeError, UnknownEnumValue,
