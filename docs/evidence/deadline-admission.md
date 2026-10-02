@@ -13,13 +13,22 @@ and holds the first RPC open. A second unary expires after 50 ms. Only after
 that error, the peer increases its SETTINGS limit to two. The client then sends
 the expired request's HEADERS, complete five-byte gRPC DATA with END_STREAM,
 and RST_STREAM(CANCEL), in that order. The request can therefore execute before
-the cancellation is processed by a real server. This is a request-admission
+the cancellation is processed by a real server. A second regression closes
+the occupied first stream with peer RST_STREAM while retaining SETTINGS=1;
+it produces the same late HEADERS/DATA/CANCEL sequence. Thus the defect also
+occurs when the original peer limit is unchanged. This is a request-admission
 defect, rather than an assertion that a particular scheduler run is flaky.
 
 `pbrs-grpc/tests/deadline_admission.rs` is currently a **red regression**.
 There is no production fix in this proof. The source base is
 `a8545803b90717102fe29c5b48378a74d68d863c`; its client, transport, and original
 retry fixture are unchanged from the failing source.
+
+The final two-test probe remains **0 passed / 2 failed**, exit 101, with
+unchanged source/library/executable hashes. Its
+[raw log](deadline-admission/raw-peer-two-red.log) and
+[pins and compiler command](deadline-admission/raw-peer-two-pins.json)
+supplement the retained first growth-only proof below.
 
 ## Artifact provenance
 

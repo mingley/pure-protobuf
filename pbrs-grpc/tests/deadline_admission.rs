@@ -54,8 +54,7 @@ fn unary(
     channel.unary("/helloworld.Greeter/SayHello", request)
 }
 
-#[tokio::test(start_paused = true)]
-async fn expired_queued_unary_never_emits_request_after_peer_capacity_grows() {
+async fn check_expired_request(grow_capacity: bool) {
     let (client, mut peer) = tokio::io::duplex(65536);
     let connect = tokio::spawn(Channel::from_io(client, "localhost"));
     let mut preface = [0; 24];
@@ -82,9 +81,16 @@ async fn expired_queued_unary_never_emits_request_after_peer_capacity_grows() {
         Code::DeadlineExceeded
     );
 
-    // A SETTINGS increase deterministically releases the h2 queue without
-    // allowing the first call to finish or relying on scheduler contention.
-    settings(&mut peer, 2).await;
+    // Either peer action deterministically releases the h2 queue after the
+    // deadline, without relying on scheduler contention.
+    if grow_capacity {
+        settings(&mut peer, 2).await;
+    } else {
+        peer.write_all(&[0, 0, 4, 3, 0, 0, 0, 0, 1, 0, 0, 0, 8])
+            .await
+            .expect("reset first stream");
+        peer.flush().await.expect("flush reset");
+    }
     let mut received = Vec::new();
     while let Ok(next) = tokio::time::timeout(Duration::from_millis(30), frame(&mut peer)).await {
         eprintln!("after deadline: {next:?}");
@@ -95,4 +101,14 @@ async fn expired_queued_unary_never_emits_request_after_peer_capacity_grows() {
         received.iter().all(|next| next.stream == 0),
         "expired RPC emitted stream frames after capacity became available: {received:?}"
     );
+}
+
+#[tokio::test(start_paused = true)]
+async fn expired_queued_unary_never_emits_request_after_peer_capacity_grows() {
+    check_expired_request(true).await;
+}
+
+#[tokio::test(start_paused = true)]
+async fn expired_queued_unary_never_emits_request_after_occupied_stream_closes() {
+    check_expired_request(false).await;
 }
