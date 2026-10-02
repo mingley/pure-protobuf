@@ -87,6 +87,14 @@ def test_executable(messages):
     return Path(artifacts[0])
 
 
+def executable_drift(executable, launch_sha256):
+    try:
+        actual = hashlib.sha256(executable.read_bytes()).hexdigest()
+    except OSError:
+        return ["executable disappeared during execution"]
+    return [] if actual == launch_sha256 else ["executable changed during execution"]
+
+
 def observe_process(pid, elapsed):
     status = (Path("/proc") / str(pid) / "status").read_text()
     memory = {}
@@ -217,6 +225,7 @@ def run(args):
     env.update(PBRS_CURRENT_H2_EVENTS=str(events_path), PBRS_CURRENT_H2_SECONDS=str(math.ceil(args.duration)),
                PBRS_CURRENT_H2_SEED=str(args.seed))
     samples, failures = [], []
+    launch_sha256 = hashlib.sha256(executable.read_bytes()).hexdigest()
     start = time.monotonic()
     with (output / "test.stdout.log").open("w") as stdout, (output / "test.stderr.log").open("w") as stderr:
         child = subprocess.Popen(test_command, cwd=ROOT, env=env, stdout=stdout, stderr=stderr,
@@ -240,6 +249,7 @@ def run(args):
                 break
             time.sleep(0.05)
         exit_code = child.wait()
+    failures.extend(executable_drift(executable, launch_sha256))
     events = []
     if events_path.exists():
         for line in events_path.read_text().splitlines():
@@ -251,7 +261,7 @@ def run(args):
               "host": dict(platform.uname()._asdict()), "seed": args.seed,
               "tools": {"rustc": command(["rustc", "-Vv"]), "cargo": command(["cargo", "-V"]),
                         "python": sys.version},
-              "binary": {"path": str(executable), "sha256": hashlib.sha256(executable.read_bytes()).hexdigest()},
+              "binary": {"path": str(executable), "sha256": launch_sha256},
               "commands": {"build": build_command, "test": test_command},
               "settings": SETTINGS, "process_limits": effective, "process_limits_requested": limits,
               "duration_requested_seconds": args.duration, "duration_actual_seconds": time.monotonic() - start,

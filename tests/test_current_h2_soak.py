@@ -1,9 +1,11 @@
 """Negative acceptance cases for retained current-h2 smoke evidence."""
 
 import copy
+import hashlib
 import importlib.util
 from pathlib import Path
 import resource
+import tempfile
 import unittest
 from unittest import mock
 
@@ -161,6 +163,17 @@ class CurrentH2EvidenceTest(unittest.TestCase):
         for entries in ([], [old], [current, current]):
             with self.assertRaises(ValueError):
                 SOAK.test_executable(entries)
+
+    def test_replaced_or_removed_executable_cannot_change_the_launch_pin(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable = Path(directory) / "test-binary"
+            executable.write_bytes(b"original")
+            launch = hashlib.sha256(executable.read_bytes()).hexdigest()
+            self.assertEqual(SOAK.executable_drift(executable, launch), [])
+            executable.write_bytes(b"replacement")
+            self.assertEqual(SOAK.executable_drift(executable, launch), ["executable changed during execution"])
+            executable.unlink()
+            self.assertEqual(SOAK.executable_drift(executable, launch), ["executable disappeared during execution"])
 
 
 if __name__ == "__main__":
