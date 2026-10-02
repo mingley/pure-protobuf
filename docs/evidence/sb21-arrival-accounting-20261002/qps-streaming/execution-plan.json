@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "seed": 210021,
+  "repeats": 1,
+  "runs": [
+    {
+      "repeat": 1,
+      "scenario": "claims_streaming_ping_pong_1kb",
+      "direction": "ref_client_to_native_server"
+    }
+  ]
+}

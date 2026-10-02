@@ -1,0 +1,449 @@
+Fri Oct  2 19:16:46 UTC 2026
+1e6b1119182e1e4e90f2d93656765b3bf4929b81
+rustc 1.99.0 (b940084d7 2026-09-28)
+libprotoc 35.1
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.47
+   Compiling bytes v1.12.1
+   Compiling syn v2.0.119
+   Compiling libc v0.2.189
+   Compiling itoa v1.0.18
+   Compiling syn v3.0.4
+   Compiling memchr v2.8.3
+   Compiling hashbrown v0.17.1
+   Compiling equivalent v1.0.2
+   Compiling pin-project-lite v0.2.17
+   Compiling cfg-if v1.0.4
+   Compiling futures-core v0.3.34
+   Compiling errno v0.3.14
+   Compiling once_cell v1.21.4
+   Compiling signal-hook-registry v1.4.8
+   Compiling tokio-macros v2.7.2
+   Compiling socket2 v0.6.5
+   Compiling mio v1.2.2
+   Compiling getrandom v0.3.4
+   Compiling zmij v1.0.23
+   Compiling tokio v1.53.1
+   Compiling anyhow v1.0.104
+   Compiling serde_json v1.0.151
+   Compiling log v0.4.34
+   Compiling serde_core v1.0.229
+   Compiling http v1.5.0
+   Compiling paste v1.0.15
+   Compiling either v1.18.0
+   Compiling itertools v0.14.0
+   Compiling tracing-core v0.1.36
+   Compiling tracing-attributes v0.1.31
+   Compiling slab v0.4.12
+   Compiling futures-sink v0.3.34
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/sb21)
+   Compiling zeroize v1.9.0
+   Compiling bitflags v2.13.2
+   Compiling serde v1.0.229
+   Compiling rustls-pki-types v1.15.1
+   Compiling tokio-util v0.7.19
+   Compiling tracing v0.1.44
+   Compiling prost-derive v0.14.4
+   Compiling indexmap v2.14.0
+   Compiling simdutf8 v0.1.5
+   Compiling pulldown-cmark v0.13.4
+   Compiling prettyplease v0.2.37
+   Compiling rustix v1.1.5
+   Compiling prost v0.14.4
+   Compiling http-body v1.1.0
+   Compiling unicase v2.9.0
+   Compiling foldhash v0.1.5
+   Compiling regex-syntax v0.8.11
+   Compiling linux-raw-sys v0.12.1
+   Compiling regex-automata v0.4.18
+   Compiling hashbrown v0.15.5
+   Compiling untrusted v0.9.0
+   Compiling fastrand v2.5.0
+   Compiling httparse v1.10.1
+   Compiling fixedbitset v0.5.7
+   Compiling atomic-waker v1.1.2
+   Compiling futures-task v0.3.34
+   Compiling rustls v0.23.43
+   Compiling fnv v1.0.7
+   Compiling tower-service v0.3.3
+   Compiling h2 v0.4.19
+   Compiling futures-util v0.3.34
+   Compiling tempfile v3.27.0
+   Compiling petgraph v0.8.3
+   Compiling rustls-webpki v0.103.15
+   Compiling pulldown-cmark-to-cmark v22.0.3
+   Compiling regex v1.13.1
+   Compiling prost-types v0.14.4
+   Compiling subtle v2.6.1
+   Compiling multimap v0.10.1
+   Compiling crc32fast v1.5.1
+   Compiling heck v0.5.0
+   Compiling try-lock v0.2.5
+   Compiling want v0.3.1
+   Compiling prost-build v0.14.4
+   Compiling tonic-build v0.14.6
+   Compiling futures-channel v0.3.34
+   Compiling sync_wrapper v1.0.2
+   Compiling simd-adler32 v0.3.10
+   Compiling adler2 v2.0.1
+   Compiling httpdate v1.0.3
+   Compiling smallvec v1.15.2
+   Compiling tower-layer v0.3.3
+   Compiling hyper v1.11.0
+   Compiling miniz_oxide v0.9.1
+   Compiling tonic-prost-build v0.14.6
+   Compiling http-body-util v0.1.5
+   Compiling mime v0.3.17
+   Compiling axum-core v0.5.6
+   Compiling flate2 v1.1.10
+   Compiling hyper-util v0.1.20
+   Compiling tower v0.5.3
+   Compiling tokio-rustls v0.26.4
+   Compiling webpki-roots v1.0.9
+   Compiling serde_derive v1.0.229
+   Compiling pin-project-internal v1.1.13
+   Compiling base64 v0.22.1
+   Compiling percent-encoding v2.3.2
+   Compiling matchit v0.8.4
+   Compiling axum v0.8.9
+   Compiling pin-project v1.1.13
+   Compiling hyper-timeout v0.5.2
+   Compiling tokio-stream v0.1.19
+   Compiling async-trait v0.1.92
+   Compiling tonic v0.14.6
+   Compiling graviola v0.2.1
+   Compiling protobuf-tonic v0.1.0-alpha.2 (/workspace/scratch/work/sb21/protobuf-tonic)
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/sb21/pbrs-grpc)
+   Compiling rustls-graviola v0.2.1
+   Compiling pbrs-rpc-bench v0.1.0 (/workspace/scratch/work/sb21/rpc-bench)
+   Compiling rustls-pemfile v2.2.0
+   Compiling tonic-prost v0.14.6
+    Finished `test` profile [unoptimized] target(s) in 3m 51s
+     Running unittests src/main.rs (target/native/debug/deps/rpc_bench-780b6bc08b33527d)
+
+running 94 tests
+test benchmark_service::tests::client_stream_rejects_negative_response_size ... ok
+test benchmark_service::tests::request_stream_errors_are_not_reported_as_successful_responses ... ok
+test benchmark_service::tests::benchmark_response_sizes_fail_closed_before_allocating ... ok
+test benchmark_service::tests::test_benchmark_service_streaming_from_client ... ok
+test benchmark_service::tests::test_benchmark_service_streaming_from_server ... ok
+test benchmark_service::tests::test_benchmark_service_streaming_call ... ok
+test benchmark_service::tests::test_benchmark_service_streaming_both_ways ... ok
+test fairness::tests::cli_rejects_unqualified_silent_mode_or_unknown_flags ... ok
+test fairness::tests::bulk_status_failure_does_not_produce_flattering_p99 ... ok
+test fairness::tests::exact_byte_high_water_captures_a_spike_missed_by_sampling ... ok
+test fairness::tests::offered_and_error_counts_preserve_overflow_without_inventing_p99 ... ok
+test fairness::tests::byte_permit_token_json_is_numeric_and_not_an_rpc_slot_gauge ... ok
+test fairness::tests::snapshots_use_real_rss_and_budget_accounting_not_permit_inference ... ok
+test load::tests::caller_reported_timeout_preserves_counts_without_raw_samples ... ok
+test load::tests::completed_open_loop_tasks_are_reaped ... ok
+test load::tests::dropping_a_load_generator_cancels_its_active_calls ... ok
+test load::tests::poisson_schedule_matches_reference_fixed_vector ... ok
+test load::tests::scheduled_observer_sees_admitted_calls_even_if_cancelled_before_first_poll ... ok
+test fairness::tests::scenario_is_bounded_and_only_selected_cell_is_executable ... ok
+test benchmark_service::tests::test_benchmark_service_unary ... ok
+test load::tests::test_coordination_omission_measurement ... ok
+test load::tests::test_dispatch_lag_is_measured_at_task_start ... ok
+test load::tests::test_drain_waits_until_outcome_samples_are_committed ... ok
+test load::tests::poisson_rejections_are_observed_without_raw_sample_retention ... ok
+test load::tests::test_bounded_in_flight_queue_overflow ... ok
+test load::tests::test_closed_loop_concurrency ... ok
+test load::tests::test_seeded_rng_determinism ... ok
+test load::tests::test_seeded_rng_mean_interval ... ok
+test load::tests::test_never_drop_failures ... ok
+test load::tests::test_to_rpc_metrics_validation ... ok
+test load::tests::test_timeout_and_unstarted_calls_tracking ... ok
+test load::tests::worker_load_retains_counts_without_unbounded_raw_samples ... ok
+test process::fairness_tests::check_rejects_mismatch ... ok
+test process::fairness_tests::nodelay_adapter_verifies_accepted_socket ... ok
+test process::fairness_tests::refusal_names_culprit ... ok
+test process::fairness_tests::server_cores_parses ... ok
+test process::fairness_tests::spec_pins_native_transport_values ... ok
+test report::resources::tests::test_combined_rejects_mismatched_roles ... ok
+test report::resources::tests::test_cpu_constraints_detect_and_serde ... ok
+test report::resources::tests::test_endpoint_and_combined_attribution ... ok
+test report::resources::tests::test_linux_rss_is_resident_not_virtual_high_water ... ok
+test report::resources::tests::test_parse_cgroup_quota_millicpus ... ok
+test report::resources::tests::test_parse_cpu_list_count ... ok
+test report::resources::tests::test_platform_backend_is_explicit ... ok
+test report::resources::tests::test_process_resources_computations ... ok
+test report::resources::tests::test_process_resources_serde ... ok
+test report::resources::tests::test_resource_snapshot_capture_live ... ok
+test report::tests::test_benchmark_run_with_raw_samples_and_save_to_file ... ok
+test report::tests::test_client_and_server_resources_in_metrics_and_report ... ok
+test report::tests::test_deserialization_rejects_missing_required_fields ... ok
+test report::tests::test_format_rfc3339 ... ok
+test report::tests::test_host_info_detect_records_cpu_constraints ... ok
+test report::tests::test_latency_distribution_from_samples ... ok
+test report::tests::test_report_round_trip ... ok
+test report::tests::test_round_trip_json_serialization ... ok
+test report::tests::test_scheduling_lag_and_offered_load_metrics ... ok
+test report::tests::test_scheduling_lag_from_samples ... ok
+test report::tests::test_unsupported_counters_distinct_from_zero ... ok
+test report::tests::test_validation_rejects_inconsistent_units ... ok
+test report::tests::test_validation_rejects_invalid_attempt_counts ... ok
+test report::tests::test_validation_rejects_invalid_status_errors ... ok
+test report::tests::test_validation_rejects_inverted_latencies ... ok
+test report::tests::test_validation_rejects_missing_peer_version ... ok
+test report::tests::test_validation_rejects_zero_concurrency_or_connections ... ok
+test resources::tests::test_combined_rejects_mismatched_roles ... ok
+test resources::tests::test_cpu_constraints_detect_and_serde ... ok
+test resources::tests::test_endpoint_and_combined_attribution ... ok
+test resources::tests::test_linux_rss_is_resident_not_virtual_high_water ... ok
+test resources::tests::test_parse_cgroup_quota_millicpus ... ok
+test resources::tests::test_parse_cpu_list_count ... ok
+test resources::tests::test_platform_backend_is_explicit ... ok
+test resources::tests::test_process_resources_computations ... ok
+test resources::tests::test_process_resources_serde ... ok
+test resources::tests::test_resource_snapshot_capture_live ... ok
+test tests::load_compression_requires_matching_response_encoding ... ok
+test load::tests::test_open_loop_constant_arrival_schedule ... ok
+test tests::test_client_shape_vocabulary_not_rejected ... ok
+test load::tests::test_open_loop_poisson_arrival_schedule ... ok
+test tests::test_parse_load_cli_args_invalid_values ... ok
+test tests::test_parse_load_cli_args_valid_combinations ... ok
+test tests::test_parse_load_codec ... ok
+test tests::test_parse_load_shape_payload_transport ... ok
+test tests::test_parse_load_shape_tls_validation ... ok
+test tests::test_parse_scale_cli_args ... ok
+test load::tests::unfinished_open_loop_calls_are_joined_before_reporting ... ok
+test tests::load_tls_verifies_ca_and_name_across_native_and_tonic ... ok
+test tests::test_dual_server_mounts_both_services ... ok
+test worker_client::tests::racing_marks_and_completions_never_split_histograms_from_counters ... ok
+test worker_client::tests::test_histogram_synthetic_latencies ... ok
+test worker_client::tests::reset_preserves_in_flight_conservation_without_counting_old_offers_twice ... ok
+test worker_client::tests::test_stats_tracker_error_accounting ... ok
+test worker_client::tests::worker_exports_scheduling_delay_and_retains_cancelled_calls_as_unfinished ... ok
+test tests::test_prost_client_speaks_testservice_wire ... ok
+test tests::test_prost_tonic_unary_roundtrip ... ok
+
+test result: ok. 94 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+     Running tests/fairness.rs (target/native/debug/deps/fairness-47ff49634cbcb0b5)
+
+running 1 test
+test separate_process_mixed_load_preserves_outcomes_and_rejects_qualification ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.52s
+
+     Running tests/worker.rs (target/native/debug/deps/worker-792e9d55cdf19c6b)
+
+running 96 tests
+test async_client_threads_rejects_bad_counts_before_dial ... ok
+test async_server_threads_rejects_bad_counts_before_bind ... ok
+test async_thread_counts_map_to_explicit_runtime_sizes ... ok
+test benchmark_service::tests::benchmark_response_sizes_fail_closed_before_allocating ... ok
+test benchmark_service::tests::client_stream_rejects_negative_response_size ... ok
+test benchmark_service::tests::request_stream_errors_are_not_reported_as_successful_responses ... ok
+test benchmark_service::tests::test_benchmark_service_streaming_call ... ok
+test benchmark_service::tests::test_benchmark_service_streaming_both_ways ... ok
+test async_client_threads_runs_lifecycle_on_dedicated_runtime ... ok
+test async_server_threads_runs_lifecycle_on_dedicated_runtime ... ok
+test explicit_worker_options_are_not_silently_ignored ... ok
+test benchmark_service::tests::test_benchmark_service_streaming_from_client ... ok
+test benchmark_service::tests::test_benchmark_service_streaming_from_server ... ok
+test load::tests::caller_reported_timeout_preserves_counts_without_raw_samples ... ok
+test load::tests::completed_open_loop_tasks_are_reaped ... ok
+test load::tests::dropping_a_load_generator_cancels_its_active_calls ... ok
+test benchmark_service::tests::test_benchmark_service_unary ... ok
+test load::tests::poisson_schedule_matches_reference_fixed_vector ... ok
+test load::tests::scheduled_observer_sees_admitted_calls_even_if_cancelled_before_first_poll ... ok
+test live_run_server_mark_capture_failure_releases_owned_listener ... ok
+test live_run_client_mark_capture_failure_terminates_control_work ... ok
+test load::tests::poisson_rejections_are_observed_without_raw_sample_retention ... ok
+test load::tests::test_dispatch_lag_is_measured_at_task_start ... ok
+test load::tests::test_drain_waits_until_outcome_samples_are_committed ... ok
+test load::tests::test_bounded_in_flight_queue_overflow ... ok
+test load::tests::test_coordination_omission_measurement ... ok
+test load::tests::test_never_drop_failures ... ok
+test load::tests::test_seeded_rng_determinism ... ok
+test load::tests::test_seeded_rng_mean_interval ... ok
+test load::tests::test_closed_loop_concurrency ... ok
+test load::tests::test_timeout_and_unstarted_calls_tracking ... ok
+test load::tests::test_to_rpc_metrics_validation ... ok
+test load::tests::worker_load_retains_counts_without_unbounded_raw_samples ... ok
+test report::resources::tests::test_combined_rejects_mismatched_roles ... ok
+test report::resources::tests::test_cpu_constraints_detect_and_serde ... ok
+test report::resources::tests::test_endpoint_and_combined_attribution ... ok
+test report::resources::tests::test_linux_rss_is_resident_not_virtual_high_water ... ok
+test report::resources::tests::test_parse_cgroup_quota_millicpus ... ok
+test report::resources::tests::test_parse_cpu_list_count ... ok
+test report::resources::tests::test_platform_backend_is_explicit ... ok
+test report::resources::tests::test_process_resources_computations ... ok
+test report::resources::tests::test_process_resources_serde ... ok
+test report::resources::tests::test_resource_snapshot_capture_live ... ok
+test report::tests::test_benchmark_run_with_raw_samples_and_save_to_file ... ok
+test report::tests::test_client_and_server_resources_in_metrics_and_report ... ok
+test report::tests::test_deserialization_rejects_missing_required_fields ... ok
+test report::tests::test_format_rfc3339 ... ok
+test report::tests::test_host_info_detect_records_cpu_constraints ... ok
+test report::tests::test_latency_distribution_from_samples ... ok
+test report::tests::test_report_round_trip ... ok
+test report::tests::test_round_trip_json_serialization ... ok
+test report::tests::test_scheduling_lag_and_offered_load_metrics ... ok
+test report::tests::test_scheduling_lag_from_samples ... ok
+test report::tests::test_unsupported_counters_distinct_from_zero ... ok
+test report::tests::test_validation_rejects_inconsistent_units ... ok
+test report::tests::test_validation_rejects_invalid_attempt_counts ... ok
+test report::tests::test_validation_rejects_invalid_status_errors ... ok
+test report::tests::test_validation_rejects_inverted_latencies ... ok
+test report::tests::test_validation_rejects_missing_peer_version ... ok
+test report::tests::test_validation_rejects_zero_concurrency_or_connections ... ok
+test resources::tests::test_combined_rejects_mismatched_roles ... ok
+test resources::tests::test_cpu_constraints_detect_and_serde ... ok
+test resources::tests::test_endpoint_and_combined_attribution ... ok
+test resources::tests::test_linux_rss_is_resident_not_virtual_high_water ... ok
+test resources::tests::test_parse_cgroup_quota_millicpus ... ok
+test resources::tests::test_parse_cpu_list_count ... ok
+test resources::tests::test_platform_backend_is_explicit ... ok
+test resources::tests::test_process_resources_computations ... ok
+test resources::tests::test_process_resources_serde ... ok
+test resources::tests::test_resource_snapshot_capture_live ... ok
+test load::tests::test_open_loop_constant_arrival_schedule ... ok
+test load::tests::test_open_loop_poisson_arrival_schedule ... ok
+test test_histogram_known_synthetic_latencies ... ok
+test test_core_count ... ok
+test load::tests::unfinished_open_loop_calls_are_joined_before_reporting ... ok
+test test_duplicate_setup_rejected ... ok
+test test_invalid_config_rejected ... ok
+test test_quit_worker ... ok
+test test_run_client_control_disconnect_cancels_work_without_hangs ... ok
+test test_run_client_unsupported_options_fail_clearly ... ok
+test test_worker_cleanup_helpers_join_owned_tasks ... ok
+test test_worker_core_count_rejects_missing_or_unrepresentable_values ... ok
+test test_worker_snapshot_failure_is_a_status_not_a_zero_sample ... ok
+test unsupported_benchmark_worker_modes_fail_before_peer_work ... ok
+test worker_channel_slots_never_exceed_per_channel_concurrency ... ok
+test test_run_client_poisson_load_lifecycle ... ok
+test worker_client::tests::reset_preserves_in_flight_conservation_without_counting_old_offers_twice ... ok
+test worker_client::tests::test_histogram_synthetic_latencies ... ok
+test worker_client::tests::test_stats_tracker_error_accounting ... ok
+test worker_client::tests::racing_marks_and_completions_never_split_histograms_from_counters ... ok
+test worker_client_capacity_and_histogram_are_bounded_before_allocation ... ok
+test worker_rejections_are_counts_not_latency_samples ... ok
+test worker_client::tests::worker_exports_scheduling_delay_and_retains_cancelled_calls_as_unfinished ... ok
+test worker_rpc_timeout_is_a_counted_error_not_a_missing_sample ... ok
+test test_run_client_closed_loop_lifecycle_marks_and_shutdown ... ok
+test test_run_server_lifecycle_marks_and_shutdown ... ok
+
+test result: ok. 96 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.92s
+
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/sb21)
+   Compiling protobuf-tonic v0.1.0-alpha.2 (/workspace/scratch/work/sb21/protobuf-tonic)
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/sb21/pbrs-grpc)
+   Compiling pbrs-rpc-bench v0.1.0 (/workspace/scratch/work/sb21/rpc-bench)
+    Finished `dev` profile [unoptimized] target(s) in 1m 24s
+    Checking libc v0.2.189
+    Checking bytes v1.12.1
+    Checking pin-project-lite v0.2.17
+    Checking futures-core v0.3.34
+    Checking errno v0.3.14
+    Checking once_cell v1.21.4
+    Checking itoa v1.0.18
+    Checking signal-hook-registry v1.4.8
+    Checking mio v1.2.2
+    Checking socket2 v0.6.5
+    Checking tokio v1.53.1
+    Checking http v1.5.0
+    Checking tracing-core v0.1.36
+    Checking hashbrown v0.17.1
+    Checking equivalent v1.0.2
+    Checking slab v0.4.12
+    Checking futures-sink v0.3.34
+    Checking zeroize v1.9.0
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/sb21)
+    Checking rustls-pki-types v1.15.1
+    Checking tokio-util v0.7.19
+    Checking indexmap v2.14.0
+    Checking tracing v0.1.44
+    Checking http-body v1.1.0
+    Checking cfg-if v1.0.4
+    Checking serde_core v1.0.229
+    Checking untrusted v0.9.0
+    Checking fnv v1.0.7
+    Checking futures-task v0.3.34
+    Checking atomic-waker v1.1.2
+    Checking tower-service v0.3.3
+    Checking h2 v0.4.19
+    Checking futures-util v0.3.34
+    Checking rustls-webpki v0.103.15
+    Checking try-lock v0.2.5
+    Checking subtle v2.6.1
+    Checking memchr v2.8.3
+    Checking log v0.4.34
+    Checking rustls v0.23.43
+    Checking want v0.3.1
+    Checking httparse v1.10.1
+    Checking futures-channel v0.3.34
+    Checking simd-adler32 v0.3.10
+    Checking adler2 v2.0.1
+    Checking httpdate v1.0.3
+    Checking smallvec v1.15.2
+    Checking tower-layer v0.3.3
+    Checking sync_wrapper v1.0.2
+    Checking hyper v1.11.0
+    Checking miniz_oxide v0.9.1
+    Checking crc32fast v1.5.1
+    Checking http-body-util v0.1.5
+    Checking mime v0.3.17
+    Checking axum-core v0.5.6
+    Checking flate2 v1.1.10
+    Checking hyper-util v0.1.20
+    Checking tower v0.5.3
+    Checking tokio-rustls v0.26.4
+    Checking webpki-roots v1.0.9
+    Checking zmij v1.0.23
+    Checking percent-encoding v2.3.2
+    Checking matchit v0.8.4
+    Checking base64 v0.22.1
+    Checking axum v0.8.9
+    Checking pin-project v1.1.13
+    Checking serde v1.0.229
+    Checking serde_json v1.0.151
+    Checking hyper-timeout v0.5.2
+    Checking getrandom v0.3.4
+    Checking tokio-stream v0.1.19
+    Checking simdutf8 v0.1.5
+    Checking tonic v0.14.6
+    Checking graviola v0.2.1
+   Compiling protobuf-tonic v0.1.0-alpha.2 (/workspace/scratch/work/sb21/protobuf-tonic)
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/sb21/pbrs-grpc)
+    Checking prost v0.14.4
+    Checking rustls-graviola v0.2.1
+   Compiling pbrs-rpc-bench v0.1.0 (/workspace/scratch/work/sb21/rpc-bench)
+    Checking rustls-pemfile v2.2.0
+    Checking tonic-prost v0.14.6
+error: use of a disallowed method `std::thread::sleep`
+  --> tests/load_shapes.rs:32:17
+   |
+32 |                 std::thread::sleep(Duration::from_millis(50));
+   |                 ^^^^^^^^^^^^^^^^^^
+   |
+   = note: Blocks the executor thread. Use tokio::time::sleep.
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#disallowed_methods
+   = note: `-D clippy::disallowed-methods` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::disallowed_methods)]`
+
+error: this `if` statement can be collapsed
+   --> tests/load_shapes.rs:177:25
+    |
+177 | /                         if let Some(value) = kv.strip_prefix("port=") {
+178 | |                             if let Ok(port) = value.parse::<u16>() {
+179 | |                                 return port;
+180 | |                             }
+181 | |                         }
+    | |_________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+177 ~                         if let Some(value) = kv.strip_prefix("port=")
+178 ~                             && let Ok(port) = value.parse::<u16>() {
+179 |                                 return port;
+180 ~                             }
+    |
+
+error: could not compile `pbrs-rpc-bench` (test "load_shapes") due to 2 previous errors

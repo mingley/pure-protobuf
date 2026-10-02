@@ -20,6 +20,35 @@ spec.loader.exec_module(qps_proof)
 
 
 class QpsProofTest(unittest.TestCase):
+    def test_reference_rate_is_aggregate_and_legacy_per_slot_multiplier_is_visible(self):
+        scenario = {"client_config": {"client_channels": 2, "outstanding_rpcs_per_channel": 32,
+                    "load_params": {"poisson": {"offered_load": 5000}}}}
+        profile = qps_proof.arrival_profile(scenario)
+        self.assertEqual(profile["aggregate_offered_qps"], 5000)
+        self.assertEqual(profile["slot_limit"], 64)
+        self.assertEqual(profile["unmodified_go_uncorrected_aggregate_qps"], 320000)
+        self.assertEqual(profile["unmodified_go_configured_per_slot_qps"], 78.125)
+        camel = {"clientConfig": {"clientChannels": 2, "outstandingRpcsPerChannel": 32,
+                 "loadParams": {"poisson": {"offeredLoad": 5000}}}}
+        self.assertEqual(qps_proof.arrival_profile(camel), profile)
+
+    def test_effective_scenario_must_include_actual_overrides_and_aggregate_slots(self):
+        scenario = {"name": "smoke", "warmup_seconds": 1, "benchmark_seconds": 2,
+                    "client_config": {"client_channels": 1, "outstanding_rpcs_per_channel": 64,
+                    "rpc_type": "UNARY", "load_params": {"poisson": {"offered_load": 5000}}}}
+        result = {"scenario": copy.deepcopy(scenario)}
+        qps_proof.validate_effective_scenario(result, scenario)
+        for key, value in (("benchmark_seconds", 60), ("warmup_seconds", 15)):
+            damaged = copy.deepcopy(result)
+            damaged["scenario"][key] = value
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, "effective scenario"):
+                qps_proof.validate_effective_scenario(damaged, scenario)
+        for key, value in (("outstanding_rpcs_per_channel", 1), ("client_channels", 2)):
+            damaged = copy.deepcopy(result)
+            damaged["scenario"]["client_config"][key] = value
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, "effective client config"):
+                qps_proof.validate_effective_scenario(damaged, scenario)
+
     @staticmethod
     def accounting_window():
         return {

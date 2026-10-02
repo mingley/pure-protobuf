@@ -1,0 +1,17 @@
+{
+  "accounting_verified": false,
+  "claim_eligible": false,
+  "reason": "independent worker accounting unavailable",
+  "arrival_profile": {
+    "distribution": "poisson",
+    "aggregate_offered_qps": 5000.0,
+    "slot_limit": 64,
+    "native_and_overlaid_go_rate_semantics": "one aggregate arrival chain",
+    "arrival_seed": "5eed20260918",
+    "arrival_prng": "SplitMix64",
+    "unmodified_go_configured_per_slot_qps": 78.125,
+    "unmodified_go_uncorrected_aggregate_qps": 320000.0,
+    "claim_eligible": false
+  },
+  "effective_scenario_verified": true
+}

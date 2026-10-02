@@ -1,0 +1,38 @@
+================================================================================
+Official gRPC QPS Benchmark Scenario Driver & Interop Runner
+================================================================================
+Scenarios File:     rpc-bench/scenarios/claims.json
+Reference Peer:     go (v1.85.0-dev (dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef))
+Driver Binary:      /workspace/scratch/work/sb21/target/interop-go/qps-driver
+Driver SHA-256:     0a3781d54a2681670f07a20d28b0b6d5e5f3439dcfa20171cc3dd5fc0cc20577
+Driver Source Pin:  dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef
+Native Worker SHA: 87dd1cfb477ede5e7399b67937c89904670a684b5c0734f59337fcb5e00fdfb3
+Native Source:     unverified (--skip-build) (dirty=0)
+Cargo Target:      /workspace/scratch/work/sb21/target/native (1 jobs)
+Reference Worker:  /workspace/scratch/work/sb21/target/interop-go/go-worker sha256:cf7492e173a815fce2857faf4b8f330ed8e24d1e141313530a6a8b0afcd567af source:dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef
+Log Directory:      work/sb21/qps-streaming
+Scenarios Count:    1
+Directions:         ref_client_to_native_server
+
+--------------------------------------------------------------------------------
+SCENARIO:  claims_streaming_ping_pong_1kb
+REPEAT:    1
+DIRECTION: ref_client_to_native_server (Server: native, Client: go-accounting)
+PORTS:     Server worker=39897, Client worker=54863
+  PASS: claims_streaming_ping_pong_1kb (ref_client_to_native_server)
+      QPS:                  3942.1
+      Latency p50:          15368.98 us
+      Server CPU load:      User=83.2%, Sys=17.0%
+      Client CPU load:      User=40.4%, Sys=25.2%
+
+================================================================================
+SUMMARY RESULTS MATRIX
+================================================================================
+Scenario                               Direction                    Status QPS        p50        p99        Server CPU Client CPU
+----------------------------------------------------------------------------------------------------------------------------------------
+claims_streaming_ping_pong_1kb         ref_client_to_native_server  PASS   3942.1     15369.0 us 22170.7 us 100.1%     65.6%     
+----------------------------------------------------------------------------------------------------------------------------------------
+
+Summary JSON written to: work/sb21/qps-streaming/summary.json
+Raw integrated-driver ScenarioResult JSON (or upstream C++ QPS-only metrics) saved in: work/sb21/qps-streaming/
+PASS: all QPS benchmark scenarios completed successfully across selected directions

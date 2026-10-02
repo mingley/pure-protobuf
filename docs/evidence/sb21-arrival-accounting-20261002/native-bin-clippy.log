@@ -1,0 +1,750 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/sb21)
+   Compiling protobuf-tonic v0.1.0-alpha.2 (/workspace/scratch/work/sb21/protobuf-tonic)
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/sb21/pbrs-grpc)
+   Compiling pbrs-rpc-bench v0.1.0 (/workspace/scratch/work/sb21/rpc-bench)
+error: file is loaded as a module multiple times: `src/resources.rs`
+  |
+  = help: replace all but one `mod` item with `use` items
+  = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#duplicate_mod
+  = note: `-D clippy::duplicate-mod` implied by `-D warnings`
+  = help: to override `-D warnings` add `#[allow(clippy::duplicate_mod)]`
+
+error: use of a disallowed type `std::sync::Mutex`
+  --> src/load.rs:31:22
+   |
+31 | use std::sync::{Arc, Mutex};
+   |                      ^^^^^
+   |
+   = note: Held across await points too easily. Use tokio::sync::Mutex, or parking_lot for short non-async critical sections.
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#disallowed_types
+   = note: `-D clippy::disallowed-types` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::disallowed_types)]`
+
+error: use of a disallowed type `std::sync::Mutex`
+   --> src/load.rs:352:22
+    |
+352 |     scheduling_lags: Mutex<Vec<u64>>,
+    |                      ^^^^^^^^^^^^^^^
+    |
+    = note: Held across await points too easily. Use tokio::sync::Mutex, or parking_lot for short non-async critical sections.
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#disallowed_types
+
+error: use of a disallowed type `std::sync::Mutex`
+   --> src/load.rs:353:24
+    |
+353 |     service_latencies: Mutex<Vec<u64>>,
+    |                        ^^^^^^^^^^^^^^^
+    |
+    = note: Held across await points too easily. Use tokio::sync::Mutex, or parking_lot for short non-async critical sections.
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#disallowed_types
+
+error: use of a disallowed type `std::sync::Mutex`
+   --> src/load.rs:354:20
+    |
+354 |     e2e_latencies: Mutex<Vec<u64>>,
+    |                    ^^^^^^^^^^^^^^^
+    |
+    = note: Held across await points too easily. Use tokio::sync::Mutex, or parking_lot for short non-async critical sections.
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#disallowed_types
+
+error: use of a disallowed type `std::sync::Mutex`
+   --> src/load.rs:355:20
+    |
+355 |     status_errors: Mutex<BTreeMap<String, u64>>,
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: Held across await points too easily. Use tokio::sync::Mutex, or parking_lot for short non-async critical sections.
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#disallowed_types
+
+error: use of a disallowed type `std::sync::Mutex`
+   --> src/load.rs:372:30
+    |
+372 |             scheduling_lags: Mutex::new(Vec::new()),
+    |                              ^^^^^
+    |
+    = note: Held across await points too easily. Use tokio::sync::Mutex, or parking_lot for short non-async critical sections.
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#disallowed_types
+
+error: use of a disallowed type `std::sync::Mutex`
+   --> src/load.rs:373:32
+    |
+373 |             service_latencies: Mutex::new(Vec::new()),
+    |                                ^^^^^
+    |
+    = note: Held across await points too easily. Use tokio::sync::Mutex, or parking_lot for short non-async critical sections.
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#disallowed_types
+
+error: use of a disallowed type `std::sync::Mutex`
+   --> src/load.rs:374:28
+    |
+374 |             e2e_latencies: Mutex::new(Vec::new()),
+    |                            ^^^^^
+    |
+    = note: Held across await points too easily. Use tokio::sync::Mutex, or parking_lot for short non-async critical sections.
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#disallowed_types
+
+error: use of a disallowed type `std::sync::Mutex`
+   --> src/load.rs:375:28
+    |
+375 |             status_errors: Mutex::new(BTreeMap::new()),
+    |                            ^^^^^
+    |
+    = note: Held across await points too easily. Use tokio::sync::Mutex, or parking_lot for short non-async critical sections.
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#disallowed_types
+
+error: this `if` statement can be collapsed
+   --> src/load.rs:550:21
+    |
+550 | /                     if let Some(max) = max_calls {
+551 | |                         if state.offered_calls.load(Ordering::Relaxed) >= max {
+552 | |                             running.store(false, Ordering::Relaxed);
+553 | |                             break;
+554 | |                         }
+555 | |                     }
+    | |_____________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+550 ~                     if let Some(max) = max_calls
+551 ~                         && state.offered_calls.load(Ordering::Relaxed) >= max {
+552 |                             running.store(false, Ordering::Relaxed);
+553 |                             break;
+554 ~                         }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/load.rs:619:13
+    |
+619 | /             if let Some(max) = self.cfg.max_calls {
+620 | |                 if count >= max {
+621 | |                     break;
+622 | |                 }
+623 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+619 ~             if let Some(max) = self.cfg.max_calls
+620 ~                 && count >= max {
+621 |                     break;
+622 ~                 }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/load.rs:705:13
+    |
+705 | /             if let Some(max) = self.cfg.max_calls {
+706 | |                 if count >= max {
+707 | |                     break;
+708 | |                 }
+709 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+705 ~             if let Some(max) = self.cfg.max_calls
+706 ~                 && count >= max {
+707 |                     break;
+708 ~                 }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/resources.rs:196:9
+    |
+196 | /         if let Some(per_rpc) = self.cpu_seconds_per_rpc {
+197 | |             if per_rpc < 0.0 || per_rpc.is_nan() {
+198 | |                 return Err(ResourceAttributionError::NegativeCpuSeconds(format!(
+199 | |                     "invalid cpu_seconds_per_rpc: {per_rpc}"
+...   |
+202 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+196 ~         if let Some(per_rpc) = self.cpu_seconds_per_rpc
+197 ~             && (per_rpc < 0.0 || per_rpc.is_nan()) {
+198 |                 return Err(ResourceAttributionError::NegativeCpuSeconds(format!(
+199 |                     "invalid cpu_seconds_per_rpc: {per_rpc}"
+200 |                 )));
+201 ~             }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/resources.rs:840:16
+    |
+840 |           } else if let Some(rest) = line.strip_prefix("Threads:") {
+    |  ________________^
+841 | |             if let Ok(val) = rest.trim().parse::<u32>() {
+842 | |                 thread_count = val;
+843 | |             }
+844 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+840 ~         } else if let Some(rest) = line.strip_prefix("Threads:")
+841 ~             && let Ok(val) = rest.trim().parse::<u32>() {
+842 |                 thread_count = val;
+843 ~             }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/report.rs:707:9
+    |
+707 | /         if let (Some(offered), Some(dispatched)) =
+708 | |             (self.metrics.offered_rpcs, self.metrics.dispatched_rpcs)
+709 | |         {
+710 | |             if dispatched > offered {
+...   |
+715 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+708 ~             (self.metrics.offered_rpcs, self.metrics.dispatched_rpcs)
+709 ~             && dispatched > offered {
+710 |                 return Err(ValidationError::InconsistentCounts(format!(
+711 |                     "dispatched_rpcs ({dispatched}) exceeds offered_rpcs ({offered})"
+712 |                 )));
+713 ~             }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/report.rs:716:9
+    |
+716 | /         if let Some(ref lag) = self.metrics.scheduling_lag_nanos {
+717 | |             if lag.p50 > lag.p99 || lag.p99 > lag.max {
+718 | |                 return Err(ValidationError::InvalidLatencyDistribution(format!(
+719 | |                     "scheduling_lag_nanos percentiles not non-decreasing: p50={}, p99={}, max={}",
+...   |
+723 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+716 ~         if let Some(ref lag) = self.metrics.scheduling_lag_nanos
+717 ~             && (lag.p50 > lag.p99 || lag.p99 > lag.max) {
+718 |                 return Err(ValidationError::InvalidLatencyDistribution(format!(
+...
+721 |                 )));
+722 ~             }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/report.rs:754:13
+    |
+754 | /             if let Some(p999) = lat.p999_nanos {
+755 | |                 if !(lat.p99_nanos <= p999 && p999 <= lat.max_nanos) {
+756 | |                     return Err(ValidationError::InvalidLatencyDistribution(format!(
+757 | |                         "p999_nanos ({p999}) must be >= p99 ({}) and <= max ({})",
+...   |
+761 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+754 ~             if let Some(p999) = lat.p999_nanos
+755 ~                 && !(lat.p99_nanos <= p999 && p999 <= lat.max_nanos) {
+756 |                     return Err(ValidationError::InvalidLatencyDistribution(format!(
+...
+759 |                     )));
+760 ~                 }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/report.rs:778:9
+    |
+778 | /         if let Some(ref client_res) = self.metrics.client_resources {
+779 | |             if let Err(e) = client_res.validate() {
+780 | |                 return Err(ValidationError::InvalidResourceMetrics(format!(
+781 | |                     "invalid client_resources: {e}"
+...   |
+784 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+778 ~         if let Some(ref client_res) = self.metrics.client_resources
+779 ~             && let Err(e) = client_res.validate() {
+780 |                 return Err(ValidationError::InvalidResourceMetrics(format!(
+781 |                     "invalid client_resources: {e}"
+782 |                 )));
+783 ~             }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/report.rs:785:9
+    |
+785 | /         if let Some(ref server_res) = self.metrics.server_resources {
+786 | |             if let Err(e) = server_res.validate() {
+787 | |                 return Err(ValidationError::InvalidResourceMetrics(format!(
+788 | |                     "invalid server_resources: {e}"
+...   |
+791 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+785 ~         if let Some(ref server_res) = self.metrics.server_resources
+786 ~             && let Err(e) = server_res.validate() {
+787 |                 return Err(ValidationError::InvalidResourceMetrics(format!(
+788 |                     "invalid server_resources: {e}"
+789 |                 )));
+790 ~             }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/report.rs:880:9
+    |
+880 | /         if let Some(ref client_res) = self.client_resources {
+881 | |             if let Err(e) = client_res.validate() {
+882 | |                 return Err(ValidationError::InvalidResourceMetrics(format!(
+883 | |                     "invalid report client_resources: {e}"
+...   |
+886 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+880 ~         if let Some(ref client_res) = self.client_resources
+881 ~             && let Err(e) = client_res.validate() {
+882 |                 return Err(ValidationError::InvalidResourceMetrics(format!(
+883 |                     "invalid report client_resources: {e}"
+884 |                 )));
+885 ~             }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/report.rs:887:9
+    |
+887 | /         if let Some(ref server_res) = self.server_resources {
+888 | |             if let Err(e) = server_res.validate() {
+889 | |                 return Err(ValidationError::InvalidResourceMetrics(format!(
+890 | |                     "invalid report server_resources: {e}"
+...   |
+893 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+887 ~         if let Some(ref server_res) = self.server_resources
+888 ~             && let Err(e) = server_res.validate() {
+889 |                 return Err(ValidationError::InvalidResourceMetrics(format!(
+890 |                     "invalid report server_resources: {e}"
+891 |                 )));
+892 ~             }
+    |
+
+error: this `if` statement can be collapsed
+    --> src/report.rs:1005:5
+     |
+1005 | /     if let Ok(val) = std::env::var("BENCH_GIT_COMMIT") {
+1006 | |         if !val.trim().is_empty() {
+1007 | |             return val.trim().to_string();
+1008 | |         }
+1009 | |     }
+     | |_____^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+1005 ~     if let Ok(val) = std::env::var("BENCH_GIT_COMMIT")
+1006 ~         && !val.trim().is_empty() {
+1007 |             return val.trim().to_string();
+1008 ~         }
+     |
+
+error: this `if` statement can be collapsed
+    --> src/report.rs:1010:5
+     |
+1010 | /     if let Ok(val) = std::env::var("GIT_COMMIT") {
+1011 | |         if !val.trim().is_empty() {
+1012 | |             return val.trim().to_string();
+1013 | |         }
+1014 | |     }
+     | |_____^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+1010 ~     if let Ok(val) = std::env::var("GIT_COMMIT")
+1011 ~         && !val.trim().is_empty() {
+1012 |             return val.trim().to_string();
+1013 ~         }
+     |
+
+error: this `if` statement can be collapsed
+    --> src/report.rs:1015:5
+     |
+1015 | /     if let Ok(output) = std::process::Command::new("git")
+1016 | |         .args(["rev-parse", "HEAD"])
+1017 | |         .output()
+...    |
+1025 | |     }
+     | |_____^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+1017 ~         .output()
+1018 ~         && output.status.success() {
+1019 |             let sha = String::from_utf8_lossy(&output.stdout).trim().to_string();
+ ...
+1022 |             }
+1023 ~         }
+     |
+
+error: use of a disallowed type `std::sync::Mutex`
+  --> src/worker_client.rs:27:22
+   |
+27 | use std::sync::{Arc, Mutex};
+   |                      ^^^^^
+   |
+   = note: Held across await points too easily. Use tokio::sync::Mutex, or parking_lot for short non-async critical sections.
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#disallowed_types
+
+error: use of a disallowed type `std::sync::Mutex`
+   --> src/worker_client.rs:190:12
+    |
+190 |     state: Mutex<ClientStatsWindow>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: Held across await points too easily. Use tokio::sync::Mutex, or parking_lot for short non-async critical sections.
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#disallowed_types
+
+error: use of a disallowed type `std::sync::Mutex`
+   --> src/worker_client.rs:215:20
+    |
+215 |             state: Mutex::new(ClientStatsWindow {
+    |                    ^^^^^
+    |
+    = note: Held across await points too easily. Use tokio::sync::Mutex, or parking_lot for short non-async critical sections.
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#disallowed_types
+
+error: this `if` statement can be collapsed
+   --> src/worker_server.rs:147:13
+    |
+147 | /             if let Err(error) = handle.await {
+148 | |                 if !error.is_cancelled() {
+149 | |                     return Err(Status::internal(format!(
+150 | |                         "benchmark server abort failed: {error}"
+...   |
+153 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+147 ~             if let Err(error) = handle.await
+148 ~                 && !error.is_cancelled() {
+149 |                     return Err(Status::internal(format!(
+150 |                         "benchmark server abort failed: {error}"
+151 |                     )));
+152 ~                 }
+    |
+
+error: you should consider adding a `Default` implementation for `Counters`
+   --> src/process.rs:348:5
+    |
+348 | /     pub fn new() -> Self {
+349 | |         Self {
+350 | |             ok: Arc::new(AtomicU64::new(0)),
+351 | |             err: Arc::new(AtomicU64::new(0)),
+...   |
+354 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#new_without_default
+    = note: `-D clippy::new-without-default` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::new_without_default)]`
+help: try adding this
+    |
+372 ~ }
+373 + 
+374 + impl Default for Counters {
+375 +     fn default() -> Self {
+376 +         Self::new()
+377 +     }
+378 + }
+    |
+
+error: redundant pattern matching
+   --> src/process.rs:753:19
+    |
+753 |         while let Some(_) = inbound
+    |                   ^^^^^^^
+    |
+    = note: this will change drop order of the result, as well as all temporaries
+    = note: add `#[allow(clippy::redundant_pattern_matching)]` if this is important
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#redundant_pattern_matching
+    = note: `-D clippy::redundant-pattern-matching` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::redundant_pattern_matching)]`
+help: consider using `is_some()`
+    |
+753 ~         while inbound
+754 +             .message()
+755 +             .await
+756 +             .map_err(|e| format!("kernel ping_pong drain round {round}: {e}"))?.is_some()
+    |
+
+error: this loop never actually loops
+   --> src/process.rs:753:9
+    |
+753 | /         while let Some(_) = inbound
+754 | |             .message()
+755 | |             .await
+756 | |             .map_err(|e| format!("kernel ping_pong drain round {round}: {e}"))?
+757 | |         {
+758 | |             return Err("kernel ping_pong unexpected extra message after close".to_string());
+759 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#never_loop
+    = note: `#[deny(clippy::never_loop)]` on by default
+
+error: redundant pattern matching
+   --> src/process.rs:804:19
+    |
+804 |         while let Some(_) = inbound
+    |                   ^^^^^^^
+    |
+    = note: this will change drop order of the result, as well as all temporaries
+    = note: add `#[allow(clippy::redundant_pattern_matching)]` if this is important
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#redundant_pattern_matching
+help: consider using `is_some()`
+    |
+804 ~         while inbound
+805 +             .message()
+806 +             .await
+807 +             .map_err(|e| format!("tonic ping_pong drain round {round}: {e}"))?.is_some()
+    |
+
+error: this loop never actually loops
+   --> src/process.rs:804:9
+    |
+804 | /         while let Some(_) = inbound
+805 | |             .message()
+806 | |             .await
+807 | |             .map_err(|e| format!("tonic ping_pong drain round {round}: {e}"))?
+808 | |         {
+809 | |             return Err("tonic ping_pong unexpected extra message after close".to_string());
+810 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#never_loop
+
+error: this function has too many arguments (8/7)
+    --> src/process.rs:1041:1
+     |
+1041 | / pub fn make_latency_run(
+1042 | |     scenario_id: &str,
+1043 | |     scenario_name: &str,
+1044 | |     req_size: usize,
+...    |
+1049 | |     git_commit: &str,
+1050 | | ) -> BenchmarkRun {
+     | |_________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#too_many_arguments
+     = note: `-D clippy::too-many-arguments` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::too_many_arguments)]`
+
+error: this function has too many arguments (12/7)
+    --> src/process.rs:1104:1
+     |
+1104 | / pub fn make_qps_run(
+1105 | |     scenario_id: &str,
+1106 | |     scenario_name: &str,
+1107 | |     transport: TransportMode,
+...    |
+1116 | |     git_commit: &str,
+1117 | | ) -> BenchmarkRun {
+     | |_________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#too_many_arguments
+
+error: this function has too many arguments (9/7)
+    --> src/process.rs:1175:1
+     |
+1175 | / pub fn make_streaming_run(
+1176 | |     scenario_id: &str,
+1177 | |     scenario_name: &str,
+1178 | |     rpc_type: &str,
+...    |
+1184 | |     git_commit: &str,
+1185 | | ) -> BenchmarkRun {
+     | |_________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#too_many_arguments
+
+error: this `if` statement can be collapsed
+    --> src/process.rs:1752:5
+     |
+1752 | /     if config.print_json {
+1753 | |         if let Ok(json) = report.to_json_pretty() {
+1754 | |             println!("{json}");
+1755 | |         }
+1756 | |     }
+     | |_____^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+1752 ~     if config.print_json
+1753 ~         && let Ok(json) = report.to_json_pretty() {
+1754 |             println!("{json}");
+1755 ~         }
+     |
+
+error: this `if` statement can be collapsed
+    --> src/process.rs:2097:5
+     |
+2097 | /     if config.print_json {
+2098 | |         if let Ok(json) = report.to_json_pretty() {
+2099 | |             println!("{json}");
+2100 | |         }
+2101 | |     }
+     | |_____^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+2097 ~     if config.print_json
+2098 ~         && let Ok(json) = report.to_json_pretty() {
+2099 |             println!("{json}");
+2100 ~         }
+     |
+
+error: called `unwrap` on `subcmd` after checking its variant with `is_some`
+    --> src/process.rs:2407:55
+     |
+2406 |     if !is_smoke && subcmd.is_some() && !subcmd.unwrap().starts_with('-') {
+     |                     ---------------- the check is happening here
+2407 |         return Err(format!("unknown subcommand '{}'", subcmd.unwrap()));
+     |                                                       ^^^^^^^^^^^^^^^
+     |
+     = help: try using `if let` or `match`
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#unnecessary_unwrap
+     = note: `-D clippy::unnecessary-unwrap` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::unnecessary_unwrap)]`
+
+error: this function has too many arguments (8/7)
+   --> src/main.rs:630:1
+    |
+630 | / async fn load_native_channel(
+631 | |     addr: SocketAddr,
+632 | |     tls_ca: Option<&str>,
+633 | |     tls_server_name: Option<&str>,
+...   |
+638 | |     small_window_override: bool,
+639 | | ) -> Result<pbrs_grpc::Channel, String> {
+    | |_______________________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#too_many_arguments
+
+error: this loop never actually loops
+    --> src/main.rs:992:25
+     |
+ 992 | /                         while inbound
+ 993 | |                             .message()
+ 994 | |                             .await
+ 995 | |                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+...    |
+1000 | |                             ));
+1001 | |                         }
+     | |_________________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#never_loop
+
+error: this function has too many arguments (11/7)
+    --> src/main.rs:1400:1
+     |
+1400 | / async fn run_load_tonic(
+1401 | |     load_gen: &load::LoadGenerator,
+1402 | |     addr: SocketAddr,
+1403 | |     shape: LoadShape,
+...    |
+1411 | |     tls_name: Option<&str>,
+1412 | | ) -> Result<load::LoadRecord, String> {
+     | |_____________________________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#too_many_arguments
+
+error: this loop never actually loops
+    --> src/main.rs:1562:25
+     |
+1562 | /                         while inbound
+1563 | |                             .message()
+1564 | |                             .await
+1565 | |                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+...    |
+1570 | |                             ));
+1571 | |                         }
+     | |_________________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#never_loop
+
+error: this function has too many arguments (11/7)
+    --> src/main.rs:1594:1
+     |
+1594 | / async fn run_load_prost(
+1595 | |     load_gen: &load::LoadGenerator,
+1596 | |     addr: SocketAddr,
+1597 | |     shape: LoadShape,
+...    |
+1605 | |     tls_name: Option<&str>,
+1606 | | ) -> Result<load::LoadRecord, String> {
+     | |_____________________________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#too_many_arguments
+
+error: this loop never actually loops
+    --> src/main.rs:1756:25
+     |
+1756 | /                         while inbound
+1757 | |                             .message()
+1758 | |                             .await
+1759 | |                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+...    |
+1764 | |                             ));
+1765 | |                         }
+     | |_________________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#never_loop
+
+error: this `if` statement can be collapsed
+    --> src/main.rs:2343:9
+     |
+2343 | /         if let Some(parent) = std::path::Path::new(path).parent() {
+2344 | |             if !parent.as_os_str().is_empty() {
+2345 | |                 std::fs::create_dir_all(parent)
+2346 | |                     .map_err(|e| format!("create output dir {}: {e}", parent.display()))?;
+2347 | |             }
+2348 | |         }
+     | |_________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+2343 ~         if let Some(parent) = std::path::Path::new(path).parent()
+2344 ~             && !parent.as_os_str().is_empty() {
+2345 |                 std::fs::create_dir_all(parent)
+2346 |                     .map_err(|e| format!("create output dir {}: {e}", parent.display()))?;
+2347 ~             }
+     |
+
+error: could not compile `pbrs-rpc-bench` (bin "rpc-bench") due to 47 previous errors

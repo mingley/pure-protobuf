@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "qualification": "benchmark harness overlay",
+  "peer": "overlaid pinned grpc-go benchmark client",
+  "upstream_pin": "dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef",
+  "upstream_client_sha256": "73ae33ebad3f1bf2f5e0196bb28b06d96618594dfe650b2de0ef6e410be5f464",
+  "patched_client_sha256": "37cff7739c7875d6feba152b2d4a8eb6e63f57c8f56e421758afcb7a2f260d4d",
+  "accounting_source_sha256": "0200c71069c5ae6d9b39f9363032ccab20746899c3b628bb8542afb70a4b7a21",
+  "overlay_sha256": "5f56f519831889834379853319d269d031104f04676f06e29c3ada3d6767053b",
+  "upstream_module_tree_sha256": "743826376a0fbdca8e0550dd587c83281b597a7b637a187b7c5b7e3c5e556266",
+  "arrival_schedule": "aggregate SplitMix64 Poisson; seed 0x5eed20260918",
+  "slot_limit": "client_channels * outstanding_rpcs_per_channel",
+  "closed_loop": "original upstream paths",
+  "claim_eligible": false,
+  "binary_sha256": "bd863f87f4a48dd41a94073e5ffd4b0d2cae06b071522859c3c137b4296e362a",
+  "dependencies_mod_sha256": "db94a4557f1cd0030bbef2acbc80794666b1f554dcdee13345b2abac522d10e7",
+  "dependencies_sum_sha256": "65ad528d273e9fe9603fa719117de422d07173052693ec7cda146232edb75da2"
+}

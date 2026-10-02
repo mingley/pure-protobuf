@@ -1,0 +1,7 @@
+{
+  "binary_source_commit": "1e6b1119182e1e4e90f2d93656765b3bf4929b81",
+  "harness_commit": "30da0badd14b027d1004b0889c98eb5479978707",
+  "native_release_sha256": "7fdbe0be0ddf38280706cb4eda5f43915d2381c4338aaf844092357d2a3b6ff8",
+  "sampler_denominator": "old observed-thread-count; headroom unverified",
+  "claim_eligible": false
+}

@@ -835,6 +835,18 @@ mod tests {
     }
 
     #[test]
+    fn poisson_schedule_matches_reference_fixed_vector() {
+        let mut rng = SeededRng::new(0x5eed_2026_0918);
+        let expected = [
+            258_292, 124_501, 131_192, 212_648, 346_233, 174_957, 324_031, 333_377, 117_648,
+            247_724, 46_045, 213_350,
+        ];
+        for interval in expected {
+            assert_eq!(rng.next_exponential_nanos(5_000.0), interval);
+        }
+    }
+
+    #[test]
     fn test_seeded_rng_determinism() {
         let mut rng1 = SeededRng::new(42);
         let mut rng2 = SeededRng::new(42);

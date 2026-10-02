@@ -194,6 +194,17 @@ checked scenarios (at most one channel and 100 outstanding RPCs); see the
 [worker contract](../docs/benchmark-contract.md) for limits and qualification
 boundaries.
 
+The QPS runner uses an explicitly labeled **overlaid pinned grpc-go benchmark
+client** for Poisson reference-client cells. It offers one aggregate arrival
+schedule at the scenario rate, with the native seed and configured slot cap,
+and exports the same completion-mark counter and scheduled-send latency oracle.
+Each streaming arrival opens a stream and exchanges one request/reply, matching
+the native worker. Go reference servers and closed-loop clients use the original
+pinned worker. The runner records source/overlay/binary hashes, passes the actual
+prepared warmup/measurement durations to the driver and rejects mismatched
+effective metadata. See [SB-21 evidence](../docs/evidence/sb21-claims-scenarios.md)
+for historical failures and qualification limits.
+
 ### Async thread controls
 
 `async_server_threads` / `async_client_threads` are honored as explicit

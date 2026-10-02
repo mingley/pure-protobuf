@@ -1,0 +1,35 @@
+{
+  "driver": {
+    "binary": "/workspace/scratch/work/sb21/target/interop-go/qps-driver",
+    "kind": "go",
+    "sha256": "0a3781d54a2681670f07a20d28b0b6d5e5f3439dcfa20171cc3dd5fc0cc20577",
+    "source_pin": "dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef"
+  },
+  "native": {
+    "source_sha": null,
+    "binary_sha256": "87dd1cfb477ede5e7399b67937c89904670a684b5c0734f59337fcb5e00fdfb3",
+    "dirty_source": false,
+    "source_verified": false
+  },
+  "reference_worker": {
+    "binary": "/workspace/scratch/work/sb21/target/interop-go/go-worker",
+    "sha256": "cf7492e173a815fce2857faf4b8f330ed8e24d1e141313530a6a8b0afcd567af",
+    "source_pin": "dd51b1c90aaf9b7ee0b07b1d14fa8e3a89132bef"
+  },
+  "reference_poisson_client_overlay_manifest": "go-accounting-overlay-manifest.json",
+  "runs": [
+    {
+      "scenario": "claims_streaming_ping_pong_1kb",
+      "direction": "ref_client_to_native_server",
+      "status": "PASS",
+      "qps": "3942.1",
+      "latency_p50": "15369.0 us",
+      "latency_p99": "22170.7 us",
+      "server_cpu": "100.1%",
+      "client_cpu": "65.6%",
+      "repeat": 1
+    }
+  ],
+  "execution_plan": "execution-plan.json",
+  "claim_eligible": false
+}

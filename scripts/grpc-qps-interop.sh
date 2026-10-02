@@ -493,8 +493,8 @@ func runScenario(scenario *testpb.Scenario, serverAddr, clientAddr string) (*tes
 		}); err != nil {
 			return nil, fmt.Errorf("send client warmup mark: %w", err)
 		}
-		_, _ = serverStream.Recv()
-		_, _ = clientStream.Recv()
+		if _, err := serverStream.Recv(); err != nil { return nil, fmt.Errorf("recv server warmup mark: %w", err) }
+		if _, err := clientStream.Recv(); err != nil { return nil, fmt.Errorf("recv client warmup mark: %w", err) }
 
 		time.Sleep(time.Duration(warmupSec) * time.Second)
 	}
@@ -519,8 +519,8 @@ func runScenario(scenario *testpb.Scenario, serverAddr, clientAddr string) (*tes
 	}); err != nil {
 		return nil, fmt.Errorf("send client benchmark mark: %w", err)
 	}
-	_, _ = serverStream.Recv()
-	_, _ = clientStream.Recv()
+	if _, err := serverStream.Recv(); err != nil { return nil, fmt.Errorf("recv server benchmark mark: %w", err) }
+	if _, err := clientStream.Recv(); err != nil { return nil, fmt.Errorf("recv client benchmark mark: %w", err) }
 
 	time.Sleep(time.Duration(benchmarkSec) * time.Second)
 
@@ -857,6 +857,8 @@ fi
 
 # Build required binaries
 GO_WORKER_BIN="$ROOT/target/interop-go/go-worker"
+GO_ACCOUNTING_WORKER_BIN="$ROOT/target/interop-go/go-accounting-worker"
+GO_OVERLAY_DIR="$ROOT/target/interop-go/accounting-overlay"
 INTEGRATED_DRIVER_BIN="$ROOT/target/interop-go/qps-driver"
 
 if [[ "$SKIP_BUILD" != "1" ]]; then
@@ -867,12 +869,19 @@ if [[ "$SKIP_BUILD" != "1" ]]; then
     echo "== building Go benchmark worker ($GO_PEER_VERSION) =="
     mkdir -p "$ROOT/target/interop-go"
     (cd "$ROOT/tests/interop/go" && go build -mod=readonly -o "$GO_WORKER_BIN" google.golang.org/grpc/benchmark/worker)
+    GO_MODULE_DIR="$(cd "$ROOT/tests/interop/go" && go list -mod=readonly -m -f '{{.Dir}}' google.golang.org/grpc)"
+    python3 "$ROOT/scripts/qps-go-overlay.py" "$GO_MODULE_DIR" "$GO_OVERLAY_DIR"
+    cp "$ROOT/tests/interop/go/go.mod" "$GO_OVERLAY_DIR/worker.mod"
+    cp "$ROOT/tests/interop/go/go.sum" "$GO_OVERLAY_DIR/worker.sum"
+    (cd "$ROOT/tests/interop/go" && go mod edit -modfile="$GO_OVERLAY_DIR/worker.mod" -replace="google.golang.org/grpc=$GO_OVERLAY_DIR/grpc-go-source")
+    (cd "$ROOT/tests/interop/go" && go build -mod=readonly -modfile="$GO_OVERLAY_DIR/worker.mod" -overlay="$GO_OVERLAY_DIR/overlay.json" -o "$GO_ACCOUNTING_WORKER_BIN" google.golang.org/grpc/benchmark/worker)
+    python3 "$ROOT/scripts/qps-go-overlay.py" "$GO_MODULE_DIR" "$GO_OVERLAY_DIR" --record-binary "$GO_ACCOUNTING_WORKER_BIN"
   fi
 
   if [[ -z "$DRIVER_BIN" ]]; then
     echo "== compiling integrated QPS driver ($GO_PEER_VERSION) =="
     generate_integrated_driver_source
-    (cd "$ROOT/tests/interop/go" && go build -o "$INTEGRATED_DRIVER_BIN" "$ROOT/target/interop-go/driver_src/main.go")
+    (cd "$ROOT/tests/interop/go" && go build -mod=readonly -o "$INTEGRATED_DRIVER_BIN" "$ROOT/target/interop-go/driver_src/main.go")
     DRIVER_BIN="$INTEGRATED_DRIVER_BIN"
   fi
 else
@@ -913,6 +922,10 @@ if [[ "$NEEDS_REFERENCE_WORKER" -eq 1 ]]; then
     exit 1
   fi
   REF_WORKER_SHA256="$(python3 "$ROOT/scripts/qps-proof.py" fingerprint "$REF_WORKER_BIN")"
+  if [[ "$REF_PEER" == "go" ]]; then
+    python3 "$ROOT/scripts/qps-go-overlay.py" unused "$GO_OVERLAY_DIR" --verify-binary "$GO_ACCOUNTING_WORKER_BIN"
+    cp "$GO_OVERLAY_DIR/manifest.json" "$LOG_DIR/go-accounting-overlay-manifest.json"
+  fi
 fi
 
 if [[ ! -x "$DRIVER_BIN" ]]; then
@@ -966,6 +979,9 @@ start_worker() {
       ;;
     go)
       "$GO_WORKER_BIN" -driver_port "$port" > "$log_file" 2>&1 &
+      ;;
+    go-accounting)
+      "$GO_ACCOUNTING_WORKER_BIN" -driver_port "$port" > "$log_file" 2>&1 &
       ;;
     cpp)
       local cpp_worker="${GRPC_QPS_WORKER:-$ROOT/target/interop-cpp/qps_worker}"
@@ -1050,6 +1066,16 @@ run_scenario_cell() {
       ;;
   esac
 
+  # Poisson reference clients use an aggregate scheduler with an explicit oracle.
+  # Upstream servers and closed-loop clients retain the original pinned worker.
+  if [[ "$client_role" == "go" ]] && python3 -c '
+import json, sys
+s = json.load(open(sys.argv[1]))["scenarios"][0]
+sys.exit(0 if "poisson" in s["client_config"]["load_params"] else 1)
+' "$LOG_DIR/$scenario.scenario.json"; then
+    client_role="go-accounting"
+  fi
+
   local s_port="${SERVER_PORT_ARG:-$(find_free_port)}"
   local c_port="${CLIENT_PORT_ARG:-$(find_free_port)}"
   while [[ "$s_port" == "$c_port" ]]; do
@@ -1088,7 +1114,6 @@ run_scenario_cell() {
   fi
   c_pid="${TRACKED_PIDS[${#TRACKED_PIDS[@]}-1]}"
 
-  # Prepare driver command
   local driver_args=()
   if [[ "$DRIVER_KIND" == "cpp" ]]; then
     driver_args=(
@@ -1097,16 +1122,10 @@ run_scenario_cell() {
     )
   else
     driver_args=(
-      "--scenarios_file=$SCENARIOS_FILE"
+      "--scenarios_file=$LOG_DIR/$scenario.scenario.json"
       "--scenario_name=$scenario"
       "--scenario_result_file=$result_json"
     )
-    if [[ $WARMUP_OVERRIDE -gt 0 ]]; then
-      driver_args+=("--warmup_override=$WARMUP_OVERRIDE")
-    fi
-    if [[ $DURATION_OVERRIDE -gt 0 ]]; then
-      driver_args+=("--benchmark_override=$DURATION_OVERRIDE")
-    fi
   fi
 
   local driver_status=0
@@ -1229,6 +1248,7 @@ with open(summary_file, "w") as f:
             "sha256": ref_binary_sha,
             "source_pin": ref_source_pin,
         } if ref_binary else None,
+        "reference_poisson_client_overlay_manifest": "go-accounting-overlay-manifest.json" if ref_binary and "go-worker" in ref_binary else None,
         "runs": results,
         "execution_plan": "execution-plan.json",
         "claim_eligible": False,

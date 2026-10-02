@@ -1,0 +1,16 @@
+{
+  "timing": "post-run observation; not a capacity proof used by the replay",
+  "affinity_cpus": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "cgroup_membership": "0::/\n",
+  "cgroup_mountinfo": "59 58 0:24 /.. /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime shared:8 - cgroup2 cgroup2 rw,nsdelegate",
+  "unmapped_visible_cpu_max_raw": "400000 100000",
+  "effective_cpu_capacity": null,
+  "capacity_verified": false,
+  "reason": "membership 0::/ and mount root /.. do not unambiguously map per-PID quota hierarchy"
+}

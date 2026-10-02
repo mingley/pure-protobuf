@@ -1,0 +1,2 @@
+READY port=56711 addr=0.0.0.0:56711 transport=native services=grpc.testing.WorkerService
+RunServer port=33343: async_server_threads=1 -> dedicated 1-worker Tokio runtime

@@ -1,0 +1,93 @@
+{
+  "attempted_rpcs": 1048,
+  "successful_rpcs": 1048,
+  "failed_rpcs": 0,
+  "status_errors": {},
+  "timeouts": 0,
+  "client_cpu_seconds": null,
+  "server_cpu_seconds": null,
+  "duration_nanos": 1001231880,
+  "throughput_qps": 1046.7105781729604,
+  "scheduling_lag_nanos": {
+    "p50": 1004847,
+    "p99": 2073501,
+    "max": 3234220
+  },
+  "offered_rpcs": 1048,
+  "dispatched_rpcs": 1048,
+  "queue_overflows": 0,
+  "e2e_latency_nanos": {
+    "unit": "nanoseconds",
+    "p50_nanos": 1811252,
+    "p90_nanos": 2595538,
+    "p95_nanos": 2839838,
+    "p99_nanos": 3649981,
+    "p999_nanos": 5295975,
+    "min_nanos": 726458,
+    "max_nanos": 6152919,
+    "mean_nanos": 1861540.4732824427,
+    "histogram": {
+      "unit": "nanoseconds",
+      "total_count": 1048,
+      "buckets": [
+        {
+          "lower_bound_nanos": 500000,
+          "upper_bound_nanos": 1000000,
+          "count": 57
+        },
+        {
+          "lower_bound_nanos": 1000000,
+          "upper_bound_nanos": 2000000,
+          "count": 590
+        },
+        {
+          "lower_bound_nanos": 2000000,
+          "upper_bound_nanos": 5000000,
+          "count": 399
+        },
+        {
+          "lower_bound_nanos": 5000000,
+          "upper_bound_nanos": 10000000,
+          "count": 2
+        }
+      ]
+    }
+  },
+  "service_latency_nanos": {
+    "unit": "nanoseconds",
+    "p50_nanos": 720129,
+    "p90_nanos": 1208574,
+    "p95_nanos": 1401380,
+    "p99_nanos": 2069452,
+    "p999_nanos": 3593780,
+    "min_nanos": 431971,
+    "max_nanos": 4752535,
+    "mean_nanos": 824924.2166030534,
+    "histogram": {
+      "unit": "nanoseconds",
+      "total_count": 1048,
+      "buckets": [
+        {
+          "lower_bound_nanos": 200000,
+          "upper_bound_nanos": 500000,
+          "count": 24
+        },
+        {
+          "lower_bound_nanos": 500000,
+          "upper_bound_nanos": 1000000,
+          "count": 812
+        },
+        {
+          "lower_bound_nanos": 1000000,
+          "upper_bound_nanos": 2000000,
+          "count": 200
+        },
+        {
+          "lower_bound_nanos": 2000000,
+          "upper_bound_nanos": 5000000,
+          "count": 12
+        }
+      ]
+    }
+  }
+}

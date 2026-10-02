@@ -1,0 +1,5 @@
+running load benchmark: distribution=poisson, rate=Some(1000.0), duration=2.0s, max_in_flight=1000, shape=unary, transport=native, codec=pbrs, req_bytes=1024, resp_bytes=1024, stream_msgs=0, tls=false window_mode=default latency_rtt_ms=0
+offered_calls=2054 dispatched_calls=2054 completed_calls=2054 successes=2054 failures=0 timeouts=0 queue_overflows=0 throughput_qps=1027.9
+scheduling_lag_nanos: p50=976637 p99=1989149 max=3007926
+e2e_latency_nanos: p50=1678883 p90=2387917 p99=3070878 max=5195276
+saved metrics to work/sb21/stack-smoke/logs/rep3/client-native-unary-1kib-plain-1cpu-matched.json
