@@ -677,6 +677,63 @@ def manifest(name: str, reference: bool = False) -> str:
     )
 
 
+def pbrs_profile(env: dict[str, str], generator: str = "pbrs") -> dict:
+    """Report the existing driver/manifest knobs without changing their defaults."""
+    keys = (
+        "SB09_PBRS_EMIT_REFLECTION", "SB09_PBRS_EMIT_JSON", "SB09_PBRS_EMIT_TEXT",
+        "SB09_PBRS_SHARED_DESCRIPTOR_SET", "SB09_PBRS_RUNTIME_PROFILE", "SB09_PBRS_STUBS",
+    )
+    raw = {key: env.get(key) for key in keys}
+
+    def boolean(key: str, default: bool) -> bool:
+        value = raw[key]
+        if value is None:
+            return default
+        if value.lower() in ("1", "true"):
+            return True
+        if value.lower() in ("0", "false"):
+            return False
+        raise BenchmarkError(f"expected boolean {key}, got {value!r}")
+
+    reflection = boolean("SB09_PBRS_EMIT_REFLECTION", True)
+    runtime = env.get("SB09_PBRS_RUNTIME_PROFILE", "default") if generator == "pbrs" else "default"
+    if runtime not in ("default", "minimal", "json-text"):
+        raise BenchmarkError("SB09_PBRS_RUNTIME_PROFILE must be default, minimal, or json-text")
+    ordinary_stubs = PBRS_STUB_ENV.get(generator, "none")
+    stubs = PBRS_STUB_ENV.get(generator, env.get("SB09_PBRS_STUBS") or "none")
+    resolved = {
+        "emit_reflection": reflection,
+        "emit_json": boolean("SB09_PBRS_EMIT_JSON", reflection),
+        "emit_text": boolean("SB09_PBRS_EMIT_TEXT", reflection),
+        "shared_descriptor_set": boolean("SB09_PBRS_SHARED_DESCRIPTOR_SET", False),
+        "runtime_profile": runtime,
+        "stubs": stubs,
+    }
+    ordinary = {
+        "emit_reflection": True, "emit_json": True, "emit_text": True,
+        "shared_descriptor_set": False, "runtime_profile": "default", "stubs": ordinary_stubs,
+    }
+    return {
+        "raw": raw, "resolved": resolved,
+        "kind": "ordinary-default" if resolved == ordinary else "nondefault-diagnostic",
+    }
+
+
+def pbrs_helper_provenance(snapshot: dict, profile: dict, target_count: int) -> dict:
+    """Reject missing/stale helper output rather than silently mislabel a profile."""
+    name = "__pbrs_shared_descriptors.rs"
+    resolved = profile["resolved"]
+    expected = (
+        resolved["shared_descriptor_set"] and resolved["emit_reflection"] and target_count > 1
+    )
+    if (name in snapshot) != expected:
+        raise BenchmarkError(f"shared descriptor helper presence does not match requested profile: {name}")
+    if not expected:
+        return {"active": False, "path": None, "sha256": None, "bytes": 0}
+    _, digest, size = snapshot[name]
+    return {"active": True, "path": name, "sha256": digest, "bytes": size}
+
+
 def write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
@@ -2062,6 +2119,7 @@ def measure_pbrs_cell(
         "target_dir": relative(target_dir, run_dir),
         "phases": {},
     }
+    cell["profile"] = pbrs_profile(base_env)
     report["cells"].append(cell)
     write_report(report, run_dir)
     check_env = {**base_env, "CARGO_TARGET_DIR": str(target_dir), "CARGO_INCREMENTAL": "1"}
@@ -2080,8 +2138,11 @@ def measure_pbrs_cell(
         run_dir, timeout, sample_ms, logs / "generation",
     )
     before = snapshot_generated(generated)
+    cell["shared_descriptor_helper"] = pbrs_helper_provenance(before, cell["profile"], len(names))
     if case in REALISTIC_CORPORA:
         expected_files = realistic_pbrs_expected(names)
+        if cell["shared_descriptor_helper"]["active"]:
+            expected_files |= {cell["shared_descriptor_helper"]["path"]}
         if before.keys() != expected_files:
             raise BenchmarkError(
                 f"{case}: unexpected pbrs Rust outputs: "
@@ -2153,6 +2214,8 @@ def measure_peer_cell(
         "target_dir": relative(target_dir, run_dir),
         "phases": {},
     }
+    if generator in PBRS_STUB_ENV:
+        cell["profile"] = pbrs_profile(base_env, generator)
     report["cells"].append(cell)
     write_report(report, run_dir)
     check_env = {**base_env, "CARGO_TARGET_DIR": str(target_dir), "CARGO_INCREMENTAL": "1"}
@@ -2194,6 +2257,10 @@ def measure_peer_cell(
     else:
         expected = peer_expected_files(generator, names, case)
         before = snapshot_generated(generated, entrypoint, min_files=1)
+        if generator in PBRS_STUB_ENV:
+            cell["shared_descriptor_helper"] = pbrs_helper_provenance(before, cell["profile"], len(names))
+            if cell["shared_descriptor_helper"]["active"]:
+                expected |= {cell["shared_descriptor_helper"]["path"]}
         if before.keys() != expected:
             raise BenchmarkError(
                 f"{case}/{generator}: unexpected Rust outputs: "
@@ -2536,6 +2603,14 @@ def run_cases(
         for case in cases
         for generator in generators_for_case(case, generators, stub_generators)
     }
+    report["pbrs_profiles"] = {
+        generator: pbrs_profile(base_env, generator)
+        for generator in sorted(applicable)
+        if generator == "pbrs" or generator in PBRS_STUB_ENV
+    }
+    if any(profile["kind"] == "nondefault-diagnostic" for profile in report["pbrs_profiles"].values()):
+        qualification = report.setdefault("qualification", {"qualified": False, "reasons": []})
+        qualification["reasons"].append("nondefault_pbrs_profile_diagnostic")
     if not applicable:
         raise BenchmarkError(
             "no applicable generators for the selected cases: message cases need "

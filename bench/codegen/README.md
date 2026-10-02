@@ -185,6 +185,24 @@ depend on `pbrs` with `default-features = false`, or `json-text` for
 generator driver always keeps default `pbrs` features so `pbrs::codegen`
 remains available.
 
+`SB09_PBRS_SHARED_DESCRIPTOR_SET=1` opts into one shared descriptor helper for
+reflective multi-file pbrs output. Unset or `0` preserves ordinary default
+generation. The existing consumer installs the generated root `mod.rs` registry,
+so it also installs the helper. Single-output or reflection-disabled generation
+does not emit the helper. The report records each pbrs profile's raw inputs and
+resolved emission/runtime settings in `pbrs_profiles` and each cell's `profile`;
+`shared_descriptor_helper` records actual helper activation, path, size, and hash.
+An explicitly false flag stays an ordinary default profile while its raw value
+is retained. Native/tonic stub consumers retain their existing default runtime
+dependencies, even when the message-only runtime profile knob is set.
+
+Shared or lean profiles are labeled `nondefault-diagnostic`, with a corresponding
+qualification reason. They cannot substitute for ordinary default matrix cells.
+The seeded consumer's binary round trips and original thin-LTO release settings
+remain unchanged. Descriptor metadata may be stripped by the linker, so smaller
+generated source does not imply a smaller linked binary. Record equal or losing
+binary/check results without changing the consumer workload to force a win.
+
 Realistic corpora fetch 27 hash-pinned `.proto` files (OTLP v1.7.0,
 googleapis, Envoy v1.39.1, udpa, xds, protoc-gen-validate v1.3.3) from
 `raw.githubusercontent.com` into `target/codegen-bench/vendor/` on first
