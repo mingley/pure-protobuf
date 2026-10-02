@@ -1,0 +1,32 @@
+cargo update --offline --manifest-path bench/devloop/adoption/Cargo.toml -p getrandom --precise 0.3.4
+ Downgrading getrandom v0.4.3 -> v0.3.4
+ Downgrading r-efi v6.0.0 -> v5.3.0
+      Adding wasip2 v1.0.4+wasi-0.2.12
+      Adding wit-bindgen v0.57.1
+note: pass `--verbose` to see 1 unchanged dependencies behind latest
+exit=0
+cargo update --offline --manifest-path bench/devloop/adoption/Cargo.toml -p cfg-if --precise 1.0.4
+ Downgrading cfg-if v1.0.5 -> v1.0.4
+note: pass `--verbose` to see 1 unchanged dependencies behind latest
+exit=0
+cargo update --offline --manifest-path bench/devloop/adoption/Cargo.toml -p crc32fast --precise 1.5.1
+ Downgrading crc32fast v1.5.2 -> v1.5.1
+note: pass `--verbose` to see 2 unchanged dependencies behind latest
+exit=0
+cargo update --offline --manifest-path bench/devloop/adoption/Cargo.toml -p hyper --precise 1.11.0
+ Downgrading hyper v1.11.1 -> v1.11.0
+note: pass `--verbose` to see 3 unchanged dependencies behind latest
+exit=0
+cargo update --offline --manifest-path bench/devloop/adoption/Cargo.toml -p hyper-util --precise 0.1.20
+ Downgrading hyper-util v0.1.21 -> v0.1.20
+note: pass `--verbose` to see 4 unchanged dependencies behind latest
+exit=0
+cargo update --offline --manifest-path bench/devloop/adoption/Cargo.toml -p mio --precise 1.2.2
+ Downgrading mio v1.2.3 -> v1.2.2
+note: pass `--verbose` to see 5 unchanged dependencies behind latest
+exit=0
+r-efi already at reviewed 5.3.0
+cargo update --offline --manifest-path bench/devloop/adoption/Cargo.toml -p smallvec --precise 1.15.2
+ Downgrading smallvec v1.16.2 -> v1.15.2
+note: pass `--verbose` to see 6 unchanged dependencies behind latest
+exit=0

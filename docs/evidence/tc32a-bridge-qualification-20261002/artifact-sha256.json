@@ -1,0 +1,31 @@
+{
+  "sha256": {
+    "adoption-lock-before.toml": "559a54d6e8553d45abbde340ea696a47585c710f6f1c3c153a1a82dd0635e22a",
+    "adoption-lock-first-rejected.toml": "3aa7b00c26445577fb6ca9a51e97f3f619c360feb90d7c81ce0ac8d231106fde",
+    "audit-inventory.py": "5383ed3b938f7fef43a24f05e8ae138f432666565e9edea278a172c8570f103e",
+    "bridge-clippy-first-failed.log": "87c5b3678f27941a71cf0e0020943abff0ca6821b9f2351e02eeccb35258c2cd",
+    "bridge-clippy.log": "8e49a76ceef76973287a3fbb740efd734c5a71105a06fc0faa331275ee79e9ef",
+    "bridge-inventory.json": "aa2c7238d08617ea320ba96e3432b675946c171c3ef32d9877f593b26564d9be",
+    "bridge-inventory.log": "12e6e3d8dbe82219b004dda629d6425348adc72a500e8a8015b7c374fb5e40fd",
+    "bridge-tests-final.log": "f2beb9f205c2739aafc418019d54e888dfc4c4a4bbcafc81cc7e2d80bf1db849",
+    "bridge-tests-first.log": "d6902801809ae789e8f34397a0910be1487ab4a40c243630b0abd00440f4c6cd",
+    "build-resume-identity.json": "796d405f1d335be940ea4ef43e475a5a258cff8b9fbd80b215bbb55c9fdb3357",
+    "cargo-version.txt": "1f88eaf7fe1aaec83184752cf4c944cd22f00184136ff36a3e4c318cc60ef566",
+    "commands-and-limits.json": "e33b29323e5da9f8ae35fc387b8272b55b5103a6f8ee21f0be93b28e986167f2",
+    "default-enabled-graph-proof.json": "6cfbb880c3d8692c780d4d0caac3e15fd827d78cd98180b06f53bcb706ad8eb1",
+    "default-graph-proof.json": "5307b6c5860eb768c869115639f8d79a6c54cdd2064f6e3d7e62d26206392e18",
+    "default-tests.log": "7956359b5679c6cd4dcf232940f0628d9e80ef397dfcbe70b3f2abe00e10fde5",
+    "generate-check.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "inventory-audit.json": "be600c063630f0502d4bd4c69f5842d7d8f7298158d2e6ec268d445ed4b71cd9",
+    "inventory-independent-audit.log": "a67e74df555be9122ed4db6ca0a9f9b186881de448f089bd71a72258e0aa7a0b",
+    "lock-audit-final.json": "8732dc28cd2288d48d188ac31ca3b024eb35d920b1b60b01c0b7294e0cd74f03",
+    "lock-audit-first-failed.json": "0d3633d91d0c3593720b1ea9c8885277f6f63e1e2ccf4b315714996da2f4d58e",
+    "lock-pin-update.log": "fd9f59729dec66d8c97d0dac3f2faac1505651ea3773cf76541593cefbc41be1",
+    "old-generated-comparison.json": "30c78296c0d389b15a82e49a78222a1c5d7ec96cd04e706e5326c4b4f134b5d7",
+    "protoc-version.txt": "5987bbe9a66a41608f55e323b75dce876fc4f793cb64f3a2f599f028db058677",
+    "rustc-version.txt": "b569b0c98ea3133c7252b4b8ea6b39b7b353813df0dd5f5c412c355691424112",
+    "rustfmt-version.txt": "32ae47248d3c1c88781660ad9acdfd0496c040eda7e0759c5f1fec8122c97a0a",
+    "source-pins.json": "0c93f00af0f30fac44089974b6c758d17ca8fbdb4e8444af4898084593ce7e92",
+    "tool-pins.json": "054f22fc14359e9dd139d8f8a8e38233fdd6ce94f1c6e3280ccba5f047687aa9"
+  }
+}

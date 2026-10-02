@@ -11,10 +11,11 @@ of that buffer. The prost-to-pbrs path turns the encoded `Vec<u8>` into
 `bytes::Bytes` without copying; lazy pbrs fields retain that shared storage.
 The reverse path also moves the encoded buffer into prost's `Buf` decoder.
 
-The bridge itself therefore performs one source encode, one target decode and
-one wire-buffer allocation. There is no intermediate wire-buffer copy. Target
-messages can make their ordinary decode-time allocations (for example, prost
-`String` fields); those are not extra bridge copies.
+The bridge source performs one encode and one target decode, using an owned
+wire buffer with no explicit intermediate wire-buffer copy. Target messages
+and their shared-storage owners can make their ordinary allocations. Total
+allocations and bytes require actual API measurements; the source structure
+is not a numeric cost result.
 
 This explicit conversion is preferable to generated `From` implementations:
 it works across independently generated schema crates, covers nested/imported
@@ -53,10 +54,16 @@ types and has no runtime branch.
 
 ## Qualification limit
 
-The checked-in TC-32 test exercises SB-26's committed public boundaries, but
-SB-26 has not yet landed its recursive-query and Any-record generated corpus
-modules or baseline JSON. Consequently a corpus-identity benchmark and numeric
-instruction/allocation measurements cannot yet be recorded. TC-32 remains
-`in_progress` until SB-26 supplies those artifacts; this page records the exact
-static conversion cost and the runnable compatibility proof without inventing
-claim-grade measurements.
+The original compatibility test exercises SB26's public boundaries. SB26's
+recursive-query, Any-record, sparse-field, map and option corpora have since
+landed. [TC32a's pinned actual-API inventory](tc32a-bridge-qualification-20261002.md)
+qualifies all 336 direction/mode cells across 84 specimens for semantics;
+324 cells pass actual wire guards, and 12 map cells remain blocked by the
+existing default-value and order policy. The benchmark-only bridge feature is
+optional and leaves the default dependency graph unchanged.
+
+Numeric allocation/byte/instruction costs remain `not_run`. TC32b must
+integrate the existing exact allocation and N/2N instruction collectors,
+retain source/binary/fingerprint guards and unchanged-binary replay failures,
+and record absolute API costs before the parent TC32 acceptance can close.
+The semantic inventory does not establish performance or headroom.

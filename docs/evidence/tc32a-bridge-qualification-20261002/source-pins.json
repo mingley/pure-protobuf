@@ -1,0 +1,20 @@
+{
+  "source_commit": "754cb6c2e3a7c0cf592f64f33807e257b00ec648",
+  "source_clean": true,
+  "source_sha256": {
+    "bench/devloop/adoption/Cargo.toml": "8a44f92901543fd2e921315614a5e0cb26181720dc7b0d1cdfbf80a2757726b2",
+    "bench/devloop/adoption/Cargo.lock": "00aff2739394c6da0794f669d9d802ee29062888307e5258b2e854f2dc90be8b",
+    "bench/devloop/adoption/generate.py": "c6c0ff850e3caa7f0992393259e595280d80b6958dfef10d0452efcca471bba2",
+    "bench/devloop/adoption/src/lib.rs": "2161d42e3942c6b8aa792e8c7d18099c2f980ea045665203eb1221d7cc20ea3e",
+    "bench/devloop/adoption/src/bridge.rs": "6eec81e67cb2aac1ded0c6e6fb3b7e25262e3142d5fe48bbd01b0f33648300b5",
+    "bench/devloop/adoption/src/bridge_cells.rs": "21af81079ce38e414552e45e4485104b3ef89b825b0ef58dc0ffae6a0d97d957",
+    "bench/devloop/adoption/src/bridge_options.rs": "c9f3a867d426eab27b9996db14c713a12143d98351e249cc35d5100304e989ec",
+    "bench/devloop/adoption/src/bin/bridge-inventory.rs": "96e8a18816cdd46aeec1f8cb023d82a0b0489784ee6dfd54062f5f4ba2c458f1",
+    "protobuf-tonic/src/lib.rs": "20ddfede04f82b5d0b72817105c318851d8690f5398127155042b308ac5e002f"
+  },
+  "api": [
+    "protobuf_tonic::prost_to_pbrs",
+    "protobuf_tonic::pbrs_to_prost"
+  ],
+  "numeric_cost": "not_run; TC32b pending"
+}
