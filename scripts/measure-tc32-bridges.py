@@ -62,6 +62,7 @@ def main():
     for tool in pin['tools'].values():
         audit.require(audit.sha(tool['path']) == tool['sha256'], 'compiler/tool pin drift')
     audit.require(git(root / 'third_party/protobuf', 'rev-parse', 'HEAD') == pin['protobuf_source_commit'], 'upstream source pin drift')
+    audit.require(not git(root / 'third_party/protobuf', 'status', '--porcelain'), 'upstream source is dirty')
     audit.require(args.iters > 0, 'N must be positive')
     frozen(root, source, binary, expected)
     args.out.mkdir(parents=True, exist_ok=False)

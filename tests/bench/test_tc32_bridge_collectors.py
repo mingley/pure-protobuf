@@ -132,6 +132,28 @@ class BridgeAuditTests(unittest.TestCase):
         (self.directory / self.records[1]['graph']).write_bytes(gzip.compress(b'events: Ir\nsummary: 1\n', mtime=0))
         self.reject()
 
+    def test_actual_N2N_graph_underflow_rejected(self):
+        record = next(r for r in self.records if r['collector'] == 'callgrind' and r['iters'] == 32)
+        total = 1
+        raw = f'events: Ir\nsummary: {total}\n'.encode()
+        path = self.directory / record['graph']
+        path.write_bytes(gzip.compress(raw, mtime=0))
+        record.update(graph_sha256=audit.sha(path), uncompressed_graph_sha256=hashlib.sha256(raw).hexdigest(), instruction_total=total)
+        record['stderr'] = '__CHILD__ ' + json.dumps(record['child']) + '\n__QUALIFICATION__ ' + json.dumps(record['qualification']) + f'\n==123== I   refs: {total}\n'
+        self.reject()
+
+    def test_unavailable_tool_preserves_exact_allocations_and_instructions_not_run(self):
+        self.meta['callgrind_available'] = False
+        self.records = [r for r in self.records if r['collector'] == 'allocator']
+        self.save()
+        report = audit.rebuild(self.directory)
+        self.assertEqual(report['cells'][0]['metrics']['allocs']['value'], 7)
+        self.assertEqual(report['cells'][0]['metrics']['instructions']['status'], 'not_run')
+
+    def test_debug_build_cannot_be_a_cost_capture_pin(self):
+        self.meta['build_pin']['profile'] = 'debug'
+        self.reject()
+
     def test_unchanged_binary_replay_retains_every_failure_and_negative_instability(self):
         first = audit.rebuild(self.directory)
         second = copy.deepcopy(first)

@@ -23,7 +23,13 @@ PINNED_SOURCES = ('bench/devloop/Cargo.toml', 'bench/devloop/Cargo.lock',
                   'bench/devloop/adoption/generate.py', 'bench/devloop/adoption/src/bridge.rs',
                   'bench/devloop/adoption/src/bridge_cells.rs', 'bench/devloop/adoption/src/bridge_options.rs',
                   'protobuf-tonic/src/lib.rs', 'scripts/measure-tc32-bridges.py',
-                  'scripts/audit-tc32-bridges.py')
+                  'scripts/audit-tc32-bridges.py', 'bench/devloop/build.rs',
+                  'bench/devloop/adoption/build.rs', 'bench/devloop/adoption/src/lib.rs',
+                  'bench/devloop/adoption/src/corpus.rs', 'bench/devloop/adoption/src/fresh.rs',
+                  'bench/devloop/adoption/src/workloads.rs', 'bench/devloop/adoption/src/sparse_walks.rs',
+                  'bench/devloop/adoption/proto/adoption.proto', 'bench/devloop/adoption/proto/sparse.proto',
+                  'bench/devloop/adoption/proto/options/definitions.proto') + tuple(
+                      f'bench/devloop/adoption/proto/options/part_{i:02}.proto' for i in range(20))
 
 
 def validate_build_pin(pin):
