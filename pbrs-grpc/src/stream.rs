@@ -454,17 +454,6 @@ impl<T> Streaming<T> {
         }
         taken
     }
-
-    /// Whether yielding can let the response producer make more progress.
-    ///
-    /// A closed channel may still contain messages, but no sender can add
-    /// more. A wire-backed stream can advance when its connection driver runs.
-    pub(crate) fn producer_may_advance(&self) -> bool {
-        match &self.source {
-            Source::Channel(rx) => !rx.is_closed(),
-            Source::Wire(_) => true,
-        }
-    }
 }
 
 impl<T> std::fmt::Debug for Streaming<T> {
