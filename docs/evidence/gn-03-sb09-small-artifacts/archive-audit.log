@@ -1,0 +1,19 @@
+{
+  "verified_members": 156,
+  "case": "small",
+  "status": "unqualified local diagnostic",
+  "metrics": {
+    "default": {
+      "source_bytes": 135821,
+      "cold_check_seconds": 14.264721453,
+      "release_seconds": 58.404685317,
+      "linked_binary_bytes": 545936
+    },
+    "shared": {
+      "source_bytes": 129486,
+      "cold_check_seconds": 13.811339891,
+      "release_seconds": 57.624617274,
+      "linked_binary_bytes": 545936
+    }
+  }
+}
