@@ -9934,7 +9934,7 @@
     "pbrs-grpc/src/client/",
     "pbrs-grpc/src/transport/",
     "pbrs-grpc/tests/",
-    "pbrs-grpc/tests/cl07_settings.rs",
+    "pbrs-grpc/tests/cl07_preface.rs",
     "docs/evidence/cl-07.md"
    ],
    "deliverable": "CL-06 found that the client waits for peer SETTINGS before sending its first stream, which costs cold-start latency against tonic. Pipeline the first request behind the preface where RFC 9113 allows it, keeping lazy-connect, wait-for-ready, deadline, cancellation and stream-cap semantics.",
@@ -9955,7 +9955,7 @@
    ],
    "status": "in_progress",
    "implementer": "gn13_cold_client",
-   "notes": " Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure."
+   "notes": " Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure. Default preface pipelining was rejected by preserved-settings/admission/retry behavioral tests; retain the negative investigation and keep the cold/TLS P4 performance acceptance open."
   },
   {
    "id": "QG-08",
@@ -10315,7 +10315,10 @@
     "pbrs-grpc/src/codec/",
     "pbrs-grpc/src/client/",
     "pbrs-grpc/src/server/",
-    "bench/devloop/"
+    "bench/devloop/",
+    "pbrs-grpc/src/wire/encode.rs",
+    "pbrs-grpc/tests/cl08_prost_encoding.rs",
+    "docs/evidence/cl-08.md"
    ],
    "deliverable": "With prost messages, pbrs-grpc allocates more bytes per RPC than tonic: 52,021 against 49,177 on unary, and 75,173 against 58,058 on server streaming (TC-03). Pre-size encode buffers from encoded_len, encode directly into the frame buffer, reuse per-stream buffers and remove double buffering on both client and server.",
    "accept": [
@@ -10334,7 +10337,10 @@
    "relates": [
     "RX-07",
     "TC-03"
-   ]
+   ],
+   "status": "in_progress",
+   "implementer": "gn13_prost_encoding",
+   "notes": "Claimed 2026-10-02 for a bounded safe prost contiguous-buffer encoding experiment. Exclusive initial scope is codec.rs, codec/prost.rs, wire/encode.rs and dedicated tests/evidence; client/server and benchmark mutations require coordination with SV-09/SB-21. Hypothesis and additive default-method API are reviewed before editing. All prost ledger cells, unchanged control thresholds, limits, compression, shared native segments and batch rollback must remain qualified before shipping or closure."
   },
   {
    "id": "CL-09",
