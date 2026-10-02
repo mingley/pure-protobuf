@@ -56,15 +56,17 @@ def bridge_outputs(specimens):
             module = 'prost' if codec == 'prost' else 'pbrs'
             ty = f'options::part_{i:02}::{module}::Record{i:02}'
             walks.append(f'pub fn options_{i:02}_{codec}() -> {ty} {{\n')
-            constructor = 'default' if codec == 'prost' else 'new'
-            walks.append(f'    let mut m = {ty}::{constructor}();\n')
+            if codec == 'prost':
+                walks.append(f'    {ty} {{\n')
+            else:
+                walks.append(f'    let mut m = {ty}::new();\n')
             for j in range(16):
                 # These values are byte-for-byte the existing option_tests recipe.
                 value = (f'"part-{i}-field-{j}".to_owned()', f'-{j}i64',
                          f'vec![{j}u8; 9]', f'{j % 2 == 0}'.lower())[j % 4]
-                statement = f'm.value_{j:02} = Some({value});' if codec == 'prost' else f'm.set_value_{j:02}({value});'
+                statement = f'value_{j:02}: Some({value}),' if codec == 'prost' else f'm.set_value_{j:02}({value});'
                 walks.append(f'    {statement}\n')
-            walks.append('    m\n}\n')
+            walks.append('    }\n}\n' if codec == 'prost' else '    m\n}\n')
             walks.append(f'pub fn touch_options_{i:02}_{codec}(m: &{ty}) -> u64 {{\n    let mut h = Digest::new();\n')
             for j in range(16):
                 field = f'm.value_{j:02}.as_ref()' if codec == 'prost' else f'm.value_{j:02}_opt()'
