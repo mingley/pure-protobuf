@@ -103,13 +103,19 @@ struct Calls {
 }
 
 impl LifecycleObserver for Calls {
-    fn on_server_call_start(&self, _call: &CallLabels<'_>) {
+    fn on_server_call_start(&self, call: &CallLabels<'_>) {
+        if !matches!(call.method(), "ClientHello" | "ServerHello") {
+            return;
+        }
         let active = self.active.fetch_add(1, Ordering::SeqCst) + 1;
         self.peak.fetch_max(active, Ordering::SeqCst);
         self.started.fetch_add(1, Ordering::SeqCst);
     }
 
-    fn on_server_call_end(&self, _call: &CallLabels<'_>, _status: &Status, _latency: Duration) {
+    fn on_server_call_end(&self, call: &CallLabels<'_>, _status: &Status, _latency: Duration) {
+        if !matches!(call.method(), "ClientHello" | "ServerHello") {
+            return;
+        }
         self.active.fetch_sub(1, Ordering::SeqCst);
         self.ended.fetch_add(1, Ordering::SeqCst);
     }
@@ -147,10 +153,10 @@ fn snapshot(
         "file_descriptors": entry_count("/proc/self/fd"),
         "os_threads": entry_count("/proc/self/task"),
         "tokio_alive_tasks": tokio::runtime::Handle::current().metrics().num_alive_tasks(),
-        "admitted_calls_active": calls.active.load(Ordering::SeqCst),
-        "admitted_calls_peak": calls.peak.load(Ordering::SeqCst),
-        "admitted_calls_started": calls.started.load(Ordering::SeqCst),
-        "admitted_calls_ended": calls.ended.load(Ordering::SeqCst),
+        "observed_streaming_calls_active": calls.active.load(Ordering::SeqCst),
+        "observed_streaming_calls_peak": calls.peak.load(Ordering::SeqCst),
+        "observed_streaming_calls_started": calls.started.load(Ordering::SeqCst),
+        "observed_streaming_calls_ended": calls.ended.load(Ordering::SeqCst),
         "server_allocated_bytes": server.allocated(), "client_allocated_bytes": client.allocated(),
         "server_byte_peak": server.peak_allocated(), "client_byte_peak": client.peak_allocated(),
         "server_byte_tokens": server.active_byte_permit_tokens(),
@@ -236,6 +242,7 @@ async fn current_h2_resource_smoke() {
         let channel = Channel::connect_with(
             addr,
             ChannelConfig::default()
+                .stream_buffer(1)
                 .initial_stream_window_size(1024)
                 .initial_connection_window_size(4096),
         )

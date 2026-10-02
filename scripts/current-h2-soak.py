@@ -18,8 +18,8 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 PHASES = ["warmup", "slow_reader", "overload", "cancelled", "deadline", "recovered", "drain"]
 GAUGES = ["rss_bytes", "rss_hwm_bytes", "file_descriptors", "os_threads", "tokio_alive_tasks",
-          "admitted_calls_active", "admitted_calls_peak", "admitted_calls_started",
-          "admitted_calls_ended", "server_allocated_bytes", "client_allocated_bytes",
+          "observed_streaming_calls_active", "observed_streaming_calls_peak", "observed_streaming_calls_started",
+          "observed_streaming_calls_ended", "server_allocated_bytes", "client_allocated_bytes",
           "server_byte_peak", "client_byte_peak", "server_byte_tokens", "client_byte_tokens",
           "server_token_peak", "client_token_peak"]
 LIMIT_NAMES = {"address_space": resource.RLIMIT_AS, "file_descriptors": resource.RLIMIT_NOFILE,
@@ -29,6 +29,7 @@ SETTINGS = {"transport": "tcp_loopback_plaintext", "compression": "none", "runti
             "max_message_bytes": 65536, "per_stream_send_buffer_bytes": 16384,
             "client_byte_budget_bytes": 262144, "server_byte_budget_bytes": 262144,
             "client_stream_receive_window_bytes": 1024, "client_connection_receive_window_bytes": 4096,
+            "client_decoded_stream_queue_messages": 1,
             "server_deadline_ms": 300, "drain_grace_ms": 150,
             "slow_reader_hold_ms": 60, "slow_reader_responses": 16,
             "slow_reader_response_bytes": 2048,
@@ -104,7 +105,7 @@ def observe_process(pid, elapsed):
 
 def validate_report(report):
     errors = []
-    if report.get("schema") != "pbrs.current-h2-smoke.v1":
+    if report.get("schema") != "pbrs.current-h2-smoke.v2":
         errors.append("unknown evidence schema")
     source = report.get("source", {})
     if not re.fullmatch(r"[0-9a-f]{40}", str(source.get("commit", ""))) or source.get("dirty") is not False:
@@ -156,18 +157,18 @@ def validate_report(report):
             continue
         if not event["rss_bytes"] or event["rss_hwm_bytes"] < event["rss_bytes"]:
             errors.append("invalid process RSS accounting")
-        if event["admitted_calls_peak"] > SETTINGS["max_active_rpcs"]:
-            errors.append("admitted-call peak exceeds frozen limit")
+        if event["observed_streaming_calls_peak"] > SETTINGS["max_active_rpcs"]:
+            errors.append("observed streaming-call peak exceeds frozen limit")
         for side in ("client", "server"):
             if event[f"{side}_byte_peak"] > SETTINGS[f"{side}_byte_budget_bytes"]:
                 errors.append("accounted byte peak exceeds tracker budget")
         if event.get("phase") in ("cancelled", "deadline", "recovered", "drain"):
-            idle = ["admitted_calls_active", "server_allocated_bytes", "client_allocated_bytes",
+            idle = ["observed_streaming_calls_active", "server_allocated_bytes", "client_allocated_bytes",
                     "server_byte_tokens", "client_byte_tokens"]
             if any(event[key] != 0 for key in idle):
-                errors.append("post-fault permits or admitted calls failed to recover")
-            if event["admitted_calls_started"] != event["admitted_calls_ended"]:
-                errors.append("admitted-call start/end accounting incomplete")
+                errors.append("post-fault permits or observed streaming calls failed to recover")
+            if event["observed_streaming_calls_started"] != event["observed_streaming_calls_ended"]:
+                errors.append("observed streaming-call start/end accounting incomplete")
         if event.get("phase") == "drain" and all(type(baseline.get(key)) is int for key in GAUGES):
             if event["rss_bytes"] > baseline["rss_bytes"] + SETTINGS["recovery_rss_tolerance_bytes"]:
                 errors.append("post-drain RSS exceeds predeclared tolerance")
@@ -246,7 +247,7 @@ def run(args):
                 events.append(json.loads(line))
             except json.JSONDecodeError as error:
                 failures.append(f"invalid raw event: {error}")
-    report = {"schema": "pbrs.current-h2-smoke.v1", "source": source,
+    report = {"schema": "pbrs.current-h2-smoke.v2", "source": source,
               "host": dict(platform.uname()._asdict()), "seed": args.seed,
               "tools": {"rustc": command(["rustc", "-Vv"]), "cargo": command(["cargo", "-V"]),
                         "python": sys.version},

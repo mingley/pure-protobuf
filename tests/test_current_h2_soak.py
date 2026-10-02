@@ -22,7 +22,7 @@ def complete_report():
                      file_descriptors=6, os_threads=3, tokio_alive_tasks=0)
         events.append(event)
     limits = {key: {"soft": 1024, "hard": 1024} for key in SOAK.LIMIT_NAMES}
-    return {"schema": "pbrs.current-h2-smoke.v1",
+    return {"schema": "pbrs.current-h2-smoke.v2",
             "source": {"commit": "a" * 40, "tree": "b" * 40, "dirty": False, "cargo_lock_sha256": "c" * 64},
             "binary": {"sha256": "d" * 64}, "tools": {"rustc": "rustc", "cargo": "cargo", "python": "python"},
             "commands": {"build": ["cargo", "test"], "test": ["test-executable"]},
@@ -108,14 +108,14 @@ class CurrentH2EvidenceTest(unittest.TestCase):
             self.assertIn("missing or invalid resource gauge", SOAK.validate_report(report))
 
     def test_post_fault_leaks_and_incomplete_calls_rejected(self):
-        for gauge in ("admitted_calls_active", "server_allocated_bytes", "client_allocated_bytes",
+        for gauge in ("observed_streaming_calls_active", "server_allocated_bytes", "client_allocated_bytes",
                       "server_byte_tokens", "client_byte_tokens"):
             report = complete_report()
             report["events"][-1][gauge] = 1
-            self.assertIn("post-fault permits or admitted calls failed to recover", SOAK.validate_report(report))
+            self.assertIn("post-fault permits or observed streaming calls failed to recover", SOAK.validate_report(report))
         report = complete_report()
-        report["events"][-1]["admitted_calls_started"] = 1
-        self.assertIn("admitted-call start/end accounting incomplete", SOAK.validate_report(report))
+        report["events"][-1]["observed_streaming_calls_started"] = 1
+        self.assertIn("observed streaming-call start/end accounting incomplete", SOAK.validate_report(report))
 
     def test_predeclared_recovery_tolerances_and_budget_are_enforced(self):
         cases = [("rss_bytes", SOAK.SETTINGS["recovery_rss_tolerance_bytes"], "RSS"),

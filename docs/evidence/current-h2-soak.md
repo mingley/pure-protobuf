@@ -42,7 +42,8 @@ response messages. The seed identifies deterministic request labels; this is
 not a randomized fault campaign.
 
 The client advertises a 1 KiB stream receive window and 4 KiB connection receive
-window at connection establishment. The deliberately paused consumer must
+window at connection establishment and bounds its decoded stream queue to one
+message. The deliberately paused consumer must
 leave its server-streaming call active, exercising flow-control backpressure
 rather than merely postponing reads after the whole response has been queued.
 
@@ -55,13 +56,16 @@ and accounted bytes/tokens; an independent unending upload must finish with
 slow-reader messages. Every cycle reconnects and tears down the server.
 
 Raw JSONL events record Linux RSS and `VmHWM`, OS thread and descriptor counts,
-Tokio alive tasks, lifecycle admitted-call starts/ends/current/peak, and each
+Tokio alive tasks, observed streaming-call starts/ends/current/peak, and each
 tracker's current and exact lifetime peak bytes/tokens. The Python parent
 samples `/proc/<child>` every 50 ms and retains all samples in the report.
 Snapshots and sampled RSS can miss transient peaks; `VmHWM` is the process
 lifetime RSS high-water, and tracker peaks are exact only after acquisitions
 settle. Byte-permit tokens are not RPC slots or HTTP/2 streams. Admitted-call
-counts are lifecycle observations, not all wire streams. Tokio alive tasks and
+counts cover the `ClientHello`/`ServerHello` lifecycle callbacks in this bounded
+scenario, not unary calls, all wire streams or a general RPC-slot gauge. The
+rejected unary also emits start/end callbacks, which are deliberately excluded
+from this streaming-call accounting. Tokio alive tasks and
 OS threads are different quantities. This single process cannot attribute
 client/server RSS separately or quantify allocator/socket memory.
 

@@ -212,7 +212,7 @@ default change.
 [`current-h2-soak.py`](../scripts/current-h2-soak.py) freezes a clean commit,
 finite Linux process limits and a bounded workload before executing its test
 binary. It records RSS and process high-water separately from exact accounted
-transport bytes, byte-permit tokens and admitted-call counts. The diagnostic
+transport bytes, byte-permit tokens and observed streaming-call counts. The diagnostic
 also samples OS threads, file descriptors and Tokio alive tasks through warmup,
 slow readers, overload, cancellation, deadline recovery and drain. See the
 [commands, recovery tolerances and limitations](evidence/current-h2-soak.md).
