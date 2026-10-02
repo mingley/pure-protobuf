@@ -57,10 +57,12 @@ path = "src/lib.rs"
 [[bin]]
 name = "protoc-gen-pbrs"
 path = "src/bin/protoc-gen-pbrs.rs"
+required-features = ["codegen"]
 
 [[bin]]
 name = "conformance"
 path = "src/bin/conformance.rs"
+required-features = ["conformance"]
 
 [features]
 default = ["codegen", "conformance", "json", "reflect", "text"]

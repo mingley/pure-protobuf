@@ -1,0 +1,6 @@
+{
+  "command": "target/base/debug/conformance < /dev/null",
+  "exit": 0,
+  "stdout_hex": "",
+  "stderr": ""
+}

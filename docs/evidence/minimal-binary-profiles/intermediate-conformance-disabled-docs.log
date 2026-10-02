@@ -1,0 +1,17 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/gn11)
+error[E0432]: unresolved import `pbrs::gencode`
+  --> src/bin/conformance.rs:11:11
+   |
+11 | use pbrs::gencode::{
+   |           ^^^^^^^ could not find `gencode` in `pbrs`
+   |
+note: found an item that was configured out
+  --> src/lib.rs:78:9
+   |
+77 | #[cfg(feature = "conformance")]
+   |       ----------------------- the item is gated behind the `conformance` feature
+78 | pub mod gencode;
+   |         ^^^^^^^
+
+For more information about this error, try `rustc --explain E0432`.
+error: could not compile `pbrs` (bin "conformance") due to 1 previous error
