@@ -167,5 +167,47 @@
       "fairness_passed": 1,
       "log": "rpcbench-tests.txt"
     }
+  },
+  "closure_validation": {
+    "source": "892aeb63bed28b34a0babed5c8cb6133bebb9d6b",
+    "worktree": "/workspace/scratch/work/verify-main",
+    "checks": [
+      {
+        "command": "cargo test --locked -p pbrs --test documentation",
+        "status": "passed",
+        "passed": 24,
+        "failed": 0,
+        "ignored": 0,
+        "log": "final-closure-documentation.txt"
+      },
+      {
+        "command": "python3 -B -m unittest tests.test_plan_lint tests.test_plan_status tests.test_regen_generated -q",
+        "status": "passed",
+        "passed": 22,
+        "log": "final-closure-plan-tests.txt"
+      },
+      {
+        "command": "python3 scripts/plan-lint.py --all",
+        "status": "passed",
+        "cards": 388,
+        "checks": 32,
+        "cycles": 0
+      },
+      {
+        "command": "cargo fmt --check",
+        "status": "passed"
+      },
+      {
+        "command": "git diff --check",
+        "status": "passed"
+      }
+    ],
+    "reviewed_cards": [
+      "GN-12",
+      "GN-13",
+      "GN-14",
+      "SB-31"
+    ],
+    "optimization_disposition": "PK-31 remains blocked; unchanged-binary controls and registered legacy codec smoke are failed, not performance passes."
   }
 }
