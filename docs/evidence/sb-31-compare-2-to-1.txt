@@ -1,0 +1,3 @@
+codec.adoption.prost.maps.n8.fully_read_clone instructions: REGRESSED 56726.8 -> 57729.0 (+1.77%, limit 1%)
+codec.adoption.prost.maps.n64.fully_read_clone instructions: REGRESSED 122824.5 -> 124823.1 (+1.63%, limit 1%)
+codec.adoption.prost.maps.n512.read_all syscalls: REGRESSED 0.4 -> 0.4 (+1.10%, limit 1%)

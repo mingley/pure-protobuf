@@ -1,0 +1,46 @@
+--------------------------------------------------------------------------------
+Profile data file '/tmp/devloop-callgrind.103878' (creator: callgrind-3.24.0)
+--------------------------------------------------------------------------------
+I1 cache: 
+D1 cache: 
+LL cache: 
+Timerange: Basic block 0 - 345880027
+Trigger: Program termination
+Profiled target:  /workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop run-cell codec.adoption.pbrs.maps.n512.read_all --iters 512 --prepare-iters 512 (PID 103878, part 1)
+Events recorded:  Ir
+Events shown:     Ir
+Event sort order: Ir
+Thresholds:       90
+Include dirs:     
+User annotated:   
+Auto-annotation:  on
+
+--------------------------------------------------------------------------------
+Ir                     
+--------------------------------------------------------------------------------
+1,424,481,905 (100.0%)  PROGRAM TOTALS
+
+--------------------------------------------------------------------------------
+Ir                    file:function
+--------------------------------------------------------------------------------
+308,843,242 (21.68%)  ???:<pbrs::lazy::LazyStr as core::cmp::Ord>::cmp [/workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop]
+196,541,085 (13.80%)  ???:pbrs_adoption_corpus::corpus::touch_maps_native [/workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop]
+176,160,831 (12.37%)  ???:0x00000000001623e0 [/usr/lib/x86_64-linux-gnu/libc.so.6]
+173,418,320 (12.17%)  ???:<pbrs_adoption_corpus::native::__gen_adoption_proto::MapHeavy>::merge_inner [/workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop]
+ 84,581,764 ( 5.94%)  ???:core::str::converts::from_utf8 [/workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop]
+ 46,623,770 ( 3.27%)  ???:0x0000000000162b40 [/usr/lib/x86_64-linux-gnu/libc.so.6]
+ 39,506,362 ( 2.77%)  ???:0x00000000000a12a0 [/usr/lib/x86_64-linux-gnu/libc.so.6]
+ 36,229,900 ( 2.54%)  ???:<pbrs::lazy::Wire>::window [/workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop]
+ 35,420,981 ( 2.49%)  ???:pbrs::wire::decode_varint [/workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop]
+ 29,375,346 ( 2.06%)  ???:<pbrs::lazy::LazyStr as core::cmp::PartialEq>::eq [/workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop]
+ 22,665,675 ( 1.59%)  ???:<pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue>::merge_inner [/workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop]
+ 22,566,455 ( 1.58%)  ???:core::slice::sort::stable::drift::sort::<(pbrs::lazy::LazyStr, usize), <[(pbrs::lazy::LazyStr, usize)]>::sort_by<pbrs::map::build_index<pbrs::lazy::LazyStr, pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue>::{closure#1}>::{closure#0}> [/workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop]
+ 18,238,420 ( 1.28%)  ???:free [/usr/lib/x86_64-linux-gnu/libc.so.6]
+ 18,203,648 ( 1.28%)  ???:<pbrs::string::ProtoString>::from_bytes [/workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop]
+ 16,465,194 ( 1.16%)  ???:pbrs_adoption_corpus::corpus::touch_typed_native [/workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop]
+ 14,523,019 ( 1.02%)  ???:<std::sync::once::Once>::call_once_force::<<std::sync::once_lock::OnceLock<pbrs::map::LastWinsIndex<pbrs::lazy::LazyStr>>>::initialize<<std::sync::once_lock::OnceLock<pbrs::map::LastWinsIndex<pbrs::lazy::LazyStr>>>::get_or_init<pbrs::map::hot_index<pbrs::lazy::LazyStr, i64>::{closure#0}>::{closure#0}, !>::{closure#0}>::{closure#0} [/workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop]
+ 14,523,019 ( 1.02%)  ???:<std::sync::once::Once>::call_once_force::<<std::sync::once_lock::OnceLock<pbrs::map::LastWinsIndex<pbrs::lazy::LazyStr>>>::initialize<<std::sync::once_lock::OnceLock<pbrs::map::LastWinsIndex<pbrs::lazy::LazyStr>>>::get_or_init<pbrs::map::hot_index<pbrs::lazy::LazyStr, pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue>::{closure#0}>::{closure#0}, !>::{closure#0}>::{closure#0} [/workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop]
+ 12,571,369 ( 0.88%)  ???:0x00000000000a05a0 [/usr/lib/x86_64-linux-gnu/libc.so.6]
+ 12,390,054 ( 0.87%)  ???:malloc [/usr/lib/x86_64-linux-gnu/libc.so.6]
+ 12,026,310 ( 0.84%)  ???:<pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue>::merge_heavy [/workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop]
+

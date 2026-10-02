@@ -1,0 +1,26 @@
+{
+  "cell": "codec.adoption.pbrs.maps.n512.read_all",
+  "iterations": 512,
+  "source_commit": "4355c682e10d9dac066f8ab15a6ec9d13a911358",
+  "libc_path": "/usr/lib/x86_64-linux-gnu/libc.so.6",
+  "libc_sha256": "fa430b8f298f817a266046af84a77533185ad6fc4406c7d3787b5a0a0c207826",
+  "libc_version": "ldd (Debian GLIBC 2.41-12+deb13u3) 2.41\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\nWritten by Roland McGrath and Ulrich Drepper.",
+  "profile_total_ir": [
+    1441933641,
+    1424481905
+  ],
+  "unresolved_libc_copy_routine_offset": "0x162b40",
+  "copy_routine_self_ir": [
+    63976629,
+    46623770
+  ],
+  "copy_share_of_total_ir_difference_percent": 99.43342599269207,
+  "disassembly_command": [
+    "objdump",
+    "-d",
+    "--start-address=0x162b40",
+    "--stop-address=0x163100",
+    "/usr/lib/x86_64-linux-gnu/libc.so.6"
+  ],
+  "observation": "Native key-comparison, MapHeavy merge, complete map read walk and stable-index sort self instruction counts match. A libc byte-copy implementation dominates the remaining difference. Address-dependent copy-path behavior is an attribution hypothesis, not a codec performance conclusion."
+}

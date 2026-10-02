@@ -1,0 +1,9544 @@
+# callgrind format
+version: 1
+creator: callgrind-3.24.0
+pid: 103878
+cmd:  /workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop run-cell codec.adoption.pbrs.maps.n512.read_all --iters 512 --prepare-iters 512
+part: 1
+
+
+desc: I1 cache: 
+desc: D1 cache: 
+desc: LL cache: 
+
+desc: Timerange: Basic block 0 - 345880027
+desc: Trigger: Program termination
+
+positions: line
+events: Ir
+summary: 1424481905
+
+
+ob=(2) /usr/lib/x86_64-linux-gnu/libc.so.6
+fl=(2) ???
+fn=(4570) __isoc23_sscanf
+0 1035
+cfn=(4388) 0x000000000008d0d0
+calls=45 0 
+0 2025
+0 315
+cfn=(4578) 0x000000000008e420
+calls=45 0 
+0 4916
+0 495
+cfn=(4612) 0x0000000000065070
+calls=45 0 
+0 76293
+0 360
+
+fn=(4172) poll
+0 7
+cfn=(4174) 0x000000000008f6a0
+calls=1 0 
+0 19
+0 2
+
+fn=(4256) 0x00000000000a12a0
+0 20678350
+cfn=(5680) 0x000000000009ee90
+calls=926 0 
+0 11642772
+0 12729471
+cfn=(5236) 0x000000000009edb0
+calls=83982 0 
+0 1747293
+0 2441550
+cfn=(5236)
+calls=543 0 
+0 12489
+0 9170
+cfn=(5236)
+calls=1834 0 
+0 58688
+0 20249
+cfn=(4362) 0x000000000009e650
+calls=14 0 
+0 56
+0 17969
+cfn=(4362)
+calls=1057 0 
+0 4228
+0 6530
+cfn=(4362)
+calls=1306 0 
+0 5224
+0 464240
+cfn=(4362)
+calls=116060 0 
+0 464240
+0 3133582
+cfn=(4296) 0x00000000000a07f0
+calls=9 0 
+0 1456
+0 5251
+
+fn=(4416) _IO_file_fopen
+0 72
+cfn=(4418) _IO_file_open
+calls=1 0 
+0 73
+0 6
+cfn=(4422) 0x00000000000aacd0
+calls=1 0 
+0 54
+0 30
+
+fn=(4422)
+0 17
+cfn=(4428) 0x0000000000164cc0
+calls=1 0 
+0 20
+0 1
+0 16
+
+fn=(4462) _IO_file_doallocate
+0 19
+cfn=(4464) _IO_file_stat
+calls=1 0 
+0 7
+0 12
+cob=(4) ???
+cfi=(4) ???
+cfn=(4206) 0x00000000049a73d8
+calls=1 0 
+0 175
+0 7
+cfn=(4474) _IO_setb
+calls=1 0 
+0 27
+0 9
+
+fn=(3296) strnlen
+0 48
+
+fn=(3302) wcsnlen
+0 18
+
+fn=(3354) wcscat
+0 17
+
+fn=(3370) strspn
+0 6
+
+fn=(3900) __libc_early_init
+0 9
+cob=(1) /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+cfi=(1) ???
+cfn=(218) __tunable_get_val
+calls=1 0 
+0 22
+0 1
+0 4
+cob=(1)
+cfi=(1)
+cfn=(218)
+calls=1 0 
+0 22
+0 1
+0 4
+cob=(1)
+cfi=(1)
+cfn=(218)
+calls=1 0 
+0 22
+0 1
+0 4
+cob=(1)
+cfi=(1)
+cfn=(218)
+calls=1 0 
+0 22
+0 1
+0 4
+cob=(1)
+cfi=(1)
+cfn=(218)
+calls=1 0 
+0 22
+0 1
+0 16
+cfn=(3902) __ctype_init
+calls=1 0 
+0 16
+0 7
+cfn=(3904) getrlimit
+calls=1 0 
+0 9
+0 30
+cfn=(3906) 0x0000000000095450
+calls=1 0 
+0 90
+0 2
+cfn=(3918) 0x0000000000043620
+calls=1 0 
+0 17
+0 6
+
+fn=(4506) realloc
+0 241337
+cfn=(4208) malloc
+calls=2 0 
+0 380
+0 980799
+cfn=(4508) 0x00000000000a2380
+calls=18448 0 
+0 19881934
+0 221376
+
+fn=(5002) getauxval
+0 145
+
+fn=(6354) _IO_flush_all
+0 15
+cfn=(4404) 0x000000000008fd60
+calls=1 0 
+0 12
+0 117
+cfn=(4408) 0x000000000008fdb0
+calls=1 0 
+0 9
+0 26
+
+fn=(4118) 0x0000000000041a00
+0 31
+
+fn=(4312) __default_morecore
+0 88
+cfn=(4314) sbrk
+calls=22 0 
+0 595
+0 88
+
+fn=(3298) strpbrk
+0 6
+
+fn=(3312) memrchr
+0 24
+
+fn=(3314) wcsncpy
+0 17
+
+fn=(3322) __memset_chk
+0 22
+
+fn=(3374) mempcpy
+0 21
+
+fn=(4032) 0x0000000000029a20
+0 30
+cfn=(4046) 0x0000000000167730
+calls=1 0 
+0 33
+0 1
+0 12
+
+fn=(4662) _IO_sputbackc
+0 3960
+
+fn=(4948) _IO_file_finish
+0 12
+cfn=(4950) _IO_default_finish
+calls=1 0 
+0 15
+
+fn=(5006) mprotect
+0 5
+
+fn=(5680)
+0 9007729
+cfn=(5236)
+calls=25585 0 
+0 516653
+0 1111542
+cfn=(5236)
+calls=144163 0 
+0 2892272
+0 288326
+
+fn=(6108) 0x00000000000420d0
+0 62
+cfn=(6404) _Exit
+calls=1 0 
+0 3
+0 13
+cob=(1)
+cfi=(1)
+cfn=(6134) 0x0000000000005aa0
+calls=1 0 
+0 1434
+0 5
+cfn=(6352) 0x000000000008d9f0
+calls=1 0 
+0 364
+0 2
+cfn=(6116) __call_tls_dtors
+calls=1 0 
+0 11
+0 1
+
+fn=(6352)
+0 11
+cfn=(6354)
+calls=1 0 
+0 179
+0 6
+cfn=(4404)
+calls=1 0 
+0 12
+0 122
+cfn=(4408)
+calls=1 0 
+0 9
+0 25
+
+fn=(6404)
+0 3
+
+fn=(4192) sysconf
+0 43
+cfn=(4194) getpagesize
+calls=1 0 
+0 5
+0 4
+
+fn=(4316) brk
+0 112
+
+fn=(4402) _IO_link_in
+0 43
+cfn=(4404)
+calls=1 0 
+0 12
+0 23
+cfn=(4408)
+calls=1 0 
+0 9
+0 24
+
+fn=(4408)
+0 441
+
+fn=(3318) wcschr
+0 48
+
+fn=(3320) index
+0 18
+
+fn=(3336) strcspn
+0 6
+
+fn=(3340) strcat
+0 16
+
+fn=(3368) memchr
+0 22
+
+fn=(4070) 0x0000000000029b00
+0 22
+
+fn=(4196) pthread_self
+0 2
+
+fn=(4480) __read_nocancel
+0 25
+
+fn=(4728) __strtoul_internal
+0 23600
+
+fn=(4996) pthread_attr_destroy
+0 7
+cob=(4)
+cfi=(4)
+cfn=(4902) 0x00000000049a73d0
+calls=1 0 
+0 66
+0 2
+cob=(4)
+cfi=(4)
+cfn=(4902)
+calls=1 0 
+0 66
+0 3
+
+fn=(5168) 0x000000000009f040
+0 1027706
+cfn=(5236)
+calls=8018 0 
+0 190954
+0 272392
+
+fn=(6028) clock_gettime
+0 20
+
+fn=(4584) 0x0000000000165880
+0 1701
+
+fn=(4110) __cxa_atexit
+0 17
+cfn=(4118)
+calls=1 0 
+0 31
+0 22
+
+fn=(4202) fopen
+0 10
+cob=(4)
+cfi=(4)
+cfn=(4206)
+calls=1 0 
+0 1780
+0 12
+cfn=(4388)
+calls=1 0 
+0 54
+0 4
+cfn=(4400) 0x0000000000089db0
+calls=1 0 
+0 102
+0 5
+cfn=(4416)
+calls=1 0 
+0 235
+0 13
+
+fn=(4250) 0x00000000000a2250
+0 13
+cfn=(4256)
+calls=1 0 
+0 360
+0 99
+
+fn=(4474)
+0 1272
+cob=(4)
+cfi=(4)
+cfn=(4902)
+calls=1 0 
+0 66
+0 2
+
+fn=(3308) __mempcpy_chk
+0 21
+
+fn=(4062) 0x0000000000029a90
+0 11
+
+fn=(4944) _IO_file_close
+0 2
+cfn=(4946) __close_nocancel
+calls=1 0 
+0 5
+
+fn=(4946)
+0 5
+
+fn=(4970) pthread_attr_setaffinity_np
+0 16
+cfn=(4972) 0x0000000000090cb0
+calls=1 0 
+0 264
+0 8
+cfn=(4506)
+calls=1 0 
+0 214
+0 1
+0 9
+cfn=(4536) 0x0000000000162b40
+calls=1 0 
+0 11
+0 1
+0 1
+
+fn=(5236)
+0 5724111
+
+fn=(6166) pthread_mutex_unlock
+0 36
+
+fn=(4108) (below main)
+0 17
+cfn=(4110)
+calls=1 0 
+0 70
+0 12
+cob=(1)
+cfi=(1)
+cfn=(4152) _dl_audit_preinit
+calls=1 0 
+0 4
+0 1
+0 6
+cfn=(4154) 0x0000000000029c30
+calls=1 0 
+0 1423998104
+0 11
+cob=(4)
+cfi=(4)
+cfn=(4138) 0x0000000000df3ff4
+calls=1 0 
+0 6
+0 20
+cob=(7) /workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop
+cfi=(7) ???
+cfn=(4144) 0x0000000000258aa0
+calls=1 0 
+0 12
+0 4
+cob=(7)
+cfi=(7)
+cfn=(4142) std::sys::args::unix::imp::ARGV_INIT_ARRAY::init_wrapper
+calls=1 0 
+0 4
+0 9
+
+fn=(4428)
+0 20
+
+fn=(4448) getline
+0 135
+cfn=(4450) getdelim
+calls=45 0 
+0 8054
+
+fn=(4450)
+0 1789
+cfn=(4506)
+calls=1 0 
+0 347
+0 1
+0 12
+cfn=(4536)
+calls=1 0 
+0 29
+0 1
+0 192
+cfn=(4536)
+calls=48 0 
+0 948
+0 48
+0 155
+cfn=(4456) __underflow
+calls=4 0 
+0 472
+0 40
+cfn=(4484) 0x0000000000162140
+calls=4 0 
+0 113
+0 4
+0 180
+cfn=(4484)
+calls=45 0 
+0 1817
+0 45
+0 1030
+cob=(4)
+cfi=(4)
+cfn=(4206)
+calls=1 0 
+0 191
+0 231
+cfn=(4456)
+calls=1 0 
+0 403
+0 6
+
+fn=(4476) _IO_switch_to_get_mode
+0 120
+
+fn=(3328) stpncpy
+0 18
+
+fn=(3346) bcmp
+0 92
+
+fn=(3348) wmemset
+0 36
+
+fn=(3350) strcpy
+0 16
+
+fn=(3906)
+0 8
+cob=(1)
+cfi=(1)
+cfn=(218)
+calls=1 0 
+0 22
+0 1
+0 4
+cob=(1)
+cfi=(1)
+cfn=(218)
+calls=1 0 
+0 21
+0 1
+0 4
+cob=(1)
+cfi=(1)
+cfn=(218)
+calls=1 0 
+0 22
+0 1
+0 6
+
+fn=(4174)
+0 15
+cfn=(4176) 0x000000000008f620
+calls=5 0 
+0 50
+0 30
+
+fn=(4536)
+0 46623770
+
+fn=(4952) pthread_getaffinity_np
+0 16
+cfn=(4956) 0x0000000000163540
+calls=1 0 
+0 15
+0 1
+0 3
+
+fn=(4154)
+0 8
+cfn=(4156) _setjmp
+calls=1 0 
+0 28
+0 14
+cob=(7)
+cfi=(7)
+cfn=(4168) main
+calls=1 0 
+0 1423996152
+0 2
+cfn=(6106) exit
+calls=1 0 
+0 1900
+
+fn=(4158) __sigsetjmp
+0 26
+
+fn=(4190) __libc_sigaction
+0 264
+
+fn=(3306) wcslen
+0 18
+
+fn=(3310) __memcpy_chk
+0 21
+
+fn=(3332) strncmp
+0 20
+
+fn=(3342) strncasecmp_l
+0 20
+
+fn=(3358) strncpy
+0 36
+
+fn=(3360) wmemcmp
+0 23
+
+fn=(3362) __memmove_chk
+0 21
+
+fn=(3372) wcpncpy
+0 17
+
+fn=(4186) signal
+0 23
+cfn=(4188) sigaction
+calls=1 0 
+0 92
+0 9
+
+fn=(4198) pthread_getattr_np
+0 13
+cfn=(4200) pthread_attr_init
+calls=1 0 
+0 18
+0 43
+cfn=(4506)
+calls=1 0 
+0 214
+0 1
+0 7
+cfn=(4952)
+calls=1 0 
+0 35
+0 10
+cfn=(4970)
+calls=1 0 
+0 525
+0 3
+cob=(4)
+cfi=(4)
+cfn=(4902)
+calls=1 0 
+0 66
+0 10
+cfn=(4202)
+calls=1 0 
+0 2215
+0 6
+cfn=(3904)
+calls=1 0 
+0 9
+0 5
+cfn=(4906) fclose
+calls=1 0 
+0 404
+0 250
+cfn=(4570)
+calls=45 0 
+0 85439
+0 717
+cfn=(4448)
+calls=45 0 
+0 8189
+0 137
+cob=(4)
+cfi=(4)
+cfn=(4902)
+calls=1 0 
+0 66
+0 23
+
+fn=(4904) free
+0 18002874
+cfn=(5142) 0x00000000000a05a0
+calls=235546 0 
+0 14747501
+0 235546
+
+fn=(4908) _IO_un_link
+0 13
+cfn=(4404)
+calls=1 0 
+0 12
+0 38
+cfn=(4408)
+calls=1 0 
+0 9
+0 17
+
+fn=(4950)
+0 15
+
+fn=(6106)
+0 5
+cfn=(6108)
+calls=1 0 
+0 1895
+
+fn=(6116)
+0 11
+
+fn=(4578)
+0 765
+cfn=(4584)
+calls=45 0 
+0 1586
+0 45
+0 270
+cfn=(4474)
+calls=45 0 
+0 1215
+0 1035
+
+fn=(4296)
+0 814
+cfn=(4312)
+calls=9 0 
+0 374
+0 222
+cfn=(4312)
+calls=1 0 
+0 25
+0 21
+
+fn=(4390) 0x000000000008d060
+0 1060
+
+fn=(4418)
+0 25
+cfn=(4402)
+calls=1 0 
+0 17
+0 6
+cfn=(4420) __open_nocancel
+calls=1 0 
+0 23
+0 2
+
+fn=(4464)
+0 2
+cfn=(4466) fstat
+calls=1 0 
+0 5
+
+fn=(4466)
+0 5
+
+fn=(4478) _IO_file_read
+0 20
+cfn=(4480)
+calls=5 0 
+0 25
+
+fn=(3300) strcmp
+0 18
+
+fn=(3316) memcpy
+0 63
+
+fn=(3366) memmove
+0 63
+
+fn=(3904)
+0 18
+
+fn=(4156)
+0 2
+cfn=(4158)
+calls=1 0 
+0 26
+
+fn=(4188)
+0 100
+cfn=(4190)
+calls=5 0 
+0 264
+
+fn=(4194)
+0 10
+
+fn=(5000) sigaltstack
+0 10
+
+fn=(5004) mmap
+0 22
+
+fn=(5058) 0x00000000001623e0
+0 176160831
+
+fn=(5142)
+0 5704
+cfn=(4312)
+calls=4 0 
+0 100
+0 32
+cfn=(4312)
+calls=4 0 
+0 172
+0 8
+cfn=(4312)
+calls=4 0 
+0 100
+0 3622
+cfn=(5680)
+calls=97 0 
+0 2173750
+0 947647
+cfn=(5236)
+calls=2531 0 
+0 51124
+0 197292
+cfn=(5168)
+calls=32882 0 
+0 1491052
+0 11417064
+
+fn=(6216) __cxa_finalize
+0 176
+cfn=(6218) 0x00000000000f8130
+calls=4 0 
+0 60
+0 48
+
+fn=(6218)
+0 60
+
+fn=(4208)
+0 9606824
+cfn=(4250)
+calls=1 0 
+0 472
+0 428194
+cfn=(4210) 0x000000000009f160
+calls=1 0 
+0 1112
+0 856378
+cfn=(4256)
+calls=214094 0 
+0 51295728
+0 1498658
+
+fn=(4210)
+0 793
+cob=(1)
+cfi=(1)
+cfn=(218)
+calls=1 0 
+0 21
+0 1
+0 4
+cob=(1)
+cfi=(1)
+cfn=(218)
+calls=1 0 
+0 22
+0 1
+0 4
+cob=(1)
+cfi=(1)
+cfn=(218)
+calls=1 0 
+0 21
+0 1
+0 4
+cob=(1)
+cfi=(1)
+cfn=(218)
+calls=1 0 
+0 21
+0 1
+0 4
+cob=(1)
+cfi=(1)
+cfn=(218)
+calls=1 0 
+0 22
+0 1
+0 4
+cob=(1)
+cfi=(1)
+cfn=(218)
+calls=1 0 
+0 21
+0 1
+0 4
+cob=(1)
+cfi=(1)
+cfn=(218)
+calls=1 0 
+0 21
+0 1
+0 4
+cob=(1)
+cfi=(1)
+cfn=(218)
+calls=1 0 
+0 21
+0 1
+0 4
+cob=(1)
+cfi=(1)
+cfn=(218)
+calls=1 0 
+0 21
+0 1
+0 4
+cob=(1)
+cfi=(1)
+cfn=(218)
+calls=1 0 
+0 21
+0 1
+0 4
+cob=(1)
+cfi=(1)
+cfn=(218)
+calls=1 0 
+0 21
+0 1
+0 4
+cob=(1)
+cfi=(1)
+cfn=(218)
+calls=1 0 
+0 21
+0 1
+0 9
+
+fn=(4314)
+0 362
+cfn=(4316)
+calls=13 0 
+0 104
+0 109
+cfn=(4316)
+calls=1 0 
+0 8
+0 12
+
+fn=(4362)
+0 473748
+
+fn=(4404)
+0 588
+
+fn=(4458) _IO_file_underflow
+0 103
+cfn=(4476)
+calls=5 0 
+0 120
+0 80
+cfn=(4478)
+calls=5 0 
+0 45
+0 85
+cfn=(4460) _IO_doallocbuf
+calls=1 0 
+0 279
+0 4
+
+fn=(4460)
+0 17
+cfn=(4462)
+calls=1 0 
+0 256
+0 6
+
+fn=(3284) 0x00000000000bb960
+0 29
+
+fn=(3304) memset
+0 66
+
+fn=(3324) rindex
+0 24
+
+fn=(3326) wcscmp
+0 24
+
+fn=(3330) wmemchr
+0 44
+
+fn=(3344) strchrnul
+0 24
+
+fn=(3352) strcasecmp_l
+0 20
+
+fn=(3364) stpcpy
+0 16
+
+fn=(3376) strncasecmp
+0 20
+
+fn=(3902)
+0 16
+
+fn=(4484)
+0 1930
+
+fn=(4508)
+0 1004228
+cfn=(4256)
+calls=7546 0 
+0 2146576
+0 128282
+cfn=(4536)
+calls=7546 0 
+0 14093083
+0 7546
+0 594624
+cfn=(5236)
+calls=10889 0 
+0 254638
+0 83516
+cfn=(5142)
+calls=9990 0 
+0 1042687
+0 25470
+cfn=(5142)
+calls=3805 0 
+0 497479
+0 3805
+
+fn=(4972)
+0 7
+cfn=(4978) calloc
+calls=1 0 
+0 250
+0 1
+0 6
+
+fn=(4978)
+0 40
+cfn=(4256)
+calls=1 0 
+0 144
+0 14
+cfn=(4956)
+calls=1 0 
+0 25
+0 1
+0 26
+
+fn=(5018) __errno_location
+0 6
+
+fn=(5416) getrandom
+0 38
+cfn=(4174)
+calls=1 0 
+0 19
+0 5
+
+fn=(4176)
+0 50
+
+fn=(4200)
+0 8
+cfn=(4194)
+calls=1 0 
+0 5
+0 5
+
+fn=(4388)
+0 460
+cfn=(4390)
+calls=46 0 
+0 1060
+0 559
+
+fn=(4400)
+0 5
+cfn=(4402)
+calls=1 0 
+0 94
+0 3
+
+fn=(4420)
+0 23
+
+fn=(4456)
+0 141
+cfn=(4458)
+calls=5 0 
+0 716
+0 18
+
+fn=(3334) strcasecmp
+0 20
+
+fn=(3338) wcscpy
+0 15
+
+fn=(3356) strlen
+0 72
+
+fn=(3918)
+0 17
+
+fn=(4046)
+0 33
+
+fn=(4612)
+0 2250
+cfn=(4404)
+calls=45 0 
+0 540
+0 7605
+cfn=(4408)
+calls=45 0 
+0 405
+0 5445
+cfn=(4662)
+calls=90 0 
+0 1980
+0 30190
+cfn=(4662)
+calls=90 0 
+0 1980
+0 1128
+cfn=(4728)
+calls=90 0 
+0 23600
+0 1170
+
+fn=(4906)
+0 16
+cfn=(4948)
+calls=1 0 
+0 27
+0 15
+cob=(4)
+cfi=(4)
+cfn=(4902)
+calls=1 0 
+0 66
+0 6
+cfn=(4908)
+calls=1 0 
+0 86
+0 18
+cfn=(4940) _IO_file_close_it
+calls=1 0 
+0 166
+0 4
+
+fn=(4940)
+0 15
+cfn=(4942) _IO_unsave_markers
+calls=1 0 
+0 8
+0 10
+cfn=(4944)
+calls=1 0 
+0 7
+0 9
+cfn=(4474)
+calls=1 0 
+0 98
+0 6
+cfn=(4908)
+calls=1 0 
+0 3
+0 10
+
+fn=(4942)
+0 8
+
+fn=(4956)
+0 2322
+
+fn=(4994) pthread_attr_getstack
+0 8
+
+fn=(5010) gettid
+0 3
+
+fn=(6080) write
+0 21
+cfn=(4174)
+calls=3 0 
+0 57
+0 6
+
+fn=(6138) pthread_mutex_lock
+0 39
+
+ob=(3) /usr/lib/x86_64-linux-gnu/libm.so.6
+fl=(3) ???
+fn=(3492) log2f
+0 8
+
+fn=(3510) __asin_finite
+0 7
+
+fn=(3502) __acos_finite
+0 7
+
+fn=(3508) roundeven
+0 6
+
+fn=(3518) __atanh_finite
+0 8
+
+fn=(4082) 0x00000000000113a0
+0 12
+
+fn=(3494) 0x000000000005b3b0
+0 8
+
+fn=(3524) fmaf
+0 5
+
+fn=(3484) log2
+0 8
+
+fn=(3520) __atan2_finite
+0 8
+
+fn=(3476) expf
+0 8
+
+fn=(6312) 0x00000000000112f0
+0 5
+
+fn=(3500) atan
+0 8
+
+fn=(3512) expm1
+0 8
+
+fn=(3486) sincosf
+0 8
+
+fn=(3490) __pow_finite
+0 7
+
+fn=(3498) __log_finite
+0 8
+
+fn=(3504) sinf
+0 8
+
+fn=(3478) cos
+0 8
+
+fn=(3480) logf
+0 8
+
+fn=(3514) exp2f
+0 8
+
+fn=(3472) cosf
+0 8
+
+fn=(6302) 0x0000000000011360
+0 9
+cob=(4)
+cfi=(4)
+cfn=(6308) 0x00000000048a0280
+calls=1 0 
+0 72
+0 1
+cfn=(6312)
+calls=1 0 
+0 5
+0 3
+
+fn=(3488) powf
+0 8
+
+fn=(3506) fma
+0 5
+
+fn=(3522) sin
+0 8
+
+fn=(3526) sincos
+0 7
+
+fn=(3482) tan
+0 8
+
+fn=(3516) __sinh_finite
+0 8
+
+fn=(3474) __exp_finite
+0 8
+
+ob=(6) /usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+fl=(6) ???
+fn=(4094) 0x0000000000005730
+0 12
+
+fn=(6294) 0x0000000000005680
+0 5
+
+fn=(4092) __cpu_indicator_init
+0 361
+
+fn=(6272) 0x0000000000004510
+0 30
+
+fn=(6284) 0x00000000000056f0
+0 9
+cob=(4)
+cfi=(4)
+cfn=(6290) 0x00000000048663b0
+calls=1 0 
+0 72
+0 1
+cfn=(6294)
+calls=1 0 
+0 5
+0 3
+
+fn=(6270) 0x0000000000004560
+0 4
+cfn=(6272)
+calls=1 0 
+0 15
+
+ob=(4)
+fl=(4)
+fn=(6300) 0x0000000004888f98
+0 3
+
+fn=(4078) 0x00000000048a0000
+0 6
+
+fn=(3998) 0x000000000483b000
+0 6
+
+fn=(4902)
+0 6
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=6 0 
+0 390
+
+fn=(4088) 0x0000000004866000
+0 6
+
+fn=(6268) 0x000000000483b284
+0 3
+
+fn=(6290)
+0 1
+cob=(2)
+cfi=(2)
+cfn=(6216)
+calls=1 0 
+0 71
+
+fn=(6258) 0x000000000483b030
+0 1
+cob=(2)
+cfi=(2)
+cfn=(6216)
+calls=1 0 
+0 71
+
+fn=(6318) 0x000000000491cdc8
+0 3
+
+fn=(6240) 0x0000000000df400c
+0 3
+
+ob=(6)
+fl=(6)
+fn=(6270)
+0 2
+cfn=(6272)
+calls=1 0 
+0 15
+0 3
+
+ob=(4)
+fl=(4)
+fn=(6308)
+0 1
+cob=(2)
+cfi=(2)
+cfn=(6216)
+calls=1 0 
+0 71
+
+fn=(4138)
+0 6
+
+fn=(4206)
+0 3
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=3 0 
+0 2143
+
+ob=(1)
+fl=(1)
+fn=(672) 0x0000000000013010
+0 16
+
+fn=(742) 0x000000000000bda0
+0 307
+cfn=(1624) 0x0000000000022ff0
+calls=2 0 
+0 44
+0 14
+cfn=(1640) 0x00000000000230d0
+calls=2 0 
+0 49
+0 141
+
+fn=(1210) 0x0000000000007190
+0 20
+cfn=(1212) 0x000000000001b390
+calls=1 0 
+0 239
+0 3
+cfn=(1212)
+calls=1 0 
+0 7
+0 11
+cfn=(1238) 0x0000000000007090
+calls=1 0 
+0 125
+0 5
+cfn=(650) 0x0000000000025d60
+calls=1 0 
+0 16
+0 33
+cfn=(1300) 0x000000000000bde0
+calls=1 0 
+0 4
+0 9
+cfn=(746) 0x000000000000bc70
+calls=1 0 
+0 24
+0 10
+cfn=(1148) 0x0000000000023bb0
+calls=1 0 
+0 12
+0 52
+
+fn=(2318) 0x0000000000012300
+0 18
+
+fn=(2368) 0x0000000000007ab0
+0 108
+
+fn=(3400) 0x000000000000e710
+0 21
+cfn=(3406) 0x0000000000023090
+calls=1 0 
+0 5
+0 2
+
+fn=(3952) 0x0000000000018570
+0 24
+
+fn=(3958) 0x0000000000015260
+0 7
+cfn=(3962) 0x00000000000230b0
+calls=1 0 
+0 5
+0 4
+
+fn=(1112) 0x00000000000238e0
+0 18
+
+fn=(1250) 0x0000000000025d00
+0 53
+cfn=(650)
+calls=3 0 
+0 102
+0 9
+cfn=(746)
+calls=3 0 
+0 72
+0 27
+
+fn=(1624)
+0 383
+
+fn=(2024) 0x0000000000007670
+0 72
+
+fn=(2412) 0x0000000000022ed0
+0 12
+
+fn=(2976) 0x00000000000110a0
+0 105
+cfn=(3406)
+calls=5 0 
+0 25
+0 41
+cfn=(2980) 0x000000000000e870
+calls=5 0 
+0 394455
+0 15
+
+fn=(6134)
+0 22
+cob=(2)
+cfi=(2)
+cfn=(6138)
+calls=1 0 
+0 39
+0 34
+cfn=(3952)
+calls=1 0 
+0 8
+0 101
+cfn=(2542) 0x0000000000011940
+calls=1 0 
+0 452
+0 2
+cob=(2)
+cfi=(2)
+cfn=(6166)
+calls=1 0 
+0 36
+0 79
+cfn=(6200) 0x0000000000001f70
+calls=6 0 
+0 586
+0 12
+cfn=(6244) 0x0000000000018730
+calls=6 0 
+0 24
+0 29
+cfn=(3952)
+calls=1 0 
+0 8
+0 2
+
+fn=(798) 0x000000000000c200
+0 40
+cfn=(800) 0x0000000000013000
+calls=5 0 
+0 10
+0 180
+
+fn=(876) 0x0000000000004c10
+0 5
+cfn=(218)
+calls=1 0 
+0 22
+0 7
+
+fn=(888) 0x0000000000024740
+0 26678
+
+fn=(1072) 0x000000000001ae80
+0 24
+
+fn=(1462) 0x00000000000093a0
+0 684
+cfn=(1474) 0x000000000000bf50
+calls=34 0 
+0 3679
+0 351
+cfn=(888)
+calls=13 0 
+0 547
+0 172
+cfn=(1054) 0x0000000000024520
+calls=4 0 
+0 92
+0 13
+cfn=(1238)
+calls=1 0 
+0 250
+0 13
+cfn=(1534) 0x00000000000062f0
+calls=1 0 
+0 103
+0 20
+cfn=(1588) 0x0000000000007cb0
+calls=1 0 
+0 1857
+0 48
+cfn=(1588)
+calls=3 0 
+0 6200
+0 18
+cfn=(650)
+calls=3 0 
+0 48
+0 66
+cfn=(2052) 0x0000000000006660
+calls=3 0 
+0 951
+0 30
+cfn=(2024)
+calls=3 0 
+0 24
+0 27
+cfn=(2134) 0x0000000000014f40
+calls=3 0 
+0 4021
+0 48
+cfn=(1534)
+calls=3 0 
+0 331
+0 45
+cfn=(2024)
+calls=3 0 
+0 24
+0 102
+cfn=(2024)
+calls=3 0 
+0 24
+0 51
+
+fn=(3842) 0x000000000001b220
+0 85
+cfn=(3848) 0x000000000001b140
+calls=1 0 
+0 662
+0 5
+cfn=(3848)
+calls=1 0 
+0 603
+0 5
+cfn=(3848)
+calls=1 0 
+0 647
+0 5
+cfn=(3848)
+calls=1 0 
+0 623
+0 11
+
+fn=(3962)
+0 5
+
+fn=(678) 0x000000000001a800
+0 477
+
+fn=(2928) 0x0000000000013070
+0 32
+cfn=(218)
+calls=1 0 
+0 22
+0 21
+cfn=(1170) 0x0000000000023da0
+calls=1 0 
+0 12
+0 9
+
+fn=(2980)
+0 206463
+cfn=(3074) 0x000000000000ae90
+calls=10 0 
+0 5417
+0 1722
+cfn=(3074)
+calls=246 0 
+0 159691
+0 12304
+cfn=(3784) 0x0000000000017e50
+calls=1 0 
+0 5
+cob=(3)
+cfi=(3)
+cfn=(3526)
+calls=1 0 
+0 7
+cob=(3)
+cfi=(3)
+cfn=(3524)
+calls=1 0 
+0 5
+cob=(3)
+cfi=(3)
+cfn=(3522)
+calls=1 0 
+0 8
+cob=(3)
+cfi=(3)
+cfn=(3520)
+calls=1 0 
+0 8
+cob=(3)
+cfi=(3)
+cfn=(3518)
+calls=1 0 
+0 8
+cob=(3)
+cfi=(3)
+cfn=(3516)
+calls=1 0 
+0 8
+cob=(3)
+cfi=(3)
+cfn=(3514)
+calls=1 0 
+0 8
+cob=(3)
+cfi=(3)
+cfn=(3512)
+calls=1 0 
+0 8
+cob=(3)
+cfi=(3)
+cfn=(3510)
+calls=1 0 
+0 7
+cob=(3)
+cfi=(3)
+cfn=(3508)
+calls=1 0 
+0 6
+cob=(3)
+cfi=(3)
+cfn=(3506)
+calls=1 0 
+0 5
+cob=(3)
+cfi=(3)
+cfn=(3504)
+calls=1 0 
+0 8
+cob=(3)
+cfi=(3)
+cfn=(3502)
+calls=1 0 
+0 7
+cob=(3)
+cfi=(3)
+cfn=(3500)
+calls=1 0 
+0 8
+cob=(3)
+cfi=(3)
+cfn=(3498)
+calls=1 0 
+0 8
+cob=(3)
+cfi=(3)
+cfn=(3494)
+calls=1 0 
+0 8
+cob=(3)
+cfi=(3)
+cfn=(3492)
+calls=1 0 
+0 8
+cob=(3)
+cfi=(3)
+cfn=(3490)
+calls=1 0 
+0 7
+cob=(3)
+cfi=(3)
+cfn=(3488)
+calls=1 0 
+0 8
+cob=(3)
+cfi=(3)
+cfn=(3486)
+calls=1 0 
+0 8
+cob=(3)
+cfi=(3)
+cfn=(3484)
+calls=1 0 
+0 8
+cob=(3)
+cfi=(3)
+cfn=(3482)
+calls=1 0 
+0 8
+cob=(3)
+cfi=(3)
+cfn=(3480)
+calls=1 0 
+0 8
+cob=(3)
+cfi=(3)
+cfn=(3478)
+calls=1 0 
+0 8
+cob=(3)
+cfi=(3)
+cfn=(3476)
+calls=1 0 
+0 8
+cob=(3)
+cfi=(3)
+cfn=(3474)
+calls=1 0 
+0 8
+cob=(3)
+cfi=(3)
+cfn=(3472)
+calls=1 0 
+0 8
+cob=(2)
+cfi=(2)
+cfn=(3376)
+calls=1 0 
+0 20
+cob=(2)
+cfi=(2)
+cfn=(3374)
+calls=1 0 
+0 21
+cob=(2)
+cfi=(2)
+cfn=(3372)
+calls=1 0 
+0 17
+cob=(2)
+cfi=(2)
+cfn=(3370)
+calls=1 0 
+0 6
+cob=(2)
+cfi=(2)
+cfn=(3368)
+calls=1 0 
+0 22
+cob=(2)
+cfi=(2)
+cfn=(3366)
+calls=1 0 
+0 21
+cob=(2)
+cfi=(2)
+cfn=(3364)
+calls=1 0 
+0 16
+cob=(2)
+cfi=(2)
+cfn=(3362)
+calls=1 0 
+0 21
+cob=(2)
+cfi=(2)
+cfn=(3360)
+calls=1 0 
+0 23
+cob=(2)
+cfi=(2)
+cfn=(3358)
+calls=1 0 
+0 18
+cob=(2)
+cfi=(2)
+cfn=(3356)
+calls=1 0 
+0 24
+cob=(2)
+cfi=(2)
+cfn=(3354)
+calls=1 0 
+0 17
+cob=(2)
+cfi=(2)
+cfn=(3352)
+calls=1 0 
+0 20
+cob=(2)
+cfi=(2)
+cfn=(3350)
+calls=1 0 
+0 16
+cob=(2)
+cfi=(2)
+cfn=(3348)
+calls=2 0 
+0 36
+cob=(2)
+cfi=(2)
+cfn=(3346)
+calls=1 0 
+0 23
+cob=(2)
+cfi=(2)
+cfn=(3344)
+calls=1 0 
+0 24
+cob=(2)
+cfi=(2)
+cfn=(3342)
+calls=1 0 
+0 20
+cob=(2)
+cfi=(2)
+cfn=(3340)
+calls=1 0 
+0 16
+cob=(2)
+cfi=(2)
+cfn=(3338)
+calls=1 0 
+0 15
+cob=(2)
+cfi=(2)
+cfn=(3336)
+calls=1 0 
+0 6
+cob=(2)
+cfi=(2)
+cfn=(3334)
+calls=1 0 
+0 20
+cob=(2)
+cfi=(2)
+cfn=(3332)
+calls=1 0 
+0 20
+cob=(2)
+cfi=(2)
+cfn=(3330)
+calls=2 0 
+0 44
+cob=(2)
+cfi=(2)
+cfn=(3328)
+calls=1 0 
+0 18
+cob=(2)
+cfi=(2)
+cfn=(3326)
+calls=1 0 
+0 24
+cob=(2)
+cfi=(2)
+cfn=(3324)
+calls=1 0 
+0 24
+cob=(2)
+cfi=(2)
+cfn=(3322)
+calls=1 0 
+0 22
+cob=(2)
+cfi=(2)
+cfn=(3320)
+calls=1 0 
+0 18
+cob=(2)
+cfi=(2)
+cfn=(3318)
+calls=2 0 
+0 48
+cob=(2)
+cfi=(2)
+cfn=(3316)
+calls=1 0 
+0 21
+cob=(2)
+cfi=(2)
+cfn=(3314)
+calls=1 0 
+0 17
+cob=(2)
+cfi=(2)
+cfn=(3312)
+calls=1 0 
+0 24
+cob=(2)
+cfi=(2)
+cfn=(3310)
+calls=1 0 
+0 21
+cob=(2)
+cfi=(2)
+cfn=(3308)
+calls=1 0 
+0 21
+cob=(2)
+cfi=(2)
+cfn=(3306)
+calls=1 0 
+0 18
+cob=(2)
+cfi=(2)
+cfn=(3304)
+calls=1 0 
+0 22
+cob=(2)
+cfi=(2)
+cfn=(3302)
+calls=1 0 
+0 18
+cob=(2)
+cfi=(2)
+cfn=(3300)
+calls=1 0 
+0 18
+cob=(2)
+cfi=(2)
+cfn=(3298)
+calls=1 0 
+0 6
+cob=(2)
+cfi=(2)
+cfn=(3296)
+calls=2 0 
+0 48
+cob=(2)
+cfi=(2)
+cfn=(3284)
+calls=1 0 
+0 29
+0 1401
+cob=(2)
+cfi=(2)
+cfn=(3358)
+calls=1 0 
+0 18
+cob=(2)
+cfi=(2)
+cfn=(3304)
+calls=2 0 
+0 44
+cob=(2)
+cfi=(2)
+cfn=(3346)
+calls=3 0 
+0 69
+cob=(2)
+cfi=(2)
+cfn=(3366)
+calls=2 0 
+0 42
+cob=(2)
+cfi=(2)
+cfn=(3356)
+calls=2 0 
+0 48
+cob=(2)
+cfi=(2)
+cfn=(3316)
+calls=2 0 
+0 42
+0 2711
+cfn=(3074)
+calls=6 0 
+0 3418
+0 228
+
+fn=(370) 0x0000000000015f00
+0 5366
+
+fn=(1034) 0x000000000001ade0
+0 273
+cfn=(1054)
+calls=9 0 
+0 207
+0 126
+cfn=(650)
+calls=3 0 
+0 48
+0 6
+
+fn=(1588)
+0 124
+cfn=(730) 0x000000000000c2a0
+calls=4 0 
+0 1517
+0 1771
+cfn=(1624)
+calls=4 0 
+0 96
+0 248
+cfn=(1170)
+calls=4 0 
+0 367
+0 276
+cfn=(1624)
+calls=12 0 
+0 204
+0 173
+cfn=(1592) 0x0000000000022c50
+calls=4 0 
+0 20
+0 212
+cfn=(2412)
+calls=1 0 
+0 6
+0 1713
+cfn=(2368)
+calls=2 0 
+0 108
+0 315
+cfn=(1624)
+calls=1 0 
+0 17
+0 13
+cfn=(1872) 0x0000000000022d70
+calls=4 0 
+0 20
+0 48
+cfn=(124) 0x0000000000011770
+calls=4 0 
+0 108
+0 101
+cfn=(2318)
+calls=2 0 
+0 18
+0 12
+cfn=(798)
+calls=4 0 
+0 196
+0 24
+cfn=(1914) 0x0000000000006240
+calls=4 0 
+0 164
+0 46
+cfn=(888)
+calls=3 0 
+0 97
+0 43
+
+fn=(2008) 0x0000000000003640
+0 126
+cfn=(1462)
+calls=9 0 
+0 17219
+0 27
+
+fn=(3406)
+0 30
+
+fn=(3686) _dl_allocate_tls_init
+0 15
+cfn=(800)
+calls=1 0 
+0 2
+0 136
+cfn=(1148)
+calls=3 0 
+0 92
+0 15
+cfn=(1170)
+calls=3 0 
+0 78
+0 35
+cfn=(800)
+calls=1 0 
+0 2
+0 11
+
+fn=(3790) 0x000000000001b3f0
+0 11
+cfn=(3792) 0x000000000000bad0
+calls=1 0 
+0 204
+0 17
+cfn=(3792)
+calls=1 0 
+0 183
+0 13
+
+fn=(3984) 0x0000000000005d00
+0 191
+cob=(4)
+cfi=(4)
+cfn=(4088)
+calls=1 0 
+0 6
+cob=(4)
+cfi=(4)
+cfn=(4078)
+calls=1 0 
+0 6
+cob=(4)
+cfi=(4)
+cfn=(3998)
+calls=1 0 
+0 6
+0 74
+cob=(6)
+cfi=(6)
+cfn=(4094)
+calls=1 0 
+0 12
+cob=(2)
+cfi=(2)
+cfn=(4070)
+calls=1 0 
+0 22
+cob=(2)
+cfi=(2)
+cfn=(4062)
+calls=1 0 
+0 11
+0 16
+cob=(6)
+cfi=(6)
+cfn=(4092)
+calls=1 0 
+0 361
+cob=(3)
+cfi=(3)
+cfn=(4082)
+calls=1 0 
+0 12
+cob=(2)
+cfi=(2)
+cfn=(4032)
+calls=1 0 
+0 76
+cob=(5) /workspace/pure-protobuf/work/toolchain/deb/usr/libexec/valgrind/vgpreload_core-amd64-linux.so
+cfi=(5) ???
+cfn=(4010) 0x0000000000001100
+calls=1 0 
+0 12
+0 65
+
+fn=(472) 0x0000000000015a30
+0 228
+
+fn=(1240) 0x0000000000006e50
+0 88
+cfn=(1054)
+calls=11 0 
+0 414
+0 99
+
+fn=(1402) 0x000000000001e500
+0 28
+cfn=(1452) 0x000000000001d8d0
+calls=1 0 
+0 2742
+0 6
+cfn=(1408) 0x0000000000025b80
+calls=1 0 
+0 407
+0 8
+cfn=(760) 0x0000000000023bc0
+calls=1 0 
+0 26
+0 11
+
+fn=(1552) 0x0000000000022f00
+0 20
+
+fn=(2900) 0x0000000000012670
+0 9
+cfn=(746)
+calls=1 0 
+0 24
+0 318
+cfn=(2910) 0x0000000000011f40
+calls=1 0 
+0 53
+0 7
+
+fn=(124)
+0 162
+
+fn=(218)
+0 793
+
+fn=(270) 0x0000000000016260
+0 212
+
+fn=(1392) 0x00000000000184e0
+0 20
+
+fn=(1640)
+0 18
+cfn=(218)
+calls=1 0 
+0 22
+0 9
+
+fn=(1914)
+0 40
+cfn=(1916) 0x00000000000034a0
+calls=4 0 
+0 24
+0 100
+
+fn=(2086) 0x0000000000022d50
+0 40
+
+fn=(2134)
+0 60
+cfn=(2180) 0x00000000000148b0
+calls=3 0 
+0 3373
+0 21
+cfn=(650)
+calls=3 0 
+0 102
+0 24
+cfn=(760)
+calls=3 0 
+0 38
+0 6
+cfn=(1250)
+calls=3 0 
+0 263
+0 14
+cfn=(2140) 0x000000000000bec0
+calls=1 0 
+0 89
+0 31
+
+fn=(3704) 0x0000000000005310
+0 7
+cfn=(3720) 0x0000000000004dd0
+calls=1 0 
+0 128
+0 4
+cfn=(746)
+calls=1 0 
+0 24
+0 8
+cfn=(3720)
+calls=1 0 
+0 453
+0 9
+cfn=(3708) 0x0000000000004c80
+calls=1 0 
+0 64
+0 3
+cfn=(3758) 0x0000000000005250
+calls=1 0 
+0 192
+0 7
+
+fn=(3758)
+0 192
+
+fn=(3784)
+0 5
+
+fn=(746)
+0 528
+
+fn=(1032) 0x000000000001af30
+0 66
+cfn=(1034)
+calls=11 0 
+0 469
+0 6
+cfn=(1034)
+calls=3 0 
+0 180
+0 106
+cfn=(1072)
+calls=6 0 
+0 24
+0 34
+
+fn=(2188) 0x00000000000147c0
+0 2490
+
+fn=(2860) 0x0000000000012270
+0 10
+cfn=(218)
+calls=1 0 
+0 21
+0 5
+cfn=(218)
+calls=1 0 
+0 21
+0 21
+
+fn=(2910)
+0 9
+cfn=(742)
+calls=1 0 
+0 34
+0 10
+
+fn=(3094) 0x000000000000a220
+0 86853
+cfn=(3128) 0x000000000000a0a0
+calls=260 0 
+0 33302
+0 2900
+
+fn=(158) 0x0000000000013780
+0 23502
+
+fn=(224) 0x0000000000021f30
+0 7
+
+fn=(1382) 0x00000000000034e0
+0 10
+cfn=(1388) _dl_debug_state
+calls=2 0 
+0 2
+0 6
+
+fn=(1452)
+0 17
+cfn=(1454) 0x00000000000024a0
+calls=1 0 
+0 2714
+0 11
+
+fn=(1538) 0x0000000000022e60
+0 175
+
+fn=(2180)
+0 556
+cfn=(2188)
+calls=32 0 
+0 2252
+0 183
+cfn=(2188)
+calls=3 0 
+0 238
+0 144
+
+fn=(3890) 0x0000000000001f00
+0 12
+cfn=(3792)
+calls=1 0 
+0 222
+0 11
+cob=(2)
+cfi=(2)
+cfn=(3900)
+calls=1 0 
+0 333
+
+fn=(3944) 0x000000000001ccd0
+0 1
+
+fn=(3980) 0x0000000000005e20
+0 32
+cfn=(3984)
+calls=1 0 
+0 36
+0 35
+cfn=(3984)
+calls=5 0 
+0 756
+0 21
+cfn=(3984)
+calls=1 0 
+0 78
+0 2
+
+fn=(1136) 0x000000000001a900
+0 46
+cfn=(1148)
+calls=2 0 
+0 24
+0 22
+cfn=(1032)
+calls=2 0 
+0 135
+0 4
+cfn=(1032)
+calls=2 0 
+0 167
+0 20
+
+fn=(1212)
+0 246
+
+fn=(1474)
+0 560
+cfn=(888)
+calls=80 0 
+0 2585
+0 1079
+cfn=(888)
+calls=94 0 
+0 3472
+0 588
+
+fn=(1872)
+0 25
+
+fn=(2818) 0x0000000000025f00
+0 31
+
+fn=(2854) 0x000000000001dd60
+0 13
+cfn=(742)
+calls=1 0 
+0 34
+0 5
+cfn=(2860)
+calls=1 0 
+0 78
+0 1
+cfn=(2870) 0x0000000000012470
+calls=1 0 
+0 224
+0 1
+cfn=(2900)
+calls=1 0 
+0 411
+0 14
+cfn=(2928)
+calls=1 0 
+0 96
+0 6
+
+fn=(3128)
+0 7796
+cfn=(888)
+calls=194 0 
+0 9814
+0 5002
+cfn=(888)
+calls=250 0 
+0 8032
+0 2658
+
+fn=(2) 0x000000000001de30
+0 666
+cfn=(120) 0x000000000001af80
+calls=1 0 
+0 9
+0 8
+cfn=(124)
+calls=1 0 
+0 27
+0 8
+cfn=(134) 0x000000000001cc10
+calls=1 0 
+0 481898
+0 23
+
+fn=(136) 0x000000000001be40
+0 534
+
+fn=(216) 0x0000000000011910
+0 5
+cfn=(218)
+calls=1 0 
+0 22
+0 6
+
+fn=(232) 0x0000000000017e70
+0 27
+cfn=(244) 0x0000000000015890
+calls=1 0 
+0 71
+0 28
+cfn=(270)
+calls=1 0 
+0 212
+0 101
+cfn=(218)
+calls=1 0 
+0 21
+0 7
+cfn=(218)
+calls=1 0 
+0 21
+0 10
+cfn=(218)
+calls=1 0 
+0 21
+0 12
+cfn=(218)
+calls=1 0 
+0 21
+0 13
+cfn=(218)
+calls=1 0 
+0 21
+0 12
+cfn=(218)
+calls=1 0 
+0 21
+0 14
+cfn=(578) 0x0000000000013760
+calls=1 0 
+0 44
+0 11
+cfn=(578)
+calls=1 0 
+0 44
+0 9
+cfn=(578)
+calls=1 0 
+0 44
+0 10
+cfn=(578)
+calls=1 0 
+0 44
+0 11
+cfn=(578)
+calls=1 0 
+0 44
+0 10
+cfn=(578)
+calls=1 0 
+0 44
+0 15
+cfn=(218)
+calls=1 0 
+0 20
+0 4
+cfn=(218)
+calls=1 0 
+0 22
+0 10
+cfn=(218)
+calls=1 0 
+0 22
+0 55
+cfn=(364) 0x0000000000016170
+calls=1 0 
+0 459
+0 3
+cfn=(364)
+calls=1 0 
+0 526
+0 5
+cfn=(364)
+calls=1 0 
+0 476
+0 3
+cfn=(364)
+calls=1 0 
+0 468
+0 4
+cfn=(364)
+calls=1 0 
+0 450
+0 3
+cfn=(364)
+calls=1 0 
+0 451
+0 3
+cfn=(364)
+calls=1 0 
+0 501
+0 3
+cfn=(364)
+calls=1 0 
+0 492
+0 3
+cfn=(364)
+calls=1 0 
+0 493
+0 3
+cfn=(364)
+calls=1 0 
+0 517
+0 3
+cfn=(364)
+calls=1 0 
+0 518
+0 3
+cfn=(364)
+calls=1 0 
+0 519
+0 7
+cfn=(472)
+calls=1 0 
+0 228
+0 39
+
+fn=(244)
+0 71
+
+fn=(1002) 0x000000000001ad20
+0 48
+
+fn=(1238)
+0 18
+cfn=(1240)
+calls=2 0 
+0 145
+0 64
+cfn=(650)
+calls=2 0 
+0 76
+0 6
+cfn=(746)
+calls=2 0 
+0 48
+0 18
+
+fn=(1300)
+0 4
+
+fn=(2628) 0x000000000001db20
+0 6
+cfn=(2630) 0x0000000000014740
+calls=1 0 
+0 19516
+0 4
+
+fn=(3708)
+0 364
+
+fn=(3720)
+0 261
+cfn=(3708)
+calls=5 0 
+0 300
+0 20
+
+fn=(578)
+0 264
+
+fn=(650)
+0 702
+
+fn=(800)
+0 14
+
+fn=(2140)
+0 11
+cfn=(1538)
+calls=1 0 
+0 16
+0 13
+cfn=(1592)
+calls=1 0 
+0 5
+0 8
+cfn=(1872)
+calls=1 0 
+0 5
+0 7
+cfn=(1624)
+calls=1 0 
+0 22
+0 2
+
+fn=(2870)
+0 127
+cfn=(218)
+calls=1 0 
+0 22
+0 17
+cfn=(218)
+calls=1 0 
+0 22
+0 36
+
+fn=(3074)
+0 35783
+cfn=(3094)
+calls=267 0 
+0 123055
+0 12660
+
+fn=(0) 0x000000000001d2c0
+0 2
+cfn=(2)
+calls=1 0 
+0 482639
+0 10
+cfn=(3980)
+calls=1 0 
+0 960
+0 3
+cob=(7)
+cfi=(7)
+cfn=(4106) (below main)
+calls=1 0 
+0 1423998291
+
+fn=(1456) _dl_catch_exception
+0 170
+cfn=(1458) 0x00000000000232a0
+calls=10 0 
+0 190
+0 50
+cfn=(2008)
+calls=9 0 
+0 17372
+cfn=(1460) 0x000000000001d3c0
+calls=1 0 
+0 2634
+0 170
+
+fn=(2542)
+0 244
+cfn=(2556) 0x0000000000011840
+calls=12 0 
+0 486
+0 78
+cfn=(760)
+calls=2 0 
+0 36
+0 2
+
+fn=(2638) 0x0000000000013e00
+0 505
+cfn=(1474)
+calls=46 0 
+0 4605
+0 7586
+cfn=(888)
+calls=41 0 
+0 1745
+0 290
+cfn=(888)
+calls=1 0 
+0 57
+0 841
+cfn=(742)
+calls=5 0 
+0 220
+0 3555
+cfn=(2818)
+calls=1 0 
+0 31
+0 2
+
+fn=(3792)
+0 127
+cfn=(3804) 0x000000000000ba00
+calls=3 0 
+0 440
+0 42
+
+fn=(3874) 0x0000000000003420
+0 11
+cfn=(3074)
+calls=1 0 
+0 601
+0 16
+
+fn=(1000) 0x000000000001a9a0
+0 16
+cfn=(1002)
+calls=1 0 
+0 48
+0 10
+cfn=(1032)
+calls=1 0 
+0 21
+0 23
+cfn=(1032)
+calls=2 0 
+0 135
+0 2
+cfn=(1032)
+calls=1 0 
+0 146
+0 12
+cfn=(746)
+calls=1 0 
+0 24
+0 13
+cfn=(1034)
+calls=1 0 
+0 11
+0 33
+cfn=(1032)
+calls=2 0 
+0 135
+0 2
+cfn=(1032)
+calls=1 0 
+0 146
+0 38
+cfn=(1112)
+calls=1 0 
+0 18
+0 32
+cfn=(746)
+calls=1 0 
+0 24
+0 14
+cfn=(1136)
+calls=1 0 
+0 45
+0 5
+cfn=(1136)
+calls=1 0 
+0 373
+0 15
+
+fn=(120)
+0 9
+
+fn=(4152)
+0 4
+
+fn=(658) 0x0000000000022710
+0 14
+
+fn=(998) 0x00000000000076e0
+0 15
+cfn=(1000)
+calls=1 0 
+0 1341
+0 3
+cfn=(746)
+calls=1 0 
+0 24
+0 13
+cfn=(746)
+calls=1 0 
+0 24
+0 42
+cfn=(1170)
+calls=4 0 
+0 52
+0 91
+cfn=(650)
+calls=1 0 
+0 16
+0 8
+cfn=(760)
+calls=1 0 
+0 10
+0 108
+cfn=(746)
+calls=1 0 
+0 24
+0 10
+cfn=(1210)
+calls=1 0 
+0 570
+0 18
+
+fn=(1148)
+0 356
+
+fn=(1170)
+0 509
+
+fn=(1458)
+0 190
+
+fn=(1960) 0x0000000000022c30
+0 8
+
+fn=(3668) 0x0000000000012d00
+0 42
+
+fn=(3804)
+0 84
+cfn=(888)
+calls=3 0 
+0 191
+0 39
+cfn=(888)
+calls=3 0 
+0 96
+0 30
+
+fn=(1388)
+0 2
+
+fn=(1454)
+0 11
+cfn=(1456)
+calls=1 0 
+0 2692
+0 11
+
+fn=(1460)
+0 11
+cfn=(1462)
+calls=1 0 
+0 2620
+0 3
+
+fn=(1534)
+0 171
+cfn=(1538)
+calls=9 0 
+0 159
+0 71
+cfn=(1552)
+calls=4 0 
+0 20
+0 249
+cfn=(2412)
+calls=1 0 
+0 6
+0 18
+
+fn=(1916)
+0 30
+
+fn=(1980) 0x0000000000003680
+0 159
+cfn=(746)
+calls=4 0 
+0 96
+0 36
+cfn=(760)
+calls=4 0 
+0 40
+0 20
+cfn=(760)
+calls=4 0 
+0 40
+0 173
+cfn=(1456)
+calls=9 0 
+0 17894
+0 905
+cfn=(1240)
+calls=9 0 
+0 456
+0 412
+cfn=(746)
+calls=1 0 
+0 24
+0 110
+cfn=(2542)
+calls=1 0 
+0 394
+0 116
+cfn=(2462) 0x0000000000022f40
+calls=4 0 
+0 76
+0 20
+cfn=(760)
+calls=1 0 
+0 18
+0 3
+
+fn=(6244)
+0 24
+
+fn=(134)
+0 6
+cfn=(136)
+calls=1 0 
+0 534
+0 2
+cfn=(158)
+calls=1 0 
+0 23502
+0 1
+cfn=(216)
+calls=1 0 
+0 33
+0 2
+cfn=(224)
+calls=1 0 
+0 7
+0 1
+cfn=(232)
+calls=1 0 
+0 7276
+0 4
+cfn=(650)
+calls=1 0 
+0 16
+0 3
+cfn=(658)
+calls=1 0 
+0 14
+0 11
+cfn=(670) 0x000000000001e600
+calls=1 0 
+0 450482
+0 4
+
+fn=(364)
+0 396
+cfn=(370)
+calls=12 0 
+0 4044
+0 84
+cfn=(370)
+calls=12 0 
+0 1322
+0 24
+
+fn=(1054)
+0 713
+
+fn=(1318) 0x0000000000003510
+0 20
+
+fn=(1408)
+0 407
+
+fn=(2462)
+0 76
+
+fn=(3434) 0x0000000000012d50
+0 90
+
+fn=(3848)
+0 60
+cfn=(3074)
+calls=4 0 
+0 2371
+0 104
+
+fn=(670)
+0 21
+cfn=(672)
+calls=1 0 
+0 16
+0 14
+cfn=(678)
+calls=1 0 
+0 86
+0 4
+cfn=(678)
+calls=2 0 
+0 391
+0 175
+cfn=(730)
+calls=1 0 
+0 286
+0 12
+cfn=(798)
+calls=1 0 
+0 34
+0 408
+cfn=(876)
+calls=1 0 
+0 34
+0 13
+cfn=(888)
+calls=1 0 
+0 42
+0 338
+cfn=(124)
+calls=1 0 
+0 27
+0 10
+cfn=(998)
+calls=1 0 
+0 2369
+0 3
+cfn=(1318)
+calls=1 0 
+0 20
+0 148
+cfn=(1374) 0x00000000000123f0
+calls=1 0 
+0 5
+0 8
+cfn=(1382)
+calls=1 0 
+0 9
+0 3
+cfn=(1392)
+calls=1 0 
+0 20
+0 12
+cfn=(1960)
+calls=1 0 
+0 8
+0 21
+cfn=(1980)
+calls=1 0 
+0 20992
+0 119
+cfn=(2624) 0x0000000000002290
+calls=1 0 
+0 19546
+0 135
+cfn=(2976)
+calls=1 0 
+0 76829
+0 113
+cfn=(2976)
+calls=6 0 
+0 317812
+0 30
+cfn=(3434)
+calls=3 0 
+0 90
+0 12
+cfn=(3668)
+calls=1 0 
+0 42
+0 10
+cfn=(3686)
+calls=1 0 
+0 386
+0 6
+cfn=(3704)
+calls=1 0 
+0 899
+0 11
+cfn=(2980)
+calls=1 0 
+0 275
+0 6
+cfn=(3790)
+calls=1 0 
+0 428
+0 2
+cfn=(3842)
+calls=1 0 
+0 2646
+0 2
+cfn=(3874)
+calls=1 0 
+0 628
+0 2
+cfn=(3400)
+calls=1 0 
+0 28
+0 3
+cfn=(3890)
+calls=1 0 
+0 578
+0 1
+cfn=(3944)
+calls=1 0 
+0 1
+0 2
+cfn=(1916)
+calls=1 0 
+0 6
+0 3
+cfn=(1382)
+calls=1 0 
+0 9
+0 3
+cfn=(3952)
+calls=1 0 
+0 8
+0 1
+cfn=(3958)
+calls=1 0 
+0 16
+0 106
+cfn=(2854)
+calls=1 0 
+0 883
+0 41
+cfn=(1402)
+calls=1 0 
+0 3228
+0 7
+
+fn=(730)
+0 87
+cfn=(650)
+calls=4 0 
+0 108
+0 36
+cfn=(742)
+calls=4 0 
+0 227
+0 3
+cfn=(742)
+calls=1 0 
+0 40
+0 70
+cfn=(760)
+calls=5 0 
+0 69
+0 362
+cfn=(650)
+calls=4 0 
+0 170
+0 40
+cfn=(1148)
+calls=4 0 
+0 72
+0 388
+cfn=(746)
+calls=4 0 
+0 96
+0 35
+
+fn=(760)
+0 277
+
+fn=(1374)
+0 5
+
+fn=(1592)
+0 25
+
+fn=(2052)
+0 126
+cfn=(1148)
+calls=3 0 
+0 36
+0 71
+cfn=(1148)
+calls=5 0 
+0 60
+0 20
+cfn=(1148)
+calls=5 0 
+0 60
+0 60
+cfn=(1534)
+calls=5 0 
+0 260
+0 191
+cfn=(2086)
+calls=3 0 
+0 40
+0 27
+
+fn=(2556)
+0 486
+
+fn=(2624)
+0 12
+cfn=(2628)
+calls=1 0 
+0 19526
+0 8
+
+fn=(2630)
+0 48
+cfn=(2638)
+calls=6 0 
+0 19437
+0 31
+
+fn=(6200)
+0 104
+cob=(3)
+cfi=(3)
+cfn=(6302)
+calls=1 0 
+0 90
+cob=(6)
+cfi=(6)
+cfn=(6270)
+calls=1 0 
+0 39
+cob=(5)
+cfi=(5)
+cfn=(6252) 0x00000000000010c0
+calls=1 0 
+0 90
+cob=(7)
+cfi=(7)
+cfn=(6208) 0x0000000000258a60
+calls=1 0 
+0 90
+0 1
+cob=(6)
+cfi=(6)
+cfn=(6284)
+calls=1 0 
+0 90
+0 62
+cob=(4)
+cfi=(4)
+cfn=(6318)
+calls=1 0 
+0 3
+cob=(4)
+cfi=(4)
+cfn=(6300)
+calls=1 0 
+0 3
+cob=(4)
+cfi=(4)
+cfn=(6268)
+calls=1 0 
+0 3
+cob=(4)
+cfi=(4)
+cfn=(6240)
+calls=1 0 
+0 3
+0 8
+
+ob=(7)
+fl=(7)
+fn=(5970) core::ptr::drop_glue::<pbrs::map::Map<i64, pbrs_adoption_corpus::native::__gen_adoption_proto::Entity>>
+0 7
+cfn=(6092) core::ptr::drop_glue::<alloc::vec::Vec<(i64, pbrs_adoption_corpus::native::__gen_adoption_proto::Entity)>>
+calls=1 0 
+0 19279
+0 9
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 109
+0 11052
+cfn=(5972) core::ptr::drop_glue::<pbrs_adoption_corpus::native::__gen_adoption_proto::Entity>
+calls=614 0 
+0 857157
+0 8596
+cfn=(5972)
+calls=4298 0 
+0 8312453
+0 22104
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=614 0 
+0 120729
+0 6754
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=614 0 
+0 66922
+
+fn=(4170) std::rt::lang_start_internal
+0 37
+cob=(2)
+cfi=(2)
+cfn=(4172)
+calls=1 0 
+0 28
+0 37
+cob=(2)
+cfi=(2)
+cfn=(4186)
+calls=1 0 
+0 124
+0 4
+cob=(2)
+cfi=(2)
+cfn=(4192)
+calls=1 0 
+0 52
+0 8
+cob=(2)
+cfi=(2)
+cfn=(4196)
+calls=1 0 
+0 2
+0 3
+cob=(2)
+cfi=(2)
+cfn=(4198)
+calls=1 0 
+0 98405
+0 11
+cob=(2)
+cfi=(2)
+cfn=(4994)
+calls=1 0 
+0 8
+0 6
+cob=(2)
+cfi=(2)
+cfn=(4996)
+calls=1 0 
+0 144
+0 35
+cob=(2)
+cfi=(2)
+cfn=(4188)
+calls=1 0 
+0 68
+0 8
+cfn=(4998) std::sys::pal::unix::stack_overflow::imp::make_handler
+calls=1 0 
+0 240
+0 5
+cfn=(5008) std::sys::pal::unix::stack_overflow::thread_info::set_current_info
+calls=1 0 
+0 482
+0 8
+cob=(2)
+cfi=(2)
+cfn=(4188)
+calls=1 0 
+0 68
+0 4
+cob=(2)
+cfi=(2)
+cfn=(4188)
+calls=1 0 
+0 68
+0 12
+cob=(2)
+cfi=(2)
+cfn=(4188)
+calls=1 0 
+0 68
+0 7
+cfn=(5020) std::rt::lang_start::<()>::{closure#0}
+calls=1 0 
+0 1423896013
+0 5
+cob=(2)
+cfi=(2)
+cfn=(5018)
+calls=1 0 
+0 3
+0 22
+cfn=(5366) <std::sys::sync::once::futex::Once>::call
+calls=1 0 
+0 155
+0 1
+
+fn=(5008)
+0 13
+cob=(2)
+cfi=(2)
+cfn=(5010)
+calls=1 0 
+0 3
+0 17
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 184
+0 9
+cob=(2)
+cfi=(2)
+cfn=(5018)
+calls=1 0 
+0 3
+0 32
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 179
+0 42
+
+fn=(5070) pbrs_adoption_corpus::fresh::maps_native
+0 16921
+cfn=(5072) alloc::fmt::format::format_inner
+calls=512 0 
+0 257449
+0 8704
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=512 0 
+0 6144
+0 3584
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=512 0 
+0 33280
+0 11270
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 190
+0 9733
+cfn=(5100) <pbrs::lazy::LazyStr as core::cmp::PartialEq>::eq
+calls=511 0 
+0 28335
+0 390915
+cfn=(5100)
+calls=130305 0 
+0 7019974
+0 662799
+cfn=(5088) <alloc::raw_vec::RawVec<(pbrs::lazy::LazyStr, usize)>>::grow_one
+calls=8 0 
+0 17493
+0 10240
+cfn=(5072)
+calls=512 0 
+0 257300
+0 3072
+cfn=(5092) pbrs_adoption_corpus::fresh::typed
+calls=512 0 
+0 152297
+0 4608
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=512 0 
+0 6144
+0 3584
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=512 0 
+0 33280
+0 19445
+cfn=(5100)
+calls=511 0 
+0 27964
+0 390915
+cfn=(5100)
+calls=130305 0 
+0 7028090
+0 654597
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 190
+0 12322
+cfn=(5098) <alloc::raw_vec::RawVec<(pbrs::lazy::LazyStr, pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue)>>::grow_one
+calls=8 0 
+0 33906
+0 11
+cfn=(5354) core::ptr::drop_glue::<pbrs::map::Map<pbrs::lazy::LazyStr, i64>>
+calls=1 0 
+0 9
+0 4
+cfn=(5356) core::ptr::drop_glue::<pbrs::map::Map<pbrs::lazy::LazyStr, pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue>>
+calls=1 0 
+0 13
+0 147
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 175
+0 18
+cfn=(5358) pbrs_adoption_corpus::fresh::entity
+calls=1 0 
+0 13561
+0 21
+cfn=(5358)
+calls=7 0 
+0 98850
+0 322
+cfn=(5398) <alloc::raw_vec::RawVec<(i64, pbrs_adoption_corpus::native::__gen_adoption_proto::Entity)>>::grow_one
+calls=2 0 
+0 673
+0 17
+
+fn=(5366)
+0 410197
+cfn=(5936) <std::sync::once::Once>::call_once_force::<<std::sync::once_lock::OnceLock<pbrs_adoption_corpus::native::__gen_adoption_proto::Any>>::initialize<<std::sync::once_lock::OnceLock<pbrs_adoption_corpus::native::__gen_adoption_proto::Any>>::get_or_init<<pbrs::lazy::LazyMsg<pbrs_adoption_corpus::native::__gen_adoption_proto::Any>>::as_deref::{closure#0}>::{closure#0}, !>::{closure#0}>::{closure#0}
+calls=4904 0 
+0 3457320
+cfn=(5862) <std::sync::once::Once>::call_once_force::<<std::sync::once_lock::OnceLock<alloc::vec::Vec<i64>>>::initialize<<std::sync::once_lock::OnceLock<alloc::vec::Vec<i64>>>::get_or_init<<pbrs::packed::Packed<pbrs::packed::ZigZag64>>::packed_bytes::{closure#0}>::{closure#0}, !>::{closure#0}>::{closure#0}
+calls=4920 0 
+0 1477365
+cfn=(5808) <std::sync::once::Once>::call_once_force::<<std::sync::once_lock::OnceLock<pbrs::map::LastWinsIndex<pbrs::lazy::LazyStr>>>::initialize<<std::sync::once_lock::OnceLock<pbrs::map::LastWinsIndex<pbrs::lazy::LazyStr>>>::get_or_init<pbrs::map::hot_index<pbrs::lazy::LazyStr, pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue>::{closure#0}>::{closure#0}, !>::{closure#0}>::{closure#0}
+calls=615 0 
+0 118653218
+cfn=(5758) <std::sync::once::Once>::call_once_force::<<std::sync::once_lock::OnceLock<pbrs::map::LastWinsIndex<pbrs::lazy::LazyStr>>>::initialize<<std::sync::once_lock::OnceLock<pbrs::map::LastWinsIndex<pbrs::lazy::LazyStr>>>::get_or_init<pbrs::map::hot_index<pbrs::lazy::LazyStr, i64>::{closure#0}>::{closure#0}, !>::{closure#0}>::{closure#0}
+calls=615 0 
+0 55475514
+cfn=(5390) <std::sync::once::Once>::call_once_force::<<std::sync::once_lock::OnceLock<pbrs_adoption_corpus::native::__gen_adoption_proto::Any>>::initialize<<std::sync::once_lock::OnceLock<pbrs_adoption_corpus::native::__gen_adoption_proto::Any>>::get_or_init<<std::sync::once_lock::OnceLock<pbrs_adoption_corpus::native::__gen_adoption_proto::Any>>::try_insert::{closure#0}>::{closure#0}, !>::{closure#0}>::{closure#0}
+calls=16 0 
+0 608
+cfn=(5374) <std::sync::once::Once>::call_once_force::<<std::sync::once_lock::OnceLock<alloc::vec::Vec<u8>>>::initialize<<std::sync::once_lock::OnceLock<alloc::vec::Vec<u8>>>::get_or_init<<pbrs::packed::Packed<pbrs::packed::ZigZag64>>::packed_bytes::{closure#1}>::{closure#0}, !>::{closure#0}>::{closure#0}
+calls=8 0 
+0 2864
+cfn=(5368) <std::sync::once::Once>::call_once_force::<<std::sync::once_lock::OnceLock<alloc::vec::Vec<i64>>>::initialize<<std::sync::once_lock::OnceLock<alloc::vec::Vec<i64>>>::get_or_init<<std::sync::once_lock::OnceLock<alloc::vec::Vec<i64>>>::try_insert::{closure#0}>::{closure#0}, !>::{closure#0}>::{closure#0}
+calls=8 0 
+0 144
+0 6
+cfn=(6098) <std::sync::once::Once>::call_once::<std::rt::cleanup::{closure#0}>::{closure#0}
+calls=1 0 
+0 108
+0 133058
+
+fn=(5367) <std::sys::sync::once::futex::Once>::call'2
+0 37
+cfn=(6102) <std::sync::once::Once>::call_once_force::<<std::sync::once_lock::OnceLock<std::sync::reentrant_lock::ReentrantLock<core::cell::RefCell<alloc::io::buffered::linewriter::LineWriter<std::io::stdio::StdoutRaw>>>>>::initialize<<std::sync::once_lock::OnceLock<std::sync::reentrant_lock::ReentrantLock<core::cell::RefCell<alloc::io::buffered::linewriter::LineWriter<std::io::stdio::StdoutRaw>>>>>::get_or_init<std::io::stdio::cleanup::{closure#0}>::{closure#0}, !>::{closure#0}>::{closure#0}
+calls=1 0 
+0 14
+0 12
+
+fn=(5430) <hashbrown::raw::RawTable<(alloc::string::String, i64)>>::reserve_rehash::<hashbrown::map::make_hasher<alloc::string::String, i64, std::hash::random::RandomState>::{closure#0}>
+0 980
+cfn=(5432) <hashbrown::raw::RawTableInner>::fallible_with_capacity::<alloc::alloc::Global>
+calls=28 0 
+0 10389
+0 36605
+cfn=(5452) <std::hash::random::RandomState as core::hash::BuildHasher>::hash_one::<&alloc::string::String>
+calls=2676 0 
+0 516468
+0 88808
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=24 0 
+0 3330
+0 300
+
+fn=(5474) <std::collections::hash::map::HashMap<i64, pbrs_adoption_corpus::prost_types::Entity> as core::iter::traits::collect::FromIterator<(i64, pbrs_adoption_corpus::prost_types::Entity)>>::from_iter::<core::iter::adapters::map::Map<core::ops::range::Range<usize>, pbrs_adoption_corpus::corpus::maps::{closure#2}>>
+0 23
+cfn=(5476) <hashbrown::raw::RawTable<(i64, pbrs_adoption_corpus::prost_types::Entity)>>::reserve_rehash::<hashbrown::map::make_hasher<i64, pbrs_adoption_corpus::prost_types::Entity, std::hash::random::RandomState>::{closure#0}>
+calls=1 0 
+0 323
+0 4
+cfn=(5480) pbrs_adoption_corpus::corpus::entity
+calls=1 0 
+0 11460
+0 6
+cfn=(5488) <hashbrown::map::HashMap<i64, pbrs_adoption_corpus::prost_types::Entity, std::hash::random::RandomState>>::insert
+calls=1 0 
+0 234
+0 5
+cfn=(5480)
+calls=1 0 
+0 11271
+0 6
+cfn=(5488)
+calls=1 0 
+0 234
+0 5
+cfn=(5480)
+calls=1 0 
+0 11829
+0 6
+cfn=(5488)
+calls=1 0 
+0 234
+0 5
+cfn=(5480)
+calls=1 0 
+0 11282
+0 6
+cfn=(5488)
+calls=1 0 
+0 234
+0 5
+cfn=(5480)
+calls=1 0 
+0 11282
+0 6
+cfn=(5488)
+calls=1 0 
+0 234
+0 5
+cfn=(5480)
+calls=1 0 
+0 11784
+0 6
+cfn=(5488)
+calls=1 0 
+0 234
+0 5
+cfn=(5480)
+calls=1 0 
+0 11237
+0 6
+cfn=(5488)
+calls=1 0 
+0 234
+0 5
+cfn=(5480)
+calls=1 0 
+0 11219
+0 6
+cfn=(5488)
+calls=1 0 
+0 234
+0 12
+
+fn=(5476)
+0 330
+cfn=(5432)
+calls=10 0 
+0 3586
+0 632
+cfn=(5490) <std::hash::random::RandomState as core::hash::BuildHasher>::hash_one::<&i64>
+calls=30 0 
+0 4380
+0 990
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=30 0 
+0 870
+0 282
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=6 0 
+0 678
+0 92
+
+fn=(5484) prost::encoding::varint::encode_varint::<alloc::vec::Vec<u8>>
+0 92680
+
+fn=(5542) prost::encoding::varint::decode_varint::<&mut &[u8]>
+0 447938
+
+fn=(5576) <pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue>::write_to::<alloc::vec::Vec<u8>>
+0 46702
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=204 0 
+0 2456
+0 10608
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=204 0 
+0 2856
+0 10640
+
+fn=(5584) <pbrs_adoption_corpus::prost_types::MapHeavy as prost::message::Message>::decode::<&[u8]>
+0 123
+cfn=(5542)
+calls=3 0 
+0 57
+0 6186
+cfn=(5542)
+calls=3093 0 
+0 58767
+0 57216
+cfn=(5542)
+calls=1536 0 
+0 29184
+0 10752
+cfn=(5450) <hashbrown::map::HashMap<alloc::string::String, i64, std::hash::random::RandomState>>::insert
+calls=1536 0 
+0 1091605
+0 1824
+cfn=(5542)
+calls=24 0 
+0 744
+0 192
+cfn=(5488)
+calls=24 0 
+0 17197
+0 9264
+cfn=(5542)
+calls=1536 0 
+0 29184
+0 12288
+cfn=(5460) <hashbrown::map::HashMap<alloc::string::String, pbrs_adoption_corpus::prost_types::TypedValue, std::hash::random::RandomState>>::insert
+calls=1536 0 
+0 1119461
+0 11231
+cfn=(5542)
+calls=47 0 
+0 893
+0 826
+cfn=(5596) prost::encoding::message::merge::<pbrs_adoption_corpus::prost_types::Entity, &mut &[u8]>
+calls=24 0 
+0 205790
+0 116
+cfn=(5542)
+calls=23 0 
+0 1205
+0 10913
+cfn=(5544) prost::encoding::string::merge::<&mut &[u8]>
+calls=1536 0 
+0 675290
+0 24576
+cfn=(5542)
+calls=3072 0 
+0 58368
+0 53760
+cfn=(5592) prost::encoding::message::merge::<pbrs_adoption_corpus::prost_types::TypedValue, &mut &[u8]>
+calls=1536 0 
+0 565867
+0 15360
+cfn=(5544)
+calls=1536 0 
+0 714133
+0 23034
+cfn=(5542)
+calls=3071 0 
+0 58349
+0 52204
+cfn=(5542)
+calls=1535 0 
+0 45257
+0 19993
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=3 0 
+0 87
+0 27
+
+fn=(5858) pbrs_adoption_corpus::corpus::touch_payload_native
+0 7574955
+cfn=(5860) <std::sync::once_lock::OnceLock<alloc::vec::Vec<i64>>>::initialize::<<std::sync::once_lock::OnceLock<alloc::vec::Vec<i64>>>::get_or_init<<pbrs::packed::Packed<pbrs::packed::ZigZag64>>::as_slice::{closure#0}>::{closure#0}, !>
+calls=4920 0 
+0 1811925
+0 9840
+
+fn=(5870) <pbrs_adoption_corpus::native::__gen_adoption_proto::MapHeavy>::merge_bytes
+0 6743
+cfn=(5872) <pbrs_adoption_corpus::native::__gen_adoption_proto::MapHeavy>::merge_inner
+calls=613 0 
+0 510032235
+0 6743
+cfn=(5864) <alloc::sync::Arc<str>>::drop_slow
+calls=613 0 
+0 110620
+0 2452
+
+fn=(5938) <pbrs_adoption_corpus::native::__gen_adoption_proto::Any as pbrs::lazy::MergeBytes>::merge_inner
+0 240296
+cfn=(5940) <pbrs_adoption_corpus::native::__gen_adoption_proto::Any>::merge_inner
+calls=4904 0 
+0 2917880
+0 78464
+
+fn=(6034) <pbrs_adoption_corpus::workloads::CodecCase>::qualification
+0 35
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 38
+0 16
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 41
+0 10
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1 0 
+0 11
+0 10
+cfn=(6036) <alloc::collections::btree::map::BTreeMap<alloc::string::String, serde_json::value::Value>>::insert
+calls=1 0 
+0 92
+0 5
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 38
+0 15
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 38
+0 13
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1 0 
+0 14
+0 9
+cfn=(6036)
+calls=1 0 
+0 160
+0 5
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 38
+0 18
+cfn=(5072)
+calls=1 0 
+0 732
+0 7
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 41
+0 10
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1 0 
+0 12
+0 10
+cfn=(6036)
+calls=1 0 
+0 164
+0 6
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 65
+0 3
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 41
+0 20
+cfn=(5072)
+calls=1 0 
+0 302
+0 7
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 280
+0 10
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1 0 
+0 14
+0 10
+cfn=(6036)
+calls=1 0 
+0 246
+0 6
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 109
+0 3
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 41
+0 15
+cfn=(6050) <u64 as itoa::Unsigned>::fmt
+calls=1 0 
+0 35
+0 8
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 38
+0 11
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1 0 
+0 14
+0 9
+cfn=(6036)
+calls=1 0 
+0 257
+0 5
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 41
+0 16
+cfn=(6050)
+calls=1 0 
+0 110
+0 8
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 41
+0 11
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1 0 
+0 10
+0 10
+cfn=(6036)
+calls=1 0 
+0 290
+0 5
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 41
+0 92471
+cfn=(5072)
+calls=1 0 
+0 914
+0 6
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 41
+0 10
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1 0 
+0 10
+0 10
+cfn=(6036)
+calls=1 0 
+0 335
+0 6
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 65
+0 3
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 286
+0 16
+cfn=(6050)
+calls=1 0 
+0 35
+0 8
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 38
+0 11
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1 0 
+0 14
+0 9
+cfn=(6036)
+calls=1 0 
+0 247
+0 5
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 41
+0 15
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 38
+0 16
+cfn=(6036)
+calls=1 0 
+0 247
+0 5
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 41
+0 15
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 38
+0 16
+cfn=(6036)
+calls=1 0 
+0 246
+0 16
+
+fn=(6036)
+0 354
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=9 0 
+0 217
+0 136
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=17 0 
+0 355
+0 409
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 41
+0 297
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=6 0 
+0 118
+0 108
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=6 0 
+0 120
+0 129
+
+fn=(5966) core::ptr::drop_glue::<(pbrs::lazy::LazyStr, pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue)>
+0 8704
+cfn=(5968) core::ptr::drop_glue::<pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue>
+calls=512 0 
+0 49826
+0 5344256
+cfn=(5968)
+calls=314368 0 
+0 30623692
+
+fn=(5982) core::ptr::drop_glue::<pbrs_adoption_corpus::native::__gen_adoption_proto::Edge>
+0 256
+cfn=(5984) core::ptr::drop_glue::<alloc::vec::Vec<pbrs::lazy::LazyStr>>
+calls=16 0 
+0 3855
+0 32
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=16 0 
+0 1742
+0 48
+cfn=(5981) core::ptr::drop_glue::<alloc::boxed::Box<alloc::vec::Vec<pbrs_adoption_corpus::native::__gen_adoption_proto::Edge>>>'2
+calls=8 0 
+0 5660
+0 157296
+cfn=(5984)
+calls=9824 0 
+0 1654749
+0 19648
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=9824 0 
+0 991926
+0 29472
+cfn=(5981)
+calls=4912 0 
+0 2750109
+0 68768
+
+fn=(5983) core::ptr::drop_glue::<pbrs_adoption_corpus::native::__gen_adoption_proto::Edge>'2
+0 128
+cfn=(5984)
+calls=8 0 
+0 1935
+0 16
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 872
+0 78664
+cfn=(5984)
+calls=4912 0 
+0 872899
+0 9824
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=4912 0 
+0 484650
+0 44208
+
+fn=(5984)
+0 1272
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=24 0 
+0 4518
+0 781008
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=14736 0 
+0 1746640
+
+fn=(5050) devloop::cmd_run_cell
+0 119
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 41
+0 11
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1 0 
+0 11
+0 164
+cfn=(5052) <&str as core::str::pattern::Pattern>::is_contained_in
+calls=1 0 
+0 176
+0 7
+cfn=(5052)
+calls=1 0 
+0 118
+0 10
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 109
+0 19
+cfn=(5056) <pbrs_adoption_corpus::workloads::CodecCase>::prepare
+calls=1 0 
+0 33069220
+0 7
+cfn=(5986) <pbrs_adoption_corpus::workloads::CodecCase>::work
+calls=1 0 
+0 2278570
+0 198
+cfn=(5986)
+calls=99 0 
+0 225324606
+0 325
+cfn=(6026) <std::sys::pal::unix::time::Timespec>::now
+calls=1 0 
+0 26
+0 10
+cfn=(5986)
+calls=1 0 
+0 2276260
+0 1022
+cfn=(5986)
+calls=511 0 
+0 1160408026
+0 1538
+cfn=(6030) <std::time::Instant>::elapsed
+calls=1 0 
+0 88
+0 9
+cfn=(6034)
+calls=1 0 
+0 98994
+0 4
+cfn=(6054) <str as serde_json::value::index::Index>::index_into
+calls=1 0 
+0 465
+0 15
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 41
+0 10
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1 0 
+0 10
+0 4
+cfn=(6060) core::ptr::drop_glue::<serde_json::value::Value>
+calls=1 0 
+0 2954
+0 15
+cfn=(6064) devloop::child_json_with_input
+calls=1 0 
+0 7670
+0 7
+cfn=(6072) std::io::stdio::_eprint
+calls=1 0 
+0 456
+0 4
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 65
+0 4
+cfn=(6086) core::ptr::drop_glue::<pbrs_adoption_corpus::workloads::CodecCase>
+calls=1 0 
+0 420604
+0 1
+
+fn=(5054) core::str::pattern::simd_contains::{closure#2}
+0 52
+
+fn=(5088)
+0 73680
+cfn=(5090) <alloc::raw_vec::RawVecInner>::finish_grow
+calls=4912 0 
+0 4162267
+0 44208
+
+fn=(5098)
+0 73680
+cfn=(5090)
+calls=4912 0 
+0 13794293
+0 44208
+
+fn=(5124) __rustc::__rust_realloc
+0 315486
+cob=(2)
+cfi=(2)
+cfn=(4506)
+calls=18558 0 
+0 21323662
+0 250218
+
+fn=(5374)
+0 120
+cfn=(5376) <pbrs::packed::ZigZag64 as pbrs::packed::PackedCodec>::encode
+calls=8 0 
+0 2672
+0 72
+
+fn=(5388) <std::sync::once_lock::OnceLock<pbrs_adoption_corpus::native::__gen_adoption_proto::Any>>::initialize::<<std::sync::once_lock::OnceLock<pbrs_adoption_corpus::native::__gen_adoption_proto::Any>>::get_or_init<<std::sync::once_lock::OnceLock<pbrs_adoption_corpus::native::__gen_adoption_proto::Any>>::try_insert::{closure#0}>::{closure#0}, !>
+0 272
+cfn=(5366)
+calls=16 0 
+0 1392
+0 32
+
+fn=(5396) <alloc::raw_vec::RawVec<pbrs::lazy::LazyStr>>::grow_one
+0 360
+cfn=(5090)
+calls=24 0 
+0 4922
+0 216
+
+fn=(5454) <core::hash::sip::Hasher<core::hash::sip::Sip13Rounds> as core::hash::Hasher>::write
+0 1291850
+
+fn=(5506) <pbrs_adoption_corpus::prost_types::Entity as prost::message::Message>::encoded_len
+0 1168
+cfn=(5496) <<pbrs_adoption_corpus::prost_types::Edge as prost::message::Message>::encoded_len as core::ops::function::FnMut<(&pbrs_adoption_corpus::prost_types::Edge,)>>::call_mut
+calls=16 0 
+0 2496
+0 32
+cfn=(5496)
+calls=16 0 
+0 1120
+0 682
+
+fn=(5536) pbrs_adoption_corpus::corpus::touch_maps_prost
+0 212226
+cfn=(5538) pbrs_adoption_corpus::corpus::touch_typed_prost
+calls=1536 0 
+0 88269
+0 197919
+cfn=(5540) pbrs_adoption_corpus::corpus::touch_entity_prost
+calls=24 0 
+0 146068
+0 1563
+
+fn=(5578) pbrs::wire::encode_varint_slow::<alloc::vec::Vec<u8>>
+0 624
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 96
+0 88
+
+fn=(5580) <pbrs_adoption_corpus::native::__gen_adoption_proto::Entity>::write_to::<alloc::vec::Vec<u8>>
+0 880
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=16 0 
+0 192
+0 784
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 572
+0 672
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 88
+0 456
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 464
+0 280
+cfn=(5572) <pbrs_adoption_corpus::native::__gen_adoption_proto::Edge>::compute_size
+calls=16 0 
+0 240
+0 32
+cfn=(5572)
+calls=16 0 
+0 240
+0 640
+cfn=(5582) <pbrs_adoption_corpus::native::__gen_adoption_proto::Edge>::write_to::<alloc::vec::Vec<u8>>
+calls=32 0 
+0 10928
+0 550
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=4 0 
+0 48
+0 196
+
+fn=(5600) <alloc::raw_vec::RawVec<alloc::vec::Vec<u8>>>::grow_one
+0 1224
+cfn=(5090)
+calls=72 0 
+0 14906
+0 720
+
+fn=(5602) <alloc::raw_vec::RawVec<pbrs_adoption_corpus::prost_types::Edge>>::grow_one
+0 74280
+cfn=(5090)
+calls=4952 0 
+0 1206884
+0 44568
+
+fn=(5774) core::ptr::drop_glue::<alloc::vec::Vec<(pbrs::lazy::LazyStr, usize)>>
+0 11398956
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=3072 0 
+0 524234
+
+fn=(5806) <std::sync::once_lock::OnceLock<pbrs::map::LastWinsIndex<pbrs::lazy::LazyStr>>>::initialize::<<std::sync::once_lock::OnceLock<pbrs::map::LastWinsIndex<pbrs::lazy::LazyStr>>>::get_or_init<pbrs::map::hot_index<pbrs::lazy::LazyStr, pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue>::{closure#0}>::{closure#0}, !>
+0 11070
+cfn=(5366)
+calls=615 0 
+0 118683353
+0 1230
+
+fn=(5818) pbrs_adoption_corpus::corpus::touch_typed_native
+0 16213866
+cfn=(5820) <pbrs_adoption_corpus::corpus::Digest>::bytes
+calls=62628 0 
+0 5699148
+0 408
+cfn=(5820)
+calls=102 0 
+0 9282
+0 250920
+
+fn=(5840) pbrs_adoption_corpus::corpus::touch_entity_native
+0 846168
+cfn=(5934) <std::sync::once_lock::OnceLock<pbrs_adoption_corpus::native::__gen_adoption_proto::Any>>::initialize::<<std::sync::once_lock::OnceLock<pbrs_adoption_corpus::native::__gen_adoption_proto::Any>>::get_or_init<<pbrs::lazy::LazyMsg<pbrs_adoption_corpus::native::__gen_adoption_proto::Any>>::as_deref::{closure#0}>::{closure#0}, !>
+calls=4904 0 
+0 3790792
+0 7232288
+cfn=(5842) <pbrs_adoption_corpus::native::__gen_adoption_proto::Payload>::merge_bytes
+calls=4920 0 
+0 5537364
+0 108136
+cfn=(5858)
+calls=4920 0 
+0 9396720
+0 182040
+cfn=(5378) core::ptr::drop_glue::<pbrs_adoption_corpus::native::__gen_adoption_proto::Payload>
+calls=4920 0 
+0 1736802
+0 482160
+cfn=(5866) <pbrs::repeated::RepeatedIter<pbrs_adoption_corpus::native::__gen_adoption_proto::Edge> as core::iter::traits::iterator::Iterator>::next
+calls=4920 0 
+0 98400
+0 29520
+cfn=(5868) pbrs_adoption_corpus::corpus::touch_edge_native
+calls=4920 0 
+0 4501800
+0 9840
+cfn=(5868)
+calls=4920 0 
+0 2091000
+0 364080
+cfn=(5866)
+calls=9840 0 
+0 186960
+0 389910
+
+fn=(5846) <pbrs_adoption_corpus::native::__gen_adoption_proto::Payload>::merge_heavy
+0 290280
+cfn=(5514) pbrs::wire::decode_varint
+calls=4920 0 
+0 68880
+0 137760
+cfn=(5514)
+calls=4920 0 
+0 113160
+0 137760
+cfn=(5514)
+calls=4920 0 
+0 68880
+0 88560
+cfn=(5848) <pbrs::lazy::LazyStr>::from_parse_span
+calls=4920 0 
+0 888156
+0 255840
+cfn=(5850) <pbrs::lazy::Wire>::from_slice
+calls=4920 0 
+0 791764
+0 59040
+cfn=(5852) <pbrs::lazy::Wire>::window
+calls=4920 0 
+0 246000
+0 14760
+cfn=(5854) <pbrs::lazy::LazyBytes>::from_wire
+calls=4920 0 
+0 127920
+0 29520
+cfn=(5852)
+calls=4920 0 
+0 246000
+0 73800
+cfn=(5856) pbrs::wire::validate_varints
+calls=4920 0 
+0 162360
+0 132840
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=4920 0 
+0 201720
+0 229592
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=4920 0 
+0 202105
+0 111512
+
+fn=(5850)
+0 1532223
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=72963 0 
+0 28549978
+0 986130
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=60928 0 
+0 13826986
+0 84245
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=12035 0 
+0 2728440
+0 1897038
+
+fn=(5868)
+0 3876960
+cfn=(5866)
+calls=4920 0 
+0 88560
+0 49200
+cfn=(5866)
+calls=4920 0 
+0 98400
+0 39360
+cfn=(5869) pbrs_adoption_corpus::corpus::touch_edge_native'2
+calls=4920 0 
+0 2091000
+0 177120
+cfn=(5866)
+calls=4920 0 
+0 88560
+0 83640
+
+fn=(5869)
+0 1958160
+cfn=(5866)
+calls=4920 0 
+0 88560
+0 44280
+
+fn=(5906) <pbrs_adoption_corpus::native::__gen_adoption_proto::Any>::validate_until
+0 372704
+cfn=(5514)
+calls=4904 0 
+0 112792
+0 73560
+cfn=(5514)
+calls=4904 0 
+0 68656
+0 102984
+cfn=(5048) core::str::converts::from_utf8
+calls=4904 0 
+0 863104
+0 63752
+
+fn=(5908) core::ptr::drop_glue::<pbrs::lazy::Wire>
+0 34328
+
+fn=(5916) <pbrs::repeated::Repeated<pbrs_adoption_corpus::native::__gen_adoption_proto::Edge>>::reserve
+0 63752
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=4904 0 
+0 421028
+0 120984
+cfn=(5360) <alloc::raw_vec::RawVecInner<_>>::reserve::do_reserve_and_handle::<alloc::alloc::Global>
+calls=4904 0 
+0 1204100
+
+fn=(5952) <alloc::vec::Vec<pbrs_adoption_corpus::native::__gen_adoption_proto::Edge> as core::clone::Clone>::clone
+0 160
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1376
+0 904
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=16 0 
+0 2800
+0 256
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=16 0 
+0 2666
+0 1904
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1400
+0 72
+cfn=(5953) <alloc::vec::Vec<pbrs_adoption_corpus::native::__gen_adoption_proto::Edge> as core::clone::Clone>::clone'2
+calls=8 0 
+0 6128
+0 240
+
+fn=(5953)
+0 160
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1400
+0 528
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1400
+0 128
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1400
+0 1112
+
+fn=(5954) <pbrs_adoption_corpus::prost_types::MapHeavy as core::clone::Clone>::clone
+0 35
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 401
+0 24
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1 0 
+0 124
+0 2061
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=512 0 
+0 6144
+0 17337
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=512 0 
+0 95245
+0 3119
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 178
+0 26
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1 0 
+0 124
+0 1033
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=204 0 
+0 2656
+0 23681
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=512 0 
+0 97280
+0 5120
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=512 0 
+0 6144
+0 9008
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=102 0 
+0 18768
+0 1431
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=102 0 
+0 19260
+0 1067
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 171
+0 26
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1 0 
+0 11
+0 124
+cfn=(5956) <pbrs_adoption_corpus::prost_types::Entity as core::clone::Clone>::clone
+calls=8 0 
+0 32333
+0 160
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 232
+0 64
+
+fn=(5986)
+0 27540
+cfn=(5870)
+calls=612 0 
+0 509373275
+0 6732
+cfn=(5754) pbrs_adoption_corpus::corpus::touch_maps_native
+calls=612 0 
+0 820302371
+0 2448
+cfn=(5964) core::ptr::drop_glue::<pbrs_adoption_corpus::native::__gen_adoption_proto::MapHeavy>
+calls=612 0 
+0 60568364
+0 6732
+
+fn=(6050)
+0 623
+
+fn=(6054)
+0 34
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=1 0 
+0 28
+0 63
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=9 0 
+0 191
+0 149
+
+fn=(6066) <&mut serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> as serde_core::ser::Serializer>::serialize_str
+0 2951
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=23 0 
+0 277
+0 397
+cfn=(5360)
+calls=1 0 
+0 721
+0 10
+cfn=(5360)
+calls=1 0 
+0 826
+0 5
+
+fn=(6068) <serde_json::ser::Compound<&mut alloc::vec::Vec<u8>, serde_json::ser::CompactFormatter> as serde_core::ser::SerializeStruct>::serialize_field::<u64>
+0 439
+cfn=(6066)
+calls=17 0 
+0 3193
+0 3
+cfn=(6066)
+calls=1 0 
+0 136
+0 216
+cfn=(6050)
+calls=18 0 
+0 443
+0 252
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=18 0 
+0 261
+0 198
+
+fn=(6078) <core::io::write::default_write_fmt::Adapter<std::io::stdio::StderrLock> as core::fmt::Write>::write_str
+0 84
+cob=(2)
+cfi=(2)
+cfn=(6080)
+calls=3 0 
+0 84
+0 66
+
+fn=(6086)
+0 22
+cfn=(5964)
+calls=1 0 
+0 142954
+0 2
+cfn=(5654) core::ptr::drop_glue::<pbrs_adoption_corpus::prost_types::MapHeavy>
+calls=1 0 
+0 277421
+0 12
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 193
+
+fn=(6088) core::ptr::drop_glue::<alloc::vec::Vec<(pbrs::lazy::LazyStr, i32)>>
+0 6173
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 161
+
+fn=(6092)
+0 65
+cfn=(6094) core::ptr::drop_glue::<core::option::Option<alloc::boxed::Box<pbrs_adoption_corpus::native::__gen_adoption_proto::EntityCold>>>
+calls=8 0 
+0 19001
+0 35
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 178
+
+fn=(6098)
+0 19
+cfn=(6100) <std::sync::once_lock::OnceLock<std::sync::reentrant_lock::ReentrantLock<core::cell::RefCell<alloc::io::buffered::linewriter::LineWriter<std::io::stdio::StdoutRaw>>>>>::initialize::<<std::sync::once_lock::OnceLock<std::sync::reentrant_lock::ReentrantLock<core::cell::RefCell<alloc::io::buffered::linewriter::LineWriter<std::io::stdio::StdoutRaw>>>>>::get_or_init<std::io::stdio::cleanup::{closure#0}>::{closure#0}, !>
+calls=1 0 
+0 86
+0 3
+
+fn=(5972)
+0 44208
+cfn=(5974) core::ptr::drop_glue::<pbrs_adoption_corpus::native::__gen_adoption_proto::EntityCold>
+calls=4912 0 
+0 8713988
+0 9824
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=4912 0 
+0 367206
+0 34384
+
+fn=(5978) core::ptr::drop_glue::<pbrs_adoption_corpus::native::__gen_adoption_proto::Any>
+0 59232
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 870
+0 68744
+cfn=(5382) bytes::bytes::promotable_even_drop
+calls=8 0 
+0 1371
+0 34384
+
+fn=(5980) core::ptr::drop_glue::<alloc::boxed::Box<alloc::vec::Vec<pbrs_adoption_corpus::native::__gen_adoption_proto::Edge>>>
+0 120
+cfn=(5982)
+calls=8 0 
+0 8692
+0 16
+cfn=(5982)
+calls=8 0 
+0 3013
+0 96
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 1549
+0 56
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 872
+0 73680
+cfn=(5982)
+calls=4912 0 
+0 4063575
+0 9824
+cfn=(5982)
+calls=4912 0 
+0 1608281
+0 58944
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=4912 0 
+0 725756
+0 34384
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=4912 0 
+0 509374
+
+fn=(5981)
+0 120
+cfn=(5983)
+calls=8 0 
+0 3023
+0 64
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 1525
+0 56
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 872
+0 73680
+cfn=(5983)
+calls=4912 0 
+0 1490173
+0 39296
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=4912 0 
+0 604966
+0 34384
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=4912 0 
+0 507610
+
+fn=(4144)
+0 12
+
+fn=(5024) devloop::main
+0 9
+cfn=(5026) std::env::args_os
+calls=1 0 
+0 1864
+0 15
+cfn=(5048)
+calls=1 0 
+0 97
+0 21
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 187
+0 174
+cfn=(5048)
+calls=6 0 
+0 458
+0 40
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 65
+0 24
+cfn=(5050)
+calls=1 0 
+0 1423892013
+0 54
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=7 0 
+0 761
+0 11
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 202
+0 8
+
+fn=(5052)
+0 188
+cfn=(5054)
+calls=1 0 
+0 26
+0 50
+cfn=(5054)
+calls=1 0 
+0 26
+0 4
+
+fn=(5094) <pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue>::set_boolean
+0 1339
+cfn=(5096) core::ptr::drop_glue::<core::option::Option<alloc::boxed::Box<pbrs::lazy::LazyStr>>>
+calls=103 0 
+0 1030
+0 1339
+
+fn=(5356)
+0 18
+cfn=(5966)
+calls=1 0 
+0 42
+0 1022
+cfn=(5966)
+calls=511 0 
+0 58488
+0 2052
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 42538
+0 2
+cfn=(6090) core::ptr::drop_glue::<std::sync::once_lock::OnceLock<pbrs::map::LastWinsIndex<pbrs::lazy::LazyStr>>>
+calls=1 0 
+0 6467
+0 7
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 107
+0 11059
+cfn=(5966)
+calls=614 0 
+0 26402
+0 627508
+cfn=(5966)
+calls=313754 0 
+0 35941546
+0 1259928
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=614 0 
+0 1807754
+0 4912
+cfn=(5774)
+calls=614 0 
+0 3889912
+0 4298
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=614 0 
+0 66752
+0 6
+
+fn=(5362) pbrs_adoption_corpus::fresh::payload_native
+0 208
+cfn=(5072)
+calls=8 0 
+0 4398
+0 112
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 96
+0 56
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 520
+0 224
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 462
+0 168
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 328
+0 224
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 462
+0 240
+cfn=(5370) <pbrs_adoption_corpus::native::__gen_adoption_proto::Payload>::compute_size
+calls=8 0 
+0 4043
+0 72
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 983
+0 89
+cob=(2)
+cfi=(2)
+cfn=(4956)
+calls=1 0 
+0 25
+0 14
+cob=(2)
+cfi=(2)
+cfn=(4956)
+calls=7 0 
+0 249
+0 216
+cfn=(5370)
+calls=8 0 
+0 747
+0 152
+cfn=(5364) <std::sync::once_lock::OnceLock<alloc::vec::Vec<i64>>>::initialize::<<std::sync::once_lock::OnceLock<alloc::vec::Vec<i64>>>::get_or_init<<std::sync::once_lock::OnceLock<alloc::vec::Vec<i64>>>::try_insert::{closure#0}>::{closure#0}, !>
+calls=8 0 
+0 688
+0 8
+
+fn=(5378)
+0 44352
+cfn=(5380) core::ptr::drop_glue::<pbrs_adoption_corpus::native::__gen_adoption_proto::PayloadCold>
+calls=4928 0 
+0 1331122
+0 9856
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=4928 0 
+0 320320
+0 34496
+
+fn=(5390)
+0 608
+
+fn=(5414) std::sys::random::linux::getrandom
+0 34
+cob=(2)
+cfi=(2)
+cfn=(5416)
+calls=1 0 
+0 62
+0 17
+
+fn=(5458) pbrs_adoption_corpus::corpus::typed
+0 11568
+cfn=(5072)
+calls=102 0 
+0 57141
+0 1023
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=102 0 
+0 18173
+0 6138
+
+fn=(5500) core::ptr::drop_glue::<[pbrs_adoption_corpus::prost_types::Edge]>
+0 368
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=16 0 
+0 1744
+0 352
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=32 0 
+0 3488
+0 96
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=16 0 
+0 1740
+0 80
+cfn=(5501) core::ptr::drop_glue::<[pbrs_adoption_corpus::prost_types::Edge]>'2
+calls=16 0 
+0 4392
+0 48
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 1424
+0 1566
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=64 0 
+0 6976
+0 1408
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=128 0 
+0 13952
+0 384
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=64 0 
+0 6314
+0 320
+cfn=(5501)
+calls=64 0 
+0 17298
+0 192
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=32 0 
+0 3376
+0 304
+
+fn=(5501)
+0 432
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 872
+0 176
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=16 0 
+0 1744
+0 48
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 872
+0 40
+cfn=(5501)
+calls=8 0 
+0 152
+0 1936
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=32 0 
+0 3488
+0 704
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=64 0 
+0 6976
+0 192
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=32 0 
+0 3218
+0 160
+cfn=(5501)
+calls=32 0 
+0 608
+0 832
+
+fn=(5512) pbrs_adoption_corpus::workloads::stable_map_wire
+0 15499
+cfn=(5514)
+calls=1032 0 
+0 14448
+0 11352
+cfn=(5514)
+calls=1032 0 
+0 14520
+0 14468
+cfn=(5516) <alloc::raw_vec::RawVec<&[u8]>>::grow_one
+calls=10 0 
+0 2373
+0 14
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 173
+0 5181
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1032 0 
+0 10910
+0 14452
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 161
+0 14
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 188
+0 13
+cfn=(5518) core::slice::sort::unstable::ipnsort::<&[u8], <&[u8] as core::cmp::PartialOrd>::lt>
+calls=1 0 
+0 478393
+0 1
+
+fn=(5514)
+0 35420981
+
+fn=(5522) core::slice::sort::shared::pivot::median3_rec::<&[u8], <&[u8] as core::cmp::PartialOrd>::lt>
+0 475
+cfn=(5523) core::slice::sort::shared::pivot::median3_rec::<&[u8], <&[u8] as core::cmp::PartialOrd>::lt>'2
+calls=25 0 
+0 3535
+0 150
+cfn=(5523)
+calls=25 0 
+0 3710
+0 200
+cfn=(5523)
+calls=25 0 
+0 3708
+0 425
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=25 0 
+0 527
+0 350
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=25 0 
+0 526
+0 283
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=19 0 
+0 402
+0 314
+
+fn=(5523)
+0 1071
+cfn=(5523)
+calls=6 0 
+0 712
+0 36
+cfn=(5523)
+calls=6 0 
+0 678
+0 48
+cfn=(5523)
+calls=6 0 
+0 712
+0 102
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=6 0 
+0 126
+0 1305
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=87 0 
+0 1831
+0 1302
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=93 0 
+0 1957
+0 943
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=55 0 
+0 1158
+0 1074
+
+fn=(5546) prost::encoding::bytes::merge::<alloc::vec::Vec<u8>, &mut &[u8]>
+0 4602
+cfn=(5542)
+calls=354 0 
+0 7302
+0 8142
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=354 0 
+0 55340
+0 14514
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=354 0 
+0 7072
+0 20532
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=354 0 
+0 7074
+0 2478
+cfn=(5382)
+calls=354 0 
+0 28320
+0 3186
+cfn=(5360)
+calls=354 0 
+0 84434
+0 2478
+
+fn=(5558) <alloc::raw_vec::RawVec<f64>>::grow_one
+0 74160
+cfn=(5090)
+calls=4944 0 
+0 554579
+0 44496
+
+fn=(5562) pbrs_adoption_corpus::corpus::touch_edge_prost
+0 16800
+cfn=(5563) pbrs_adoption_corpus::corpus::touch_edge_prost'2
+calls=24 0 
+0 8496
+0 1224
+
+fn=(5563)
+0 8496
+
+fn=(5572)
+0 3200
+cfn=(5573) <pbrs_adoption_corpus::native::__gen_adoption_proto::Edge>::compute_size'2
+calls=16 0 
+0 1408
+0 640
+
+fn=(5573)
+0 1408
+
+fn=(5598) prost::encoding::message::merge_repeated::<pbrs_adoption_corpus::prost_types::Edge, &mut &[u8]>
+0 1152
+cfn=(5542)
+calls=48 0 
+0 912
+0 768
+cfn=(5602)
+calls=24 0 
+0 5893
+0 2640
+cfn=(5542)
+calls=168 0 
+0 3192
+0 2592
+cfn=(5599) prost::encoding::message::merge_repeated::<pbrs_adoption_corpus::prost_types::Edge, &mut &[u8]>'2
+calls=24 0 
+0 51420
+0 936
+cfn=(5544)
+calls=96 0 
+0 44346
+0 1152
+cfn=(5600)
+calls=48 0 
+0 11144
+0 1440
+cfn=(5544)
+calls=48 0 
+0 22174
+0 336
+
+fn=(5599)
+0 576
+cfn=(5542)
+calls=24 0 
+0 456
+0 408
+cfn=(5602)
+calls=24 0 
+0 5496
+0 1248
+cfn=(5542)
+calls=72 0 
+0 1368
+0 1464
+cfn=(5544)
+calls=48 0 
+0 22172
+0 576
+cfn=(5600)
+calls=24 0 
+0 5706
+0 720
+cfn=(5544)
+calls=24 0 
+0 11086
+0 144
+
+fn=(5776) <alloc::raw_vec::RawVec<core::option::Option<(pbrs::lazy::LazyStrView, i64)>>>::grow_one
+0 147600
+cfn=(5090)
+calls=9840 0 
+0 4276123
+0 88560
+
+fn=(5892) <pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue>::merge_inner
+0 14246120
+cfn=(5096)
+calls=62526 0 
+0 625260
+0 1251746
+cfn=(5900) <pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue>::merge_heavy
+calls=125052 0 
+0 73384122
+0 502660
+cfn=(5096)
+calls=63139 0 
+0 631390
+0 505112
+cfn=(5096)
+calls=63139 0 
+0 631390
+0 1318563
+cfn=(5514)
+calls=63139 0 
+0 1380476
+0 947085
+cfn=(5514)
+calls=63139 0 
+0 883946
+0 3894389
+
+fn=(5902) <pbrs_adoption_corpus::native::__gen_adoption_proto::Entity>::merge_inner
+0 240296
+cfn=(5904) <pbrs_adoption_corpus::native::__gen_adoption_proto::Entity>::merge_heavy
+calls=17777 0 
+0 29895274
+0 513694
+cfn=(5514)
+calls=4904 0 
+0 68656
+0 68656
+
+fn=(5910) alloc::boxed::box_new_uninit
+0 14712
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=4904 0 
+0 296867
+0 42520
+
+fn=(5946) <alloc::boxed::Box<pbrs::lazy::LazyStr> as core::clone::Clone>::clone
+0 1070
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=107 0 
+0 18769
+0 4764
+
+fn=(5956)
+0 120
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1520
+0 80
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 96
+0 112
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1520
+0 80
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 88
+0 56
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 766
+0 80
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 466
+0 96
+cfn=(5958) <alloc::vec::Vec<pbrs_adoption_corpus::prost_types::Edge> as core::clone::Clone>::clone
+calls=8 0 
+0 26582
+0 37
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=2 0 
+0 368
+0 20
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=2 0 
+0 24
+0 222
+
+fn=(6040) <&usize as core::fmt::Debug>::fmt
+0 45
+cfn=(5080) <core::fmt::Formatter>::pad_integral
+calls=1 0 
+0 117
+0 3
+
+fn=(6082) <alloc::string::String as core::fmt::Display>::fmt
+0 5
+cfn=(6084) <core::fmt::Formatter>::pad
+calls=1 0 
+0 100
+
+fn=(5076) <alloc::string::String as core::fmt::Write>::write_str
+0 92529
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=4871 0 
+0 74927
+0 43889
+cfn=(5360)
+calls=10 0 
+0 1405
+0 30
+
+fn=(5360)
+0 2320
+cfn=(5090)
+calls=116 0 
+0 11599
+0 1206
+cfn=(5090)
+calls=2 0 
+0 1483
+0 202
+cfn=(5090)
+calls=8 0 
+0 1704
+0 543838
+cfn=(5090)
+calls=23642 0 
+0 4201375
+0 212778
+
+fn=(5364)
+0 136
+cfn=(5366)
+calls=8 0 
+0 536
+0 16
+
+fn=(5370)
+0 1286
+cfn=(5372) <std::sync::once_lock::OnceLock<alloc::vec::Vec<u8>>>::initialize::<<std::sync::once_lock::OnceLock<alloc::vec::Vec<u8>>>::get_or_init<<pbrs::packed::Packed<pbrs::packed::ZigZag64>>::packed_bytes::{closure#1}>::{closure#0}, !>
+calls=8 0 
+0 3408
+0 208
+
+fn=(5404) <pbrs_adoption_corpus::native::__gen_adoption_proto::Entity>::set_description::<alloc::string::String>
+0 105
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=5 0 
+0 60
+0 31
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=2 0 
+0 130
+0 49
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=2 0 
+0 350
+0 9
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=3 0 
+0 525
+0 95
+cfn=(5096)
+calls=5 0 
+0 50
+0 45
+
+fn=(5492) <pbrs_adoption_corpus::prost_types::MapHeavy as prost::message::Message>::encode_to_vec
+0 11
+cfn=(5494) <pbrs_adoption_corpus::prost_types::MapHeavy as prost::message::Message>::encoded_len
+calls=1 0 
+0 52917
+0 6
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 320
+0 5133
+cfn=(5484)
+calls=511 0 
+0 16542
+0 24498
+cfn=(5484)
+calls=512 0 
+0 10752
+0 7680
+cfn=(5484)
+calls=512 0 
+0 10752
+0 6144
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=512 0 
+0 6144
+0 35570
+cfn=(5484)
+calls=512 0 
+0 10752
+0 8192
+cfn=(5484)
+calls=512 0 
+0 10752
+0 6144
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=512 0 
+0 6144
+0 4608
+cfn=(5502) prost::encoding::message::encode::<pbrs_adoption_corpus::prost_types::TypedValue, alloc::vec::Vec<u8>>
+calls=512 0 
+0 55015
+0 699
+cfn=(5504) <pbrs_adoption_corpus::prost_types::Entity as core::cmp::PartialEq>::eq
+calls=8 0 
+0 40
+0 122
+cfn=(5506)
+calls=8 0 
+0 2749
+0 152
+cfn=(5484)
+calls=8 0 
+0 272
+0 100
+cfn=(5484)
+calls=7 0 
+0 507
+0 48
+cfn=(5508) prost::encoding::message::encode::<pbrs_adoption_corpus::prost_types::Entity, alloc::vec::Vec<u8>>
+calls=8 0 
+0 15123
+0 10
+cfn=(5498) core::ptr::drop_glue::<pbrs_adoption_corpus::prost_types::Entity>
+calls=1 0 
+0 40
+0 13
+
+fn=(5518)
+0 20
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=1 0 
+0 21
+0 29
+cfn=(5520) core::slice::sort::unstable::quicksort::quicksort::<&[u8], <&[u8] as core::cmp::PartialOrd>::lt>
+calls=1 0 
+0 478286
+0 11
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=1 0 
+0 21
+0 5
+
+fn=(5564) <pbrs_adoption_corpus::native::__gen_adoption_proto::MapHeavy as pbrs::message::Serialize>::serialize
+0 22
+cfn=(5566) <pbrs_adoption_corpus::native::__gen_adoption_proto::MapHeavy>::compute_size
+calls=2 0 
+0 116798
+0 14
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=2 0 
+0 492
+0 88226
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1024 0 
+0 12288
+0 47878
+cfn=(5568) <pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue>::compute_size
+calls=1024 0 
+0 10240
+0 67584
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1024 0 
+0 12288
+0 4096
+cfn=(5568)
+calls=1024 0 
+0 10240
+0 20480
+cfn=(5576)
+calls=1024 0 
+0 73262
+0 3584
+cfn=(5570) <pbrs_adoption_corpus::native::__gen_adoption_proto::Entity>::compute_size
+calls=16 0 
+0 304
+0 888
+cfn=(5570)
+calls=8 0 
+0 152
+0 16
+cfn=(5570)
+calls=8 0 
+0 152
+0 496
+cfn=(5580)
+calls=16 0 
+0 17262
+0 74
+cfn=(5578)
+calls=8 0 
+0 808
+0 46
+
+fn=(5566)
+0 58426
+cfn=(5568)
+calls=1024 0 
+0 41284
+0 9808
+cfn=(5570)
+calls=16 0 
+0 6858
+0 422
+
+fn=(5758)
+0 14145
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=615 0 
+0 264831
+0 11677414
+cfn=(5768) core::slice::sort::stable::driftsort_main::<(pbrs::lazy::LazyStr, usize), <[(pbrs::lazy::LazyStr, usize)]>::sort_by<pbrs::map::build_index<pbrs::lazy::LazyStr, i64>::{closure#1}>::{closure#0}, alloc::vec::Vec<(pbrs::lazy::LazyStr, usize)>>
+calls=615 0 
+0 23662612
+0 4305
+cfn=(5100)
+calls=615 0 
+0 33633
+0 940950
+cfn=(5100)
+calls=313650 0 
+0 16991419
+0 1886205
+
+fn=(5768)
+0 22755
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=615 0 
+0 116774
+0 11991
+cfn=(5770) core::slice::sort::stable::drift::sort::<(pbrs::lazy::LazyStr, usize), <[(pbrs::lazy::LazyStr, usize)]>::sort_by<pbrs::map::build_index<pbrs::lazy::LazyStr, i64>::{closure#1}>::{closure#0}>
+calls=615 0 
+0 23384767
+0 2460
+cfn=(5774)
+calls=615 0 
+0 118945
+0 4920
+
+fn=(5810) core::slice::sort::stable::driftsort_main::<(pbrs::lazy::LazyStr, usize), <[(pbrs::lazy::LazyStr, usize)]>::sort_by<pbrs::map::build_index<pbrs::lazy::LazyStr, pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue>::{closure#1}>::{closure#0}, alloc::vec::Vec<(pbrs::lazy::LazyStr, usize)>>
+0 22755
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=615 0 
+0 153356
+0 11991
+cfn=(5812) core::slice::sort::stable::drift::sort::<(pbrs::lazy::LazyStr, usize), <[(pbrs::lazy::LazyStr, usize)]>::sort_by<pbrs::map::build_index<pbrs::lazy::LazyStr, pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue>::{closure#1}>::{closure#0}>
+calls=615 0 
+0 86612047
+0 2460
+cfn=(5774)
+calls=615 0 
+0 136125
+0 4920
+
+fn=(5848)
+0 2718394
+cfn=(5048)
+calls=119551 0 
+0 12635826
+0 565250
+cfn=(5048)
+calls=4904 0 
+0 863104
+0 838696
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=117712 0 
+0 1414996
+0 1888893
+cfn=(5852)
+calls=4904 0 
+0 245200
+0 1039776
+
+fn=(5864)
+0 802593
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=72963 0 
+0 7479216
+
+fn=(5866)
+0 649440
+
+fn=(5900)
+0 2563566
+cfn=(5096)
+calls=62526 0 
+0 625260
+0 312630
+cfn=(5514)
+calls=62526 0 
+0 875364
+0 2250936
+cfn=(5514)
+calls=62526 0 
+0 875364
+0 1187994
+cfn=(5848)
+calls=62526 0 
+0 10784509
+0 625260
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=62526 0 
+0 12140743
+0 949620
+cfn=(5096)
+calls=52224 0 
+0 522240
+0 92718
+cfn=(5096)
+calls=10302 0 
+0 103020
+0 1688202
+cfn=(5850)
+calls=62526 0 
+0 17539047
+0 750312
+cfn=(5852)
+calls=62526 0 
+0 3126300
+0 187578
+cfn=(5854)
+calls=62526 0 
+0 1625676
+0 187578
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=62526 0 
+0 13140289
+0 1229916
+
+fn=(6042) <pbrs_adoption_corpus::workloads::Operation as core::fmt::Debug>::fmt
+0 10
+cfn=(5076)
+calls=1 0 
+0 149
+
+fn=(6060)
+0 30
+cfn=(6062) <alloc::collections::btree::map::IntoIter<alloc::string::String, pbrs_grpc::service_config::PriorityChildConfig>>::dying_next
+calls=1 0 
+0 49
+0 106
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=10 0 
+0 958
+0 40
+cfn=(6061) core::ptr::drop_glue::<serde_json::value::Value>'2
+calls=10 0 
+0 1208
+0 30
+cfn=(6062)
+calls=10 0 
+0 496
+0 37
+
+fn=(6061)
+0 250
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=10 0 
+0 958
+
+fn=(6074) std::io::stdio::print_to_buffer_if_capture_used
+0 20
+
+fn=(4106)
+0 11
+cob=(2)
+cfi=(2)
+cfn=(4108)
+calls=1 0 
+0 1423998280
+
+fn=(5022) std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+0 2
+cfn=(5024)
+calls=1 0 
+0 1423896003
+0 2
+
+fn=(5048)
+0 84581764
+
+fn=(5056)
+0 2602
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=12 0 
+0 159
+0 41
+cfn=(5070)
+calls=1 0 
+0 17218566
+0 3
+cfn=(5410) pbrs_adoption_corpus::corpus::maps
+calls=1 0 
+0 1165736
+0 3
+cfn=(5492)
+calls=1 0 
+0 297951
+0 3
+cfn=(5512)
+calls=1 0 
+0 582160
+0 2
+cfn=(5536)
+calls=1 0 
+0 216015
+0 5
+cfn=(5564)
+calls=1 0 
+0 242795
+0 10
+cfn=(5584)
+calls=1 0 
+0 1661210
+0 7
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1 0 
+0 29
+0 3
+cfn=(5604) <pbrs_adoption_corpus::prost_types::MapHeavy as core::cmp::PartialEq>::eq
+calls=1 0 
+0 297762
+0 4
+cfn=(5654)
+calls=1 0 
+0 260751
+0 2
+cfn=(5754)
+calls=1 0 
+0 1241732
+0 16
+cfn=(5870)
+calls=1 0 
+0 785518
+0 19
+cfn=(5584)
+calls=1 0 
+0 1660138
+0 10
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1 0 
+0 29
+0 3
+cfn=(5604)
+calls=1 0 
+0 297870
+0 4
+cfn=(5754)
+calls=1 0 
+0 1339236
+0 5
+cfn=(5536)
+calls=1 0 
+0 215211
+0 6
+cfn=(5942) <pbrs_adoption_corpus::native::__gen_adoption_proto::MapHeavy as core::clone::Clone>::clone
+calls=1 0 
+0 150417
+0 4
+cfn=(5954)
+calls=1 0 
+0 343387
+0 3
+cfn=(5564)
+calls=1 0 
+0 244895
+0 8
+cfn=(5584)
+calls=1 0 
+0 1659975
+0 8
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1 0 
+0 29
+0 3
+cfn=(5604)
+calls=1 0 
+0 298217
+0 4
+cfn=(5654)
+calls=1 0 
+0 267605
+0 4
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 185
+0 3
+cfn=(5604)
+calls=1 0 
+0 297907
+0 4
+cfn=(5754)
+calls=1 0 
+0 1338619
+0 5
+cfn=(5536)
+calls=1 0 
+0 214819
+0 40
+cfn=(5654)
+calls=1 0 
+0 171013
+0 2
+cfn=(5964)
+calls=1 0 
+0 194879
+0 4
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 161
+0 2
+cfn=(5654)
+calls=1 0 
+0 277519
+0 2
+cfn=(5964)
+calls=1 0 
+0 123806
+0 75
+
+fn=(5080)
+0 72128
+cfn=(5082) <core::fmt::Formatter>::pad_integral::write_prefix
+calls=257 0 
+0 5397
+0 4112
+cfn=(5076)
+calls=257 0 
+0 11453
+0 34832
+cfn=(5082)
+calls=2177 0 
+0 45717
+0 26124
+cfn=(5084) <alloc::string::String as core::fmt::Write>::write_char
+calls=2177 0 
+0 60956
+0 2745
+cfn=(5084)
+calls=915 0 
+0 40036
+0 21076
+cfn=(5076)
+calls=2177 0 
+0 98752
+0 34832
+
+fn=(5110) <pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue>::set_real
+0 1224
+cfn=(5096)
+calls=102 0 
+0 1020
+0 1326
+
+fn=(5358)
+0 160
+cfn=(5072)
+calls=8 0 
+0 6693
+0 112
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 96
+0 88
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 520
+0 216
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1400
+0 216
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1400
+0 224
+cfn=(5362)
+calls=8 0 
+0 14784
+0 16
+cfn=(5370)
+calls=8 0 
+0 112
+0 48
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1114
+0 553
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 96
+0 472
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 466
+0 408
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 136
+0 272
+cfn=(5378)
+calls=8 0 
+0 3344
+0 24
+cfn=(5386) <pbrs_adoption_corpus::native::__gen_adoption_proto::Entity>::set_payload
+calls=8 0 
+0 2893
+0 32
+cfn=(5392) pbrs_adoption_corpus::fresh::edge
+calls=8 0 
+0 46934
+0 40
+cfn=(5392)
+calls=8 0 
+0 24132
+0 224
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 232
+0 16
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1376
+0 88
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 232
+0 24
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 328
+0 244
+cfn=(5404)
+calls=3 0 
+0 771
+0 19
+cfn=(5072)
+calls=2 0 
+0 1076
+0 6
+cfn=(5404)
+calls=2 0 
+0 678
+0 96
+
+fn=(5410)
+0 33
+cfn=(5430)
+calls=1 0 
+0 509
+0 15
+cfn=(5072)
+calls=1 0 
+0 858
+0 4599
+cfn=(5072)
+calls=511 0 
+0 325402
+0 3584
+cfn=(5450)
+calls=512 0 
+0 142666
+0 1561
+cfn=(5456) <hashbrown::raw::RawTable<(alloc::string::String, pbrs_adoption_corpus::prost_types::TypedValue)>>::reserve_rehash::<hashbrown::map::make_hasher<alloc::string::String, pbrs_adoption_corpus::prost_types::TypedValue, std::hash::random::RandomState>::{closure#0}>
+calls=1 0 
+0 485
+0 6659
+cfn=(5072)
+calls=512 0 
+0 330970
+0 3072
+cfn=(5458)
+calls=512 0 
+0 94043
+0 6144
+cfn=(5460)
+calls=512 0 
+0 149241
+0 2056
+cfn=(5474)
+calls=1 0 
+0 93681
+0 28
+cfn=(5412) std::sys::random::linux::hashmap_random_keys
+calls=1 0 
+0 127
+0 3
+
+fn=(5460)
+0 36864
+cfn=(5452)
+calls=2048 0 
+0 395264
+0 50931
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=141 0 
+0 2968
+0 118972
+cfn=(5456)
+calls=27 0 
+0 663676
+0 27
+
+fn=(5508)
+0 96
+cfn=(5484)
+calls=8 0 
+0 168
+0 16
+cfn=(5506)
+calls=8 0 
+0 2749
+0 24
+cfn=(5484)
+calls=8 0 
+0 272
+0 112
+cfn=(5484)
+calls=8 0 
+0 168
+0 80
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 96
+0 112
+cfn=(5484)
+calls=8 0 
+0 168
+0 280
+cfn=(5484)
+calls=8 0 
+0 272
+0 104
+cfn=(5484)
+calls=8 0 
+0 168
+0 80
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 88
+0 120
+cfn=(5484)
+calls=8 0 
+0 272
+0 80
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 466
+0 104
+cfn=(5510) prost::encoding::message::encode::<pbrs_adoption_corpus::prost_types::Edge, alloc::vec::Vec<u8>>
+calls=8 0 
+0 6000
+0 32
+cfn=(5510)
+calls=8 0 
+0 2624
+0 124
+cfn=(5484)
+calls=5 0 
+0 105
+0 45
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=2 0 
+0 24
+0 74
+
+fn=(5510)
+0 192
+cfn=(5484)
+calls=16 0 
+0 336
+0 944
+cfn=(5496)
+calls=8 0 
+0 560
+0 160
+cfn=(5484)
+calls=8 0 
+0 168
+0 64
+cfn=(5484)
+calls=8 0 
+0 168
+0 240
+cfn=(5484)
+calls=16 0 
+0 336
+0 160
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=16 0 
+0 192
+0 352
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=32 0 
+0 384
+0 544
+cfn=(5484)
+calls=32 0 
+0 672
+0 376
+cfn=(5511) prost::encoding::message::encode::<pbrs_adoption_corpus::prost_types::Edge, alloc::vec::Vec<u8>>'2
+calls=8 0 
+0 2624
+0 152
+
+fn=(5511)
+0 96
+cfn=(5484)
+calls=8 0 
+0 168
+0 528
+cfn=(5484)
+calls=8 0 
+0 168
+0 120
+cfn=(5484)
+calls=8 0 
+0 168
+0 80
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 96
+0 176
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=16 0 
+0 192
+0 272
+cfn=(5484)
+calls=16 0 
+0 336
+0 224
+
+fn=(5528) core::slice::sort::shared::smallsort::bidirectional_merge::<&[u8], <&[u8] as core::cmp::PartialOrd>::lt>
+0 4514
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=122 0 
+0 2572
+0 8862
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=633 0 
+0 13347
+0 19630
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=755 0 
+0 15925
+0 18485
+
+fn=(5570)
+0 2248
+cfn=(5572)
+calls=32 0 
+0 4528
+0 690
+
+fn=(5654)
+0 8144
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=512 0 
+0 55808
+0 522
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 161
+0 2
+cfn=(6096) core::ptr::drop_glue::<hashbrown::raw::RawTable<(alloc::string::String, pbrs_adoption_corpus::prost_types::TypedValue)>>
+calls=1 0 
+0 185535
+0 100
+cfn=(5498)
+calls=8 0 
+0 26898
+0 58
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 193
+0 32575
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=2048 0 
+0 222608
+0 2088
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=4 0 
+0 676
+0 32548
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=2048 0 
+0 223232
+0 13504
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=816 0 
+0 88944
+0 860
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=4 0 
+0 275409
+0 400
+cfn=(5498)
+calls=32 0 
+0 67171
+0 232
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=4 0 
+0 16641
+
+fn=(5822) <alloc::raw_vec::RawVec<(i64, usize)>>::grow_one
+0 18450
+cfn=(5090)
+calls=1230 0 
+0 463642
+0 11070
+
+fn=(5844) <pbrs_adoption_corpus::native::__gen_adoption_proto::Payload>::merge_inner
+0 201720
+cfn=(5846)
+calls=14760 0 
+0 4678209
+0 417585
+cfn=(5514)
+calls=4305 0 
+0 60270
+0 71340
+
+fn=(5880) <pbrs::string::ProtoString>::from_bytes
+0 9415680
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=627712 0 
+0 7532544
+0 8787968
+
+fn=(5904)
+0 402741
+cfn=(5514)
+calls=4904 0 
+0 68656
+0 88272
+cfn=(5848)
+calls=4904 0 
+0 898658
+0 83368
+cfn=(5514)
+calls=4904 0 
+0 68656
+0 171640
+cfn=(5514)
+calls=4904 0 
+0 112792
+0 126278
+cfn=(5514)
+calls=3065 0 
+0 42910
+0 55170
+cfn=(5848)
+calls=3065 0 
+0 305274
+0 30650
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=3065 0 
+0 574574
+0 63355
+cfn=(5096)
+calls=3065 0 
+0 30650
+0 58235
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=4904 0 
+0 281322
+0 135696
+cfn=(5916)
+calls=4904 0 
+0 1809864
+0 122600
+cfn=(5918) <pbrs_adoption_corpus::native::__gen_adoption_proto::Edge>::merge_inner
+calls=4904 0 
+0 13697330
+0 49040
+cfn=(5922) <pbrs::repeated::Repeated<pbrs_adoption_corpus::native::__gen_adoption_proto::Edge>>::push
+calls=4904 0 
+0 152024
+0 146507
+cfn=(5514)
+calls=4904 0 
+0 68656
+0 152024
+cfn=(5918)
+calls=4904 0 
+0 5779018
+0 29424
+cfn=(5922)
+calls=4904 0 
+0 152024
+0 29424
+cfn=(5850)
+calls=4904 0 
+0 913701
+0 53944
+cfn=(5852)
+calls=4904 0 
+0 245200
+0 29424
+cfn=(5906)
+calls=4904 0 
+0 1657552
+0 14712
+cfn=(5908)
+calls=4904 0 
+0 34328
+0 53944
+cfn=(5852)
+calls=4904 0 
+0 245200
+0 19616
+cfn=(5910)
+calls=4904 0 
+0 354099
+0 24520
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=4904 0 
+0 142216
+0 9808
+cfn=(5912) <core::option::Option<alloc::boxed::Box<pbrs_adoption_corpus::native::__gen_adoption_proto::EntityCold>>>::get_or_insert_with::<<pbrs_adoption_corpus::native::__gen_adoption_proto::Entity>::cold_mut::{closure#0}>
+calls=4904 0 
+0 39232
+0 14712
+cfn=(5914) core::ptr::drop_glue::<pbrs::lazy::LazyMsg<pbrs_adoption_corpus::native::__gen_adoption_proto::Any>>
+calls=4904 0 
+0 44136
+0 23907
+cfn=(5924) core::ptr::drop_glue::<core::option::Option<pbrs::lazy::Wire>>
+calls=3065 0 
+0 9195
+0 3678
+cfn=(5924)
+calls=1839 0 
+0 5517
+0 169801
+
+fn=(5912)
+0 39232
+
+fn=(5918)
+0 818968
+cfn=(5514)
+calls=4904 0 
+0 68656
+0 142216
+cfn=(5514)
+calls=9808 0 
+0 137312
+0 284432
+cfn=(5514)
+calls=9808 0 
+0 137312
+0 166736
+cfn=(5848)
+calls=9808 0 
+0 1738468
+0 235392
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=9808 0 
+0 715221
+0 251776
+cfn=(5848)
+calls=9808 0 
+0 1738468
+0 107888
+cfn=(5920) <pbrs::repeated::Repeated<pbrs::lazy::LazyStr>>::push
+calls=9808 0 
+0 264816
+0 269720
+cfn=(5514)
+calls=9808 0 
+0 137312
+0 166736
+cfn=(5848)
+calls=9808 0 
+0 1738468
+0 107888
+cfn=(5920)
+calls=9808 0 
+0 264816
+0 152024
+cfn=(5919) <pbrs_adoption_corpus::native::__gen_adoption_proto::Edge>::merge_inner'2
+calls=4904 0 
+0 5810158
+0 29424
+cfn=(5922)
+calls=4904 0 
+0 2021513
+0 88272
+cfn=(5360)
+calls=9808 0 
+0 1764660
+0 117696
+
+fn=(5919)
+0 367800
+cfn=(5514)
+calls=4904 0 
+0 68656
+0 142216
+cfn=(5514)
+calls=4904 0 
+0 68656
+0 83368
+cfn=(5848)
+calls=4904 0 
+0 869234
+0 117696
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=4904 0 
+0 447594
+0 125888
+cfn=(5848)
+calls=4904 0 
+0 898658
+0 53944
+cfn=(5920)
+calls=4904 0 
+0 132408
+0 107888
+cfn=(5514)
+calls=4904 0 
+0 68656
+0 83368
+cfn=(5848)
+calls=4904 0 
+0 869234
+0 53944
+cfn=(5920)
+calls=4904 0 
+0 132408
+0 44136
+cfn=(5360)
+calls=4904 0 
+0 1015558
+0 58848
+
+fn=(5922)
+0 186352
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=4904 0 
+0 458682
+0 86656
+cfn=(5602)
+calls=4904 0 
+0 1314343
+0 279528
+
+fn=(5942)
+0 14
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 41
+0 16
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 258
+0 20004
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 41
+0 13
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 178
+0 16909
+cfn=(5944) <pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue as core::clone::Clone>::clone
+calls=512 0 
+0 76247
+0 10259
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 41
+0 15
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 41
+0 67
+cfn=(5950) <pbrs_adoption_corpus::native::__gen_adoption_proto::Entity as core::clone::Clone>::clone
+calls=8 0 
+0 26151
+0 122
+
+fn=(6062)
+0 391
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 65
+0 89
+
+fn=(6094)
+0 144
+cfn=(5976) core::ptr::drop_glue::<pbrs::lazy::LazyInner<pbrs_adoption_corpus::native::__gen_adoption_proto::Any>>
+calls=8 0 
+0 1373
+0 16
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 1448
+0 32
+cfn=(5980)
+calls=8 0 
+0 14414
+0 16
+cfn=(5096)
+calls=8 0 
+0 648
+0 40
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 870
+
+fn=(6102)
+0 14
+
+fn=(5974)
+0 78592
+cfn=(5976)
+calls=4912 0 
+0 664065
+0 9824
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=4912 0 
+0 427803
+0 19648
+cfn=(5980)
+calls=4912 0 
+0 7083818
+0 29472
+cfn=(5096)
+calls=4912 0 
+0 400766
+
+fn=(4142)
+0 4
+
+fn=(5020)
+0 3
+cfn=(5022)
+calls=1 0 
+0 1423896007
+0 3
+
+fn=(5090)
+0 2078
+cfn=(5124)
+calls=114 0 
+0 7923
+0 236
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=2 0 
+0 76
+0 1342
+cob=(2)
+cfi=(2)
+cfn=(4506)
+calls=2 0 
+0 1389
+0 99821
+cfn=(5124)
+calls=9 0 
+0 1530
+0 34857
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=4977 0 
+0 334259
+0 1236274
+cfn=(5124)
+calls=18435 0 
+0 21879913
+0 262837
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=32281 0 
+0 4380024
+0 819189
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=72 0 
+0 11522
+0 1296
+
+fn=(5112) <pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue>::set_text::<alloc::string::String>
+0 2856
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=102 0 
+0 1228
+0 816
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=102 0 
+0 6630
+0 2040
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=102 0 
+0 17879
+0 1530
+cfn=(5096)
+calls=102 0 
+0 1020
+0 918
+
+fn=(5354)
+0 4303
+cfn=(5774)
+calls=614 0 
+0 3889108
+0 4912
+cfn=(5774)
+calls=614 0 
+0 3889100
+0 3070
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=614 0 
+0 40292
+0 4
+
+fn=(5368)
+0 144
+
+fn=(5380)
+0 108408
+cfn=(5382)
+calls=8 0 
+0 640
+0 24640
+cfn=(5384) core::ptr::drop_glue::<pbrs::packed::PackedInner<pbrs::packed::ZigZag64>>
+calls=4928 0 
+0 852474
+0 24640
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=4928 0 
+0 320320
+
+fn=(5392)
+0 496
+cfn=(5072)
+calls=16 0 
+0 7494
+0 224
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=16 0 
+0 192
+0 192
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=16 0 
+0 1040
+0 512
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=16 0 
+0 656
+0 352
+cfn=(5072)
+calls=16 0 
+0 13126
+0 48
+cfn=(5394) <pbrs::repeated::RepeatedMut<pbrs::lazy::LazyStr>>::push::<alloc::string::String>
+calls=16 0 
+0 6218
+0 240
+cfn=(5072)
+calls=16 0 
+0 12080
+0 48
+cfn=(5394)
+calls=16 0 
+0 2608
+0 72
+cfn=(5393) pbrs_adoption_corpus::fresh::edge'2
+calls=8 0 
+0 22980
+0 200
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1400
+0 160
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 328
+0 400
+
+fn=(5393)
+0 248
+cfn=(5072)
+calls=8 0 
+0 3210
+0 112
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 96
+0 96
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 520
+0 256
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 328
+0 176
+cfn=(5072)
+calls=8 0 
+0 7062
+0 24
+cfn=(5394)
+calls=8 0 
+0 3240
+0 120
+cfn=(5072)
+calls=8 0 
+0 5988
+0 24
+cfn=(5394)
+calls=8 0 
+0 1304
+0 176
+
+fn=(5432)
+0 3190
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=66 0 
+0 16707
+0 1320
+cob=(2)
+cfi=(2)
+cfn=(4956)
+calls=66 0 
+0 1734
+0 792
+
+fn=(5480)
+0 136
+cfn=(5072)
+calls=8 0 
+0 6184
+0 64
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1520
+0 192
+cfn=(5482) pbrs_adoption_corpus::corpus::payload
+calls=8 0 
+0 8002
+0 353
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1488
+0 568
+cfn=(5484)
+calls=7 0 
+0 147
+0 104
+cfn=(5484)
+calls=8 0 
+0 168
+0 80
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 96
+0 120
+cfn=(5484)
+calls=8 0 
+0 272
+0 80
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 466
+0 456
+cfn=(5484)
+calls=8 0 
+0 168
+0 80
+cfn=(5484)
+calls=8 0 
+0 168
+0 96
+cfn=(5484)
+calls=16 0 
+0 336
+0 152
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1496
+0 80
+cfn=(5486) pbrs_adoption_corpus::corpus::edge
+calls=8 0 
+0 43836
+0 40
+cfn=(5486)
+calls=8 0 
+0 21108
+0 308
+cfn=(5072)
+calls=2 0 
+0 1106
+0 206
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 520
+0 32
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 520
+0 32
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 520
+0 64
+
+fn=(5538)
+0 88269
+
+fn=(5540)
+0 38574
+cfn=(5542)
+calls=93 0 
+0 1767
+0 1851
+cfn=(5542)
+calls=21 0 
+0 399
+0 159
+cfn=(5546)
+calls=24 0 
+0 14364
+0 240
+cfn=(5542)
+calls=24 0 
+0 456
+0 168
+cfn=(5544)
+calls=24 0 
+0 8246
+0 336
+cfn=(5558)
+calls=24 0 
+0 2750
+0 648
+cfn=(5542)
+calls=72 0 
+0 1368
+0 1608
+cfn=(5560) pbrs_adoption_corpus::corpus::touch_payload_prost
+calls=24 0 
+0 35367
+0 120
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=24 0 
+0 1560
+0 96
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=24 0 
+0 1560
+0 192
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=24 0 
+0 1560
+0 2736
+cfn=(5562)
+calls=24 0 
+0 18024
+0 48
+cfn=(5562)
+calls=24 0 
+0 8496
+0 3375
+
+fn=(5582)
+0 1600
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=32 0 
+0 384
+0 736
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=64 0 
+0 768
+0 3056
+cfn=(5572)
+calls=16 0 
+0 240
+0 320
+cfn=(5583) <pbrs_adoption_corpus::native::__gen_adoption_proto::Edge>::write_to::<alloc::vec::Vec<u8>>'2
+calls=16 0 
+0 3376
+0 448
+
+fn=(5583)
+0 800
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=16 0 
+0 192
+0 368
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=32 0 
+0 384
+0 1632
+
+fn=(5754)
+0 46125
+cfn=(5776)
+calls=4920 0 
+0 2271645
+0 10705920
+cfn=(5772) <pbrs::lazy::LazyStr as core::cmp::Ord>::cmp
+calls=314880 0 
+0 19503407
+0 20152320
+cfn=(5772)
+calls=2519040 0 
+0 156234318
+0 18892800
+cfn=(5772)
+calls=314880 0 
+0 18719176
+0 48524115
+cfn=(5776)
+calls=4920 0 
+0 2240638
+0 10076160
+cfn=(5772)
+calls=314880 0 
+0 19499681
+0 20152320
+cfn=(5772)
+calls=2519040 0 
+0 156260736
+0 18892800
+cfn=(5772)
+calls=314880 0 
+0 18747344
+0 36537765
+cfn=(5818)
+calls=314880 0 
+0 22173624
+0 11653635
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=615 0 
+0 115593
+0 3690
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=615 0 
+0 115611
+0 375765
+cfn=(5822)
+calls=1230 0 
+0 493162
+0 36900
+cfn=(5840)
+calls=4920 0 
+0 36983980
+0 352395
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=615 0 
+0 108356
+0 134685
+cfn=(5756) <std::sync::once_lock::OnceLock<pbrs::map::LastWinsIndex<pbrs::lazy::LazyStr>>>::initialize::<<std::sync::once_lock::OnceLock<pbrs::map::LastWinsIndex<pbrs::lazy::LazyStr>>>::get_or_init<pbrs::map::hot_index<pbrs::lazy::LazyStr, i64>::{closure#0}>::{closure#0}, !>
+calls=615 0 
+0 55517949
+0 3075
+cfn=(5806)
+calls=615 0 
+0 118695653
+0 615
+
+fn=(5756)
+0 11070
+cfn=(5366)
+calls=615 0 
+0 55505649
+0 1230
+
+fn=(5812)
+0 68224
+cfn=(5772)
+calls=2457 0 
+0 153045
+0 34398
+cfn=(5772)
+calls=2457 0 
+0 152763
+0 928053
+cfn=(5772)
+calls=309351 0 
+0 19232841
+0 2887346
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1228 0 
+0 14736
+0 3070
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=614 0 
+0 12894
+0 100696
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1842 0 
+0 6627446
+0 14122
+cfn=(5772)
+calls=1228 0 
+0 76664
+0 1461320
+cfn=(5772)
+calls=292264 0 
+0 18241635
+0 7635090
+cfn=(5772)
+calls=614 0 
+0 38080
+0 937578
+cfn=(5772)
+calls=312526 0 
+0 19495488
+0 8496558
+
+fn=(5856)
+0 162360
+
+fn=(5920)
+0 794448
+
+fn=(5934)
+0 83368
+cfn=(5366)
+calls=4904 0 
+0 3697616
+0 9808
+
+fn=(5944)
+0 11264
+cfn=(5946)
+calls=102 0 
+0 23504
+0 612
+cfn=(5948) <alloc::boxed::Box<pbrs::lazy::LazyBytes> as core::clone::Clone>::clone
+calls=102 0 
+0 23355
+0 17512
+
+fn=(5950)
+0 128
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1400
+0 1497
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1245
+0 80
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 232
+0 40
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1266
+0 72
+cfn=(5952)
+calls=8 0 
+0 17906
+0 74
+cfn=(5946)
+calls=5 0 
+0 1099
+0 256
+cfn=(5388)
+calls=8 0 
+0 848
+0 8
+
+fn=(6026)
+0 12
+cob=(2)
+cfi=(2)
+cfn=(6028)
+calls=2 0 
+0 20
+0 20
+
+fn=(6064)
+0 19
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 41
+0 10
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=1 0 
+0 11
+0 83
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 41
+0 17
+cfn=(6066)
+calls=1 0 
+0 96
+0 13
+cfn=(6066)
+calls=1 0 
+0 331
+0 5
+cfn=(6068)
+calls=1 0 
+0 207
+0 8
+cfn=(6068)
+calls=1 0 
+0 225
+0 8
+cfn=(6068)
+calls=1 0 
+0 276
+0 8
+cfn=(6068)
+calls=1 0 
+0 254
+0 24
+cfn=(6066)
+calls=1 0 
+0 1056
+0 12
+cfn=(6066)
+calls=1 0 
+0 232
+0 16
+cfn=(6066)
+calls=1 0 
+0 143
+0 23
+cfn=(6068)
+calls=1 0 
+0 239
+0 8
+cfn=(6068)
+calls=1 0 
+0 264
+0 8
+cfn=(6068)
+calls=1 0 
+0 227
+0 8
+cfn=(6068)
+calls=1 0 
+0 957
+0 8
+cfn=(6068)
+calls=1 0 
+0 234
+0 8
+cfn=(6068)
+calls=1 0 
+0 234
+0 8
+cfn=(6068)
+calls=1 0 
+0 241
+0 8
+cfn=(6068)
+calls=1 0 
+0 274
+0 8
+cfn=(6068)
+calls=1 0 
+0 241
+0 8
+cfn=(6068)
+calls=1 0 
+0 241
+0 8
+cfn=(6068)
+calls=1 0 
+0 262
+0 8
+cfn=(6068)
+calls=1 0 
+0 262
+0 8
+cfn=(6068)
+calls=1 0 
+0 262
+0 8
+cfn=(6068)
+calls=1 0 
+0 241
+0 5
+cfn=(6070) <serde_json::ser::Compound<&mut alloc::vec::Vec<u8>, serde_json::ser::CompactFormatter> as serde_core::ser::SerializeStruct>::end
+calls=1 0 
+0 16
+0 21
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 65
+0 4
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 109
+0 8
+
+fn=(6090)
+0 12358
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=2 0 
+0 449
+
+fn=(6208)
+0 9
+cob=(2)
+cfi=(2)
+cfn=(6216)
+calls=1 0 
+0 71
+0 1
+0 1
+cfn=(6228) 0x00000000002589f0
+calls=1 0 
+0 5
+0 3
+
+fn=(6228)
+0 5
+
+fn=(5964)
+0 9
+cfn=(6088)
+calls=1 0 
+0 6334
+0 2
+cfn=(6090)
+calls=1 0 
+0 6340
+0 2
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 109
+0 2
+cfn=(5356)
+calls=1 0 
+0 110743
+0 2
+cfn=(5970)
+calls=1 0 
+0 19404
+0 3691
+cfn=(5354)
+calls=614 0 
+0 7830780
+0 1228
+cfn=(5356)
+calls=614 0 
+0 43640064
+0 1228
+cfn=(5970)
+calls=614 0 
+0 9405767
+0 4298
+
+fn=(5072)
+0 167993
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=2433 0 
+0 286837
+0 12185
+cfn=(5074) core::fmt::write
+calls=2 0 
+0 870
+0 19464
+cfn=(5074)
+calls=2433 0 
+0 896273
+0 34090
+
+fn=(5096)
+0 5631
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=107 0 
+0 11661
+0 6884376
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=65698 0 
+0 7107132
+
+fn=(5372)
+0 136
+cfn=(5366)
+calls=8 0 
+0 3256
+0 16
+
+fn=(5394)
+0 960
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=48 0 
+0 576
+0 384
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=48 0 
+0 3120
+0 1680
+cfn=(5396)
+calls=24 0 
+0 5498
+0 1152
+
+fn=(5452)
+0 325056
+cfn=(5454)
+calls=13544 0 
+0 826184
+0 67720
+cfn=(5454)
+calls=13544 0 
+0 460496
+0 934536
+
+fn=(5456)
+0 980
+cfn=(5432)
+calls=28 0 
+0 9768
+0 33929
+cfn=(5452)
+calls=2676 0 
+0 516468
+0 99480
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=24 0 
+0 3236
+0 300
+
+fn=(5482)
+0 184
+cfn=(5072)
+calls=8 0 
+0 4547
+0 40
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1520
+0 563
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 328
+0 89
+cob=(2)
+cfi=(2)
+cfn=(4956)
+calls=1 0 
+0 25
+0 14
+cob=(2)
+cfi=(2)
+cfn=(4956)
+calls=7 0 
+0 249
+0 443
+
+fn=(5502)
+0 5120
+cfn=(5484)
+calls=512 0 
+0 10752
+0 6251
+cfn=(5484)
+calls=102 0 
+0 2142
+0 1122
+cfn=(5484)
+calls=102 0 
+0 2142
+0 3876
+cfn=(5484)
+calls=102 0 
+0 2142
+0 1122
+cfn=(5484)
+calls=102 0 
+0 2142
+0 1734
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=204 0 
+0 2656
+0 1951
+cfn=(5484)
+calls=103 0 
+0 2163
+0 1545
+cfn=(5484)
+calls=103 0 
+0 3333
+0 721
+cfn=(5484)
+calls=103 0 
+0 2163
+0 1938
+
+fn=(5504)
+0 536
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=32 0 
+0 576
+0 688
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=32 0 
+0 512
+0 256
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=32 0 
+0 2218
+0 480
+cfn=(5638) <pbrs_adoption_corpus::prost_types::Edge as core::cmp::PartialEq>::eq
+calls=32 0 
+0 8024
+0 96
+cfn=(5638)
+calls=32 0 
+0 3768
+0 800
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=20 0 
+0 232
+0 60
+
+fn=(5516)
+0 150
+cfn=(5090)
+calls=10 0 
+0 2133
+0 90
+
+fn=(5520)
+0 25
+cfn=(5526) core::slice::sort::shared::smallsort::sort4_stable::<&[u8], <&[u8] as core::cmp::PartialOrd>::lt>
+calls=1 0 
+0 224
+0 4
+cfn=(5526)
+calls=1 0 
+0 224
+0 4
+cfn=(5528)
+calls=1 0 
+0 453
+0 9
+cfn=(5526)
+calls=1 0 
+0 200
+0 6
+cfn=(5526)
+calls=1 0 
+0 184
+0 5
+cfn=(5528)
+calls=1 0 
+0 397
+0 84
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=1 0 
+0 21
+0 14
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=1 0 
+0 21
+0 20
+cfn=(5522)
+calls=3 0 
+0 2467
+0 55
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=3 0 
+0 63
+0 147
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=4 0 
+0 84
+0 6300
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=700 0 
+0 14731
+0 11968
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=704 0 
+0 14825
+0 11352
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=4 0 
+0 84
+0 30
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=2 0 
+0 43
+0 188
+cfn=(5521) core::slice::sort::unstable::quicksort::quicksort::<&[u8], <&[u8] as core::cmp::PartialOrd>::lt>'2
+calls=4 0 
+0 413057
+0 49
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=1 0 
+0 13
+0 23
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=1 0 
+0 13
+0 11
+cfn=(5528)
+calls=1 0 
+0 880
+0 8
+
+fn=(5521)
+0 1156
+cfn=(5526)
+calls=34 0 
+0 7653
+0 136
+cfn=(5526)
+calls=34 0 
+0 7646
+0 136
+cfn=(5528)
+calls=34 0 
+0 15440
+0 306
+cfn=(5526)
+calls=34 0 
+0 7632
+0 204
+cfn=(5526)
+calls=34 0 
+0 7631
+0 170
+cfn=(5528)
+calls=34 0 
+0 15433
+0 1206
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=25 0 
+0 529
+0 350
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=25 0 
+0 526
+0 344
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=18 0 
+0 381
+0 214
+cfn=(5522)
+calls=22 0 
+0 12138
+0 703
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=44 0 
+0 930
+0 1771
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=47 0 
+0 990
+0 20853
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=2317 0 
+0 49068
+0 40188
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=2364 0 
+0 50070
+0 38858
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=47 0 
+0 992
+0 255
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=17 0 
+0 363
+0 2105
+cfn=(5521)
+calls=47 0 
+0 606286
+0 252
+cfn=(5526)
+calls=13 0 
+0 2918
+0 39
+cfn=(5526)
+calls=13 0 
+0 2918
+0 3560
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=139 0 
+0 2933
+0 2997
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=127 0 
+0 2696
+0 4302
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=478 0 
+0 10119
+0 10218
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=169 0 
+0 3566
+0 7761
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=677 0 
+0 14285
+0 6976
+cfn=(5528)
+calls=51 0 
+0 50732
+0 408
+
+fn=(5544)
+0 51534
+cfn=(5542)
+calls=3681 0 
+0 69939
+0 136098
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=3672 0 
+0 44052
+0 84456
+cfn=(5360)
+calls=3672 0 
+0 889167
+0 47781
+cfn=(5048)
+calls=3681 0 
+0 324915
+0 14724
+
+fn=(5568)
+0 61764
+
+fn=(5596)
+0 336
+cfn=(5542)
+calls=24 0 
+0 744
+0 1179
+cfn=(5542)
+calls=135 0 
+0 2565
+0 2796
+cfn=(5544)
+calls=24 0 
+0 11817
+0 183
+cfn=(5544)
+calls=15 0 
+0 3457
+0 390
+cfn=(5542)
+calls=24 0 
+0 744
+0 312
+cfn=(5598)
+calls=48 0 
+0 150097
+0 192
+cfn=(5542)
+calls=24 0 
+0 456
+0 765
+cfn=(5542)
+calls=48 0 
+0 912
+0 840
+cfn=(5546)
+calls=24 0 
+0 16837
+0 120
+cfn=(5544)
+calls=24 0 
+0 10544
+0 504
+
+fn=(5808)
+0 14145
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=615 0 
+0 161272
+0 11677414
+cfn=(5810)
+calls=615 0 
+0 86943654
+0 4305
+cfn=(5100)
+calls=615 0 
+0 33921
+0 940950
+cfn=(5100)
+calls=313650 0 
+0 16991352
+0 1886205
+
+fn=(5820)
+0 5708430
+
+fn=(5854)
+0 1881100
+
+fn=(5860)
+0 83640
+cfn=(5366)
+calls=4920 0 
+0 1718445
+0 9840
+
+fn=(5862)
+0 423120
+cfn=(5514)
+calls=14760 0 
+0 206640
+0 98400
+cfn=(5558)
+calls=4920 0 
+0 670485
+0 78720
+
+fn=(5872)
+0 22125622
+cfn=(5514)
+calls=4904 0 
+0 112792
+0 102984
+cfn=(5852)
+calls=4904 0 
+0 245200
+0 2211704
+cfn=(5514)
+calls=313856 0 
+0 4393984
+0 6904832
+cfn=(5852)
+calls=313856 0 
+0 15692800
+0 3138560
+cfn=(5514)
+calls=313856 0 
+0 4393984
+0 5338004
+cfn=(5850)
+calls=613 0 
+0 30360528
+0 7356
+cfn=(5852)
+calls=613 0 
+0 30650
+0 1566215
+cfn=(5852)
+calls=313243 0 
+0 15662150
+0 14428794
+cfn=(5514)
+calls=4904 0 
+0 112792
+0 117696
+cfn=(5902)
+calls=4904 0 
+0 30786576
+0 74786
+cfn=(5514)
+calls=4291 0 
+0 332246
+0 14127198
+cfn=(5514)
+calls=313243 0 
+0 6851501
+0 4702323
+cfn=(5514)
+calls=313856 0 
+0 4393984
+0 7218688
+cfn=(5048)
+calls=313856 0 
+0 35101606
+0 8160256
+cfn=(5880)
+calls=313856 0 
+0 12868096
+0 15065088
+cfn=(5514)
+calls=313856 0 
+0 4393984
+0 7532544
+cfn=(5892)
+calls=313856 0 
+0 100202259
+0 3326138
+cfn=(5514)
+calls=313856 0 
+0 4393984
+0 6904832
+cfn=(5048)
+calls=313856 0 
+0 34792654
+0 8160256
+cfn=(5880)
+calls=313856 0 
+0 12868096
+0 1799768
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=613 0 
+0 25133
+0 57420
+cfn=(5398)
+calls=1226 0 
+0 407455
+0 8591195
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=613 0 
+0 25391
+0 3159200
+cfn=(5088)
+calls=4904 0 
+0 4262662
+0 15073670
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=613 0 
+0 25133
+0 6297760
+cfn=(5098)
+calls=4904 0 
+0 13878275
+0 7225431
+
+fn=(5924)
+0 14712
+
+fn=(5936)
+0 117696
+cfn=(5938)
+calls=4904 0 
+0 3236640
+0 102984
+
+fn=(5940)
+0 411936
+cfn=(5514)
+calls=4904 0 
+0 112792
+0 156928
+cfn=(5514)
+calls=4904 0 
+0 68656
+0 83368
+cfn=(5848)
+calls=4904 0 
+0 1481008
+0 93176
+cfn=(5852)
+calls=4904 0 
+0 245200
+0 14712
+cfn=(5854)
+calls=4904 0 
+0 127504
+0 122600
+
+fn=(5948)
+0 714
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=102 0 
+0 17847
+0 4794
+
+fn=(6072)
+0 11
+cfn=(6074)
+calls=1 0 
+0 20
+0 10
+cfn=(6076) <&std::io::stdio::Stderr as core::io::write::Write>::write_fmt
+calls=1 0 
+0 408
+0 7
+
+fn=(6100)
+0 20
+cfn=(5367)
+calls=1 0 
+0 63
+0 3
+
+fn=(5968)
+0 3072
+cfn=(5096)
+calls=512 0 
+0 16644
+0 2862
+cfn=(5864)
+calls=102 0 
+0 12240
+0 306
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=102 0 
+0 11118
+0 1889792
+cfn=(5096)
+calls=314368 0 
+0 10417382
+0 1756248
+cfn=(5864)
+calls=62424 0 
+0 7412032
+0 62934
+cfn=(5382)
+calls=102 0 
+0 12646
+0 125256
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=62628 0 
+0 6750410
+0 2200576
+
+fn=(4168)
+0 9
+cfn=(4170)
+calls=1 0 
+0 1423996141
+0 2
+
+fn=(4998)
+0 18
+cob=(2)
+cfi=(2)
+cfn=(5000)
+calls=1 0 
+0 5
+0 4
+cob=(2)
+cfi=(2)
+cfn=(5002)
+calls=1 0 
+0 145
+0 11
+cob=(2)
+cfi=(2)
+cfn=(5004)
+calls=1 0 
+0 22
+0 7
+cob=(2)
+cfi=(2)
+cfn=(5006)
+calls=1 0 
+0 5
+0 9
+cob=(2)
+cfi=(2)
+cfn=(5000)
+calls=1 0 
+0 5
+0 9
+
+fn=(5074)
+0 104736
+cfn=(6078)
+calls=2 0 
+0 156
+cfn=(5076)
+calls=2433 0 
+0 102056
+0 88266
+cfn=(6052) <usize as core::fmt::LowerHex>::fmt
+calls=1 0 
+0 640
+cfn=(5078) <u64 as core::fmt::Display>::fmt
+calls=2176 0 
+0 522184
+0 1554
+cfn=(6082)
+calls=1 0 
+0 105
+cfn=(6042)
+calls=1 0 
+0 159
+cfn=(6038) <pbrs_adoption_corpus::workloads::Specimen as core::fmt::Debug>::fmt
+calls=1 0 
+0 589
+cfn=(5078)
+calls=256 0 
+0 40512
+0 36540
+
+fn=(5078)
+0 91818
+cfn=(5080)
+calls=2030 0 
+0 375230
+0 3618
+cfn=(5080)
+calls=402 0 
+0 82302
+0 9728
+
+fn=(5082)
+0 51114
+
+fn=(5092)
+0 12498
+cfn=(5094)
+calls=103 0 
+0 3708
+0 1021
+cfn=(5110)
+calls=102 0 
+0 3570
+0 918
+cfn=(5072)
+calls=102 0 
+0 57304
+0 306
+cfn=(5112)
+calls=102 0 
+0 34917
+0 411
+cfn=(5108) <pbrs_adoption_corpus::native::__gen_adoption_proto::TypedValue>::set_integer
+calls=103 0 
+0 3296
+0 409
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=102 0 
+0 3876
+0 2550
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=102 0 
+0 18097
+0 9416
+
+fn=(5100)
+0 25814698
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=890162 0 
+0 18779342
+0 3560648
+
+fn=(5108)
+0 1133
+cfn=(5096)
+calls=103 0 
+0 1030
+0 1133
+
+fn=(5376)
+0 608
+cfn=(5360)
+calls=8 0 
+0 1960
+0 104
+
+fn=(5386)
+0 344
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1245
+0 80
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 232
+0 136
+cfn=(5388)
+calls=8 0 
+0 848
+0 8
+
+fn=(5398)
+0 18420
+cfn=(5090)
+calls=1228 0 
+0 378656
+0 11052
+
+fn=(5450)
+0 34816
+cfn=(5452)
+calls=2048 0 
+0 395264
+0 50986
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=136 0 
+0 2855
+0 93947
+cfn=(5430)
+calls=27 0 
+0 656371
+0 32
+
+fn=(5490)
+0 2162
+cfn=(5454)
+calls=94 0 
+0 5170
+0 6392
+
+fn=(5496)
+0 3280
+cfn=(5497) <<pbrs_adoption_corpus::prost_types::Edge as prost::message::Message>::encoded_len as core::ops::function::FnMut<(&pbrs_adoption_corpus::prost_types::Edge,)>>::call_mut'2
+calls=24 0 
+0 1680
+0 1024
+
+fn=(5497)
+0 1680
+
+fn=(5770)
+0 43050
+cfn=(5772)
+calls=615 0 
+0 38553
+0 8610
+cfn=(5772)
+calls=615 0 
+0 38130
+0 939105
+cfn=(5772)
+calls=313035 0 
+0 19462489
+0 2854830
+
+fn=(5842)
+0 54120
+cfn=(5844)
+calls=4920 0 
+0 5429124
+0 54120
+
+fn=(5958)
+0 160
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1496
+0 280
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=16 0 
+0 3040
+0 160
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=16 0 
+0 192
+0 192
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=16 0 
+0 2891
+0 336
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=32 0 
+0 384
+0 576
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=32 0 
+0 6080
+0 336
+cfn=(5959) <alloc::vec::Vec<pbrs_adoption_corpus::prost_types::Edge> as core::clone::Clone>::clone'2
+calls=16 0 
+0 9843
+0 616
+
+fn=(5959)
+0 432
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1520
+0 208
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1520
+0 80
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=8 0 
+0 96
+0 96
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1371
+0 168
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=16 0 
+0 192
+0 288
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=16 0 
+0 3040
+0 168
+cfn=(5959)
+calls=8 0 
+0 280
+0 664
+
+fn=(6030)
+0 7
+cfn=(6026)
+calls=1 0 
+0 26
+0 10
+cfn=(6032) <std::sys::pal::unix::time::Timespec>::sub_timespec
+calls=1 0 
+0 36
+0 9
+
+fn=(6052)
+0 126
+cfn=(5080)
+calls=1 0 
+0 511
+0 3
+
+fn=(6070)
+0 16
+
+fn=(6076)
+0 33
+cfn=(5074)
+calls=1 0 
+0 354
+0 21
+
+fn=(6084)
+0 22
+cfn=(6078)
+calls=1 0 
+0 78
+
+fn=(6096)
+0 8144
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=512 0 
+0 55808
+0 3376
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=204 0 
+0 22236
+0 222
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=1 0 
+0 95749
+
+fn=(5976)
+0 96
+cfn=(5978)
+calls=8 0 
+0 264
+0 112
+cfn=(5864)
+calls=8 0 
+0 901
+0 58944
+cfn=(5978)
+calls=4912 0 
+0 164337
+0 68624
+cfn=(5864)
+calls=4896 0 
+0 372096
+0 64
+
+fn=(5026)
+0 39
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=1 0 
+0 187
+0 131
+cob=(2)
+cfi=(2)
+cfn=(4584)
+calls=7 0 
+0 115
+0 35
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=7 0 
+0 1157
+0 70
+cob=(2)
+cfi=(2)
+cfn=(4536)
+calls=7 0 
+0 104
+0 26
+
+fn=(5084)
+0 58960
+cfn=(5360)
+calls=106 0 
+0 13674
+0 28358
+
+fn=(5382)
+0 7080
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=472 0 
+0 35897
+
+fn=(5384)
+0 68928
+cfn=(5864)
+calls=4920 0 
+0 373920
+0 49280
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=4928 0 
+0 320362
+0 39464
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 520
+
+fn=(5412)
+0 9
+cfn=(5414)
+calls=1 0 
+0 113
+0 5
+
+fn=(5486)
+0 400
+cfn=(5072)
+calls=16 0 
+0 8806
+0 112
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=16 0 
+0 3040
+0 256
+cfn=(5072)
+calls=16 0 
+0 14414
+0 208
+cfn=(5072)
+calls=16 0 
+0 14416
+0 208
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1520
+0 96
+cfn=(5487) pbrs_adoption_corpus::corpus::edge'2
+calls=8 0 
+0 21028
+0 440
+
+fn=(5487)
+0 200
+cfn=(5072)
+calls=8 0 
+0 4402
+0 56
+cob=(2)
+cfi=(2)
+cfn=(4208)
+calls=8 0 
+0 1520
+0 128
+cfn=(5072)
+calls=8 0 
+0 7182
+0 104
+cfn=(5072)
+calls=8 0 
+0 7156
+0 280
+
+fn=(5488)
+0 384
+cfn=(5490)
+calls=32 0 
+0 4672
+0 2477
+cfn=(5476)
+calls=9 0 
+0 11517
+0 19
+
+fn=(5494)
+0 50847
+cfn=(5496)
+calls=8 0 
+0 1248
+0 16
+cfn=(5496)
+calls=8 0 
+0 560
+0 192
+cfn=(5498)
+calls=1 0 
+0 40
+0 14
+
+fn=(5498)
+0 64
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 868
+0 56
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 868
+0 32
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 1572
+0 32
+cfn=(5500)
+calls=8 0 
+0 13804
+0 32
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 9302
+0 26
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=2 0 
+0 218
+0 292
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=32 0 
+0 3482
+0 230
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=32 0 
+0 2866
+0 128
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=32 0 
+0 2306
+0 136
+cfn=(5500)
+calls=34 0 
+0 52018
+0 132
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=32 0 
+0 4601
+0 108
+cob=(2)
+cfi=(2)
+cfn=(4904)
+calls=8 0 
+0 872
+0 104
+
+fn=(5526)
+0 2988
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=166 0 
+0 3498
+0 2490
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=166 0 
+0 3492
+0 4316
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=166 0 
+0 3502
+0 1992
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=166 0 
+0 3495
+0 3984
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=166 0 
+0 3489
+0 3984
+
+fn=(5560)
+0 35367
+
+fn=(5592)
+0 24576
+cfn=(5542)
+calls=1536 0 
+0 29184
+0 43008
+cfn=(5542)
+calls=1536 0 
+0 29184
+0 35646
+cfn=(5542)
+calls=309 0 
+0 5871
+0 5832
+cfn=(5546)
+calls=306 0 
+0 214273
+0 10098
+cfn=(5544)
+calls=306 0 
+0 139401
+0 2460
+cfn=(5542)
+calls=309 0 
+0 9111
+0 17223
+
+fn=(5604)
+0 42835
+cfn=(5452)
+calls=2048 0 
+0 395264
+0 63536
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=2052 0 
+0 38207
+0 61280
+cfn=(5452)
+calls=2048 0 
+0 395264
+0 65668
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=2052 0 
+0 38028
+0 39828
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=816 0 
+0 15304
+0 12572
+cfn=(5490)
+calls=32 0 
+0 4672
+0 928
+cfn=(5504)
+calls=32 0 
+0 18206
+0 164
+
+fn=(5638)
+0 960
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=64 0 
+0 1172
+0 1472
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=128 0 
+0 2352
+0 1184
+cfn=(5639) <pbrs_adoption_corpus::prost_types::Edge as core::cmp::PartialEq>::eq'2
+calls=32 0 
+0 3788
+0 864
+
+fn=(5639)
+0 480
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=32 0 
+0 592
+0 736
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=64 0 
+0 1180
+0 800
+
+fn=(5772)
+0 241048384
+cob=(2)
+cfi=(2)
+cfn=(5058)
+calls=7532762 0 
+0 157051108
+0 67794858
+
+fn=(5852)
+0 36229900
+
+fn=(5914)
+0 44136
+
+fn=(6032)
+0 36
+
+fn=(6038)
+0 21
+cfn=(5076)
+calls=1 0 
+0 149
+0 10
+cfn=(5076)
+calls=1 0 
+0 43
+0 5
+cfn=(6040)
+calls=1 0 
+0 165
+0 11
+cfn=(5076)
+calls=1 0 
+0 178
+0 7
+
+ob=(5)
+fl=(5)
+fn=(6262) 0x0000000000001050
+0 5
+
+fn=(4010)
+0 12
+
+fn=(6252)
+0 9
+cob=(4)
+cfi=(4)
+cfn=(6258)
+calls=1 0 
+0 72
+0 1
+cfn=(6262)
+calls=1 0 
+0 5
+0 3
+
+totals: 1424481905

@@ -1,0 +1,365 @@
+{
+  "source_commit": "4355c682e10d9dac066f8ab15a6ec9d13a911358",
+  "binary_sha256": "650783356eb3d0ed4e85f958cef9bb3ed5caf279f83a8f77989756a130099ca5",
+  "map_input_pins": {
+    "test_binary_sha256": "b5429d4636c8b2fd7cdc47bfef1dbf00a7d47435dfcc8f1328478d35c525570d",
+    "maps": [
+      {
+        "entries": 8,
+        "wire_bytes": 4678,
+        "wire_sha256": "88717bc0c37e82eb2cef3aefe5faf4fd7378055892c427d300b00be3db499f46",
+        "wire_fingerprint": "fnv1a64:3415f6efcea7172c"
+      },
+      {
+        "entries": 64,
+        "wire_bytes": 6831,
+        "wire_sha256": "75eb2e3d81a05a850ebd6b72d35ea5d6c8b138ea0c00c701db58d5d4cc84a0d8",
+        "wire_fingerprint": "fnv1a64:df47aa0f5c5dfb0f"
+      },
+      {
+        "entries": 512,
+        "wire_bytes": 24647,
+        "wire_sha256": "4dbb7f2ba038ae1e0c31c71091f5a4ca01524d418992d623dd7348021bbfabd5",
+        "wire_fingerprint": "fnv1a64:0094218e21c0b475"
+      }
+    ]
+  },
+  "blocked_map_cells": [
+    {
+      "cell": "rpc.adoption.native_pbrs.maps.n8.unary",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.native_pbrs.maps.n8.unary",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53544) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 4682\n right: 4678\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.native_pbrs.maps.n8.server_stream",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.native_pbrs.maps.n8.server_stream",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53547) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 4682\n right: 4678\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.native_prost.maps.n8.unary",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.native_prost.maps.n8.unary",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53550) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 4682\n right: 4678\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.native_prost.maps.n8.server_stream",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.native_prost.maps.n8.server_stream",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53553) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 4682\n right: 4678\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.tonic_pbrs.maps.n8.unary",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.tonic_pbrs.maps.n8.unary",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53556) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 4682\n right: 4678\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.tonic_pbrs.maps.n8.server_stream",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.tonic_pbrs.maps.n8.server_stream",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53559) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 4682\n right: 4678\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.tonic_prost.maps.n8.unary",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.tonic_prost.maps.n8.unary",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53562) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 4682\n right: 4678\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.tonic_prost.maps.n8.server_stream",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.tonic_prost.maps.n8.server_stream",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53565) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 4682\n right: 4678\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.native_pbrs.maps.n64.unary",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.native_pbrs.maps.n64.unary",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53568) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 6835\n right: 6831\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.native_pbrs.maps.n64.server_stream",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.native_pbrs.maps.n64.server_stream",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53571) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 6835\n right: 6831\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.native_prost.maps.n64.unary",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.native_prost.maps.n64.unary",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53574) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 6835\n right: 6831\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.native_prost.maps.n64.server_stream",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.native_prost.maps.n64.server_stream",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53577) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 6835\n right: 6831\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.tonic_pbrs.maps.n64.unary",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.tonic_pbrs.maps.n64.unary",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53580) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 6835\n right: 6831\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.tonic_pbrs.maps.n64.server_stream",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.tonic_pbrs.maps.n64.server_stream",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53583) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 6835\n right: 6831\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.tonic_prost.maps.n64.unary",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.tonic_prost.maps.n64.unary",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53586) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 6835\n right: 6831\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.tonic_prost.maps.n64.server_stream",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.tonic_prost.maps.n64.server_stream",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53590) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 6835\n right: 6831\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.native_pbrs.maps.n512.unary",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.native_pbrs.maps.n512.unary",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53593) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 24651\n right: 24647\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.native_pbrs.maps.n512.server_stream",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.native_pbrs.maps.n512.server_stream",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53596) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 24651\n right: 24647\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.native_prost.maps.n512.unary",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.native_prost.maps.n512.unary",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53602) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 24651\n right: 24647\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.native_prost.maps.n512.server_stream",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.native_prost.maps.n512.server_stream",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53606) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 24651\n right: 24647\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.tonic_pbrs.maps.n512.unary",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.tonic_pbrs.maps.n512.unary",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53609) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 24651\n right: 24647\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.tonic_pbrs.maps.n512.server_stream",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.tonic_pbrs.maps.n512.server_stream",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53612) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 24651\n right: 24647\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.tonic_prost.maps.n512.unary",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.tonic_prost.maps.n512.unary",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53615) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 24651\n right: 24647\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    },
+    {
+      "cell": "rpc.adoption.tonic_prost.maps.n512.server_stream",
+      "command": [
+        "target/sb31-devloop/release/devloop",
+        "run-cell",
+        "rpc.adoption.tonic_prost.maps.n512.server_stream",
+        "--iters",
+        "1",
+        "--warmup",
+        "0"
+      ],
+      "returncode": 101,
+      "stderr": "\nthread 'main' (53618) panicked at adoption/src/rpc.rs:80:9:\nassertion `left == right` failed: RPC encoded bytes must agree\n  left: 24651\n right: 24647\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+    }
+  ]
+}

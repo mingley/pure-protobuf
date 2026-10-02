@@ -1,0 +1,1505 @@
+{
+  "test_binary_sha256": "b5429d4636c8b2fd7cdc47bfef1dbf00a7d47435dfcc8f1328478d35c525570d",
+  "maps": [
+    {
+      "entries": 8,
+      "wire_bytes": 4678,
+      "wire_sha256": "88717bc0c37e82eb2cef3aefe5faf4fd7378055892c427d300b00be3db499f46",
+      "wire_fingerprint": "fnv1a64:3415f6efcea7172c"
+    },
+    {
+      "entries": 64,
+      "wire_bytes": 6831,
+      "wire_sha256": "75eb2e3d81a05a850ebd6b72d35ea5d6c8b138ea0c00c701db58d5d4cc84a0d8",
+      "wire_fingerprint": "fnv1a64:df47aa0f5c5dfb0f"
+    },
+    {
+      "entries": 512,
+      "wire_bytes": 24647,
+      "wire_sha256": "4dbb7f2ba038ae1e0c31c71091f5a4ca01524d418992d623dd7348021bbfabd5",
+      "wire_fingerprint": "fnv1a64:0094218e21c0b475"
+    }
+  ],
+  "source_commit": "4355c682e10d9dac066f8ab15a6ec9d13a911358",
+  "source_tree": "3a241867c6dc49c04d13f822963bb16c7bc88248",
+  "source_sha256": {
+    "Cargo.toml": "9275282cedf26f70b3d5797fa17401c2fc71bbe33458a712974368a26300b906",
+    "Cargo.lock": "143bd380614c258637da68df0e839157955b0c294a5faf563e927034d557a76e",
+    "src/map.rs": "0ab9e16c839e90de0d8be5b8891a242e2d4c6a8d8edb918741c65750ca2a7d9d",
+    "bench/devloop/Cargo.toml": "136513da6ad6a7738c0c6f9ba87918f0897022fca0e6f3c36cf6d5b49d3bb66e",
+    "bench/devloop/Cargo.lock": "971414022803d3c1a19e32ef4909d1ef897b2e800e6c3574554c31be978e504b",
+    "bench/devloop/src/main.rs": "163e699803214eb098d5236cba8ee8f8ad6cf927245a0c953303dc226240c9c8",
+    "bench/devloop/adoption/Cargo.toml": "ea25658bdd4f3479d1bd313e86f4a01c78f3004773c19bed994fd06604d2df5d",
+    "bench/devloop/adoption/Cargo.lock": "559a54d6e8553d45abbde340ea696a47585c710f6f1c3c153a1a82dd0635e22a",
+    "bench/devloop/adoption/src/workloads.rs": "0557880e16913782724ac38831a7fd460cab150da5ade69ef016f581422207cf",
+    "bench/devloop/adoption/src/corpus.rs": "217b10758f25a306095bfadde76e8157ed3adfa26b4b72792d1368a815ea2358",
+    "bench/devloop/adoption/src/fresh.rs": "cff5764517576c7d1216c05e684a8bcccc820267aa22da9196acb6d6fffb6259",
+    "bench/devloop/adoption/src/rpc.rs": "145d8bfea4a2451fa504b2d59199e4afe3e6da19e08572169ef42aeeac67f7d9",
+    "bench/devloop/adoption/proto/adoption.proto": "477b522ca4ffe88bc1ced6ac9c7fa3694a36813bacf413c2002824d845b6e327",
+    "bench/devloop/adoption/capture-callgrind.py": "3655030fd4fbf64f6354e97144ea08042f20bf07c6de52dcc3523a7a80c8cd56"
+  },
+  "binary_sha256": "650783356eb3d0ed4e85f958cef9bb3ed5caf279f83a8f77989756a130099ca5",
+  "pinned_protobuf_source_commit": "35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03",
+  "tier": "instrumented dev-loop diagnostic on a shared managed x86_64 host",
+  "instruction_counter": "Valgrind Callgrind Ir; (2N-N)/N with unchanged 100-operation warmup",
+  "pilot": {
+    "codec.adoption.pbrs.maps.n512.owned_decode": {
+      "instruction_samples": [
+        939168.8125,
+        931575.375,
+        924487.4375
+      ],
+      "fingerprint": "fnv1a64:0094218e21c0b475",
+      "allocs": 437.0,
+      "alloc_bytes": 215960.0,
+      "instruction_median": 931575.375,
+      "instruction_repeat_range_percent": 1.5759728513648184
+    },
+    "codec.adoption.pbrs.maps.n512.read_all": {
+      "instruction_samples": [
+        2194171.375,
+        2272293.25,
+        2154801.9375
+      ],
+      "fingerprint": "fnv1a64:0094218e21c0b475",
+      "allocs": 491.0,
+      "alloc_bytes": 368216.0,
+      "instruction_median": 2194171.375,
+      "instruction_repeat_range_percent": 5.354700815017241
+    }
+  },
+  "target_pilot": {
+    "codec.adoption.pbrs.maps.n512.fresh_encode": {
+      "instruction_samples": [
+        17579320.5
+      ],
+      "fingerprint": "fnv1a64:0094218e21c0b475",
+      "allocs": 1757.0,
+      "alloc_bytes": 228859.0,
+      "instruction_median": 17579320.5,
+      "instruction_repeat_range_percent": 0.0
+    }
+  },
+  "collection": {
+    "source_commit": "4355c682e10d9dac066f8ab15a6ec9d13a911358",
+    "binary_sha256": "650783356eb3d0ed4e85f958cef9bb3ed5caf279f83a8f77989756a130099ca5",
+    "iterations": 256,
+    "repeats": 3,
+    "warmup": 100,
+    "cells": [
+      "codec.adoption.pbrs.maps.n8.fresh_encode",
+      "codec.adoption.pbrs.maps.n8.owned_decode",
+      "codec.adoption.pbrs.maps.n8.read_all",
+      "codec.adoption.pbrs.maps.n8.fully_read_clone",
+      "codec.adoption.prost.maps.n8.fresh_encode",
+      "codec.adoption.prost.maps.n8.owned_decode",
+      "codec.adoption.prost.maps.n8.read_all",
+      "codec.adoption.prost.maps.n8.fully_read_clone",
+      "codec.adoption.pbrs.maps.n64.fresh_encode",
+      "codec.adoption.pbrs.maps.n64.owned_decode",
+      "codec.adoption.pbrs.maps.n64.read_all",
+      "codec.adoption.pbrs.maps.n64.fully_read_clone",
+      "codec.adoption.prost.maps.n64.fresh_encode",
+      "codec.adoption.prost.maps.n64.owned_decode",
+      "codec.adoption.prost.maps.n64.read_all",
+      "codec.adoption.prost.maps.n64.fully_read_clone",
+      "codec.adoption.pbrs.maps.n512.fresh_encode",
+      "codec.adoption.pbrs.maps.n512.owned_decode",
+      "codec.adoption.pbrs.maps.n512.read_all",
+      "codec.adoption.pbrs.maps.n512.fully_read_clone",
+      "codec.adoption.prost.maps.n512.fresh_encode",
+      "codec.adoption.prost.maps.n512.owned_decode",
+      "codec.adoption.prost.maps.n512.read_all",
+      "codec.adoption.prost.maps.n512.fully_read_clone"
+    ],
+    "runs": [
+      {
+        "command": [
+          "/workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop",
+          "run",
+          "--cells",
+          "codec.adoption.pbrs.maps.n8.fresh_encode,codec.adoption.pbrs.maps.n8.owned_decode,codec.adoption.pbrs.maps.n8.read_all,codec.adoption.pbrs.maps.n8.fully_read_clone,codec.adoption.prost.maps.n8.fresh_encode,codec.adoption.prost.maps.n8.owned_decode,codec.adoption.prost.maps.n8.read_all,codec.adoption.prost.maps.n8.fully_read_clone,codec.adoption.pbrs.maps.n64.fresh_encode,codec.adoption.pbrs.maps.n64.owned_decode,codec.adoption.pbrs.maps.n64.read_all,codec.adoption.pbrs.maps.n64.fully_read_clone,codec.adoption.prost.maps.n64.fresh_encode,codec.adoption.prost.maps.n64.owned_decode,codec.adoption.prost.maps.n64.read_all,codec.adoption.prost.maps.n64.fully_read_clone,codec.adoption.pbrs.maps.n512.fresh_encode,codec.adoption.pbrs.maps.n512.owned_decode,codec.adoption.pbrs.maps.n512.read_all,codec.adoption.pbrs.maps.n512.fully_read_clone,codec.adoption.prost.maps.n512.fresh_encode,codec.adoption.prost.maps.n512.owned_decode,codec.adoption.prost.maps.n512.read_all,codec.adoption.prost.maps.n512.fully_read_clone",
+          "--iters",
+          "256",
+          "--repeats",
+          "3",
+          "--out",
+          "/workspace/pure-protobuf/work/sb31/docs/evidence/sb-31-replay-1.json"
+        ],
+        "seconds": 636.2989623830001,
+        "returncode": 0
+      },
+      {
+        "command": [
+          "/workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop",
+          "run",
+          "--cells",
+          "codec.adoption.pbrs.maps.n8.fresh_encode,codec.adoption.pbrs.maps.n8.owned_decode,codec.adoption.pbrs.maps.n8.read_all,codec.adoption.pbrs.maps.n8.fully_read_clone,codec.adoption.prost.maps.n8.fresh_encode,codec.adoption.prost.maps.n8.owned_decode,codec.adoption.prost.maps.n8.read_all,codec.adoption.prost.maps.n8.fully_read_clone,codec.adoption.pbrs.maps.n64.fresh_encode,codec.adoption.pbrs.maps.n64.owned_decode,codec.adoption.pbrs.maps.n64.read_all,codec.adoption.pbrs.maps.n64.fully_read_clone,codec.adoption.prost.maps.n64.fresh_encode,codec.adoption.prost.maps.n64.owned_decode,codec.adoption.prost.maps.n64.read_all,codec.adoption.prost.maps.n64.fully_read_clone,codec.adoption.pbrs.maps.n512.fresh_encode,codec.adoption.pbrs.maps.n512.owned_decode,codec.adoption.pbrs.maps.n512.read_all,codec.adoption.pbrs.maps.n512.fully_read_clone,codec.adoption.prost.maps.n512.fresh_encode,codec.adoption.prost.maps.n512.owned_decode,codec.adoption.prost.maps.n512.read_all,codec.adoption.prost.maps.n512.fully_read_clone",
+          "--iters",
+          "256",
+          "--repeats",
+          "3",
+          "--out",
+          "/workspace/pure-protobuf/work/sb31/docs/evidence/sb-31-replay-2.json"
+        ],
+        "seconds": 597.6495650080001,
+        "returncode": 0
+      }
+    ]
+  },
+  "replays": {
+    "1": {
+      "codec.adoption.pbrs.maps.n8.fresh_encode": {
+        "instruction_samples": [
+          160266.22265625,
+          160774.27734375,
+          162973.421875
+        ],
+        "fingerprint": "fnv1a64:3415f6efcea7172c",
+        "allocs": 333.0,
+        "alloc_bytes": 25515.0,
+        "instruction_median": 160774.27734375,
+        "instruction_repeat_range_percent": 1.6838509638962722
+      },
+      "codec.adoption.pbrs.maps.n8.owned_decode": {
+        "instruction_samples": [
+          87407.484375,
+          87434.8671875,
+          87094.1875
+        ],
+        "fingerprint": "fnv1a64:3415f6efcea7172c",
+        "allocs": 122.0,
+        "alloc_bytes": 23400.0,
+        "instruction_median": 87407.484375,
+        "instruction_repeat_range_percent": 0.3897603162200605
+      },
+      "codec.adoption.pbrs.maps.n8.read_all": {
+        "instruction_samples": [
+          163440.23046875,
+          161923.54296875,
+          161851.78515625
+        ],
+        "fingerprint": "fnv1a64:3415f6efcea7172c",
+        "allocs": 160.0,
+        "alloc_bytes": 28968.0,
+        "instruction_median": 161923.54296875,
+        "instruction_repeat_range_percent": 0.9809847804568836
+      },
+      "codec.adoption.pbrs.maps.n8.fully_read_clone": {
+        "instruction_samples": [
+          34318.20703125,
+          34322.07421875,
+          34321.99609375
+        ],
+        "fingerprint": "fnv1a64:3415f6efcea7172c",
+        "allocs": 109.0,
+        "alloc_bytes": 8320.0,
+        "instruction_median": 34321.99609375,
+        "instruction_repeat_range_percent": 0.01126737352174051
+      },
+      "codec.adoption.prost.maps.n8.fresh_encode": {
+        "instruction_samples": [
+          157832.07421875,
+          158030.96875,
+          157809.65625
+        ],
+        "fingerprint": "fnv1a64:3415f6efcea7172c",
+        "allocs": 240.0,
+        "alloc_bytes": 19431.0,
+        "instruction_median": 157832.07421875,
+        "instruction_repeat_range_percent": 0.14022023159454158
+      },
+      "codec.adoption.prost.maps.n8.owned_decode": {
+        "instruction_samples": [
+          109767.1796875,
+          109403.89453125,
+          109598.84765625
+        ],
+        "fingerprint": "fnv1a64:3415f6efcea7172c",
+        "allocs": 174.0,
+        "alloc_bytes": 20459.0,
+        "instruction_median": 109598.84765625,
+        "instruction_repeat_range_percent": 0.3314680437055519
+      },
+      "codec.adoption.prost.maps.n8.read_all": {
+        "instruction_samples": [
+          163253.5390625,
+          162914.953125,
+          162848.53515625
+        ],
+        "fingerprint": "fnv1a64:3415f6efcea7172c",
+        "allocs": 206.0,
+        "alloc_bytes": 26191.0,
+        "instruction_median": 162914.953125,
+        "instruction_repeat_range_percent": 0.2485983628152611
+      },
+      "codec.adoption.prost.maps.n8.fully_read_clone": {
+        "instruction_samples": [
+          58496.04296875,
+          57570.96875,
+          57728.96875
+        ],
+        "fingerprint": "fnv1a64:3415f6efcea7172c",
+        "allocs": 159.0,
+        "alloc_bytes": 10718.0,
+        "instruction_median": 57728.96875,
+        "instruction_repeat_range_percent": 1.6024436929682726
+      },
+      "codec.adoption.pbrs.maps.n64.fresh_encode": {
+        "instruction_samples": [
+          555625.14453125,
+          557630.71875,
+          556264.96484375
+        ],
+        "fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+        "allocs": 497.0,
+        "alloc_bytes": 48073.0,
+        "instruction_median": 556264.96484375,
+        "instruction_repeat_range_percent": 0.3605429688194274
+      },
+      "codec.adoption.pbrs.maps.n64.owned_decode": {
+        "instruction_samples": [
+          178671.6484375,
+          177163.03515625,
+          177658.03515625
+        ],
+        "fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+        "allocs": 162.0,
+        "alloc_bytes": 44744.0,
+        "instruction_median": 177658.03515625,
+        "instruction_repeat_range_percent": 0.8491669289954585
+      },
+      "codec.adoption.pbrs.maps.n64.read_all": {
+        "instruction_samples": [
+          402350.203125,
+          402747.5078125,
+          401047.5859375
+        ],
+        "fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+        "allocs": 208.0,
+        "alloc_bytes": 61832.0,
+        "instruction_median": 402350.203125,
+        "instruction_repeat_range_percent": 0.42249807799199185
+      },
+      "codec.adoption.pbrs.maps.n64.fully_read_clone": {
+        "instruction_samples": [
+          67661.05859375,
+          68003.90234375,
+          69009.98046875
+        ],
+        "fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+        "allocs": 132.0,
+        "alloc_bytes": 18200.0,
+        "instruction_median": 68003.90234375,
+        "instruction_repeat_range_percent": 1.9835948063412494
+      },
+      "codec.adoption.prost.maps.n64.fresh_encode": {
+        "instruction_samples": [
+          342720.59375,
+          342092.15625,
+          342208.609375
+        ],
+        "fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+        "allocs": 375.0,
+        "alloc_bytes": 33229.0,
+        "instruction_median": 342208.609375,
+        "instruction_repeat_range_percent": 0.18364163927604282
+      },
+      "codec.adoption.prost.maps.n64.owned_decode": {
+        "instruction_samples": [
+          333213.390625,
+          334378.7421875,
+          333787.734375
+        ],
+        "fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+        "allocs": 326.0,
+        "alloc_bytes": 42096.0,
+        "instruction_median": 333787.734375,
+        "instruction_repeat_range_percent": 0.34912953427784266
+      },
+      "codec.adoption.prost.maps.n64.read_all": {
+        "instruction_samples": [
+          404737.63671875,
+          404335.37890625,
+          405553.5546875
+        ],
+        "fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+        "allocs": 358.0,
+        "alloc_bytes": 47828.0,
+        "instruction_median": 404737.63671875,
+        "instruction_repeat_range_percent": 0.30097912097473256
+      },
+      "codec.adoption.prost.maps.n64.fully_read_clone": {
+        "instruction_samples": [
+          124823.10546875,
+          123194.01171875,
+          124990.25390625
+        ],
+        "fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+        "allocs": 294.0,
+        "alloc_bytes": 22090.0,
+        "instruction_median": 124823.10546875,
+        "instruction_repeat_range_percent": 1.4390302025851271
+      },
+      "codec.adoption.pbrs.maps.n512.fresh_encode": {
+        "instruction_samples": [
+          17598319.171875,
+          17598574.40234375,
+          17598199.625
+        ],
+        "fingerprint": "fnv1a64:0094218e21c0b475",
+        "allocs": 1757.0,
+        "alloc_bytes": 228859.0,
+        "instruction_median": 17598319.171875,
+        "instruction_repeat_range_percent": 0.0021296201079757417
+      },
+      "codec.adoption.pbrs.maps.n512.owned_decode": {
+        "instruction_samples": [
+          939191.49609375,
+          936520.0625,
+          941277.84765625
+        ],
+        "fingerprint": "fnv1a64:0094218e21c0b475",
+        "allocs": 437.0,
+        "alloc_bytes": 215960.0,
+        "instruction_median": 939191.49609375,
+        "instruction_repeat_range_percent": 0.5065830744888983
+      },
+      "codec.adoption.pbrs.maps.n512.read_all": {
+        "instruction_samples": [
+          2337225.6796875,
+          2246878.5078125,
+          2275422.5234375
+        ],
+        "fingerprint": "fnv1a64:0094218e21c0b475",
+        "allocs": 491.0,
+        "alloc_bytes": 368216.0,
+        "instruction_median": 2275422.5234375,
+        "instruction_repeat_range_percent": 3.9705668263541565
+      },
+      "codec.adoption.pbrs.maps.n512.fully_read_clone": {
+        "instruction_samples": [
+          242364.90234375,
+          239453.45703125,
+          243099.6640625
+        ],
+        "fingerprint": "fnv1a64:0094218e21c0b475",
+        "allocs": 311.0,
+        "alloc_bytes": 97040.0,
+        "instruction_median": 242364.90234375,
+        "instruction_repeat_range_percent": 1.504428651174305
+      },
+      "codec.adoption.prost.maps.n512.fresh_encode": {
+        "instruction_samples": [
+          1733418.40234375,
+          1733373.1484375,
+          1734172.63671875
+        ],
+        "fingerprint": "fnv1a64:0094218e21c0b475",
+        "allocs": 1450.0,
+        "alloc_bytes": 144135.0,
+        "instruction_median": 1733418.40234375,
+        "instruction_repeat_range_percent": 0.04612206032709785
+      },
+      "codec.adoption.prost.maps.n512.owned_decode": {
+        "instruction_samples": [
+          1938661.67578125,
+          1940390.8203125,
+          1938559.31640625
+        ],
+        "fingerprint": "fnv1a64:0094218e21c0b475",
+        "allocs": 1497.0,
+        "alloc_bytes": 214576.0,
+        "instruction_median": 1938661.67578125,
+        "instruction_repeat_range_percent": 0.09447259050560913
+      },
+      "codec.adoption.prost.maps.n512.read_all": {
+        "instruction_samples": [
+          2157702.0546875,
+          2154729.890625,
+          2157663.83203125
+        ],
+        "fingerprint": "fnv1a64:0094218e21c0b475",
+        "allocs": 1529.0,
+        "alloc_bytes": 220308.0,
+        "instruction_median": 2157663.83203125,
+        "instruction_repeat_range_percent": 0.1377491719691093
+      },
+      "codec.adoption.prost.maps.n512.fully_read_clone": {
+        "instruction_samples": [
+          598633.00390625,
+          596850.92578125,
+          599838.4140625
+        ],
+        "fingerprint": "fnv1a64:0094218e21c0b475",
+        "allocs": 1369.0,
+        "alloc_bytes": 113114.0,
+        "instruction_median": 598633.00390625,
+        "instruction_repeat_range_percent": 0.49905171645328483
+      }
+    },
+    "2": {
+      "codec.adoption.pbrs.maps.n8.fresh_encode": {
+        "instruction_samples": [
+          162545.390625,
+          162444.24609375,
+          162282.90625
+        ],
+        "fingerprint": "fnv1a64:3415f6efcea7172c",
+        "allocs": 333.0,
+        "alloc_bytes": 25515.0,
+        "instruction_median": 162444.24609375,
+        "instruction_repeat_range_percent": 0.1615842858777003
+      },
+      "codec.adoption.pbrs.maps.n8.owned_decode": {
+        "instruction_samples": [
+          87477.49609375,
+          87599.5859375,
+          87986.59765625
+        ],
+        "fingerprint": "fnv1a64:3415f6efcea7172c",
+        "allocs": 122.0,
+        "alloc_bytes": 23400.0,
+        "instruction_median": 87599.5859375,
+        "instruction_repeat_range_percent": 0.581168914272301
+      },
+      "codec.adoption.pbrs.maps.n8.read_all": {
+        "instruction_samples": [
+          163027.76171875,
+          161816.09375,
+          161721.4375
+        ],
+        "fingerprint": "fnv1a64:3415f6efcea7172c",
+        "allocs": 160.0,
+        "alloc_bytes": 28968.0,
+        "instruction_median": 161816.09375,
+        "instruction_repeat_range_percent": 0.807289428682059
+      },
+      "codec.adoption.pbrs.maps.n8.fully_read_clone": {
+        "instruction_samples": [
+          34327.99609375,
+          34323.53125,
+          34324.51953125
+        ],
+        "fingerprint": "fnv1a64:3415f6efcea7172c",
+        "allocs": 109.0,
+        "alloc_bytes": 8320.0,
+        "instruction_median": 34324.51953125,
+        "instruction_repeat_range_percent": 0.013007738523288234
+      },
+      "codec.adoption.prost.maps.n8.fresh_encode": {
+        "instruction_samples": [
+          157437.734375,
+          157716.7109375,
+          157517.90625
+        ],
+        "fingerprint": "fnv1a64:3415f6efcea7172c",
+        "allocs": 240.0,
+        "alloc_bytes": 19431.0,
+        "instruction_median": 157517.90625,
+        "instruction_repeat_range_percent": 0.17710784071572816
+      },
+      "codec.adoption.prost.maps.n8.owned_decode": {
+        "instruction_samples": [
+          109482.17578125,
+          109509.65234375,
+          109692.33984375
+        ],
+        "fingerprint": "fnv1a64:3415f6efcea7172c",
+        "allocs": 174.0,
+        "alloc_bytes": 20459.0,
+        "instruction_median": 109509.65234375,
+        "instruction_repeat_range_percent": 0.1919137336317136
+      },
+      "codec.adoption.prost.maps.n8.read_all": {
+        "instruction_samples": [
+          163315.8984375,
+          162728.42578125,
+          163252.1953125
+        ],
+        "fingerprint": "fnv1a64:3415f6efcea7172c",
+        "allocs": 206.0,
+        "alloc_bytes": 26191.0,
+        "instruction_median": 163252.1953125,
+        "instruction_repeat_range_percent": 0.35985589971727505
+      },
+      "codec.adoption.prost.maps.n8.fully_read_clone": {
+        "instruction_samples": [
+          57863.8671875,
+          56294.921875,
+          56726.80859375
+        ],
+        "fingerprint": "fnv1a64:3415f6efcea7172c",
+        "allocs": 159.0,
+        "alloc_bytes": 10718.0,
+        "instruction_median": 56726.80859375,
+        "instruction_repeat_range_percent": 2.7657916096356283
+      },
+      "codec.adoption.pbrs.maps.n64.fresh_encode": {
+        "instruction_samples": [
+          554838.96875,
+          555164.28515625,
+          554363.3125
+        ],
+        "fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+        "allocs": 497.0,
+        "alloc_bytes": 48073.0,
+        "instruction_median": 554838.96875,
+        "instruction_repeat_range_percent": 0.1443612834286885
+      },
+      "codec.adoption.pbrs.maps.n64.owned_decode": {
+        "instruction_samples": [
+          181400.9921875,
+          177791.765625,
+          180184.171875
+        ],
+        "fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+        "allocs": 162.0,
+        "alloc_bytes": 44744.0,
+        "instruction_median": 180184.171875,
+        "instruction_repeat_range_percent": 2.003076366221471
+      },
+      "codec.adoption.pbrs.maps.n64.read_all": {
+        "instruction_samples": [
+          404066.94921875,
+          399169.03125,
+          402641.4296875
+        ],
+        "fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+        "allocs": 208.0,
+        "alloc_bytes": 61832.0,
+        "instruction_median": 402641.4296875,
+        "instruction_repeat_range_percent": 1.2164465968023697
+      },
+      "codec.adoption.pbrs.maps.n64.fully_read_clone": {
+        "instruction_samples": [
+          68802.265625,
+          70106.4609375,
+          65880.5234375
+        ],
+        "fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+        "allocs": 132.0,
+        "alloc_bytes": 18200.0,
+        "instruction_median": 68802.265625,
+        "instruction_repeat_range_percent": 6.142148752823138
+      },
+      "codec.adoption.prost.maps.n64.fresh_encode": {
+        "instruction_samples": [
+          343323.6484375,
+          342473.890625,
+          342547.0859375
+        ],
+        "fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+        "allocs": 375.0,
+        "alloc_bytes": 33229.0,
+        "instruction_median": 342547.0859375,
+        "instruction_repeat_range_percent": 0.248070366786026
+      },
+      "codec.adoption.prost.maps.n64.owned_decode": {
+        "instruction_samples": [
+          333321.05078125,
+          333868.9765625,
+          333942.6171875
+        ],
+        "fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+        "allocs": 326.0,
+        "alloc_bytes": 42096.0,
+        "instruction_median": 333868.9765625,
+        "instruction_repeat_range_percent": 0.18617075855613174
+      },
+      "codec.adoption.prost.maps.n64.read_all": {
+        "instruction_samples": [
+          404479.2265625,
+          404195.08984375,
+          404561.7265625
+        ],
+        "fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+        "allocs": 358.0,
+        "alloc_bytes": 47828.0,
+        "instruction_median": 404479.2265625,
+        "instruction_repeat_range_percent": 0.09064414058192613
+      },
+      "codec.adoption.prost.maps.n64.fully_read_clone": {
+        "instruction_samples": [
+          125670.37109375,
+          121539.83203125,
+          122824.4609375
+        ],
+        "fingerprint": "fnv1a64:df47aa0f5c5dfb0f",
+        "allocs": 294.0,
+        "alloc_bytes": 22090.0,
+        "instruction_median": 122824.4609375,
+        "instruction_repeat_range_percent": 3.3629612790255607
+      },
+      "codec.adoption.pbrs.maps.n512.fresh_encode": {
+        "instruction_samples": [
+          17598082.984375,
+          17597949.71875,
+          17598477.21875
+        ],
+        "fingerprint": "fnv1a64:0094218e21c0b475",
+        "allocs": 1757.0,
+        "alloc_bytes": 228859.0,
+        "instruction_median": 17598082.984375,
+        "instruction_repeat_range_percent": 0.0029974855810621934
+      },
+      "codec.adoption.pbrs.maps.n512.owned_decode": {
+        "instruction_samples": [
+          940888.859375,
+          935698.96875,
+          933098.97265625
+        ],
+        "fingerprint": "fnv1a64:0094218e21c0b475",
+        "allocs": 437.0,
+        "alloc_bytes": 215960.0,
+        "instruction_median": 935698.96875,
+        "instruction_repeat_range_percent": 0.8325206053349089
+      },
+      "codec.adoption.pbrs.maps.n512.read_all": {
+        "instruction_samples": [
+          2288567.10546875,
+          2270818.3515625,
+          2300149.8984375
+        ],
+        "fingerprint": "fnv1a64:0094218e21c0b475",
+        "allocs": 491.0,
+        "alloc_bytes": 368216.0,
+        "instruction_median": 2288567.10546875,
+        "instruction_repeat_range_percent": 1.2816555304369037
+      },
+      "codec.adoption.pbrs.maps.n512.fully_read_clone": {
+        "instruction_samples": [
+          243816.7734375,
+          241453.80859375,
+          241673.69140625
+        ],
+        "fingerprint": "fnv1a64:0094218e21c0b475",
+        "allocs": 311.0,
+        "alloc_bytes": 97040.0,
+        "instruction_median": 241673.69140625,
+        "instruction_repeat_range_percent": 0.9777501349031369
+      },
+      "codec.adoption.prost.maps.n512.fresh_encode": {
+        "instruction_samples": [
+          1733829.28515625,
+          1732478.76171875,
+          1733005.28515625
+        ],
+        "fingerprint": "fnv1a64:0094218e21c0b475",
+        "allocs": 1450.0,
+        "alloc_bytes": 144135.0,
+        "instruction_median": 1733005.28515625,
+        "instruction_repeat_range_percent": 0.07792956253899913
+      },
+      "codec.adoption.prost.maps.n512.owned_decode": {
+        "instruction_samples": [
+          1940083.18359375,
+          1939701.7578125,
+          1939244.2265625
+        ],
+        "fingerprint": "fnv1a64:0094218e21c0b475",
+        "allocs": 1497.0,
+        "alloc_bytes": 214576.0,
+        "instruction_median": 1939701.7578125,
+        "instruction_repeat_range_percent": 0.04325185703786413
+      },
+      "codec.adoption.prost.maps.n512.read_all": {
+        "instruction_samples": [
+          2156392.28515625,
+          2155494.62890625,
+          2156312.109375
+        ],
+        "fingerprint": "fnv1a64:0094218e21c0b475",
+        "allocs": 1529.0,
+        "alloc_bytes": 220308.0,
+        "instruction_median": 2156312.109375,
+        "instruction_repeat_range_percent": 0.04162923567962445
+      },
+      "codec.adoption.prost.maps.n512.fully_read_clone": {
+        "instruction_samples": [
+          597844.7109375,
+          598448.34375,
+          599671.46875
+        ],
+        "fingerprint": "fnv1a64:0094218e21c0b475",
+        "allocs": 1369.0,
+        "alloc_bytes": 113114.0,
+        "instruction_median": 598448.34375,
+        "instruction_repeat_range_percent": 0.30524903804615133
+      }
+    }
+  },
+  "comparison": {
+    "codec.adoption.pbrs.maps.n8.fresh_encode": {
+      "instructions": {
+        "first": 160774.27734375,
+        "second": 162444.24609375,
+        "delta_percent": 1.0387039379623242
+      },
+      "allocs": {
+        "first": 333.0,
+        "second": 333.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 25515.0,
+        "second": 25515.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.30859375,
+        "second": 0.30859375,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.pbrs.maps.n8.owned_decode": {
+      "instructions": {
+        "first": 87407.484375,
+        "second": 87599.5859375,
+        "delta_percent": 0.21977701780757833
+      },
+      "allocs": {
+        "first": 122.0,
+        "second": 122.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 23400.0,
+        "second": 23400.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.30859375,
+        "second": 0.30859375,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.pbrs.maps.n8.read_all": {
+      "instructions": {
+        "first": 161923.54296875,
+        "second": 161816.09375,
+        "delta_percent": -0.0663579963605026
+      },
+      "allocs": {
+        "first": 160.0,
+        "second": 160.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 28968.0,
+        "second": 28968.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.30859375,
+        "second": 0.30859375,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.pbrs.maps.n8.fully_read_clone": {
+      "instructions": {
+        "first": 34321.99609375,
+        "second": 34324.51953125,
+        "delta_percent": 0.007352245752570071
+      },
+      "allocs": {
+        "first": 109.0,
+        "second": 109.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 8320.0,
+        "second": 8320.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.30859375,
+        "second": 0.30859375,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.prost.maps.n8.fresh_encode": {
+      "instructions": {
+        "first": 157832.07421875,
+        "second": 157517.90625,
+        "delta_percent": -0.1990520433220523
+      },
+      "allocs": {
+        "first": 240.0,
+        "second": 240.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 19431.0,
+        "second": 19431.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.30859375,
+        "second": 0.30859375,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.prost.maps.n8.owned_decode": {
+      "instructions": {
+        "first": 109598.84765625,
+        "second": 109509.65234375,
+        "delta_percent": -0.08138344007024195
+      },
+      "allocs": {
+        "first": 174.0,
+        "second": 174.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 20459.0,
+        "second": 20459.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.30859375,
+        "second": 0.30859375,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.prost.maps.n8.read_all": {
+      "instructions": {
+        "first": 162914.953125,
+        "second": 163252.1953125,
+        "delta_percent": 0.2070050544968967
+      },
+      "allocs": {
+        "first": 206.0,
+        "second": 206.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 26191.0,
+        "second": 26191.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.30859375,
+        "second": 0.30859375,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.prost.maps.n8.fully_read_clone": {
+      "instructions": {
+        "first": 57728.96875,
+        "second": 56726.80859375,
+        "delta_percent": -1.7359744647266022
+      },
+      "allocs": {
+        "first": 159.0,
+        "second": 159.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 10718.0,
+        "second": 10718.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.30859375,
+        "second": 0.30859375,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.pbrs.maps.n64.fresh_encode": {
+      "instructions": {
+        "first": 556264.96484375,
+        "second": 554838.96875,
+        "delta_percent": -0.2563519516550085
+      },
+      "allocs": {
+        "first": 497.0,
+        "second": 497.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 48073.0,
+        "second": 48073.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.3125,
+        "second": 0.3125,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.pbrs.maps.n64.owned_decode": {
+      "instructions": {
+        "first": 177658.03515625,
+        "second": 180184.171875,
+        "delta_percent": 1.4219096347250864
+      },
+      "allocs": {
+        "first": 162.0,
+        "second": 162.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 44744.0,
+        "second": 44744.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.3125,
+        "second": 0.3125,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.pbrs.maps.n64.read_all": {
+      "instructions": {
+        "first": 402350.203125,
+        "second": 402641.4296875,
+        "delta_percent": 0.07238136335910418
+      },
+      "allocs": {
+        "first": 208.0,
+        "second": 208.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 61832.0,
+        "second": 61832.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.3125,
+        "second": 0.3125,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.pbrs.maps.n64.fully_read_clone": {
+      "instructions": {
+        "first": 68003.90234375,
+        "second": 68802.265625,
+        "delta_percent": 1.173996276293657
+      },
+      "allocs": {
+        "first": 132.0,
+        "second": 132.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 18200.0,
+        "second": 18200.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.3125,
+        "second": 0.3125,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.prost.maps.n64.fresh_encode": {
+      "instructions": {
+        "first": 342208.609375,
+        "second": 342547.0859375,
+        "delta_percent": 0.09890942344150366
+      },
+      "allocs": {
+        "first": 375.0,
+        "second": 375.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 33229.0,
+        "second": 33229.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.3125,
+        "second": 0.3125,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.prost.maps.n64.owned_decode": {
+      "instructions": {
+        "first": 333787.734375,
+        "second": 333868.9765625,
+        "delta_percent": 0.024339476599438782
+      },
+      "allocs": {
+        "first": 326.0,
+        "second": 326.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 42096.0,
+        "second": 42096.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.3125,
+        "second": 0.3125,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.prost.maps.n64.read_all": {
+      "instructions": {
+        "first": 404737.63671875,
+        "second": 404479.2265625,
+        "delta_percent": -0.06384633718399849
+      },
+      "allocs": {
+        "first": 358.0,
+        "second": 358.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 47828.0,
+        "second": 47828.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.3125,
+        "second": 0.3125,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.prost.maps.n64.fully_read_clone": {
+      "instructions": {
+        "first": 124823.10546875,
+        "second": 122824.4609375,
+        "delta_percent": -1.601181547073726
+      },
+      "allocs": {
+        "first": 294.0,
+        "second": 294.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 22090.0,
+        "second": 22090.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.3125,
+        "second": 0.3125,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.pbrs.maps.n512.fresh_encode": {
+      "instructions": {
+        "first": 17598319.171875,
+        "second": 17598082.984375,
+        "delta_percent": -0.0013421026047616318
+      },
+      "allocs": {
+        "first": 1757.0,
+        "second": 1757.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 228859.0,
+        "second": 228859.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.35546875,
+        "second": 0.35546875,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.pbrs.maps.n512.owned_decode": {
+      "instructions": {
+        "first": 939191.49609375,
+        "second": 935698.96875,
+        "delta_percent": -0.3718653073708598
+      },
+      "allocs": {
+        "first": 437.0,
+        "second": 437.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 215960.0,
+        "second": 215960.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.35546875,
+        "second": 0.35546875,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.pbrs.maps.n512.read_all": {
+      "instructions": {
+        "first": 2275422.5234375,
+        "second": 2288567.10546875,
+        "delta_percent": 0.5776765368127045
+      },
+      "allocs": {
+        "first": 491.0,
+        "second": 491.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 368216.0,
+        "second": 368216.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.35546875,
+        "second": 0.359375,
+        "delta_percent": 1.098901098901099
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.pbrs.maps.n512.fully_read_clone": {
+      "instructions": {
+        "first": 242364.90234375,
+        "second": 241673.69140625,
+        "delta_percent": -0.2851943209663438
+      },
+      "allocs": {
+        "first": 311.0,
+        "second": 311.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 97040.0,
+        "second": 97040.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.35546875,
+        "second": 0.35546875,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.prost.maps.n512.fresh_encode": {
+      "instructions": {
+        "first": 1733418.40234375,
+        "second": 1733005.28515625,
+        "delta_percent": -0.02383251423553745
+      },
+      "allocs": {
+        "first": 1450.0,
+        "second": 1450.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 144135.0,
+        "second": 144135.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.35546875,
+        "second": 0.35546875,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.prost.maps.n512.owned_decode": {
+      "instructions": {
+        "first": 1938661.67578125,
+        "second": 1939701.7578125,
+        "delta_percent": 0.05364948635665701
+      },
+      "allocs": {
+        "first": 1497.0,
+        "second": 1497.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 214576.0,
+        "second": 214576.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.35546875,
+        "second": 0.35546875,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.prost.maps.n512.read_all": {
+      "instructions": {
+        "first": 2157663.83203125,
+        "second": 2156312.109375,
+        "delta_percent": -0.06264750959733484
+      },
+      "allocs": {
+        "first": 1529.0,
+        "second": 1529.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 220308.0,
+        "second": 220308.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.359375,
+        "second": 0.35546875,
+        "delta_percent": -1.0869565217391304
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    },
+    "codec.adoption.prost.maps.n512.fully_read_clone": {
+      "instructions": {
+        "first": 598633.00390625,
+        "second": 598448.34375,
+        "delta_percent": -0.030846972192485236
+      },
+      "allocs": {
+        "first": 1369.0,
+        "second": 1369.0,
+        "delta_percent": 0.0
+      },
+      "alloc_bytes": {
+        "first": 113114.0,
+        "second": 113114.0,
+        "delta_percent": 0.0
+      },
+      "syscalls": {
+        "first": 0.35546875,
+        "second": 0.35546875,
+        "delta_percent": 0.0
+      },
+      "locks": {
+        "first": 0.0,
+        "second": 0.0,
+        "delta_percent": null
+      }
+    }
+  },
+  "collector_comparisons": {
+    "1-to-2": {
+      "command": [
+        "/workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop",
+        "compare",
+        "--baseline",
+        "/workspace/pure-protobuf/work/sb31/docs/evidence/sb-31-replay-1.json",
+        "--current",
+        "/workspace/pure-protobuf/work/sb31/docs/evidence/sb-31-replay-2.json"
+      ],
+      "exit_code": 1
+    },
+    "2-to-1": {
+      "command": [
+        "/workspace/pure-protobuf/work/sb31/target/sb31-devloop/release/devloop",
+        "compare",
+        "--baseline",
+        "/workspace/pure-protobuf/work/sb31/docs/evidence/sb-31-replay-2.json",
+        "--current",
+        "/workspace/pure-protobuf/work/sb31/docs/evidence/sb-31-replay-1.json"
+      ],
+      "exit_code": 1
+    }
+  },
+  "tool_versions": {
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.0\nLLVM version: 23.1.1",
+    "rustfmt": "rustfmt 1.10.0-stable (b940084d7e 2026-09-28)",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "protoc": "libprotoc 35.1",
+    "valgrind": "valgrind-3.24.0",
+    "gcc": "gcc (Debian 14.2.0-19) 14.2.0\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "strace": "strace -- version 6.13\nCopyright (c) 1991-2025 The strace developers <https://strace.io>.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\nOptional features enabled: stack-trace=libunwind stack-demangle m32-mpers mx32-mpers"
+  },
+  "tool_binary_sha256": {
+    "/workspace/pure-protobuf/target/conformance-build/protoc": "ba5165ada96fc34d1295b2056ab8ea99756f7896a0ef0449d07f721595702b28",
+    "/workspace/pure-protobuf/work/toolchain/deb/usr/bin/valgrind": "4652774bd116cb49951ef74115ad4237cad5021b2bd4d80002f09d986ec438b9",
+    "/workspace/pure-protobuf/work/toolchain/deb/usr/bin/valgrind.bin": "333955eab1162f0b5031e7f238e0aece3ee5c6e1ea00f1b93cdb52baa3242179",
+    "/workspace/pure-protobuf/work/toolchain/deb/usr/libexec/valgrind/callgrind-amd64-linux": "340065228e4a322aacbc4e11fcd39162a3e20fba4b4aa965708e50012175a8c5"
+  },
+  "checks": {
+    "corpus-tests": {
+      "command": "cargo test --locked --manifest-path bench/devloop/adoption/Cargo.toml --target-dir target/sb31-adoption -j2",
+      "passed": 13
+    },
+    "collector-tests": {
+      "command": "cargo test --locked --manifest-path bench/devloop/Cargo.toml --target-dir target/sb31-devloop -j2",
+      "passed": 14
+    },
+    "corpus-clippy": {
+      "command": "cargo clippy --locked --manifest-path bench/devloop/adoption/Cargo.toml --target-dir target/sb31-adoption -j2 --all-targets -- -D warnings",
+      "passed": true
+    },
+    "collector-clippy": {
+      "command": "cargo clippy --locked --manifest-path bench/devloop/Cargo.toml --target-dir target/sb31-devloop -j2 --all-targets -- -D warnings",
+      "passed": true
+    },
+    "fixture-check": {
+      "command": "python3 bench/devloop/adoption/generate.py --check",
+      "passed": true
+    },
+    "format-checks": {
+      "command": "cargo fmt --manifest-path bench/devloop/Cargo.toml --check; cargo fmt --manifest-path bench/devloop/adoption/Cargo.toml --check",
+      "passed": true
+    },
+    "map-rpc-preflight": {
+      "command": "devloop run-cell <each of all 24 map RPC IDs> --iters 1 --warmup 0",
+      "rejected": 24,
+      "reason": "RPC encoded bytes must agree"
+    }
+  },
+  "artifacts_sha256": {
+    "sb-31-adoption-clippy.txt": "de9a554c1dd3cabfbd9a7bcc3487b1c21814df643d4812ed665033b1a32fb399",
+    "sb-31-adoption-tests.txt": "4d21d822ad2b81c8935af785752165bf4ebfb8f101bf7f91940cfa5136d7fdf3",
+    "sb-31-collector-clippy.txt": "f2832c0be68eabe9c48f780d141d84ea26f537cf64ab02240b4ac621c0fae791",
+    "sb-31-collector-release-build.txt": "77b75b9d74c362acef116d3c0d7ea3ac547af9823d9cc2abfdf1f2db47b23cd5",
+    "sb-31-collector-tests.txt": "b216d1377abdf26e3519a315e3a738d57c027febfcce70fe564cde62a2bf39ef",
+    "sb-31-compare-1-to-2.txt": "00d33512478a049f7667519a9caa63d48533159e68a409d14e6a767ffb00338d",
+    "sb-31-compare-2-to-1.txt": "72ff69df5adc1d2ef2c7eabe46a13aa73ecf46c160f2e1ef2feb6a3f5306bb67",
+    "sb-31-fixture-check.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sb-31-libc-copy-attribution.json": "86ee4be1f76b42bcf18ce8d547b61bafe433e29d49440bf85f9b67211098cbb9",
+    "sb-31-libc-copy-disassembly.txt": "b2aaea0744e33947bbb65ee5528c737fb11bbf044b73a24a0dbc4c3b8955b734",
+    "sb-31-pilot-raw.jsonl": "fd0f8ee84caf9cc1b95da520686ca6d68fb82ca6aab1b70bf227f035bb46c6ed",
+    "sb-31-pilot.json": "5bfe998344b7dedf2caecd13a8d700a7daeea3d307cac4431ab26b4cce1ab512",
+    "sb-31-read-all-profile-1.callgrind": "a5cfb591fefcb5170613ed6b2e231e51c143214ce110b41105eb34d3cc775d95",
+    "sb-31-read-all-profile-1.txt": "0624f6099beea31bb7a9cf0cd1d2e45875fe45dbdd96bb1cbac6a181159aff78",
+    "sb-31-read-all-profile-2.callgrind": "43c273d7c30c6054bca84f77a5a5d7b0deef29332ba6abe53ea08ca989546f64",
+    "sb-31-read-all-profile-2.txt": "1b3e5175ef813a4c9ff3f05facab9348479ac364f39465a2ad71aac67bcc64d0",
+    "sb-31-replay-1-raw.jsonl": "31922db0d991eacccb83a4047c6d258c688a880202a9e088a05866ba674fbbab",
+    "sb-31-replay-1.json": "c85d1feb6837e4916455709eb8177c328e5736058f9fcf6fc40f72db55ed7f20",
+    "sb-31-replay-2-raw.jsonl": "94f6e5b3554b1a3902a9d88f3eb3e6728afa9f8c75f11048c9bbc265822cc918",
+    "sb-31-replay-2.json": "05a7a1a63d577f9a4f7e66e19f47ba28fd7a6d75b328db036927617bab494f37",
+    "sb-31-rpc-preflight.json": "23233da19ef82862db24dee3bb52e0960dc6c72574a9682c78f4fb0007bff8a4",
+    "sb-31-target-pilot-raw.jsonl": "60f1c70bdc89e4e8e8f2f2606d6d037fd3e429ec3b4499a71c475d1f564e2032",
+    "sb-31-target-pilot.json": "4f3a08e86821cfde4f29286344d43ffff4b0b75f0ff0fe63de1d3e9c4644fcd8"
+  },
+  "host_limits": {
+    "cpu_quota": "400000 100000",
+    "effective_cpuset": "0-4",
+    "dedicated_host": false,
+    "concurrent_work": "Other compilation/tests on shared host; target timing pilot overlapped start of first full replay. Full replay reports are sequential."
+  },
+  "legacy_card_checks": {
+    "codec-bench": {
+      "owner": "coordinator",
+      "outcome": "two failed historical diagnostic smoke measurements",
+      "pre_regeneration_losses": 4,
+      "post_regeneration_losses": 3,
+      "performance_qualification": false
+    },
+    "rpc-bench-tests": {
+      "owner": "coordinator",
+      "bin_passed": 93,
+      "worker_passed": 95,
+      "fairness_passed": 1
+    }
+  },
+  "result": {
+    "deterministic_map_inputs_qualified": true,
+    "same_binary_comparison_passed": false,
+    "pk31_resume": false,
+    "largest_absolute_instruction_delta_percent": 1.7359744647266022,
+    "interpretation": "Input order/fingerprint repair is qualified. Identical-binary instruction/syscall controls still fail the unchanged 1% rule; runtime map optimization remains blocked."
+  }
+}
