@@ -328,7 +328,7 @@ When using the `protoc` plugin directly:
 protoc \
   --plugin=protoc-gen-pbrs \
   --pbrs_out=target/gen \
-  --pbrs_opt=extern_path=.google.protobuf=::pbrs::wkt \
+  --pbrs_opt=extern_path=.google.protobuf=::custom_pbrs::wkt \
   --pbrs_opt=extern_path=.company.common=::common_crate::company::common \
   --pbrs_opt=runtime_crate=::custom_pbrs \
   --pbrs_opt=grpc_crate=::custom_grpc \

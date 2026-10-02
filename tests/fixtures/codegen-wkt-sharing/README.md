@@ -7,6 +7,8 @@ previous three copies of the descriptor schema. `wkt_a.proto` and
 single-file nested inclusion, and the documented `::pbrs::wkt` mapping.
 `local/descriptor.proto` checks that an automatically added descriptor owner
 does not remove the explicitly requested input's flat `descriptor.rs` alias.
+`aliases.proto` checks an exact source alias mapped to the facade's existing
+Empty type, and diagnostics for missing facade destinations.
 
 The checked descriptor sets were generated with `libprotoc 35.1` from
 protobuf `v35.1`, source SHA `35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03`:
@@ -23,6 +25,9 @@ protoc -I tests/fixtures/codegen-wkt-sharing -I third_party/protobuf/src \
   --descriptor_set_out=tests/fixtures/codegen-wkt-sharing/wkts.fds \
   tests/fixtures/codegen-wkt-sharing/wkt_a.proto \
   tests/fixtures/codegen-wkt-sharing/wkt_b.proto
+protoc -I tests/fixtures/codegen-wkt-sharing --include_imports \
+  --descriptor_set_out=tests/fixtures/codegen-wkt-sharing/aliases.fds \
+  tests/fixtures/codegen-wkt-sharing/aliases.proto
 protoc -I third_party/protobuf/src --include_imports \
   --descriptor_set_out=tests/fixtures/codegen-wkt-sharing/timestamp.fds \
   google/protobuf/timestamp.proto
@@ -39,6 +44,7 @@ protoc -I tests/fixtures/codegen-wkt-sharing -I third_party/protobuf/src \
 | `wkts.fds` | `2e0709b0c25ec8f01e79791b700e5a1ab8247552e86e4373d6451c317ee20cb2` |
 | `timestamp.fds` | `2af537ffe8f72cc57d40aa07ae6aab13ba9f1ce671e92edfd827c5dacd35d27b` |
 | `alias.fds` | `e01ac878770e73da2c85092cc82eba48efe913ed2372f00edd8dec8222918a21` |
+| `aliases.fds` | `d5f1cfee73b5f6f521c97edb1d7e9f02e5755676eb10b4f5e8cd626676a7a2e8` |
 
 The regression suite uses these sets so it needs neither a downloaded
 protobuf source tree nor a new protoc in ordinary CI. Live pinned-source

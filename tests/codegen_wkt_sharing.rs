@@ -144,6 +144,53 @@ fn main() {
     marker.descriptor_mut().set_name("schema");
     assert_eq!(marker.descriptor().name(), "schema");
 }
+
 "#,
     );
+}
+
+#[test]
+fn exact_external_mapping_can_alias_an_existing_facade_type() {
+    let fixture = root().join("tests/fixtures/codegen-wkt-sharing");
+    let output = root().join("target/gn11-tests/exact-alias");
+    let mut config = pbrs::codegen::Config::new();
+    config
+        .out_dir(&output)
+        .emit_kernel_stubs(false)
+        .extern_path(".custom.EmptyAlias", "::pbrs::wkt::Empty");
+    config
+        .compile_descriptor_set(
+            fixture.join("aliases.fds"),
+            &[PathBuf::from("aliases.proto")],
+            std::slice::from_ref(&fixture),
+        )
+        .unwrap();
+    compile(
+        &output,
+        "exact-alias",
+        r#"
+mod nested { include!("../../aliases.rs"); }
+fn main() {
+    let mut holder = nested::AliasHolder::new();
+    pbrs::CopyFrom::copy_from(holder.item_mut(), &pbrs::wkt::Empty::new());
+    let wire = pbrs::Serialize::serialize(&holder).unwrap();
+    let _ = <nested::AliasHolder as pbrs::Parse>::parse(&wire).unwrap();
+}
+"#,
+    );
+    for unsupported in ["::pbrs::wkt::Missing", "::pbrs::wkt"] {
+        let mut config = pbrs::codegen::Config::new();
+        config
+            .out_dir(&output)
+            .extern_path(".custom.EmptyAlias", unsupported);
+        let error = config
+            .compile_descriptor_set(
+                fixture.join("aliases.fds"),
+                &[PathBuf::from("aliases.proto")],
+                std::slice::from_ref(&fixture),
+            )
+            .expect_err("facade destination must name an exported type");
+        assert!(error.to_string().contains("does not provide"), "{error}");
+        assert!(error.to_string().contains(unsupported), "{error}");
+    }
 }

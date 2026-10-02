@@ -250,21 +250,26 @@ pub fn generate_from_code_generator_request(
                 ),
             });
         }
-        if facts.is_extern
-            && !facts.is_map_entry
-            && match_extern_type(&facts.name).is_some_and(|path| {
-                let path = path.trim_start_matches(':');
-                path.starts_with("pbrs::wkt::") || path.starts_with(&facade)
-            })
-            && !bundled_wkt_type(&facts.name)
-        {
-            return Err(CodegenError::InvalidParameter {
-                key: "extern_path".into(),
-                detail: format!(
-                    "pbrs::wkt does not provide {}; generate its google.protobuf source separately and map it to that module",
-                    facts.name
-                ),
-            });
+        if facts.is_extern && !facts.is_map_entry {
+            if let Some(path) = match_extern_type(&facts.name) {
+                let normalized = path.trim_start_matches(':');
+                let destination = normalized
+                    .strip_prefix("pbrs::wkt::")
+                    .or_else(|| normalized.strip_prefix(&facade))
+                    .or_else(|| {
+                        (normalized == "pbrs::wkt" || normalized == facade.trim_end_matches(':'))
+                            .then_some("")
+                    });
+                if destination.is_some_and(|name| !bundled_wkt_type(name)) {
+                    return Err(CodegenError::InvalidParameter {
+                        key: "extern_path".into(),
+                        detail: format!(
+                            "pbrs::wkt does not provide {path} for {}; generate its source separately and map it to that module",
+                            facts.name
+                        ),
+                    });
+                }
+            }
         }
         if share_wkt && facts.is_wkt && !facts.is_extern && !requested_matcher.matches(&facts.file)
         {
@@ -659,24 +664,24 @@ use pbrs::UnknownFields;\n\n"
 fn bundled_wkt_type(name: &str) -> bool {
     matches!(
         name,
-        "google.protobuf.Any"
-            | "google.protobuf.Duration"
-            | "google.protobuf.Timestamp"
-            | "google.protobuf.Empty"
-            | "google.protobuf.FieldMask"
-            | "google.protobuf.Struct"
-            | "google.protobuf.Value"
-            | "google.protobuf.ListValue"
-            | "google.protobuf.NullValue"
-            | "google.protobuf.BoolValue"
-            | "google.protobuf.BytesValue"
-            | "google.protobuf.DoubleValue"
-            | "google.protobuf.FloatValue"
-            | "google.protobuf.Int32Value"
-            | "google.protobuf.Int64Value"
-            | "google.protobuf.StringValue"
-            | "google.protobuf.UInt32Value"
-            | "google.protobuf.UInt64Value"
+        "Any"
+            | "Duration"
+            | "Timestamp"
+            | "Empty"
+            | "FieldMask"
+            | "Struct"
+            | "PbValue"
+            | "ListValue"
+            | "NullValue"
+            | "BoolValue"
+            | "BytesValue"
+            | "DoubleValue"
+            | "FloatValue"
+            | "Int32Value"
+            | "Int64Value"
+            | "StringValue"
+            | "UInt32Value"
+            | "UInt64Value"
     )
 }
 

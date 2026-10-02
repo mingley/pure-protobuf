@@ -14,7 +14,9 @@ pub(crate) fn generate(
 ) -> Result<PathBuf, pbrs::codegen::CodegenError> {
     let fixture = root().join("tests/fixtures/codegen-wkt-sharing");
     let output = root().join("target/gn11-tests").join(name);
-    let _ = std::fs::remove_dir_all(&output);
+    if let Err(error) = std::fs::remove_dir_all(&output) {
+        assert_eq!(error.kind(), std::io::ErrorKind::NotFound, "{error}");
+    }
     let sources: Vec<_> = protos.iter().map(PathBuf::from).collect();
     let descriptor = if protos.first() == Some(&"local/descriptor.proto") {
         "alias.fds"
