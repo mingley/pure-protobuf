@@ -2982,8 +2982,8 @@
     "B2"
    ],
    "relates": [],
-   "status": "done",
-   "notes": "2026-09-29 coordinator: integrated 1bb3f336 (matcher/facts/parallel emission; EMIT flags added inside per-thread helper at integration). Verified: 10+30+41 tests, clippy/fmt, parallel determinism + EMIT-honored probes green. Accept 1 met; accept 2 substantially met (beats prost 4/7 to 2.1x, v4 ~all; residual Envoy-core/googleapis gaps structural on output volume) with re-measure owed after GN-02 lands.",
+   "status": "in_progress",
+   "notes": "2026-09-29 coordinator: integrated 1bb3f336 (matcher/facts/parallel emission; EMIT flags added inside per-thread helper at integration). Verified: 10+30+41 tests, clippy/fmt, parallel determinism + EMIT-honored probes green. Accept 1 met; accept 2 substantially met (beats prost 4/7 to 2.1x, v4 ~all; residual Envoy-core/googleapis gaps structural on output volume) with re-measure owed after GN-02 lands. Reopened 2026-10-02: docs/evidence/gn04-codegen-speed.md explicitly records partial performance acceptance, including the lean-profile losses; the previous done label does not satisfy all recorded acceptance items. Existing implementation remains integrated; current-source requalification is still owed.",
    "evidence": [
     "docs/evidence/gn04-codegen-speed.md"
    ]
@@ -7138,8 +7138,8 @@
    "evidence": [
     "docs/evidence/sb21-claims-scenarios.md"
    ],
-   "notes": "Execution 2026-09-29: 6279b63b delivers atomic completion-window conservation, scheduled-send histograms, carry-in/unfinished counts, randomized peer repeats, and frozen stack-matrix execution. Native accounting smoke passes; pinned Go nominal 5000-QPS run is rejected. Its source applies OfferedLoad per outstanding slot, not aggregate; the old QPS-only window cannot be reconstructed from that fact. Keep open for reference aggregate arrival-rate normalization, equivalent arrival schedules/independent accounting, and a valid two-harness scenario smoke with generator headroom; the frozen-order wiring smoke correctly invalidated all rows for scheduling lag.",
-   "implementer": "sb21_claim_accounting",
+   "notes": "Execution 2026-09-29: 6279b63b delivers atomic completion-window conservation, scheduled-send histograms, carry-in/unfinished counts, randomized peer repeats, and frozen stack-matrix execution. Native accounting smoke passes; pinned Go nominal 5000-QPS run is rejected. Its source applies OfferedLoad per outstanding slot, not aggregate; the old QPS-only window cannot be reconstructed from that fact. Keep open for reference aggregate arrival-rate normalization, equivalent arrival schedules/independent accounting, and a valid two-harness scenario smoke with generator headroom; the frozen-order wiring smoke correctly invalidated all rows for scheduling lag. Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure.",
+   "implementer": "sb31_claim_accounting",
    "reviewer": "coordinator"
   },
   {
@@ -8936,7 +8936,8 @@
    "depends_on": [
     "QG-05",
     "RT-07",
-    "SB-24"
+    "SB-24",
+    "QG-06a"
    ],
    "read": [
     "docs/resource-budgets.md",
@@ -9132,7 +9133,9 @@
     "CG-05",
     "CG-19"
    ],
-   "notes": "Observed 2026-09-29 while evaluating adoption against a private production-shaped corpus (deeply nested recursive query trees; responses of repeated entity records carrying google.protobuf.Any payloads) with pbrs 18e36617, prost 0.14.3 and tonic 0.14.6: Linux arm64 callgrind (2N-N)/N instructions and exact counting-allocator allocations; dev-loop evidence only, not claim-grade. A 20-file production-shaped closure whose option schemas import descriptor.proto generated 284,377 lines (19.5 MB) versus prost's 1,825 lines (71 KB). Generating google/protobuf once in a separate pass, mounting it at crate::google::protobuf and extern_path-ing the app files cut this to 104,913 lines (8.1 MB) and compiled; debug rebuild of that crate took 7.1-8.2 s vs prost 5.3-6.0 s."
+   "notes": "Observed 2026-09-29 while evaluating adoption against a private production-shaped corpus (deeply nested recursive query trees; responses of repeated entity records carrying google.protobuf.Any payloads) with pbrs 18e36617, prost 0.14.3 and tonic 0.14.6: Linux arm64 callgrind (2N-N)/N instructions and exact counting-allocator allocations; dev-loop evidence only, not claim-grade. A 20-file production-shaped closure whose option schemas import descriptor.proto generated 284,377 lines (19.5 MB) versus prost's 1,825 lines (71 KB). Generating google/protobuf once in a separate pass, mounting it at crate::google::protobuf and extern_path-ing the app files cut this to 104,913 lines (8.1 MB) and compiled; debug rebuild of that crate took 7.1-8.2 s vs prost 5.3-6.0 s. Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure.",
+   "status": "in_progress",
+   "implementer": "gn12_codegen_wkt"
   },
   {
    "id": "PK-26",
@@ -9535,7 +9538,10 @@
    "relates": [
     "TC-26",
     "TC-30"
-   ]
+   ],
+   "status": "in_progress",
+   "implementer": "tonic_client_transport",
+   "notes": " Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure."
   },
   {
    "id": "TC-30",
@@ -9742,7 +9748,7 @@
     "docs/evidence/tc32-coexistence.md",
     "docs/guides/migration.md#keep-an-existing-tonic-prost-build-pipeline"
    ],
-   "notes": "Conversion APIs and mixed-runtime tests are implemented and pass. Static bridge cost is one encode, one decode and one owned wire allocation with no intermediate buffer copy. Full SB-26 corpus measurements remain pending because SB-26 has not landed its generated corpora or baseline JSON."
+   "notes": "Conversion APIs and mixed-runtime tests are implemented and pass. Static bridge cost is one encode, one decode and one owned wire allocation with no intermediate buffer copy. Full SB-26 corpus measurements remain pending because SB-26 has not landed its generated corpora or baseline JSON. Reconciled 2026-10-02: generated corpora and codec/RPC artifacts now exist via SB-26a/c/d. The full bridge-cost measurement remains open; 24 map RPC cells still fail equal-wire qualification pending PK-30. The parent SB-26 is not complete."
   },
   {
    "id": "AD-01",
@@ -9937,7 +9943,10 @@
    ],
    "relates": [
     "CL-06"
-   ]
+   ],
+   "status": "in_progress",
+   "implementer": "gn13_cold_client",
+   "notes": " Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure."
   },
   {
    "id": "QG-08",
@@ -10269,7 +10278,10 @@
    "relates": [
     "RX-08",
     "RX-09"
-   ]
+   ],
+   "status": "in_progress",
+   "implementer": "server_streaming",
+   "notes": " Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure."
   },
   {
    "id": "CL-08",
@@ -11777,6 +11789,59 @@
     "docs/evidence/codegen-refresh/README.md",
     "docs/evidence/codegen-refresh/qualification.json"
    ]
+  },
+  {
+   "id": "QG-06a",
+   "title": "Make current-backend resource and recovery qualification reproducible",
+   "lane": "QG",
+   "milestone": "M2",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "status": "in_progress",
+   "implementer": "production_resources",
+   "depends_on": [
+    "QG-05",
+    "RT-07"
+   ],
+   "read": [
+    "docs/resource-budgets.md",
+    "pbrs-grpc/tests/hostile.rs",
+    "pbrs-grpc/tests/lifecycle.rs",
+    "docs/benchmark-contract.md",
+    "pbrs-grpc/src/server/"
+   ],
+   "write": [
+    "pbrs-grpc/tests/resource_qualification.rs",
+    "scripts/current-h2-soak.py",
+    "tests/test_current_h2_soak.py",
+    "docs/evidence/current-h2-soak.md",
+    "docs/resource-budgets.md",
+    "docs/evidence/"
+   ],
+   "deliverable": "A frozen finite-limit resource/recovery harness with structured raw observations and a short current-backend smoke; retain an explicit not-run 24-hour disposition until the exact candidate and required environment are qualified.",
+   "accept": [
+    "Reject missing/dirty source pins, nonfinite process limits and incomplete phase accounting before a qualification result is accepted.",
+    "A bounded smoke exercises slow readers, cancellation/deadline, overload and recovery and records RSS/tasks/file descriptors/stream or permit observations without equating protocol buffers with total RSS.",
+    "Test coupled max_send_buffer_size and ByteBudgetTracker default/builder ordering behavior; preserve shipping defaults and file a scoped compatibility correction if needed.",
+    "Retain exact commands, source/tool pins, seeds, raw observations and real failures. A short shared-host smoke cannot close QG-06 or its 24-hour acceptance."
+   ],
+   "checks": [
+    "native-hostile",
+    "native-rpc",
+    "native-tls",
+    "native-serving"
+   ],
+   "scoreboard": [
+    "D5",
+    "D7",
+    "F2",
+    "F3"
+   ],
+   "relates": [
+    "QG-06"
+   ],
+   "notes": "Split before work on 2026-10-02 under renewed execution authorization. Tooling/short diagnostics can proceed independently of the incomplete SB-24 campaign; production qualification remains with parent QG-06."
   }
  ],
  "last_audit": {
