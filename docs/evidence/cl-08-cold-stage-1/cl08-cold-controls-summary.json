@@ -1,0 +1,137 @@
+{
+  "schema": "cl08-cold-controls-validation/1",
+  "raw_children": 36,
+  "original_compare_exit": 1,
+  "unchanged_selfcompare_exits": [
+    0,
+    1
+  ],
+  "comparisons": [
+    {
+      "scope": "original",
+      "metrics": [
+        {
+          "metric": "instructions",
+          "before": 158677.43,
+          "after": 147353.745,
+          "relative_delta": -0.07136292162029595,
+          "unchanged_abs1percent_stable": null
+        },
+        {
+          "metric": "allocs",
+          "before": 57.025,
+          "after": 57.025,
+          "relative_delta": 0.0,
+          "unchanged_abs1percent_stable": null
+        },
+        {
+          "metric": "alloc_bytes",
+          "before": 62632.64,
+          "after": 56992.64,
+          "relative_delta": -0.09004889463385225,
+          "unchanged_abs1percent_stable": null
+        },
+        {
+          "metric": "syscalls",
+          "before": 30.635,
+          "after": 31.01,
+          "relative_delta": 0.01224090093030847,
+          "unchanged_abs1percent_stable": null
+        },
+        {
+          "metric": "locks",
+          "before": 14.81,
+          "after": 15.315,
+          "relative_delta": 0.03409858203916266,
+          "unchanged_abs1percent_stable": null
+        }
+      ]
+    },
+    {
+      "scope": "unchanged_baseline",
+      "metrics": [
+        {
+          "metric": "instructions",
+          "before": 158376.255,
+          "after": 157739.115,
+          "relative_delta": -0.004022951546619245,
+          "unchanged_abs1percent_stable": true
+        },
+        {
+          "metric": "allocs",
+          "before": 57.025,
+          "after": 57.025,
+          "relative_delta": 0.0,
+          "unchanged_abs1percent_stable": true
+        },
+        {
+          "metric": "alloc_bytes",
+          "before": 62632.64,
+          "after": 62632.64,
+          "relative_delta": 0.0,
+          "unchanged_abs1percent_stable": true
+        },
+        {
+          "metric": "syscalls",
+          "before": 30.64,
+          "after": 29.56,
+          "relative_delta": -0.03524804177545698,
+          "unchanged_abs1percent_stable": false
+        },
+        {
+          "metric": "locks",
+          "before": 14.735,
+          "after": 14.33,
+          "relative_delta": -0.027485578554462122,
+          "unchanged_abs1percent_stable": false
+        }
+      ]
+    },
+    {
+      "scope": "unchanged_candidate",
+      "metrics": [
+        {
+          "metric": "instructions",
+          "before": 148072.925,
+          "after": 146999.395,
+          "relative_delta": -0.007250008737248886,
+          "unchanged_abs1percent_stable": true
+        },
+        {
+          "metric": "allocs",
+          "before": 57.025,
+          "after": 57.025,
+          "relative_delta": 0.0,
+          "unchanged_abs1percent_stable": true
+        },
+        {
+          "metric": "alloc_bytes",
+          "before": 56992.64,
+          "after": 56992.64,
+          "relative_delta": 0.0,
+          "unchanged_abs1percent_stable": true
+        },
+        {
+          "metric": "syscalls",
+          "before": 30.115,
+          "after": 31.255,
+          "relative_delta": 0.037854889589905384,
+          "unchanged_abs1percent_stable": false
+        },
+        {
+          "metric": "locks",
+          "before": 14.635,
+          "after": 15.195,
+          "relative_delta": 0.03826443457464985,
+          "unchanged_abs1percent_stable": false
+        }
+      ]
+    }
+  ],
+  "measurement_state": "unqualified_unchanged_syscall_futex_counters_exceed_existing1percent_stability_rule",
+  "integration": "not_qualified",
+  "full20": "not_run",
+  "ledger_allocation": "not_run_for_cold_stage",
+  "cold_tls_performance": "not_run",
+  "wall": "shared-host diagnostic only"
+}

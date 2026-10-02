@@ -1,0 +1,50 @@
+{
+  "schema": "cl08-cold-release-build/1",
+  "source": "ab62da78eb48b4e3cdc6dbdd44555a9dfe656cf3",
+  "clean_source": true,
+  "baseline_source": "cf3eee22c6b06324e299f81b76915651471d8025",
+  "baseline_binary": "/workspace/scratch/work/sv09/work/bin/devloop-before",
+  "baseline_sha256": "73fa59c733f0637b22ce8d58f035aa45cb13f0b7efc4c8e9bb4cdddcef54e0b9",
+  "flags": {
+    "CARGO_TARGET_DIR": "/workspace/scratch/work/cl07/target",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_INCREMENTAL": "0"
+  },
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "command": [
+    "cargo",
+    "build",
+    "--locked",
+    "--release",
+    "--manifest-path",
+    "bench/devloop/Cargo.toml",
+    "--bin",
+    "devloop"
+  ],
+  "shipping_delta": "one default-pool Box::pin handshake await; no contiguous codec patch",
+  "protobuf_source": {
+    "path": "third_party/protobuf",
+    "symlink_target": "/workspace/pure-protobuf/third_party/protobuf",
+    "commit": "35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03"
+  },
+  "first_attempt": {
+    "state": "failed_harness_setup",
+    "reason": "new worktree missing pinned protobuf source symlink",
+    "raw_log": "work/logs/cl08-cold-release-build-first-missing-protobuf.log"
+  },
+  "binary_after": {
+    "path": "/workspace/scratch/work/cl08-cold/work/bin/devloop-cold-candidate",
+    "sha256": "0a492e5a24b49b25ff57cd0a1f807cb73b6c500fb6f7f0aaa9159c150264f5b4",
+    "bytes": 16986768
+  },
+  "successful_build_log": {
+    "path": "work/logs/cl08-cold-release-build.log",
+    "sha256": "12a427beb6ee3a312cdc362ef36e653812625bd8ec85a2400e36b29a4f464536"
+  },
+  "post_build_source_clean": true,
+  "post_build_owned_target_bytes": 1578670979,
+  "state": "built_not_performance_qualified"
+}

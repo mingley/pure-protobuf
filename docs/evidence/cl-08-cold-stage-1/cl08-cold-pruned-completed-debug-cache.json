@@ -1,0 +1,6 @@
+{
+  "reason": "all507 semantic and strict checks complete; preserve <=2GiB release budget and host capacity",
+  "path": "/workspace/scratch/work/cl07/target/debug",
+  "bytes_removed": 651031817,
+  "release_cache_touched": false
+}

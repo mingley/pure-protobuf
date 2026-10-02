@@ -1,0 +1,19 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/cl08-cold)
+   Compiling prost_tat v0.0.1 (/workspace/scratch/work/cl08-cold/prost_tat)
+   Compiling pbrs-adoption-corpus v0.0.0 (/workspace/scratch/work/cl08-cold/bench/devloop/adoption)
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/cl08-cold/pbrs-grpc)
+   Compiling v4_tat v0.0.1 (/workspace/scratch/work/cl08-cold/v4_tat)
+error: failed to run custom build command for `v4_tat v0.0.1 (/workspace/scratch/work/cl08-cold/v4_tat)`
+
+Caused by:
+  process didn't exit successfully: `/workspace/scratch/work/cl07/target/release/build/v4_tat-ee2c203182b7fafe/build-script-build` (exit status: 101)
+  --- stdout
+  cargo:rerun-if-changed=/workspace/scratch/work/cl08-cold/v4_tat/../third_party/protobuf/src/google/protobuf/test_messages_proto3.proto
+
+  --- stderr
+  /workspace/scratch/work/cl08-cold/v4_tat/../third_party/protobuf/src: warning: directory does not exist.
+  Could not make proto path relative: /workspace/scratch/work/cl08-cold/v4_tat/../third_party/protobuf/src/google/protobuf/test_messages_proto3.proto: No such file or directory
+
+  thread 'main' (234008) panicked at /workspace/scratch/work/cl08-cold/v4_tat/build.rs:30:9:
+  protoc --rust_out TAT failed: exit status: 1
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

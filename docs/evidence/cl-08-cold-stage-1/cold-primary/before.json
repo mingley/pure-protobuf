@@ -1,0 +1,80 @@
+{
+  "schema": "devloop/1",
+  "host": {
+    "os": "linux",
+    "arch": "x86_64",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "perf": false,
+    "strace": true,
+    "valgrind": true
+  },
+  "devloop_commit": "cf3eee22c6b06324e299f81b76915651471d8025",
+  "cells": [
+    {
+      "id": "rpc.prost.server_stream",
+      "kind": "rpc",
+      "codec": "pbrs-grpc-prost",
+      "iters": 200,
+      "repeats": 3,
+      "instructions": {
+        "status": "measured",
+        "data": {
+          "value": 158677.43,
+          "unit": "retired/callgrind-ir per op"
+        }
+      },
+      "instruction_method": "differential_callgrind_2n_minus_n",
+      "allocs": {
+        "status": "measured",
+        "data": {
+          "value": 57.025,
+          "unit": "heap allocs per RPC (median)"
+        }
+      },
+      "alloc_bytes": {
+        "status": "measured",
+        "data": {
+          "value": 62632.64,
+          "unit": "heap bytes per RPC (median)"
+        }
+      },
+      "syscalls": {
+        "status": "measured",
+        "data": {
+          "value": 30.635,
+          "unit": "syscalls per op"
+        }
+      },
+      "locks": {
+        "status": "measured",
+        "data": {
+          "value": 14.81,
+          "unit": "futex-family syscalls per op (includes wakes)"
+        }
+      },
+      "wall_ns": {
+        "status": "measured",
+        "data": {
+          "value": 1845291.835,
+          "unit": "ns per op (secondary)"
+        }
+      },
+      "wall_cv": 0.0237394472050234,
+      "copy_counts": {
+        "wire_calls": 0.0,
+        "wire_bytes": 0.0,
+        "emit_calls": 0.0,
+        "emit_bytes": 0.0,
+        "carry_calls": 0.0,
+        "carry_bytes": 0.0,
+        "chunk_slices": 5.0,
+        "chunk_slice_bytes": 5137.0,
+        "encode_calls": 1.0,
+        "encode_bytes": 1029.0,
+        "serialize_calls": 0.0,
+        "serialize_bytes": 0.0
+      }
+    }
+  ]
+}

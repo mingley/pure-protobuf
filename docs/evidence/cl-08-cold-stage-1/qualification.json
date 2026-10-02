@@ -29,12 +29,25 @@
   "release_allocation_counts_bytes": "not_run",
   "cold_tls_performance": "not_run",
   "comparative_wall": "not_run",
-  "integration": "not_qualified",
+  "integration": "not_qualified_measurement_gap",
   "optional_lb_boxing": "not_implemented",
   "parent_state": "open",
   "artifact_budget": {
     "limit": 2147483648,
     "after_semantics": 1647121855,
     "after_strict": 1614049333
-  }
+  },
+  "release_build_source": "ab62da78eb48b4e3cdc6dbdd44555a9dfe656cf3",
+  "release_build": "passed_after_retained_setup_failure",
+  "release_primary_instructions": "observed_lower_unqualified",
+  "release_primary_allocation_counts_bytes": "observed_same_counts_lower_bytes_unqualified",
+  "release_original_compare_exit": 1,
+  "additional_selfcompare_exits": [
+    0,
+    1
+  ],
+  "unchanged_syscall_futex_control": "failed_absolute1percent_stability",
+  "raw_cg_children": 36,
+  "full20": "not_run",
+  "all_ledger_cold_stage": "not_run"
 }

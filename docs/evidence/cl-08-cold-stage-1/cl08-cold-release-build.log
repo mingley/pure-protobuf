@@ -1,0 +1,9 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/cl08-cold)
+warning: pbrs@0.2.0: wrote conformance descriptor set
+warning: pbrs@0.2.0: wrote conformance descriptor set
+   Compiling pbrs-adoption-corpus v0.0.0 (/workspace/scratch/work/cl08-cold/bench/devloop/adoption)
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/cl08-cold/pbrs-grpc)
+   Compiling v4_tat v0.0.1 (/workspace/scratch/work/cl08-cold/v4_tat)
+   Compiling prost_tat v0.0.1 (/workspace/scratch/work/cl08-cold/prost_tat)
+   Compiling devloop v0.1.0 (/workspace/scratch/work/cl08-cold/bench/devloop)
+    Finished `release` profile [optimized] target(s) in 6m 22s

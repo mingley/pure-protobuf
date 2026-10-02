@@ -1,0 +1,10 @@
+before-1 0  
+before-2 0  
+before frozen selfcompare 0 rpc.prost.server_stream syscalls: improved 30.6 -> 29.6 (-3.52%)
+rpc.prost.server_stream locks: improved 14.7 -> 14.3 (-2.75%)
+ 
+after-1 0  
+after-2 0  
+after frozen selfcompare 1 rpc.prost.server_stream syscalls: REGRESSED 30.1 -> 31.3 (+3.79%, limit 2%)
+rpc.prost.server_stream locks: REGRESSED 14.6 -> 15.2 (+3.83%, limit 2%)
+ 
