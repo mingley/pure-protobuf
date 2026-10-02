@@ -1,0 +1,705 @@
+{
+  "schema": "tc30b1_identity_caps_correctness_v1",
+  "base_source": "a5410636d0c508b87f7cd4dd2a430bfc27821880",
+  "final_source": "d4a3d739e4063c3db0ee59724f6d0508ba4144fb",
+  "clean_source_before_evidence": true,
+  "prior_broad_regression_source": "add6b6729a9f1f8d869d48969fb2f68f20e33875",
+  "production_qualified": false,
+  "performance_qualified": false,
+  "correctness_scope": "configured native identity message caps only",
+  "full_tc30b_status": "unresolved; finite budgets and configured native compression stay explicitly rejected",
+  "toolchain_environment_source": "/workspace/pure-protobuf/work/toolchain/env.sh",
+  "toolchain_log": "/workspace/scratch/work/tc30b1/work/tc30b1/toolchain.log",
+  "source_manifest_lock_sha256": {
+    "Cargo.toml": "f5534592582743ef3d6fbac8b8a9c3b4bdcb4d21a6718c2f84bcfe20e1833c39",
+    "Cargo.lock": "143bd380614c258637da68df0e839157955b0c294a5faf563e927034d557a76e",
+    "pbrs-grpc/Cargo.toml": "82273f732b027c700f49ce445fcb7bc98887df1491afae593d15679d96a6f870",
+    "tests/interop/tonic/Cargo.toml": "bbc11491fcdd6816e34ae5b32b4351da02e083086ae7725cbf664f6507515011",
+    "tests/interop/tonic/Cargo.lock": "54ae424e91c4032d97306aea5464afe7a3d8f0137d65973023e15d3c14a70c19",
+    "pbrs-grpc/src/tonic_server.rs": "7ae44e4b3e2e5e5ac926cd8d432f0e99b83e1c9dddb16cfd85e264d865d4c2a9",
+    "pbrs-grpc/src/tonic_server/opaque.rs": "be05402a7c97167e32937956cf39b16301b4c3045c2275fb6b4ae4e8a2f57da5",
+    "pbrs-grpc/tests/tonic_opaque_transport.rs": "f35af6bf3e0bf2341bc9856ce31951c10bdac83796697cc32ceb75ea9521bfb8",
+    "pbrs-grpc/tests/tonic_service_transport.rs": "151f01887211ab31baa0930337a3f8206f74b55f774da20fde1c4340ce6cd6b5",
+    "tests/interop/tonic/tests/transport_services.rs": "a16d787a831427350a7a9d6278ddacfcfbf9407fcf74a9973b4f3b748351fd42"
+  },
+  "gates": [
+    {
+      "name": "final-framing-unit",
+      "source_revision": "d4a3d739e4063c3db0ee59724f6d0508ba4144fb",
+      "command": "cargo test --locked -p pbrs-grpc --all-features --lib tonic_server::opaque::tests -- --test-threads=1",
+      "environment": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/workspace/scratch/work/tc30b1/target/consumer",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0"
+      },
+      "log": "/workspace/scratch/work/tc30b1/work/tc30b1/final-framing-unit.log",
+      "exit_artifact": "/workspace/scratch/work/tc30b1/work/tc30b1/final-framing-unit.exit",
+      "exit_code": 0,
+      "passed_tests": 6
+    },
+    {
+      "name": "final-native-policy",
+      "source_revision": "d4a3d739e4063c3db0ee59724f6d0508ba4144fb",
+      "command": "cargo test --locked -p pbrs-grpc --all-features --test tonic_opaque_transport --test tonic_service_transport -- --test-threads=1",
+      "environment": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/workspace/scratch/work/tc30b1/target/consumer",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0"
+      },
+      "log": "/workspace/scratch/work/tc30b1/work/tc30b1/final-native-policy.log",
+      "exit_artifact": "/workspace/scratch/work/tc30b1/work/tc30b1/final-native-policy.exit",
+      "exit_code": 0,
+      "passed_tests": 22
+    },
+    {
+      "name": "final-generated-all-targets",
+      "source_revision": "d4a3d739e4063c3db0ee59724f6d0508ba4144fb",
+      "command": "cargo test --locked --manifest-path tests/interop/tonic/Cargo.toml --all-targets -- --test-threads=1",
+      "environment": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/workspace/scratch/work/tc30b1/target/consumer",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0"
+      },
+      "log": "/workspace/scratch/work/tc30b1/work/tc30b1/final-generated-all-targets.log",
+      "exit_artifact": "/workspace/scratch/work/tc30b1/work/tc30b1/final-generated-all-targets.exit",
+      "exit_code": 0,
+      "passed_tests": 29
+    },
+    {
+      "name": "native-strict-clippy-final",
+      "source_revision": "d4a3d739e4063c3db0ee59724f6d0508ba4144fb",
+      "command": "cargo clippy --locked -p pbrs-grpc --all-features --lib --test tonic_opaque_transport --test tonic_service_transport -- -D warnings",
+      "environment": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/workspace/scratch/work/tc30b1/target/consumer",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0"
+      },
+      "log": "/workspace/scratch/work/tc30b1/work/tc30b1/native-strict-clippy-final.log",
+      "exit_artifact": "/workspace/scratch/work/tc30b1/work/tc30b1/native-strict-clippy-final.exit",
+      "exit_code": 0
+    },
+    {
+      "name": "generated-strict-clippy",
+      "source_revision": "d4a3d739e4063c3db0ee59724f6d0508ba4144fb",
+      "command": "cargo clippy --locked --manifest-path tests/interop/tonic/Cargo.toml --all-targets -- -D warnings",
+      "environment": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/workspace/scratch/work/tc30b1/target/consumer",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0"
+      },
+      "log": "/workspace/scratch/work/tc30b1/work/tc30b1/generated-strict-clippy.log",
+      "exit_artifact": "/workspace/scratch/work/tc30b1/work/tc30b1/generated-strict-clippy.exit",
+      "exit_code": 0
+    },
+    {
+      "name": "strict-rustdoc",
+      "source_revision": "d4a3d739e4063c3db0ee59724f6d0508ba4144fb",
+      "command": "cargo doc --locked -p pbrs-grpc --all-features --no-deps",
+      "environment": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/workspace/scratch/work/tc30b1/target/consumer",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "RUSTDOCFLAGS": "-D warnings"
+      },
+      "log": "/workspace/scratch/work/tc30b1/work/tc30b1/strict-rustdoc.log",
+      "exit_artifact": "/workspace/scratch/work/tc30b1/work/tc30b1/strict-rustdoc.exit",
+      "exit_code": 0
+    },
+    {
+      "name": "feature-off-compile",
+      "source_revision": "d4a3d739e4063c3db0ee59724f6d0508ba4144fb",
+      "command": "cargo check --locked -p pbrs-grpc --no-default-features --lib",
+      "environment": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/workspace/scratch/work/tc30b1/target/consumer",
+        "CARGO_PROFILE_DEV_DEBUG": "0"
+      },
+      "log": "/workspace/scratch/work/tc30b1/work/tc30b1/feature-off-compile.log",
+      "exit_artifact": "/workspace/scratch/work/tc30b1/work/tc30b1/feature-off-compile.exit",
+      "exit_code": 0
+    },
+    {
+      "name": "native-regressions",
+      "source_revision": "add6b6729a9f1f8d869d48969fb2f68f20e33875",
+      "command": "cargo test --locked -p pbrs-grpc --all-features --test tonic_opaque_transport --test tonic_service_transport --test tonic_transport --test tonic_server --test rpc --test serving --test tls --test message_size --test hostile -- --test-threads=1",
+      "environment": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/workspace/scratch/work/tc30b1/target/consumer",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0"
+      },
+      "log": "/workspace/scratch/work/tc30b1/work/tc30b1/native-regressions.log",
+      "exit_artifact": "/workspace/scratch/work/tc30b1/work/tc30b1/native-regressions.exit",
+      "exit_code": 0,
+      "passed_tests": 1219
+    }
+  ],
+  "first_red": {
+    "source_base": "a5410636d0c508b87f7cd4dd2a430bfc27821880",
+    "patch": "/workspace/scratch/work/tc30b1/work/tc30b1/source-rejected-before-fix.patch",
+    "command": "cargo test --locked -p pbrs-grpc --features tonic --test tonic_opaque_transport identity_outbound_cap_rejects_oversize_without_emitting_prefix -- --exact --nocapture",
+    "target_directory": "/workspace/scratch/work/tc30b1/target/native",
+    "jobs": 1,
+    "exit_code": 101,
+    "actual_grpc_status": "9",
+    "required_grpc_status": "8",
+    "interpretation": "former documented blanket unsupported policy; new behavior gap regression"
+  },
+  "retained_attempts": {
+    "uncommitted_drafts": "identity-native-first-green seven passes and identity-framing-unit five passes; not final-source qualification; unrelated feature-only unused import warning preserved",
+    "preliminary_clean_source": "add6b6729a9f1f8d869d48969fb2f68f20e33875",
+    "indexing_lint": {
+      "source": "add6b6729a9f1f8d869d48969fb2f68f20e33875",
+      "exit": 101,
+      "errors": 3,
+      "command": "cargo clippy --locked -p pbrs-grpc --all-features --lib --test tonic_opaque_transport --test tonic_service_transport -- -D warnings"
+    },
+    "fixture_helper_lint": {
+      "source": "ccb72c1832dc503f1afb18fbd009579fa179fff0",
+      "exit": 101,
+      "errors": 11,
+      "command": "cargo clippy --locked -p pbrs-grpc --all-features --lib --test tonic_opaque_transport --test tonic_service_transport -- -D warnings"
+    },
+    "standalone_format": {
+      "source": "d4a3d739e4063c3db0ee59724f6d0508ba4144fb",
+      "exit": 1,
+      "unchanged_files": [
+        "tests/interop/tonic/build.rs",
+        "tests/interop/tonic/tests/example_ports.rs"
+      ]
+    },
+    "wrong_formatter_edition": {
+      "edition": 2021,
+      "exit": 1,
+      "correct_manifest_edition": 2024,
+      "corrected_exit": 0
+    }
+  },
+  "native_broad_count": {
+    "hostile": 41,
+    "message_size": 7,
+    "rpc": 12,
+    "serving": 1100,
+    "tls": 26,
+    "tonic_opaque_transport": 10,
+    "tonic_server": 2,
+    "tonic_service_transport": 12,
+    "tonic_transport": 9
+  },
+  "final_focused_count": {
+    "private_framing": 6,
+    "native_identity": 10,
+    "native_tc30a": 12,
+    "standalone_main": 3,
+    "standalone_tc22": 4,
+    "standalone_tc29": 8,
+    "standalone_tc30a_b": 14
+  },
+  "count_policy": "preliminary/repeated executions are not added to final focused counts; 1219 broad pass remains at add6b672",
+  "bounded_state": "at most five original prefix Bytes views; five-byte scratch header; no protobuf decode or message payload copy; boxes only in changed-cap path",
+  "default_path_statement": "unchanged IncomingBody/default response drain; no independent layout/allocation/performance measurement",
+  "unsupported_encoding_stages": {
+    "inbound": "changed native decoding cap, before readiness/dispatch",
+    "outbound": "changed native encoding cap, after handler but before headers"
+  },
+  "review_notes": "/workspace/scratch/work/tc30b1/work/tc30b1/review-notes.json",
+  "not_run": [
+    "comparative or dedicated-host performance",
+    "production resource qualification",
+    "compressed opaque inflate guard qualification",
+    "native gzip level/preference parity",
+    "finite retained-byte budget qualification"
+  ],
+  "artifact_count": 67,
+  "artifacts": [
+    {
+      "member": "raw/diff-check.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/diff-check.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/diff-check.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/diff-check.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "member": "raw/feature-off-compile.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/feature-off-compile.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/feature-off-compile.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/feature-off-compile.log",
+      "size_bytes": 589,
+      "sha256": "de4a0af3fba0b48e62ebd6f5a1bc2929f23be02cf002dc2fed7edcfd2c2bbb2c"
+    },
+    {
+      "member": "raw/feature-off-normal-tree-check.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/feature-off-normal-tree-check.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/feature-off-normal-tree-check.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/feature-off-normal-tree-check.log",
+      "size_bytes": 97,
+      "sha256": "fc1d4b374ec8448e25013237cbc93f2f836f68508812b47d710456f69d43fe2a"
+    },
+    {
+      "member": "raw/feature-off-normal-tree.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/feature-off-normal-tree.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/feature-off-normal-tree.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/feature-off-normal-tree.log",
+      "size_bytes": 3363,
+      "sha256": "a2e4b9b08223030397dce1fd2294c68646869a328d21a4dd321f8ff8f2adc389"
+    },
+    {
+      "member": "raw/final-cache-reclamation.json",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/final-cache-reclamation.json",
+      "size_bytes": 2234,
+      "sha256": "7cae5c21b41cc599a3be024dbe8437f6ed7d2027335521e7f214e303b35ada78"
+    },
+    {
+      "member": "raw/final-framing-unit.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/final-framing-unit.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/final-framing-unit.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/final-framing-unit.log",
+      "size_bytes": 1012,
+      "sha256": "c1dce794585240003f65cfe3b3c313686da489dcdde177711571125c41d1381b"
+    },
+    {
+      "member": "raw/final-generated-all-targets.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/final-generated-all-targets.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/final-generated-all-targets.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/final-generated-all-targets.log",
+      "size_bytes": 3301,
+      "sha256": "206192d13972b16ca82c1685038356038c1bcec3ccb455be3825499b525697ab"
+    },
+    {
+      "member": "raw/final-native-policy.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/final-native-policy.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/final-native-policy.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/final-native-policy.log",
+      "size_bytes": 2311,
+      "sha256": "29ee58f26be8dbc942c9f26f38af2aea86342fe81fb1d3ddeddb9fea7f49a2eb"
+    },
+    {
+      "member": "raw/final-test-binary-fingerprints.json",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/final-test-binary-fingerprints.json",
+      "size_bytes": 3959,
+      "sha256": "1921df70743477b57f7ba84ab08ca171b90ee0cf81f71c9a9df6446c620a85aa"
+    },
+    {
+      "member": "raw/generated-all-targets.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/generated-all-targets.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/generated-all-targets.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/generated-all-targets.log",
+      "size_bytes": 7121,
+      "sha256": "a07e03ef55dd8508f59530b00488639ca0d521e332f716ccedbf188f0038355d"
+    },
+    {
+      "member": "raw/generated-format.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/generated-format.exit",
+      "size_bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "member": "raw/generated-format.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/generated-format.log",
+      "size_bytes": 6458,
+      "sha256": "c2d9d3d02398d29434fabb445f42d202f59d0ee368b2e14890e6101e1afd6b4a"
+    },
+    {
+      "member": "raw/generated-source-fingerprints.json",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/generated-source-fingerprints.json",
+      "size_bytes": 612,
+      "sha256": "88c772f0513f7138e122c0a02241d61195f99a168a950d71a8fec42433d06fce"
+    },
+    {
+      "member": "raw/generated-strict-clippy.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/generated-strict-clippy.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/generated-strict-clippy.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/generated-strict-clippy.log",
+      "size_bytes": 1384,
+      "sha256": "ed29d0c50f5c7605edf750fd28b4cd0a14e0ab85672c75e9c13f784962fffc94"
+    },
+    {
+      "member": "raw/identity-framing-final.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/identity-framing-final.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/identity-framing-final.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/identity-framing-final.log",
+      "size_bytes": 2574,
+      "sha256": "91934aff355466fd50e22644a88c58bb9c149d6813ef1702714a0d218c5397ee"
+    },
+    {
+      "member": "raw/identity-framing-unit.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/identity-framing-unit.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/identity-framing-unit.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/identity-framing-unit.log",
+      "size_bytes": 1333,
+      "sha256": "aa37f19d2c1cb56762d14acd399ef14d89d7c6736fa29cbd31088c7cdd18d3bf"
+    },
+    {
+      "member": "raw/identity-native-final.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/identity-native-final.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/identity-native-final.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/identity-native-final.log",
+      "size_bytes": 2244,
+      "sha256": "ca847e6990f94807898453fd3652e0f662aabe0566e8ea13522eef5b69d9068f"
+    },
+    {
+      "member": "raw/identity-native-first-green.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/identity-native-first-green.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/identity-native-first-green.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/identity-native-first-green.log",
+      "size_bytes": 1004,
+      "sha256": "0608ae68f242297982153422c4992992520f0b66fb733ed29648d6b3c7d261e5"
+    },
+    {
+      "member": "raw/manifest-lock-pins.txt",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/manifest-lock-pins.txt",
+      "size_bytes": 435,
+      "sha256": "270faacc00707b1514ed2e90ae9a13af7d2f2714f371ddac3c35cbab351b6850"
+    },
+    {
+      "member": "raw/native-debug-fingerprints.json",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/native-debug-fingerprints.json",
+      "size_bytes": 492,
+      "sha256": "43e52328581784b7350aba92b7660ec069bff31f2601d98e5540c727463a9308"
+    },
+    {
+      "member": "raw/native-regressions.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/native-regressions.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/native-regressions.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/native-regressions.log",
+      "size_bytes": 81249,
+      "sha256": "7fd6d7ee0c56b1f13aaaef338e64d8f41e48f9e26342a49057c2d73926999362"
+    },
+    {
+      "member": "raw/native-strict-clippy-final.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/native-strict-clippy-final.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/native-strict-clippy-final.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/native-strict-clippy-final.log",
+      "size_bytes": 200,
+      "sha256": "4a0089417fb22c1b9f2a682184624c90f1f6d45564beba98c6ff2ba217e3afc9"
+    },
+    {
+      "member": "raw/native-strict-clippy-retry.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/native-strict-clippy-retry.exit",
+      "size_bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "member": "raw/native-strict-clippy-retry.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/native-strict-clippy-retry.log",
+      "size_bytes": 5723,
+      "sha256": "a0ecf8aba5e9c0acc64676ac0cc7f8a70dbd5472cbaff77c91a2e02559a5e6c1"
+    },
+    {
+      "member": "raw/native-strict-clippy.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/native-strict-clippy.exit",
+      "size_bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "member": "raw/native-strict-clippy.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/native-strict-clippy.log",
+      "size_bytes": 4110,
+      "sha256": "a1f796591d8257710e4ec55a767c4952103b0a4df5ce8f46417146bd60936464"
+    },
+    {
+      "member": "raw/owned-generated-format-correct-edition.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/owned-generated-format-correct-edition.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/owned-generated-format-correct-edition.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/owned-generated-format-correct-edition.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "member": "raw/owned-generated-format.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/owned-generated-format.exit",
+      "size_bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "member": "raw/owned-generated-format.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/owned-generated-format.log",
+      "size_bytes": 272,
+      "sha256": "fe07f454dd8d9c8e9125100ead25fc3f379427f78454716c44ca391c0b302f3a"
+    },
+    {
+      "member": "raw/owned-native-format.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/owned-native-format.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/owned-native-format.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/owned-native-format.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "member": "raw/resources-final.json",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/resources-final.json",
+      "size_bytes": 633,
+      "sha256": "2034793f1ee4065d5e6cae1f2df4da33e65a35add800c9651859e49e75f238ee"
+    },
+    {
+      "member": "raw/review-notes.json",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/review-notes.json",
+      "size_bytes": 1412,
+      "sha256": "e21cc156fdac5b4e965d28a8e0b870d7979d2c48034a60a182b3701268cb1d61"
+    },
+    {
+      "member": "raw/root-format.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/root-format.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/root-format.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/root-format.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "member": "raw/source-final-binary-fingerprints.json",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/source-final-binary-fingerprints.json",
+      "size_bytes": 2087,
+      "sha256": "ef6afc6915764555bec0129eebea3458d6cbd63776cf39b629a57ad66808c8f1"
+    },
+    {
+      "member": "raw/source-final-pins.json",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/source-final-pins.json",
+      "size_bytes": 1193,
+      "sha256": "0d819d9f73fec98f2faab8b29f7e63814f23db39c4e8bc9031d3485748dccdff"
+    },
+    {
+      "member": "raw/source-final-status-before-evidence.txt",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/source-final-status-before-evidence.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "member": "raw/source-history.txt",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/source-history.txt",
+      "size_bytes": 734,
+      "sha256": "85aeaa03619fc09a08111939ce49f09c5b5fba73072947ef127788680dfc31f1"
+    },
+    {
+      "member": "raw/source-rejected-before-fix.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/source-rejected-before-fix.exit",
+      "size_bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "member": "raw/source-rejected-before-fix.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/source-rejected-before-fix.log",
+      "size_bytes": 3817,
+      "sha256": "31d5407b846823411ead7627e5a2178d262a43d5d5ca362fa2606c0b70b10e2f"
+    },
+    {
+      "member": "raw/source-rejected-before-fix.patch",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/source-rejected-before-fix.patch",
+      "size_bytes": 4657,
+      "sha256": "c4c035cdcf226c286773269d1d25bbd107fca7b93f05821e911a0417afeddd6e"
+    },
+    {
+      "member": "raw/source-status-final.txt",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/source-status-final.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "member": "raw/strict-rustdoc.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/strict-rustdoc.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/strict-rustdoc.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/strict-rustdoc.log",
+      "size_bytes": 904,
+      "sha256": "a7a3b6c94c1b5f7c5179d2252a7a1ac0e1199f9b427ee2d4e4fbccf47de63bca"
+    },
+    {
+      "member": "raw/tonic-routeguide-generated.rs",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/tonic-routeguide-generated.rs",
+      "size_bytes": 27411,
+      "sha256": "98b1dbf8d0c5bd1f5df08b796197378db1b3c458ad079b0c7f3f64e8b1d48d87"
+    },
+    {
+      "member": "raw/toolchain.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/toolchain.log",
+      "size_bytes": 247,
+      "sha256": "6e4d6f88a7f1d3b03ed59de8cd31e765518e4bab409de0e7c13679a2135ab171"
+    },
+    {
+      "member": "raw/unchanged-format-debt.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/unchanged-format-debt.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/unchanged-format-debt.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/unchanged-format-debt.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "member": "raw/unchanged-manifest-locks.exit",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/unchanged-manifest-locks.exit",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "member": "raw/unchanged-manifest-locks.log",
+      "original_path": "/workspace/scratch/work/tc30b1/work/tc30b1/unchanged-manifest-locks.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "additional_checks": [
+    {
+      "name": "feature-off-normal-tree",
+      "source_revision": "d4a3d739e4063c3db0ee59724f6d0508ba4144fb",
+      "command": "cargo tree --locked -p pbrs-grpc --no-default-features --edges normal",
+      "exit_code": 0,
+      "log": "/workspace/scratch/work/tc30b1/work/tc30b1/feature-off-normal-tree.log",
+      "exit_artifact": "/workspace/scratch/work/tc30b1/work/tc30b1/feature-off-normal-tree.exit"
+    },
+    {
+      "name": "feature-off-normal-tree-check",
+      "source_revision": "d4a3d739e4063c3db0ee59724f6d0508ba4144fb",
+      "command": "Python regex assertion that tonic, tower, hyper, http-body and http-body-util are absent",
+      "exit_code": 0,
+      "log": "/workspace/scratch/work/tc30b1/work/tc30b1/feature-off-normal-tree-check.log",
+      "exit_artifact": "/workspace/scratch/work/tc30b1/work/tc30b1/feature-off-normal-tree-check.exit"
+    },
+    {
+      "name": "root-format",
+      "source_revision": "d4a3d739e4063c3db0ee59724f6d0508ba4144fb",
+      "command": "cargo fmt --all -- --check",
+      "exit_code": 0,
+      "log": "/workspace/scratch/work/tc30b1/work/tc30b1/root-format.log",
+      "exit_artifact": "/workspace/scratch/work/tc30b1/work/tc30b1/root-format.exit"
+    },
+    {
+      "name": "generated-format",
+      "source_revision": "d4a3d739e4063c3db0ee59724f6d0508ba4144fb",
+      "command": "cargo fmt --manifest-path tests/interop/tonic/Cargo.toml --all -- --check",
+      "exit_code": 1,
+      "log": "/workspace/scratch/work/tc30b1/work/tc30b1/generated-format.log",
+      "exit_artifact": "/workspace/scratch/work/tc30b1/work/tc30b1/generated-format.exit"
+    },
+    {
+      "name": "owned-native-format",
+      "source_revision": "d4a3d739e4063c3db0ee59724f6d0508ba4144fb",
+      "command": "rustfmt --edition 2024 --check pbrs-grpc/src/tonic_server.rs pbrs-grpc/src/tonic_server/opaque.rs pbrs-grpc/tests/tonic_opaque_transport.rs pbrs-grpc/tests/tonic_service_transport.rs",
+      "exit_code": 0,
+      "log": "/workspace/scratch/work/tc30b1/work/tc30b1/owned-native-format.log",
+      "exit_artifact": "/workspace/scratch/work/tc30b1/work/tc30b1/owned-native-format.exit"
+    },
+    {
+      "name": "owned-generated-format",
+      "source_revision": "d4a3d739e4063c3db0ee59724f6d0508ba4144fb",
+      "command": "rustfmt --edition 2021 --check tests/interop/tonic/tests/transport_services.rs",
+      "exit_code": 1,
+      "log": "/workspace/scratch/work/tc30b1/work/tc30b1/owned-generated-format.log",
+      "exit_artifact": "/workspace/scratch/work/tc30b1/work/tc30b1/owned-generated-format.exit"
+    },
+    {
+      "name": "owned-generated-format-correct-edition",
+      "source_revision": "d4a3d739e4063c3db0ee59724f6d0508ba4144fb",
+      "command": "rustfmt --edition 2024 --check tests/interop/tonic/tests/transport_services.rs",
+      "exit_code": 0,
+      "log": "/workspace/scratch/work/tc30b1/work/tc30b1/owned-generated-format-correct-edition.log",
+      "exit_artifact": "/workspace/scratch/work/tc30b1/work/tc30b1/owned-generated-format-correct-edition.exit"
+    },
+    {
+      "name": "unchanged-format-debt",
+      "source_revision": "d4a3d739e4063c3db0ee59724f6d0508ba4144fb",
+      "command": "git diff --exit-code a5410636d0c508b87f7cd4dd2a430bfc27821880 -- tests/interop/tonic/build.rs tests/interop/tonic/tests/example_ports.rs",
+      "exit_code": 0,
+      "log": "/workspace/scratch/work/tc30b1/work/tc30b1/unchanged-format-debt.log",
+      "exit_artifact": "/workspace/scratch/work/tc30b1/work/tc30b1/unchanged-format-debt.exit"
+    },
+    {
+      "name": "unchanged-manifest-locks",
+      "source_revision": "d4a3d739e4063c3db0ee59724f6d0508ba4144fb",
+      "command": "git diff --exit-code a5410636d0c508b87f7cd4dd2a430bfc27821880 -- Cargo.toml Cargo.lock pbrs-grpc/Cargo.toml tests/interop/tonic/Cargo.toml tests/interop/tonic/Cargo.lock",
+      "exit_code": 0,
+      "log": "/workspace/scratch/work/tc30b1/work/tc30b1/unchanged-manifest-locks.log",
+      "exit_artifact": "/workspace/scratch/work/tc30b1/work/tc30b1/unchanged-manifest-locks.exit"
+    },
+    {
+      "name": "diff-check",
+      "source_revision": "d4a3d739e4063c3db0ee59724f6d0508ba4144fb",
+      "command": "git diff --check",
+      "exit_code": 0,
+      "log": "/workspace/scratch/work/tc30b1/work/tc30b1/diff-check.log",
+      "exit_artifact": "/workspace/scratch/work/tc30b1/work/tc30b1/diff-check.exit"
+    }
+  ]
+}
