@@ -490,7 +490,7 @@
         "2026-09-24: tests/interop/cases.json distinguishes the original eight not_run procedures from passing local-peer coverage. An explicit spec-derived adapter report passed 8/8 with qualification.qualified=false, retained logs, and full native-profile validation rejected its actual results."
       ],
       "status": "in_progress",
-      "notes": "2026-09-29: local increment landed (real SETTINGS-update max_streams, 8/8 local peer pass, retained records). REMAINDER: official-peer run blocked \u2014 needs reviewed py2+Twisted toolchain + pinned third_party/grpc; repro: ./scripts/grpc-http2-interop.sh --server-host=<official-py2-server> --server-port=<port>."
+      "notes": "2026-09-29: local increment landed (real SETTINGS-update max_streams, 8/8 local peer pass, retained records). REMAINDER: official-peer run blocked — needs reviewed py2+Twisted toolchain + pinned third_party/grpc; repro: ./scripts/grpc-http2-interop.sh --server-host=<official-py2-server> --server-port=<port>."
     },
     {
       "id": "IO-09",
@@ -2260,12 +2260,16 @@
       "checks": [
         "rpc-bench"
       ],
-      "status": "done",
+      "status": "in_progress",
       "implementer": "wave1a-lane-agent",
       "reviewer": "coordinator",
       "evidence": [
-        "done: resource accounting (resources.rs, report fmt-fixed by coordinator); crate builds."
-      ]
+        "done: resource accounting (resources.rs, report fmt-fixed by coordinator); crate builds.",
+        "docs/evidence/headroom-acceptance-audit-20261002.md",
+        "docs/evidence/sb24-cpu-capacity-20261002.md",
+        "docs/evidence/sb24-counter-window-20261002.md"
+      ],
+      "notes": "Acceptance audit 2026-10-02: endpoint counters/reporting delivered. Build-only evidence does not establish spare generator capacity. Rust resources.rs mount-root quota discovery lacks per-PID membership, ancestor minima and namespace capacity verification. Effective-capacity and aligned endpoint-window proof remain open; Python correction evidence is partial implementation. See docs/evidence/headroom-acceptance-audit-20261002.md."
     },
     {
       "id": "BM-07",
@@ -3936,7 +3940,7 @@
       ],
       "checks": [],
       "status": "done",
-      "notes": "2026-09-29 coordinator: BLOCKER verdict integrated (43f658a5) \u2014 no maintained pure-Rust ALTS provider (15 probes 404, sole candidate rejected); no dependency, no rewrite. EX-18b/EX-19 stay gated on a re-survey trigger, not launched.",
+      "notes": "2026-09-29 coordinator: BLOCKER verdict integrated (43f658a5) — no maintained pure-Rust ALTS provider (15 probes 404, sole candidate rejected); no dependency, no rewrite. EX-18b/EX-19 stay gated on a re-survey trigger, not launched.",
       "evidence": [
         "docs/evidence/alts-record-review.md"
       ]
