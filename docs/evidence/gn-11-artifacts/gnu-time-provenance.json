@@ -1,0 +1,7 @@
+{
+  "package_version": "1.9-0.2",
+  "package_sha256": "10257c6fe888e6578550b1f20705d282dd630b76f8df0c006aec3031fefe5e23",
+  "binary_sha256": "efc0d1112e36ec76c14bf7508e287935cf1631d9d0d91fb532802d07aef51cea",
+  "source": "Debian official time package",
+  "install": "offline local Docker helper, guarded previously absent /usr/bin/time"
+}

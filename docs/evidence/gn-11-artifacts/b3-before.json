@@ -1,0 +1,27 @@
+{
+  "files": {
+    "opt_a.rs": {
+      "bytes": 1122603,
+      "lines": 16218,
+      "descriptor_defs": 1
+    },
+    "mod.rs": {
+      "bytes": 134,
+      "lines": 6,
+      "descriptor_defs": 0
+    },
+    "opt_c.rs": {
+      "bytes": 1130953,
+      "lines": 16397,
+      "descriptor_defs": 1
+    },
+    "opt_b.rs": {
+      "bytes": 1130953,
+      "lines": 16397,
+      "descriptor_defs": 1
+    }
+  },
+  "bytes": 3384643,
+  "lines": 49018,
+  "descriptor_defs": 3
+}

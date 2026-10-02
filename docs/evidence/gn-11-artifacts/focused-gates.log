@@ -1,0 +1,169 @@
+warning: pbrs@0.2.0: wrote conformance descriptor set
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/gn11)
+    Finished `test` profile [unoptimized] target(s) in 2.90s
+     Running tests/codegen_wkt_sharing.rs (target/base/debug/deps/codegen_wkt_sharing-0c51fd7b22c990f3)
+
+running 5 tests
+test explicitly_requested_mapped_google_file_is_rejected ... ok
+test bundled_wkt_mapping_rejects_unsupported_descriptor_types ... ok
+test imported_owner_does_not_remove_an_explicit_unique_stem_alias ... ok
+test imported_descriptor_types_are_emitted_once_in_multi_file_output ... ok
+test multi_file_wkt_fields_share_one_type_and_single_file_stays_standalone ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 22.80s
+
+     Running tests/documentation.rs (target/base/debug/deps/documentation-91d857580e5f39e6)
+
+running 25 tests
+test test_anchor_cache_never_treats_unreadable_targets_as_empty ... ok
+test test_claim_provenance_contract ... ok
+test test_documentation_map_references_and_anchors_are_valid ... ok
+test test_documentation_map_rejects_repository_escape ... ok
+test test_documented_versions_match_cargo_manifests ... ok
+test test_evidence_links_and_rustdoc_navigation_contract ... ok
+test test_all_critical_caveats_pass_on_repository_docs ... ok
+test test_http2_transport_mapping_caveats_contract ... ok
+test test_license_and_crate_naming_notes_contract ... ok
+test test_link_checker_detects_broken_link_and_anchor ... ok
+test test_link_checker_rejects_missing_examples_and_stale_generated_references ... ok
+test test_local_link_checker_rejects_repository_escape ... ok
+test test_markdown_discovery_rejects_out_of_repo_directory_links ... ok
+test test_named_recipe_fences_still_receive_negative_syntax_checks ... ok
+test test_protobuf_snippet_syntax_validator_detects_errors ... ok
+test test_documentation_links_and_anchors_are_valid ... ok
+test test_published_prose_has_no_unqualified_superlatives ... ok
+test test_removing_or_altering_critical_caveat_fails ... ok
+test test_security_tls_verifier_and_alpn_contract ... ok
+test test_tonic_support_boundary_matches_manifest ... ok
+test test_transparent_retry_boundaries_contract ... ok
+test test_unsupported_and_untested_boundaries_contract ... ok
+test documented_bundled_wkt_mapping_compiles ... ok
+test test_rust_snippet_syntax_validator_detects_errors ... ok
+test test_guide_code_blocks_are_syntactically_valid ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s
+
+     Running tests/onboarding.rs (target/base/debug/deps/onboarding-b52752425d43f52d)
+
+running 16 tests
+test adapter_descriptor_sets_match_pinned_protoc_and_generated_output ... ignored, requires pinned protoc 35.1; required conformance CI runs this test explicitly
+test committed_hello_and_wkt_copies_match ... ok
+test codegen_stub_flavours_are_explicit ... ok
+test adapters_build_cold_from_descriptor_sets_without_protoc has been running for over 60 seconds
+test core_builds_without_protoc has been running for over 60 seconds
+test greeter_binary_production_recipe_runs_without_changing_default has been running for over 60 seconds
+test greeter_example_binary_runs_and_prints_hello_world has been running for over 60 seconds
+test greeter_binary_production_recipe_runs_without_changing_default ... ok
+test native_grpc_consumer_exercises_all_four_rpc_shapes has been running for over 60 seconds
+test greeter_example_binary_runs_and_prints_hello_world ... ok
+test core_builds_without_protoc ... ok
+test native_grpc_consumer_exercises_all_four_rpc_shapes ... ok
+test native_grpc_consumer_says_hello_ada has been running for over 60 seconds
+test packaged_greeter_example_consumer_runs_all_four_shapes ... ok
+test operations_guide_recipes_compile_run_and_reject_api_drift has been running for over 60 seconds
+test packaged_production_recipe_exercises_tls_and_mtls_overload_and_drain has been running for over 60 seconds
+test adapters_build_cold_from_descriptor_sets_without_protoc ... ok
+test native_grpc_consumer_says_hello_ada ... ok
+test scratch_unique_does_not_reuse_a_cached_directory ... ok
+test operations_guide_recipes_compile_run_and_reject_api_drift ... ok
+test tonic_readme_selects_stubs_explicitly ... ok
+test packed_core_and_both_adapters_build_cold_without_protoc has been running for over 60 seconds
+test tonic_consumer_says_hello_ada has been running for over 60 seconds
+test packaged_production_recipe_exercises_tls_and_mtls_overload_and_drain ... ok
+test tonic_consumer_says_hello_ada ... ok
+test packed_core_and_both_adapters_build_cold_without_protoc ... ok
+
+test result: ok. 15 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 507.25s
+
+     Running tests/pbrs_build.rs (target/base/debug/deps/pbrs_build-d1b288b0ebf3b597)
+
+running 32 tests
+test atomic_write_on_failure_preserves_prior_output ... ok
+test ambiguous_stem_request_fails_with_diagnostic ... ok
+test builder_option_parity_controls_output_and_protoc ... ok
+test builder_option_parity_client_only_and_tonic_codec_path ... ok
+test byte_stability_across_input_permutations_and_no_host_paths ... ok
+test codegen_error_converts_to_parse_error ... ok
+test builder_option_parity_emit_rerun_if_changed_false_is_quiet ... ok
+test compile_protos_defaults_to_kernel_stubs ... ok
+test changed_input_updates_only_affected_outputs ... ok
+test custom_protoc_path_configuration ... ok
+test descriptor_set_errors_identify_input_and_preserve_output ... ok
+test descriptor_set_matches_compile_protos_layout_and_stub_modes ... ok
+test compile_protos_multi_file_stem_collision_and_cross_package_references ... ok
+test checked_descriptor_messages_consumer_builds_without_protoc ... ok
+test encode_code_generator_response_error_wire_format ... ok
+test compile_protos_consumer_parses_ada ... ok
+test error_malformed_descriptor_identifies_cause ... ok
+test error_missing_import_identifies_cause_and_path ... ok
+test error_missing_out_dir_identifies_cause ... ok
+test error_syntax_error_identifies_cause_and_path ... ok
+test error_unwritable_output_identifies_cause_and_path ... ok
+test descriptor_set_tracks_transitive_source_provenance ... ok
+test error_invalid_protoc_path_diagnostics ... ok
+test mtime_preservation_for_identical_content ... ok
+test protoc_plugin_binary_outputs_error_response_on_invalid_stdin ... ok
+test generated_accessors_escape_runtime_and_helper_method_names ... ok
+test generated_serialization_uses_field_number_order_across_storage_classes ... ok
+test tonic_compat_consumer_runs_all_four_shapes ... ok
+test unknown_requested_file_fails_with_diagnostic ... ok
+test descriptor_set_native_and_tonic_consumers_build_without_protoc ... ok
+test transitive_public_import_chain_compiles ... ok
+test transitive_proto_rebuild_directives_emitted ... ok
+
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 42.45s
+
+     Running tests/plugin.rs (target/base/debug/deps/plugin-43a2d3df4744b0a9)
+
+running 48 tests
+test config_options_take_precedence_over_ambient_env ... ok
+test byte_stability_across_code_generator_request_input_permutations ... ok
+test direct_parameter_parsing_and_error_variants ... ok
+test edition2024_checked_closed_enum_reference_remains_fail_closed ... ok
+test direct_sequential_calls_isolate_thread_locals ... ok
+test edition2024_closed_enum_collections_fail_closed ... ok
+test edition2024_direct_generation_enforces_imported_visibility ... ok
+test edition2024_direct_generation_rejects_unknown_feature_and_bad_name ... ok
+test edition2024_extension_fields_remain_unknown_until_typed_api ... ok
+test edition2024_map_decoder_uses_entry_utf8_feature ... ok
+test edition2024_original_shared_extension_suite_is_empty_at_pin ... ok
+test config_with_source_info_matches_plugin_bytes_exactly ... ok
+test config_and_plugin_inputs_produce_identical_output_per_mode ... ok
+test edition2024_plugin_cap_is_2024 ... ok
+test edition2024_preview_descriptor_matches_pinned_source_compiler ... ignored, requires pinned libprotoc 36.1 to regenerate the checked Edition 2024 preview FDS
+test edition2024_plugin_binary_advertises_2024_for_qualified_consumers ... ok
+test edition2024_plugin_binary_rejects_closed_collections_cleanly ... ok
+test edition2024_rejected_source_fixtures_fail_in_protoc ... ignored, requires protoc 36.1 for Edition 2024 source syntax; run explicitly with the pinned source compiler
+test edition2024_protoc_negotiates_2024_plugin_support ... ok
+test plugin_generates_grpc_stubs ... ok
+test parallel_direct_calls_with_mixed_configs_are_isolated ... ok
+test plugin_generates_tonic_stubs_when_env_is_tonic ... ok
+test plugin_parameter_shared_pool_and_no_reflect ... ok
+wrote /workspace/scratch/work/gn11/target/plugin-test-gen-sh/person.rs
+test plugin_parameter_stubs_kernel_selects_kernel_stubs ... ok
+test gen_script_emits_person ... ok
+test plugin_parameter_stubs_none_omits_stubs ... ok
+test plugin_parameter_stubs_tonic_selects_tonic_stubs ... ok
+test plugin_parameter_takes_precedence_over_ambient_env ... ok
+test plugin_rejects_invalid_parameter_value ... ok
+test plugin_rejects_unknown_parameter ... ok
+test plugin_generates_test_all_types_proto3 ... ok
+test protoc_plugin_conflicting_and_malformed_mappings_diagnostics ... ok
+test plugin_proto2_none_parses_non_utf8_proto3_rejects ... ok
+test plugin_repeated_string_same_tag_parses_32 ... ok
+test edition2024_checked_generated_consumer_compiles_under_rust_2024_lints ... ok
+test protoc_plugin_enum_deprecation_is_independent_of_allow_alias ... ok
+test protoc_plugin_custom_runtime_and_adapter_crate_aliases ... ok
+test protoc_plugin_generated_lint_allowances_have_explicit_reasons_and_no_broad_restriction ... ok
+test protoc_plugin_extern_path_across_two_modules_without_duplicates ... ok
+test protoc_plugin_emits_useful_rustdoc_and_passes_denied_warnings ... ok
+test protoc_plugin_generated_messages_compile_under_strict_consumer_lint_policy ... ok
+test protoc_plugin_generated_native_kernel_compiles_under_strict_consumer_lint_policy ... ok
+test protoc_plugin_generates_and_roundtrips ... ok
+test protoc_plugin_separate_processes_yield_identical_bytes ... ok
+test sequential_calls_with_alternating_configs_are_isolated ... ok
+test protoc_plugin_generated_tonic_compiles_under_strict_consumer_lint_policy ... ok
+test protoc_plugin_multi_file_stem_collision_and_cross_package_references ... ok
+test protoc_plugin_deprecated_enums_keep_implementation_lints_scoped ... ok
+
+test result: ok. 46 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 29.68s

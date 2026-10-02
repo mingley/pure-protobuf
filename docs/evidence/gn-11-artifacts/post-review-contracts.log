@@ -1,0 +1,45 @@
+warning: pbrs@0.2.0: wrote conformance descriptor set
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/gn11)
+    Finished `test` profile [unoptimized] target(s) in 20.34s
+     Running tests/codegen_wkt_sharing.rs (target/base/debug/deps/codegen_wkt_sharing-0c51fd7b22c990f3)
+
+running 6 tests
+test explicitly_requested_mapped_google_file_is_rejected ... ok
+test bundled_wkt_mapping_rejects_unsupported_descriptor_types ... ok
+test imported_descriptor_types_are_emitted_once_in_multi_file_output ... ok
+test exact_external_mapping_can_alias_an_existing_facade_type ... ok
+test imported_owner_does_not_remove_an_explicit_unique_stem_alias ... ok
+test multi_file_wkt_fields_share_one_type_and_single_file_stays_standalone ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 22.67s
+
+     Running tests/documentation.rs (target/base/debug/deps/documentation-91d857580e5f39e6)
+
+running 25 tests
+test test_anchor_cache_never_treats_unreadable_targets_as_empty ... ok
+test test_claim_provenance_contract ... ok
+test test_documentation_map_references_and_anchors_are_valid ... ok
+test test_documentation_map_rejects_repository_escape ... ok
+test test_documented_versions_match_cargo_manifests ... ok
+test test_all_critical_caveats_pass_on_repository_docs ... ok
+test test_evidence_links_and_rustdoc_navigation_contract ... ok
+test test_http2_transport_mapping_caveats_contract ... ok
+test test_license_and_crate_naming_notes_contract ... ok
+test test_link_checker_detects_broken_link_and_anchor ... ok
+test test_link_checker_rejects_missing_examples_and_stale_generated_references ... ok
+test test_local_link_checker_rejects_repository_escape ... ok
+test test_markdown_discovery_rejects_out_of_repo_directory_links ... ok
+test test_documentation_links_and_anchors_are_valid ... ok
+test test_named_recipe_fences_still_receive_negative_syntax_checks ... ok
+test test_protobuf_snippet_syntax_validator_detects_errors ... ok
+test test_published_prose_has_no_unqualified_superlatives ... ok
+test test_removing_or_altering_critical_caveat_fails ... ok
+test test_security_tls_verifier_and_alpn_contract ... ok
+test test_tonic_support_boundary_matches_manifest ... ok
+test test_transparent_retry_boundaries_contract ... ok
+test test_unsupported_and_untested_boundaries_contract ... ok
+test documented_bundled_wkt_mapping_compiles ... ok
+test test_rust_snippet_syntax_validator_detects_errors ... ok
+test test_guide_code_blocks_are_syntactically_valid ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.02s
