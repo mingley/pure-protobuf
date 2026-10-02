@@ -10321,11 +10321,14 @@
    ],
    "status": "in_progress",
    "implementer": "server_streaming",
-   "notes": " Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure. Four transport boundary/error/live-producer/cancel tests passed on integrated unchanged production streaming runtime. Experimental closed-producer yield patch remains separate and unqualified until paired original-threshold controls pass.",
+   "notes": " Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure. Four transport boundary/error/live-producer/cancel tests passed on integrated unchanged production streaming runtime. Experimental closed-producer yield patch remains separate and unqualified until paired original-threshold controls pass. 2026-10-02: five independent streaming regressions and source-pinned current attribution/evidence 4deca0e4 integrated. Matched native prost stream still loses 10.887% instructions and 7.848% heap bytes to tonic, despite lower allocation count. Closed-producer-only yield candidate 0f7fb8fd is rejected: original N200/400x3 screen improves instructions 1.534%, allocations 0.026%, bytes 0.0015%, below unchanged 2% target. Runtime restored exactly to baseline in fc109a11; no rejected runtime change ships. Full archived 51 artifacts/hashes include both experiment patches and raw profiles; allocation-stack/sampled profilers remain not_run. Future-construction copy costs are the next reviewed hypothesis, coordinated with CL-08; parent full acceptance remains open.",
    "evidence": [
     "pbrs-grpc/tests/sv09_streaming.rs",
-    "docs/evidence/current-improvements/integration.json"
-   ]
+    "docs/evidence/current-improvements/integration.json",
+    "docs/evidence/sv-09.md",
+    "docs/evidence/sv-09/manifest.json"
+   ],
+   "reviewer": "coordinator"
   },
   {
    "id": "CL-08",
