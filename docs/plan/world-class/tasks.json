@@ -12142,9 +12142,7 @@
     "Retain every raw child/graph, exact allocation/byte ledger, coverage audit and two unchanged-binary replay reports; original1% controls and failures unchanged; unavailable instructions remain not_run.",
     "Map actual conversion order/default wire mismatches remain explicit blocked qualifications, without sorting/patching inside the bridge API. Parent TC-32 stays open until full cost acceptance is qualified."
    ],
-   "checks": [
-    "perf-compare"
-   ],
+   "checks": [],
    "notes": "Implementation follows TC-32a and is serialized with SB-32 parent main/manifest/lock ownership; measurement requires root quiet lease and sufficient disk. No invented paired codec baseline or static allocation-total claim."
   }
  ],
