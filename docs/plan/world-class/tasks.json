@@ -9525,7 +9525,9 @@
    "priority": "P0",
    "executor": "small",
    "size": "M",
-   "depends_on": [],
+   "depends_on": [
+    "SB-32"
+   ],
    "read": [
     "docs/plan/adoption/README.md",
     "pbrs-grpc/src/client.rs",
@@ -9580,7 +9582,8 @@
    "depends_on": [
     "TC-26",
     "TC-30a",
-    "TC-30b"
+    "TC-30b",
+    "SB-32"
    ],
    "read": [
     "docs/plan/adoption/README.md",
@@ -11924,7 +11927,9 @@
     "pbrs-grpc/src/lib.rs",
     "pbrs-grpc/tests/tonic_service_transport.rs",
     "tests/interop/tonic/tests/transport_services.rs",
-    "docs/evidence/tc-30a.md"
+    "docs/evidence/tc-30a.md",
+    "pbrs-grpc/src/server/connection.rs",
+    "pbrs-grpc/src/server/accept.rs"
    ],
    "deliverable": "Provide an opt-in direct HTTP-body adapter for NamedService tonic-generated servers, mixed with native Router services. Tonic owns codecs; retain native TLS/connect-info/deadline/cancellation/drain and fail before business dispatch for unsupported explicitly configured typed policies. No in-memory HTTP/2 bridge or dependency changes.",
    "accept": [
@@ -11943,7 +11948,8 @@
    "relates": [
     "TC-30",
     "TC-29"
-   ]
+   ],
+   "notes": "Bounded scope expanded after unchanged generated authentication fixtures exposed the reverse transport context boundary. Capture actual tonic Connected TCP/TLS/Unix info from the same completed native accept/handshake, preserve native fields, and offer additive feature-gated trusted custom-acceptor builders. Support ordinary Tower layers without NamedService using a retained name marker and generic Bytes response bodies. Final source must pass genuine mTLS/Unix/custom Incoming and all four shape fixtures before closure; no default graph, TLS provider, verifier, drain or codec policy change."
   },
   {
    "id": "TC-30b",
@@ -11985,6 +11991,53 @@
     "TC-30",
     "QG-06a"
    ]
+  },
+  {
+   "id": "SB-32",
+   "title": "Measure unmodified tonic-codegen native transport profiles",
+   "lane": "SB",
+   "milestone": "M0",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "status": "pending",
+   "depends_on": [
+    "SB-26a",
+    "TC-30a"
+   ],
+   "read": [
+    "bench/devloop/ADOPTION.md",
+    "bench/devloop/src/adoption_rpc.rs",
+    "bench/devloop/adoption/src/rpc.rs",
+    "pbrs-grpc/src/tonic_transport.rs",
+    "pbrs-grpc/src/tonic_server.rs"
+   ],
+   "write": [
+    "bench/devloop/",
+    "docs/evidence/sb-32.md"
+   ],
+   "deliverable": "Add a separately named, complete public-corpus matrix using unchanged tonic-generated clients and services over reference/native transport combinations, retaining exact source and all measured losses without substituting existing low-level native_prost rows.",
+   "accept": [
+    "Generate benchmark-only service bindings around the same existing prost corpus types with the pinned compiler and established tonic-prost-build graph. Preserve the frozen 64 inputs, full-value/read/byte/count oracles and existing 512 profile IDs.",
+    "Register reference/reference, native-client/reference-server, reference-client/native-server and native/native transport combinations for unary and four-message server streaming. Include every public specimen; preserve map equal-wire preflight and show blocked cells separately.",
+    "Before measurement, all four combinations pass actual network equality, complete handler/client reads, response count and effective accepted-socket TCP_NODELAY checks. Use the same two-worker runtime, default caps, common preparation and 100-operation warmup.",
+    "Use original SB-26 N16/2N32, three repeats, exact allocation/byte counters and differential instruction collectors. Retain complete inventories, raw children, tool/source/binary pins and unavailable metrics. Profile results close the measurement slices of TC-29/TC-30 only, not their other acceptance or performance-leadership qualification."
+   ],
+   "checks": [
+    "rpc-bench-tests",
+    "codec-bench",
+    "tonic"
+   ],
+   "scoreboard": [
+    "C5",
+    "D4"
+   ],
+   "relates": [
+    "TC-29",
+    "TC-30",
+    "SB-26"
+   ],
+   "notes": "Frozen before implementation during the current transport integration work. Benchmark-only existing dependency feature additions require graph/lock review; shipping manifests/default graphs and all original thresholds stay unchanged. Existing typed low-level RPC profiles remain distinct baselines. PK-30 map-policy review stays pending; do not bypass its equal-wire qualification."
   }
  ],
  "last_audit": {

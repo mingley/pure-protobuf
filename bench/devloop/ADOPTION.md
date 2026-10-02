@@ -111,8 +111,10 @@ the same message schemas. The tonic pbrs codec uses the existing adapter's
 direct encoding/shared decode recipe; tonic prost encodes directly into
 tonic's buffer and decodes using prost's Buf decoder. Native prost uses the
 shipping native wrapper, including its existing temporary encoding buffer.
-This measures both codec/transport layers without pretending TC-29/30's
-unmodified tonic-codegen transport adapters exist.
+These rows measure the typed low-level codec/transport paths; they do not
+exercise TC-29/30's unmodified tonic-codegen transport adapters. SB-32 owns
+the separately named generated-client/service transport matrix and retains
+its independent equality and performance qualification.
 
 Initial RPC measurements use N=16, 2N=32, three repeats, the unchanged
 100-RPC warmup, and the same two-worker Tokio runtime for every profile.
