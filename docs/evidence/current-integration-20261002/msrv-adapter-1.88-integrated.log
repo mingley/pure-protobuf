@@ -1,0 +1,121 @@
+warning: pbrs@0.2.0: wrote conformance descriptor set
+   Compiling pbrs v0.2.0 (/workspace/pure-protobuf)
+   Compiling protobuf-tonic v0.1.0-alpha.2 (/workspace/pure-protobuf/protobuf-tonic)
+    Finished `test` profile [unoptimized] target(s) in 56.05s
+     Running unittests src/lib.rs (/workspace/scratch/work/msrv-verify/target/debug/deps/protobuf_tonic-a215f5f96155c5dc)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/codec_path.rs (/workspace/scratch/work/msrv-verify/target/debug/deps/codec_path-67ea0ef3ed578e8b)
+
+running 1 test
+test external_pbrs_messages_round_trip_unary_and_streaming ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/coexist.rs (/workspace/scratch/work/msrv-verify/target/debug/deps/coexist-98c7716024db19d9)
+
+running 2 tests
+test prost_and_pbrs_types_coexist_and_convert_in_both_directions ... ok
+test conversions_round_trip_production_shaped_payload_sizes ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/gzip.rs (/workspace/scratch/work/msrv-verify/target/debug/deps/gzip-77541a8dbecb7204)
+
+running 1 test
+test gzip_unary_echo_twice ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/health_reflection.rs (/workspace/scratch/work/msrv-verify/target/debug/deps/health_reflection-eb78a33efa93f8c4)
+
+running 1 test
+test health_serving_and_reflection_lists_greeter ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/interceptor_size.rs (/workspace/scratch/work/msrv-verify/target/debug/deps/interceptor_size-6555c4541bf28c7e)
+
+running 3 tests
+test message_size_bound_rejects_oversize ... ok
+test message_size_bounds_unary_rpc ... ok
+test interceptor_unary_rpc ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/interop.rs (/workspace/scratch/work/msrv-verify/target/debug/deps/interop-72d3d88195112d07)
+
+running 10 tests
+test custom_metadata ... ok
+test cancel_after_first_response ... ok
+test empty_stream ... ok
+test cancel_after_begin ... ok
+test special_status_message ... ok
+test empty_unary ... ok
+test large_unary ... ok
+test unimplemented_service ... ok
+test unimplemented_method ... ok
+test timeout_on_sleeping_server ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+     Running tests/parse_string.rs (/workspace/scratch/work/msrv-verify/target/debug/deps/parse_string-3c9bd0146869f7ff)
+
+running 3 tests
+test hello_proto3_rejects_invalid_utf8 ... ok
+test hello_short_name_parses ... ok
+test hello_long_name_parses_and_roundtrips ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/status.rs (/workspace/scratch/work/msrv-verify/target/debug/deps/status-13fa71efe1d0ea92)
+
+running 4 tests
+test client_streaming_not_found_code_and_message ... ok
+test server_streaming_not_found_code_and_message ... ok
+test unary_not_found_code_and_message ... ok
+test bidi_streaming_not_found_code_and_message ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/streaming.rs (/workspace/scratch/work/msrv-verify/target/debug/deps/streaming-734829982b53f8b6)
+
+running 3 tests
+test server_streaming_splits_names ... ok
+test streaming_echo_twice ... ok
+test client_streaming_joins_names ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/trailers.rs (/workspace/scratch/work/msrv-verify/target/debug/deps/trailers-eb723bf865cac5f3)
+
+running 10 tests
+test bidi_streaming_status_trailers_code_message_and_metadata ... ok
+test client_streaming_status_trailers_code_message_and_metadata ... ok
+test client_streaming_response_metadata_round_trip ... ok
+test bidi_streaming_response_metadata_round_trip ... ok
+test server_streaming_response_metadata_round_trip ... ok
+test server_streaming_status_trailers_before_first_item ... ok
+test server_streaming_status_trailers_empty_stream_then_error ... ok
+test server_streaming_status_trailers_code_message_and_metadata ... ok
+test unary_status_trailers_code_message_and_metadata ... ok
+test unary_response_metadata_round_trip ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests/unary.rs (/workspace/scratch/work/msrv-verify/target/debug/deps/unary-7b97deec5432c2e4)
+
+running 1 test
+test unary_echo_twice ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+   Doc-tests protobuf_tonic
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

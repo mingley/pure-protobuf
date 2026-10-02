@@ -1,0 +1,105 @@
+warning: pbrs@0.2.0: wrote conformance descriptor set
+   Compiling pbrs v0.2.0 (/workspace/pure-protobuf)
+    Finished `test` profile [unoptimized] target(s) in 14.41s
+     Running unittests src/lib.rs (/workspace/scratch/work/msrv-verify/target/debug/deps/pbrs-cd13ae3fea78aa94)
+
+running 96 tests
+test codegen::descriptors::tests::normalize_cow_matches_owned ... ok
+test codegen::reflection::tests::fds_hex_block_roundtrips_bytes ... ok
+test codegen::tests::bytes_fields_encode_via_shared_helper ... ok
+test codegen::tests::missing_import_source_restores_requested_path_from_relative_protoc_error ... ok
+test codegen::tests::package_keyword_segments_escape_in_modules_and_paths ... ok
+test codegen::tests::test_emit_doc_line_code_fences ... ok
+test codegen::tests::test_sanitize_doc_line_backticks ... ok
+test codegen::prost_stubs::tests::prost_helloworld_stubs_cover_all_shapes ... ok
+test codegen::tests::test_sanitize_doc_line_indentation ... ok
+test codegen::tests::test_sanitize_doc_line_html_and_inequalities ... ok
+test codegen::tests::test_starts_with_ignore_ascii_non_boundary ... ok
+test codegen::tests::test_sanitize_doc_line_links_and_urls ... ok
+test copy_counts::tests::counters_stay_zero_without_feature ... ok
+test dynamic::tests::debug_shape_is_stable ... ok
+test dynamic::tests::distinct_bytes_do_not_share_pools ... ok
+test dynamic::tests::identical_bytes_share_one_parsed_pool ... ok
+test dynamic::tests::malformed_bytes_still_fail_eagerly ... ok
+test dynamic::tests::shared_pool_mutation_is_copy_on_write ... ok
+test json::tests::duration_multibyte_fraction_is_error_not_panic ... ok
+test json::tests::timestamp_extremes_are_errors_not_panics ... ok
+test lazy::tests::dense_large_field_still_shares_parent_frame ... ok
+test lazy::tests::dense_medium_field_still_shares_parent_frame ... ok
+test lazy::tests::from_parse_span_empty_skips_parent_arc ... ok
+test lazy::tests::from_parse_span_large_near_whole_copies_payload_wire ... ok
+test lazy::tests::from_parse_span_medium_shares_parent_frame ... ok
+test lazy::tests::from_parse_span_near_whole_medium_owns_payload ... ok
+test lazy::tests::from_parse_span_rejects_invalid_utf8 ... ok
+test lazy::tests::from_parse_span_skips_parent_arc_when_inline ... ok
+test lazy::tests::from_parse_span_unchecked_keeps_non_utf8 ... ok
+test lazy::tests::from_span_still_inlines_after_ensure ... ok
+test lazy::tests::require_utf8_accepts_ascii_and_multibyte_rejects_invalid ... ok
+test lazy::tests::sparse_large_field_uses_payload_wire_not_parent ... ok
+test lazy::tests::sparse_short_field_does_not_pin_large_parent_frame ... ok
+test lazy::tests::u32_offset_boundary ... ok
+test lazy::tests::u32_offset_over_u32_max_fails_closed - should panic ... ok
+test lazy::tests::u32_offset_add_overflow_fails_closed - should panic ... ok
+test map::tests::arena_backed_map_iteration_does_not_leak_key_bytes ... ok
+test map::tests::arena_backed_map_values_are_reclaimed ... ok
+test map::tests::empty_eq_and_zeroed ... ok
+test map::tests::hybrid_hot_index_survives_insert_and_rebuilds_after_remove ... ok
+test map::tests::index_invalidates_on_insert_remove_clear_push ... ok
+test map::tests::insert_remove ... ok
+test map::tests::map_mut_uses_index_and_from_slice_still_scans ... ok
+test map::tests::hybrid_matches_scan_across_threshold ... ok
+test map::tests::push_entry_last_wins_and_pairs_keep_wire_order ... ok
+test packed::tests::append_bytes_fixed_decodes ... ok
+test packed::tests::empty_eq_and_zeroed ... ok
+test packed::tests::append_keeps_wire_until_mut ... ok
+test packed::tests::packed_byte_len_overflow_fails_closed - should panic ... ok
+test packed::tests::packed_byte_len_passthrough ... ok
+test packed::tests::truncated_fixed_fails ... ok
+test packed::tests::truncated_varint_fails ... ok
+test packed::tests::simd_bulk_decode_matches_scalar ... ok
+test repeated::tests::arena_backed_repeated_strings_are_reclaimed ... ok
+test repeated::tests::empty_eq_and_zeroed ... ok
+test repeated::tests::arena_backed_set_rejects_an_invalid_index - should panic ... ok
+test repeated::tests::push_then_clear ... ok
+test runtime::decode::tests::parsed_string_storage_is_owned_by_the_arena ... ok
+test runtime::decode::tests::closed_enum_map_unknown_entries_do_not_replace_valid_keys ... ok
+test runtime::layout::tests::cloned_repeated_strings_are_owned_by_the_new_arena ... ok
+test runtime::mini_table::tests::address_mini_table_one_string ... ok
+test runtime::mini_table::tests::closed_enum_descriptor_masks_skips_and_negative_values ... ok
+test runtime::mini_table::tests::mini_descriptor_distinguishes_open_and_closed_enums ... ok
+test table::tests::closed_enum_moves_to_unknown_open_keeps_value ... ok
+test table::tests::all_kinds_round_trip ... ok
+test table::tests::decode_scalar_vectors ... ok
+test table::tests::dynamic_map_entry_direct_matches_temp ... ok
+test table::tests::depth_limit ... ok
+test table::tests::eager_message_merges_across_occurrences ... ok
+test table::tests::dynamic_table_matches_inline_smoke ... ok
+test table::tests::find_entry_hits_and_misses ... ok
+test table::tests::group_shapes ... ok
+test table::tests::last_wins_and_oneof_replacement ... ok
+test table::tests::lazy_field_semantics ... ok
+test table::tests::lazy_helpers_match_generated_thresholds ... ok
+test table::tests::map_last_wins_with_defaults ... ok
+test table::tests::inner_table_matches_hand_inline ... ok
+test table::tests::messageset_default_preserves_items ... ok
+test table::tests::native_wire_matches_codegen_map ... ok
+test table::tests::packed_accepted_both_directions ... ok
+test table::tests::required_enforcement ... ok
+test table::tests::unknown_fields_and_wire_mismatches_preserved ... ok
+test table::tests::validate_packed_vectors ... ok
+test table::tests::validate_table_accepts_sorted_rejects_bad ... ok
+test wire::tests::huge_length_skip_is_error_not_panic ... ok
+test wire::tests::huge_length_span_is_error_not_panic ... ok
+test wire::tests::max_field_number_matches_spec_bound ... ok
+test wire::tests::max_u64_length_is_error_not_panic ... ok
+test wire::tests::put_shared_default_copies ... ok
+test wire::tests::shared_field_routes_by_threshold_and_backing ... ok
+test wire::tests::simd_chunk_edges_match_reference ... ok
+test codegen::descriptors::tests::file_matcher_matches_reference ... ok
+test wire::tests::validate_varints_matches_scalar_reference ... ok
+test codegen::descriptors::tests::multi_target_emission_is_deterministic ... ok
+test wire::tests::simd_cont_mask_matches_scalar ... ok
+test wire::tests::bulk_varint_differential_campaign ... ok
+
+test result: ok. 96 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+

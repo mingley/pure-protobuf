@@ -1,0 +1,13 @@
+   Compiling pbrs v0.2.0 (/workspace/pure-protobuf)
+warning: pbrs@0.2.0: wrote conformance descriptor set
+    Finished `test` profile [unoptimized] target(s) in 19.58s
+   Doc-tests pbrs
+
+running 4 tests
+test src/lib.rs - (line 6) ... ignored
+test src/lib.rs - proto (line 112) ... ignored
+test src/codegen/config.rs - codegen::config::Config::emit_kernel_stubs (line 1164) - compile ... ok
+test src/codegen/config.rs - codegen::config::Config::compile_descriptor_set (line 1564) - compile ... ok
+
+test result: ok. 2 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.02s
+

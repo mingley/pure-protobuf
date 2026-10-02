@@ -2943,11 +2943,12 @@
    ],
    "relates": [],
    "status": "in_progress",
-   "notes": "2026-09-29 coordinator: option slice + runtime sharing slice (e494b80f: Arc pool + 64-slot OnceLock cache + COW; lib 85/dynamic 27/codegen_compat 10/plugin 41/clippy/fmt/no-default green; lazy once-per-process on first use achieved) integrated. REMAINDER narrowed: opt-in source-level shared emission only (emitter change in descriptors.rs with standalone-include! tradeoff; SB-09 size/check cells unmoved by construction). Blocked on GN-02/GN-04 landing. 2026-10-02: GN-02 and GN-11 source work has landed; GN-04 remains partially qualified but is no longer a source-ownership blocker. Reopened the remaining opt-in source-level descriptor emission design for bounded review; preserve standalone includes and reflection behavior, and measure actual SB-09 binary/check costs before closure.",
+   "notes": "2026-09-29 coordinator: option slice + runtime sharing slice (e494b80f: Arc pool + 64-slot OnceLock cache + COW; lib 85/dynamic 27/codegen_compat 10/plugin 41/clippy/fmt/no-default green; lazy once-per-process on first use achieved) integrated. REMAINDER narrowed: opt-in source-level shared emission only (emitter change in descriptors.rs with standalone-include! tradeoff; SB-09 size/check cells unmoved by construction). Blocked on GN-02/GN-04 landing. 2026-10-02: GN-02 and GN-11 source work has landed; GN-04 remains partially qualified but is no longer a source-ownership blocker. Reopened the remaining opt-in source-level descriptor emission design for bounded review; preserve standalone includes and reflection behavior, and measure actual SB-09 binary/check costs before closure. 2026-10-02: opt-in shared descriptor source c7d2552e and source-volume proof97997f66 integrated on76d43b7d. Default308 archived outputs unchanged; source volume falls4.66%/15.82%/46.03% across small/100/1000. Cold check and linked binary cost still not_run; source reduction alone does not close GN-03.",
    "evidence": [
     "docs/evidence/gn-03-reflection-options.md",
     "docs/evidence/gn-02-generated-shrink.md",
-    "docs/evidence/gn-03-descriptor-sharing.md"
+    "docs/evidence/gn-03-descriptor-sharing.md",
+    "docs/evidence/gn-03-shared-descriptor-helper.md"
    ]
   },
   {
@@ -12172,7 +12173,7 @@
    "priority": "P0",
    "executor": "small",
    "size": "M",
-   "status": "in_progress",
+   "status": "done",
    "implementer": "production_resources",
    "depends_on": [
     "TC-30a"
@@ -12209,7 +12210,10 @@
     "TC-30b",
     "SB-32"
    ],
-   "notes": "Scope reviewed before editing. Existing TC30a unsupported-policy fixture moves only the two now-supported identity cap cases into meaningful cap tests; all other rejection assertions remain. Native finite-budget ownership and opaque codec inflation/recompression require separately qualified work."
+   "notes": "Scope reviewed before editing. Existing TC30a unsupported-policy fixture moves only the two now-supported identity cap cases into meaningful cap tests; all other rejection assertions remain. Native finite-budget ownership and opaque codec inflation/recompression require separately qualified work. 2026-10-02: source d4a3d739 and evidence4afaaed9 integrated on main e2cfa7af; final6 private +22 native +29 unchanged-generated tests, strict native/consumer Clippy and docs/feature-off checks pass. Identity-only leaf closed; TC-30b remains open.",
+   "evidence": [
+    "docs/evidence/tc-30b1.md"
+   ]
   },
   {
    "id": "CL-07a",
@@ -12257,6 +12261,53 @@
     "docs/evidence/deadline-admission/raw-peer-two-red.log",
     "docs/evidence/deadline-admission/raw-peer-two-pins.json"
    ]
+  },
+  {
+   "id": "TC-30b2a",
+   "title": "Enforce finite inbound native caps on gzip-coded opaque tonic bodies",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "status": "in_progress",
+   "implementer": "production_resources",
+   "depends_on": [
+    "TC-30b1"
+   ],
+   "read": [
+    "pbrs-grpc/src/tonic_server/opaque.rs",
+    "pbrs-grpc/src/codec.rs",
+    "tests/interop/tonic/tests/transport_services.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/tonic_server.rs",
+    "pbrs-grpc/src/tonic_server/opaque.rs",
+    "pbrs-grpc/tests/tonic_opaque_transport.rs",
+    "tests/interop/tonic/tests/transport_services.rs",
+    "docs/evidence/tc-30b2a.md"
+   ],
+   "deliverable": "Allow changed finite inbound gzip caps only with encoded-declared and inflated limits, bounded cooperative single-member validation and original Bytes replay. Retain unchanged default/identity paths and fail-closed outbound nonidentity, unlimited changed cap, budget/preferences/hooks policies.",
+   "accept": [
+    "Encoded length and inflated length both respect the configured finite inbound cap; preserve actual native/tonic first-member and ignored-tail behavior, withholding until CRC/ISIZE and entire declared boundary are validated.",
+    "Meaningful hostile prefix/segmentation/header/truncation/CRC/expansion tests, all-four-shape unchanged generated fixtures, tiny-window/cancellation/deadline/reset/progress checks pass with exact source/raw evidence.",
+    "No new dependency/default/unsafe changes; retained fragments and inflate scratch bounded and documented without claiming full ByteBudget/private tonic buffer/RSS or double-inflate performance qualification."
+   ],
+   "checks": [
+    "tonic",
+    "native-serving",
+    "native-hostile",
+    "clippy"
+   ],
+   "scoreboard": [
+    "D4",
+    "F2"
+   ],
+   "relates": [
+    "TC-30b",
+    "SB-32"
+   ],
+   "notes": "Scope reviewed at integrated76d43b7d. Original semantic red and both native/unchanged-generated single-member-tail characterization retained before source edit. Outbound gzip policies and complete native retained-memory accounting remain unresolved in TC-30b."
   }
  ],
  "last_audit": {
