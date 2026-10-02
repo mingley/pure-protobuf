@@ -105,7 +105,7 @@ on the **same SHA** and will not publish unless every required job succeeds:
 | `test` | fmt, strict Clippy for core targets and all gRPC/tonic/example libraries, fail-closed Python interop/benchmark/publisher and checked Edition 2024/v4 benchmark binding integrity contracts, `cargo test --workspace`, serial standalone rpc-bench/tonic-bench correctness tests (not performance gates), docs `-D warnings` |
 | `grpc-interop` | pinned grpc-go and Go toolchain (version from `go.mod`), native directions, eight HTTP/2 negative-case adapters, and server framing/TLS probes; required matrix rows must pass |
 | `grpc-interop-cpp` | pinned C++ peer in both directions: 14 standard and 4 compression cases per direction, with binary digests and retained logs |
-| `conformance` | `./scripts/conformance.sh`: pinned required twice and recommended, each with separate 5,631 binary/JSON and 909 text assertions in the retained report; then regenerate the adapters' checked descriptor sets with pinned protoc and compare their emitted Rust bytes |
+| `conformance` | `./scripts/conformance.sh`: pinned required twice and recommended, each with separate 5,631 binary/JSON and 909 text assertions in the retained report; then non-mutating checks of all bundled bindings and adapter descriptor/codegen parity with pinned protoc |
 | `msrv-core` | rustc **1.85**: `cargo test -p pbrs --lib` and `cargo test -p pbrs-grpc --lib` |
 | `msrv-tonic` | rustc **1.88**: `cargo test -p protobuf-tonic` |
 | `macos` | stable, `brew` protoc: `pbrs-grpc` `tcp::tests`, `--test pbrs_build`, `--test onboarding` |
@@ -114,6 +114,19 @@ on the **same SHA** and will not publish unless every required job succeeds:
 
 A failed or skipped required job blocks publish. Do not treat a previous green
 `main` run as sufficient.
+
+To update the bundled core bindings, first provision the recorded protobuf
+source and matching compiler with `./scripts/conformance.sh`, then run
+`./scripts/regen-generated.sh`. Generation stages the full output separately,
+formats it with Rust Edition 2021, and updates only the 13 registered flat
+binding files, including FieldMask. The handwritten `src/generated/mod.rs`
+and unrelated tracked or untracked files are preserved. Unchanged bindings
+are not rewritten. `./scripts/regen-generated.sh --check` generates into a
+temporary directory and fails on binding drift without editing those files.
+Both modes reject source SHA, source cleanliness, build stamp, or compiler
+version mismatches. They use `target/conformance-build/protoc`, never an
+arbitrary compiler from `PATH`. For regeneration, `CARGO_TARGET_DIR` controls
+only the Rust plugin's build artifacts.
 
 Superseded direct `main`/PR CI runs cancel to avoid spending runner time on
 outdated SHAs. The reusable CI invoked by `Release` is not cancelled by a later
