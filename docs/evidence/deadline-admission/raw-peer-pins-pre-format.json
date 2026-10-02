@@ -1,0 +1,36 @@
+{
+  "base": "a8545803b90717102fe29c5b48378a74d68d863c",
+  "original_failure_source": "de0bcdf2",
+  "library_features": [
+    "copy-counts",
+    "grpc-web",
+    "native-roots",
+    "otel",
+    "prost",
+    "tonic",
+    "tower",
+    "zstd"
+  ],
+  "original_log_sha256": "acf23894aa2c5ec8db9e2355f061babddebc8c2d49b6a4434420274ecf40760b",
+  "argv": [
+    "/workspace/scratch/work/deadline-admission/work/deadline-admission/raw-peer-proof",
+    "--nocapture"
+  ],
+  "started_at": "2026-10-02T21:40:10.458757+00:00",
+  "finished_at": "2026-10-02T21:40:10.606826+00:00",
+  "exit_code": 101,
+  "before": {
+    "/workspace/scratch/work/deadline-admission/work/deadline-admission/raw-peer-proof": "3ea7a0081eeea5865d5c26cf64dbdec34532d11c371cf80ba1d62223bb993b56",
+    "/workspace/scratch/work/verify-main/target/debug/deps/libpbrs_grpc-c5f7b84c09a7121a.rlib": "69f87c4eccacb0828ed809bc8f251d60e2a4067b0f7bb2d42f0b3f8d2fd42a65",
+    "/workspace/scratch/work/verify-main/target/debug/deps/retry_safety-7c018c5b5d18c52b": "b0b34c3c808dd6647ae81ede4d4333c0f09ec3106bc6a87d592cbf3c6d4f9819"
+  },
+  "after": {
+    "/workspace/scratch/work/deadline-admission/work/deadline-admission/raw-peer-proof": "3ea7a0081eeea5865d5c26cf64dbdec34532d11c371cf80ba1d62223bb993b56",
+    "/workspace/scratch/work/verify-main/target/debug/deps/libpbrs_grpc-c5f7b84c09a7121a.rlib": "69f87c4eccacb0828ed809bc8f251d60e2a4067b0f7bb2d42f0b3f8d2fd42a65",
+    "/workspace/scratch/work/verify-main/target/debug/deps/retry_safety-7c018c5b5d18c52b": "b0b34c3c808dd6647ae81ede4d4333c0f09ec3106bc6a87d592cbf3c6d4f9819"
+  },
+  "unchanged": true,
+  "cargo_used": false,
+  "clock": "Tokio paused current-thread; no wall timing claim",
+  "runtime_diff_from_original_failure": ""
+}

@@ -1,0 +1,76 @@
+{
+  "version": "0.4.19",
+  "files": {
+    "src/client.rs": {
+      "sha256": "f64c9089838886bb38aa6b2eaf7e10f84a98fbcdf06d6c4df6fae317de03377e",
+      "line_ranges": [
+        [
+          368,
+          376
+        ],
+        [
+          517,
+          539
+        ],
+        [
+          556,
+          560
+        ],
+        [
+          576,
+          610
+        ]
+      ]
+    },
+    "src/proto/streams/send.rs": {
+      "sha256": "ee355358b86ea048fd0e64642595e7be6e7f03a39d96745e74503cba2f1b08ef",
+      "line_ranges": [
+        [
+          203,
+          278
+        ],
+        [
+          383,
+          428
+        ]
+      ]
+    },
+    "src/proto/streams/stream.rs": {
+      "sha256": "e31a59444ba7b885040556b89c19b308321e2adeab1cdb2cce720285701d56a0",
+      "line_ranges": [
+        [
+          239,
+          252
+        ]
+      ]
+    },
+    "src/proto/streams/counts.rs": {
+      "sha256": "aba319047c01074d9e97afde4999c28e14f0ef21d1d39b7d6c6db4aebc786b79",
+      "line_ranges": [
+        [
+          276,
+          308
+        ]
+      ]
+    },
+    "src/proto/streams/store.rs": {
+      "sha256": "040005e8af13193db7bd89c20a44e28f5d18976a4b8562bf068dd8bd4a982668",
+      "line_ranges": [
+        [
+          207,
+          218
+        ]
+      ]
+    },
+    "src/proto/connection.rs": {
+      "sha256": "e7b371737a3648fee2a0746deab015f99765cd9ec2cb2428ea536b803f097d3c",
+      "line_ranges": [
+        [
+          300,
+          321
+        ]
+      ]
+    }
+  },
+  "lock_sha256": "143bd380614c258637da68df0e839157955b0c294a5faf563e927034d557a76e"
+}
