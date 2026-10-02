@@ -1,0 +1,39 @@
+{
+  "source_commit": "dea20f7ae6ec5d33fe4d7cb5fe64004cf6263247",
+  "commands": [
+    {
+      "command": "python3 -B -m unittest discover -s bench/codegen -p 'test_*.py'",
+      "before": "62 tests, OK, 1 optional pinned-generator skip",
+      "red": "65 tests, FAIL:3 missing-profile API errors, 1 optional skip",
+      "after": "66 tests, OK, 1 optional skip"
+    },
+    {
+      "command": "rustfmt --check --edition 2024 bench/codegen/generator.rs",
+      "result": "pass"
+    },
+    {
+      "command": "git diff --check",
+      "result": "pass"
+    }
+  ],
+  "numeric": {
+    "small": "not_run",
+    "100": "not_run",
+    "1000": "not_run"
+  },
+  "rust_benchmark_driver_compile": "not_run pending quiet bootstrap/capture",
+  "existing_correctness_proof": "docs/evidence/gn-03-source-sharing.md",
+  "resource_plan": {
+    "bootstrap_cache_MiB": 691,
+    "owned_cache_limit_bytes": 2147483648,
+    "global_free_minimum_bytes": 2147483648,
+    "cold_targets": "separate per-profile, initially nonexistent",
+    "archive": "actual linked binaries, generated/consumer source, locks, reports/logs, fingerprints before target reclamation"
+  },
+  "source_sha256": {
+    "bench/codegen/run.py": "cf4cb09d684ca8a976a00ae9ee2ad6ffd05d00326981bb4b71145cda6232cbcd",
+    "bench/codegen/generator.rs": "79e5383d967161094303f04f1f3925d14d74812e6a0c15147057c78d24bad796",
+    "bench/codegen/test_run.py": "560da5720e84604dee908ade0189639bbcb7b7a43b9d94cff403554a60cd282a",
+    "bench/codegen/README.md": "e99472bddf86a6c8fe17da73914327aea5acf3fc95876736f84c9cc660c58c7b"
+  }
+}

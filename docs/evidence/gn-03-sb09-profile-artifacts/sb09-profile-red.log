@@ -1,0 +1,33 @@
+..........EEs...UNQUALIFIED: independent paired-host evidence is missing; /tmp/tmpxlhctpnm/target/codegen-bench/report/summary.json
+........E........................................
+======================================================================
+ERROR: test_pbrs_profile_preserves_raw_false_and_effective_defaults (test_run.CorpusTests.test_pbrs_profile_preserves_raw_false_and_effective_defaults)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/gn03/bench/codegen/test_run.py", line 20, in test_pbrs_profile_preserves_raw_false_and_effective_defaults
+    default = harness.pbrs_profile({})
+              ^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'run' has no attribute 'pbrs_profile'
+
+======================================================================
+ERROR: test_pbrs_profile_records_lean_defaults_and_actual_stub_runtime (test_run.CorpusTests.test_pbrs_profile_records_lean_defaults_and_actual_stub_runtime)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/gn03/bench/codegen/test_run.py", line 42, in test_pbrs_profile_records_lean_defaults_and_actual_stub_runtime
+    profile = harness.pbrs_profile(env)
+              ^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'run' has no attribute 'pbrs_profile'
+
+======================================================================
+ERROR: test_shared_helper_provenance_fails_on_missing_or_stale_output (test_run.CorpusTests.test_shared_helper_provenance_fails_on_missing_or_stale_output)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/work/gn03/bench/codegen/test_run.py", line 61, in test_shared_helper_provenance_fails_on_missing_or_stale_output
+    ordinary = harness.pbrs_profile({})
+               ^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'run' has no attribute 'pbrs_profile'
+
+----------------------------------------------------------------------
+Ran 65 tests in 1.225s
+
+FAILED (errors=3, skipped=1)
