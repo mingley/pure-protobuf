@@ -8,6 +8,10 @@ license = "MIT OR Apache-2.0"
 [workspace]
 exclude = ["adoption"]
 
+[features]
+default = []
+bridge = ["pbrs-adoption-corpus/bridge"]
+
 [dependencies]
 pbrs = { path = "../..", features = ["copy-counts"] }
 pbrs-grpc = { path = "../../pbrs-grpc", features = ["copy-counts", "prost", "tonic"] }

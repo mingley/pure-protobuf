@@ -1762,6 +1762,49 @@ fn run_adoption_codec_cell(cell: &str, iters: u64, warmup: u64) {
     black_box(sink);
 }
 
+#[cfg(feature = "bridge")]
+fn run_adoption_bridge_cell(cell: &str, iters: u64, warmup: u64) {
+    // Identical, fully read owned sources and actual API qualification precede
+    // N and 2N. Target ownership/drop remain inside BridgeCase::work and thus
+    // inside this existing allocator window. No codec-cost subtraction occurs.
+    let case = pbrs_adoption_corpus::bridge::BridgeCase::prepare(cell);
+    let qualification = case.qualification();
+    case.require_timing_qualification();
+    let fingerprint = qualification["wire_fingerprint"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    pbrs_adoption_corpus::bridge::require_matching_input(Some(&fingerprint), Some(&fingerprint));
+    let expected = if qualification["mode"] == "read_all" {
+        qualification["read_checksum"].as_u64().unwrap()
+    } else {
+        1
+    };
+    for _ in 0..warmup {
+        assert_eq!(black_box(case.work()), expected);
+    }
+    let guard = AllocGuard::arm();
+    let start = Instant::now();
+    let mut sink = 0u64;
+    for _ in 0..iters {
+        sink = sink.wrapping_add(case.work());
+    }
+    let wall = start.elapsed();
+    let (allocs, bytes) = guard.totals();
+    drop(guard);
+    assert_eq!(
+        sink,
+        expected.wrapping_mul(iters),
+        "bridge complete-work result changed"
+    );
+    eprintln!("__QUALIFICATION__ {}", qualification);
+    eprintln!(
+        "__CHILD__ {}",
+        child_json_with_input(cell, iters, allocs, bytes, wall, Some(fingerprint))
+    );
+    black_box(sink);
+}
+
 fn all_cells() -> Vec<(&'static str, &'static str, &'static str)> {
     let mut out = Vec::new();
     for (id, codec) in codec_cells() {
@@ -1777,6 +1820,11 @@ fn all_cells() -> Vec<(&'static str, &'static str, &'static str)> {
     }
     for (id, codec) in lb_cells() {
         out.push((id, "lb", codec));
+    }
+    // Append opt-in cells so every existing registry row retains its order.
+    #[cfg(feature = "bridge")]
+    for cell in pbrs_adoption_corpus::bridge::CELLS {
+        out.push((cell.id, "codec", cell.direction.name()));
     }
     out
 }
@@ -1880,6 +1928,11 @@ fn run_cell_process(
 
 /// Reject differential measurements prepared from different adoption inputs.
 fn assert_adoption_input(cell: &str, first: Option<&str>, second: Option<&str>) {
+    #[cfg(feature = "bridge")]
+    if cell.starts_with("codec.adoption.bridge.") {
+        pbrs_adoption_corpus::bridge::require_matching_input(first, second);
+        return;
+    }
     if cell.starts_with("codec.adoption.") || cell.starts_with("rpc.tonic_transport.") {
         assert!(
             first.is_some() && second.is_some(),
@@ -2002,6 +2055,13 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
         for _ in 0..repeats {
             let (child, instr, sys, futex) = run_child(&exe, cell, cell_iters, &tools);
             assert_eq!(child.iters, cell_iters);
+            #[cfg(feature = "bridge")]
+            if cell.starts_with("codec.adoption.bridge.") {
+                pbrs_adoption_corpus::bridge::require_matching_input(
+                    child.input_wire_fingerprint.as_deref(),
+                    child.input_wire_fingerprint.as_deref(),
+                );
+            }
             if cell.starts_with("codec.adoption.") || cell.starts_with("rpc.tonic_transport.") {
                 assert!(
                     child.input_wire_fingerprint.is_some(),
@@ -2145,6 +2205,15 @@ fn compare_reports(baseline: &Report, current: &Report, rpc: bool) -> bool {
             println!("{}: new cell, no baseline", cell.id);
             continue;
         };
+        #[cfg(feature = "bridge")]
+        if cell.id.starts_with("codec.adoption.bridge.") {
+            // New bridge reports require an actual-source identity even when
+            // both report fields are absent. Existing report behavior is intact.
+            pbrs_adoption_corpus::bridge::require_matching_input(
+                old.input_wire_fingerprint.as_deref(),
+                cell.input_wire_fingerprint.as_deref(),
+            );
+        }
         if old.input_wire_fingerprint.is_some() || cell.input_wire_fingerprint.is_some() {
             assert_adoption_input(
                 &cell.id,
@@ -2235,6 +2304,11 @@ fn cmd_run_cell(args: &[String]) {
         }
     }
     let id = id.expect("run-cell <id>");
+    #[cfg(feature = "bridge")]
+    if id.starts_with("codec.adoption.bridge.") {
+        run_adoption_bridge_cell(&id, iters, warmup);
+        return;
+    }
     if blob::is_blob_cell(&id) {
         run_blob_cell(&id, iters, warmup);
     } else if id.starts_with("codec.adoption.") {
@@ -2451,6 +2525,11 @@ fn main() {
     }
     match args[1].as_str() {
         "list" => cmd_list(),
+        #[cfg(feature = "bridge")]
+        "bridge-inventory" => println!(
+            "{}",
+            serde_json::to_string_pretty(&pbrs_adoption_corpus::bridge::inventory()).unwrap()
+        ),
         "run-cell" => cmd_run_cell(&args[2..]),
         "run" => cmd_run(&args[2..]),
         "compare" => cmd_compare(&args[2..]),
@@ -2550,5 +2629,57 @@ mod input_tests {
     #[should_panic(expected = "adoption input fingerprint missing")]
     fn missing_input_identifier_rejects_differential_counts() {
         assert_adoption_input("codec.adoption.pbrs.maps.n8.read_all", None, Some("second"));
+    }
+}
+
+#[cfg(all(test, feature = "bridge"))]
+mod bridge_registration_tests {
+    use super::*;
+
+    #[test]
+    fn opt_in_registry_appends_all_actual_bridge_cells() {
+        let cells = all_cells();
+        let ids: std::collections::HashSet<_> = cells.iter().map(|row| row.0).collect();
+        assert_eq!(ids.len(), cells.len(), "duplicate public cell ID");
+        let (original, bridge) = cells.split_at(cells.len() - 336);
+        assert!(
+            original
+                .iter()
+                .all(|row| !row.0.starts_with("codec.adoption.bridge."))
+        );
+        assert_eq!(
+            bridge.iter().map(|row| row.0).collect::<Vec<_>>(),
+            pbrs_adoption_corpus::bridge::CELLS
+                .iter()
+                .map(|row| row.id)
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn bridge_collector_rejects_empty_missing_and_unequal_identities() {
+        let id = "codec.adoption.bridge.prost_to_pbrs.sparse.v0.api_only";
+        for (first, second) in [
+            (None, None),
+            (Some(""), Some("")),
+            (Some("first"), Some("second")),
+        ] {
+            assert!(std::panic::catch_unwind(|| assert_adoption_input(id, first, second)).is_err());
+        }
+        assert_adoption_input(id, Some("same"), Some("same"));
+    }
+
+    #[test]
+    fn map_dispatch_rejects_before_zero_iteration_timing() {
+        for cell in pbrs_adoption_corpus::bridge::CELLS {
+            if matches!(
+                cell.specimen,
+                pbrs_adoption_corpus::bridge::Specimen::Maps(_)
+            ) {
+                assert!(
+                    std::panic::catch_unwind(|| run_adoption_bridge_cell(cell.id, 0, 0)).is_err()
+                );
+            }
+        }
     }
 }
