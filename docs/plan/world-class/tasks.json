@@ -7143,9 +7143,11 @@
    "relates": [],
    "status": "in_progress",
    "evidence": [
-    "docs/evidence/sb21-claims-scenarios.md"
+    "docs/evidence/sb21-claims-scenarios.md",
+    "docs/evidence/sb21-arrival-accounting-20261002.md",
+    "docs/evidence/sb21-optimized-accounting-20261002.md"
    ],
-   "notes": "Execution 2026-09-29: 6279b63b delivers atomic completion-window conservation, scheduled-send histograms, carry-in/unfinished counts, randomized peer repeats, and frozen stack-matrix execution. Native accounting smoke passes; pinned Go nominal 5000-QPS run is rejected. Its source applies OfferedLoad per outstanding slot, not aggregate; the old QPS-only window cannot be reconstructed from that fact. Keep open for reference aggregate arrival-rate normalization, equivalent arrival schedules/independent accounting, and a valid two-harness scenario smoke with generator headroom; the frozen-order wiring smoke correctly invalidated all rows for scheduling lag. Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure.",
+   "notes": "Execution 2026-09-29: 6279b63b delivers atomic completion-window conservation, scheduled-send histograms, carry-in/unfinished counts, randomized peer repeats, and frozen stack-matrix execution. Native accounting smoke passes; pinned Go nominal 5000-QPS run is rejected. Its source applies OfferedLoad per outstanding slot, not aggregate; the old QPS-only window cannot be reconstructed from that fact. Keep open for reference aggregate arrival-rate normalization, equivalent arrival schedules/independent accounting, and a valid two-harness scenario smoke with generator headroom; the frozen-order wiring smoke correctly invalidated all rows for scheduling lag. Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure. 2026-10-02: 3f1ec668 + 1e6b1119 normalize benchmark-only pinned-Go aggregate Poisson arrivals and fresh-stream units, preserve upstream servers/closed-loop paths, reconcile independent counters/histograms/effective scenario windows, and pin overlay provenance. Source/gate evidence 30da0bad and optimized replay a58a4901 are integrated. Seven optimized fixed-5000 accounting rows pass with zero rejection/failure/timeout; debug-native saturation and all ten invalid frozen-stack rows remain retained. Generator/reference CPU capacity is still unverified, and the old thread-count denominator cannot qualify headroom. Strict benchmark Clippy failures are retained for a separate scoped cleanup. Existing zero-reply OK-EOF native worker edge is assigned a separate parity correction; recorded peers all replied. Parent remains open for valid two-harness headroom, complete peer cells and claim-grade statistics.",
    "implementer": "sb31_claim_accounting",
    "reviewer": "coordinator"
   },
@@ -8860,7 +8862,9 @@
     "bench/stack-matrix/",
     "rpc-bench/src/",
     "rpc-bench/peers/",
-    "tests/interop/"
+    "tests/interop/",
+    "scripts/rpc-bench-matrix.py",
+    "tests/interop/test_bench_matrix.py"
    ],
    "deliverable": "Complete required pbrs, tonic, grpc-go and grpc-c++ claim cells and fail preflight on unavailable or unequal work.",
    "accept": [
@@ -8888,8 +8892,8 @@
     "docs/evidence/sb24-matrix.md",
     "docs/evidence/sb24-tls-smoke.json"
    ],
-   "notes": "Execution 2026-09-29: d9c34c06 TLS follow-up passes 144 wiring cells (1296 successful calls, zero failures/rejections/timeouts) and wrong-CA/wrong-name checks. This is not throughput evidence. Native/native sessions negotiate AES-256 rather than the contract's AES-128; native/tonic sessions show AES-128, while tonic/tonic has a configured single AES-128 suite but no actual load-session telemetry. No core cipher-policy API changed. Keep open for cipher equality, full observed runtime settings, equivalent Go/C++ cells, dedicated-host generator/reference headroom and aligned resource windows, feasible 100k topology, and measured saturation-knee/overload evidence.",
-   "implementer": "sb24_matrix",
+   "notes": "Execution 2026-09-29: d9c34c06 TLS follow-up passes 144 wiring cells (1296 successful calls, zero failures/rejections/timeouts) and wrong-CA/wrong-name checks. This is not throughput evidence. Native/native sessions negotiate AES-256 rather than the contract's AES-128; native/tonic sessions show AES-128, while tonic/tonic has a configured single AES-128 suite but no actual load-session telemetry. No core cipher-policy API changed. Keep open for cipher equality, full observed runtime settings, equivalent Go/C++ cells, dedicated-host generator/reference headroom and aligned resource windows, feasible 100k topology, and measured saturation-knee/overload evidence. 2026-10-02: bounded CPU-capacity correction claimed separately from frozen SB-21 evidence. Require per-PID actual task affinity and proven full CPU quota hierarchy, including fractional ancestor quotas; reject missing, ambiguous, namespace-hidden or drifting capacity instead of using thread count/hardware cores. Preserve existing 95% generator/80% server/10% scheduling-lag gates. Accessible quotas alone are diagnostic upper bounds; this host remains unverified. Full task acceptance remains open.",
+   "implementer": "sb24_capacity_accounting",
    "reviewer": "coordinator"
   },
   {
