@@ -15,7 +15,9 @@
 mod vectors;
 
 #[cfg(feature = "codegen")]
-fn qg20_registry_tuples(lock: &[u8]) -> std::collections::BTreeSet<(String, String, String, String)> {
+fn qg20_registry_tuples(
+    lock: &[u8],
+) -> std::collections::BTreeSet<(String, String, String, String)> {
     std::str::from_utf8(lock)
         .unwrap()
         .split("[[package]]")
@@ -109,7 +111,11 @@ fn fresh_generated_map_value_depth_consumer() {
     std::fs::write(record.join("root-seed.Cargo.lock"), &root_seed).unwrap();
     let mut lock = String::from_utf8(root_seed.clone()).unwrap();
     lock.push_str("\n[[package]]\nname = \"qg20-map-value-consumer\"\nversion = \"0.0.0\"\ndependencies = [\n \"pbrs\",\n]\n");
-    std::fs::write(record.join("seed-before-normalization.Cargo.lock"), lock.as_bytes()).unwrap();
+    std::fs::write(
+        record.join("seed-before-normalization.Cargo.lock"),
+        lock.as_bytes(),
+    )
+    .unwrap();
     let native_cargo =
         std::env::var_os("PBRS_QG20_CONSUMER_CARGO").unwrap_or_else(|| "cargo".into());
     if let Some(accepted_path) = std::env::var_os("PBRS_QG20_ACCEPTED_CONSUMER_LOCK") {
@@ -151,10 +157,17 @@ fn fresh_generated_map_value_depth_consumer() {
         std::fs::write(record.join("fallback-metadata.stderr"), &prepared.stderr).unwrap();
         std::fs::write(
             record.join("fallback-metadata-exit.txt"),
-            format!("exit_code = {:?}\nstatus = {:?}\n", prepared.status.code(), prepared.status),
+            format!(
+                "exit_code = {:?}\nstatus = {:?}\n",
+                prepared.status.code(),
+                prepared.status
+            ),
         )
         .unwrap();
-        assert!(prepared.status.success(), "offline child graph preparation failed");
+        assert!(
+            prepared.status.success(),
+            "offline child graph preparation failed"
+        );
         std::fs::write(
             record.join("accepted.Cargo.lock"),
             std::fs::read(consumer.join("Cargo.lock")).unwrap(),
