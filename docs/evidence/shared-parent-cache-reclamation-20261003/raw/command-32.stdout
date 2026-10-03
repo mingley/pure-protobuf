@@ -1,0 +1,22 @@
+{
+  "source_commit": "8ca03da51ab3723f53858800ca5b8e2a33d0f448",
+  "base_commit": "c9aef45ca2b351f253397d25e6831d3906027339",
+  "tier": "original SB32 correctness outputs preserved before cache reuse; no numeric measurement",
+  "files": [
+    {
+      "source_path": "/workspace/scratch/work/sb32/target/debug/deps/devloop-cb03ed700fd195bf",
+      "preserved_path": "work/tc32b/preserved-sb32-debug/0-devloop-cb03ed700fd195bf",
+      "sha256": "036a401c6f0e52f24863626d1541ad59602542b6f63cb5bc278d37ca99ee8571"
+    },
+    {
+      "source_path": "/workspace/scratch/work/sb32/target/debug/build/devloop-d2e22d41e4de9401/out/adoption.transport.rs",
+      "preserved_path": "work/tc32b/preserved-sb32-debug/1-adoption.transport.rs",
+      "sha256": "b830564fdff24411fd61175f642a96fe6e3c7607ee3970643ebb00a363896ba2"
+    },
+    {
+      "source_path": "/workspace/scratch/work/sb32/target/debug/build/devloop-1fbac85621c628ca/out/adoption.transport.rs",
+      "preserved_path": "work/tc32b/preserved-sb32-debug/2-adoption.transport.rs",
+      "sha256": "b830564fdff24411fd61175f642a96fe6e3c7607ee3970643ebb00a363896ba2"
+    }
+  ]
+}

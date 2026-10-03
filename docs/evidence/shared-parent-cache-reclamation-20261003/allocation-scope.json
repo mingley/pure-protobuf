@@ -1,0 +1,9 @@
+{
+  "file_path_apparent_bytes_including_hardlink_aliases": 2189839546,
+  "unique_regular_file_apparent_bytes": 1950040186,
+  "unique_directory_apparent_bytes": 2408448,
+  "unique_regular_file_allocated_st_blocks_bytes": 1954201600,
+  "unique_directory_allocated_st_blocks_bytes": 2412544,
+  "unique_total_allocated_st_blocks_bytes": 1956614144,
+  "qualification": "Per-inode nominal allocated/apparent values; overlay/CoW shared physical extents and concurrent global free-space changes are separate."
+}

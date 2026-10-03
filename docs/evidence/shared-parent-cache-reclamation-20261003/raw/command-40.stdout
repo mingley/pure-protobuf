@@ -1,0 +1,24 @@
+{
+  "command_argv": [
+    "python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "bench/devloop",
+    "-p",
+    "test_tonic_transport_collectors.py",
+    "-v"
+  ],
+  "started_utc": "2026-10-02T22:15:13.909651+00:00",
+  "finished_utc": "2026-10-02T22:15:14.455143+00:00",
+  "exit_code": 0,
+  "source_sha256": {
+    "bench/devloop/measure-tonic-transport.py": "df750b30178bad8858a7407b0db7b4d830f0415846a5d55de52b26e89d1bf67a",
+    "bench/devloop/check-tonic-transport-evidence.py": "4c9d533f0115d9ad81779d9bfe39b44ce1d143ccfd3cca9662df3fd6a1c304f8",
+    "bench/devloop/test_tonic_transport_collectors.py": "41987642c62574f62bea7853aa653134bbad275b22abf71be815476672dd2ba3"
+  },
+  "source_unchanged_during_gate": true,
+  "log_sha256": "b2d410de74a59abf6da51e3320a143c76889319acc26e327c77acadd89c85d8f",
+  "tier": "synthetic functional collector tests; no RPC workload or performance capture"
+}

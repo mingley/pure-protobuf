@@ -1,0 +1,129 @@
+[package]
+name = "pbrs-grpc"
+version = "0.1.0-alpha.2"
+authors = ["Michael Ingley <michael.ingley@gmail.com>"]
+edition = "2024"
+rust-version = "1.85"
+license = "MIT OR Apache-2.0"
+description = "HTTP/2 gRPC client and server kernel over pbrs (preview / pre-release)"
+repository = "https://github.com/mingley/pure-protobuf"
+documentation = "https://docs.rs/pbrs-grpc/"
+readme = "README.md"
+keywords = ["grpc", "http2", "protobuf", "pbrs", "pure-rust"]
+categories = ["network-programming", "asynchronous"]
+
+[build-dependencies]
+pbrs = { version = "0.2.0", path = ".." }
+
+[dependencies]
+# Private embedded h2 backend: these are the already-locked upstream support
+# dependencies. Registry h2 remains an independent peer / Tower oracle.
+atomic-waker = "=1.1.2"
+base64 = "0.22"
+bytes = "1"
+fnv = "=1.0.7"
+# Already in the graph via h2. Direct so `Streaming` can be a `Stream` without
+# a per-message allocation. No C.
+futures-core = { version = "0.3", default-features = false }
+futures-sink = { version = "=0.3.34", default-features = false }
+# `rust_backend` is miniz_oxide: pure Rust, no C in the compression path.
+flate2 = { version = "1", default-features = false, features = ["rust_backend", "runtime_detection"] }
+h2 = { version = "0.4.18", optional = true }
+http = "1"
+http-body = { version = "1", optional = true }
+http-body-util = { version = "0.1", optional = true }
+indexmap = { version = "=2.14.0", default-features = false, features = ["std"] }
+# Optional OpenTelemetry bridge (GF-01 metrics, GF-02 tracing). Pure Rust, no C.
+# Default off: zero cost when disabled (module compiles out).
+opentelemetry = { version = "0.31", default-features = false, features = ["metrics", "trace"], optional = true }
+pbrs = { version = "0.2.0", path = ".." }
+prost = { version = "0.14", optional = true }
+# rustls default features pull in aws-lc-rs, which compiles C. We disable
+# them and supply Graviola, which builds with rustc only.
+rustls = { version = "0.23", default-features = false, features = ["std", "tls12"] }
+# 0.3+ pulls graviola ≥0.3, which declares rust-version 1.89. Pinning 0.2.1
+# keeps the declared pbrs-grpc MSRV (1.85) honest. Same `default_provider()` API.
+rustls-graviola = "0.2.1"
+rustls-pemfile = "2"
+rustls-native-certs = { version = "0.8", optional = true }
+serde_json = "1"
+slab = "=0.4.12"
+# Pure-Rust wrapper around libc socket options. Tokio already depends on it;
+# a direct dep lets the kernel set SO_KEEPALIVE without compiling C.
+# `all` is an empty feature that unlocks `TCP_KEEPCNT` (`with_retries`).
+socket2 = { version = "0.6", features = ["all"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util", "fs"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["tls12"] }
+tokio-util = { version = "=0.7.19", default-features = false, features = ["codec", "io"] }
+tower = { version = "0.5", default-features = false, features = ["balance", "buffer", "limit", "load-shed", "retry", "timeout", "util"], optional = true }
+tonic = { version = "0.14.6", default-features = false, features = ["codegen", "transport", "router", "_tls-any"], optional = true }
+tracing = { version = "=0.1.44", default-features = false, features = ["std"] }
+webpki-roots = "1"
+ruzstd = { version = "0.9", optional = true }
+
+[features]
+# OpenTelemetry metrics bridge (GF-01). Off by default; enabling the
+# feature without installing an observer costs nothing (Option checks).
+otel = ["dep:opentelemetry"]
+# Pure-Rust Zstandard message compression. Off by default so the shipping
+# dependency graph stays unchanged unless callers opt in. This feature has
+# MSRV 1.87 because ruzstd declares rust-version 1.87.
+zstd = ["dep:ruzstd"]
+# Native operating-system root stores for clients. Off by default; this uses
+# rustls-native-certs' Rust platform bindings and must pass dep-audit.
+native-roots = ["dep:rustls-native-certs"]
+# Prost message support through the native pbrs-grpc transport.
+prost = ["dep:prost"]
+# Bench-only user-space copy counters (SB-13). Off by default; every
+# note call compiles to nothing without it. Bench binaries only.
+# Enables the pbrs runtime counters too so one feature gives full-path
+# attribution (transport + Wire::ensure).
+copy-counts = ["pbrs/copy-counts"]
+# Tower Service adapters for Router and Channel. Off by default so the
+# default dependency graph stays unchanged.
+tower = ["dep:h2", "dep:http-body", "dep:http-body-util", "dep:tower"]
+# Mount native generated services in tonic's typed transport stack. This is
+# separate from the lightweight Tower adapter so tonic stays out of the
+# default and `tower` dependency graphs.
+tonic = ["tower", "dep:tonic"]
+# HTTP/2 gRPC-Web server responses. Off by default; native gRPC behavior and
+# default dependency graph stay unchanged.
+grpc-web = []
+
+[dev-dependencies]
+# In-memory metrics assertions for tests/otel.rs (GF-01).
+opentelemetry_sdk = { version = "0.31", default-features = false, features = ["metrics", "testing", "experimental_metrics_custom_reader"] }
+# The hostile-peer tests speak raw HTTP/2 so they can send bytes no
+# well-behaved client would.
+bytes = "1"
+flate2 = { version = "1", default-features = false, features = ["rust_backend", "runtime_detection"] }
+h2 = "0.4.18"
+http = "1"
+# test-util is dev-only: paused-clock resolver timelines. Production keeps
+# the minimal feature set above.
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util", "test-util"] }
+tokio-stream = { version = "0.1", features = ["net"] }
+
+[[bin]]
+name = "pbrs-grpc-hello"
+path = "src/bin/pbrs-grpc-hello.rs"
+
+[[bin]]
+name = "pbrs-grpc-interop-server"
+path = "src/bin/pbrs-grpc-interop-server.rs"
+
+[[bin]]
+name = "pbrs-grpc-interop-client"
+path = "src/bin/pbrs-grpc-interop-client.rs"
+
+[[bin]]
+name = "pbrs-grpc-http2-client"
+path = "src/bin/pbrs-grpc-http2-client.rs"
+
+# Linux-only raw TCP_USER_TIMEOUT setsockopt (A18, CH-09). socket2
+# exposes no public API for it. FFI bindings only; compiles no C.
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
+
+[lints]
+workspace = true

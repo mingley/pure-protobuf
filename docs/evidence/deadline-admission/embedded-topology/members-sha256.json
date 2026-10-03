@@ -1,0 +1,3226 @@
+{
+  "embedded-topology-604f4c2e/admission_additional_tests.rs": {
+    "bytes": 19913,
+    "sha256": "c72ad52ce944329a070813ab2bd3441abc9267bb7007db47803b6f579e4fe702"
+  },
+  "embedded-topology-604f4c2e/admission_tests.rs": {
+    "bytes": 9038,
+    "sha256": "6a997b94699feec78835a1cf07fd0d3212c5cf2929d570032f163ac360f77e93"
+  },
+  "embedded-topology-604f4c2e/baseline-graphs.json": {
+    "bytes": 113784,
+    "sha256": "6f57fcb4d51a309dc5d89eefdf6ed65ce406f96dc56faaa28672849cb3039e2b"
+  },
+  "embedded-topology-604f4c2e/baseline-integrated-msrv-validation.json": {
+    "bytes": 37246,
+    "sha256": "6f69d24166b9c1e6bb5810b8329cbb3574cd51b084a28a52df581450f1c8476b"
+  },
+  "embedded-topology-604f4c2e/bytes-str-tests.rs": {
+    "bytes": 1641,
+    "sha256": "c27f9eb9852b6b7b806e7740a5373c21c45dd045b7d446de452427afdf5fe662"
+  },
+  "embedded-topology-604f4c2e/candidate/src/client.rs": {
+    "bytes": 63665,
+    "sha256": "ef7273cafdbcd1351c3b4727054c6e862437404dae5afc4ee108bae7ae9f1ca6"
+  },
+  "embedded-topology-604f4c2e/candidate/src/codec/error.rs": {
+    "bytes": 3127,
+    "sha256": "4384868a883fc21676888f61380ddf43cd15703bd6377b79d2eec2183e8edecf"
+  },
+  "embedded-topology-604f4c2e/candidate/src/codec/framed_read.rs": {
+    "bytes": 17349,
+    "sha256": "061131d2280ec0903507eb73b675791b79643ec312cefd5b8bf46dbe3b7707d2"
+  },
+  "embedded-topology-604f4c2e/candidate/src/codec/framed_write.rs": {
+    "bytes": 11948,
+    "sha256": "032aab4c8c9108082e915885d0d582871bf4cdd95cd485bdcd7b717087c8ec35"
+  },
+  "embedded-topology-604f4c2e/candidate/src/codec/mod.rs": {
+    "bytes": 6193,
+    "sha256": "806fc32706d789f8e48a6867df014d945c438334e981205ff8f43d5b7f8ce0ef"
+  },
+  "embedded-topology-604f4c2e/candidate/src/error.rs": {
+    "bytes": 6101,
+    "sha256": "b05dc52f36a29b29b1b3e0705a3f1ecf102a89896e173356f3e5fb1165dd6090"
+  },
+  "embedded-topology-604f4c2e/candidate/src/ext.rs": {
+    "bytes": 1246,
+    "sha256": "2fb968f754829fc50392b6ccb4b90cc4c8b88657a5e3a7259f53916e13dc1c91"
+  },
+  "embedded-topology-604f4c2e/candidate/src/frame/data.rs": {
+    "bytes": 7237,
+    "sha256": "8db7229fdaf0b3f750fce26a2e29a6facacb95622b6d36dfe186c42c8a2d2f73"
+  },
+  "embedded-topology-604f4c2e/candidate/src/frame/go_away.rs": {
+    "bytes": 2277,
+    "sha256": "6b3fe966ed96bb941e55e6af3352d7afa43e9bde78dc261251a38b09f5c73202"
+  },
+  "embedded-topology-604f4c2e/candidate/src/frame/head.rs": {
+    "bytes": 1923,
+    "sha256": "4073eb70a8ed9ec0ca460e18fb470fca1dbe6900c1ac08d66397ab4d75414e4c"
+  },
+  "embedded-topology-604f4c2e/candidate/src/frame/headers.rs": {
+    "bytes": 40928,
+    "sha256": "a7630564280006b29488c2fb399d52a70d8d7ccc6d1276fd291410b329d038c5"
+  },
+  "embedded-topology-604f4c2e/candidate/src/frame/mod.rs": {
+    "bytes": 4816,
+    "sha256": "59b9db34f1e3a92a59557c280a14642f523483f1e659b448f1df0e2b0cdc1cd4"
+  },
+  "embedded-topology-604f4c2e/candidate/src/frame/ping.rs": {
+    "bytes": 2983,
+    "sha256": "ff4e4059101300e7b03c23d271026b058da4315c3bd68280422e144c2aa1b9e6"
+  },
+  "embedded-topology-604f4c2e/candidate/src/frame/priority.rs": {
+    "bytes": 1810,
+    "sha256": "9392b7aa2636157024dc645c92d0e450a4d3f7a53bc9de1188d3b61178c2b5fc"
+  },
+  "embedded-topology-604f4c2e/candidate/src/frame/reason.rs": {
+    "bytes": 5135,
+    "sha256": "45b13202141b1d8b261d64624b276a9b034d8c3f7d9b6870ee41a204589f4e14"
+  },
+  "embedded-topology-604f4c2e/candidate/src/frame/reset.rs": {
+    "bytes": 1304,
+    "sha256": "91c17a7391fcb516223fd0358f7770524023b33dd6489902ba23e47b8acc9a9e"
+  },
+  "embedded-topology-604f4c2e/candidate/src/frame/settings.rs": {
+    "bytes": 11307,
+    "sha256": "9aed52868a1ddbb5570025edde2e073d3da1291b58d8759bfed7f086d40ef293"
+  },
+  "embedded-topology-604f4c2e/candidate/src/frame/stream_id.rs": {
+    "bytes": 2783,
+    "sha256": "c26f217a6703971bde2806bad649be6ecf532dcd0a2e60142b7d34f58aa06815"
+  },
+  "embedded-topology-604f4c2e/candidate/src/frame/util.rs": {
+    "bytes": 2140,
+    "sha256": "e67635feb8f2dd577b7ee9d673f3909aa6d812105ef1f9b329ddde679ec77dba"
+  },
+  "embedded-topology-604f4c2e/candidate/src/frame/window_update.rs": {
+    "bytes": 1697,
+    "sha256": "05c1b84478208802d09154f5d6fb5eb886d45397f43ccc6ccbf40bf3be912819"
+  },
+  "embedded-topology-604f4c2e/candidate/src/fuzz_bridge.rs": {
+    "bytes": 975,
+    "sha256": "c1570c12528effecbb65b1046d0756cb4b213ee0cfa17bccb44801f30bf304ca"
+  },
+  "embedded-topology-604f4c2e/candidate/src/hpack/decoder.rs": {
+    "bytes": 28660,
+    "sha256": "1013f226a9d115eb6cff16a0fd5f60eb4ba95b944a23bbc37f4ee959fd5f3115"
+  },
+  "embedded-topology-604f4c2e/candidate/src/hpack/encoder.rs": {
+    "bytes": 24717,
+    "sha256": "85b02c0eaa35c353857f2d53fc49c4da059ae60edb0812e75342196202f10f21"
+  },
+  "embedded-topology-604f4c2e/candidate/src/hpack/header.rs": {
+    "bytes": 9553,
+    "sha256": "b41158784403037c347bfecb7de41b63acb46c825a9c15c4011859c418dc540d"
+  },
+  "embedded-topology-604f4c2e/candidate/src/hpack/huffman/mod.rs": {
+    "bytes": 6943,
+    "sha256": "4fb4cc5ae0c174b6e252b01a046331a009c2a251de5141f547d0980975da55ef"
+  },
+  "embedded-topology-604f4c2e/candidate/src/hpack/huffman/table.rs": {
+    "bytes": 37185,
+    "sha256": "c1f7063610fc6a3907389c2110b0f452f3c5cffb4bede5958e45047112c8974b"
+  },
+  "embedded-topology-604f4c2e/candidate/src/hpack/mod.rs": {
+    "bytes": 241,
+    "sha256": "581033d44fd5525e9ccb546549a99f8357ab8f55d58b490d9980fb36323c5dbc"
+  },
+  "embedded-topology-604f4c2e/candidate/src/hpack/table.rs": {
+    "bytes": 24436,
+    "sha256": "cac4ed7dec7b9a5d92ab7d139a4500698206ca8eff1fbd569f0e6c29d4747a59"
+  },
+  "embedded-topology-604f4c2e/candidate/src/hpack/test/fixture.rs": {
+    "bytes": 27505,
+    "sha256": "0b67a2c9eeb4762baa75156925d689b8828cd23b335a08b3a6b310882d78daba"
+  },
+  "embedded-topology-604f4c2e/candidate/src/hpack/test/fuzz.rs": {
+    "bytes": 11131,
+    "sha256": "4ff6130c3f7eb2e0cc30416976e6c8f54b42378ff55ab47fe3a1b04465f19cb6"
+  },
+  "embedded-topology-604f4c2e/candidate/src/hpack/test/mod.rs": {
+    "bytes": 23,
+    "sha256": "56ad5643e7f1e273e5bce8a6fc0552be39c326dacfffd7f9757ccdbe75e9b66e"
+  },
+  "embedded-topology-604f4c2e/candidate/src/lib.rs": {
+    "bytes": 5363,
+    "sha256": "c8680fc4eb13ccb4ce944716042bd33c6554677cf8261c371442f91fbee352e0"
+  },
+  "embedded-topology-604f4c2e/candidate/src/proto/connection.rs": {
+    "bytes": 24952,
+    "sha256": "e7b371737a3648fee2a0746deab015f99765cd9ec2cb2428ea536b803f097d3c"
+  },
+  "embedded-topology-604f4c2e/candidate/src/proto/error.rs": {
+    "bytes": 2571,
+    "sha256": "ae3d3e0613586970bbcae17af539cfab739d1b8df5cabce3b9d866cdba11315a"
+  },
+  "embedded-topology-604f4c2e/candidate/src/proto/go_away.rs": {
+    "bytes": 4713,
+    "sha256": "51d467027bc30873fc76166ed731e968a23725e7b106b58ecadcb85044466a5f"
+  },
+  "embedded-topology-604f4c2e/candidate/src/proto/mod.rs": {
+    "bytes": 1671,
+    "sha256": "592f8c60d97425946ff62cf694e3f36097a793863fc218fb4357dd440ed377e8"
+  },
+  "embedded-topology-604f4c2e/candidate/src/proto/peer.rs": {
+    "bytes": 2612,
+    "sha256": "a383e4d81502945878333748e40e5a5f64da4403af886d1812027f522fc0d869"
+  },
+  "embedded-topology-604f4c2e/candidate/src/proto/ping_pong.rs": {
+    "bytes": 8383,
+    "sha256": "fabf42b1b1062e361c4d45026e9bfc9c32a02a9074259c71b525e78d2113a148"
+  },
+  "embedded-topology-604f4c2e/candidate/src/proto/settings.rs": {
+    "bytes": 5709,
+    "sha256": "0fef5d01aa0233100a0cda9c0b5080a15cfbaab16c42c991933f5ed7db06bf77"
+  },
+  "embedded-topology-604f4c2e/candidate/src/proto/streams/buffer.rs": {
+    "bytes": 2317,
+    "sha256": "631aa4360b7b942c3899c6fb7455e682655c3ac099a170d5c3d566af3fec8318"
+  },
+  "embedded-topology-604f4c2e/candidate/src/proto/streams/counts.rs": {
+    "bytes": 15868,
+    "sha256": "a64db8bdf74e6282676640927bfd8ff4ab2becfe4b52be9f67a56db5ece5a4b5"
+  },
+  "embedded-topology-604f4c2e/candidate/src/proto/streams/flow_control.rs": {
+    "bytes": 8190,
+    "sha256": "a8b3c5cd24b1f83770576ba21d5fcd555f144afd88f246f7d5dbe9e39563c74a"
+  },
+  "embedded-topology-604f4c2e/candidate/src/proto/streams/mod.rs": {
+    "bytes": 3790,
+    "sha256": "3f7afa89a19943b1ac56052f64c4e220dbf0e951a4ac74405adbf83ea7050c27"
+  },
+  "embedded-topology-604f4c2e/candidate/src/proto/streams/prioritize.rs": {
+    "bytes": 36976,
+    "sha256": "4f36786669a18fcbace8abd7a11b5d1fbb9ed6def76faed40488760347e7d461"
+  },
+  "embedded-topology-604f4c2e/candidate/src/proto/streams/recv.rs": {
+    "bytes": 49459,
+    "sha256": "49888eca03594469393d8b3bf328036007aff0e87df704f61a4556e4272386f8"
+  },
+  "embedded-topology-604f4c2e/candidate/src/proto/streams/send.rs": {
+    "bytes": 23202,
+    "sha256": "66eda85db47211e487db074db288ec2a1a965c19c980eca6776d91f161b6e90e"
+  },
+  "embedded-topology-604f4c2e/candidate/src/proto/streams/state.rs": {
+    "bytes": 17911,
+    "sha256": "486b99b293d0f874b72724e1511cb0b11b44b3906ea20eb176fae1821772794d"
+  },
+  "embedded-topology-604f4c2e/candidate/src/proto/streams/store.rs": {
+    "bytes": 11762,
+    "sha256": "040005e8af13193db7bd89c20a44e28f5d18976a4b8562bf068dd8bd4a982668"
+  },
+  "embedded-topology-604f4c2e/candidate/src/proto/streams/stream.rs": {
+    "bytes": 19686,
+    "sha256": "e31a59444ba7b885040556b89c19b308321e2adeab1cdb2cce720285701d56a0"
+  },
+  "embedded-topology-604f4c2e/candidate/src/proto/streams/streams.rs": {
+    "bytes": 64991,
+    "sha256": "0319db21d756dc0eb5c6246d636b1c5e399a2f84d1cc779b043b862275e441db"
+  },
+  "embedded-topology-604f4c2e/candidate/src/server.rs": {
+    "bytes": 62859,
+    "sha256": "6c288263c09ea51eabf87332a990547a8212bfd9d9301e5540d51cbe56b27d86"
+  },
+  "embedded-topology-604f4c2e/candidate/src/share.rs": {
+    "bytes": 22749,
+    "sha256": "e313c11a24b649d4c9da937fb37e5c2cc7c689c53f6afd2470fd40fd030237c5"
+  },
+  "embedded-topology-604f4c2e/candidate-graphs.json": {
+    "bytes": 113582,
+    "sha256": "136c4c1ff353102880cdbd19dafb628615ef23e854e69e48893e90071b91fb7f"
+  },
+  "embedded-topology-604f4c2e/check-initial-source.json": {
+    "bytes": 17431,
+    "sha256": "e5f7bf08df93b37eab8989ba4d2663d1d30b4c7678c80891b86caa5ea8fcc548"
+  },
+  "embedded-topology-604f4c2e/completed-cache-reclamation.json": {
+    "bytes": 530030,
+    "sha256": "0258ddc9d79e111ddefe7231bb1078a08e14e794e79f0eb9f25e42b0e43cb978"
+  },
+  "embedded-topology-604f4c2e/consumer-inputs/path-initial/Cargo.lock": {
+    "bytes": 25497,
+    "sha256": "8b4cffe176c3cdb2ce7218bbd170ce9e1ecc11f1df701b30d528f84efa47b09a"
+  },
+  "embedded-topology-604f4c2e/consumer-inputs/path-initial/Cargo.toml": {
+    "bytes": 725,
+    "sha256": "9d2e0e8a932decfbf02285c318274d275b1bdde36feec3307b680d8b17278d2f"
+  },
+  "embedded-topology-604f4c2e/consumer-inputs/path-initial/main.rs": {
+    "bytes": 5941,
+    "sha256": "c77f44c8f1aadd4696bb70bc1367bac6f6724dc38939601a7d568449dd178efa"
+  },
+  "embedded-topology-604f4c2e/debug-cache-reclamation-after-cap.json": {
+    "bytes": 765744,
+    "sha256": "fe9b4a6c0617d30c4675e2ab80d0b9755c41fe7b150e80afe26f873ca6dd4424"
+  },
+  "embedded-topology-604f4c2e/embed_backend.py": {
+    "bytes": 10856,
+    "sha256": "98e1ab305e551b91c8121a7e1f4318dfbe190d0685dd11a8433734b795fd6124"
+  },
+  "embedded-topology-604f4c2e/external-consumers/package/Cargo.lock": {
+    "bytes": 25500,
+    "sha256": "92003468ea5b75b1b6b9cb2f8e2547dec466231b60b0dc8f43de43b7c01957e2"
+  },
+  "embedded-topology-604f4c2e/external-consumers/package/Cargo.toml": {
+    "bytes": 865,
+    "sha256": "390e83ae6084301856825ba41cc5021bfd63ae3809de9927c7e8b3309e86fdda"
+  },
+  "embedded-topology-604f4c2e/external-consumers/package/src/main.rs": {
+    "bytes": 5937,
+    "sha256": "b2bb34faa2270f072ae095acb43109481eca46a8bc6919b06bd7a809cf7a16db"
+  },
+  "embedded-topology-604f4c2e/external-consumers/path/Cargo.lock": {
+    "bytes": 25497,
+    "sha256": "8b4cffe176c3cdb2ce7218bbd170ce9e1ecc11f1df701b30d528f84efa47b09a"
+  },
+  "embedded-topology-604f4c2e/external-consumers/path/Cargo.toml": {
+    "bytes": 725,
+    "sha256": "9d2e0e8a932decfbf02285c318274d275b1bdde36feec3307b680d8b17278d2f"
+  },
+  "embedded-topology-604f4c2e/external-consumers/path/src/main.rs": {
+    "bytes": 5937,
+    "sha256": "b2bb34faa2270f072ae095acb43109481eca46a8bc6919b06bd7a809cf7a16db"
+  },
+  "embedded-topology-604f4c2e/final-qualification-source.json": {
+    "bytes": 17676,
+    "sha256": "438ba3eb2948e26624d6559d4fb6aa54953f78c67bddada780ad82d550f463a1"
+  },
+  "embedded-topology-604f4c2e/gate-clippy-qualified.json": {
+    "bytes": 2490,
+    "sha256": "891d4901b239572afb68487935b63b733a850f4bb612e4241f82ba97bc7b814a"
+  },
+  "embedded-topology-604f4c2e/gate-consumer-package-default-resolve.json": {
+    "bytes": 3544,
+    "sha256": "263d02fb9496ec0957555fc3ee04440e518b5779ab800cc86897c64fe39bc03a"
+  },
+  "embedded-topology-604f4c2e/gate-consumer-package-default-run.json": {
+    "bytes": 3456,
+    "sha256": "9c1e54e110bfe498082e05a4589e56a51b9a19e9e1ba232504766ba09bbb5d95"
+  },
+  "embedded-topology-604f4c2e/gate-consumer-package-tonic-resolve.json": {
+    "bytes": 3572,
+    "sha256": "0b5026cef99338257d2a3fd6be540a6267429893cea3eae23420957a45e27ba1"
+  },
+  "embedded-topology-604f4c2e/gate-consumer-package-tonic-run.json": {
+    "bytes": 3484,
+    "sha256": "3148be579bb8dfe6f2ceabe5be6be6b1939d0f6ba6b3a6a29b278c2e7c8b4a97"
+  },
+  "embedded-topology-604f4c2e/gate-consumer-package-tower-resolve.json": {
+    "bytes": 3571,
+    "sha256": "611bdfc9f780e4b164788d2d5fee5c9c3fe4bf7ae2db7b50e73db2cc785b576d"
+  },
+  "embedded-topology-604f4c2e/gate-consumer-package-tower-run.json": {
+    "bytes": 3484,
+    "sha256": "231946a6e2e9261da87967009f30ea8688eace9b167930cf86895b8f86984a4c"
+  },
+  "embedded-topology-604f4c2e/gate-consumer-path-default-resolve.json": {
+    "bytes": 2800,
+    "sha256": "5fed4e8ba6b86dee2fc1b655f386f908b93e7461c6a280592427f7539a76cd08"
+  },
+  "embedded-topology-604f4c2e/gate-consumer-path-default-run.json": {
+    "bytes": 2712,
+    "sha256": "b6b47f3785645e2a577d1f52390209d53cc68415a39f1ce92d8fc9bb0fe79c61"
+  },
+  "embedded-topology-604f4c2e/gate-consumer-path-tonic-corrected-run.json": {
+    "bytes": 3493,
+    "sha256": "2fecf595cee018e1c5ab841def3f952e58ac1b3e6d53f44a6bf8a206b81e4e9a"
+  },
+  "embedded-topology-604f4c2e/gate-consumer-path-tonic-resolve.json": {
+    "bytes": 2826,
+    "sha256": "2156e0b8ef12f5ed477c3c3ecdf638463a038b1b4c6d9f49c903030b210e3894"
+  },
+  "embedded-topology-604f4c2e/gate-consumer-path-tonic-retry-run.json": {
+    "bytes": 2745,
+    "sha256": "d565f222964bfefcd408a1707aa15fc595c3090a8d9b07c5ee42b886464f71a0"
+  },
+  "embedded-topology-604f4c2e/gate-consumer-path-tonic-run.json": {
+    "bytes": 2739,
+    "sha256": "720982dccba91612a1a1c4fe28abf1ec24b71249a3489c6370a9625964df74ec"
+  },
+  "embedded-topology-604f4c2e/gate-consumer-path-tower-resolve.json": {
+    "bytes": 2827,
+    "sha256": "ff29f373301d87eecc9c234f31bfa47e02d7c296a2e0d2ced31224e7f117d65c"
+  },
+  "embedded-topology-604f4c2e/gate-consumer-path-tower-run.json": {
+    "bytes": 2739,
+    "sha256": "fef2ec2c5c422ba1c7304ec73b41b8b9d288a0b1dfcf6a408d5249aaa0a201bb"
+  },
+  "embedded-topology-604f4c2e/gate-docs-qualified.json": {
+    "bytes": 2822,
+    "sha256": "b4d82a785ffa3d2b4bb17a257f3f3014420a6373593ed864aade0c87e2e9e506"
+  },
+  "embedded-topology-604f4c2e/gate-doctests-qualified.json": {
+    "bytes": 2827,
+    "sha256": "382754aaa22f4b4c99cec574eab79a0db12aab6b6e04b7d893796baa9114121b"
+  },
+  "embedded-topology-604f4c2e/gate-fmt-qualified.json": {
+    "bytes": 3193,
+    "sha256": "01b8559f1a5436e14e5a04b96a213ece4108270fc1954e4d1fe61b47b403e3ff"
+  },
+  "embedded-topology-604f4c2e/gate-miri-utf8-qualified.json": {
+    "bytes": 3942,
+    "sha256": "ff09ef1f01682f22f1afb73d638144e3c5642c794682f67970c7ff864b3707b2"
+  },
+  "embedded-topology-604f4c2e/gate-package-locked-first.json": {
+    "bytes": 15359,
+    "sha256": "ab5152075a7760ed6f05b5f642ae29cd4825683ad1db5d198b3855c9aa2c2423"
+  },
+  "embedded-topology-604f4c2e/gate-units-default-1.85-qualified.json": {
+    "bytes": 2744,
+    "sha256": "b1f0fd5b9ed1d8537a010ef8f91a088d8e169a9d0b2cfdfb279b9e8cc11f558e"
+  },
+  "embedded-topology-604f4c2e/gate-units-tonic-1.88-qualified.json": {
+    "bytes": 2770,
+    "sha256": "279d3305576f231c6c736c8845db9d7cef4f6e54f3f9edff0fde10341ef21874"
+  },
+  "embedded-topology-604f4c2e/graph-delta-qualified.json": {
+    "bytes": 5573,
+    "sha256": "f502d81399685e92ac80d7476510c92173727cbd345d01e0c80ad6a95323d156"
+  },
+  "embedded-topology-604f4c2e/graph-delta.json": {
+    "bytes": 5573,
+    "sha256": "02889fc56123a2ce26062c3d2b83b9d850061496673e960173c78dbd1c33f70f"
+  },
+  "embedded-topology-604f4c2e/graph_audit.py": {
+    "bytes": 6816,
+    "sha256": "8beea4ef38a01c68120ac46a51f64b6596d7e8a13f0f2c9515eeee7aefaecc93"
+  },
+  "embedded-topology-604f4c2e/graphs/baseline/default/Cargo.lock": {
+    "bytes": 17390,
+    "sha256": "23dc7274be89fe69e3cb8eb41e1bd66c3ed44bfd60c1270e4a4cf8c6393c3bbc"
+  },
+  "embedded-topology-604f4c2e/graphs/baseline/default/Cargo.toml": {
+    "bytes": 221,
+    "sha256": "3d8e7e0bee6570b727a9d9ee754f2342276bf86bc1f3fadc688009cf07eee5d1"
+  },
+  "embedded-topology-604f4c2e/graphs/baseline/default/command.json": {
+    "bytes": 502,
+    "sha256": "b651f8eab0c3d85ecc06991b5f9f04d8f0db4baf794338d4c265d3baf95a8b4b"
+  },
+  "embedded-topology-604f4c2e/graphs/baseline/default/metadata.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "embedded-topology-604f4c2e/graphs/baseline/default/metadata.stdout": {
+    "bytes": 347229,
+    "sha256": "a46118a8e7875fd9ebddfc866769f5ff6891dac0fc77c002a5d13c5799985f23"
+  },
+  "embedded-topology-604f4c2e/graphs/baseline/default/src/main.rs": {
+    "bytes": 13,
+    "sha256": "536e506bb90914c243a12b397b9a998f85ae2cbd9ba02dfd03a9e155ca5ca0f4"
+  },
+  "embedded-topology-604f4c2e/graphs/baseline/tonic/Cargo.lock": {
+    "bytes": 25359,
+    "sha256": "973fbd11a7aac2b4895d8a62ad68f1a427d6b56bfde44007602f92f1347909e0"
+  },
+  "embedded-topology-604f4c2e/graphs/baseline/tonic/Cargo.toml": {
+    "bytes": 228,
+    "sha256": "61c7a8a3f42c181b6858a860bf37dbf753a0e62db02454b8f5edea728ae186aa"
+  },
+  "embedded-topology-604f4c2e/graphs/baseline/tonic/command.json": {
+    "bytes": 500,
+    "sha256": "0753a8ec3d4f346bda52eccbab082f2e848f3f242bc46c43e595e6841d36bf12"
+  },
+  "embedded-topology-604f4c2e/graphs/baseline/tonic/metadata.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "embedded-topology-604f4c2e/graphs/baseline/tonic/metadata.stdout": {
+    "bytes": 527553,
+    "sha256": "e7245f09d8a9e52b0a13bde493528d6ce9d7251857e6ad30b77ed93383f5fff7"
+  },
+  "embedded-topology-604f4c2e/graphs/baseline/tonic/src/main.rs": {
+    "bytes": 13,
+    "sha256": "536e506bb90914c243a12b397b9a998f85ae2cbd9ba02dfd03a9e155ca5ca0f4"
+  },
+  "embedded-topology-604f4c2e/graphs/baseline/tower/Cargo.lock": {
+    "bytes": 19390,
+    "sha256": "2d47e6ae13b415e36301c85a3ca90c8962c47fabf5a4b9a1480cc79f92198027"
+  },
+  "embedded-topology-604f4c2e/graphs/baseline/tower/Cargo.toml": {
+    "bytes": 228,
+    "sha256": "b09fec0a4491607b0e6e1d106044d9000d0d685436ab18c173e43c946b5c0031"
+  },
+  "embedded-topology-604f4c2e/graphs/baseline/tower/command.json": {
+    "bytes": 500,
+    "sha256": "32b718796825da58862f48b2e7581dafc5feaa851c8c9d593d0dfa6f9b7fa69b"
+  },
+  "embedded-topology-604f4c2e/graphs/baseline/tower/metadata.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "embedded-topology-604f4c2e/graphs/baseline/tower/metadata.stdout": {
+    "bytes": 382979,
+    "sha256": "170cfc058d668bba8155e349a528317ae0a59a8b537093cf846d55ee022c19bf"
+  },
+  "embedded-topology-604f4c2e/graphs/baseline/tower/src/main.rs": {
+    "bytes": 13,
+    "sha256": "536e506bb90914c243a12b397b9a998f85ae2cbd9ba02dfd03a9e155ca5ca0f4"
+  },
+  "embedded-topology-604f4c2e/graphs/candidate/default/Cargo.lock": {
+    "bytes": 17131,
+    "sha256": "fe403a0fdc05818cbc01c3a3d11308f82d07cb33d56463375795ce1697d79d23"
+  },
+  "embedded-topology-604f4c2e/graphs/candidate/default/Cargo.toml": {
+    "bytes": 221,
+    "sha256": "3d8e7e0bee6570b727a9d9ee754f2342276bf86bc1f3fadc688009cf07eee5d1"
+  },
+  "embedded-topology-604f4c2e/graphs/candidate/default/command.json": {
+    "bytes": 503,
+    "sha256": "9795b278efe47eda4b2476378731b0e44e874af28a8f91112023de1a7ba99dbc"
+  },
+  "embedded-topology-604f4c2e/graphs/candidate/default/metadata.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "embedded-topology-604f4c2e/graphs/candidate/default/metadata.stdout": {
+    "bytes": 340917,
+    "sha256": "4ea7743fb83d6b7efbd0a53a22155d5941fd276d9ca5a50ac5f8da99683f718d"
+  },
+  "embedded-topology-604f4c2e/graphs/candidate/default/src/main.rs": {
+    "bytes": 13,
+    "sha256": "536e506bb90914c243a12b397b9a998f85ae2cbd9ba02dfd03a9e155ca5ca0f4"
+  },
+  "embedded-topology-604f4c2e/graphs/candidate/tonic/Cargo.lock": {
+    "bytes": 25450,
+    "sha256": "a97a485fde7d5d5e91c49154bcb6f899bf93e68d9905fcd80127e757d4fd34d3"
+  },
+  "embedded-topology-604f4c2e/graphs/candidate/tonic/Cargo.toml": {
+    "bytes": 228,
+    "sha256": "61c7a8a3f42c181b6858a860bf37dbf753a0e62db02454b8f5edea728ae186aa"
+  },
+  "embedded-topology-604f4c2e/graphs/candidate/tonic/command.json": {
+    "bytes": 501,
+    "sha256": "80abd6482ad6517433d9b3ca629c066866330a91af80ad02e0a16b7e1ff17c4a"
+  },
+  "embedded-topology-604f4c2e/graphs/candidate/tonic/metadata.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "embedded-topology-604f4c2e/graphs/candidate/tonic/metadata.stdout": {
+    "bytes": 530594,
+    "sha256": "6be101454485e183e1905997cd3ce40ecb95bd96f0d9a7f84f66695fde0de0c3"
+  },
+  "embedded-topology-604f4c2e/graphs/candidate/tonic/src/main.rs": {
+    "bytes": 13,
+    "sha256": "536e506bb90914c243a12b397b9a998f85ae2cbd9ba02dfd03a9e155ca5ca0f4"
+  },
+  "embedded-topology-604f4c2e/graphs/candidate/tower/Cargo.lock": {
+    "bytes": 19481,
+    "sha256": "8f41d56ac4da50b6032e4a977287b6e51df0a785ab5998827486599ffce6ad16"
+  },
+  "embedded-topology-604f4c2e/graphs/candidate/tower/Cargo.toml": {
+    "bytes": 228,
+    "sha256": "b09fec0a4491607b0e6e1d106044d9000d0d685436ab18c173e43c946b5c0031"
+  },
+  "embedded-topology-604f4c2e/graphs/candidate/tower/command.json": {
+    "bytes": 501,
+    "sha256": "ad4505e6ba10c6470113f63c352deb7606f711fc65b76623695791cdd12e4be9"
+  },
+  "embedded-topology-604f4c2e/graphs/candidate/tower/metadata.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "embedded-topology-604f4c2e/graphs/candidate/tower/metadata.stdout": {
+    "bytes": 386020,
+    "sha256": "26cb22d975e059e7944d9918aaddd5fe5b2833c639cf517a3382adeb2c8e5727"
+  },
+  "embedded-topology-604f4c2e/graphs/candidate/tower/src/main.rs": {
+    "bytes": 13,
+    "sha256": "536e506bb90914c243a12b397b9a998f85ae2cbd9ba02dfd03a9e155ca5ca0f4"
+  },
+  "embedded-topology-604f4c2e/graphs/qualified/default/Cargo.lock": {
+    "bytes": 17131,
+    "sha256": "fe403a0fdc05818cbc01c3a3d11308f82d07cb33d56463375795ce1697d79d23"
+  },
+  "embedded-topology-604f4c2e/graphs/qualified/default/Cargo.toml": {
+    "bytes": 221,
+    "sha256": "3d8e7e0bee6570b727a9d9ee754f2342276bf86bc1f3fadc688009cf07eee5d1"
+  },
+  "embedded-topology-604f4c2e/graphs/qualified/default/command.json": {
+    "bytes": 503,
+    "sha256": "ebee99748f29a99280bb14f2cdcb6aeeabc35a4feac75fa1048772c756334909"
+  },
+  "embedded-topology-604f4c2e/graphs/qualified/default/metadata.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "embedded-topology-604f4c2e/graphs/qualified/default/metadata.stdout": {
+    "bytes": 340917,
+    "sha256": "8a0fba70e8f670d1e125ad74913f82557b230048a8d85d633badce3c1ab26586"
+  },
+  "embedded-topology-604f4c2e/graphs/qualified/default/src/main.rs": {
+    "bytes": 13,
+    "sha256": "536e506bb90914c243a12b397b9a998f85ae2cbd9ba02dfd03a9e155ca5ca0f4"
+  },
+  "embedded-topology-604f4c2e/graphs/qualified/tonic/Cargo.lock": {
+    "bytes": 25450,
+    "sha256": "a97a485fde7d5d5e91c49154bcb6f899bf93e68d9905fcd80127e757d4fd34d3"
+  },
+  "embedded-topology-604f4c2e/graphs/qualified/tonic/Cargo.toml": {
+    "bytes": 228,
+    "sha256": "61c7a8a3f42c181b6858a860bf37dbf753a0e62db02454b8f5edea728ae186aa"
+  },
+  "embedded-topology-604f4c2e/graphs/qualified/tonic/command.json": {
+    "bytes": 501,
+    "sha256": "5796663829c62b6be2dac2105f4262ebd65825dc9b483343e19b2426fc82948e"
+  },
+  "embedded-topology-604f4c2e/graphs/qualified/tonic/metadata.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "embedded-topology-604f4c2e/graphs/qualified/tonic/metadata.stdout": {
+    "bytes": 530594,
+    "sha256": "61ac82d6aca14d9e2a1129169e5c3d501d883f5b2dac9ae9c5def2dec0b04388"
+  },
+  "embedded-topology-604f4c2e/graphs/qualified/tonic/src/main.rs": {
+    "bytes": 13,
+    "sha256": "536e506bb90914c243a12b397b9a998f85ae2cbd9ba02dfd03a9e155ca5ca0f4"
+  },
+  "embedded-topology-604f4c2e/graphs/qualified/tower/Cargo.lock": {
+    "bytes": 19481,
+    "sha256": "8f41d56ac4da50b6032e4a977287b6e51df0a785ab5998827486599ffce6ad16"
+  },
+  "embedded-topology-604f4c2e/graphs/qualified/tower/Cargo.toml": {
+    "bytes": 228,
+    "sha256": "b09fec0a4491607b0e6e1d106044d9000d0d685436ab18c173e43c946b5c0031"
+  },
+  "embedded-topology-604f4c2e/graphs/qualified/tower/command.json": {
+    "bytes": 501,
+    "sha256": "b272ab8cf7e934a930216b0237d175491733df7051c1b9d3571ef4fa214599f5"
+  },
+  "embedded-topology-604f4c2e/graphs/qualified/tower/metadata.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "embedded-topology-604f4c2e/graphs/qualified/tower/metadata.stdout": {
+    "bytes": 386020,
+    "sha256": "3192689f2a327168c2febf2447f000ecfc254d391da1041429fd1db6e378e9b3"
+  },
+  "embedded-topology-604f4c2e/graphs/qualified/tower/src/main.rs": {
+    "bytes": 13,
+    "sha256": "536e506bb90914c243a12b397b9a998f85ae2cbd9ba02dfd03a9e155ca5ca0f4"
+  },
+  "embedded-topology-604f4c2e/h2-0.4.19.crate": {
+    "bytes": 175379,
+    "sha256": "ef8e5e5a340588f4452631496976cf8636d4a7ecf600239fdc27615d2530bc16"
+  },
+  "embedded-topology-604f4c2e/independent-consumers.json": {
+    "bytes": 3372,
+    "sha256": "a6f739acdb993e1f459da120923ea47d1177adbb376795bfac962399366359e3"
+  },
+  "embedded-topology-604f4c2e/independent-peer-review.md": {
+    "bytes": 12403,
+    "sha256": "a82af6f20a5b170dd402ed2fdeb334deb2095667b7de9c7de1b2aeac2b1b5511"
+  },
+  "embedded-topology-604f4c2e/independent-peer-review.tar.gz": {
+    "bytes": 3588807,
+    "sha256": "af9c82ecffd74ebff6056a0b57551d4674e12481e15c12d344bb49bf440c3a0d"
+  },
+  "embedded-topology-604f4c2e/independent-peer-review.tar.gz.json": {
+    "bytes": 1261,
+    "sha256": "26d67d06f90525221ecedee4e8d327c80fcf301eb7cdb3dacc92f82787911af4"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-package-default-resolve/Cargo.lock": {
+    "bytes": 41489,
+    "sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-package-default-resolve/Cargo.toml": {
+    "bytes": 865,
+    "sha256": "390e83ae6084301856825ba41cc5021bfd63ae3809de9927c7e8b3309e86fdda"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-package-default-resolve/src/main.rs": {
+    "bytes": 5937,
+    "sha256": "b2bb34faa2270f072ae095acb43109481eca46a8bc6919b06bd7a809cf7a16db"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-package-default-run/Cargo.lock": {
+    "bytes": 25500,
+    "sha256": "92003468ea5b75b1b6b9cb2f8e2547dec466231b60b0dc8f43de43b7c01957e2"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-package-default-run/Cargo.toml": {
+    "bytes": 865,
+    "sha256": "390e83ae6084301856825ba41cc5021bfd63ae3809de9927c7e8b3309e86fdda"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-package-default-run/src/main.rs": {
+    "bytes": 5937,
+    "sha256": "b2bb34faa2270f072ae095acb43109481eca46a8bc6919b06bd7a809cf7a16db"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-package-tonic-resolve/Cargo.lock": {
+    "bytes": 25500,
+    "sha256": "92003468ea5b75b1b6b9cb2f8e2547dec466231b60b0dc8f43de43b7c01957e2"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-package-tonic-resolve/Cargo.toml": {
+    "bytes": 865,
+    "sha256": "390e83ae6084301856825ba41cc5021bfd63ae3809de9927c7e8b3309e86fdda"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-package-tonic-resolve/src/main.rs": {
+    "bytes": 5937,
+    "sha256": "b2bb34faa2270f072ae095acb43109481eca46a8bc6919b06bd7a809cf7a16db"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-package-tonic-run/Cargo.lock": {
+    "bytes": 25500,
+    "sha256": "92003468ea5b75b1b6b9cb2f8e2547dec466231b60b0dc8f43de43b7c01957e2"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-package-tonic-run/Cargo.toml": {
+    "bytes": 865,
+    "sha256": "390e83ae6084301856825ba41cc5021bfd63ae3809de9927c7e8b3309e86fdda"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-package-tonic-run/src/main.rs": {
+    "bytes": 5937,
+    "sha256": "b2bb34faa2270f072ae095acb43109481eca46a8bc6919b06bd7a809cf7a16db"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-package-tower-resolve/Cargo.lock": {
+    "bytes": 25500,
+    "sha256": "92003468ea5b75b1b6b9cb2f8e2547dec466231b60b0dc8f43de43b7c01957e2"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-package-tower-resolve/Cargo.toml": {
+    "bytes": 865,
+    "sha256": "390e83ae6084301856825ba41cc5021bfd63ae3809de9927c7e8b3309e86fdda"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-package-tower-resolve/src/main.rs": {
+    "bytes": 5937,
+    "sha256": "b2bb34faa2270f072ae095acb43109481eca46a8bc6919b06bd7a809cf7a16db"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-package-tower-run/Cargo.lock": {
+    "bytes": 25500,
+    "sha256": "92003468ea5b75b1b6b9cb2f8e2547dec466231b60b0dc8f43de43b7c01957e2"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-package-tower-run/Cargo.toml": {
+    "bytes": 865,
+    "sha256": "390e83ae6084301856825ba41cc5021bfd63ae3809de9927c7e8b3309e86fdda"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-package-tower-run/src/main.rs": {
+    "bytes": 5937,
+    "sha256": "b2bb34faa2270f072ae095acb43109481eca46a8bc6919b06bd7a809cf7a16db"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-path-tonic-corrected-run/Cargo.lock": {
+    "bytes": 25497,
+    "sha256": "8b4cffe176c3cdb2ce7218bbd170ce9e1ecc11f1df701b30d528f84efa47b09a"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-path-tonic-corrected-run/Cargo.toml": {
+    "bytes": 725,
+    "sha256": "9d2e0e8a932decfbf02285c318274d275b1bdde36feec3307b680d8b17278d2f"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/consumer-path-tonic-corrected-run/src/main.rs": {
+    "bytes": 5937,
+    "sha256": "b2bb34faa2270f072ae095acb43109481eca46a8bc6919b06bd7a809cf7a16db"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/Cargo.lock": {
+    "bytes": 41489,
+    "sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/Cargo.toml": {
+    "bytes": 3832,
+    "sha256": "f5534592582743ef3d6fbac8b8a9c3b4bdcb4d21a6718c2f84bcfe20e1833c39"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/bin/conformance.rs": {
+    "bytes": 8648,
+    "sha256": "13fb8e5a70075aabb5e675d886d9f238a9ac6a482442707f9f768ffc720a68a5"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/bin/protoc-gen-pbrs.rs": {
+    "bytes": 934,
+    "sha256": "2dce6e51e4995ed93b3edb210aacaaedca6752c66b694fde8b2e1f5f858f2301"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/codegen/compat_stubs.rs": {
+    "bytes": 14956,
+    "sha256": "4337b7aeadd3930b5f304d42c03315cc07b8d2642a5590e588f616dcbc41122e"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/codegen/config.rs": {
+    "bytes": 72153,
+    "sha256": "6e949c5d97f60a0fa0352ef2488808d09eec9e8604935d7700317807d06d1466"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/codegen/descriptors.rs": {
+    "bytes": 63121,
+    "sha256": "22989f036ac1307eda37234713cb34e0ef184320a3733e8df8ff07bfcf96bd2c"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/codegen/encode.rs": {
+    "bytes": 19982,
+    "sha256": "ce99c47de9fbc7e5999f1b6c42853119cdd2ee4453853c1d3e0ef18930c577c4"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/codegen/json.rs": {
+    "bytes": 29446,
+    "sha256": "a9f0f9dc8a728bf899b389930c714b1cc0b787cacb8750d71f94a6b8ef8e800f"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/codegen/messages.rs": {
+    "bytes": 48555,
+    "sha256": "b8c807fd144ab129bbc250b0b24a49d86fc2aef8c2e0e58025ff79ea5e2a63dd"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/codegen/naming.rs": {
+    "bytes": 23365,
+    "sha256": "e93961d1172a66ff6e953b459e108589e7dcb25d0c85957148a03bb69fcdf6cb"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/codegen/native_stubs.rs": {
+    "bytes": 100453,
+    "sha256": "af13cc9df90cc47beca2b3c401ed8c0b64123ada1f7beb1615abb861c3057a3c"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/codegen/parse.rs": {
+    "bytes": 37401,
+    "sha256": "e836060101d9e44d25c0a546e3109efd8a3d59581fa57faafe82bfcddb2fe8c1"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/codegen/prost_stubs.rs": {
+    "bytes": 16657,
+    "sha256": "fc76f9ff10731e503d653b44befe83041055b781e9d90514a2df0f88cf405c55"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/codegen/reflection.rs": {
+    "bytes": 6632,
+    "sha256": "853ae3ff2e6ae25ee506dbb70d189b8623733b94e988433e9ded7440de141716"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/codegen/text.rs": {
+    "bytes": 27677,
+    "sha256": "267d0fcd54876fd36426405c16b14944d69637ca206b347661ccb89070795ea2"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/codegen/tonic_stubs.rs": {
+    "bytes": 26013,
+    "sha256": "8116559cb5abb04a9707a578c2eb9462ae60f33c32156c35273deafee764bfb1"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/codegen.rs": {
+    "bytes": 7041,
+    "sha256": "438af040f9cabc468603795bed708a4eba92e75ca2ccbfbab2369f4735dd14c1"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/copy_counts.rs": {
+    "bytes": 4745,
+    "sha256": "ee039964bc33f60b68295e5b64ad0061fcbae61ae627504b3948cacf2485a186"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/dynamic.rs": {
+    "bytes": 140289,
+    "sha256": "4835cf15e7396a7282e9003479b8ead296974f9c9003668e82b02994a8cb8a30"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/error.rs": {
+    "bytes": 1020,
+    "sha256": "3e66e091af3a113060de346b251415b45fbd66e4aefb88d6e33c18a639eda3ff"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/gen_support.rs": {
+    "bytes": 35411,
+    "sha256": "c52c7e9f29fac31cf5295f174f0be32af07d7c171c5040fde79d68fe9fc299da"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/gencode.rs": {
+    "bytes": 1572,
+    "sha256": "052f8750f8d0640b0d741cb9793bb33f83d0097bfefa85d0663af31665a3599d"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/generated/any.rs": {
+    "bytes": 21115,
+    "sha256": "efd576ce03947a85d78fcc4773ae1316b0937a3d57e506f5de3cd1b519b0d87d"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/generated/duration.rs": {
+    "bytes": 18955,
+    "sha256": "06bd20f51007b8a4c0711b1e5002151714898edfb55bdafe864f393eeb33f0cd"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/generated/empty.rs": {
+    "bytes": 11601,
+    "sha256": "ae6d015198898bc191d0d30c9b2351dd71d076ff5af04d4d3baacc7bd45a62e5"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/generated/field_mask.rs": {
+    "bytes": 22372,
+    "sha256": "ace8c253e940aa50dbb5356a4a2914002b74d3647b820160e9a81e4bb600abb8"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/generated/mod.rs": {
+    "bytes": 717,
+    "sha256": "c6b8a803152aed5db0065006955e633ee0852947df81adad6a36cfb1ca968d56"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/generated/struct.rs": {
+    "bytes": 65154,
+    "sha256": "78f8b7532d3d158dbbddf90a28a4d8082221b7fdc63bb2fd5933e971e662f6ab"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/generated/test_messages_edition2023.rs": {
+    "bytes": 517285,
+    "sha256": "3d07c34433e132ab3260f19c8efd98fd76c32fe57bb63caae81b77d13590c65f"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/generated/test_messages_edition_unstable.rs": {
+    "bytes": 102946,
+    "sha256": "35d35bfa9759802486ac74d3e4fbc95e1ef39abebadf1ed57b28fd693be8f0ea"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/generated/test_messages_proto2.rs": {
+    "bytes": 1058729,
+    "sha256": "a4411070da25f5279c913ffa1cf75f3a10669af6235ed048d1dbb42333811f7e"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/generated/test_messages_proto2_editions.rs": {
+    "bytes": 1067954,
+    "sha256": "08943c2d27080857c5ecdb852ebeff13940865f2801de01cf84cfa8af5e4f2bd"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/generated/test_messages_proto3.rs": {
+    "bytes": 878492,
+    "sha256": "8edf61afbaf4b93a8e01ad6623f5690c771177771c449f0f54f27bed18a4100a"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/generated/test_messages_proto3_editions.rs": {
+    "bytes": 878945,
+    "sha256": "2cdc566e356c58aa59982092911f24d4566210b648927e366385567dd68342e5"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/generated/timestamp.rs": {
+    "bytes": 20748,
+    "sha256": "a9c2f1e68adce3dc06fda940c738abbd1e0172662058647a1c2ca4b370457813"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/generated/wrappers.rs": {
+    "bytes": 92069,
+    "sha256": "2aed5cfd78afaa8c89336c1d86ee537818f7a1e0ac5a762375ae12413e52cbfd"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/internal.rs": {
+    "bytes": 1808,
+    "sha256": "7c7742e6741b812acecc6e73f417cc82a6ecc2c3e78be9c571290b525d49b1f6"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/json.rs": {
+    "bytes": 54065,
+    "sha256": "f74b312fe0b068a36bc73354f3eccde6b893e42fe1898a07e6238a3ff35f18a6"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/lazy.rs": {
+    "bytes": 31001,
+    "sha256": "064df7d97f7fdb15867a593e671797c6bb372de55c85a67c9cc50c21c437af53"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/lib.rs": {
+    "bytes": 10811,
+    "sha256": "d0940318ecf39b3156b91453de7f3555b862a0a1bacdb167ce24a5bced8ee9c9"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/map.rs": {
+    "bytes": 41590,
+    "sha256": "0ab9e16c839e90de0d8be5b8891a242e2d4c6a8d8edb918741c65750ca2a7d9d"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/message.rs": {
+    "bytes": 7157,
+    "sha256": "af04d67b1da49a4fee716d2546064d7666ca54b209cbe9e99c92a197b987cfd7"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/packed.rs": {
+    "bytes": 19818,
+    "sha256": "b7ac525b9ca9feea00cf1283d8f4b5e5b67acd2c87c08b666d54b8432755d4be"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/prelude.rs": {
+    "bytes": 351,
+    "sha256": "c9d6ed979e77c8750d3a1ea1d59acb4529e134a89a621a4e15fd6e0c7ae02cf8"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/proxied.rs": {
+    "bytes": 3128,
+    "sha256": "9b806723993ef715cbab70e9ea87e1a115c519bdabbd310d2a94ed1742ef963b"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/repeated.rs": {
+    "bytes": 20435,
+    "sha256": "3680049c56aa2d51aea639f01067d331d73e1cdab941e7636ca90b82ae3b53b8"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/rt.rs": {
+    "bytes": 3254,
+    "sha256": "acfc8f54d02e8dc2e692237ddd9a0e4bb07a83fe8a03ab9a0456fab91ea78e37"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/runtime/arena.rs": {
+    "bytes": 4188,
+    "sha256": "fd87e02ba0124271d57917b7d3b1b1313a7f5417874e07f1293aac91e8df4441"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/runtime/array.rs": {
+    "bytes": 4904,
+    "sha256": "4429a8338d2d36a945468967ad70d474d9dcef3d3796c3649b8249efd21f6fea"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/runtime/decode.rs": {
+    "bytes": 19275,
+    "sha256": "cef40ff90643f6f50e13df15c41cef4371b9dcc5682c607bfb972d6babe651fa"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/runtime/encode.rs": {
+    "bytes": 10925,
+    "sha256": "b838c2d3e43dcc005adff0879989faba94be8fe2a7dad0edf96c44f87de3ff80"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/runtime/extension.rs": {
+    "bytes": 270,
+    "sha256": "fdc00552bf905b20f2fd76e214e33366520aa5936c9ee437f8705d8ef6c0bff7"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/runtime/layout.rs": {
+    "bytes": 22313,
+    "sha256": "c57ee6eb3328f29100e76c21c6af283dc6ea6d18df576e4001a8a674845533ba"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/runtime/map.rs": {
+    "bytes": 8410,
+    "sha256": "7ba1f715b268b545e2f1388903001183e4d5d1a431cb3580518b736db471c7e0"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/runtime/mini_table.rs": {
+    "bytes": 12304,
+    "sha256": "1685c1a7a785d74aa1c693c8cdf19e5c2ac4876b1050e8eac8a4c1d8ad342728"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/runtime/reflect.rs": {
+    "bytes": 14215,
+    "sha256": "fd3c58f3eb16035e5fd1641173f9ee197016ae37b4bc2b946c55198f77c5f1d6"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/runtime.rs": {
+    "bytes": 2183,
+    "sha256": "874376b5de584c2972c11a85e523870d1bafcd762c4ed6fd868d9443f9c7b2da"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/string.rs": {
+    "bytes": 11665,
+    "sha256": "3d9f0f1b124c90def37c4b4c5bda18410a8422b2d504c8404665303fed957c6e"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/table.rs": {
+    "bytes": 134575,
+    "sha256": "bb4542046f0daab45e13906e2edcb090e933fbea8412d9feb8f399d80a10c0a3"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/testdata.rs": {
+    "bytes": 22248,
+    "sha256": "bc9e6cbe6c1f0244baa84d931ead6566c9febcec25efb632b3df5bb5ad8c6fa2"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/text.rs": {
+    "bytes": 59439,
+    "sha256": "94306401b38469e9e9df5c202edf7d1a73d5c156641af72cf6c21aeff7c1cf21"
+  },
+  "embedded-topology-604f4c2e/input-snapshots/package-locked-first/src/wire.rs": {
+    "bytes": 44683,
+    "sha256": "ea61d954032c37c308e410cae4e30ae9b5e15d4a3a0f8bd9c653819583379aaa"
+  },
+  "embedded-topology-604f4c2e/layout-original-selector.py": {
+    "bytes": 3512,
+    "sha256": "8ebf62ff1e63179131a12875da29d21be65feec83818c027398311e75803adb9"
+  },
+  "embedded-topology-604f4c2e/layout.py": {
+    "bytes": 3543,
+    "sha256": "744fede69db355eb830924eb6810a23c28dbff9781b91972ea914a7e136be9a8"
+  },
+  "embedded-topology-604f4c2e/logs/check-default-1.85-initial.log": {
+    "bytes": 1749,
+    "sha256": "7435345f15463b93a771235b394d1a8e12646eb0f16eb2e5ad9d4dc1d336516e"
+  },
+  "embedded-topology-604f4c2e/logs/clippy-all-features-initial.log": {
+    "bytes": 21772,
+    "sha256": "7c478ae3fd104c451e479052380199ef81d1f48ba90ac7bcd7d695b76d96651e"
+  },
+  "embedded-topology-604f4c2e/logs/clippy-all-features-second-red.log": {
+    "bytes": 4663,
+    "sha256": "30291835d1b4c7deda8a366683e24611abf57861c1fbf15ff1ff6e04031c4a8e"
+  },
+  "embedded-topology-604f4c2e/logs/clippy-all-features-third-red.log": {
+    "bytes": 908,
+    "sha256": "320bd297b8e994d99dbfab7c1f51b71b2e550c2c3e3a1339731ce063cd56f3a2"
+  },
+  "embedded-topology-604f4c2e/logs/clippy-qualified.log": {
+    "bytes": 210,
+    "sha256": "c6198df6f1fedbdc74ad0992bc8b45d002b10a9dd4612127e3349f7d4c4f61c0"
+  },
+  "embedded-topology-604f4c2e/logs/component-format-initial.log": {
+    "bytes": 21516,
+    "sha256": "ab08190b60abbf8c53ae909d1bb6a1011dd9cb370d7712ddb659427e8114e067"
+  },
+  "embedded-topology-604f4c2e/logs/consumer-package-default-resolve.log": {
+    "bytes": 339535,
+    "sha256": "a93c5262151ea00b572c7492d9ca8ee7de64c01f786f2778411a522409d29921"
+  },
+  "embedded-topology-604f4c2e/logs/consumer-package-default-run.log": {
+    "bytes": 2122,
+    "sha256": "cf00c8ba2e5807feb7e753884e17322e0d02fcf4aeaae0e4bb57a5ad4887dfc7"
+  },
+  "embedded-topology-604f4c2e/logs/consumer-package-tonic-resolve.log": {
+    "bytes": 530036,
+    "sha256": "cf70b5df89440d7c1e4b68e6d7da45a36fc41cd30ba579884b93b8c8e96ecdb9"
+  },
+  "embedded-topology-604f4c2e/logs/consumer-package-tonic-run.log": {
+    "bytes": 583,
+    "sha256": "6547687f8a42ecaf68c2ac104047db28260278d98c2c235f9e6d0edcee603a31"
+  },
+  "embedded-topology-604f4c2e/logs/consumer-package-tower-resolve.log": {
+    "bytes": 384859,
+    "sha256": "cbfa73c69f9eb19dcbdd8851e6516983e9f5cdb1c8ce2a8f59d0d386b7446425"
+  },
+  "embedded-topology-604f4c2e/logs/consumer-package-tower-run.log": {
+    "bytes": 927,
+    "sha256": "6942b275a332198a1b024c82b409bd8eada65992c700513f45583d5b2c6ced33"
+  },
+  "embedded-topology-604f4c2e/logs/consumer-path-default-resolve.log": {
+    "bytes": 342019,
+    "sha256": "9b7213e8a01817bc3abb996500b6958a498d7aea7e2292e866af709f5fab1033"
+  },
+  "embedded-topology-604f4c2e/logs/consumer-path-default-run.log": {
+    "bytes": 729,
+    "sha256": "350f407884d116eaa6fad801445cfd7c41d2607a54e032fb2f5d4ff731fb42bf"
+  },
+  "embedded-topology-604f4c2e/logs/consumer-path-tonic-corrected-run.log": {
+    "bytes": 511,
+    "sha256": "b40b37409d90018895244027124b688944c4feac6a5cce75de71f0f5655ede8c"
+  },
+  "embedded-topology-604f4c2e/logs/consumer-path-tonic-resolve.log": {
+    "bytes": 532520,
+    "sha256": "cde7f541f6f2fb949d063fcb85a3cd58057ec2346e8c57fe12369377e5abdddb"
+  },
+  "embedded-topology-604f4c2e/logs/consumer-path-tonic-retry-run.log": {
+    "bytes": 4163,
+    "sha256": "bf532d874bdf8aa9f3d8a251a41a2688e9c6be6445283e596cb7eb611988a000"
+  },
+  "embedded-topology-604f4c2e/logs/consumer-path-tonic-run.log": {
+    "bytes": 634,
+    "sha256": "1948bde538241aa2eac4fbe0f803a9c0220538e9c0b876c16d4235093b287ad4"
+  },
+  "embedded-topology-604f4c2e/logs/consumer-path-tower-resolve.log": {
+    "bytes": 387343,
+    "sha256": "10e73b97af0fa0813ae1653b60f062372614e9d5014df38aec889c2410584ed5"
+  },
+  "embedded-topology-604f4c2e/logs/consumer-path-tower-run.log": {
+    "bytes": 825,
+    "sha256": "c042628736cbbdc4f1fb5f4f063c266aaec8c41cdd61614f33626ee807530ca8"
+  },
+  "embedded-topology-604f4c2e/logs/docs-qualified.log": {
+    "bytes": 2574,
+    "sha256": "11e85922e6a91e79a200177f36da41fddeddf4f915fecb104d2108f3d5e41658"
+  },
+  "embedded-topology-604f4c2e/logs/doctests-qualified.log": {
+    "bytes": 14535,
+    "sha256": "c3d543d24f71c0a58dd3e6bc2cb93df68045bb7c3287ef0459478790e2d0b70e"
+  },
+  "embedded-topology-604f4c2e/logs/embed-final-lint-boundary.log": {
+    "bytes": 63,
+    "sha256": "f0942feab7875e9a58ffa86ec35482ffb1c28485f95e0828e0ca43819f5d9253"
+  },
+  "embedded-topology-604f4c2e/logs/embed-final-test-lint-fixes.log": {
+    "bytes": 63,
+    "sha256": "f0942feab7875e9a58ffa86ec35482ffb1c28485f95e0828e0ca43819f5d9253"
+  },
+  "embedded-topology-604f4c2e/logs/embed-final-with-utf8-tests.log": {
+    "bytes": 63,
+    "sha256": "f0942feab7875e9a58ffa86ec35482ffb1c28485f95e0828e0ca43819f5d9253"
+  },
+  "embedded-topology-604f4c2e/logs/embed-format-final.log": {
+    "bytes": 63,
+    "sha256": "f0942feab7875e9a58ffa86ec35482ffb1c28485f95e0828e0ca43819f5d9253"
+  },
+  "embedded-topology-604f4c2e/logs/fmt-qualified.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "embedded-topology-604f4c2e/logs/format-final.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "embedded-topology-604f4c2e/logs/graph-audit-qualified.log": {
+    "bytes": 5573,
+    "sha256": "f502d81399685e92ac80d7476510c92173727cbd345d01e0c80ad6a95323d156"
+  },
+  "embedded-topology-604f4c2e/logs/layout-baseline-corrected-list.log": {
+    "bytes": 99,
+    "sha256": "a31ecf2a7ed45363d894bae1917391fcad6f1c3cf35d32c95bbf4eed929b2444"
+  },
+  "embedded-topology-604f4c2e/logs/layout-baseline-corrected.log": {
+    "bytes": 356,
+    "sha256": "86fe49070006009dd5557ffd8e636b5db38a1702fe24c278b1055291557d4b10"
+  },
+  "embedded-topology-604f4c2e/logs/layout-baseline-list.log": {
+    "bytes": 31,
+    "sha256": "f78dce2f42bb4150f50f1548e22e9411c9cd66d17027b7db8bc739462244fdf8"
+  },
+  "embedded-topology-604f4c2e/logs/layout-candidate-corrected-list.log": {
+    "bytes": 99,
+    "sha256": "a31ecf2a7ed45363d894bae1917391fcad6f1c3cf35d32c95bbf4eed929b2444"
+  },
+  "embedded-topology-604f4c2e/logs/layout-candidate-corrected.log": {
+    "bytes": 356,
+    "sha256": "288a4adba0c2f4b7571fd11875af2c4f14e01292b679dd155f43c668f3c9e1bb"
+  },
+  "embedded-topology-604f4c2e/logs/layout-corrected-summary.log": {
+    "bytes": 576,
+    "sha256": "72d7e5abd598050e2662b8cbfebf7f0b61a337c1f184c9e955b9425753aed4ed"
+  },
+  "embedded-topology-604f4c2e/logs/miri-setup-offline.log": {
+    "bytes": 677,
+    "sha256": "b091ed207e35b5e549d64a9083f04bc4e19e6ed0106855b52c4225309f62c899"
+  },
+  "embedded-topology-604f4c2e/logs/miri-setup-populated.log": {
+    "bytes": 3768,
+    "sha256": "defa457e960b4b958d0f2e3dbfcbbb983f6e835d8a1d8c37012efdaff2e7673b"
+  },
+  "embedded-topology-604f4c2e/logs/miri-utf8-invariant-initial.log": {
+    "bytes": 2917,
+    "sha256": "29bb89627f431ddeccd70a8da2c9790cd6e1419b602f607624572b51c61d307c"
+  },
+  "embedded-topology-604f4c2e/logs/miri-utf8-qualified.log": {
+    "bytes": 815,
+    "sha256": "97b3f49baf486d001d6ad36b0504d96cf5c3a4da7ea622350bdc0ae9c7353e92"
+  },
+  "embedded-topology-604f4c2e/logs/package-locked-first.log": {
+    "bytes": 300,
+    "sha256": "bc291caf1b53fc5089d53e6f262f5b1821406ae68368e803e7eed310f023764b"
+  },
+  "embedded-topology-604f4c2e/logs/remaining-consumers-driver.log": {
+    "bytes": 4442,
+    "sha256": "5dad7d722bc600d54a7965c4e52dd9fb8c3face96ac99ba5c12001764b4bc008"
+  },
+  "embedded-topology-604f4c2e/logs/tests-backend-1.85-initial.log": {
+    "bytes": 8579,
+    "sha256": "9092f3847331387b6f6f91ccb659fffb3553f029e7fa269ff7661400e8c40ee5"
+  },
+  "embedded-topology-604f4c2e/logs/tests-tonic-unit-1.88-initial.log": {
+    "bytes": 39829,
+    "sha256": "9168d26ab3a9399a89ae8e405c3c676bc0cc93489117219af4dd569dfba88938"
+  },
+  "embedded-topology-604f4c2e/logs/tests-utf8-1.85-final.log": {
+    "bytes": 748,
+    "sha256": "ff94f0cfb245018fe4464e9f42fa27c3dbc739f3eeb765db686fc7cf043690ea"
+  },
+  "embedded-topology-604f4c2e/logs/units-default-1.85-qualified.log": {
+    "bytes": 37299,
+    "sha256": "ca929505b3d945beef922af35c722f297251459d5251b069ea180173c5af40a3"
+  },
+  "embedded-topology-604f4c2e/logs/units-tonic-1.88-qualified.log": {
+    "bytes": 39150,
+    "sha256": "d38b808c4b12a3900ab4c1dff90146a0c0ea4cf91c0565fd55562d9b991d6eb6"
+  },
+  "embedded-topology-604f4c2e/miri-sysroot-sha256.json": {
+    "bytes": 16311,
+    "sha256": "ee03bf8632ecd12f10ab7638aad6beaa44efcf2b502df4e0acc115133c6b5a53"
+  },
+  "embedded-topology-604f4c2e/package-consumers-initial.py": {
+    "bytes": 8407,
+    "sha256": "563764a4a6552e7ce9ca50a97999509b4dbc21d7578ee8053b5f04617707b899"
+  },
+  "embedded-topology-604f4c2e/package-member-audit.json": {
+    "bytes": 48477,
+    "sha256": "ee1f631abc5d57a9a919c7d5a3129cdadb0f30560c1411072cad80f2c827052b"
+  },
+  "embedded-topology-604f4c2e/package_consumers.py": {
+    "bytes": 8403,
+    "sha256": "a018d23f254f712f97109ea38e84f03f919d43866e298b843df953bc815f4813"
+  },
+  "embedded-topology-604f4c2e/packages/pbrs-0.2.0.crate": {
+    "bytes": 547109,
+    "sha256": "17e412b26625b2f45cd5067924be4fa816568fa0b49d0b5fe55d9d9b5b6b0391"
+  },
+  "embedded-topology-604f4c2e/packages/pbrs-grpc-0.1.0-alpha.2.crate": {
+    "bytes": 1178749,
+    "sha256": "7de9e146e3c2f6c800018994561cd0483b7fb38e586ec5d486e5ccd2a301c08a"
+  },
+  "embedded-topology-604f4c2e/packages/staging-Cargo.lock": {
+    "bytes": 41489,
+    "sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5"
+  },
+  "embedded-topology-604f4c2e/qualification-next.md": {
+    "bytes": 2454,
+    "sha256": "e56626841372ca5d5276a7200f8c65ea10c28eb5c88d9603ee295cc385d3c0e9"
+  },
+  "embedded-topology-604f4c2e/qualified-elves/baseline-76d-rust1.85-pbrs_grpc-4f6ec1f07771b5ec": {
+    "bytes": 30075448,
+    "sha256": "281392d14f15573022f015b75aff2c06fe7a3fca6e7afcdb057a2902bdbda51e"
+  },
+  "embedded-topology-604f4c2e/qualified-elves/units-default-1.85-qualified-pbrs_grpc-5d8bed941ed68d62": {
+    "bytes": 31843296,
+    "sha256": "e08be3644ef5ab9745bf198e552037e37ad20b4e457090fe57299fb703c435b9"
+  },
+  "embedded-topology-604f4c2e/qualified-elves/units-tonic-1.88-qualified-pbrs_grpc-c16bff05bebd7b9d": {
+    "bytes": 32833536,
+    "sha256": "dc84f10f0683727933e716a767acbe0ba92d211804e8160adbc6e4a37c4be7ca"
+  },
+  "embedded-topology-604f4c2e/qualified-elves.json": {
+    "bytes": 1349,
+    "sha256": "5e505ca90bc8a32e216e39239898cc409d64701b495bbc9608743483690fa9b8"
+  },
+  "embedded-topology-604f4c2e/qualified-graphs.json": {
+    "bytes": 113582,
+    "sha256": "136c4c1ff353102880cdbd19dafb628615ef23e854e69e48893e90071b91fb7f"
+  },
+  "embedded-topology-604f4c2e/qualified-source/Cargo.lock": {
+    "bytes": 41489,
+    "sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/Cargo.toml": {
+    "bytes": 3832,
+    "sha256": "f5534592582743ef3d6fbac8b8a9c3b4bdcb4d21a6718c2f84bcfe20e1833c39"
+  },
+  "embedded-topology-604f4c2e/qualified-source/build.rs": {
+    "bytes": 2879,
+    "sha256": "7367a734873d20be313352978bebf890d281fdca089b0d3e07db333ce9f3c31d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/clippy.toml": {
+    "bytes": 1986,
+    "sha256": "6fbb267bf61f76508b47a576c8613eed0bf73785cdef38824b456b6e59c0a3a1"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/Cargo.toml": {
+    "bytes": 6092,
+    "sha256": "9c9152f571e3f72743d505cb5c75c4b0e15d7765faf64c40d91bfa50d81607c3"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/LICENSE-APACHE": {
+    "bytes": 11344,
+    "sha256": "fee225ca1e8d8d91c2db9ab09a765e6e5a58e31411a80a499d1d33375b12f6e2"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/LICENSE-MIT": {
+    "bytes": 1054,
+    "sha256": "1b854877ff684cc9c954471e4f4be3def2aa7e27c118af36e1f73428d85eedb5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/README.md": {
+    "bytes": 11349,
+    "sha256": "1f07798eb8dfb8a7ad0c18afe2ed92a796e92b3dac5edbdcb1ee85ab23ca3183"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/build.rs": {
+    "bytes": 4723,
+    "sha256": "0a6cd50243535c667c573b0cd58683226ad364419e1cb5c87c053b63dfe2a4e9"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/channelz.fds": {
+    "bytes": 9113,
+    "sha256": "6d98988c447a7997d18dfea7d79e2c0f784f326cf9f677cef361f3520e438e6d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/codec_cases.proto": {
+    "bytes": 1168,
+    "sha256": "9e208951e54267cce75193bc763b0c0cf5bdac7b79e21808a0ea9cbe13348256"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/error_details.fds": {
+    "bytes": 5371,
+    "sha256": "ebd831a4cf816bcdaf05bedeadd1fefdc912c1eb19da29f2cf84d562b6884c5c"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/google/protobuf/any.proto": {
+    "bytes": 180,
+    "sha256": "926906ae1b74f0b74793a1c76d4edb21a728b6c7bb1da4fffe52cbfeef98cfea"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/google/protobuf/duration.proto": {
+    "bytes": 183,
+    "sha256": "e7c57110001664395ecfaaabaf001f310f256110f0efbc52efe3910ae38e0b34"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/google/protobuf/empty.proto": {
+    "bytes": 103,
+    "sha256": "d8f88ab548ec53a21f86c46a6f8a6b63ff308032c652fbc6551c35d4f8b8b511"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/google/protobuf/timestamp.proto": {
+    "bytes": 180,
+    "sha256": "2d8091ea2227c13c54b6542c90736439d39cfdfd6416c9bfa9d85b7ea931961c"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/google/protobuf/wrappers.proto": {
+    "bytes": 509,
+    "sha256": "641cb031467a4fbcdb1733133ae336f0e7243187bd77a7602bb9401ad0081df8"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/google/rpc/error_details.proto": {
+    "bytes": 2118,
+    "sha256": "649110a225e90498195919f4fe4f10a300f94e6ed06c4c47aad36347c8014844"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/google/rpc/status.proto": {
+    "bytes": 845,
+    "sha256": "5ff9261c90aeb0999f57f94c137ef58a08938db17004a3cd659f4bd38b509355"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/grpc/channelz/v1/channelz.proto": {
+    "bytes": 20192,
+    "sha256": "9931f5b510a5b440717ce2a1890585b4a0dc19b71320df963e04bccfd3c952a7"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/grpc/health/v1/health.proto": {
+    "bytes": 964,
+    "sha256": "4028c9fec771cda55342d7368eb2c30d2d5526e46e7c097a476bee78f7496ccc"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/grpc/reflection/v1/reflection.proto": {
+    "bytes": 5935,
+    "sha256": "5e8b95fa42d092eb07b2572913d9337cd2ffcc807a81951856e6f2abcf5768f8"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/grpc/testing/empty.proto": {
+    "bytes": 58,
+    "sha256": "8289f19f843bdd1ad291450cb2c6213ebdbdd265d1b1891d6cafe605aa72d154"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/grpc/testing/messages.proto": {
+    "bytes": 1754,
+    "sha256": "363b5d9ec5e6661a1969de6ffdaa0295bdf7e7dd555fae6c52a198e36c2c71b1"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/grpc/testing/test.proto": {
+    "bytes": 936,
+    "sha256": "28ccc938ebc943ebd912596e30984f559cbdbd09059bf2a3f77b394c1a5f265d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/grpc_testing_test.fds": {
+    "bytes": 7031,
+    "sha256": "6a5ae22947bcf1db390ef20c7fe5f565e1b596b932e58c48da572a0c75dfb961"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/health.fds": {
+    "bytes": 1836,
+    "sha256": "b6784553abcbbac0ca1e55afe262c6c73899ccf5bb3962ef39c5042c7f4ab2db"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/hello.fds": {
+    "bytes": 878,
+    "sha256": "29efe12ffc444de917c0d9477ff73540fb451cb7471c221382420c61f9057a6f"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/hello.proto": {
+    "bytes": 394,
+    "sha256": "74005e93327cc2b975ace3858be15e57e268d84697bfd43cea6e2006526be303"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/orca.fds": {
+    "bytes": 1454,
+    "sha256": "03acd2e3c037e165b74a34c9fec319333ac73c82591e3e075f66621dafba0ece"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/orca_report.fds": {
+    "bytes": 855,
+    "sha256": "8f5c33edd4ae7515b3f048f0e73d9ac99476dfed8ad63e37fbc4ab095b5a14c5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/person.proto": {
+    "bytes": 279,
+    "sha256": "13ec16099b636bb46467e28199347c79ba26e72223462c1c3060e28d6c1620c5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/reflection.fds": {
+    "bytes": 7639,
+    "sha256": "001db912d18503b85a12543a48778b4aa40850190ac6e2cbf9517ebac84f7a42"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/scalars.proto": {
+    "bytes": 1118,
+    "sha256": "796972af1bc0061cc51c7fff726ac346356c4c3f1dc3f6275abd448f441991d4"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/status.fds": {
+    "bytes": 1417,
+    "sha256": "fd31c63a1ac84f3e3fa2b111dbb60fe81f89d90804bf21bfce9950de1c126c19"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/wkt.proto": {
+    "bytes": 622,
+    "sha256": "f957346c22d610bc1eaf21fce7935a20685b579bb8745aa97b74c85e8c7ddf23"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/xds/PIN": {
+    "bytes": 41,
+    "sha256": "5b2f789044c8ea9fb110e653cbe716837b72ad73f030478c546643417f873633"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/xds/data/orca/v3/orca_load_report.proto": {
+    "bytes": 2698,
+    "sha256": "9f9875f6b83125e7fc54420a3b748ac0452d0cc9c717566d9cead043959a60b9"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/proto/xds/service/orca/v3/orca.proto": {
+    "bytes": 1848,
+    "sha256": "95b6663ce5d508763945df7de59764fa09e87ebe7d3a66b586d3105a6e51169c"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/authz/audit.rs": {
+    "bytes": 18848,
+    "sha256": "f05398d7cc17a260a13639b382f66b5d52e7785329bc6a27d3131312dbac90ed"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/authz/interceptor.rs": {
+    "bytes": 2596,
+    "sha256": "9bd620bfd8f4ba91efd00f0cf1ec9bdbcc78b46aaef6cc57589202767daadfec"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/authz/matcher.rs": {
+    "bytes": 3629,
+    "sha256": "ba893b8a439b6930f56271841990b253d4bd063c5b22afb65f4d013198bb4e98"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/authz/policy.rs": {
+    "bytes": 19999,
+    "sha256": "51b9a81383dd72b78d69c1ccc1f5e55e00892fbb71ce02aa835d5a9fcec0b9b5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/authz/principal.rs": {
+    "bytes": 12075,
+    "sha256": "49a5aa464b9b31a3a0ab0dbf4a66aa37ab47d7a054366d3a65bcf7a4d17e28bb"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/authz/provider.rs": {
+    "bytes": 6332,
+    "sha256": "6125648d22ecce50817e70cf6a5121d3c20bbbe4886475372d9269065b404578"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/authz.rs": {
+    "bytes": 1518,
+    "sha256": "968696b45bdb69273883078452cf69ffb31ab3708053e554112995d691697409"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/bdp.rs": {
+    "bytes": 11640,
+    "sha256": "a6ea10200baf1c82855409b6ab2e8bf231e4c42035313e15728d75b3ef304b7d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/bin/pbrs-grpc-hello.rs": {
+    "bytes": 4899,
+    "sha256": "d47008df326206f8fa23a20fd56ba15d0445d53ec8c8be787898d9950233000f"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/bin/pbrs-grpc-http2-client.rs": {
+    "bytes": 14619,
+    "sha256": "a99ebd1a46720be5a4dff54cc34c89deb7fabe935708af90a63138c08d8deb27"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/bin/pbrs-grpc-interop-client.rs": {
+    "bytes": 34463,
+    "sha256": "c0421bc3d22ecab84603b73a6fc5abc1310140ba6fb2b03264735135fcaa5f97"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/bin/pbrs-grpc-interop-server.rs": {
+    "bytes": 9021,
+    "sha256": "245fed4f2ad65dc2ee03a28a1534bd26aa6f7b9f6a1c3787d311060e89ba2702"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/binlog/entry.rs": {
+    "bytes": 10600,
+    "sha256": "8e1acb649212250ea53d41d0a12e9c7afeec8616deecf6d00c7e8827e332a115"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/binlog/filter.rs": {
+    "bytes": 9085,
+    "sha256": "db431cc6faeae12c8a113737f032d3e9bafcf1a2ad19709f07d93821d963a61f"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/binlog/logger.rs": {
+    "bytes": 13403,
+    "sha256": "65732b896846ffd66020ce79976cb57fae15416244175d8e5e7c088293ad3db2"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/binlog/sink.rs": {
+    "bytes": 3933,
+    "sha256": "be63739b24640e559bbc9784c45ca7c24ec877354bfe0352b49a09e1501ccd72"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/binlog.rs": {
+    "bytes": 1698,
+    "sha256": "a919b5dc1234231cae81e7c92aebe8d1b90b0b6be07bc75a2b5a62cb49956dff"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/channelz/mod.rs": {
+    "bytes": 1820,
+    "sha256": "32026c121a5f8954d7b6c3f017c9bd4e75775a7c42e02ea13e50b7b9d58e6fc6"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/channelz/model.rs": {
+    "bytes": 46900,
+    "sha256": "f0ffdfb80ed2473daf11cc8a75ce6c08048edbd68e400833d394544e847e4e22"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/channelz/service.rs": {
+    "bytes": 16867,
+    "sha256": "cff3d3d4181a981373f88bbb84843a532a6e37a52e94d7d32ae9c047fef652ec"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/channelz/trace.rs": {
+    "bytes": 8126,
+    "sha256": "41b8dcc43d8bc235ffbc78cef593aef11eaf3ecf66ac507328417b9aa2b6e21a"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/client/call.rs": {
+    "bytes": 26215,
+    "sha256": "f71315d148f6e401c7209ca7c36652ef0d4f95966c36a6f05d01a26fe38c0132"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/client/channel.rs": {
+    "bytes": 91424,
+    "sha256": "c78dd03ececf20ec2adecc6a35b40fe70de384946871eb72a3a3549ec4ac693b"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/client/cl08_future_sizes.rs": {
+    "bytes": 1071,
+    "sha256": "e02834e8bc37f08f1f22dc0603cc98b5aebac4d93bbdeb353b68c6ae3d1f2858"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/client/config_glue.rs": {
+    "bytes": 4043,
+    "sha256": "31361e8e4c216b079889de798e4fe6656ae3020fe75404abde7b26a6cc1311da"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/client/pool.rs": {
+    "bytes": 154136,
+    "sha256": "dcbd65f548d8202f4283d32ac736d351014bac9fb1b95315168ce27e5c14bed0"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/client/retry.rs": {
+    "bytes": 28223,
+    "sha256": "594f288d400f4e39075ce65eb73d1b53d13db611845669efe4beb2fd0349795a"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/client/streaming.rs": {
+    "bytes": 62367,
+    "sha256": "58fba1a5e0624703963bb6ce8f1629af9a867ce184eae4d6ba6f3a083d3d716f"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/client/unary.rs": {
+    "bytes": 32232,
+    "sha256": "3c7be052b1bf2c831e3677c9fd68cacad97f72897636486e23d15e109325a417"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/client.rs": {
+    "bytes": 443,
+    "sha256": "665c5c7a848312803e0535d89594dd9354265ed57b70a1423731ef11f34b0262"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/codec/prost.rs": {
+    "bytes": 6225,
+    "sha256": "9a218fa06a6508475bc447054b284c4f28afb62e98417371dd1f79178895c4af"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/codec.rs": {
+    "bytes": 9842,
+    "sha256": "a71e00e3384a5f2ce310a6ae8b86fcf5825eae5ea774348c7d3b4c68e372aa08"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/compat/mod.rs": {
+    "bytes": 3547,
+    "sha256": "0835700dd05e50508d829e8f6112c88ed3331fef88854b6b4d9e4884579ba335"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/compression/deflate.rs": {
+    "bytes": 7551,
+    "sha256": "5b08eeabbcf0af3a62985a42e951d67f2a6b4f23785c001db8dfb3b6f4b7cdbd"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/compression/gzip.rs": {
+    "bytes": 6270,
+    "sha256": "f87cab18bb58af0dbed93902aed930eb9ef7f51f26b2b0d502b83b893d8b913c"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/compression/mod.rs": {
+    "bytes": 12026,
+    "sha256": "29a4b53a3e351db9862daba410967b3b03306bbc4ac17f3f06a423938c235f66"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/compression/zstd.rs": {
+    "bytes": 5206,
+    "sha256": "9fc66e8e0bad86db2478127479a269df63133fc27bcd6185b06e27775522c25a"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/config.rs": {
+    "bytes": 120710,
+    "sha256": "9ecd390ae51b5583c8bd19149034b0ab75fac98790718d65b03aad3808f60232"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/copy_counts.rs": {
+    "bytes": 10075,
+    "sha256": "cea1a68749173bb5c6d624daf7d7c9ebde1e4f3cace283ae470765c2f9089aaa"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/gzip.rs": {
+    "bytes": 308,
+    "sha256": "d4ef5a6faae8ef494c73df81afdfa763360e412ea6489ace7d170c99feaf7367"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/LICENSE-MIT": {
+    "bytes": 1054,
+    "sha256": "b21623012e6c453d944b0342c515b631cfcbf30704c2621b291526b69c10724d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/admission_additional_tests.rs": {
+    "bytes": 20502,
+    "sha256": "af25db414524d1305805991955d7ed9492462121decfe2e69d4b8e4c6b4a305a"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/admission_tests.rs": {
+    "bytes": 9233,
+    "sha256": "e70019b3a3cc614b68c3be0b73b5b48266288e0f1beeb6ac2520dc4baf6a8db2"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/client.rs": {
+    "bytes": 64014,
+    "sha256": "0ad04f85be7d3e67d2d15f8bbe7e83f5944dd67fd91641f5df409a8a9992e270"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/codec/error.rs": {
+    "bytes": 3139,
+    "sha256": "8a4f3ff1fccc699ba45ea9079b710f4b4bb4d62c6dfd7a64df87ab3d033060c9"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/codec/framed_read.rs": {
+    "bytes": 17397,
+    "sha256": "26019279b112b7e960bbc7b48c62c5619ca21939a217b016a985f307856bdbf3"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/codec/framed_write.rs": {
+    "bytes": 11981,
+    "sha256": "c6f6f3e26c2c246a9e5ca6d90c31109254270a11a4c1636afe5c6c9f990c2bfe"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/codec/mod.rs": {
+    "bytes": 6187,
+    "sha256": "89c47cda3bc171e7636c582f9e9414c17a215ce97675be68b891bafe582d89bc"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/error.rs": {
+    "bytes": 6173,
+    "sha256": "2a7a145395c84043f0638ee6a404c64ba9ebd403afd034994de64848d7d2430f"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/ext.rs": {
+    "bytes": 1258,
+    "sha256": "6212a4351f72a9c61db4cb54bbd0e34ff174e912ca209cd64d41c4fdaf091850"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/frame/data.rs": {
+    "bytes": 7204,
+    "sha256": "210898b0b995e40fcc1ff2893dedf37c6a6fc3a81679d542f915447eb1191c6e"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/frame/go_away.rs": {
+    "bytes": 2289,
+    "sha256": "e863fe6c7352650e136472d12371989019a97557428d4f62a1963589c9e3fd16"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/frame/head.rs": {
+    "bytes": 1923,
+    "sha256": "4073eb70a8ed9ec0ca460e18fb470fca1dbe6900c1ac08d66397ab4d75414e4c"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/frame/headers.rs": {
+    "bytes": 40952,
+    "sha256": "b57f12680da5c788241f95f29863b646a56406ebe9d791bb4c63372dd02fc1ff"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/frame/mod.rs": {
+    "bytes": 4825,
+    "sha256": "2b8dc467e40dd5751592b2fd4e9f3da0174beb108be10238e69b6f7ad0c9e62a"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/frame/ping.rs": {
+    "bytes": 2947,
+    "sha256": "840071fbe116f8f33e4e6bff6953856c1a9874f70947642600efba70785c2dea"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/frame/priority.rs": {
+    "bytes": 1822,
+    "sha256": "40a14752d55d791ba681a7f7b74dc252c506934c2b368e88dbcea4aad932b69e"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/frame/reason.rs": {
+    "bytes": 5135,
+    "sha256": "45b13202141b1d8b261d64624b276a9b034d8c3f7d9b6870ee41a204589f4e14"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/frame/reset.rs": {
+    "bytes": 1316,
+    "sha256": "8da212cb8b4c5329f66ee34c076bd8ceac4a94b2c850991679e959d5919f158d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/frame/settings.rs": {
+    "bytes": 11331,
+    "sha256": "f2c1b040d5355fd85e2384c1faf1444d5d0581cffc28b0aadf3328af834bc95e"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/frame/stream_id.rs": {
+    "bytes": 2783,
+    "sha256": "c26f217a6703971bde2806bad649be6ecf532dcd0a2e60142b7d34f58aa06815"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/frame/util.rs": {
+    "bytes": 2140,
+    "sha256": "e67635feb8f2dd577b7ee9d673f3909aa6d812105ef1f9b329ddde679ec77dba"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/frame/window_update.rs": {
+    "bytes": 1721,
+    "sha256": "8ef878cd745c61b153417ba9375d431723a48882b2a09065429f7c3b33062428"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/fuzz_bridge.rs": {
+    "bytes": 985,
+    "sha256": "6003ed09096bb11f952e631c7abeecfcb40b4dd9f6755a253ac13479af59ee7b"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/hpack/decoder.rs": {
+    "bytes": 28672,
+    "sha256": "1debaa681c968cdd432f898fc51199fc648cef9881cca5eed5dfa5467a400ba9"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/hpack/encoder.rs": {
+    "bytes": 24717,
+    "sha256": "85b02c0eaa35c353857f2d53fc49c4da059ae60edb0812e75342196202f10f21"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/hpack/header.rs": {
+    "bytes": 11429,
+    "sha256": "05b78c3f83a73902f968258636dd4c2b4fc8eed626a2db04a95cc3e51a3584f2"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/hpack/huffman/mod.rs": {
+    "bytes": 6955,
+    "sha256": "8feb032c8f29aadcdcc1a7ef166e680b38debe823a289a4899c4a51863c35717"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/hpack/huffman/table.rs": {
+    "bytes": 37185,
+    "sha256": "c1f7063610fc6a3907389c2110b0f452f3c5cffb4bede5958e45047112c8974b"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/hpack/mod.rs": {
+    "bytes": 447,
+    "sha256": "a567e54284076563ffc71e3d07b69b6224381e05e2b62633b0dc749815d6fa9b"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/hpack/table.rs": {
+    "bytes": 24436,
+    "sha256": "cac4ed7dec7b9a5d92ab7d139a4500698206ca8eff1fbd569f0e6c29d4747a59"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/hpack/test/fixture.rs": {
+    "bytes": 27517,
+    "sha256": "34f8769280b123b2441888a9e7e93d3abddb6bf97e0493948f2e9fa6fc0baae6"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/hpack/test/fuzz.rs": {
+    "bytes": 11167,
+    "sha256": "b27a1918bb70c92e8fc2f13535c4cda07dc6724dae0500a992fd29b06ad49d53"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/hpack/test/mod.rs": {
+    "bytes": 23,
+    "sha256": "56ad5643e7f1e273e5bce8a6fc0552be39c326dacfffd7f9757ccdbe75e9b66e"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/mod.rs": {
+    "bytes": 6265,
+    "sha256": "d6ed9e8cad1006f2ebadc948a06ff714760012e14010ae4f58df33b3d1051cdf"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/proto/connection.rs": {
+    "bytes": 25021,
+    "sha256": "a564ee7fc987e0f5af8b0fe20e0e96ddc21f16e8839efbd11f09bc0cb053c354"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/proto/error.rs": {
+    "bytes": 2595,
+    "sha256": "bf8ddcc92375b25409f7afe0a614dff49532777f66cf816dbcff2f4735e7e45d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/proto/go_away.rs": {
+    "bytes": 4737,
+    "sha256": "07b27b6f0132fb35c992f2a60e337d0cc71ec7f8f5e03c93adcabb0960b34923"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/proto/mod.rs": {
+    "bytes": 1695,
+    "sha256": "0df13f989c99832a41a7861f12a3fe3978d7b96c7f81ddc7f3d7698c52a710f5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/proto/peer.rs": {
+    "bytes": 2672,
+    "sha256": "92ecc611152fba7da4111e7be85ab3e6fa5154289f29a73c3c3a27e356b997bf"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/proto/ping_pong.rs": {
+    "bytes": 8419,
+    "sha256": "d8e45201036f14d960b3770ca3fbfc85263bd38f77d4d7a9e0b5c611c7a42ce4"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/proto/settings.rs": {
+    "bytes": 5745,
+    "sha256": "30acbbf0d98530f9afd415f9b335c04642a854bec0de9b6fd8b2ad689ea569e1"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/proto/streams/buffer.rs": {
+    "bytes": 2317,
+    "sha256": "631aa4360b7b942c3899c6fb7455e682655c3ac099a170d5c3d566af3fec8318"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/proto/streams/counts.rs": {
+    "bytes": 15880,
+    "sha256": "ea2d695942d009f784d711ab90be06a3a900fefe785f48803decfc997e327c8c"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/proto/streams/flow_control.rs": {
+    "bytes": 8214,
+    "sha256": "524109d93705ccedc85e2761ec1fb488c88ef5fe4ea17d7989eb59ba5eaede4f"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/proto/streams/mod.rs": {
+    "bytes": 3814,
+    "sha256": "5d5642c75dfadf2af4b44a850ac54173dde8080e1d080f9f7a389833f0caef81"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/proto/streams/prioritize.rs": {
+    "bytes": 37012,
+    "sha256": "8fce33a1ce8c67c6c3f575e1340ea77644c4e0631a65cdaab0053527982bf027"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/proto/streams/recv.rs": {
+    "bytes": 49507,
+    "sha256": "8bf5dc294fde91cd2defede2c68a40595a4d545b4e01f1e5c224dfb54a0041e2"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/proto/streams/send.rs": {
+    "bytes": 23250,
+    "sha256": "52e4d7ebd7936ea06197d0fef088fc00a6f55ff267454491d31e6ae3a13344a5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/proto/streams/state.rs": {
+    "bytes": 17959,
+    "sha256": "a4715ceaee341a8c9db8890f80bd613969b6900c8416d78b4c84c7b18c4cda32"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/proto/streams/store.rs": {
+    "bytes": 11717,
+    "sha256": "740a2a5f7f42900f239fc4b93d68d7fb5a9d5be97c6ad1e3b246a4c7cb0d4cce"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/proto/streams/stream.rs": {
+    "bytes": 19698,
+    "sha256": "7921970f130bd9a5ff2e1c7b9d87a7d010685e49c2473d2093c28653db6ff52c"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/proto/streams/streams.rs": {
+    "bytes": 65129,
+    "sha256": "4a2628454b17efe074a4081a29d36919aac5cf81c1343b8a90bc82b5370d377d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/provenance.json": {
+    "bytes": 30451,
+    "sha256": "8a4cd576d90dce8a1c5e168f5d245ad1828d1ba3419200f6a02ee0eb1b827909"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/server.rs": {
+    "bytes": 63221,
+    "sha256": "f035c4f7f579c94505fd7550212a42e772063b0b4486dbd495ff91e538fe5848"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/h2_backend/share.rs": {
+    "bytes": 22963,
+    "sha256": "e074a9c652d8bd379950dca0171d7d431e0c4681e849005682638f4dcd02c27f"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/health.rs": {
+    "bytes": 19703,
+    "sha256": "890cc7dad0608301808b2d7120f34ff1b5c59e015cf78aafde96fb42d792293f"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/hello.rs": {
+    "bytes": 13347,
+    "sha256": "6f57dc6c4aacf60943960721f1d40387d358b60199f8dcc89fa843504b25e523"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/interceptor.rs": {
+    "bytes": 69713,
+    "sha256": "420d82bbbfa49505bb266e80d93ce8bbd74541377ce31567c51f26c9aaca70f6"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/interop_cases.rs": {
+    "bytes": 71757,
+    "sha256": "dcf13d3846abd177bf24a01a1707249074409e62cbe3be504d92549df75b1b41"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/keepalive.rs": {
+    "bytes": 5205,
+    "sha256": "9d42b2ac8ad528defb52155db3264cd7ccc7e49da0b26c469801c116648ac672"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/lb/health.rs": {
+    "bytes": 2583,
+    "sha256": "943b69158de583e95a2cef467cb0fadae0a28249d4059a975d7b9d345ad2c82d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/lb/least_request.rs": {
+    "bytes": 16499,
+    "sha256": "0b0ac27397a4f05c9c259862783f7514eef932bf54ec04c65671676423acee88"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/lb/mod.rs": {
+    "bytes": 25708,
+    "sha256": "a0699a0b94a7aaf134f8b174f72d0543f3e6ce748e8cbde964ca000716038e7f"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/lb/outlier.rs": {
+    "bytes": 35433,
+    "sha256": "eaffa3004faf0afaecf25024ca8ad6be73c870aa54e23026c594056afef546dc"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/lb/pick_first.rs": {
+    "bytes": 27130,
+    "sha256": "4d065f57aced3987b7b0c3b058884a30fb5c3449ed9936a838c697f01d30e04a"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/lb/priority.rs": {
+    "bytes": 37778,
+    "sha256": "ac53455071365ea26fd0947198b7e21d81fe6e8f2ad45aa20488db8e91b1e2c7"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/lb/ring_hash.rs": {
+    "bytes": 23096,
+    "sha256": "1d92c4e4c961677be03fee6120d1bf6be1a7af5bc642c64f7e9bf96c936410a6"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/lb/round_robin.rs": {
+    "bytes": 14224,
+    "sha256": "24ab4888fc002a2907e69646d2ee34dd0839515c0f0c95331cb8ec98bc3f1093"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/lb/subset.rs": {
+    "bytes": 13106,
+    "sha256": "f445889a0cc26b55c6c498fff85dbd72dfb996435f0abf000e7ea7458f966bf9"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/lb/wrr.rs": {
+    "bytes": 31751,
+    "sha256": "dd7aa3cad6946bed98d5d003a7c850b4ce31e2be764655ce80e9775fb4ef279d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/lib.rs": {
+    "bytes": 104892,
+    "sha256": "83bb8de0f84d7fb093446cf47aeecc0ebd3571d39cd0eafb75ac367d5bb35297"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/limits.rs": {
+    "bytes": 25045,
+    "sha256": "61075b715e740e57e8d8918e32a8ca188123b39547dd2128bf2e238f170c4d74"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/metadata.rs": {
+    "bytes": 36140,
+    "sha256": "b28ca33cf4425be697b8accea4d3bafb74f370f27a80e2d05d4fac4903f229c0"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/orca/recorder.rs": {
+    "bytes": 11344,
+    "sha256": "0188b924e57c07422aa93e37acdb1fe9987ff6f8e0d832613b629fc153abbd7d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/orca/report.rs": {
+    "bytes": 9811,
+    "sha256": "375bae69cbf749085245f08e3abd91de68e12c90aae0c8f2ead279bd3f295a3a"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/orca/service.rs": {
+    "bytes": 6365,
+    "sha256": "11c1c978682b83dcd037f93c52581342aab51a41c4122398e8301ba50480d241"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/orca.rs": {
+    "bytes": 9831,
+    "sha256": "9af56067a2ee66161905d6226407e2f6c4c8de18787b722994d00cd96ed88582"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/otel/mod.rs": {
+    "bytes": 10910,
+    "sha256": "9d090ab26a3245e0b53477a1756c71b316e2512654fb073caf8846d16669f147"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/otel/trace.rs": {
+    "bytes": 13120,
+    "sha256": "42e2df82ba1cccf219d2ad55a8ffe913da7d1f1f06b3bc5d44232582290e6db3"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/pb.rs": {
+    "bytes": 114461,
+    "sha256": "a0638ae664d9f0c983f0b7f82412fd66bbe9469d551195e72649e0b1ca699639"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/proxy.rs": {
+    "bytes": 17055,
+    "sha256": "e49488266ad9fd5d383f6cbe381e525a7c39491b5f57ab1482f61e7930e8c500"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/reflection.rs": {
+    "bytes": 28285,
+    "sha256": "3621da9de48a15a9848bb4cb976ca7351a54e2735c80fcedcd6ecb002c59b04c"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/request.rs": {
+    "bytes": 182602,
+    "sha256": "7ddc29718d6b810687492e7de1e89b199c9a75fcbc24b418c56576b0d3a380cc"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/resolver/dns.rs": {
+    "bytes": 12832,
+    "sha256": "3c5a1c49b612eb16fc774c79ec992c3d457ece261d3e96753b8aed19977b4b6a"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/resolver/fixed.rs": {
+    "bytes": 4235,
+    "sha256": "b3f16fbe0645ec3f0cf9ad88e03bef6af4cd2fa9094f6e2692535154edbc66e5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/resolver/registry.rs": {
+    "bytes": 7919,
+    "sha256": "acae021425f9720b4d701621a7f057880eb2c16b858ae05a106c799baf0f5b3d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/resolver/snapshot.rs": {
+    "bytes": 3358,
+    "sha256": "d3d91d9f2e11cbac9557091049cf1b1d90c7caba2134b97fa2b829f2099c29a6"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/resolver/target.rs": {
+    "bytes": 8595,
+    "sha256": "311ca24281cdd3a3e24db4e6f63fcb73f736483340a96be22aee60e21b3690b9"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/resolver/txt.rs": {
+    "bytes": 13366,
+    "sha256": "5dbbd3320854df0cffcac9549918b53a042d051e4dc810418c87f2540f2ab8a0"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/resolver.rs": {
+    "bytes": 1694,
+    "sha256": "12e6f195713643ee928cc4b77a4861c9dde442a5db9c705648f9c3f74fb0141c"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/rt/manual.rs": {
+    "bytes": 8179,
+    "sha256": "dc8c9ce9a1cf9c9affa99c1c28a0e276d2a2ee46f9b0c9b05ba6b4e2065fb098"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/rt/mod.rs": {
+    "bytes": 5162,
+    "sha256": "7665ec4ae588398f508e7d8d9bbad41adbb25ab40c015b428b0b0c0f5687e2d6"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/rt/per_core.rs": {
+    "bytes": 4552,
+    "sha256": "cc3bf21f7a36be53e4191aa9ed02fb988158cb7bc0f6ee30a0aa1c6d9a1d35de"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/server/accept.rs": {
+    "bytes": 85195,
+    "sha256": "f1244c01baaa4fedec5c8f890016d95967ea04fe38f622a50c32876ea8f1cade"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/server/connection.rs": {
+    "bytes": 26453,
+    "sha256": "6ad6a630365fb20b183d9e2b286162300fe9907536eff96a271c2392632a277a"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/server/dispatch.rs": {
+    "bytes": 5939,
+    "sha256": "d2f3e869f87c854c5a326fbe8802816767d7093ed11a71ca03c25103fa240973"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/server/drain.rs": {
+    "bytes": 27059,
+    "sha256": "5627e273f8d8e74a3bd5a74df76f94b295b9c336c51d1f2b8af3455b929a1806"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/server/router.rs": {
+    "bytes": 51281,
+    "sha256": "04a55aefbc6a382a0a92589a4811d20c7467c2ef95bb109633fae5b25fa4d6e6"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/server/rpc.rs": {
+    "bytes": 61711,
+    "sha256": "9641b092bdf16594e60d6300b208e31fca3c65e1436aafe016137f959c7bc6f9"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/server/sv09_cancel_tests.rs": {
+    "bytes": 3515,
+    "sha256": "03a7d4e5287c86cf4421ec9954ec5d847d70b9a6bcb7508cc9974989d03a7ead"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/server/sv09_timeout_tests.rs": {
+    "bytes": 11304,
+    "sha256": "4709e1c126c6a568da6fc9fccfa8adf8190dad4d6d700686dc15fee65b487529"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/server.rs": {
+    "bytes": 2489,
+    "sha256": "53760f43e4ccf7b2ec3f0e1bbd8c2e183ef76309c5b359e381631b63f964580f"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/service_config.rs": {
+    "bytes": 65201,
+    "sha256": "9e38b97aee899e6c8f433a4c4e394bf6c57fdbae7dcd3e06bf54f8dbfc9c8eb1"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/status.rs": {
+    "bytes": 111118,
+    "sha256": "b4795eb3a44c1303da62f964c5730466ec78617e7c300c8930546efa37f4f0a4"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/stream.rs": {
+    "bytes": 36899,
+    "sha256": "f8beada6800529333af17897021b5c9b6cc81190638bd31e9a5fe67cad58f7ce"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/tcp.rs": {
+    "bytes": 13646,
+    "sha256": "a953ffaeae795ee3bc3acb6a54dd87d92f5786d10ba9e4b0170f1617a8089ac8"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/telemetry.rs": {
+    "bytes": 81897,
+    "sha256": "a90be237baf632afe4bb4c26769b29ec072d7dd4b23102b0d14ab909647d626e"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/testing.rs": {
+    "bytes": 34982,
+    "sha256": "841d9d7c56d69855d0a26fb8aaff7445b7e3a6f5f572ea897fc9030bb9ef333b"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/timeout.rs": {
+    "bytes": 8360,
+    "sha256": "144eb5ac8a42943730ff4028c1fb877b1bc116082aa0079e132ce814529f0ce1"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/tls.rs": {
+    "bytes": 90677,
+    "sha256": "0f9bddfdc552b95737380bde1aabc605081461bdb1b7774cd4877a12639c1df0"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/tonic_server/gzip.rs": {
+    "bytes": 27672,
+    "sha256": "b8f3ac10711441c5f58ee02eabefa3401bd39288befdd76e2375573ca5658e72"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/tonic_server/opaque.rs": {
+    "bytes": 15607,
+    "sha256": "be05402a7c97167e32937956cf39b16301b4c3045c2275fb6b4ae4e8a2f57da5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/tonic_server.rs": {
+    "bytes": 21671,
+    "sha256": "8b0f80e61e3ac2be66e6838a7dccdddec052d8feb0c4c98d6b0d8bbb9d3eff32"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/tower_client.rs": {
+    "bytes": 30107,
+    "sha256": "f2db75a3f43440225a87c6649753030a28d3703c5bc3813329a124aad9dae503"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/tower_server.rs": {
+    "bytes": 9092,
+    "sha256": "4512acec817336cfbab0e53de0de724ebe7faf09d58ab3d71dbe7adc70667023"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/transport/h2.rs": {
+    "bytes": 30743,
+    "sha256": "ecc8311960b9e42f611a48643db65263561f209e188648483886a3812b4252ec"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/transport/mod.rs": {
+    "bytes": 10698,
+    "sha256": "626a13d10de24bd69d19ae5187313cdac67bfd137096f764a22704a28bf3369d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/web/frame.rs": {
+    "bytes": 14092,
+    "sha256": "2686c18e931a8cc21af6730111284ce7aa4855d08513195bf07f79e8cbfdfa02"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/web/mod.rs": {
+    "bytes": 445,
+    "sha256": "2cba41c8d3a1edc0289024d08fcc143e630762403c9c44d5aff6522aa09d2ede"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/wire/encode.rs": {
+    "bytes": 12061,
+    "sha256": "11589eb80c412b125b95f326cc530e3f1029d35c9fdcfe89f2cf6dc3d1f9a7eb"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/wire/frame_reader.rs": {
+    "bytes": 24734,
+    "sha256": "8a7f7f9c4071e2f7e8e65bb2ae772d205e42410ffd7f4305d144b76f91fa8c53"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/wire/headers.rs": {
+    "bytes": 15877,
+    "sha256": "486931129c9c25091788fdd07e0f90553f35785d019c4870de25d3b68bbf48e2"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/wire/out_batch.rs": {
+    "bytes": 3245,
+    "sha256": "b9a240a3e964c26b72321cbdfe56494aba5df875084fc01467c39feae0b68273"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/wire/send.rs": {
+    "bytes": 14538,
+    "sha256": "e8929baaf1f55a6a7df63ede57014933d402eab302d31bbdc5f7add3a821cbaa"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/src/wire.rs": {
+    "bytes": 21875,
+    "sha256": "aad77670a72447f9b97e4118efce19fe3f6c9c9c6834b3b3ae875402f25e35e3"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/adaptive_window.rs": {
+    "bytes": 6302,
+    "sha256": "412b8b6b5626a48a1b1e40d067e23565c55e2a0ad1c8202e391278d59e5057a4"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/authz.rs": {
+    "bytes": 19674,
+    "sha256": "1bbe2afb615b1427773167554698df43284a813ca9ece69ef4c118c68b3ab7fb"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/bidi_completion.rs": {
+    "bytes": 3573,
+    "sha256": "5b74ba7911dd034fdc703b12b31c69cad7d91643dbbef088c232cf8dd400657b"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/binlog.rs": {
+    "bytes": 37705,
+    "sha256": "5063be90a041c7ec6041e4b0b31f7027117c2d3aaaa208df4b6b0b1a749c82cf"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/byte_budget_public.rs": {
+    "bytes": 500,
+    "sha256": "54a7b8d7e48ba632ebf32dfb3e16a146762ef6c594188af2737e8f84594f274b"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/caller-rustls/Cargo.lock": {
+    "bytes": 33081,
+    "sha256": "1168928f8aa629b6fef74ed5cdf5470322730a64cad3439b01d48d3f8a61f2ce"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/caller-rustls/Cargo.toml": {
+    "bytes": 918,
+    "sha256": "7f1a77521c8afb773750fa650a13b3852768d66386c62fbaea948140d2948ab5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/caller-rustls/README.md": {
+    "bytes": 1459,
+    "sha256": "c3fe38ff8cb0ec06ed93917b7652f18d09f05778a4755cf3ad509960f4780254"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/caller-rustls/data/ca.pem": {
+    "bytes": 562,
+    "sha256": "c8801efaea3f4a2dd9c3ce5dbdfc0da5151208fea3adaf5df6d1f616c1658adc"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/caller-rustls/data/first.crt": {
+    "bytes": 546,
+    "sha256": "4274197705fb9d9a264dfe6913ef2bb12d3d149bc3faa1a332466fb02b295875"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/caller-rustls/data/first.key": {
+    "bytes": 227,
+    "sha256": "1cd3051598a0ddc35555c6464efd87f4cf498620915c30aff075381eb02a6434"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/caller-rustls/data/second.crt": {
+    "bytes": 587,
+    "sha256": "06e3e55b416ba9ee2693d5452c1481773912ffe98466a11ac5ecc1cf357833a2"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/caller-rustls/data/second.key": {
+    "bytes": 227,
+    "sha256": "7dab4d24a13336793a41ece2a525f08276e1623b7bfdde4ce38ff7348ae8cfad"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/caller-rustls/tests/matrix.rs": {
+    "bytes": 15207,
+    "sha256": "6186625f1c621722f6fca95ecef78e1777a036b099c4f2ff4456d50058ba1af5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/caller_rustls.rs": {
+    "bytes": 922,
+    "sha256": "927375ccabfa3f9ea35837a93910a91b38680eaaf31bc4bbddb0ccbd3664127f"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/channelz.rs": {
+    "bytes": 18726,
+    "sha256": "995e058418faae652d72deccb92e8e097b6ef9dc18913f132bc006a814833a09"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/cl07_preface.rs": {
+    "bytes": 10193,
+    "sha256": "1d9902cd3eb7a14cb19019a8f8ef91dac4647b43ffe85f1bac2da1ad566241ef"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/codec_generic.rs": {
+    "bytes": 6707,
+    "sha256": "9ddebca86fe90a381809d1c3c315781583f1bc3e40acbdba1762272062e1589f"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/codegen.rs": {
+    "bytes": 245705,
+    "sha256": "c2c92c4be053d54dd3dc92b71085343453d2eda6ee58e7887c4e6d4856b1c918"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/common/mod.rs": {
+    "bytes": 75271,
+    "sha256": "24ac72eee8f770f7fd864c40f1553aa8e284b86e524541386abe68d46918a5b5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/compat_fixtures.rs": {
+    "bytes": 4694,
+    "sha256": "f11ec07fb127f71d2bdeb00bd707c59a6328199e9115a997417d92f23bb29e2a"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/compression.rs": {
+    "bytes": 4475,
+    "sha256": "1af761a4396aac6c8ebf567ccee79441a82fe43fb00b0f0a70e0e8ed75566f31"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/connect_info.rs": {
+    "bytes": 9907,
+    "sha256": "b7fb052541e189256566e3cab0acf877d9711edc024a4eb6e59387588114539c"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/fixtures/compat/helloworld/helloworld.proto": {
+    "bytes": 1093,
+    "sha256": "c3140ceaa5e4bf78de5af5a2444d259b774c8f1150ab7eef3406d53fb00b3ba2"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/fixtures/compat/helloworld_compat.rs": {
+    "bytes": 2067,
+    "sha256": "6b7a1b4e56bf76a9a66f7d621bd254d71816c7cce46423eeecb9af67534c42ae"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/fixtures/compat/routeguide/route_guide.proto": {
+    "bytes": 3455,
+    "sha256": "fc05925b255b3d532f9adecfa40a233e7f15967069a7d22d1e9662d1d57d808d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/fixtures/compat/routeguide_compat.rs": {
+    "bytes": 8139,
+    "sha256": "02a81d83a43b4eabbbc8a346fdeb732bf2ec82c9519f4867b5ce4a097b11dafb"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/fixtures/prost/helloworld_native.rs": {
+    "bytes": 1431,
+    "sha256": "18a18f643b0ac1a1fcb958e612237e1094f673ad3128c625469a144e3480733a"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/fixtures/prost/routeguide_native.rs": {
+    "bytes": 4723,
+    "sha256": "9d708aab53cae7d7b99cf00a813beeb1a2f2fa2e11c8a627412376cc0f26c43d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/fixtures/prost/tonic_client_native.rs": {
+    "bytes": 3503,
+    "sha256": "1f647598f79d726a8dde9fcab64146249f2f2822fab8eda639ce479d37d00d66"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/gaps.rs": {
+    "bytes": 10934,
+    "sha256": "d80fecbb8ec3425be9005b1c056c3d6b3023ac3dbc032002c13328d1115ed179"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/grpc_web.rs": {
+    "bytes": 12956,
+    "sha256": "f8441c12b5a0e27f452ab2793045d93ab5ffd410fbd2922237fea24b4161bb5d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/health.rs": {
+    "bytes": 179462,
+    "sha256": "04522097cd5901d2a8ec511ced6974361f331367e6d9c287b21db7c1a61d0a06"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/hostile.rs": {
+    "bytes": 52686,
+    "sha256": "ac546b6567ca10a61641ad443978c9bb19e9e58561c74ea1177917ec39385b25"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/interop_assertions.rs": {
+    "bytes": 60952,
+    "sha256": "a1fb6ad4f2efc3cd0cbadbe1ef6af75e9e344ec9876be8cbfe558e291948a78f"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/interop_cli.rs": {
+    "bytes": 31880,
+    "sha256": "937e18d9b0a6d3c99bfaff194616e2891963ef1ad7a5d0a6aefdca28a35d38a8"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/lb_health.rs": {
+    "bytes": 10176,
+    "sha256": "36dd22224a0b0ea289ccab30b70153bc65a9d748b1116e053b458890526a67e5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/lb_priority.rs": {
+    "bytes": 11111,
+    "sha256": "ca2c2c630fabc3fcdb01fd40c270e1f03c65aae0e093d69b6def2c6e4754c7f6"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/lb_ring_hash.rs": {
+    "bytes": 10987,
+    "sha256": "d5a2f0c7f57a3ef6aa3fc0675a53faf1e150e0e892101e60407f07d2df5bb3e0"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/lifecycle.rs": {
+    "bytes": 31700,
+    "sha256": "4fcf638e81ffadea2fe6ccb82ef9c92ee0550d5d34bad389ad03a63beab5341c"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/message_size.rs": {
+    "bytes": 7509,
+    "sha256": "042637ada207517fe817dd92ffa2e22edd695c8c1521ea8c53131ab6b8dacb43"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/orca.rs": {
+    "bytes": 19450,
+    "sha256": "8fcf9a161496eb6f414cb4c6e2fb1c7c76f8ece27ddf4554642d0265b04f4d1e"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/otel.rs": {
+    "bytes": 14129,
+    "sha256": "efb3201fb6650217c32fede72267ffd3cd4a00253be53700138660f31bdda006"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/otel_trace.rs": {
+    "bytes": 21723,
+    "sha256": "7fa4f66380d85d9c0261fbf7411bda63e217967c7795e6eec560f4a3ea101ce9"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/per_core.rs": {
+    "bytes": 17102,
+    "sha256": "ddc21103ae07ae290d89597ca0adfd176e0115131e5783a26aa91f63d9af1c0d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/policy_retry.rs": {
+    "bytes": 69464,
+    "sha256": "2d650a32a419c17ad6f40c51fac79c59396e41b394737c44bfbc5b82835beb78"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/prost_codec.rs": {
+    "bytes": 7665,
+    "sha256": "2189a4b47808f72563811bc01115bb52aae5b5cc43f02e4792fbfaad395bfb9d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/prost_fixtures.rs": {
+    "bytes": 5057,
+    "sha256": "37f4c6fd0517efdd47318c7c448c9f493f610a0833ba652b0d671f5040daec52"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/proto/extend.fds": {
+    "bytes": 493,
+    "sha256": "04eaa238b3f3e85e6d37fcd7d61780ddaecce7e2950d0442a9cf186767c443de"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/proto/extend.proto": {
+    "bytes": 291,
+    "sha256": "485c1c84c810e1b2af7ba84a7edd0cadb54aef00d3e0ddbc0333b6c56d3e31fd"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/proto/kv.fds": {
+    "bytes": 2503,
+    "sha256": "04f96f5041414eb1b325e65a2cdb4c4467460c14f36dd27800c7aeee165829d0"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/proto/kv.proto": {
+    "bytes": 1233,
+    "sha256": "b5dabfc47aba2534aafa54cb9ac703e8c20da5e1e96687a22cfc703cd099d676"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/proxy.rs": {
+    "bytes": 11690,
+    "sha256": "f3a2ed3db8a575c506b16baabe1ebce2aa00341d3b7863c5c104f89548e1ac0b"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/reflection.rs": {
+    "bytes": 184850,
+    "sha256": "a7d985571a7abe5c34534fcbe3d2e8279bd59791d61db61534e6a7b8bba06d9f"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/regress_metadata.rs": {
+    "bytes": 602,
+    "sha256": "d259cf63109e5893efeb8bbca748eb7af91c8411b6443985e5d209322aef8c6a"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/regress_timeout.rs": {
+    "bytes": 232,
+    "sha256": "5708638f8231346f7694b80e30936899595f1e7793f57fd4f70bd922fdd93b8c"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/resolver.rs": {
+    "bytes": 43446,
+    "sha256": "9547f33cd58a608258ca65d295961fba2d0bb008fde3ad13494a22eed20bb8c7"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/resource_bounds.rs": {
+    "bytes": 94549,
+    "sha256": "bd355666389e9de97a0e8c25a03b719087454d8f1283e9dc8e20ad339334b229"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/resource_qualification.rs": {
+    "bytes": 18052,
+    "sha256": "b42eb932288c857539f60566034d03038d01252b8498c5155b7eba16b4d5b7bf"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/retry_safety.rs": {
+    "bytes": 61510,
+    "sha256": "d07af08ce9fd2705cd0069236a858b38cefce7f76a7e0caa9200f344f6422b26"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/rpc.rs": {
+    "bytes": 15917,
+    "sha256": "527d91c3134939a723cc5fddd3f3c6818abedd4ea6c5ee2d13e7e537f547a974"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/service_config.rs": {
+    "bytes": 24779,
+    "sha256": "f8f3381d0434f3016e7782a9b463adbe15b4ff3bdbdd1d64a2d69ba411c0fac2"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/serving.rs": {
+    "bytes": 1770367,
+    "sha256": "82595b754fbabf4d5a78739459492f57965a98d5ebf01b610bbbee60846d99a3"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/static_routing.rs": {
+    "bytes": 3800,
+    "sha256": "1a954932ae8c210cf22fe4eeb9d1c04d674a2d42754dccc47d434bd77aec7c6c"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/sv09_streaming.rs": {
+    "bytes": 8081,
+    "sha256": "1ba057ec7eedbecc2e715689afcec41c14d1504f3048d3a60a0be227d34e26b6"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/telemetry.rs": {
+    "bytes": 74928,
+    "sha256": "e761bb78cd9b0c5f52d2414f959bbde5dd4aa7306d49b99eaa2cce32f25e9c80"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/tls.rs": {
+    "bytes": 38927,
+    "sha256": "e29aab1590d8ddae47e092310d406196fb91224b8dc49cb332c2306b1f9559a1"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/tls_data/README.md": {
+    "bytes": 810,
+    "sha256": "c23a712804ec0334fa51beeed83c11c1dd92029c03e92b48da3248b5bec752eb"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/tls_data/ca.crt": {
+    "bytes": 599,
+    "sha256": "3c2eef86f2238d268ac3628b7b2d7acb6d67a9473968afa2d832ff4a7f6de995"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/tls_data/client.crt": {
+    "bytes": 656,
+    "sha256": "b2214339a681ff38818868dfd4c567bb478516da1bd3e397550c9fec81f10ebb"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/tls_data/client.key": {
+    "bytes": 241,
+    "sha256": "1db5b60d0ec3ada7dded9774b59e916be8e56a53fb4a62b4f8ab2fe004c0ad35"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/tls_data/other.crt": {
+    "bytes": 603,
+    "sha256": "44aac9b3d69193876247b58dcb274a58be891796f3e1f7baf97e8ca33b4dfca9"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/tls_data/server.crt": {
+    "bytes": 603,
+    "sha256": "88c451b95d68e4aa9c72cae2684d5b89ad823ccb39bb56836b06952b1d3fa3e2"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/tls_data/server.key": {
+    "bytes": 241,
+    "sha256": "b00a9826c2dba5150da5ef9e58efd39957ef639cf6f5c1c49a8a81ced9448d36"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/tonic_behavior.rs": {
+    "bytes": 2259,
+    "sha256": "13555ef4192ad44060b6fa91d32fc30ee03bc6c9efd558b52b9f1e13af70d914"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/tonic_opaque_transport.rs": {
+    "bytes": 27647,
+    "sha256": "db594b1c2c43052be3e79439e482c9a43f84290df09d65683691a55b09b6a652"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/tonic_server.rs": {
+    "bytes": 5124,
+    "sha256": "7ffee1ecbafe9d7c2f8f709b2da62433447645bdfab06e87bea2f07437afb493"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/tonic_service_transport.rs": {
+    "bytes": 18864,
+    "sha256": "151f01887211ab31baa0930337a3f8206f74b55f774da20fde1c4340ce6cd6b5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/tonic_transport.rs": {
+    "bytes": 15041,
+    "sha256": "2f8b0344c91f3fe698108fb64c518f1103c1f58703f7e6245e72594871fcab6a"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/tower_client.rs": {
+    "bytes": 14317,
+    "sha256": "7f7367402aab1d3ba5b32d46966059591ebcb8fc86640ee09f784b929e67bdc0"
+  },
+  "embedded-topology-604f4c2e/qualified-source/pbrs-grpc/tests/tower_server.rs": {
+    "bytes": 4395,
+    "sha256": "0e9c7f5a37ba68524fb67d3fda430b911a2f25bca913647a6900c8084b4aaa16"
+  },
+  "embedded-topology-604f4c2e/qualified-source/rustfmt.toml": {
+    "bytes": 153,
+    "sha256": "fcc6da082329d3fece0dd43aa7501914b17f81851cd98ff14089c94a41eea278"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/bin/conformance.rs": {
+    "bytes": 8648,
+    "sha256": "13fb8e5a70075aabb5e675d886d9f238a9ac6a482442707f9f768ffc720a68a5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/bin/protoc-gen-pbrs.rs": {
+    "bytes": 934,
+    "sha256": "2dce6e51e4995ed93b3edb210aacaaedca6752c66b694fde8b2e1f5f858f2301"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/codegen/compat_stubs.rs": {
+    "bytes": 14956,
+    "sha256": "4337b7aeadd3930b5f304d42c03315cc07b8d2642a5590e588f616dcbc41122e"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/codegen/config.rs": {
+    "bytes": 72153,
+    "sha256": "6e949c5d97f60a0fa0352ef2488808d09eec9e8604935d7700317807d06d1466"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/codegen/descriptors.rs": {
+    "bytes": 63121,
+    "sha256": "22989f036ac1307eda37234713cb34e0ef184320a3733e8df8ff07bfcf96bd2c"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/codegen/encode.rs": {
+    "bytes": 19982,
+    "sha256": "ce99c47de9fbc7e5999f1b6c42853119cdd2ee4453853c1d3e0ef18930c577c4"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/codegen/json.rs": {
+    "bytes": 29446,
+    "sha256": "a9f0f9dc8a728bf899b389930c714b1cc0b787cacb8750d71f94a6b8ef8e800f"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/codegen/messages.rs": {
+    "bytes": 48555,
+    "sha256": "b8c807fd144ab129bbc250b0b24a49d86fc2aef8c2e0e58025ff79ea5e2a63dd"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/codegen/naming.rs": {
+    "bytes": 23365,
+    "sha256": "e93961d1172a66ff6e953b459e108589e7dcb25d0c85957148a03bb69fcdf6cb"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/codegen/native_stubs.rs": {
+    "bytes": 100453,
+    "sha256": "af13cc9df90cc47beca2b3c401ed8c0b64123ada1f7beb1615abb861c3057a3c"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/codegen/parse.rs": {
+    "bytes": 37401,
+    "sha256": "e836060101d9e44d25c0a546e3109efd8a3d59581fa57faafe82bfcddb2fe8c1"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/codegen/prost_stubs.rs": {
+    "bytes": 16657,
+    "sha256": "fc76f9ff10731e503d653b44befe83041055b781e9d90514a2df0f88cf405c55"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/codegen/reflection.rs": {
+    "bytes": 6632,
+    "sha256": "853ae3ff2e6ae25ee506dbb70d189b8623733b94e988433e9ded7440de141716"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/codegen/text.rs": {
+    "bytes": 27677,
+    "sha256": "267d0fcd54876fd36426405c16b14944d69637ca206b347661ccb89070795ea2"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/codegen/tonic_stubs.rs": {
+    "bytes": 26013,
+    "sha256": "8116559cb5abb04a9707a578c2eb9462ae60f33c32156c35273deafee764bfb1"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/codegen.rs": {
+    "bytes": 7041,
+    "sha256": "438af040f9cabc468603795bed708a4eba92e75ca2ccbfbab2369f4735dd14c1"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/copy_counts.rs": {
+    "bytes": 4745,
+    "sha256": "ee039964bc33f60b68295e5b64ad0061fcbae61ae627504b3948cacf2485a186"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/dynamic.rs": {
+    "bytes": 140289,
+    "sha256": "4835cf15e7396a7282e9003479b8ead296974f9c9003668e82b02994a8cb8a30"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/error.rs": {
+    "bytes": 1020,
+    "sha256": "3e66e091af3a113060de346b251415b45fbd66e4aefb88d6e33c18a639eda3ff"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/gen_support.rs": {
+    "bytes": 35411,
+    "sha256": "c52c7e9f29fac31cf5295f174f0be32af07d7c171c5040fde79d68fe9fc299da"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/gencode.rs": {
+    "bytes": 1572,
+    "sha256": "052f8750f8d0640b0d741cb9793bb33f83d0097bfefa85d0663af31665a3599d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/generated/any.rs": {
+    "bytes": 21115,
+    "sha256": "efd576ce03947a85d78fcc4773ae1316b0937a3d57e506f5de3cd1b519b0d87d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/generated/duration.rs": {
+    "bytes": 18955,
+    "sha256": "06bd20f51007b8a4c0711b1e5002151714898edfb55bdafe864f393eeb33f0cd"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/generated/empty.rs": {
+    "bytes": 11601,
+    "sha256": "ae6d015198898bc191d0d30c9b2351dd71d076ff5af04d4d3baacc7bd45a62e5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/generated/field_mask.rs": {
+    "bytes": 22372,
+    "sha256": "ace8c253e940aa50dbb5356a4a2914002b74d3647b820160e9a81e4bb600abb8"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/generated/mod.rs": {
+    "bytes": 717,
+    "sha256": "c6b8a803152aed5db0065006955e633ee0852947df81adad6a36cfb1ca968d56"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/generated/struct.rs": {
+    "bytes": 65154,
+    "sha256": "78f8b7532d3d158dbbddf90a28a4d8082221b7fdc63bb2fd5933e971e662f6ab"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/generated/test_messages_edition2023.rs": {
+    "bytes": 517285,
+    "sha256": "3d07c34433e132ab3260f19c8efd98fd76c32fe57bb63caae81b77d13590c65f"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/generated/test_messages_edition_unstable.rs": {
+    "bytes": 102946,
+    "sha256": "35d35bfa9759802486ac74d3e4fbc95e1ef39abebadf1ed57b28fd693be8f0ea"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/generated/test_messages_proto2.rs": {
+    "bytes": 1058729,
+    "sha256": "a4411070da25f5279c913ffa1cf75f3a10669af6235ed048d1dbb42333811f7e"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/generated/test_messages_proto2_editions.rs": {
+    "bytes": 1067954,
+    "sha256": "08943c2d27080857c5ecdb852ebeff13940865f2801de01cf84cfa8af5e4f2bd"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/generated/test_messages_proto3.rs": {
+    "bytes": 878492,
+    "sha256": "8edf61afbaf4b93a8e01ad6623f5690c771177771c449f0f54f27bed18a4100a"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/generated/test_messages_proto3_editions.rs": {
+    "bytes": 878945,
+    "sha256": "2cdc566e356c58aa59982092911f24d4566210b648927e366385567dd68342e5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/generated/timestamp.rs": {
+    "bytes": 20748,
+    "sha256": "a9c2f1e68adce3dc06fda940c738abbd1e0172662058647a1c2ca4b370457813"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/generated/wrappers.rs": {
+    "bytes": 92069,
+    "sha256": "2aed5cfd78afaa8c89336c1d86ee537818f7a1e0ac5a762375ae12413e52cbfd"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/internal.rs": {
+    "bytes": 1808,
+    "sha256": "7c7742e6741b812acecc6e73f417cc82a6ecc2c3e78be9c571290b525d49b1f6"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/json.rs": {
+    "bytes": 54065,
+    "sha256": "f74b312fe0b068a36bc73354f3eccde6b893e42fe1898a07e6238a3ff35f18a6"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/lazy.rs": {
+    "bytes": 31001,
+    "sha256": "064df7d97f7fdb15867a593e671797c6bb372de55c85a67c9cc50c21c437af53"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/lib.rs": {
+    "bytes": 10811,
+    "sha256": "d0940318ecf39b3156b91453de7f3555b862a0a1bacdb167ce24a5bced8ee9c9"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/map.rs": {
+    "bytes": 41590,
+    "sha256": "0ab9e16c839e90de0d8be5b8891a242e2d4c6a8d8edb918741c65750ca2a7d9d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/message.rs": {
+    "bytes": 7157,
+    "sha256": "af04d67b1da49a4fee716d2546064d7666ca54b209cbe9e99c92a197b987cfd7"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/packed.rs": {
+    "bytes": 19818,
+    "sha256": "b7ac525b9ca9feea00cf1283d8f4b5e5b67acd2c87c08b666d54b8432755d4be"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/prelude.rs": {
+    "bytes": 351,
+    "sha256": "c9d6ed979e77c8750d3a1ea1d59acb4529e134a89a621a4e15fd6e0c7ae02cf8"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/proxied.rs": {
+    "bytes": 3128,
+    "sha256": "9b806723993ef715cbab70e9ea87e1a115c519bdabbd310d2a94ed1742ef963b"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/repeated.rs": {
+    "bytes": 20435,
+    "sha256": "3680049c56aa2d51aea639f01067d331d73e1cdab941e7636ca90b82ae3b53b8"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/rt.rs": {
+    "bytes": 3254,
+    "sha256": "acfc8f54d02e8dc2e692237ddd9a0e4bb07a83fe8a03ab9a0456fab91ea78e37"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/runtime/arena.rs": {
+    "bytes": 4188,
+    "sha256": "fd87e02ba0124271d57917b7d3b1b1313a7f5417874e07f1293aac91e8df4441"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/runtime/array.rs": {
+    "bytes": 4904,
+    "sha256": "4429a8338d2d36a945468967ad70d474d9dcef3d3796c3649b8249efd21f6fea"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/runtime/decode.rs": {
+    "bytes": 19275,
+    "sha256": "cef40ff90643f6f50e13df15c41cef4371b9dcc5682c607bfb972d6babe651fa"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/runtime/encode.rs": {
+    "bytes": 10925,
+    "sha256": "b838c2d3e43dcc005adff0879989faba94be8fe2a7dad0edf96c44f87de3ff80"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/runtime/extension.rs": {
+    "bytes": 270,
+    "sha256": "fdc00552bf905b20f2fd76e214e33366520aa5936c9ee437f8705d8ef6c0bff7"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/runtime/layout.rs": {
+    "bytes": 22313,
+    "sha256": "c57ee6eb3328f29100e76c21c6af283dc6ea6d18df576e4001a8a674845533ba"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/runtime/map.rs": {
+    "bytes": 8410,
+    "sha256": "7ba1f715b268b545e2f1388903001183e4d5d1a431cb3580518b736db471c7e0"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/runtime/mini_table.rs": {
+    "bytes": 12304,
+    "sha256": "1685c1a7a785d74aa1c693c8cdf19e5c2ac4876b1050e8eac8a4c1d8ad342728"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/runtime/reflect.rs": {
+    "bytes": 14215,
+    "sha256": "fd3c58f3eb16035e5fd1641173f9ee197016ae37b4bc2b946c55198f77c5f1d6"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/runtime.rs": {
+    "bytes": 2183,
+    "sha256": "874376b5de584c2972c11a85e523870d1bafcd762c4ed6fd868d9443f9c7b2da"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/string.rs": {
+    "bytes": 11665,
+    "sha256": "3d9f0f1b124c90def37c4b4c5bda18410a8422b2d504c8404665303fed957c6e"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/table.rs": {
+    "bytes": 134575,
+    "sha256": "bb4542046f0daab45e13906e2edcb090e933fbea8412d9feb8f399d80a10c0a3"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/testdata.rs": {
+    "bytes": 22248,
+    "sha256": "bc9e6cbe6c1f0244baa84d931ead6566c9febcec25efb632b3df5bb5ad8c6fa2"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/text.rs": {
+    "bytes": 59439,
+    "sha256": "94306401b38469e9e9df5c202edf7d1a73d5c156641af72cf6c21aeff7c1cf21"
+  },
+  "embedded-topology-604f4c2e/qualified-source/src/wire.rs": {
+    "bytes": 44683,
+    "sha256": "ea61d954032c37c308e410cae4e30ae9b5e15d4a3a0f8bd9c653819583379aaa"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/LICENSE": {
+    "bytes": 1732,
+    "sha256": "6e5e117324afd944dcf67f36cf329843bc1a92229a8cd9bb573d7a83130fea7d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/PIN": {
+    "bytes": 6,
+    "sha256": "82b3ccbc4887a3740fdf3a2acaaf90191f98fec6c26a3f4659ba364e0bd435c5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/README.md": {
+    "bytes": 1709,
+    "sha256": "9e7f98b0bfa45ce81193a593f71b799a0f93f3baedaa3cad0b4c35a46a412171"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/SHA": {
+    "bytes": 41,
+    "sha256": "cb1a49e879d3b40a225a33907d8108dd05f052eb52755c5cd5414b8f402ebf7f"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/conformance/failure_list_rust_upb.txt": {
+    "bytes": 1327,
+    "sha256": "0804500030d71f84039d4f0ba226fc8853aceee11ba7292c4ab2c45842f6d755"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/conformance/text_format_failure_list_rust_upb.txt": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/conformance_fds.bin": {
+    "bytes": 74748,
+    "sha256": "03b4f586925bb91792337b844fa50f5a623232603b83eecf2e31fb6f0700c40a"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/bad_names.proto": {
+    "bytes": 1623,
+    "sha256": "38cedfc9cc32d058cbe1945f760c5dc2262f51a57919849bcd0bc5a075d2c047"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/child.proto": {
+    "bytes": 380,
+    "sha256": "e18c568f535834eac6e7897e31544b2002c298d5777fa48d2a7df186a44adb92"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/dots_in_package.proto": {
+    "bytes": 361,
+    "sha256": "a01058d9254d2a518a42bdc09a3f243ab1337eb2d35a3df715157ee9a1b71d9e"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/edition2023.proto": {
+    "bytes": 386,
+    "sha256": "b909112d41a4535ab4e319d0c790d581407301a79a7d76d799c6232f6507ebcd"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/enums.proto": {
+    "bytes": 1816,
+    "sha256": "1fe196869d9d820bf5f8e69c78f207e429584e3bf3cfcf7d949d633cedff21ad"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/extensions.proto": {
+    "bytes": 1619,
+    "sha256": "8891e085f62a397348f96c504a1c829df2217eb57aba0805a747ceefd26c9c55"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/extensions_separate_file.proto": {
+    "bytes": 482,
+    "sha256": "44d1fa35cfa3d8280d47daf6b4fe2d640a58396b301808b036f6578900ed8a6c"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/fields_with_imported_types.proto": {
+    "bytes": 888,
+    "sha256": "c43be54f445a2509e2ddc5271213dfbbf3573da21fff63fd56d4e39b3716b9d6"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/import_public.proto": {
+    "bytes": 381,
+    "sha256": "f2856a012363313da45520f16a7883ac790b7e166fd6c7fc0dbe3f99e2573887"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/import_public2.proto": {
+    "bytes": 450,
+    "sha256": "135c6b8f722269327a530f0b6960186b175d8d6cba4848b1673b0b423ff70795"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/import_public_grandparent.proto": {
+    "bytes": 408,
+    "sha256": "09c5f0f155d6c72d6db7752cb85b5894a42231e89fbc604b60b2d991155bde6f"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/import_public_non_primary_src1.proto": {
+    "bytes": 490,
+    "sha256": "a41a0eb163071b2db297a4f6cd92ec2ddffce17071163165c0c8a3797dba75af"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/import_public_non_primary_src2.proto": {
+    "bytes": 490,
+    "sha256": "10cd1a980a8daa9d301ae12348a691c99c609a60582685fb387139cebd09cf11"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/import_public_primary_src.proto": {
+    "bytes": 533,
+    "sha256": "c8bc07ae63d5bcecda2cd3f16ab856ec6df7d163d0bde7bef2cb5f2cdd4fcdf2"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/imported_types.proto": {
+    "bytes": 454,
+    "sha256": "08fdc3aee451b78f3ac78049307f642217e217d96bc02f8ba4120ef16ad30896"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/map_unittest.proto": {
+    "bytes": 3818,
+    "sha256": "3de1d1ef5ba54330ecdc448a96f74216c1e4f7167d53fafbecc4fe9df5f3c0b3"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/nested.proto": {
+    "bytes": 1918,
+    "sha256": "e44477d75de069a6c3d3f47ff35c6d9a028b97bbecdb17865f1629afdd703bd9"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/no_package.proto": {
+    "bytes": 448,
+    "sha256": "e1b9bd1f99f1d66a7258f799106c7dce50109d4b19636372d425fa2f0fd484fc"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/no_package_import.proto": {
+    "bytes": 421,
+    "sha256": "b4d9bc880e6d32f0679a56a83f001501dc40a27f268971a947eb5fb5d4cd9fa8"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/no_package_other.proto": {
+    "bytes": 412,
+    "sha256": "4337b9274ae99fb489ddf510f07c22529117494ca777ca009a10636fa6c4db15"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/package.proto": {
+    "bytes": 463,
+    "sha256": "6448bd27ce951f49b4616d65fea81816ee070f102ad32910e361d8498d2a9949"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/package_import.proto": {
+    "bytes": 439,
+    "sha256": "a787ce392ac57f7aee72e696c78c09c55a0d6ab029d93f3a1634c209ddbf751e"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/package_other.proto": {
+    "bytes": 481,
+    "sha256": "ceb14faaecc0bc2aa1dd2b96f498d61a2012034797c23b5ef41851d34cd39ba1"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/package_other_different.proto": {
+    "bytes": 458,
+    "sha256": "c2b4b5591023be5b3f0628f25904486dcaa991611a677a1f1d8a0065733a2f61"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/parent.proto": {
+    "bytes": 341,
+    "sha256": "2f877b979b8372a4471c3aacf9d593565f1eb6b639c4e6c976742277c65dc783"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/unittest.proto": {
+    "bytes": 51887,
+    "sha256": "525e7b94d5532f42e2580291f67394f75ec633d9a38d6dfdc26d04b6beb58af7"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/unittest_import.proto": {
+    "bytes": 854,
+    "sha256": "ea90d298059efe3dc05d4eba385c044c0e86cd8e281aa3580d6742551ce62ffb"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/unittest_proto3.proto": {
+    "bytes": 7587,
+    "sha256": "41b79e7accbe232cba01b4605344ae714faeae2675b41a5f097cb25ac9393d23"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust/test/unittest_proto3_optional.proto": {
+    "bytes": 3309,
+    "sha256": "c77d324dd84322ffef214239d96936d635297ff88543f71b1bb378998e3fdac9"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/accessors_map_test.rs": {
+    "bytes": 15777,
+    "sha256": "944903b05d57a5fdc31a7bea0aa834e219ce45b9f2257fc6ddd3b2b3d222df05"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/accessors_proto3_test.rs": {
+    "bytes": 9230,
+    "sha256": "ce2d902262910dc0a270dfc4a078686485934d9da212b7660d980d9cf680d626"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/accessors_repeated_test.rs": {
+    "bytes": 11986,
+    "sha256": "f3d32b217b0797a6a31496a103f50041eeb9b378622daead39688ec329a8f385"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/accessors_test.rs": {
+    "bytes": 32205,
+    "sha256": "1790ab7dd8a9d0f42f65e4abb8a9dbacf572928f4360857baff75c03191a44f9"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/bad_names_test.rs": {
+    "bytes": 1455,
+    "sha256": "5c4c518970c22079ff1f86f84e35b1917cb64a75b2520a9d22c0e177c8362bbd"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/child_parent_test.rs": {
+    "bytes": 996,
+    "sha256": "697154dfb24cd67024fa1948fffc6f23955790e8c1bcc317ba5da534851d8011"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/ctype_cord_test.rs": {
+    "bytes": 941,
+    "sha256": "a1fc2dfe34527e0fdcafaad772308433e4ac3bd0de0a8753c6a059a89a44eadb"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/edition2023_test.rs": {
+    "bytes": 1436,
+    "sha256": "02038bd0a0e291ced5b44c1dab4ca256ae8865aecc28140c7972148c36df1930"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/enum_test.rs": {
+    "bytes": 9268,
+    "sha256": "88ee06abc5381eabc648cbc746ab7ef8cc20b4452459bbb5e81112d798b0627e"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/extensions_test.rs": {
+    "bytes": 277,
+    "sha256": "2b4d07829c40545c22949c9a9e1c6a337ca380590f4ce94312b0fec612adfdc6"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/fields_with_imported_types_test.rs": {
+    "bytes": 2027,
+    "sha256": "0899806f150aa1fa633ff596d07f3f27ebf6d6ae6e6cabec1d6c4de1fe4bf327"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/gtest_matchers_test.rs": {
+    "bytes": 2586,
+    "sha256": "f8fa84c1b5f5a3537f9001e89d174b68abb1290ae016768475767cd7d38c7aa4"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/import_public_test.rs": {
+    "bytes": 1583,
+    "sha256": "b715905343075101d9e1105746f40affb3ecf9748c1007110ca8ae5862198578"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/message_copy_merge_test.rs": {
+    "bytes": 3184,
+    "sha256": "51dca63231da1a7096ef620267b47efca2d02275b1f2752ae87fb32255cbdc6d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/message_generics_test.rs": {
+    "bytes": 4288,
+    "sha256": "ed0f5ec972f36b5686497427eab8acf1be727af76b466626095ebf99480130a5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/nested_types_test.rs": {
+    "bytes": 938,
+    "sha256": "2e87e27c806ab41f75be1ccda1c7bec2402fdb3d332d42d519dca7dbb377ffa5"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/no_internal_access_test.rs": {
+    "bytes": 273,
+    "sha256": "9e3afd608d12a72b621125097ff6ca60d2dd38e7caddeaa8737a1ac9e5cdd9ae"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/package_disambiguation_test.rs": {
+    "bytes": 1,
+    "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/package_test.rs": {
+    "bytes": 2135,
+    "sha256": "086d840fbaf84b2e92b19dff905752601b4869b1b64785c3cd84ffe21d57b149"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/proto_macro_test.rs": {
+    "bytes": 9087,
+    "sha256": "f937cbac927056c7fe09fa01e93515445c3c4b8f391607538ef7e43eb73e6eef"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/serialization_test.rs": {
+    "bytes": 6696,
+    "sha256": "c538e9910f09c1babda90be10437bc3ca3401fffc2555096ecc7332c353a403d"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/simple_nested_test.rs": {
+    "bytes": 4586,
+    "sha256": "61e1e67c9d24eb50d0a5bf74016e241f59aacffbd4613df82f593132fde114c6"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/threading_test.rs": {
+    "bytes": 1180,
+    "sha256": "b2cf057f3bf333123fcf0be66a0c1bfd2e3ca83db4788d328fa3108797a605e8"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/utf8/feature_verify.proto": {
+    "bytes": 119,
+    "sha256": "2e3b631968a71b07b4aaf97393f886b39b7b03ec4584f9034421042d80c8fd43"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/utf8/no_features_proto2.proto": {
+    "bytes": 96,
+    "sha256": "18a2573f7d0e8c8a2120c9b0ab10a3a2bd1536a9dcfc0d0c025f40fdf7169545"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/utf8/no_features_proto3.proto": {
+    "bytes": 96,
+    "sha256": "5eb21fb073366d22f7f897920888315dc7ca7f9d630c54a1ea9ec6afc456ac20"
+  },
+  "embedded-topology-604f4c2e/qualified-source/vendor/google/rust-tests/shared/utf8/utf8_test.rs": {
+    "bytes": 2785,
+    "sha256": "374630822345c7d70e46a2a26a4c979e2a4c054803e3a287cb9dc1d178e0c8b9"
+  },
+  "embedded-topology-604f4c2e/qualified-source-07783fad.json": {
+    "bytes": 37339,
+    "sha256": "ce9b4466c65e17366b4feaf58e6bf69530e7ffd0174821f9a89465353e89fdf9"
+  },
+  "embedded-topology-604f4c2e/qualify-apparent-cap.py": {
+    "bytes": 6750,
+    "sha256": "25931ffb57b650f804ed3d5aa64924d5368150223d7927ac11bc2a91dc7a9296"
+  },
+  "embedded-topology-604f4c2e/qualify-consumer-inputs.py": {
+    "bytes": 7774,
+    "sha256": "b15b72538e793aa87c441c539bd37fef50c941cf30022a980791752011e0f289"
+  },
+  "embedded-topology-604f4c2e/qualify-first.py": {
+    "bytes": 5672,
+    "sha256": "b2eca5008263cc7664eb66da19ff52eccf0283ac4e8ff71368ba737d8cb3723f"
+  },
+  "embedded-topology-604f4c2e/qualify.py": {
+    "bytes": 7852,
+    "sha256": "aac0eb799353a68ce3f19ae43d268ca8c6cc6c57c690e5115598cfe18385e55b"
+  },
+  "embedded-topology-604f4c2e/resume_consumers.py": {
+    "bytes": 1997,
+    "sha256": "96c6378b218dea57f948ae24a51afa7026f40c13919626e7737887d236a47dc5"
+  },
+  "embedded-topology-604f4c2e/seal_proof.py": {
+    "bytes": 8392,
+    "sha256": "78232ac7b50a92766b57bbe9ed0b4253b994914926a5800745203c8d8a78ab77"
+  },
+  "embedded-topology-604f4c2e/source-clippy-qualified.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-consumer-package-default-resolve.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-consumer-package-default-run.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-consumer-package-tonic-resolve.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-consumer-package-tonic-run.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-consumer-package-tower-resolve.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-consumer-package-tower-run.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-consumer-path-default-resolve.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-consumer-path-default-run.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-consumer-path-tonic-corrected-run.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-consumer-path-tonic-resolve.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-consumer-path-tonic-retry-run.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-consumer-path-tonic-run.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-consumer-path-tower-resolve.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-consumer-path-tower-run.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-docs-qualified.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-doctests-qualified.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-fmt-qualified.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-miri-utf8-qualified.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-package-locked-first.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-snapshot.json": {
+    "bytes": 10978,
+    "sha256": "1e1da286d546bb44f87d386b99885f9604c20bfcaaa3f6e3070c3e14ff16aef4"
+  },
+  "embedded-topology-604f4c2e/source-units-default-1.85-qualified.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/source-units-tonic-1.88-qualified.json": {
+    "bytes": 45116,
+    "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10"
+  },
+  "embedded-topology-604f4c2e/status-oracles.rs": {
+    "bytes": 4025,
+    "sha256": "8ab6d6ed1da100a986c259d10169cc4f69c4d04a37df7f19d10af99456b9f292"
+  },
+  "embedded-topology-604f4c2e/tests-first-source.json": {
+    "bytes": 17676,
+    "sha256": "12a34d76a4d1475e1f24159ad498a96cee7dd304038991591e28f8572cad5924"
+  },
+  "embedded-topology-604f4c2e/tonic-unit-source.json": {
+    "bytes": 17676,
+    "sha256": "f7e3ddc5b9562e9229bcaed422d7b4742e54b5e3a03e361b5ee531b4990d5378"
+  },
+  "embedded-topology-604f4c2e/topology-proposal.md": {
+    "bytes": 14027,
+    "sha256": "61fe28754b4fcacb3557e05fb3780937b54dd9e9b83d2467d3a8a379e4fa2116"
+  },
+  "embedded-topology-604f4c2e/unpolled-layout-comparison.json": {
+    "bytes": 3927,
+    "sha256": "06ede76792e9d6bb3c7dd05dbea71deade7ce6f04af50d7afd987a8780fd3dd1"
+  },
+  "embedded-topology-604f4c2e/upstream/.cargo_vcs_info.json": {
+    "bytes": 94,
+    "sha256": "30727e36628a75a96b9a00affc394649318d9b8d31a80b9df54756d2a73cab3b"
+  },
+  "embedded-topology-604f4c2e/upstream/Cargo.toml": {
+    "bytes": 2765,
+    "sha256": "33a920942741aae5d0e746f64fde6acfbeba037c9bb0da436063c728193b0a8f"
+  },
+  "embedded-topology-604f4c2e/upstream/Cargo.toml.orig": {
+    "bytes": 2085,
+    "sha256": "6664ea9dee6a56004dc181d66b498653d9a00587680bf091327f74e6bb83e17e"
+  },
+  "embedded-topology-604f4c2e/upstream/LICENSE": {
+    "bytes": 1054,
+    "sha256": "b21623012e6c453d944b0342c515b631cfcbf30704c2621b291526b69c10724d"
+  },
+  "embedded-topology-604f4c2e/upstream/src/client.rs": {
+    "bytes": 61971,
+    "sha256": "f64c9089838886bb38aa6b2eaf7e10f84a98fbcdf06d6c4df6fae317de03377e"
+  },
+  "embedded-topology-604f4c2e/upstream/src/codec/error.rs": {
+    "bytes": 3127,
+    "sha256": "4384868a883fc21676888f61380ddf43cd15703bd6377b79d2eec2183e8edecf"
+  },
+  "embedded-topology-604f4c2e/upstream/src/codec/framed_read.rs": {
+    "bytes": 17349,
+    "sha256": "061131d2280ec0903507eb73b675791b79643ec312cefd5b8bf46dbe3b7707d2"
+  },
+  "embedded-topology-604f4c2e/upstream/src/codec/framed_write.rs": {
+    "bytes": 11948,
+    "sha256": "032aab4c8c9108082e915885d0d582871bf4cdd95cd485bdcd7b717087c8ec35"
+  },
+  "embedded-topology-604f4c2e/upstream/src/codec/mod.rs": {
+    "bytes": 6193,
+    "sha256": "806fc32706d789f8e48a6867df014d945c438334e981205ff8f43d5b7f8ce0ef"
+  },
+  "embedded-topology-604f4c2e/upstream/src/error.rs": {
+    "bytes": 6101,
+    "sha256": "b05dc52f36a29b29b1b3e0705a3f1ecf102a89896e173356f3e5fb1165dd6090"
+  },
+  "embedded-topology-604f4c2e/upstream/src/ext.rs": {
+    "bytes": 1246,
+    "sha256": "2fb968f754829fc50392b6ccb4b90cc4c8b88657a5e3a7259f53916e13dc1c91"
+  },
+  "embedded-topology-604f4c2e/upstream/src/frame/data.rs": {
+    "bytes": 7237,
+    "sha256": "8db7229fdaf0b3f750fce26a2e29a6facacb95622b6d36dfe186c42c8a2d2f73"
+  },
+  "embedded-topology-604f4c2e/upstream/src/frame/go_away.rs": {
+    "bytes": 2277,
+    "sha256": "6b3fe966ed96bb941e55e6af3352d7afa43e9bde78dc261251a38b09f5c73202"
+  },
+  "embedded-topology-604f4c2e/upstream/src/frame/head.rs": {
+    "bytes": 1923,
+    "sha256": "4073eb70a8ed9ec0ca460e18fb470fca1dbe6900c1ac08d66397ab4d75414e4c"
+  },
+  "embedded-topology-604f4c2e/upstream/src/frame/headers.rs": {
+    "bytes": 40928,
+    "sha256": "a7630564280006b29488c2fb399d52a70d8d7ccc6d1276fd291410b329d038c5"
+  },
+  "embedded-topology-604f4c2e/upstream/src/frame/mod.rs": {
+    "bytes": 4816,
+    "sha256": "59b9db34f1e3a92a59557c280a14642f523483f1e659b448f1df0e2b0cdc1cd4"
+  },
+  "embedded-topology-604f4c2e/upstream/src/frame/ping.rs": {
+    "bytes": 2983,
+    "sha256": "ff4e4059101300e7b03c23d271026b058da4315c3bd68280422e144c2aa1b9e6"
+  },
+  "embedded-topology-604f4c2e/upstream/src/frame/priority.rs": {
+    "bytes": 1810,
+    "sha256": "9392b7aa2636157024dc645c92d0e450a4d3f7a53bc9de1188d3b61178c2b5fc"
+  },
+  "embedded-topology-604f4c2e/upstream/src/frame/reason.rs": {
+    "bytes": 5135,
+    "sha256": "45b13202141b1d8b261d64624b276a9b034d8c3f7d9b6870ee41a204589f4e14"
+  },
+  "embedded-topology-604f4c2e/upstream/src/frame/reset.rs": {
+    "bytes": 1304,
+    "sha256": "91c17a7391fcb516223fd0358f7770524023b33dd6489902ba23e47b8acc9a9e"
+  },
+  "embedded-topology-604f4c2e/upstream/src/frame/settings.rs": {
+    "bytes": 11307,
+    "sha256": "9aed52868a1ddbb5570025edde2e073d3da1291b58d8759bfed7f086d40ef293"
+  },
+  "embedded-topology-604f4c2e/upstream/src/frame/stream_id.rs": {
+    "bytes": 2783,
+    "sha256": "c26f217a6703971bde2806bad649be6ecf532dcd0a2e60142b7d34f58aa06815"
+  },
+  "embedded-topology-604f4c2e/upstream/src/frame/util.rs": {
+    "bytes": 2140,
+    "sha256": "e67635feb8f2dd577b7ee9d673f3909aa6d812105ef1f9b329ddde679ec77dba"
+  },
+  "embedded-topology-604f4c2e/upstream/src/frame/window_update.rs": {
+    "bytes": 1697,
+    "sha256": "05c1b84478208802d09154f5d6fb5eb886d45397f43ccc6ccbf40bf3be912819"
+  },
+  "embedded-topology-604f4c2e/upstream/src/fuzz_bridge.rs": {
+    "bytes": 975,
+    "sha256": "c1570c12528effecbb65b1046d0756cb4b213ee0cfa17bccb44801f30bf304ca"
+  },
+  "embedded-topology-604f4c2e/upstream/src/hpack/decoder.rs": {
+    "bytes": 28660,
+    "sha256": "1013f226a9d115eb6cff16a0fd5f60eb4ba95b944a23bbc37f4ee959fd5f3115"
+  },
+  "embedded-topology-604f4c2e/upstream/src/hpack/encoder.rs": {
+    "bytes": 24717,
+    "sha256": "85b02c0eaa35c353857f2d53fc49c4da059ae60edb0812e75342196202f10f21"
+  },
+  "embedded-topology-604f4c2e/upstream/src/hpack/header.rs": {
+    "bytes": 9553,
+    "sha256": "b41158784403037c347bfecb7de41b63acb46c825a9c15c4011859c418dc540d"
+  },
+  "embedded-topology-604f4c2e/upstream/src/hpack/huffman/mod.rs": {
+    "bytes": 6943,
+    "sha256": "4fb4cc5ae0c174b6e252b01a046331a009c2a251de5141f547d0980975da55ef"
+  },
+  "embedded-topology-604f4c2e/upstream/src/hpack/huffman/table.rs": {
+    "bytes": 37185,
+    "sha256": "c1f7063610fc6a3907389c2110b0f452f3c5cffb4bede5958e45047112c8974b"
+  },
+  "embedded-topology-604f4c2e/upstream/src/hpack/mod.rs": {
+    "bytes": 241,
+    "sha256": "581033d44fd5525e9ccb546549a99f8357ab8f55d58b490d9980fb36323c5dbc"
+  },
+  "embedded-topology-604f4c2e/upstream/src/hpack/table.rs": {
+    "bytes": 24436,
+    "sha256": "cac4ed7dec7b9a5d92ab7d139a4500698206ca8eff1fbd569f0e6c29d4747a59"
+  },
+  "embedded-topology-604f4c2e/upstream/src/hpack/test/fixture.rs": {
+    "bytes": 27505,
+    "sha256": "0b67a2c9eeb4762baa75156925d689b8828cd23b335a08b3a6b310882d78daba"
+  },
+  "embedded-topology-604f4c2e/upstream/src/hpack/test/fuzz.rs": {
+    "bytes": 11131,
+    "sha256": "4ff6130c3f7eb2e0cc30416976e6c8f54b42378ff55ab47fe3a1b04465f19cb6"
+  },
+  "embedded-topology-604f4c2e/upstream/src/hpack/test/mod.rs": {
+    "bytes": 23,
+    "sha256": "56ad5643e7f1e273e5bce8a6fc0552be39c326dacfffd7f9757ccdbe75e9b66e"
+  },
+  "embedded-topology-604f4c2e/upstream/src/lib.rs": {
+    "bytes": 5363,
+    "sha256": "c8680fc4eb13ccb4ce944716042bd33c6554677cf8261c371442f91fbee352e0"
+  },
+  "embedded-topology-604f4c2e/upstream/src/proto/connection.rs": {
+    "bytes": 24952,
+    "sha256": "e7b371737a3648fee2a0746deab015f99765cd9ec2cb2428ea536b803f097d3c"
+  },
+  "embedded-topology-604f4c2e/upstream/src/proto/error.rs": {
+    "bytes": 2571,
+    "sha256": "ae3d3e0613586970bbcae17af539cfab739d1b8df5cabce3b9d866cdba11315a"
+  },
+  "embedded-topology-604f4c2e/upstream/src/proto/go_away.rs": {
+    "bytes": 4713,
+    "sha256": "51d467027bc30873fc76166ed731e968a23725e7b106b58ecadcb85044466a5f"
+  },
+  "embedded-topology-604f4c2e/upstream/src/proto/mod.rs": {
+    "bytes": 1671,
+    "sha256": "592f8c60d97425946ff62cf694e3f36097a793863fc218fb4357dd440ed377e8"
+  },
+  "embedded-topology-604f4c2e/upstream/src/proto/peer.rs": {
+    "bytes": 2612,
+    "sha256": "a383e4d81502945878333748e40e5a5f64da4403af886d1812027f522fc0d869"
+  },
+  "embedded-topology-604f4c2e/upstream/src/proto/ping_pong.rs": {
+    "bytes": 8383,
+    "sha256": "fabf42b1b1062e361c4d45026e9bfc9c32a02a9074259c71b525e78d2113a148"
+  },
+  "embedded-topology-604f4c2e/upstream/src/proto/settings.rs": {
+    "bytes": 5709,
+    "sha256": "0fef5d01aa0233100a0cda9c0b5080a15cfbaab16c42c991933f5ed7db06bf77"
+  },
+  "embedded-topology-604f4c2e/upstream/src/proto/streams/buffer.rs": {
+    "bytes": 2317,
+    "sha256": "631aa4360b7b942c3899c6fb7455e682655c3ac099a170d5c3d566af3fec8318"
+  },
+  "embedded-topology-604f4c2e/upstream/src/proto/streams/counts.rs": {
+    "bytes": 14189,
+    "sha256": "aba319047c01074d9e97afde4999c28e14f0ef21d1d39b7d6c6db4aebc786b79"
+  },
+  "embedded-topology-604f4c2e/upstream/src/proto/streams/flow_control.rs": {
+    "bytes": 8190,
+    "sha256": "a8b3c5cd24b1f83770576ba21d5fcd555f144afd88f246f7d5dbe9e39563c74a"
+  },
+  "embedded-topology-604f4c2e/upstream/src/proto/streams/mod.rs": {
+    "bytes": 3790,
+    "sha256": "3f7afa89a19943b1ac56052f64c4e220dbf0e951a4ac74405adbf83ea7050c27"
+  },
+  "embedded-topology-604f4c2e/upstream/src/proto/streams/prioritize.rs": {
+    "bytes": 36747,
+    "sha256": "5eba6fc5c252104676fa76e13fe07459fdbb9bc55df6483b1683fa99ad6fa674"
+  },
+  "embedded-topology-604f4c2e/upstream/src/proto/streams/recv.rs": {
+    "bytes": 49459,
+    "sha256": "49888eca03594469393d8b3bf328036007aff0e87df704f61a4556e4272386f8"
+  },
+  "embedded-topology-604f4c2e/upstream/src/proto/streams/send.rs": {
+    "bytes": 23194,
+    "sha256": "ee355358b86ea048fd0e64642595e7be6e7f03a39d96745e74503cba2f1b08ef"
+  },
+  "embedded-topology-604f4c2e/upstream/src/proto/streams/state.rs": {
+    "bytes": 17911,
+    "sha256": "486b99b293d0f874b72724e1511cb0b11b44b3906ea20eb176fae1821772794d"
+  },
+  "embedded-topology-604f4c2e/upstream/src/proto/streams/store.rs": {
+    "bytes": 11762,
+    "sha256": "040005e8af13193db7bd89c20a44e28f5d18976a4b8562bf068dd8bd4a982668"
+  },
+  "embedded-topology-604f4c2e/upstream/src/proto/streams/stream.rs": {
+    "bytes": 19686,
+    "sha256": "e31a59444ba7b885040556b89c19b308321e2adeab1cdb2cce720285701d56a0"
+  },
+  "embedded-topology-604f4c2e/upstream/src/proto/streams/streams.rs": {
+    "bytes": 61200,
+    "sha256": "d2f866b385ea8107ecb4a56e0089523abeabb6a5dc8e107c0a6c3eeb26955290"
+  },
+  "embedded-topology-604f4c2e/upstream/src/server.rs": {
+    "bytes": 62859,
+    "sha256": "6c288263c09ea51eabf87332a990547a8212bfd9d9301e5540d51cbe56b27d86"
+  },
+  "embedded-topology-604f4c2e/upstream/src/share.rs": {
+    "bytes": 22749,
+    "sha256": "e313c11a24b649d4c9da937fb37e5c2cc7c689c53f6afd2470fd40fd030237c5"
+  },
+  "embedded-topology-604f4c2e/workspace-lock-audit-qualified.json": {
+    "bytes": 1585,
+    "sha256": "379298464d442ea1491104c69f2e08d6600e02a56a33e6c670c8f13a87dac681"
+  },
+  "embedded-topology-604f4c2e/workspace-lock-audit.json": {
+    "bytes": 1454,
+    "sha256": "caa0c953a6041a036c1a1ee6b0bb8c4e4b14b671603c7a5f1a18f804e7bc1a61"
+  },
+  "embedded-topology-604f4c2e/workspace-metadata.json": {
+    "bytes": 928131,
+    "sha256": "41a32e695930da6c7b74bf201bfc159bbca9bd19fd3404e9fcad392c72cdf531"
+  }
+}

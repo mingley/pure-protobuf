@@ -711,8 +711,10 @@
 //! framing, dispatch, transport, TLS, compression, codec, resolver,
 //! load-balancing, authorization, binary logging, service-config, metadata,
 //! status, request, response, and stream code all carry
-//! `#[forbid(unsafe_code)]`. What remains is resource safety against a peer
-//! that is trying to hurt you.
+//! `#[forbid(unsafe_code)]`. The private imported HTTP/2 backend retains one
+//! upstream HPACK UTF-8 view behind a documented constructor invariant and a
+//! function-local exemption; the transport module's forbid remains intact.
+//! Resource limits additionally bound peer-controlled work and memory.
 //!
 //! ## Threat model
 //!
@@ -885,6 +887,12 @@
 //!   exposes no stable safe wrapper for that option.
 //! - `rt::per_core` calls `sched_setaffinity` / `sched_getcpu` to pin
 //!   per-core runtime threads.
+//!
+//! The private imported HTTP/2 backend additionally retains upstream's
+//! `BytesStr::as_str` UTF-8 view. Its constructors validate UTF-8 or copy a
+//! Rust string, and its `Bytes` storage is immutable. That single access has
+//! a function-local exemption; the native transport module remains forbidden
+//! from using unsafe code.
 //!
 //! Modules that `include!` generated message code ([`hello`], [`testing`],
 //! [`health`], [`reflection`], [`pb`], [`channelz`], [`orca`]) are also outside
@@ -1149,6 +1157,10 @@ mod tcp;
 mod tls;
 #[forbid(unsafe_code)]
 mod transport;
+// Pinned upstream backend, with one existing validated UTF-8 access scoped
+// inside the import. The transport seam retains its unsafe-code forbid.
+#[rustfmt::skip]
+mod h2_backend;
 #[forbid(unsafe_code)]
 mod wire;
 

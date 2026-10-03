@@ -1,0 +1,30 @@
+{
+  "format": "ordered concatenation reproduces exact original gzip bytes",
+  "parts": [
+    {
+      "path": "archive/selected-payloads.tar.gz.part-000",
+      "bytes": 25165824,
+      "sha256": "0c64f4405706471b89daf839fc6faa834b7ea94b52c54d4f81fd6ee8157a1dd7"
+    },
+    {
+      "path": "archive/selected-payloads.tar.gz.part-001",
+      "bytes": 25165824,
+      "sha256": "1ceaf7f5d637eadbf9d619c935a8fecb9bea1d91ff6f34fbc11d29f0743e84bf"
+    },
+    {
+      "path": "archive/selected-payloads.tar.gz.part-002",
+      "bytes": 25165824,
+      "sha256": "ddfdfa59ed1c447c344e7bf78146d85aa53e64ac782515b460622b7a413369e8"
+    },
+    {
+      "path": "archive/selected-payloads.tar.gz.part-003",
+      "bytes": 3323573,
+      "sha256": "3d2b889f3de4ef56d85ec50802e251b053f364a850d8824cd3db397477d3e07e"
+    }
+  ],
+  "archive": {
+    "bytes": 78821045,
+    "members": 2281,
+    "sha256": "f8735053b0315fb437997a4cc00d21fac25779cd1f2feb41891a209097f2c2e8"
+  }
+}

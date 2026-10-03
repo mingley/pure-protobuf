@@ -1,0 +1,27 @@
+{
+  "command_argv": [
+    "cargo",
+    "test",
+    "--offline",
+    "--locked",
+    "--manifest-path",
+    "bench/devloop/Cargo.toml",
+    "--bin",
+    "devloop",
+    "--",
+    "--nocapture"
+  ],
+  "exit_code": 0,
+  "started_utc": "2026-10-02T21:30:02.808636+00:00",
+  "finished_utc": "2026-10-02T21:30:17.901835+00:00",
+  "source_file_sha256": {
+    "bench/devloop/Cargo.toml": "eacf52fb8a7784a06ab56604e211e5992008c511c18078f32175f5fc7bf11c43",
+    "bench/devloop/Cargo.lock": "d1a2e8105c86009759c0aa1568a12a446936d46628ec0244af84abc3240b5135",
+    "bench/devloop/build.rs": "38a5d085246cc60c8377ea6a28fe308b13d9e4fdfd20cab45c12d684acf84fdc",
+    "bench/devloop/src/main.rs": "5d88e13f47a3d2cd329a709dd49d707af2c5e8cc9478ba19fa76fc7a2a1ea269",
+    "bench/devloop/src/tonic_transport_rpc.rs": "b75fb3f8dbb687e2833b7a7f9d099c9e9959ef1da9f571edf27cca6452317dc0",
+    "bench/devloop/proto/tonic_transport.proto": "1b7ae57c53961dd9071d803695787ce24d6c1d1591f725588ca466f2f37c4936"
+  },
+  "source_unchanged_during_check": true,
+  "log_sha256": "b3078cce6e75172a1c263ded22cd889af3ea726ba75249a9aebdabf02120040b"
+}

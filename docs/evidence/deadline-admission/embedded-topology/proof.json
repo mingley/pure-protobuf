@@ -1,0 +1,402 @@
+{
+  "schema": 1,
+  "source_commit": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a",
+  "scope": "isolated self-contained embedded H2 topology; native callers unchanged",
+  "shipping_approved": false,
+  "runtime_or_codegen_performance_qualified": false,
+  "registry_checksum": "ef8e5e5a340588f4452631496976cf8636d4a7ecf600239fdc27615d2530bc16",
+  "registry_package_tuples": 166,
+  "package_pins_changed": false,
+  "normal_graph_counts": {
+    "default": [
+      60,
+      59
+    ],
+    "tower": [
+      68,
+      68
+    ],
+    "tonic": [
+      90,
+      90
+    ]
+  },
+  "unit_results": {
+    "rust1.85_default": {
+      "passed": 526,
+      "failed": 0,
+      "ignored": 1
+    },
+    "rust1.88_tonic": {
+      "passed": 544,
+      "failed": 0,
+      "ignored": 1
+    }
+  },
+  "doctests": {
+    "passed": 177,
+    "failed": 0,
+    "ignored": 1
+  },
+  "miri": {
+    "toolchain": "nightly-2026-09-28",
+    "strict_provenance": true,
+    "passed": 3,
+    "scope": "actual sole imported BytesStr UTF-8 invariant; admission/Tokio Miri not run"
+  },
+  "external_consumers": {
+    "path": [
+      "default",
+      "tower",
+      "tonic"
+    ],
+    "unpacked_package": [
+      "default",
+      "tower",
+      "tonic"
+    ],
+    "backend_patch": false,
+    "only_package_patch": "local unpacked pbrs core version before publication",
+    "early_path_default_tower_input_capture": {
+      "per_run_before_after_external_input_hashes": false,
+      "timing": "retained after successful runs and before correcting the Tonic-only Status assertion",
+      "retained_files": "raw archive consumer-inputs/path-initial/{Cargo.toml,Cargo.lock,main.rs}",
+      "limitation": "repository source/tool/command/passing-output records exist; exact external-input integrity was not guarded before/after those two runs",
+      "later_direct_input_snapshots": "corrected path/Tonic and all unpacked-package runs only",
+      "fixture_difference": "only Tonic-only Status bound changed; that cfg branch was disabled for initial default/Tower runs"
+    }
+  },
+  "packaged_embedded_rust_members": 54,
+  "packaged_upstream_license_and_provenance_exact": true,
+  "layout": {
+    "baseline_source": "76d43b7d064ee63d2231fb0be2e31128b0f165b0",
+    "same_rust1.85_binary": true,
+    "acquire_bytes": 8184,
+    "grab_bytes": 8784,
+    "handshake_bytes": 7816,
+    "public_call_wrapper_bytes": 32,
+    "all_byte_deltas": 0,
+    "boxed_rpc_body_bytes": null,
+    "polled": false
+  },
+  "not_run": [
+    "upstream external HPACK fixtures/fuzz suite absent from registry archive",
+    "upstream existing ignored unit",
+    "existing ignored native doctest",
+    "admission/Tokio Miri",
+    "release/LTO/performance capture",
+    "native owned-admission caller/request-timeout-refresh integration"
+  ],
+  "preserved_red_stages": [
+    "three strict Clippy red logs and named fixes",
+    "initial Rustfmt/component format diagnostic",
+    "offline Miri sysroot setup missing rustc-demangle",
+    "layout wrong selector omitted pool: zero tests",
+    "conservative apparent-cache guard: Tonic build SIGTERM",
+    "consumer Tonic Error type assertion incorrectly expected native Status: corrected fixture only"
+  ],
+  "source_qualification": "only named final gate records qualify604f; earlier passing counts remain bound to earlier saved source maps",
+  "limits": [
+    "native ready/send_request callers remain unchanged",
+    "new native integration requires timeout refresh before each admission poll",
+    "private imported source couples backend rebuild to kernel; Tower/Tonic compile both stock and private backend",
+    "admission wakes all registered waiters and has no FIFO guarantee",
+    "layout reports only unpolled storage"
+  ],
+  "gates": {
+    "clippy-qualified": {
+      "record_sha256": "891d4901b239572afb68487935b63b733a850f4bb612e4241f82ba97bc7b814a",
+      "source": {
+        "path": "/workspace/scratch/work/h2-embedded/work/h2-embedding/source-clippy-qualified.json",
+        "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10",
+        "source_commit": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a"
+      },
+      "argv": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--all-features",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "log_sha256": "c6198df6f1fedbdc74ad0992bc8b45d002b10a9dd4612127e3349f7d4c4f61c0"
+    },
+    "fmt-qualified": {
+      "record_sha256": "01b8559f1a5436e14e5a04b96a213ece4108270fc1954e4d1fe61b47b403e3ff",
+      "source": {
+        "path": "/workspace/scratch/work/h2-embedded/work/h2-embedding/source-fmt-qualified.json",
+        "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10",
+        "source_commit": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a"
+      },
+      "argv": [
+        "cargo",
+        "+stable",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docs-qualified": {
+      "record_sha256": "b4d82a785ffa3d2b4bb17a257f3f3014420a6373593ed864aade0c87e2e9e506",
+      "source": {
+        "path": "/workspace/scratch/work/h2-embedded/work/h2-embedding/source-docs-qualified.json",
+        "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10",
+        "source_commit": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a"
+      },
+      "argv": [
+        "cargo",
+        "+1.88.0",
+        "doc",
+        "--offline",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--features",
+        "tonic",
+        "--no-deps"
+      ],
+      "exit": 0,
+      "log_sha256": "11e85922e6a91e79a200177f36da41fddeddf4f915fecb104d2108f3d5e41658"
+    },
+    "doctests-qualified": {
+      "record_sha256": "382754aaa22f4b4c99cec574eab79a0db12aab6b6e04b7d893796baa9114121b",
+      "source": {
+        "path": "/workspace/scratch/work/h2-embedded/work/h2-embedding/source-doctests-qualified.json",
+        "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10",
+        "source_commit": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a"
+      },
+      "argv": [
+        "cargo",
+        "+1.88.0",
+        "test",
+        "--offline",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--features",
+        "tonic",
+        "--doc"
+      ],
+      "exit": 0,
+      "log_sha256": "c3d543d24f71c0a58dd3e6bc2cb93df68045bb7c3287ef0459478790e2d0b70e"
+    },
+    "units-default-1.85-qualified": {
+      "record_sha256": "b1f0fd5b9ed1d8537a010ef8f91a088d8e169a9d0b2cfdfb279b9e8cc11f558e",
+      "source": {
+        "path": "/workspace/scratch/work/h2-embedded/work/h2-embedding/source-units-default-1.85-qualified.json",
+        "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10",
+        "source_commit": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a"
+      },
+      "argv": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--offline",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--lib"
+      ],
+      "exit": 0,
+      "log_sha256": "ca929505b3d945beef922af35c722f297251459d5251b069ea180173c5af40a3"
+    },
+    "units-tonic-1.88-qualified": {
+      "record_sha256": "279d3305576f231c6c736c8845db9d7cef4f6e54f3f9edff0fde10341ef21874",
+      "source": {
+        "path": "/workspace/scratch/work/h2-embedded/work/h2-embedding/source-units-tonic-1.88-qualified.json",
+        "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10",
+        "source_commit": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a"
+      },
+      "argv": [
+        "cargo",
+        "+1.88.0",
+        "test",
+        "--offline",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--lib",
+        "--features",
+        "tonic"
+      ],
+      "exit": 0,
+      "log_sha256": "d38b808c4b12a3900ab4c1dff90146a0c0ea4cf91c0565fd55562d9b991d6eb6"
+    },
+    "miri-utf8-qualified": {
+      "record_sha256": "ff09ef1f01682f22f1afb73d638144e3c5642c794682f67970c7ff864b3707b2",
+      "source": {
+        "path": "/workspace/scratch/work/h2-embedded/work/h2-embedding/source-miri-utf8-qualified.json",
+        "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10",
+        "source_commit": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a"
+      },
+      "argv": [
+        "cargo",
+        "+nightly-2026-09-28",
+        "miri",
+        "test",
+        "--offline",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--lib",
+        "h2_backend::hpack::header::bytes_str_invariant_tests"
+      ],
+      "exit": 0,
+      "log_sha256": "97b3f49baf486d001d6ad36b0504d96cf5c3a4da7ea622350bdc0ae9c7353e92"
+    },
+    "package-locked-first": {
+      "record_sha256": "ab5152075a7760ed6f05b5f642ae29cd4825683ad1db5d198b3855c9aa2c2423",
+      "source": {
+        "path": "/workspace/scratch/work/h2-embedded/work/h2-embedding/source-package-locked-first.json",
+        "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10",
+        "source_commit": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a"
+      },
+      "argv": [
+        "cargo",
+        "+stable",
+        "package",
+        "-p",
+        "pbrs",
+        "-p",
+        "pbrs-grpc",
+        "--no-verify",
+        "--allow-dirty",
+        "--offline",
+        "--registry",
+        "crates-io",
+        "--locked"
+      ],
+      "exit": 0,
+      "log_sha256": "bc291caf1b53fc5089d53e6f262f5b1821406ae68368e803e7eed310f023764b"
+    },
+    "consumer-path-default-run": {
+      "record_sha256": "b6b47f3785645e2a577d1f52390209d53cc68415a39f1ce92d8fc9bb0fe79c61",
+      "source": {
+        "path": "/workspace/scratch/work/h2-embedded/work/h2-embedding/source-consumer-path-default-run.json",
+        "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10",
+        "source_commit": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a"
+      },
+      "argv": [
+        "cargo",
+        "+1.85.0",
+        "run",
+        "--offline",
+        "--locked"
+      ],
+      "exit": 0,
+      "log_sha256": "350f407884d116eaa6fad801445cfd7c41d2607a54e032fb2f5d4ff731fb42bf"
+    },
+    "consumer-path-tower-run": {
+      "record_sha256": "fef2ec2c5c422ba1c7304ec73b41b8b9d288a0b1dfcf6a408d5249aaa0a201bb",
+      "source": {
+        "path": "/workspace/scratch/work/h2-embedded/work/h2-embedding/source-consumer-path-tower-run.json",
+        "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10",
+        "source_commit": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a"
+      },
+      "argv": [
+        "cargo",
+        "+1.85.0",
+        "run",
+        "--offline",
+        "--locked",
+        "--features",
+        "tower"
+      ],
+      "exit": 0,
+      "log_sha256": "c042628736cbbdc4f1fb5f4f063c266aaec8c41cdd61614f33626ee807530ca8"
+    },
+    "consumer-path-tonic-corrected-run": {
+      "record_sha256": "2fecf595cee018e1c5ab841def3f952e58ac1b3e6d53f44a6bf8a206b81e4e9a",
+      "source": {
+        "path": "/workspace/scratch/work/h2-embedded/work/h2-embedding/source-consumer-path-tonic-corrected-run.json",
+        "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10",
+        "source_commit": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a"
+      },
+      "argv": [
+        "cargo",
+        "+1.88.0",
+        "run",
+        "--offline",
+        "--locked",
+        "--features",
+        "tonic"
+      ],
+      "exit": 0,
+      "log_sha256": "b40b37409d90018895244027124b688944c4feac6a5cce75de71f0f5655ede8c"
+    },
+    "consumer-package-default-run": {
+      "record_sha256": "9c1e54e110bfe498082e05a4589e56a51b9a19e9e1ba232504766ba09bbb5d95",
+      "source": {
+        "path": "/workspace/scratch/work/h2-embedded/work/h2-embedding/source-consumer-package-default-run.json",
+        "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10",
+        "source_commit": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a"
+      },
+      "argv": [
+        "cargo",
+        "+1.85.0",
+        "run",
+        "--offline",
+        "--locked"
+      ],
+      "exit": 0,
+      "log_sha256": "cf00c8ba2e5807feb7e753884e17322e0d02fcf4aeaae0e4bb57a5ad4887dfc7"
+    },
+    "consumer-package-tower-run": {
+      "record_sha256": "231946a6e2e9261da87967009f30ea8688eace9b167930cf86895b8f86984a4c",
+      "source": {
+        "path": "/workspace/scratch/work/h2-embedded/work/h2-embedding/source-consumer-package-tower-run.json",
+        "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10",
+        "source_commit": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a"
+      },
+      "argv": [
+        "cargo",
+        "+1.85.0",
+        "run",
+        "--offline",
+        "--locked",
+        "--features",
+        "tower"
+      ],
+      "exit": 0,
+      "log_sha256": "6942b275a332198a1b024c82b409bd8eada65992c700513f45583d5b2c6ced33"
+    },
+    "consumer-package-tonic-run": {
+      "record_sha256": "3148be579bb8dfe6f2ceabe5be6be6b1939d0f6ba6b3a6a29b278c2e7c8b4a97",
+      "source": {
+        "path": "/workspace/scratch/work/h2-embedded/work/h2-embedding/source-consumer-package-tonic-run.json",
+        "sha256": "5ece6879be96a11613e1988b5ad63d655604bac406bac8564fe150b03a438c10",
+        "source_commit": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a"
+      },
+      "argv": [
+        "cargo",
+        "+1.88.0",
+        "run",
+        "--offline",
+        "--locked",
+        "--features",
+        "tonic"
+      ],
+      "exit": 0,
+      "log_sha256": "6547687f8a42ecaf68c2ac104047db28260278d98c2c235f9e6d0edcee603a31"
+    }
+  },
+  "archive": {
+    "file": "raw.tar.gz",
+    "bytes": 35788515,
+    "sha256": "8d899c703aabc54ef417a9d08c830f811ca1d15946fe40a2423013dcc8a2c9d6",
+    "regular_members": 806,
+    "all_members_verified_against_inputs": true
+  },
+  "workspace_package_tuples": 172
+}

@@ -20,7 +20,7 @@ The [gRPC guide](../docs/grpc.md) links the longer tutorials and contracts.
 ## What it provides
 
 - **Pure Rust**: the default shipping graph requires no C or C++ compiler. Applications that select another TLS provider own its build prerequisites.
-- **Mostly safe Rust kernel**: gRPC framing, dispatch, transport, TLS, codec, resolver, load-balancer, authz, binlog, and service-config modules forbid unsafe. Two Linux-only OS helpers use scoped `SAFETY`-documented unsafe for `TCP_USER_TIMEOUT` and per-core CPU pinning.
+- **Mostly safe Rust kernel**: gRPC framing, dispatch, transport, TLS, codec, resolver, load-balancer, authz, binlog, and service-config modules forbid unsafe. Two Linux-only OS helpers use scoped `SAFETY`-documented unsafe for `TCP_USER_TIMEOUT` and per-core CPU pinning. The private imported HTTP/2 backend retains one scoped, validated UTF-8 view for immutable HPACK header bytes.
 - **Independent transport**: runs directly on prior-knowledge HTTP/2 (`h2`), `rustls`, and Graviola.
 - **Native pbrs messages**: generated stubs use the `pbrs` `Parse` and `Serialize` traits.
 

@@ -1,0 +1,159 @@
+{
+  "files": {
+    "/workspace/pure-protobuf/tests/interop/go/go.mod": {
+      "bytes": 1871,
+      "sha256": "3894967153cc2cfb8ace3e5a7640a488e2c9faf7986530a54c07a5fbb25eaf31"
+    },
+    "/workspace/pure-protobuf/tests/interop/go/go.sum": {
+      "bytes": 6362,
+      "sha256": "65ad528d273e9fe9603fa719117de422d07173052693ec7cda146232edb75da2"
+    },
+    "/workspace/pure-protobuf/work/build-final-go-peer.py": {
+      "bytes": 5161,
+      "sha256": "2a6af132985351fb7c40542a459305dbf316c26e8c14be2bd7df1b873c36f994"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer-retry1/build-record.json": {
+      "bytes": 4745,
+      "sha256": "4f37ce59bac967c2bcc82d07668e53b727c331b21aea125bd192e8368503b708"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer-retry1/client-build.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer-retry1/client-build.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer-retry1/client-module-info.txt": {
+      "bytes": 3339,
+      "sha256": "7af76555a2f3d7ad8641e10244d5e1e152debc1e4b01c96b0a5ea3d6affc0a9b"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer-retry1/client-resources.jsonl": {
+      "bytes": 1739,
+      "sha256": "c53b536d8826eff5211a0a474fdb9d2e1c839aa373b11183202d887348dff553"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer-retry1/go-interop-client": {
+      "bytes": 43493623,
+      "sha256": "8f90ffac376025f580b18cf2297bfa05d828fbc9cbf1a504cda788e6fc788c4a"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer-retry1/go-interop-server": {
+      "bytes": 19091572,
+      "sha256": "defc08302c99a0991e0e037d5e029df1e5d4d1af1b1ac05e0cab07bdd8dea796"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer-retry1/module-verification.json": {
+      "bytes": 4653,
+      "sha256": "8c88369d13d7d47bcdc9b58e0da1e252ff6f950a5780ff6994a7c40a622538dc"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer-retry1/module-verify.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer-retry1/module-verify.stdout": {
+      "bytes": 21,
+      "sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer-retry1/server-build.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer-retry1/server-build.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer-retry1/server-module-info.txt": {
+      "bytes": 1365,
+      "sha256": "cd8df2291dbbf8e0948c33e2a35e832eb7dff2f6906d5220b8d3dc42cba0fe5f"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer-retry1/server-resources.jsonl": {
+      "bytes": 108,
+      "sha256": "b8d6421466e19c115ed2193cfbd2d66b8159a892bae095f71614771e5fee2b99"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer/build-record.json": {
+      "bytes": 3444,
+      "sha256": "6a537e7d645eb23d8b2007693dfde1b2122f549d5979e52faa63549221b73ce9"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer/build-script-v1.py": {
+      "bytes": 4694,
+      "sha256": "14606f2298d6554db506c38b033e9f16b7e797ea03de04c24753e397a6afb6b7"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer/cached-api-preload.json": {
+      "bytes": 1122,
+      "sha256": "381815136bb621d5335c23e77ffd0ea6236d802cb1fb2baf18b59d600231f94a"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer/client-build.stderr": {
+      "bytes": 1937,
+      "sha256": "0a6132398b13440994891b9419d2fc21c0b85a058f154519d24011edcbc27b0d"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer/client-build.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer/client-resources.jsonl": {
+      "bytes": 216,
+      "sha256": "1177d89be15c5018cc793cfda1e477e763bd350dab199268c35d38aa934bd65a"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer/go-interop-server": {
+      "bytes": 19091572,
+      "sha256": "defc08302c99a0991e0e037d5e029df1e5d4d1af1b1ac05e0cab07bdd8dea796"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer/server-build.stderr": {
+      "bytes": 635,
+      "sha256": "77c5f29d9599150e0063664320fa1b776e4e7e586249045dd8c05b07529ec393"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer/server-build.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer/server-module-info.txt": {
+      "bytes": 1358,
+      "sha256": "4f8de3b6e8be54085cca38f139cb026674525233cb6b94a8418f3044f9d07283"
+    },
+    "/workspace/pure-protobuf/work/final-go-peer/server-resources.jsonl": {
+      "bytes": 2155,
+      "sha256": "257c2a755e0de6e5a02942b1ff4d73838fe8e09f81f7bb97914f07c64101b00f"
+    },
+    "/workspace/pure-protobuf/work/run-final-native-go.py": {
+      "bytes": 7398,
+      "sha256": "331b7394e18e82472a753567371a27e31b30f207a913f1845bff870d3257b653"
+    },
+    "/workspace/pure-protobuf/work/toolchain/go1253/go/bin/go": {
+      "bytes": 14943765,
+      "sha256": "5ddce6f4b3324bf05b4ce1db882a970c0e71605ef128f44cb8ce69a21edfa836"
+    },
+    "/workspace/pure-protobuf/work/toolchain/go1253/go/pkg/tool/linux_amd64/asm": {
+      "bytes": 4811138,
+      "sha256": "ce08d8ecf01d54d460731568b63059aa1703bb39719cecc4ae2d019bced51c46"
+    },
+    "/workspace/pure-protobuf/work/toolchain/go1253/go/pkg/tool/linux_amd64/compile": {
+      "bytes": 21649033,
+      "sha256": "8c682057296d4d01e2fb441eb4a56139095e3f8094220a0965da671b436be3df"
+    },
+    "/workspace/pure-protobuf/work/toolchain/go1253/go/pkg/tool/linux_amd64/link": {
+      "bytes": 6408080,
+      "sha256": "4c47e0047e05a710983cb845fa9a08096b28a943a69ee47fbddeadefcc66a35d"
+    }
+  },
+  "protected_roots": {
+    "/workspace/pure-protobuf/work/final-go-peer-retry1/tmp": {
+      "dev": 27,
+      "ino": 17285
+    },
+    "/workspace/pure-protobuf/work/final-go-peer/gopath": {
+      "dev": 27,
+      "ino": 1981702
+    },
+    "/workspace/pure-protobuf/work/final-go-peer/tmp": {
+      "dev": 27,
+      "ino": 1981703
+    },
+    "/workspace/pure-protobuf/work/toolchain/go-mod-cache": {
+      "dev": 27,
+      "ino": 1854156
+    },
+    "/workspace/pure-protobuf/work/toolchain/go1253": {
+      "dev": 27,
+      "ino": 1602916
+    }
+  },
+  "scope": "All existing top-level first-fail/retry binaries/moduleinfos/records/raw/task scripts/frozen mod+sum and four Go tool bytes are pinned. Protected SDK/shared module-cache root identities remain; their entire contents are not independently inventoried by this cleanup."
+}

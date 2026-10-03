@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "/workspace/pure-protobuf/work/final-go-cache-reclamation-20261003/proof/verify.py",
+    "/workspace/pure-protobuf/work/final-go-cache-reclamation-20261003/proof"
+  ],
+  "exit": 0,
+  "stdout": "independent-check.stdout",
+  "stderr": "independent-check.stderr",
+  "checker_sha256": "9eca852379b93d6dec6eb09e8b0cc5a4347fadfc0cc5e90cd36f4e34f3bf1abc",
+  "checked_manifest_sha256_before_adding_capture": "893c952e9b8748992270fbd3391c40f1e048140f5bd8a540e89a11dba5b8334f",
+  "scope": "Read-only full inventories/selected payloads/module-h1/process/permission/deletion proof replay; no caches or compiler needed"
+}
