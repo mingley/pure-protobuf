@@ -3745,6 +3745,41 @@ fn scalar_test_invalid_selection(targets: &[&str], fds: &[u8], parameter: &str, 
     );
 }
 
+fn typed_extension_consumer_seed_lock(
+    root: &std::path::Path,
+    consumer: &std::path::Path,
+    name: &str,
+) -> Vec<u8> {
+    let root_lock = std::fs::read(root.join("Cargo.lock")).unwrap();
+    let mut seed = root_lock.clone();
+    seed.extend_from_slice(
+        format!(
+            "\n[[package]]\nname = {name:?}\nversion = \"0.0.0\"\ndependencies = [\n \"pbrs\",\n]\n"
+        )
+        .as_bytes(),
+    );
+    let path = consumer.join("Cargo.lock");
+    if path.exists() {
+        // Preserve an explicitly requested retained 1.85 replay lock.
+        assert_eq!(
+            std::fs::read(&path).unwrap(),
+            seed,
+            "requested consumer lock differs from pinned root plus local package"
+        );
+    } else {
+        std::fs::write(&path, &seed).unwrap();
+    }
+    std::fs::write(consumer.join("Cargo.lock.root-source"), root_lock).unwrap();
+    std::fs::write(consumer.join("Cargo.lock.before"), &seed).unwrap();
+    seed
+}
+
+fn typed_extension_consumer_assert_lock(consumer: &std::path::Path, expected: &[u8], label: &str) {
+    let actual = std::fs::read(consumer.join("Cargo.lock")).unwrap();
+    std::fs::write(consumer.join(format!("Cargo.lock.after-{label}")), &actual).unwrap();
+    assert_eq!(actual, expected, "consumer lock changed during {label}");
+}
+
 #[test]
 fn edition2024_selected_extensions_validate_int32_default_syntax_and_bounds() {
     let file = scalar_test_file(&scalar_extension_test_fds(1001, 101, None, false));
@@ -3885,6 +3920,22 @@ fn edition2024_selected_extensions_reject_required_delimited_messageset_and_maps
         typed_extension_result(&["scalar.proto"], &fds, "typed_extension=test.value").unwrap_err(),
         pbrs::codegen::CodegenError::MalformedDescriptor { .. }
     ));
+    let legacy_required = scalar_test_rewrite_len(&original, 7, |field| {
+        let features = scalar_test_set_varint(&[], 1, 3); // LEGACY_REQUIRED presence.
+        scalar_test_set_len(field, 8, &scalar_test_set_len(&[], 21, &features))
+    });
+    let fds = scalar_test_descriptor_set(&[legacy_required]);
+    let pool = pbrs::DescriptorPool::from_file_descriptor_set(&fds).unwrap();
+    assert_eq!(
+        pool.get_extension("test.value").unwrap().1.cardinality,
+        pbrs::dynamic::Cardinality::Required
+    );
+    scalar_test_invalid_selection(
+        &["scalar.proto"],
+        &fds,
+        "typed_extension=test.value",
+        "only singular int32",
+    );
     for (option, reason) in [
         (1, "MessageSet is not supported"),
         (7, "host must be an owned generated target type"),
@@ -4125,12 +4176,15 @@ fn renamed_runtime_typed_extensions_round_trip() {
 "#,
     )
     .unwrap();
+    let expected_lock =
+        typed_extension_consumer_seed_lock(&root, &consumer, "typed-int32-alias-consumer");
     let mut command = shared_consumer_cargo();
     command
         .env("CARGO_BUILD_JOBS", "1")
         .args([
             "test",
             "--offline",
+            "--locked",
             "--quiet",
             "--lib",
             "--",
@@ -4148,6 +4202,7 @@ fn renamed_runtime_typed_extensions_round_trip() {
         )
         .unwrap();
     }
+    typed_extension_consumer_assert_lock(&consumer, &expected_lock, "test");
     assert!(
         result.status.success(),
         "{}\n{}",
@@ -4319,12 +4374,15 @@ fn edition2024_selected_int32_extensions_generated_consumer() {
     let source = include_str!("fixtures/edition2024/typed_int32_consumer.rs")
         .replace("@ROOT@", root.to_str().unwrap());
     std::fs::write(consumer.join("src/lib.rs"), source).unwrap();
+    let expected_lock =
+        typed_extension_consumer_seed_lock(&root, &consumer, "typed-int32-consumer");
     let mut command = shared_consumer_cargo();
     command
         .env("CARGO_BUILD_JOBS", "1")
         .args([
             "test",
             "--offline",
+            "--locked",
             "--quiet",
             "--lib",
             "--",
@@ -4342,6 +4400,7 @@ fn edition2024_selected_int32_extensions_generated_consumer() {
         )
         .unwrap();
     }
+    typed_extension_consumer_assert_lock(&consumer, &expected_lock, "test");
     assert!(
         result.status.success(),
         "{}\n{}",
@@ -4356,7 +4415,14 @@ fn edition2024_selected_int32_extensions_generated_consumer() {
     let mut command = shared_consumer_cargo();
     command
         .env("CARGO_BUILD_JOBS", "1")
-        .args(["check", "--offline", "--quiet", "--bin", "wrong_host"])
+        .args([
+            "check",
+            "--offline",
+            "--locked",
+            "--quiet",
+            "--bin",
+            "wrong_host",
+        ])
         .current_dir(&consumer);
     let wrong = run_shared_consumer_cargo(&mut command).unwrap();
     if retained.is_some() {
@@ -4373,6 +4439,7 @@ fn edition2024_selected_int32_extensions_generated_consumer() {
         )
         .unwrap();
     }
+    typed_extension_consumer_assert_lock(&consumer, &expected_lock, "wrong-host");
     assert!(!wrong.status.success(), "wrong-host identifier compiled");
     let error = String::from_utf8_lossy(&wrong.stderr);
     assert!(
