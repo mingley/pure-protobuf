@@ -1,0 +1,34 @@
+{
+  "check-source.py": {
+    "bytes": 4067,
+    "sha256": "9f50b7a6b9bf43fd1d78bf61d545bcfbfbeb4c5c947c627b55e7b41637dfd2ab"
+  },
+  "check_map_migration.py": {
+    "bytes": 6260,
+    "sha256": "0c82eb4d1a9f4703ee64442420c25a0ab08f1bec96aa9992fd2f40bf9b771e7c"
+  },
+  "map-migration.json": {
+    "bytes": 415288,
+    "sha256": "edeac5ea25897244c9a782189842fec847606ddc0b4e955021bc434ea5583485"
+  },
+  "migrate_bundled_maps.py": {
+    "bytes": 10036,
+    "sha256": "6464bcfe59fa8767837abb04030b5976dfb4baa2398189b7987f5ee4847643da"
+  },
+  "raw-member-sha256.json": {
+    "bytes": 13867,
+    "sha256": "7302159f84614bae4bd0faf5ceb6df5239c589f2be4098861df1971bebd4dafb"
+  },
+  "raw-source-proof.tar.gz": {
+    "bytes": 1267246,
+    "sha256": "3ccbd9f0c200b72f956f09d3637a53addd74f0481a570a4e586116f50eb93fb2"
+  },
+  "source-identity.json": {
+    "bytes": 4996,
+    "sha256": "1a57eeeb02d04299d2c44814eb9375ca2287340920ca73a38d61f58399bb9d21"
+  },
+  "source-reconstruction.json": {
+    "bytes": 5158,
+    "sha256": "648d84a17c43ecce9b96f49e098ade5503aa6e2282f0ee6cc7af689e725e4172"
+  }
+}

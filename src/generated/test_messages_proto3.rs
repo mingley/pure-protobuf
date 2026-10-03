@@ -707,7 +707,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     2 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -717,12 +719,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -766,15 +772,15 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             pbrs::rt::require_utf8(&data[s..e])?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     2 => match w {
                         pbrs::rt::WIRE_LEN => {
                             pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -985,12 +991,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -1033,9 +1043,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -1252,12 +1262,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -1300,9 +1314,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_LEN => {
                             pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -1519,12 +1533,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -1567,9 +1585,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -1869,7 +1887,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     2 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -1878,12 +1898,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -1926,15 +1950,15 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     2 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -2149,7 +2173,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -2188,7 +2214,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                     }
                 }
                 match n {
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -2604,12 +2630,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -2653,9 +2683,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             pbrs::rt::require_utf8(&data[s..e])?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -2886,12 +2916,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -2934,9 +2968,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -3151,12 +3185,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -3199,9 +3237,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -3417,12 +3455,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -3465,9 +3507,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -3724,12 +3766,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -3774,9 +3820,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             PbValue::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -3974,12 +4020,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -4023,9 +4073,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             pbrs::rt::require_utf8(&data[s..e])?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -4252,6 +4302,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                 match n {
                     1 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_Struct_fields_1(
                                 &pbrs::rt::Wire::ensure(wire, data).window(s, e),
@@ -4262,12 +4315,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -4308,18 +4365,43 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                 match n {
                     1 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
-                                let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                let (nn, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
+                                match (nn, ww) {
+                                    (2, pbrs::rt::WIRE_LEN) => {
+                                        if entry_depth >= pbrs::RECURSION_LIMIT {
+                                            return Err(ParseError::new(
+                                                "recursion limit exceeded",
+                                            ));
+                                        }
+                                        let (vs, ve) = pbrs::rt::read_len_span(d, &mut ip)?;
+                                        let mut vp = 0;
+                                        PbValue::validate_inner(
+                                            &w.window(vs, ve),
+                                            &mut vp,
+                                            entry_depth + 1,
+                                        )?;
+                                    }
+                                    _ => pbrs::rt::skip_field_with_depth(
+                                        d,
+                                        &mut ip,
+                                        ww,
+                                        entry_depth,
+                                    )?,
+                                }
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -4413,10 +4495,12 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, PbValue), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = pbrs::rt::LazyStr::default();
-        let mut val = PbValue::default();
+        let mut val: Option<PbValue> = None;
         let mut pos = 0;
         while pos < data.len() {
             let (n, w) = pbrs::rt::decode_tag(data, &mut pos)?;
@@ -4427,15 +4511,25 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                     key = pbrs::rt::LazyStr::from_span(wire, s, e);
                 }
                 (2, pbrs::rt::WIRE_LEN) => {
+                    if depth >= pbrs::RECURSION_LIMIT {
+                        return Err(ParseError::new("recursion limit exceeded"));
+                    }
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     let mut ip = 0;
                     let mut sw = None;
-                    val.merge_inner(&data[s..e], &mut sw, &mut ip, depth, true, None)?;
+                    val.get_or_insert_with(PbValue::default).merge_inner(
+                        &data[s..e],
+                        &mut sw,
+                        &mut ip,
+                        depth + 1,
+                        true,
+                        None,
+                    )?;
                 }
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
-        Ok((key, val))
+        Ok((key, val.unwrap_or_default()))
     }
     /// A Timestamp represents a point in time independent of any time zone or local
     /// calendar, encoded as a count of seconds and fractions of seconds at
@@ -4669,7 +4763,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     2 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -4678,12 +4774,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -4726,15 +4826,15 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     2 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -4969,12 +5069,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -5017,9 +5121,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -5235,12 +5339,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -5283,9 +5391,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -5781,7 +5889,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     }
                     continue;
                 }
@@ -5799,7 +5909,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     }
                     continue;
                 }
@@ -5817,7 +5929,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     }
                     continue;
                 }
@@ -5857,7 +5971,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 },
                 5 => match w {
                     pbrs::rt::WIRE_LEN => {
@@ -5893,7 +6009,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 },
                 6 => match w {
                     pbrs::rt::WIRE_LEN => {
@@ -5929,12 +6047,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 },
                 _ => self
                     .unknown
                     .fields
-                    .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                    .push(pbrs::rt::capture_unknown_with_depth(
+                        data, pos, n, w, depth,
+                    )?),
             }
             Ok(())
         }
@@ -5970,26 +6092,26 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     2 => match w {
                         pbrs::rt::WIRE_I64 => {
                             let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     3 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             pbrs::rt::require_utf8(&data[s..e])?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     4 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     5 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -5997,7 +6119,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             Struct::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     6 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -6005,9 +6127,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             ListValue::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -6237,7 +6359,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -6276,7 +6400,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                     }
                 }
                 match n {
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -6478,12 +6602,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -6526,9 +6654,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -6740,7 +6868,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -6779,7 +6909,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                     }
                 }
                 match n {
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -10549,7 +10679,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     2 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -10558,7 +10690,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     3 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -10567,7 +10701,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     4 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -10576,7 +10712,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     5 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -10586,7 +10724,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     6 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -10596,7 +10736,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     7 => match w {
                         pbrs::rt::WIRE_I32 => {
@@ -10605,7 +10747,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     8 => match w {
                         pbrs::rt::WIRE_I64 => {
@@ -10614,7 +10758,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     9 => match w {
                         pbrs::rt::WIRE_I32 => {
@@ -10623,7 +10769,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     10 => match w {
                         pbrs::rt::WIRE_I64 => {
@@ -10632,7 +10780,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     11 => match w {
                         pbrs::rt::WIRE_I32 => {
@@ -10642,7 +10792,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     12 => match w {
                         pbrs::rt::WIRE_I64 => {
@@ -10652,7 +10804,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     13 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -10661,7 +10815,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     14 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -10672,7 +10828,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     15 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -10683,7 +10841,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     18 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -10714,7 +10874,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     19 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -10745,7 +10907,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     21 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -10754,7 +10918,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     22 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -10763,7 +10929,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     23 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -10772,7 +10940,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     24 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -10783,7 +10953,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     25 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -10794,7 +10966,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     27 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -10825,7 +10999,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     31 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -10860,7 +11036,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     32 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -10895,7 +11073,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     33 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -10930,7 +11110,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     34 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -10965,7 +11147,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     35 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11004,7 +11188,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     36 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11043,7 +11229,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     37 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11078,7 +11266,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     38 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11113,7 +11303,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     39 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11148,7 +11340,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     40 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11183,7 +11377,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     41 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11218,7 +11414,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     42 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11253,7 +11451,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     43 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11288,7 +11488,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     44 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11319,7 +11521,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     45 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11350,7 +11554,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     48 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11401,7 +11607,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     49 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11453,7 +11661,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     51 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11488,7 +11698,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     52 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11523,7 +11735,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     54 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11555,7 +11769,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     55 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11586,10 +11802,15 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     56 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto3_map_int32_int32_56(
                                 &pbrs::rt::Wire::ensure(wire, data).window(s, e),
@@ -11600,10 +11821,15 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     57 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto3_map_int64_int64_57(
                                 &pbrs::rt::Wire::ensure(wire, data).window(s, e),
@@ -11614,10 +11840,15 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     58 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_uint32_uint32_58(
@@ -11629,10 +11860,15 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     59 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_uint64_uint64_59(
@@ -11644,10 +11880,15 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     60 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_sint32_sint32_60(
@@ -11659,10 +11900,15 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     61 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_sint64_sint64_61(
@@ -11674,10 +11920,15 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     62 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_fixed32_fixed32_62(
@@ -11689,10 +11940,15 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     63 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_fixed64_fixed64_63(
@@ -11704,10 +11960,15 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     64 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_sfixed32_sfixed32_64(
@@ -11719,10 +11980,15 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     65 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_sfixed64_sfixed64_65(
@@ -11734,10 +12000,15 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     66 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto3_map_int32_float_66(
                                 &pbrs::rt::Wire::ensure(wire, data).window(s, e),
@@ -11748,10 +12019,15 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     67 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto3_map_int32_double_67(
                                 &pbrs::rt::Wire::ensure(wire, data).window(s, e),
@@ -11762,10 +12038,15 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     68 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto3_map_bool_bool_68(
                                 &pbrs::rt::Wire::ensure(wire, data).window(s, e),
@@ -11776,10 +12057,15 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     69 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_string_string_69(
@@ -11791,10 +12077,15 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     70 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto3_map_string_bytes_70(
                                 &pbrs::rt::Wire::ensure(wire, data).window(s, e),
@@ -11805,11 +12096,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     71 => {
                         match w {
                             pbrs::rt::WIRE_LEN => {
+                                if depth >= pbrs::RECURSION_LIMIT {
+                                    return Err(ParseError::new("recursion limit exceeded"));
+                                }
                                 let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                                 let (kk, vv) = decode_map_entry_TestAllTypesProto3_map_string_nested_message_71(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
                                 self.map_string_nested_message.push_entry(kk, vv);
@@ -11817,12 +12113,17 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             _ => self
                                 .unknown
                                 .fields
-                                .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                                .push(pbrs::rt::capture_unknown_with_depth(
+                                    data, pos, n, w, depth,
+                                )?),
                         }
                     }
                     72 => {
                         match w {
                             pbrs::rt::WIRE_LEN => {
+                                if depth >= pbrs::RECURSION_LIMIT {
+                                    return Err(ParseError::new("recursion limit exceeded"));
+                                }
                                 let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                                 let (kk, vv) = decode_map_entry_TestAllTypesProto3_map_string_foreign_message_72(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
                                 self.map_string_foreign_message.push_entry(kk, vv);
@@ -11830,11 +12131,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             _ => self
                                 .unknown
                                 .fields
-                                .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                                .push(pbrs::rt::capture_unknown_with_depth(
+                                    data, pos, n, w, depth,
+                                )?),
                         }
                     }
                     73 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_string_nested_enum_73(
@@ -11846,10 +12152,15 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     74 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_string_foreign_enum_74(
@@ -11861,7 +12172,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     75 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11896,7 +12209,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     76 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11931,7 +12246,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     77 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11966,7 +12283,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     78 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12001,7 +12320,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     79 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12040,7 +12361,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     80 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12079,7 +12402,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     81 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12110,7 +12435,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     82 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12141,7 +12468,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     83 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12176,7 +12505,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     84 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12211,7 +12542,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     85 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12243,7 +12576,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     86 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12278,7 +12613,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     87 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12313,7 +12650,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     88 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12348,7 +12687,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     89 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12386,7 +12727,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     90 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12424,7 +12767,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     91 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12462,7 +12807,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     92 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12500,7 +12847,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     93 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12544,7 +12893,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     94 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12588,7 +12939,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     95 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12626,7 +12979,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     96 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12664,7 +13019,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     97 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12702,7 +13059,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     98 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12740,7 +13099,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     99 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12778,7 +13139,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     100 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12816,7 +13179,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     101 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12855,7 +13220,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     102 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12894,7 +13261,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     111 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -12912,7 +13281,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     112 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12952,7 +13323,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     113 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12973,7 +13346,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     114 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12994,7 +13369,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     115 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13013,7 +13390,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     116 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13031,7 +13410,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     117 => match w {
                         pbrs::rt::WIRE_I32 => {
@@ -13050,7 +13431,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     118 => match w {
                         pbrs::rt::WIRE_I64 => {
@@ -13069,7 +13452,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     119 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13087,7 +13472,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     120 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13106,7 +13493,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     201 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13141,7 +13530,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     202 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13176,7 +13567,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     203 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13211,7 +13604,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     204 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13246,7 +13641,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     205 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13281,7 +13678,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     206 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13316,7 +13715,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     207 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13351,7 +13752,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     208 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13386,7 +13789,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     209 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13421,7 +13826,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     211 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13473,7 +13880,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     212 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13525,7 +13934,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     213 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13577,7 +13988,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     214 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13629,7 +14042,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     215 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13681,7 +14096,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     216 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13733,7 +14150,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     217 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13785,7 +14204,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     218 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13837,7 +14258,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     219 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13889,7 +14312,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     301 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13923,7 +14348,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     302 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13957,7 +14384,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     303 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13991,7 +14420,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     304 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14025,7 +14456,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     305 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14056,7 +14489,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     306 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14087,7 +14522,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     307 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -14096,7 +14533,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     308 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14127,7 +14566,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     311 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14179,7 +14620,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     312 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14231,7 +14674,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     313 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14283,7 +14728,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     315 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14335,7 +14782,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     316 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14387,7 +14836,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     317 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14439,7 +14890,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     318 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14491,7 +14944,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     324 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14543,7 +14998,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     401 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -14552,7 +15009,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     402 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -14561,7 +15020,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     403 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -14570,7 +15031,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     404 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -14579,7 +15042,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     405 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -14588,7 +15053,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     406 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -14597,7 +15064,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     407 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -14606,7 +15075,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     408 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -14615,7 +15086,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     409 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -14624,7 +15097,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     410 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -14633,7 +15108,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     411 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -14642,7 +15119,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     412 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -14651,7 +15130,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     413 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -14660,7 +15141,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     414 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -14669,7 +15152,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     415 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -14678,7 +15163,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     416 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -14687,7 +15174,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     417 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -14696,7 +15185,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     418 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -14705,12 +15196,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -14753,92 +15248,92 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     2 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     3 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     4 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     5 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     6 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     7 => match w {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     8 => match w {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     9 => match w {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     10 => match w {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     11 => match w {
                         pbrs::rt::WIRE_I32 => {
                             let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     12 => match w {
                         pbrs::rt::WIRE_I64 => {
                             let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     13 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     14 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             pbrs::rt::require_utf8(&data[s..e])?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     15 => match w {
                         pbrs::rt::WIRE_LEN => {
                             pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     18 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14846,7 +15341,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             NestedMessage::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     19 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14854,39 +15349,39 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             ForeignMessage::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     21 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     22 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     23 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     24 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             pbrs::rt::require_utf8(&data[s..e])?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     25 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             pbrs::rt::require_utf8(&data[s..e])?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     27 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14898,7 +15393,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     31 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14908,7 +15403,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     32 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14918,7 +15413,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     33 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14928,7 +15423,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     34 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14938,7 +15433,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     35 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14948,7 +15443,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     36 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14958,7 +15453,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     37 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14968,7 +15463,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     38 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14978,7 +15473,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     39 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14988,7 +15483,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     40 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14998,7 +15493,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     41 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15008,7 +15503,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     42 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15018,7 +15513,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     43 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15028,20 +15523,20 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     44 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             pbrs::rt::require_utf8(&data[s..e])?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     45 => match w {
                         pbrs::rt::WIRE_LEN => {
                             pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     48 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15049,7 +15544,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             NestedMessage::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     49 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15057,7 +15552,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             ForeignMessage::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     51 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15067,7 +15562,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     52 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15077,268 +15572,386 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     54 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             pbrs::rt::require_utf8(&data[s..e])?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     55 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             pbrs::rt::require_utf8(&data[s..e])?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     56 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     57 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     58 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     59 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     60 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     61 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     62 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     63 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     64 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     65 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     66 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     67 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     68 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     69 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     70 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     71 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
-                                let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                let (nn, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
+                                match (nn, ww) {
+                                    (2, pbrs::rt::WIRE_LEN) => {
+                                        if entry_depth >= pbrs::RECURSION_LIMIT {
+                                            return Err(ParseError::new(
+                                                "recursion limit exceeded",
+                                            ));
+                                        }
+                                        let (vs, ve) = pbrs::rt::read_len_span(d, &mut ip)?;
+                                        let mut vp = 0;
+                                        NestedMessage::validate_inner(
+                                            &w.window(vs, ve),
+                                            &mut vp,
+                                            entry_depth + 1,
+                                        )?;
+                                    }
+                                    _ => pbrs::rt::skip_field_with_depth(
+                                        d,
+                                        &mut ip,
+                                        ww,
+                                        entry_depth,
+                                    )?,
+                                }
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     72 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
-                                let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                let (nn, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
+                                match (nn, ww) {
+                                    (2, pbrs::rt::WIRE_LEN) => {
+                                        if entry_depth >= pbrs::RECURSION_LIMIT {
+                                            return Err(ParseError::new(
+                                                "recursion limit exceeded",
+                                            ));
+                                        }
+                                        let (vs, ve) = pbrs::rt::read_len_span(d, &mut ip)?;
+                                        let mut vp = 0;
+                                        ForeignMessage::validate_inner(
+                                            &w.window(vs, ve),
+                                            &mut vp,
+                                            entry_depth + 1,
+                                        )?;
+                                    }
+                                    _ => pbrs::rt::skip_field_with_depth(
+                                        d,
+                                        &mut ip,
+                                        ww,
+                                        entry_depth,
+                                    )?,
+                                }
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     73 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     74 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     75 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15348,7 +15961,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     76 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15358,7 +15971,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     77 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15368,7 +15981,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     78 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15378,7 +15991,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     79 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15388,7 +16001,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     80 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15398,7 +16011,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     81 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15408,7 +16021,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     82 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15418,7 +16031,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     83 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15428,7 +16041,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     84 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15438,7 +16051,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     85 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15448,7 +16061,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     86 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15458,7 +16071,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     87 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15468,7 +16081,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     88 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15478,7 +16091,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     89 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15488,7 +16101,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     90 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15498,7 +16111,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     91 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15508,7 +16121,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     92 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15518,7 +16131,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     93 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15528,7 +16141,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     94 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15538,7 +16151,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     95 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15548,7 +16161,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     96 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15558,7 +16171,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     97 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15568,7 +16181,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     98 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15578,7 +16191,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     99 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15588,7 +16201,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     100 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15598,7 +16211,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     101 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15608,7 +16221,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     102 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15618,13 +16231,13 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     111 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     112 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15632,56 +16245,56 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             NestedMessage::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     113 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             pbrs::rt::require_utf8(&data[s..e])?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     114 => match w {
                         pbrs::rt::WIRE_LEN => {
                             pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     115 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     116 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     117 => match w {
                         pbrs::rt::WIRE_I32 => {
                             let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     118 => match w {
                         pbrs::rt::WIRE_I64 => {
                             let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     119 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     120 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     201 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15689,7 +16302,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             BoolValue::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     202 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15697,7 +16310,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             Int32Value::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     203 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15705,7 +16318,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             Int64Value::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     204 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15713,7 +16326,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             UInt32Value::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     205 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15721,7 +16334,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             UInt64Value::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     206 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15729,7 +16342,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             FloatValue::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     207 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15737,7 +16350,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             DoubleValue::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     208 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15745,7 +16358,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             StringValue::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     209 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15753,7 +16366,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             BytesValue::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     211 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15761,7 +16374,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             BoolValue::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     212 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15769,7 +16382,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             Int32Value::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     213 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15777,7 +16390,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             Int64Value::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     214 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15785,7 +16398,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             UInt32Value::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     215 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15793,7 +16406,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             UInt64Value::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     216 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15801,7 +16414,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             FloatValue::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     217 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15809,7 +16422,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             DoubleValue::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     218 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15817,7 +16430,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             StringValue::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     219 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15825,7 +16438,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             BytesValue::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     301 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15833,7 +16446,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             Duration::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     302 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15841,7 +16454,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             Timestamp::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     303 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15849,7 +16462,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             FieldMask::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     304 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15857,7 +16470,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             Struct::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     305 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15865,7 +16478,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             Any::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     306 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15873,13 +16486,13 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             PbValue::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     307 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     308 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15887,7 +16500,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             Empty::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     311 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15895,7 +16508,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             Duration::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     312 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15903,7 +16516,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             Timestamp::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     313 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15911,7 +16524,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             FieldMask::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     315 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15919,7 +16532,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             Any::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     316 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15927,7 +16540,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             PbValue::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     317 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15935,7 +16548,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             ListValue::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     318 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15943,7 +16556,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             Empty::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     324 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15951,117 +16564,117 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                             let mut ip = 0;
                             Struct::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     401 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     402 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     403 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     404 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     405 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     406 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     407 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     408 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     409 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     410 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     411 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     412 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     413 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     414 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     415 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     416 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     417 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     418 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -18607,7 +19220,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(i32, i32), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = i32::default();
         let mut val = i32::default();
@@ -18617,7 +19232,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_VARINT) => key = pbrs::rt::decode_varint(data, &mut pos)? as i32,
                 (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)? as i32,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -18626,7 +19241,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(i64, i64), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = i64::default();
         let mut val = i64::default();
@@ -18636,7 +19253,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_VARINT) => key = pbrs::rt::decode_varint(data, &mut pos)? as i64,
                 (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)? as i64,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -18645,7 +19262,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(u32, u32), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = u32::default();
         let mut val = u32::default();
@@ -18655,7 +19274,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_VARINT) => key = pbrs::rt::decode_varint(data, &mut pos)? as u32,
                 (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)? as u32,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -18664,7 +19283,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(u64, u64), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = u64::default();
         let mut val = u64::default();
@@ -18674,7 +19295,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_VARINT) => key = pbrs::rt::decode_varint(data, &mut pos)?,
                 (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)?,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -18683,7 +19304,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(i32, i32), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = i32::default();
         let mut val = i32::default();
@@ -18697,7 +19320,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                 (2, pbrs::rt::WIRE_VARINT) => {
                     val = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, &mut pos)?)
                 }
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -18706,7 +19329,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(i64, i64), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = i64::default();
         let mut val = i64::default();
@@ -18720,7 +19345,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                 (2, pbrs::rt::WIRE_VARINT) => {
                     val = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, &mut pos)?)
                 }
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -18729,7 +19354,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(u32, u32), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = u32::default();
         let mut val = u32::default();
@@ -18739,7 +19366,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_I32) => key = pbrs::rt::read_fixed32(data, &mut pos)?,
                 (2, pbrs::rt::WIRE_I32) => val = pbrs::rt::read_fixed32(data, &mut pos)?,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -18748,7 +19375,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(u64, u64), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = u64::default();
         let mut val = u64::default();
@@ -18758,7 +19387,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_I64) => key = pbrs::rt::read_fixed64(data, &mut pos)?,
                 (2, pbrs::rt::WIRE_I64) => val = pbrs::rt::read_fixed64(data, &mut pos)?,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -18767,7 +19396,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(i32, i32), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = i32::default();
         let mut val = i32::default();
@@ -18777,7 +19408,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_I32) => key = pbrs::rt::read_fixed32(data, &mut pos)? as i32,
                 (2, pbrs::rt::WIRE_I32) => val = pbrs::rt::read_fixed32(data, &mut pos)? as i32,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -18786,7 +19417,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(i64, i64), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = i64::default();
         let mut val = i64::default();
@@ -18796,7 +19429,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_I64) => key = pbrs::rt::read_fixed64(data, &mut pos)? as i64,
                 (2, pbrs::rt::WIRE_I64) => val = pbrs::rt::read_fixed64(data, &mut pos)? as i64,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -18805,7 +19438,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(i32, f32), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = i32::default();
         let mut val = f32::default();
@@ -18817,7 +19452,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                 (2, pbrs::rt::WIRE_I32) => {
                     val = f32::from_bits(pbrs::rt::read_fixed32(data, &mut pos)?)
                 }
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -18826,7 +19461,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(i32, f64), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = i32::default();
         let mut val = f64::default();
@@ -18838,7 +19475,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                 (2, pbrs::rt::WIRE_I64) => {
                     val = f64::from_bits(pbrs::rt::read_fixed64(data, &mut pos)?)
                 }
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -18847,7 +19484,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(bool, bool), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = bool::default();
         let mut val = bool::default();
@@ -18857,7 +19496,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_VARINT) => key = pbrs::rt::decode_varint(data, &mut pos)? != 0,
                 (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)? != 0,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -18866,7 +19505,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, pbrs::rt::LazyStr), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = pbrs::rt::LazyStr::default();
         let mut val = pbrs::rt::LazyStr::default();
@@ -18884,7 +19525,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                     pbrs::rt::require_utf8(&data[s..e])?;
                     val = pbrs::rt::LazyStr::from_span(wire, s, e);
                 }
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -18893,7 +19534,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, pbrs::rt::LazyBytes), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = pbrs::rt::LazyStr::default();
         let mut val = pbrs::rt::LazyBytes::default();
@@ -18910,7 +19553,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     val = pbrs::rt::LazyBytes::from_wire_span(wire, s, e);
                 }
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -18919,10 +19562,12 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, NestedMessage), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = pbrs::rt::LazyStr::default();
-        let mut val = NestedMessage::default();
+        let mut val: Option<NestedMessage> = None;
         let mut pos = 0;
         while pos < data.len() {
             let (n, w) = pbrs::rt::decode_tag(data, &mut pos)?;
@@ -18933,24 +19578,36 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                     key = pbrs::rt::LazyStr::from_span(wire, s, e);
                 }
                 (2, pbrs::rt::WIRE_LEN) => {
+                    if depth >= pbrs::RECURSION_LIMIT {
+                        return Err(ParseError::new("recursion limit exceeded"));
+                    }
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     let mut ip = 0;
                     let mut sw = None;
-                    val.merge_inner(&data[s..e], &mut sw, &mut ip, depth, true, None)?;
+                    val.get_or_insert_with(NestedMessage::default).merge_inner(
+                        &data[s..e],
+                        &mut sw,
+                        &mut ip,
+                        depth + 1,
+                        true,
+                        None,
+                    )?;
                 }
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
-        Ok((key, val))
+        Ok((key, val.unwrap_or_default()))
     }
     fn decode_map_entry_TestAllTypesProto3_map_string_foreign_message_72(
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, ForeignMessage), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = pbrs::rt::LazyStr::default();
-        let mut val = ForeignMessage::default();
+        let mut val: Option<ForeignMessage> = None;
         let mut pos = 0;
         while pos < data.len() {
             let (n, w) = pbrs::rt::decode_tag(data, &mut pos)?;
@@ -18961,21 +19618,27 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                     key = pbrs::rt::LazyStr::from_span(wire, s, e);
                 }
                 (2, pbrs::rt::WIRE_LEN) => {
+                    if depth >= pbrs::RECURSION_LIMIT {
+                        return Err(ParseError::new("recursion limit exceeded"));
+                    }
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     let mut ip = 0;
                     let mut sw = None;
-                    val.merge_inner(&data[s..e], &mut sw, &mut ip, depth, true, None)?;
+                    val.get_or_insert_with(ForeignMessage::default)
+                        .merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?;
                 }
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
-        Ok((key, val))
+        Ok((key, val.unwrap_or_default()))
     }
     fn decode_map_entry_TestAllTypesProto3_map_string_nested_enum_73(
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, i32), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = pbrs::rt::LazyStr::default();
         let mut val = i32::default();
@@ -18989,7 +19652,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                     key = pbrs::rt::LazyStr::from_span(wire, s, e);
                 }
                 (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)? as i32,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -18998,7 +19661,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, i32), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = pbrs::rt::LazyStr::default();
         let mut val = i32::default();
@@ -19012,7 +19677,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                     key = pbrs::rt::LazyStr::from_span(wire, s, e);
                 }
                 (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)? as i32,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -19166,7 +19831,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     }
                     continue;
                 }
@@ -19220,12 +19887,16 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 },
                 _ => self
                     .unknown
                     .fields
-                    .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                    .push(pbrs::rt::capture_unknown_with_depth(
+                        data, pos, n, w, depth,
+                    )?),
             }
             Ok(())
         }
@@ -19261,7 +19932,7 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     2 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -19273,9 +19944,9 @@ mod __gen_google_protobuf_test_messages_proto3_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {

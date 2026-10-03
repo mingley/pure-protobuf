@@ -11,7 +11,7 @@ use crate::message::{Clear, ClearAndParse, MergeFrom, Serialize};
 use crate::proxied::{AsView, View};
 use crate::wire::{
     UnknownField, WIRE_LEN, WIRE_VARINT, decode_tag, decode_varint, decode_zigzag32,
-    decode_zigzag64, read_fixed32, read_fixed64, read_len_bytes, skip_field,
+    decode_zigzag64, read_fixed32, read_fixed64, read_len_bytes, skip_field_with_depth,
 };
 use std::marker::PhantomData;
 
@@ -20,25 +20,36 @@ use super::{
     StringView, UpbGetArena, UpbGetMessagePtr, UpbGetMessagePtrMut,
 };
 
+fn descend(depth: u32) -> Result<u32, ParseError> {
+    if depth >= crate::RECURSION_LIMIT {
+        return Err(ParseError::new("recursion limit exceeded"));
+    }
+    Ok(depth + 1)
+}
+
 fn parse_into(
     data: *mut MsgData,
     buf: &[u8],
     arena: &Arena,
     enforce_required: bool,
+    depth: u32,
 ) -> Result<(), ParseError> {
     let mt = unsafe { (*data).mt };
     if mt.0.is_null() {
         return Ok(());
+    }
+    if depth > crate::RECURSION_LIMIT {
+        return Err(ParseError::new("recursion limit exceeded"));
     }
     let table = unsafe { &*mt.0 };
     let mut pos = 0usize;
     while pos < buf.len() {
         let (num, wire) = decode_tag(buf, &mut pos)?;
         let Some((idx, f)) = table.field_by_number(num) else {
-            skip_field(buf, &mut pos, wire)?;
+            skip_field_with_depth(buf, &mut pos, wire, depth)?;
             continue;
         };
-        decode_field(data, idx, f, buf, &mut pos, wire, arena)?;
+        decode_field(data, idx, f, buf, &mut pos, wire, arena, depth)?;
     }
     if enforce_required {
         unsafe {
@@ -53,6 +64,10 @@ fn parse_into(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "private MiniTable field decoder carries its wire frame, arena and enclosing recursion depth"
+)]
 fn decode_field(
     data: *mut MsgData,
     idx: usize,
@@ -61,6 +76,7 @@ fn decode_field(
     pos: &mut usize,
     wire: u32,
     arena: &Arena,
+    depth: u32,
 ) -> Result<(), ParseError> {
     let ptr = MessagePtr::<()> {
         raw: data,
@@ -68,11 +84,12 @@ fn decode_field(
     };
     if f.is_map {
         if wire != WIRE_LEN {
-            skip_field(buf, pos, wire)?;
+            skip_field_with_depth(buf, pos, wire, depth)?;
             return Ok(());
         }
         let payload = read_len_bytes(buf, pos)?;
-        if let Some((k, v)) = decode_map_entry(f.sub, payload, arena)? {
+        let entry_depth = descend(depth)?;
+        if let Some((k, v)) = decode_map_entry(f.sub, payload, arena, entry_depth)? {
             let map = unsafe { ptr.get_or_create_mutable_map_at_index(idx as u32, arena) }
                 .ok_or_else(|| ParseError::new("map alloc"))?;
             unsafe { (*map).entries.borrow_mut().push((k, v)) };
@@ -113,7 +130,7 @@ fn decode_field(
         }
         let v = if f.ty == FieldType::Enum {
             if wire != WIRE_VARINT {
-                skip_field(buf, pos, wire)?;
+                skip_field_with_depth(buf, pos, wire, depth)?;
                 return Ok(());
             }
             let Some(v) = decode_enum(f, buf, pos, ptr)? else {
@@ -121,7 +138,7 @@ fn decode_field(
             };
             v
         } else {
-            decode_one(f, buf, pos, wire, arena)?
+            decode_one(f, buf, pos, wire, arena, depth)?
         };
         unsafe {
             (*arr).items.borrow_mut().push(v);
@@ -131,8 +148,9 @@ fn decode_field(
     }
     if f.ty == FieldType::Message && !f.repeated {
         let payload = read_len_bytes(buf, pos)?;
+        let child_depth = descend(depth)?;
         let child = arena.alloc_msg(f.sub);
-        parse_into(child, payload, arena, true)?;
+        parse_into(child, payload, arena, true, child_depth)?;
         ptr.set_slot(idx as u32, FieldKind::Msg(child), true);
         return Ok(());
     }
@@ -158,7 +176,7 @@ fn decode_field(
     }
     let v = if f.ty == FieldType::Enum {
         if wire != WIRE_VARINT {
-            skip_field(buf, pos, wire)?;
+            skip_field_with_depth(buf, pos, wire, depth)?;
             return Ok(());
         }
         let Some(v) = decode_enum(f, buf, pos, ptr)? else {
@@ -166,7 +184,7 @@ fn decode_field(
         };
         v
     } else {
-        decode_one(f, buf, pos, wire, arena)?
+        decode_one(f, buf, pos, wire, arena, depth)?
     };
     ptr.set_slot(idx as u32, v, true);
     Ok(())
@@ -199,7 +217,11 @@ fn decode_map_entry(
     sub: MiniTablePtr,
     buf: &[u8],
     arena: &Arena,
+    depth: u32,
 ) -> Result<Option<(Vec<u8>, FieldKind)>, ParseError> {
+    if depth > crate::RECURSION_LIMIT {
+        return Err(ParseError::new("recursion limit exceeded"));
+    }
     let table = unsafe { sub.0.as_ref() };
     let mut key = Vec::new();
     // Enum-valued maps require zero as the enum's first value. An omitted
@@ -224,7 +246,7 @@ fn decode_map_entry(
                     if wire == WIRE_LEN {
                         key = read_len_bytes(buf, &mut pos)?.to_vec();
                     } else {
-                        skip_field(buf, &mut pos, wire)?;
+                        skip_field_with_depth(buf, &mut pos, wire, depth)?;
                     }
                 }
                 Some(FieldType::Bool) => {
@@ -235,7 +257,7 @@ fn decode_map_entry(
                             0
                         }];
                     } else {
-                        skip_field(buf, &mut pos, wire)?;
+                        skip_field_with_depth(buf, &mut pos, wire, depth)?;
                     }
                 }
                 Some(FieldType::Fixed32 | FieldType::SFixed32) => {
@@ -261,28 +283,28 @@ fn decode_map_entry(
                             .to_le_bytes()
                             .to_vec();
                     } else {
-                        skip_field(buf, &mut pos, wire)?;
+                        skip_field_with_depth(buf, &mut pos, wire, depth)?;
                     }
                 }
             },
             2 => {
                 if let Some(f) = field {
                     if f.ty == FieldType::Enum && wire != WIRE_VARINT {
-                        skip_field(buf, &mut pos, wire)?;
+                        skip_field_with_depth(buf, &mut pos, wire, depth)?;
                         rejected_enum = true;
                         continue;
                     }
-                    val = decode_one(f, buf, &mut pos, wire, arena)?;
+                    val = decode_one(f, buf, &mut pos, wire, arena, depth)?;
                     if let FieldKind::I32(number) = val {
                         rejected_enum |= !f.accepts_enum(number);
                     }
                 } else if wire == WIRE_VARINT {
                     val = FieldKind::I32(decode_varint(buf, &mut pos)? as i32);
                 } else {
-                    skip_field(buf, &mut pos, wire)?;
+                    skip_field_with_depth(buf, &mut pos, wire, depth)?;
                 }
             }
-            _ => skip_field(buf, &mut pos, wire)?,
+            _ => skip_field_with_depth(buf, &mut pos, wire, depth)?,
         }
     }
     Ok((!rejected_enum).then_some((key, val)))
@@ -313,11 +335,12 @@ fn decode_one(
     pos: &mut usize,
     wire: u32,
     arena: &Arena,
+    depth: u32,
 ) -> Result<FieldKind, ParseError> {
     match f.ty {
         FieldType::Int32 | FieldType::Enum => {
             if wire != WIRE_VARINT {
-                skip_field(buf, pos, wire)?;
+                skip_field_with_depth(buf, pos, wire, depth)?;
                 return Ok(FieldKind::Empty);
             }
             Ok(FieldKind::I32(decode_varint(buf, pos)? as i32))
@@ -338,16 +361,17 @@ fn decode_one(
         }
         FieldType::Message => {
             if wire != WIRE_LEN {
-                skip_field(buf, pos, wire)?;
+                skip_field_with_depth(buf, pos, wire, depth)?;
                 return Ok(FieldKind::Empty);
             }
             let payload = read_len_bytes(buf, pos)?;
+            let child_depth = descend(depth)?;
             let child = arena.alloc_msg(f.sub);
-            parse_into(child, payload, arena, false)?;
+            parse_into(child, payload, arena, false, child_depth)?;
             Ok(FieldKind::Msg(child))
         }
         _ => {
-            skip_field(buf, pos, wire)?;
+            skip_field_with_depth(buf, pos, wire, depth)?;
             Ok(FieldKind::Empty)
         }
     }
@@ -364,6 +388,7 @@ where
             data,
             self.get_arena(Private),
             true,
+            0,
         )
     }
     fn clear_and_parse_dont_enforce_required(&mut self, data: &[u8]) -> Result<(), ParseError> {
@@ -373,6 +398,7 @@ where
             data,
             self.get_arena(Private),
             false,
+            0,
         )
     }
     fn merge_from_bytes(&mut self, data: &[u8]) -> Result<(), ParseError> {
@@ -381,6 +407,7 @@ where
             data,
             self.get_arena(Private),
             true,
+            0,
         )
     }
     fn merge_from_bytes_dont_enforce_required(&mut self, data: &[u8]) -> Result<(), ParseError> {
@@ -389,6 +416,7 @@ where
             data,
             self.get_arena(Private),
             false,
+            0,
         )
     }
 }
@@ -406,6 +434,7 @@ where
                 &bytes,
                 self.get_arena(Private),
                 false,
+                0,
             );
         }
     }
@@ -434,11 +463,45 @@ mod tests {
     }
 
     #[test]
+    fn recursion_descent_checks_the_limit_before_incrementing() {
+        assert_eq!(descend(crate::RECURSION_LIMIT - 1).unwrap(), 100);
+        assert!(descend(crate::RECURSION_LIMIT).is_err());
+        assert!(descend(crate::RECURSION_LIMIT + 1).is_err());
+        assert!(descend(u32::MAX).is_err());
+    }
+
+    #[test]
+    fn message_value_at_the_limit_is_rejected_before_null_table_access() {
+        let arena = Arena::new();
+        let field = MiniField {
+            ty: FieldType::Message,
+            ..string_field(false)
+        };
+        assert!(field.sub.0.is_null());
+        let mut pos = 0;
+        // A present empty LEN message would otherwise allocate and enter the
+        // null-MiniTable no-op parser. At entry depth 100, value depth 101 must
+        // fail before either action, even though the payload is empty.
+        assert!(
+            decode_one(
+                field,
+                &[0],
+                &mut pos,
+                WIRE_LEN,
+                &arena,
+                crate::RECURSION_LIMIT
+            )
+            .is_err()
+        );
+        assert_eq!(pos, 1);
+    }
+
+    #[test]
     fn parsed_string_storage_is_owned_by_the_arena() {
         let arena = Arena::new();
         let mut pos = 0;
         let field = string_field(false);
-        let kind = decode_one(field, &[1, b'a'], &mut pos, WIRE_LEN, &arena).expect("decode");
+        let kind = decode_one(field, &[1, b'a'], &mut pos, WIRE_LEN, &arena, 0).expect("decode");
         let mut encoded = Vec::new();
         encode_slot(&field, kind, &mut encoded);
         assert_eq!(encoded, [0x0a, 1, b'a']);
@@ -473,7 +536,7 @@ mod tests {
                 &missing_value,
             ]
             .concat();
-            parse_into(data, &input, &arena, true).unwrap();
+            parse_into(data, &input, &arena, true, 0).unwrap();
             let FieldKind::Map(raw) = (unsafe { (&(*data).slots)[0] }) else {
                 panic!("missing map");
             };
@@ -503,7 +566,7 @@ mod tests {
             unsafe { encode_slot(&(&(*parent.0).fields)[0], (&(*data).slots)[0], &mut encoded) };
             encoded.extend_from_slice(&unknown);
             let decoded = arena.alloc_msg(parent);
-            parse_into(decoded, &encoded, &arena, true).unwrap();
+            parse_into(decoded, &encoded, &arena, true, 0).unwrap();
             let mut roundtrip_unknown = Vec::new();
             unsafe { (*decoded).unknown.encode(&mut roundtrip_unknown) };
             assert_eq!(roundtrip_unknown, unknown);

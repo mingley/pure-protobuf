@@ -1,0 +1,17 @@
+syntax = "proto2";
+package qg20;
+
+message Node {
+  optional Node child = 1;
+  optional int32 value = 2;
+  repeated Node children = 3;
+  optional string label = 4;
+  map<int32, Node> nodes = 5;
+  map<int32, int32> scores = 6;
+  map<int32, Payload> payloads = 7;
+}
+
+message Payload {
+  required int32 value = 1;
+  optional string label = 2;
+}

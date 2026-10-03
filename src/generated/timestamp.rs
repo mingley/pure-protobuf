@@ -351,7 +351,9 @@ mod __gen_google_protobuf_timestamp_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     2 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -360,12 +362,16 @@ mod __gen_google_protobuf_timestamp_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -408,15 +414,15 @@ mod __gen_google_protobuf_timestamp_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     2 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {

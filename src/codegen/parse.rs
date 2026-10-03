@@ -79,7 +79,7 @@ pub(crate) fn emit_codec(
             emit_merge_arm(src, desc, f, edition2024, cold);
             let _ = writeln!(
                 src,
-                "                    _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
+                "                    _ => self.unknown.fields.push(pbrs::rt::capture_unknown_with_depth(data, pos, n, w, depth)?),"
             );
             let _ = writeln!(src, "                }}");
             let _ = writeln!(src, "                continue;");
@@ -102,13 +102,13 @@ pub(crate) fn emit_codec(
             emit_merge_arm(src, desc, f, edition2024, cold);
             let _ = writeln!(
                 src,
-                "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
+                "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown_with_depth(data, pos, n, w, depth)?),"
             );
             let _ = writeln!(src, "            }}");
         }
         let _ = writeln!(
             src,
-            "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
+            "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown_with_depth(data, pos, n, w, depth)?),"
         );
         let _ = writeln!(src, "            }}");
     }
@@ -132,13 +132,13 @@ pub(crate) fn emit_codec(
             emit_merge_arm(src, desc, f, edition2024, cold);
             let _ = writeln!(
                 src,
-                "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
+                "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown_with_depth(data, pos, n, w, depth)?),"
             );
             let _ = writeln!(src, "            }}");
         }
         let _ = writeln!(
             src,
-            "            _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
+            "            _ => self.unknown.fields.push(pbrs::rt::capture_unknown_with_depth(data, pos, n, w, depth)?),"
         );
         let _ = writeln!(src, "        }}");
         let _ = writeln!(src, "        Ok(())");
@@ -171,19 +171,34 @@ pub(crate) fn emit_codec(
         "            if let Some(g) = until {{ if w == pbrs::rt::WIRE_EGROUP {{ if n != g {{ return Err(ParseError::new(\"mismatched end-group\")); }} return Ok(()); }} }}"
     );
     let _ = writeln!(src, "            match n {{");
+    if desc.message_set_wire_format {
+        let _ = writeln!(src, "            1 => match w {{");
+        let _ = writeln!(
+            src,
+            "                pbrs::rt::WIRE_LEN => {{ let inner = pbrs::rt::read_len_bytes(data, pos)?; let mut ip = 0; while ip < inner.len() {{ let (_, ww) = pbrs::rt::decode_tag(inner, &mut ip)?; pbrs::rt::skip_field_with_depth(inner, &mut ip, ww, depth + 1)?; }} }}"
+        );
+        let _ = writeln!(
+            src,
+            "                _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,"
+        );
+        let _ = writeln!(src, "            }}");
+    }
     for f in desc.fields.values() {
+        if desc.message_set_wire_format && f.number == 1 {
+            continue;
+        }
         let bit = required.iter().position(|r| r.number == f.number);
         let _ = writeln!(src, "            {} => match w {{", f.number);
         emit_validate_arm(src, f, bit);
         let _ = writeln!(
             src,
-            "                _ => pbrs::rt::skip_field(data, pos, w)?,"
+            "                _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,"
         );
         let _ = writeln!(src, "            }}");
     }
     let _ = writeln!(
         src,
-        "                _ => pbrs::rt::skip_field(data, pos, w)?,"
+        "                _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,"
     );
     let _ = writeln!(src, "            }}");
     let _ = writeln!(src, "        }}");
@@ -264,7 +279,7 @@ pub(crate) fn emit_message_set_merge(src: &mut String, desc: &MessageDescriptor)
     );
     let _ = writeln!(
         src,
-        "                    if w == pbrs::rt::WIRE_LEN {{ let inner = pbrs::rt::read_len_bytes(data, pos)?; let mut p = 0; while p < inner.len() {{ let (n, ww) = pbrs::rt::decode_tag(inner, &mut p)?; match (n, ww) {{ (2, pbrs::rt::WIRE_VARINT) => type_id = pbrs::rt::decode_varint(inner, &mut p)? as u32, (3, pbrs::rt::WIRE_LEN) => payload = pbrs::rt::read_len_bytes(inner, &mut p)?.to_vec(), _ => pbrs::rt::skip_field(inner, &mut p, ww)?, }} }} }} else {{ loop {{ let (n, ww) = pbrs::rt::decode_tag(data, pos)?; if ww == pbrs::rt::WIRE_EGROUP && n == 1 {{ break; }} match (n, ww) {{ (2, pbrs::rt::WIRE_VARINT) => type_id = pbrs::rt::decode_varint(data, pos)? as u32, (3, pbrs::rt::WIRE_LEN) => payload = pbrs::rt::read_len_bytes(data, pos)?.to_vec(), _ => pbrs::rt::skip_field(data, pos, ww)?, }} }} }}"
+        "                    if w == pbrs::rt::WIRE_LEN {{ let inner = pbrs::rt::read_len_bytes(data, pos)?; let mut p = 0; while p < inner.len() {{ let (n, ww) = pbrs::rt::decode_tag(inner, &mut p)?; match (n, ww) {{ (2, pbrs::rt::WIRE_VARINT) => type_id = pbrs::rt::decode_varint(inner, &mut p)? as u32, (3, pbrs::rt::WIRE_LEN) => payload = pbrs::rt::read_len_bytes(inner, &mut p)?.to_vec(), _ => pbrs::rt::skip_field_with_depth(inner, &mut p, ww, depth + 1)?, }} }} }} else {{ loop {{ let (n, ww) = pbrs::rt::decode_tag(data, pos)?; if ww == pbrs::rt::WIRE_EGROUP && n == 1 {{ break; }} match (n, ww) {{ (2, pbrs::rt::WIRE_VARINT) => type_id = pbrs::rt::decode_varint(data, pos)? as u32, (3, pbrs::rt::WIRE_LEN) => payload = pbrs::rt::read_len_bytes(data, pos)?.to_vec(), _ => pbrs::rt::skip_field_with_depth(data, pos, ww, depth + 1)?, }} }} }}"
     );
     let _ = writeln!(src, "                    match type_id {{");
     for f in desc.fields.values() {
@@ -291,7 +306,7 @@ pub(crate) fn emit_message_set_merge(src: &mut String, desc: &MessageDescriptor)
     let _ = writeln!(src, "                }}");
     let _ = writeln!(
         src,
-        "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
+        "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown_with_depth(data, pos, n, w, depth)?),"
     );
     let _ = writeln!(src, "            }}");
 }
@@ -348,10 +363,28 @@ pub(crate) fn emit_validate_arm(src: &mut String, f: &FieldDescriptor, req_bit: 
         String::new()
     };
     if f.is_map {
+        let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{");
         let _ = writeln!(
             src,
-            "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut ip = 0; let w = wire.window(s, e); let d = w.as_slice(); while ip < d.len() {{ let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?; pbrs::rt::skip_field(d, &mut ip, ww)?; }}{mark} }}"
+            "                    if depth >= pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }}"
         );
+        let _ = writeln!(
+            src,
+            "                    let entry_depth = depth + 1; let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut ip = 0; let w = wire.window(s, e); let d = w.as_slice();"
+        );
+        if matches!(map_val_ty(f), FieldType::Message | FieldType::Group) {
+            let (_, value_type) = map_kv(f);
+            let _ = writeln!(
+                src,
+                "                    while ip < d.len() {{ let (nn, ww) = pbrs::rt::decode_tag(d, &mut ip)?; match (nn, ww) {{ (2, pbrs::rt::WIRE_LEN) => {{ if entry_depth >= pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }} let (vs, ve) = pbrs::rt::read_len_span(d, &mut ip)?; let mut vp = 0; {value_type}::validate_inner(&w.window(vs, ve), &mut vp, entry_depth + 1)?; }}, _ => pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?, }} }}{mark}"
+            );
+        } else {
+            let _ = writeln!(
+                src,
+                "                    while ip < d.len() {{ let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?; pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?; }}{mark}"
+            );
+        }
+        let _ = writeln!(src, "                }}");
         return;
     }
     if f.cardinality == Cardinality::Repeated {
@@ -479,6 +512,10 @@ pub(crate) fn emit_merge_arm(
     let num = f.number;
     if f.is_map {
         let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{");
+        let _ = writeln!(
+            src,
+            "                    if depth >= pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }}"
+        );
         let _ = writeln!(
             src,
             "                    let (s, e) = pbrs::rt::read_len_span(data, pos)?;"
@@ -691,26 +728,50 @@ pub(crate) fn emit_map_decoders(
         let (k, v) = map_kv(f);
         let kty = map_key_ty(f);
         let vty = map_val_ty(f);
+        let message_value = matches!(vty, FieldType::Message | FieldType::Group);
         let _ = writeln!(
             src,
             "fn decode_map_entry_{msg}_{id}_{num}(wire: &pbrs::rt::Wire, depth: u32) -> Result<({k}, {v}), ParseError> {{"
         );
         let _ = writeln!(
             src,
-            "    let _ = depth; let data = wire.as_slice(); let mut key = {k}::default(); let mut val = {v}::default(); let mut pos = 0;"
+            "    if depth > pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }}"
         );
+        let _ = writeln!(
+            src,
+            "    let data = wire.as_slice(); let mut key = {k}::default();"
+        );
+        if message_value {
+            // A present value has its own wire frame. Defer construction until
+            // its guard passes; an omitted value still receives the old default.
+            let _ = writeln!(src, "    let mut val: Option<{v}> = None;");
+        } else {
+            let _ = writeln!(src, "    let mut val = {v}::default();");
+        }
+        let _ = writeln!(src, "    let mut pos = 0;");
         let _ = writeln!(
             src,
             "    while pos < data.len() {{ let (n, w) = pbrs::rt::decode_tag(data, &mut pos)?; match (n, w) {{"
         );
         emit_map_scalar_decode(src, 1, "key", kty, key_utf8);
-        emit_map_scalar_decode(src, 2, "val", vty, val_utf8);
+        if message_value {
+            let _ = writeln!(
+                src,
+                "        (2, pbrs::rt::WIRE_LEN) => {{ if depth >= pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }} let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; let mut ip = 0; let mut sw = None; val.get_or_insert_with({v}::default).merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; }},"
+            );
+        } else {
+            emit_map_scalar_decode(src, 2, "val", vty, val_utf8);
+        }
         let _ = writeln!(
             src,
-            "        _ => pbrs::rt::skip_field(data, &mut pos, w)?,"
+            "        _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,"
         );
         let _ = writeln!(src, "    }} }}");
-        let _ = writeln!(src, "    Ok((key, val))");
+        if message_value {
+            let _ = writeln!(src, "    Ok((key, val.unwrap_or_default()))");
+        } else {
+            let _ = writeln!(src, "    Ok((key, val))");
+        }
         let _ = writeln!(src, "}}");
     }
     Ok(())

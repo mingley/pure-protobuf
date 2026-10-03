@@ -1,0 +1,140 @@
+{
+  "source": "68e4d57d67c73ff87ea1404bee18c3c70a9dfb93",
+  "status": "PRODUCTION_SOURCE_INTEGRATED_SHARED_MAP_REPLAY_PENDING",
+  "scope": "Bounded correctness and compatibility; no performance or complete parser-security qualification",
+  "production_and_fixture_paths_byte_equal_to_candidate": [
+    "rust_out_shared/tests/arena_recursion.rs",
+    "src/codegen/parse.rs",
+    "src/generated/any.rs",
+    "src/generated/duration.rs",
+    "src/generated/empty.rs",
+    "src/generated/field_mask.rs",
+    "src/generated/struct.rs",
+    "src/generated/test_messages_edition2023.rs",
+    "src/generated/test_messages_edition_unstable.rs",
+    "src/generated/test_messages_proto2.rs",
+    "src/generated/test_messages_proto2_editions.rs",
+    "src/generated/test_messages_proto3.rs",
+    "src/generated/test_messages_proto3_editions.rs",
+    "src/generated/timestamp.rs",
+    "src/generated/wrappers.rs",
+    "src/rt.rs",
+    "src/runtime/decode.rs",
+    "src/table.rs",
+    "src/wire.rs",
+    "tests/fixtures/generated_map_value_depth.proto",
+    "tests/fixtures/generated_map_value_depth_consumer.rs",
+    "tests/fixtures/unknown_group_depth.proto",
+    "tests/fixtures/unknown_group_depth_consumer.rs",
+    "tests/generated_map_value_depth.rs",
+    "tests/support/generated_map_value_depth.rs",
+    "tests/support/unknown_group_depth.rs",
+    "tests/unknown_group_depth.rs"
+  ],
+  "accepted_actual_native_commands": [
+    {
+      "name": "feature-off185",
+      "attempt": "001",
+      "native_exit": 0,
+      "original_wrapper_exit": 0,
+      "record_sha256": "5d8ee8518e10b9b383fb22289e40d102695e194fb7d7cc92cf6ca15da5eec468"
+    },
+    {
+      "name": "core185",
+      "attempt": "001",
+      "native_exit": 0,
+      "original_wrapper_exit": 0,
+      "record_sha256": "0a1d928b3881d1af1de5d9b78b358182e8e332debd66b238d62fcdbf5c32db3c"
+    },
+    {
+      "name": "combined-default188",
+      "attempt": "002",
+      "native_exit": 0,
+      "original_wrapper_exit": 0,
+      "record_sha256": "33ae5b7ce6e12dd953574989c21b0a78804816733a6e19efbeb22b885fd17bdc"
+    },
+    {
+      "name": "strict-root188",
+      "attempt": "002",
+      "native_exit": 0,
+      "original_wrapper_exit": 0,
+      "record_sha256": "562f5fe4fee847dcdab5c87c8e5a368851ae18fbe5d61b4108d9b6ab44fb3e16"
+    },
+    {
+      "name": "linked-upstream188",
+      "attempt": "001",
+      "native_exit": 0,
+      "original_wrapper_exit": 126,
+      "record_sha256": "b497a26618ae6f3b563109f822a2aa50e073fdf86bcb347b7bde1aa7050cf0ab"
+    },
+    {
+      "name": "strict-consumer188",
+      "attempt": "001",
+      "native_exit": 0,
+      "original_wrapper_exit": 0,
+      "record_sha256": "09e898dc75f77e6b036e32dc2588321f5d1969eb8fabc6904d21c2797457b306"
+    },
+    {
+      "name": "plugin-setup188",
+      "attempt": "001",
+      "native_exit": 0,
+      "original_wrapper_exit": 0,
+      "record_sha256": "ccbd54a6c798effccb6af90a2feeb0170979d0eb5762d0f2910ebb83b9efe7ef"
+    },
+    {
+      "name": "genuine-regen",
+      "attempt": "001",
+      "native_exit": 0,
+      "original_wrapper_exit": 0,
+      "record_sha256": "073d1260a53894716e256b08dc6d9e79eef2b3dd27b34ae02153c463bfdc3db3"
+    },
+    {
+      "name": "group-shared",
+      "attempt": "001",
+      "native_exit": 0,
+      "original_wrapper_exit": 0,
+      "record_sha256": "2c10de5d794b5b291efcfe931a738594374993673141dc61b1a273c46ca2c96b"
+    }
+  ],
+  "linked_native_qualification": {
+    "original_wrapper_exit_retained": 126,
+    "root_independent_reconciliation_sha256": "6042feab22a494dbf409b5395c2581d84c7629d22df91cdf5805d4807220703a",
+    "upstream_executions": 254,
+    "arena_cases_included": 15,
+    "actual_protoc_calls": 27,
+    "generated_rust_outputs": 58
+  },
+  "group_native_qualification_sha256": "6bf816c217e153d80fda93a0feab98eed60d4287c35578bbbcb2d1942e5f1595",
+  "full_selected_artifact_readback": {
+    "status": "PASS",
+    "record_sha256": "158ff1f30cae65bfb54b41050411ad1670a0f1f75fadb5dadbc08e416dcd6579",
+    "scope": "Independent FULL retained immutable member bytes and modes; no live target fingerprint equivalence assumed",
+    "collections": {
+      "source_payloads": {
+        "members": 668,
+        "bytes": 17647748
+      },
+      "sdk_src_payloads": {
+        "members": 798,
+        "bytes": 15379238
+      },
+      "sdk_proto_input_payloads": {
+        "members": 31,
+        "bytes": 143139
+      },
+      "generated_payloads": {
+        "members": 60,
+        "bytes": 6560417
+      },
+      "executables": {
+        "members": 21,
+        "bytes": 45370672
+      },
+      "selected_provider_test_artifacts": {
+        "members": 154,
+        "bytes": 192801715
+      }
+    }
+  },
+  "remaining": "Combined shared-pool map consumer replay: original helper KeyError accepted_record before protoc/Cargo; its failed raw retained and one-line helper correction in progress. Isolated shared-pool map15 and combined default map15 already pass. Full raw capsule publication follows final replay."
+}
