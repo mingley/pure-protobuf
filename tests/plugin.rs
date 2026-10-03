@@ -3586,6 +3586,51 @@ fn edition2024_selected_extensions_reject_accessor_and_namespace_collisions() {
     );
 }
 
+#[test]
+fn edition2024_selected_extensions_check_only_emitted_service_namespace() {
+    let fds = scalar_extension_test_fds(1001, 101, None, false);
+    let mut pos = 0;
+    assert_eq!(
+        pbrs::rt::decode_tag(&fds, &mut pos).unwrap(),
+        (1, pbrs::rt::WIRE_LEN)
+    );
+    let mut file = pbrs::rt::read_len_bytes(&fds, &mut pos).unwrap().to_vec();
+    let mut naming = Vec::new();
+    pbrs::rt::encode_tag(&mut naming, 9, pbrs::rt::WIRE_VARINT);
+    pbrs::rt::encode_varint(&mut naming, 2); // STYLE_LEGACY allows lowercase service names.
+    let mut options = Vec::new();
+    pbrs::rt::encode_len_field(&mut options, 50, &naming);
+    pbrs::rt::encode_len_field(&mut file, 8, &options);
+    let mut service = Vec::new();
+    pbrs::rt::encode_len_field(&mut service, 1, b"extensions");
+    pbrs::rt::encode_len_field(&mut file, 6, &service);
+    let mut fds = Vec::new();
+    pbrs::rt::encode_len_field(&mut fds, 1, &file);
+    for stubs in ["kernel", "tonic", "compat"] {
+        let parameter = format!("typed_extension=test.value,stubs={stubs}");
+        let error = typed_extension_result(&["scalar.proto"], &fds, &parameter).unwrap_err();
+        assert!(
+            matches!(&error, pbrs::codegen::CodegenError::InvalidParameter { key, detail }
+            if key == "typed_extension" && detail.contains("service trait collides")),
+            "{error}"
+        );
+        for suffix in [
+            ",build_server=false",
+            ",extern_path=test.extensions=crate::Foreign",
+        ] {
+            typed_extension_result(&["scalar.proto"], &fds, &(parameter.clone() + suffix)).unwrap();
+        }
+        // Without a selection the former service output remains permitted.
+        typed_extension_result(&["scalar.proto"], &fds, &format!("stubs={stubs}")).unwrap();
+    }
+    typed_extension_result(
+        &["scalar.proto"],
+        &fds,
+        "typed_extension=test.value,stubs=none",
+    )
+    .unwrap();
+}
+
 fn scalar_fds_with_second_extension(name: &str) -> Vec<u8> {
     let fds = scalar_extension_test_fds(1001, 101, None, false);
     let mut pos = 0;

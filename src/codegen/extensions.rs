@@ -470,6 +470,30 @@ pub(crate) fn validate_typed_extension_emission(
     Ok(())
 }
 
+pub(crate) fn validate_typed_extension_services(
+    selected: &[SelectedExtension],
+    target: &str,
+    services: &[Arc<crate::dynamic::ServiceDescriptor>],
+    config: &ResolvedConfig,
+) -> Result<(), CodegenError> {
+    if config.build_server
+        && config.stubs != StubStyle::None
+        && selected
+            .iter()
+            .any(|extension| file_matches_single(target, &extension.host.file_name))
+    {
+        for service in services {
+            if rust_ident(&service.full_name) == "extensions" {
+                return Err(selection_error(
+                    &service.full_name,
+                    "emitted service trait collides with extensions module",
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn emit_typed_extensions(
     src: &mut String,
     selected: &[SelectedExtension],

@@ -627,6 +627,14 @@ use pbrs::UnknownFields;\n\n"
             }
         }
         services.sort_by(|a, b| a.full_name.cmp(&b.full_name));
+        if !typed_extensions.is_empty() {
+            validate_typed_extension_services(
+                &typed_extensions,
+                &norm_target,
+                &services,
+                &resolved,
+            )?;
+        }
         if share_descriptors
             && root_package
             && resolved.build_server
