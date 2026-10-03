@@ -617,7 +617,6 @@ mod __gen_google_protobuf_struct_proto {
                             if depth >= pbrs::RECURSION_LIMIT {
                                 return Err(ParseError::new("recursion limit exceeded"));
                             }
-
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_Struct_fields_1(
                                 &pbrs::rt::Wire::ensure(wire, data).window(s, e),

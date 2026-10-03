@@ -5159,7 +5159,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                             if depth >= pbrs::RECURSION_LIMIT {
                                 return Err(ParseError::new("recursion limit exceeded"));
                             }
-
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesEdition2023_map_int32_int32_56(
@@ -5180,7 +5179,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                             if depth >= pbrs::RECURSION_LIMIT {
                                 return Err(ParseError::new("recursion limit exceeded"));
                             }
-
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesEdition2023_map_int64_int64_57(
@@ -5201,7 +5199,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                             if depth >= pbrs::RECURSION_LIMIT {
                                 return Err(ParseError::new("recursion limit exceeded"));
                             }
-
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesEdition2023_map_uint32_uint32_58(
@@ -5222,7 +5219,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                             if depth >= pbrs::RECURSION_LIMIT {
                                 return Err(ParseError::new("recursion limit exceeded"));
                             }
-
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesEdition2023_map_uint64_uint64_59(
@@ -5243,7 +5239,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                             if depth >= pbrs::RECURSION_LIMIT {
                                 return Err(ParseError::new("recursion limit exceeded"));
                             }
-
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesEdition2023_map_sint32_sint32_60(
@@ -5264,7 +5259,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                             if depth >= pbrs::RECURSION_LIMIT {
                                 return Err(ParseError::new("recursion limit exceeded"));
                             }
-
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesEdition2023_map_sint64_sint64_61(
@@ -5286,7 +5280,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                                 if depth >= pbrs::RECURSION_LIMIT {
                                     return Err(ParseError::new("recursion limit exceeded"));
                                 }
-
                                 let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                                 let (kk, vv) = decode_map_entry_TestAllTypesEdition2023_map_fixed32_fixed32_62(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
                                 self.map_fixed32_fixed32.push_entry(kk, vv);
@@ -5305,7 +5298,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                                 if depth >= pbrs::RECURSION_LIMIT {
                                     return Err(ParseError::new("recursion limit exceeded"));
                                 }
-
                                 let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                                 let (kk, vv) = decode_map_entry_TestAllTypesEdition2023_map_fixed64_fixed64_63(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
                                 self.map_fixed64_fixed64.push_entry(kk, vv);
@@ -5324,7 +5316,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                                 if depth >= pbrs::RECURSION_LIMIT {
                                     return Err(ParseError::new("recursion limit exceeded"));
                                 }
-
                                 let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                                 let (kk, vv) = decode_map_entry_TestAllTypesEdition2023_map_sfixed32_sfixed32_64(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
                                 self.map_sfixed32_sfixed32.push_entry(kk, vv);
@@ -5343,7 +5334,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                                 if depth >= pbrs::RECURSION_LIMIT {
                                     return Err(ParseError::new("recursion limit exceeded"));
                                 }
-
                                 let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                                 let (kk, vv) = decode_map_entry_TestAllTypesEdition2023_map_sfixed64_sfixed64_65(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
                                 self.map_sfixed64_sfixed64.push_entry(kk, vv);
@@ -5361,7 +5351,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                             if depth >= pbrs::RECURSION_LIMIT {
                                 return Err(ParseError::new("recursion limit exceeded"));
                             }
-
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesEdition2023_map_int32_float_66(
@@ -5382,7 +5371,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                             if depth >= pbrs::RECURSION_LIMIT {
                                 return Err(ParseError::new("recursion limit exceeded"));
                             }
-
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesEdition2023_map_int32_double_67(
@@ -5403,7 +5391,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                             if depth >= pbrs::RECURSION_LIMIT {
                                 return Err(ParseError::new("recursion limit exceeded"));
                             }
-
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesEdition2023_map_bool_bool_68(
@@ -5424,7 +5411,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                             if depth >= pbrs::RECURSION_LIMIT {
                                 return Err(ParseError::new("recursion limit exceeded"));
                             }
-
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesEdition2023_map_string_string_69(
@@ -5445,7 +5431,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                             if depth >= pbrs::RECURSION_LIMIT {
                                 return Err(ParseError::new("recursion limit exceeded"));
                             }
-
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesEdition2023_map_string_bytes_70(
@@ -5466,7 +5451,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                             if depth >= pbrs::RECURSION_LIMIT {
                                 return Err(ParseError::new("recursion limit exceeded"));
                             }
-
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesEdition2023_map_string_nested_message_71(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
                             self.map_string_nested_message.push_entry(kk, vv);
@@ -5483,7 +5467,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                             if depth >= pbrs::RECURSION_LIMIT {
                                 return Err(ParseError::new("recursion limit exceeded"));
                             }
-
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesEdition2023_map_string_foreign_message_72(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
                             self.map_string_foreign_message.push_entry(kk, vv);
@@ -5501,7 +5484,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                                 if depth >= pbrs::RECURSION_LIMIT {
                                     return Err(ParseError::new("recursion limit exceeded"));
                                 }
-
                                 let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                                 let (kk, vv) = decode_map_entry_TestAllTypesEdition2023_map_string_nested_enum_73(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
                                 self.map_string_nested_enum.push_entry(kk, vv);
@@ -5519,7 +5501,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                             if depth >= pbrs::RECURSION_LIMIT {
                                 return Err(ParseError::new("recursion limit exceeded"));
                             }
-
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesEdition2023_map_string_foreign_enum_74(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
                             self.map_string_foreign_enum.push_entry(kk, vv);
@@ -6938,7 +6919,6 @@ mod __gen_conformance_test_protos_test_messages_edition2023_proto {
                             if depth >= pbrs::RECURSION_LIMIT {
                                 return Err(ParseError::new("recursion limit exceeded"));
                             }
-
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesEdition2023_map_recursive_301(

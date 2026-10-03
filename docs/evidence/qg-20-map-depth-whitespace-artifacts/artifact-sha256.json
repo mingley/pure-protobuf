@@ -1,0 +1,18 @@
+{
+  "check-source.py": {
+    "bytes": 2827,
+    "sha256": "00a6013e724d9601392463c995740f39d4ed746331edad9f72c135d460854dad"
+  },
+  "correction.json": {
+    "bytes": 3342,
+    "sha256": "0d128a3519ba91f4cfb58d7cbb58a677d117eae33347011a2174af07480f11dc"
+  },
+  "raw-member-sha256.json": {
+    "bytes": 6932,
+    "sha256": "ac7518fb03b6a184496093e7a40f7a9a348a790c9e5bb0b421bcb05c81cf56bb"
+  },
+  "raw-source-proof.tar.gz": {
+    "bytes": 625056,
+    "sha256": "b0b390b82a697fcc59696f5540ba3fb34767c086b76b0c63fc48139215c75a85"
+  }
+}

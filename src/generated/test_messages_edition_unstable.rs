@@ -1608,7 +1608,6 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                         if depth >= pbrs::RECURSION_LIMIT {
                             return Err(ParseError::new("recursion limit exceeded"));
                         }
-
                         let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         let (kk, vv) =
                             decode_map_entry_TestAllTypesEditionUnstable_map_int32_int32_8(
@@ -1629,7 +1628,6 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                         if depth >= pbrs::RECURSION_LIMIT {
                             return Err(ParseError::new("recursion limit exceeded"));
                         }
-
                         let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         let (kk, vv) =
                             decode_map_entry_TestAllTypesEditionUnstable_map_bool_bool_9(
@@ -1650,7 +1648,6 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                         if depth >= pbrs::RECURSION_LIMIT {
                             return Err(ParseError::new("recursion limit exceeded"));
                         }
-
                         let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         let (kk, vv) =
                             decode_map_entry_TestAllTypesEditionUnstable_map_string_string_10(
@@ -1671,7 +1668,6 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                         if depth >= pbrs::RECURSION_LIMIT {
                             return Err(ParseError::new("recursion limit exceeded"));
                         }
-
                         let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         let (kk, vv) = decode_map_entry_TestAllTypesEditionUnstable_map_string_foreign_message_11(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
                         self.cold_mut()
@@ -1690,7 +1686,6 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                         if depth >= pbrs::RECURSION_LIMIT {
                             return Err(ParseError::new("recursion limit exceeded"));
                         }
-
                         let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         let (kk, vv) = decode_map_entry_TestAllTypesEditionUnstable_map_string_foreign_enum_12(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
                         self.cold_mut().map_string_foreign_enum.push_entry(kk, vv);
@@ -1757,7 +1752,6 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                         if depth >= pbrs::RECURSION_LIMIT {
                             return Err(ParseError::new("recursion limit exceeded"));
                         }
-
                         let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         let (kk, vv) =
                             decode_map_entry_TestAllTypesEditionUnstable_map_string_bytes_15(
