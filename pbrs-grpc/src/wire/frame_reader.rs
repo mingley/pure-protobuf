@@ -260,6 +260,9 @@ pub(crate) struct WireStream<T> {
     sleep: Option<Pin<Box<tokio::time::Sleep>>>,
     ended: bool,
     trailers_done: bool,
+    /// Requests may half-close without status; body responses must finish
+    /// with grpc-status unless it was validated in Trailers-Only headers.
+    require_response_status: bool,
     trailers: Metadata,
     tap: Option<CallLogger>,
 }
@@ -284,6 +287,7 @@ impl<T: CodecMessage> WireStream<T> {
             sleep: deadline.map(|at| Box::pin(tokio::time::sleep_until(at))),
             ended: false,
             trailers_done: false,
+            require_response_status: false,
             trailers: Metadata::new(),
             tap,
         }
@@ -291,6 +295,11 @@ impl<T: CodecMessage> WireStream<T> {
 }
 
 impl<T> WireStream<T> {
+    fn requiring_response_status(mut self, required: bool) -> Self {
+        self.require_response_status = required;
+        self
+    }
+
     /// Whether DATA and trailers have both been consumed, so a Drop must
     /// not RST a finished RPC.
     pub(crate) fn finished(&self) -> bool {
@@ -400,8 +409,14 @@ impl<T> WireStream<T> {
                 Poll::Ready(Err(status))
             }
             Poll::Ready(Ok(None)) => {
-                self.log_response_trailer(&Status::from_code(Code::Ok));
-                Poll::Ready(Ok(()))
+                if self.require_response_status {
+                    let status = Status::unknown("missing grpc-status");
+                    self.log_response_trailer(&status);
+                    Poll::Ready(Err(status))
+                } else {
+                    self.log_response_trailer(&Status::from_code(Code::Ok));
+                    Poll::Ready(Ok(()))
+                }
             }
             Poll::Ready(Ok(Some(map))) => {
                 let status = status_from(&map, Some(&map));
@@ -557,7 +572,8 @@ pub(crate) async fn finish_stream<Resp: CodecMessage + Send + 'static>(
         return Err(status);
     }
     let (parts, body) = response.into_parts();
-    if body.is_end_stream() {
+    let trailers_only = body.is_end_stream();
+    if trailers_only {
         // Trailers-Only: the status is in the headers and there is no stream.
         let status = status_from(&parts.headers, None);
         if status.code() != Code::Ok {
@@ -587,14 +603,10 @@ pub(crate) async fn finish_stream<Resp: CodecMessage + Send + 'static>(
         tap.log_server_header(&header_md);
     }
     Ok(crate::request::Response::from_parts(
-        Streaming::from_wire(WireStream::<Resp>::new(
-            body,
-            limits,
-            deadline,
-            accept_gzip,
-            codec,
-            tap,
-        )),
+        Streaming::from_wire(
+            WireStream::<Resp>::new(body, limits, deadline, accept_gzip, codec, tap)
+                .requiring_response_status(!trailers_only),
+        ),
         header_md,
         Metadata::new(),
     )
