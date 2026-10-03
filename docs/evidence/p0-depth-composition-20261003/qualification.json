@@ -1,6 +1,6 @@
 {
   "source": "68e4d57d67c73ff87ea1404bee18c3c70a9dfb93",
-  "status": "PRODUCTION_SOURCE_INTEGRATED_SHARED_MAP_REPLAY_PENDING",
+  "status": "PASS_COMPOSED_PRODUCTION_SOURCE_AND_TEN_NATIVE_SCOPES",
   "scope": "Bounded correctness and compatibility; no performance or complete parser-security qualification",
   "production_and_fixture_paths_byte_equal_to_candidate": [
     "rust_out_shared/tests/arena_recursion.rs",
@@ -94,6 +94,15 @@
       "native_exit": 0,
       "original_wrapper_exit": 0,
       "record_sha256": "2c10de5d794b5b291efcfe931a738594374993673141dc61b1a273c46ca2c96b"
+    },
+    {
+      "name": "map-shared",
+      "attempt": "002",
+      "native_exit": 0,
+      "original_wrapper_exit": 0,
+      "record_sha256": "0029ebe0f6247436e741e661b9cda3d29c8d5d932775ca7f5c9f34dbf33513f6",
+      "derived_plan_sha256": "9fddac030bfe82f1399e06d4b3de8a30d0611115dd3a243302a374b341257e3d",
+      "helper_correction": "Only accepted graph return serialization, original native workload unchanged"
     }
   ],
   "linked_native_qualification": {
@@ -136,5 +145,16 @@
       }
     }
   },
-  "remaining": "Combined shared-pool map consumer replay: original helper KeyError accepted_record before protoc/Cargo; its failed raw retained and one-line helper correction in progress. Isolated shared-pool map15 and combined default map15 already pass. Full raw capsule publication follows final replay."
+  "remaining": "Performance, broader parser-security, and full feature qualification are separate open tasks.",
+  "selected_full_raw_capsule": {
+    "members": 1267,
+    "logical_bytes": 42467040,
+    "archive_bytes": 8689455,
+    "archive_sha256": "3e0378641ce60a3d4871533458163ce6fecaa2bd7db43077637db1c6c424e2bd",
+    "manifest_sha256": "64ad75d8775eafd1c422ba203822dbc19bb03cf9d3d1a06e0fdac4aaf9e46364",
+    "root_independent_portable_check": "PASS",
+    "root_gzip_full_stream_crc": "PASS",
+    "full_included_payloads": true,
+    "excluded": "ELF/SDK/full generated-source payload trees remain separate retained local evidence; no complete compiler closure claim"
+  }
 }
