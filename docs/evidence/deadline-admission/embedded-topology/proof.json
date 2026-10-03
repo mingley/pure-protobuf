@@ -5,7 +5,7 @@
   "shipping_approved": false,
   "runtime_or_codegen_performance_qualified": false,
   "registry_checksum": "ef8e5e5a340588f4452631496976cf8636d4a7ecf600239fdc27615d2530bc16",
-  "registry_package_tuples": 172,
+  "registry_package_tuples": 166,
   "package_pins_changed": false,
   "normal_graph_counts": {
     "default": [
@@ -56,7 +56,15 @@
       "tonic"
     ],
     "backend_patch": false,
-    "only_package_patch": "local unpacked pbrs core version before publication"
+    "only_package_patch": "local unpacked pbrs core version before publication",
+    "early_path_default_tower_input_capture": {
+      "per_run_before_after_external_input_hashes": false,
+      "timing": "retained after successful runs and before correcting the Tonic-only Status assertion",
+      "retained_files": "raw archive consumer-inputs/path-initial/{Cargo.toml,Cargo.lock,main.rs}",
+      "limitation": "repository source/tool/command/passing-output records exist; exact external-input integrity was not guarded before/after those two runs",
+      "later_direct_input_snapshots": "corrected path/Tonic and all unpacked-package runs only",
+      "fixture_difference": "only Tonic-only Status bound changed; that cfg branch was disabled for initial default/Tower runs"
+    }
   },
   "packaged_embedded_rust_members": 54,
   "packaged_upstream_license_and_provenance_exact": true,
@@ -389,5 +397,6 @@
     "sha256": "8d899c703aabc54ef417a9d08c830f811ca1d15946fe40a2423013dcc8a2c9d6",
     "regular_members": 806,
     "all_members_verified_against_inputs": true
-  }
+  },
+  "workspace_package_tuples": 172
 }

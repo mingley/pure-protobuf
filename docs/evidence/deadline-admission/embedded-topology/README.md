@@ -19,6 +19,7 @@ stays 90. All 172 workspace package name/version/source/checksum tuples remain
 unchanged. Only pbrs-grpc dependency edges change. The default profile drops
 inert indexmap/tokio-util default markers while retaining std/codec/io; the
 Tower/Tonic feature sets stay unchanged.
+The 172 workspace tuples comprise 166 registry packages and six local packages.
 
 | Gate at source 604f4c2e | Result |
 | --- | --- |
@@ -41,6 +42,15 @@ and the exact upstream license/provenance. There is no backend patch. The only
 unpacked-consumer patch points the local pbrs core version at its unpacked
 package before registry publication. Consumer registry pins remain members of
 the source lock's unchanged tuple set.
+
+The initial path/default and path/Tower runs recorded repository source, tools,
+commands and passing output, but did not capture per-run before/after hashes of
+the external consumer inputs. Their `consumer-inputs/path-initial` files were
+retained after those runs and before correcting the Tonic-only assertion, which
+was disabled for both earlier profiles. This is a fixture-capture limitation;
+the later corrected Tonic and unpacked-package runs have separate direct-input
+snapshots. No before/after external-input guard is claimed for the first two
+runtime runs.
 
 Status unit oracles preserve the existing private transport-wrapper behavior:
 Tonic sees UNKNOWN and the original display because the underlying H2 Error has
