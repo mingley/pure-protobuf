@@ -1,0 +1,55 @@
+{
+  "source_commit": "aa6fb299ffd9d905714d2b0ce551269a5d9552f1",
+  "coordinator_sha256": "9146637996b827afd224de26ddf10cf0727f134c758b7ca28ae5bb17e98fb084",
+  "campaign": "target/codegen-bench/gn03-small-pair-20261002-234019",
+  "lease": "root quiet+LTO 100 shared/default lease granted 2026-10-03 00:15:48 UTC; actual start check 2026-10-03 00:16:04 UTC; all other compilers/Miri/captures/large packaging held",
+  "started_at_utc": "2026-10-03T00:16:14.566103+00:00",
+  "finished_at_utc": "2026-10-03T00:19:21.911040+00:00",
+  "numeric_classification": "unqualified local diagnostic; one shared/default pair",
+  "metrics": {
+    "shared": {
+      "output.rust_bytes": 1947481,
+      "release_binary.size_bytes": 1446704,
+      "generation.elapsed_ns": 31977273,
+      "generation.peak_rss_bytes": 9543680,
+      "generation_unchanged.elapsed_ns": 32074578,
+      "generation_unchanged.peak_rss_bytes": 9916416,
+      "check_clean.elapsed_ns": 18368340695,
+      "check_clean.peak_rss_bytes": 1081769984,
+      "check_incremental.elapsed_ns": 1267451085,
+      "check_incremental.peak_rss_bytes": 473497600,
+      "build_release.elapsed_ns": 73772730902,
+      "build_release.peak_rss_bytes": 1960095744
+    },
+    "default": {
+      "output.rust_bytes": 2313461,
+      "release_binary.size_bytes": 1446704,
+      "generation.elapsed_ns": 32636656,
+      "generation.peak_rss_bytes": 10170368,
+      "generation_unchanged.elapsed_ns": 32847307,
+      "generation_unchanged.peak_rss_bytes": 10694656,
+      "check_clean.elapsed_ns": 18427256570,
+      "check_clean.peak_rss_bytes": 1062076416,
+      "check_incremental.elapsed_ns": 1320513476,
+      "check_incremental.peak_rss_bytes": 492138496,
+      "build_release.elapsed_ns": 73367903589,
+      "build_release.peak_rss_bytes": 1955753984
+    }
+  },
+  "archive_members": 168,
+  "same_frozen_generator_as_small_sha256": "718aef4131813c1c6fc449e33202588fc6bf48cc330bd28cfd33a96e056f524b",
+  "unchanged_against_small": [
+    "69 compiled-source pins",
+    "generator binary",
+    "bootstrap driver lock",
+    "actual tool binaries",
+    "GNU time",
+    "protobuf source revision/clean state",
+    "schema capsules",
+    "coordinator v2"
+  ],
+  "command": "source /workspace/pure-protobuf/work/toolchain/env.sh; CARGO_BUILD_JOBS=1 python3 -B work/sb09-paired-screen.py --case 100 --campaign gn03-small-pair-20261002-234019 --lease <recorded literal lease> --execute",
+  "raw_archive_scope": "100 case only plus common bootstrap/source/schema/tool provenance; raw reports/logs, inputs/generated/consumer source/manifests/locks, same generator and both linked ELFs, fingerprint SHA256 inventories, telemetry, quiet notes; small files remain unchanged outside this per-case archive",
+  "compiler_fingerprint_retention": "SHA256inventoryofeachoriginalfingerprintfile; originalcoordinatorv2doesnotcopyfingerprintcontents",
+  "no_full_build_cache_retained": true
+}
