@@ -3811,20 +3811,29 @@ fn edition2024_selected_int32_extensions_generated_consumer() {
     let source = include_str!("fixtures/edition2024/typed_int32_consumer.rs")
         .replace("@ROOT@", root.to_str().unwrap());
     std::fs::write(consumer.join("src/lib.rs"), source).unwrap();
-    let result = run_shared_consumer_cargo(
-        shared_consumer_cargo()
-            .env("CARGO_BUILD_JOBS", "1")
-            .args([
-                "test",
-                "--offline",
-                "--quiet",
-                "--lib",
-                "--",
-                "--test-threads=1",
-            ])
-            .current_dir(&consumer),
-    )
-    .unwrap();
+    let mut command = shared_consumer_cargo();
+    command
+        .env("CARGO_BUILD_JOBS", "1")
+        .args([
+            "test",
+            "--offline",
+            "--quiet",
+            "--lib",
+            "--",
+            "--test-threads=1",
+        ])
+        .current_dir(&consumer);
+    let result = run_shared_consumer_cargo(&mut command).unwrap();
+    if retained.is_some() {
+        std::fs::write(consumer.join("test.command.txt"), format!("{command:?}\n")).unwrap();
+        std::fs::write(consumer.join("test.stdout"), &result.stdout).unwrap();
+        std::fs::write(consumer.join("test.stderr"), &result.stderr).unwrap();
+        std::fs::write(
+            consumer.join("test.exit"),
+            format!("{:?}\n", result.status.code()),
+        )
+        .unwrap();
+    }
     assert!(
         result.status.success(),
         "{}\n{}",
@@ -3836,13 +3845,26 @@ fn edition2024_selected_int32_extensions_generated_consumer() {
     std::fs::write(consumer.join("src/bin/wrong_host.rs"),
         "fn main() { let value = typed_int32_consumer::original::TestExtensions::new(); let _ = value.get_extension(&typed_int32_consumer::checked::extensions::EXT_INT32); }\n"
     ).unwrap();
-    let wrong = run_shared_consumer_cargo(
-        shared_consumer_cargo()
-            .env("CARGO_BUILD_JOBS", "1")
-            .args(["check", "--offline", "--quiet", "--bin", "wrong_host"])
-            .current_dir(&consumer),
-    )
-    .unwrap();
+    let mut command = shared_consumer_cargo();
+    command
+        .env("CARGO_BUILD_JOBS", "1")
+        .args(["check", "--offline", "--quiet", "--bin", "wrong_host"])
+        .current_dir(&consumer);
+    let wrong = run_shared_consumer_cargo(&mut command).unwrap();
+    if retained.is_some() {
+        std::fs::write(
+            consumer.join("wrong-host.command.txt"),
+            format!("{command:?}\n"),
+        )
+        .unwrap();
+        std::fs::write(consumer.join("wrong-host.stdout"), &wrong.stdout).unwrap();
+        std::fs::write(consumer.join("wrong-host.stderr"), &wrong.stderr).unwrap();
+        std::fs::write(
+            consumer.join("wrong-host.exit"),
+            format!("{:?}\n", wrong.status.code()),
+        )
+        .unwrap();
+    }
     assert!(!wrong.status.success(), "wrong-host identifier compiled");
     let error = String::from_utf8_lossy(&wrong.stderr);
     assert!(
