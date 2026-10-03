@@ -13,10 +13,12 @@ pub mod original {
 #[cfg(test)]
 mod allocation_probe {
     use std::alloc::{GlobalAlloc, Layout, System};
-    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use std::cell::Cell;
 
-    static ENABLED: AtomicBool = AtomicBool::new(false);
-    static ALLOCATIONS: AtomicUsize = AtomicUsize::new(0);
+    thread_local! {
+        static ENABLED: Cell<bool> = const { Cell::new(false) };
+        static ALLOCATIONS: Cell<usize> = const { Cell::new(0) };
+    }
     struct CountedSystem;
 
     #[expect(
@@ -25,8 +27,8 @@ mod allocation_probe {
     )]
     unsafe impl GlobalAlloc for CountedSystem {
         unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-            if ENABLED.load(Ordering::Relaxed) {
-                ALLOCATIONS.fetch_add(1, Ordering::Relaxed);
+            if ENABLED.try_with(Cell::get).unwrap_or_default() {
+                let _ = ALLOCATIONS.try_with(|count| count.set(count.get().saturating_add(1)));
             }
             unsafe { System.alloc(layout) }
         }
@@ -41,12 +43,20 @@ mod allocation_probe {
     #[global_allocator]
     static ALLOCATOR: CountedSystem = CountedSystem;
 
+    struct EnabledScope;
+    impl Drop for EnabledScope {
+        fn drop(&mut self) {
+            let _ = ENABLED.try_with(|enabled| enabled.set(false));
+        }
+    }
+
     pub fn during(operation: impl FnOnce()) -> usize {
-        let before = ALLOCATIONS.load(Ordering::Relaxed);
-        ENABLED.store(true, Ordering::Relaxed);
+        let before = ALLOCATIONS.with(Cell::get);
+        ENABLED.with(|enabled| enabled.set(true));
+        let scope = EnabledScope;
         operation();
-        ENABLED.store(false, Ordering::Relaxed);
-        ALLOCATIONS.load(Ordering::Relaxed) - before
+        drop(scope);
+        ALLOCATIONS.with(Cell::get) - before
     }
 }
 
