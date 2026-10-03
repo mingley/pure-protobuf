@@ -215,10 +215,20 @@ fn owned_chain(edges: u32) -> Node {
 fn arena_programmatic_merge_from_has_bounded_decode_side() {
     assert_linked::<Node>();
     let src = owned_chain(100);
+    assert_eq!(
+        src.serialize().expect("constructed source100"),
+        chain(1, 100, Vec::new()),
+        "safe setters must construct the exact source before MergeFrom"
+    );
     let mut dst = Node::new();
     dst.merge_from(src.as_view());
     assert_eq!(dst.serialize().expect("merge100"), chain(1, 100, Vec::new()));
     let oversized = owned_chain(101);
+    assert_eq!(
+        oversized.serialize().expect("constructed source101"),
+        chain(1, 101, Vec::new()),
+        "safe setters must not silently collapse the oversized source"
+    );
     let mut rejected = Node::new();
     rejected.payload_mut().set_optional_int32(7);
     // The existing public MergeFrom returns (), so rejection stays an ignored
