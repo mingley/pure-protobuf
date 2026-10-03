@@ -717,11 +717,11 @@ fn test_numeric_float32_bounds_and_overflow_differential() {
     // Float32 max bound: 3.402823e+38 is valid
     let json_max = include_str!("fixtures/differential/numeric_float32_max.json").trim();
     let r#gen = TestAllTypesProto3::from_json(json_max).unwrap();
-    assert!((r#gen.optional_float() - 3.402823e+38_f32).abs() < 1e32);
+    assert!((r#gen.optional_float() - 3.402_823e38_f32).abs() < 1e32);
 
     let dyn_msg = DynamicMessage::from_json(desc.clone(), json_max).unwrap();
     match dyn_msg.get_singular(11) {
-        Some(Value::Float(f)) => assert!((f - 3.402823e+38_f32).abs() < 1e32),
+        Some(Value::Float(f)) => assert!((f - 3.402_823e38_f32).abs() < 1e32),
         other => panic!("expected float, got {other:?}"),
     }
 
