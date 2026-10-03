@@ -1,0 +1,46 @@
+{
+  "cache-file-sha256.json": {
+    "bytes": 574247,
+    "sha256": "4c102dda77d1129162b9ee20911c047f4f457db532bc4ca0898165555d3f39eb"
+  },
+  "check-reclamation.py": {
+    "bytes": 2481,
+    "sha256": "7e86e9e76dac67831a0722609e2a94f53a6ebbd21b224f605027fbba54add41d"
+  },
+  "fingerprint-and-dependency-contents.tar.gz": {
+    "bytes": 84450,
+    "sha256": "8e8b50eccccd86cdc9113dbb7c0c2197e8c9be917d3476b28b650b877ff31ce0"
+  },
+  "gn03-bootstrap-reclaim.log": {
+    "bytes": 1014,
+    "sha256": "93d48b75dd9ce2b3d1a2ac65b8c8526ae4a97286c41751216b29a98d127cbc0f"
+  },
+  "gn03-bootstrap-reclamation-audit.log": {
+    "bytes": 147,
+    "sha256": "87be67d0cd25532677cd60de1b601a27a1083881b023bee376b00a717f42b02e"
+  },
+  "process-guard-before.json": {
+    "bytes": 832,
+    "sha256": "833c2a12f43795e66e57e016beab2b7bd175b6bf620c075ebaf959258443533c"
+  },
+  "process-guard-immediately-before.json": {
+    "bytes": 832,
+    "sha256": "264faef126a5c17d544fd25701dfda05f96622118e8f8cfa5512588adb1cd626"
+  },
+  "reclaim-gn03-bootstrap.py": {
+    "bytes": 10374,
+    "sha256": "772b6756443c288c27e24c841d87078784f96a99386b0cee030b00a95d0a8525"
+  },
+  "reclamation.json": {
+    "bytes": 1014,
+    "sha256": "93d48b75dd9ce2b3d1a2ac65b8c8526ae4a97286c41751216b29a98d127cbc0f"
+  },
+  "retained-content-sha256.json": {
+    "bytes": 217262,
+    "sha256": "bf2cea95e0d6eb1fead5017c90149347b09150a393100bbb7b06f13b7003f6bd"
+  },
+  "unchanged-controls-before.json": {
+    "bytes": 8359,
+    "sha256": "881d61346a52775ecabcc8fbe521adef3eac3cbdbb700233f419642cf725e053"
+  }
+}

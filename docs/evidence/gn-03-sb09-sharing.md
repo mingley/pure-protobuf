@@ -259,3 +259,46 @@ trailer, and absent shared/release results. Any later retry must retain this
 failure, use an additive namespace and the same frozen generator, and obtain a
 new quiet lease. These artifacts do not alter the cap or benchmark controls.
 GN03 remains open.
+
+## Excluded bootstrap cache reclamation after the failure
+
+After the failed-attempt proof was retained, root authorized reclaiming only the
+completed excluded bootstrap cache. Its literal GN03 path is `target/base`,
+resolving to `/workspace/scratch/work/gn11/target/base`; the separate
+`target/integration-consumers` symlink resolves to the same location. The copied
+generator is outside that cache and remains unchanged, as do its record,
+driver lock, source/tool pins, and all small/100/failed-1,000 measurement records.
+No benchmark phase, cap, or consumer was changed, and no retry was started.
+
+The [reclamation artifacts](gn-03-bootstrap-reclaim-artifacts/artifact-sha256.json)
+record all 1,772 file-path hashes and retain the actual contents of 652 compiler
+fingerprint/dependency files. Two process checks, including one immediately
+before deletion, found no cache-path ownership in accessible executables, cwd,
+argv, Cargo target environments, open descriptors, or mappings. All compiler
+processes were inspectable. Root-owned `dockerd` and `containerd` exposed their
+names and arguments but denied several other `/proc` reads; the exact coverage
+limits are retained rather than presented as complete system-wide inspection.
+
+| Before reclamation | Bytes |
+| --- | ---: |
+| Logical bytes summed across file paths | 877,185,904 |
+| Allocated bytes summed across file paths | 880,754,688 |
+| Logical bytes after inode deduplication | 808,147,304 |
+| Allocated bytes after inode deduplication | 812,244,992 |
+| Allocated directory bytes | 1,347,584 |
+
+There were 52 multiply linked paths. Observed global free space increased from
+5,556,858,880 to 6,370,451,456 bytes, a difference of 813,592,576 bytes. That
+matched unique-inode allocation plus directory allocation in this observation;
+global filesystem deltas can also include unrelated concurrent activity. The
+resolved directory was recreated empty, preserving both approved symlinks.
+
+```sh
+python3 -B docs/evidence/gn-03-bootstrap-reclaim-artifacts/check-reclamation.py
+```
+
+This verifier checks recorded inventory accounting, every retained content
+hash, process-check results and limitations, and the frozen generator pin.
+The unused cache is absent, so the remaining nonarchived cache-file digests are
+historical inventory records rather than files that can be reread. A later
+same-generator retry requires an additive namespace and a new quiet lease.
