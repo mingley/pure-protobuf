@@ -1,0 +1,22 @@
+{
+  "status": "pass",
+  "capsule_members": 2394,
+  "source_files_per_variant": 1027,
+  "metadata_operations": 4,
+  "registry_tuples": 14,
+  "BUILD_passes": 2,
+  "retained_native_failures": 2,
+  "full_payload_readback": {
+    "base": {
+      "members": 603,
+      "regular_paths": 549,
+      "archive_sha256": "8091155ed7562d1d939acdec01a2ef281c37c14f316cb0ce16308608f795a6a4"
+    },
+    "cand": {
+      "members": 603,
+      "regular_paths": 549,
+      "archive_sha256": "7febf457db421b920796b70736c31a82cc18c2503d14ff7de9dc1e32a713f1d0"
+    }
+  },
+  "release_screens_repeats_performance": "NOT_RUN"
+}

@@ -1,0 +1,11 @@
+{
+  "status": "pass",
+  "capsule_members": 2394,
+  "source_files_per_variant": 1027,
+  "metadata_operations": 4,
+  "registry_tuples": 14,
+  "BUILD_passes": 2,
+  "retained_native_failures": 2,
+  "full_payload_readback": "not_read; indexed local payloads only",
+  "release_screens_repeats_performance": "NOT_RUN"
+}

@@ -1,0 +1,266 @@
+{
+  "schema": "gn03-bootstrap-independent-verification/1",
+  "status": "pass",
+  "utc": "2026-10-03T08:37:52.296198+00:00",
+  "scope": "read-only source/metadata/build-record/full-payload qualification; no new compiler or performance capture",
+  "checker_sha256": "2b3c137fb756c1a9abba4b447ce2b68bfe883533ad3e761ab425da0fa502f1a5",
+  "capsule_sha256": "26750dcc02e01f62c9c0bacb045d718f70fda2ab9a8f4d548921efff4a65e673",
+  "index_sha256": "8ce897afccbe786b99a0e731fa9dad913b7516a47baa7828a2b6b7a7b7e8bb67",
+  "python": {
+    "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "resolved": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+    "sha256": "fa67443527ed9647f760d807e2a38f26340757123e643c4639cf273ed15d5ea7",
+    "version": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]"
+  },
+  "runs": [
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-B",
+        "docs/evidence/gn03-driver-bootstrap-20261003/check.py"
+      ],
+      "cwd": "/workspace/scratch/work/gn03-driver-bootstrap-proof",
+      "exit": 0,
+      "result": {
+        "status": "pass",
+        "capsule_members": 2394,
+        "source_files_per_variant": 1027,
+        "metadata_operations": 4,
+        "registry_tuples": 14,
+        "BUILD_passes": 2,
+        "retained_native_failures": 2,
+        "full_payload_readback": "not_read; indexed local payloads only",
+        "release_screens_repeats_performance": "NOT_RUN"
+      },
+      "raw": {
+        "stdout": {
+          "path": "audit-outputs/check-default-001.stdout",
+          "sha256": "afe652b64ae1b99c6e1db119916913c98fb1cc02a188da56b283f92ca835d460",
+          "bytes": 313
+        },
+        "stderr": {
+          "path": "audit-outputs/check-default-001.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        "exit": {
+          "path": "audit-outputs/check-default-001.exit",
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+          "bytes": 2
+        }
+      }
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-B",
+        "docs/evidence/gn03-driver-bootstrap-20261003/check.py",
+        "--payload-root",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003"
+      ],
+      "cwd": "/workspace/scratch/work/gn03-driver-bootstrap-proof",
+      "exit": 0,
+      "result": {
+        "status": "pass",
+        "capsule_members": 2394,
+        "source_files_per_variant": 1027,
+        "metadata_operations": 4,
+        "registry_tuples": 14,
+        "BUILD_passes": 2,
+        "retained_native_failures": 2,
+        "full_payload_readback": {
+          "base": {
+            "members": 603,
+            "regular_paths": 549,
+            "archive_sha256": "8091155ed7562d1d939acdec01a2ef281c37c14f316cb0ce16308608f795a6a4"
+          },
+          "cand": {
+            "members": 603,
+            "regular_paths": 549,
+            "archive_sha256": "7febf457db421b920796b70736c31a82cc18c2503d14ff7de9dc1e32a713f1d0"
+          }
+        },
+        "release_screens_repeats_performance": "NOT_RUN"
+      },
+      "raw": {
+        "stdout": {
+          "path": "audit-outputs/check-full-001.stdout",
+          "sha256": "85570d3e30210a6b96e0ca3f009e2573ff39fe23feaab242b0b0b064bfa016c5",
+          "bytes": 602
+        },
+        "stderr": {
+          "path": "audit-outputs/check-full-001.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        "exit": {
+          "path": "audit-outputs/check-full-001.exit",
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+          "bytes": 2
+        }
+      }
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-B",
+        "docs/evidence/gn03-driver-bootstrap-20261003/check.py"
+      ],
+      "cwd": "/workspace/scratch/work/gn03-driver-bootstrap-proof",
+      "exit": 0,
+      "checker_sha256": "2b3c137fb756c1a9abba4b447ce2b68bfe883533ad3e761ab425da0fa502f1a5",
+      "result": {
+        "status": "pass",
+        "capsule_members": 2394,
+        "source_files_per_variant": 1027,
+        "metadata_operations": 4,
+        "registry_tuples": 14,
+        "BUILD_passes": 2,
+        "retained_native_failures": 2,
+        "full_payload_readback": "not_read; indexed local payloads only",
+        "release_screens_repeats_performance": "NOT_RUN"
+      },
+      "raw": {
+        "stdout": {
+          "path": "audit-outputs/check-default-002.stdout",
+          "sha256": "afe652b64ae1b99c6e1db119916913c98fb1cc02a188da56b283f92ca835d460",
+          "bytes": 313
+        },
+        "stderr": {
+          "path": "audit-outputs/check-default-002.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        "exit": {
+          "path": "audit-outputs/check-default-002.exit",
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+          "bytes": 2
+        }
+      }
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-B",
+        "docs/evidence/gn03-driver-bootstrap-20261003/check.py",
+        "--payload-root",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003"
+      ],
+      "cwd": "/workspace/scratch/work/gn03-driver-bootstrap-proof",
+      "exit": 0,
+      "checker_sha256": "2b3c137fb756c1a9abba4b447ce2b68bfe883533ad3e761ab425da0fa502f1a5",
+      "result": {
+        "status": "pass",
+        "capsule_members": 2394,
+        "source_files_per_variant": 1027,
+        "metadata_operations": 4,
+        "registry_tuples": 14,
+        "BUILD_passes": 2,
+        "retained_native_failures": 2,
+        "full_payload_readback": {
+          "base": {
+            "members": 603,
+            "regular_paths": 549,
+            "archive_sha256": "8091155ed7562d1d939acdec01a2ef281c37c14f316cb0ce16308608f795a6a4"
+          },
+          "cand": {
+            "members": 603,
+            "regular_paths": 549,
+            "archive_sha256": "7febf457db421b920796b70736c31a82cc18c2503d14ff7de9dc1e32a713f1d0"
+          }
+        },
+        "release_screens_repeats_performance": "NOT_RUN"
+      },
+      "raw": {
+        "stdout": {
+          "path": "audit-outputs/check-full-002.stdout",
+          "sha256": "85570d3e30210a6b96e0ca3f009e2573ff39fe23feaab242b0b0b064bfa016c5",
+          "bytes": 602
+        },
+        "stderr": {
+          "path": "audit-outputs/check-full-002.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        "exit": {
+          "path": "audit-outputs/check-full-002.exit",
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+          "bytes": 2
+        }
+      }
+    }
+  ],
+  "current_selected_tool_file_readback": {
+    "scope": "selected tool files checked now; not a retroactive compiler/linker/loaded-library closure",
+    "tools": {
+      "cargo": {
+        "path": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+        "resolved": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+        "sha256": "e951141cc55a6cd7b9876d187bd30a3720e6086b99413af95e3b8de1cdd72f14",
+        "bytes": 36160240,
+        "mode": 448,
+        "equal_selected_probe_pin": true
+      },
+      "protoc": {
+        "path": "/workspace/pure-protobuf/target/conformance-build/protoc-35.1.0",
+        "resolved": "/workspace/pure-protobuf/target/conformance-build/protoc-35.1.0",
+        "sha256": "ba5165ada96fc34d1295b2056ab8ea99756f7896a0ef0449d07f721595702b28",
+        "bytes": 10908816,
+        "mode": 448,
+        "equal_selected_probe_pin": true
+      },
+      "ps": {
+        "path": "/usr/bin/ps",
+        "resolved": "/usr/bin/ps",
+        "sha256": "43b8d2d049183e9ebc409c86b89150b5a4a68fa19fe1815b16bed5561921a9c3",
+        "bytes": 154552,
+        "mode": 493,
+        "equal_selected_probe_pin": true
+      },
+      "python": {
+        "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "resolved": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+        "sha256": "fa67443527ed9647f760d807e2a38f26340757123e643c4639cf273ed15d5ea7",
+        "bytes": 30894944,
+        "mode": 493,
+        "equal_selected_probe_pin": true
+      },
+      "rustc": {
+        "path": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc",
+        "resolved": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc",
+        "sha256": "f3834d26669b03f6855fa54bd2381443123e860167bc0c7a8dd137e5cf6e5e4f",
+        "bytes": 647376,
+        "mode": 448,
+        "equal_selected_probe_pin": true
+      },
+      "rustdoc": {
+        "path": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustdoc",
+        "resolved": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustdoc",
+        "sha256": "a1321a60578a6b2e3e0ff428201b8618bbd9a9fbcd475c0d0f151bbf17cb0a9e",
+        "bytes": 12568360,
+        "mode": 448,
+        "equal_selected_probe_pin": true
+      },
+      "time": {
+        "path": "/usr/bin/time",
+        "resolved": "/usr/bin/time",
+        "sha256": "efc0d1112e36ec76c14bf7508e287935cf1631d9d0d91fb532802d07aef51cea",
+        "bytes": 27384,
+        "mode": 493,
+        "equal_selected_probe_pin": true
+      }
+    }
+  },
+  "current_retired_namespace_observations": {
+    "base": {
+      "path": "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/driver-graph-amendment-001/drivers/base/target/bootstrap",
+      "exists": false,
+      "is_symlink": false
+    },
+    "cand": {
+      "path": "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/driver-graph-amendment-001/drivers/cand/target/bootstrap",
+      "exists": false,
+      "is_symlink": false
+    }
+  }
+}
