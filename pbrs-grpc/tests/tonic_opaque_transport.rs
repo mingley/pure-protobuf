@@ -388,6 +388,36 @@ async fn native_outbound_failure_withholds_later_prefix_and_preserves_first_mess
 }
 
 #[tokio::test]
+async fn native_outbound_transform_preserves_independent_input_opt_out_advertisement() {
+    let mut fixture = connect(
+        probe(vec![identity_wire(b"x")]),
+        ServerConfig::default()
+            .accept_compressed(false)
+            .send_compressed(true)
+            .max_encoding_message_size(1),
+        1,
+    )
+    .await;
+    let mut req = request();
+    req.headers_mut().insert(
+        "grpc-accept-encoding",
+        http::HeaderValue::from_static("gzip"),
+    );
+    let (wire, terminal, headers) = exchange(&mut fixture, req, Vec::new()).await;
+    assert_eq!(wire, gzip_wire(b"x"));
+    assert_eq!(terminal.get("grpc-status").expect("status"), "0");
+    assert_eq!(headers.get("grpc-encoding").expect("coding"), "gzip");
+    assert_eq!(
+        headers.get("grpc-accept-encoding").expect("acceptance"),
+        "identity"
+    );
+    assert_eq!(
+        terminal.get("grpc-accept-encoding").expect("acceptance"),
+        "identity"
+    );
+}
+
+#[tokio::test]
 async fn native_outbound_unexpected_coding_and_override_fail_before_headers() {
     for override_only in [false, true] {
         let mut service = probe(vec![identity_wire(b"x")]);
