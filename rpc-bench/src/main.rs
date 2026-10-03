@@ -48,6 +48,8 @@
 
 pub mod benchmark_service;
 pub mod fairness;
+#[path = "generated_wkt.rs"]
+pub mod google;
 pub mod load;
 pub mod report;
 pub mod resources;

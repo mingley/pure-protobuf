@@ -2,6 +2,8 @@
 
 #[path = "../src/benchmark_service.rs"]
 pub mod benchmark_service;
+#[path = "../src/generated_wkt.rs"]
+pub mod google;
 #[path = "../src/load.rs"]
 pub mod load;
 #[path = "../src/report.rs"]
