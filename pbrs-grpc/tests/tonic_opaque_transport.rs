@@ -27,6 +27,7 @@ struct Probe {
     pending_tail: bool,
     disable_compression: bool,
     content_length: Option<usize>,
+    body_error: bool,
 }
 
 #[derive(Default)]
@@ -80,7 +81,16 @@ impl Service<Request<TonicBody>> for Probe {
                         .map(|bytes| Ok(Frame::data(bytes))),
                 );
             }
-            if !probe.pending_tail {
+            if probe.body_error {
+                let mut metadata = tonic::metadata::MetadataMap::new();
+                metadata.insert("x-terminal", "preserved".parse().expect("metadata"));
+                frames.push_back(Err(tonic::Status::with_details_and_metadata(
+                    tonic::Code::PermissionDenied,
+                    "producer body error",
+                    Bytes::from_static(b"details"),
+                    metadata,
+                )));
+            } else if !probe.pending_tail {
                 let mut trailers = http::HeaderMap::new();
                 trailers.insert("grpc-status", http::HeaderValue::from_static("0"));
                 trailers.insert("x-terminal", http::HeaderValue::from_static("preserved"));
@@ -254,6 +264,7 @@ fn probe(output: Vec<Bytes>) -> Probe {
         pending_tail: false,
         disable_compression: false,
         content_length: None,
+        body_error: false,
     }
 }
 
@@ -390,6 +401,81 @@ async fn native_outbound_failure_withholds_later_prefix_and_preserves_first_mess
         );
         assert_eq!(fixture.state.dropped.load(Ordering::SeqCst), 1);
     }
+}
+
+#[tokio::test]
+async fn native_outbound_transform_partial_prefix_and_invalid_flag_are_internal() {
+    for wire in [
+        Bytes::from_static(b"\0\0"),
+        Bytes::from_static(b"\x02\0\0\0\0"),
+    ] {
+        let mut fixture = connect(
+            probe(vec![wire]),
+            ServerConfig::default()
+                .send_compressed(true)
+                .max_encoding_message_size(1),
+            65_535,
+        )
+        .await;
+        let mut req = request();
+        req.headers_mut().insert(
+            "grpc-accept-encoding",
+            http::HeaderValue::from_static("gzip"),
+        );
+        let (wire, terminal, headers) = exchange(&mut fixture, req, Vec::new()).await;
+        assert!(wire.is_empty());
+        assert_eq!(terminal.get("grpc-status").expect("status"), "13");
+        assert_eq!(
+            headers.get("grpc-encoding").expect("active gzip transform"),
+            "gzip"
+        );
+        assert_eq!(headers.get("x-initial").expect("metadata"), "preserved");
+        assert_eq!(fixture.state.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(fixture.state.dropped.load(Ordering::SeqCst), 1);
+    }
+}
+
+#[tokio::test]
+async fn native_outbound_transform_body_error_preserves_status_details_and_metadata() {
+    let tracker = pbrs_grpc::ByteBudgetTracker::unlimited();
+    let mut service = probe(vec![Bytes::from_static(b"\0\0\0\0\x03ab")]);
+    service.body_error = true;
+    let mut fixture = connect_with_tracker(
+        service,
+        ServerConfig::default()
+            .send_compressed(true)
+            .max_encoding_message_size(3),
+        65_535,
+        Some(tracker.clone()),
+    )
+    .await;
+    let mut req = request();
+    req.headers_mut().insert(
+        "grpc-accept-encoding",
+        http::HeaderValue::from_static("gzip"),
+    );
+    let (wire, terminal, headers) = exchange(&mut fixture, req, Vec::new()).await;
+    assert!(wire.is_empty());
+    assert_eq!(
+        headers.get("grpc-encoding").expect("active gzip transform"),
+        "gzip"
+    );
+    assert_eq!(headers.get("x-initial").expect("metadata"), "preserved");
+    assert_eq!(terminal.get("grpc-status").expect("status"), "7");
+    assert_eq!(
+        terminal.get("grpc-message").expect("message"),
+        "producer%20body%20error"
+    );
+    assert_eq!(
+        terminal.get("grpc-status-details-bin").expect("details"),
+        "ZGV0YWlscw"
+    );
+    assert_eq!(terminal.get("x-terminal").expect("metadata"), "preserved");
+    assert!(tracker.peak_allocated() >= 3);
+    assert_eq!(tracker.allocated(), 0);
+    assert_eq!(tracker.active_byte_permit_tokens(), 0);
+    assert_eq!(fixture.state.calls.load(Ordering::SeqCst), 1);
+    assert_eq!(fixture.state.dropped.load(Ordering::SeqCst), 1);
 }
 
 #[tokio::test]

@@ -1082,6 +1082,63 @@ async fn native_finite_outbound_gzip_transform_all_generated_shapes() -> Result<
 }
 
 #[tokio::test]
+async fn native_outbound_transform_preserves_stricter_generated_private_encoding_cap_all_shapes()
+-> Result<(), BoxError> {
+    let config = ServerConfig::default()
+        .send_compressed(true)
+        .gzip_compression_level(9)
+        .max_encoding_message_size(8192);
+    let (addr, state, _server) = server(config, Some((16_384, 1)), false).await?;
+    let mut client =
+        routeguide::route_guide_client::RouteGuideClient::new(Channel::connect(addr).await?)
+            .accept_compressed(tonic::codec::CompressionEncoding::Gzip);
+    let unary = client
+        .get_feature(authorized(point(10)))
+        .await
+        .expect_err("private tonic encoding cap");
+    let server_streaming = match client
+        .list_features(authorized(routeguide::Rectangle {
+            lo: Some(point(1)),
+            hi: Some(point(2)),
+        }))
+        .await
+    {
+        Err(error) => error,
+        Ok(response) => response
+            .into_inner()
+            .message()
+            .await
+            .expect_err("private tonic encoding cap"),
+    };
+    let client_streaming = client
+        .record_route(authorized(tokio_stream::iter([
+            point(1),
+            point(2),
+            point(3),
+        ])))
+        .await
+        .expect_err("private tonic encoding cap");
+    let bidi = match client
+        .route_chat(authorized(tokio_stream::iter([note("one")])))
+        .await
+    {
+        Err(error) => error,
+        Ok(response) => response
+            .into_inner()
+            .message()
+            .await
+            .expect_err("private tonic encoding cap"),
+    };
+    for error in [unary, server_streaming, client_streaming, bidi] {
+        assert_eq!(error.code(), tonic::Code::OutOfRange);
+        assert!(error.message().contains("encoded message length too large"));
+        assert!(error.message().contains("the limit is: 1 bytes"));
+    }
+    assert_eq!(state.calls.load(Ordering::SeqCst), 4);
+    Ok(())
+}
+
+#[tokio::test]
 async fn native_outbound_transform_bidi_progresses_before_upload_eof_and_cancels()
 -> Result<(), BoxError> {
     let config = ServerConfig::default()
