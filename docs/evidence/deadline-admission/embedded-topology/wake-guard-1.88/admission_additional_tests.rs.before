@@ -289,12 +289,9 @@ async fn mixed_legacy_pending_cancel_releases_only_new_task_and_request() {
     let mut req = request();
     req.extensions_mut()
         .insert(Arc::new(DropGuard(dropped.clone())));
-    let wakes = Arc::new(AtomicUsize::new(0));
-    let task_waker = Arc::new(WakeGuard(wakes.clone()));
+    let task_waker = Arc::new(WakeGuard);
     let weak = Arc::downgrade(&task_waker);
     let waker = Waker::from(task_waker);
-    waker.wake_by_ref();
-    assert_eq!(wakes.load(Ordering::SeqCst), 1);
     let mut pending = Box::pin(send.send_request_when_ready(req, true));
     {
         let mut cx = Context::from_waker(&waker);
@@ -309,7 +306,6 @@ async fn mixed_legacy_pending_cancel_releases_only_new_task_and_request() {
     );
     // The legacy request remains intact; only its stream ID was allocated.
     peer.settings(&[(3, 1)]).await;
-    assert_eq!(wakes.load(Ordering::SeqCst), 1);
     peer.expect_headers(1).await;
     let next = pending_request(&send).await;
     peer.quiet().await;

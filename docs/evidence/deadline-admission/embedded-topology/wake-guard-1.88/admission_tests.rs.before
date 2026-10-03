@@ -251,24 +251,21 @@ async fn connection_death_wakes_even_a_zero_capacity_waiter() {
     driver.abort();
 }
 
-// Unique task ownership measures cancellation retention; the counter also
-// makes Wake observable without relying on a static noop waker.
-struct WakeGuard(Arc<AtomicUsize>);
+struct WakeGuard;
+#[allow(
+    clippy::manual_noop_waker,
+    reason = "unique Arc ownership measures canceled task retention; a static noop waker cannot provide that oracle"
+)]
 impl Wake for WakeGuard {
-    fn wake(self: Arc<Self>) {
-        self.0.fetch_add(1, Ordering::SeqCst);
-    }
+    fn wake(self: Arc<Self>) {}
 }
 
 #[tokio::test(start_paused = true)]
 async fn canceled_future_releases_task_waker_while_sender_remains_live() {
     let (mut send, driver, mut peer) = connection(Some(0)).await;
-    let wakes = Arc::new(AtomicUsize::new(0));
-    let waker = Arc::new(WakeGuard(wakes.clone()));
+    let waker = Arc::new(WakeGuard);
     let weak = Arc::downgrade(&waker);
     let waker = Waker::from(waker);
-    waker.wake_by_ref();
-    assert_eq!(wakes.load(Ordering::SeqCst), 1);
     let mut pending = Box::pin(send.send_request_when_ready(request(), true));
     {
         let mut cx = Context::from_waker(&waker);
@@ -281,7 +278,6 @@ async fn canceled_future_releases_task_waker_while_sender_remains_live() {
         "canceled registration retained its task"
     );
     settings(&mut peer, 1).await;
-    assert_eq!(wakes.load(Ordering::SeqCst), 1);
     let opened = send.send_request_when_ready(request(), true).await.unwrap();
     assert_eq!(headers(&mut peer).await, 1);
     drop(opened);

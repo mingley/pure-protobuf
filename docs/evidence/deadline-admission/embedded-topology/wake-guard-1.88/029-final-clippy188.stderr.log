@@ -1,0 +1,16 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/deadline-admission-native)
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/deadline-admission-native/pbrs-grpc)
+error: unknown lint: `clippy::manual_noop_waker`
+   --> pbrs-grpc/src/h2_backend/admission_tests.rs:256:5
+    |
+256 |     clippy::manual_noop_waker,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^ help: did you mean: `clippy::manual_rotate`
+    |
+note: the lint level is defined here
+   --> pbrs-grpc/src/h2_backend/mod.rs:119:24
+    |
+119 | #![cfg_attr(test, deny(warnings))]
+    |                        ^^^^^^^^
+    = note: `#[deny(unknown_lints)]` implied by `#[deny(warnings)]`
+
+error: could not compile `pbrs-grpc` (lib test) due to 1 previous error
