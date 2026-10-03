@@ -1,0 +1,10 @@
+{
+  "CARGO_BUILD_JOBS": "1",
+  "CARGO_HOME": "/workspace/pure-protobuf/work/toolchain/cargo",
+  "CARGO_INCREMENTAL": "0",
+  "CARGO_TARGET_DIR": "/workspace/pure-protobuf/work/shared-parent-lock-edges-20261003/metadata-target",
+  "LC_ALL": "C",
+  "PATH": "/workspace/pure-protobuf/target/conformance-build:/workspace/pure-protobuf/work/toolchain/cargo/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+  "RUSTC": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc",
+  "RUSTUP_HOME": "/workspace/pure-protobuf/work/toolchain/rustup"
+}

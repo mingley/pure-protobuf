@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+    "metadata",
+    "--offline",
+    "--locked",
+    "--format-version",
+    "1",
+    "--manifest-path",
+    "/workspace/scratch/work/shared-parent-lock-edges/bench/devloop/Cargo.toml",
+    "--features",
+    "bridge"
+  ],
+  "compilation": false,
+  "cwd": "/workspace/scratch/work/shared-parent-lock-edges",
+  "exit_code": 101,
+  "expected_result": "rejected old lock; no automatic pin update",
+  "finished_utc": "2026-10-03T03:15:10.772921+00:00",
+  "lock_sha256": {
+    "Cargo.lock": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5",
+    "bench/devloop/Cargo.lock": "a5fa1e79eb2b3741513e479c393fda804f2f6a19416b9560929f033fb944398c",
+    "bench/devloop/adoption/Cargo.lock": "00aff2739394c6da0794f669d9d802ee29062888307e5258b2e854f2dc90be8b"
+  },
+  "source_commit": "ad79b48ee34d4fd67346560da195f69ee6a846c3",
+  "started_utc": "2026-10-03T03:15:10.712523+00:00",
+  "stderr": "raw/command-4.stderr",
+  "stdout": "raw/command-4.stdout"
+}

@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "/workspace/scratch/work/shared-parent-lock-edges/docs/evidence/shared-parent-lock-edges-20261003/verify.py"
+  ],
+  "started_utc": "2026-10-03T03:24:11.877981+00:00",
+  "finished_utc": "2026-10-03T03:24:11.984031+00:00",
+  "exit_code": 0,
+  "stdout": "verify.stdout",
+  "stderr": "verify.stderr",
+  "checker_sha256": "ad3960030143880489c8a06fb597b2730955c5446c586eeb8e9601f2cf1f942c",
+  "qualification": "read-only lock/evidence verification before adding its own capture; resealed and verified again below"
+}

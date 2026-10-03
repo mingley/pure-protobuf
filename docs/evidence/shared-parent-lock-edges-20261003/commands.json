@@ -1,0 +1,173 @@
+[
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/workspace/scratch/work/shared-parent-lock-edges",
+      "rev-parse",
+      "HEAD"
+    ],
+    "cwd": "/workspace/scratch/work/shared-parent-lock-edges",
+    "exit_code": 0,
+    "finished_utc": "2026-10-03T03:15:10.549807+00:00",
+    "started_utc": "2026-10-03T03:15:10.547535+00:00",
+    "stderr": "raw/command-0.stderr",
+    "stdout": "raw/command-0.stdout"
+  },
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/workspace/scratch/work/shared-parent-lock-edges",
+      "show",
+      "ad79b48ee34d4fd67346560da195f69ee6a846c3:Cargo.lock"
+    ],
+    "cwd": "/workspace/scratch/work/shared-parent-lock-edges",
+    "exit_code": 0,
+    "finished_utc": "2026-10-03T03:15:10.707531+00:00",
+    "started_utc": "2026-10-03T03:15:10.705090+00:00",
+    "stderr": "raw/command-1.stderr",
+    "stdout": "raw/command-1.stdout"
+  },
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/workspace/scratch/work/shared-parent-lock-edges",
+      "show",
+      "ad79b48ee34d4fd67346560da195f69ee6a846c3:bench/devloop/Cargo.lock"
+    ],
+    "cwd": "/workspace/scratch/work/shared-parent-lock-edges",
+    "exit_code": 0,
+    "finished_utc": "2026-10-03T03:15:10.709767+00:00",
+    "started_utc": "2026-10-03T03:15:10.707757+00:00",
+    "stderr": "raw/command-2.stderr",
+    "stdout": "raw/command-2.stdout"
+  },
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/workspace/scratch/work/shared-parent-lock-edges",
+      "show",
+      "ad79b48ee34d4fd67346560da195f69ee6a846c3:bench/devloop/adoption/Cargo.lock"
+    ],
+    "cwd": "/workspace/scratch/work/shared-parent-lock-edges",
+    "exit_code": 0,
+    "finished_utc": "2026-10-03T03:15:10.712088+00:00",
+    "started_utc": "2026-10-03T03:15:10.710082+00:00",
+    "stderr": "raw/command-3.stderr",
+    "stdout": "raw/command-3.stdout"
+  },
+  {
+    "argv": [
+      "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+      "metadata",
+      "--offline",
+      "--locked",
+      "--format-version",
+      "1",
+      "--manifest-path",
+      "/workspace/scratch/work/shared-parent-lock-edges/bench/devloop/Cargo.toml",
+      "--features",
+      "bridge"
+    ],
+    "cwd": "/workspace/scratch/work/shared-parent-lock-edges",
+    "exit_code": 101,
+    "finished_utc": "2026-10-03T03:15:10.772921+00:00",
+    "started_utc": "2026-10-03T03:15:10.712523+00:00",
+    "stderr": "raw/command-4.stderr",
+    "stdout": "raw/command-4.stdout"
+  },
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/workspace/scratch/work/shared-parent-lock-edges",
+      "show",
+      "ad79b48ee34d4fd67346560da195f69ee6a846c3:docs/evidence/tc32b-collector-20261002/parent-lock-before.toml"
+    ],
+    "cwd": "/workspace/scratch/work/shared-parent-lock-edges",
+    "exit_code": 0,
+    "finished_utc": "2026-10-03T03:15:10.837698+00:00",
+    "started_utc": "2026-10-03T03:15:10.835128+00:00",
+    "stderr": "raw/command-5.stderr",
+    "stdout": "raw/command-5.stdout"
+  },
+  {
+    "argv": [
+      "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+      "metadata",
+      "--offline",
+      "--locked",
+      "--format-version",
+      "1",
+      "--manifest-path",
+      "/workspace/scratch/work/shared-parent-lock-edges/bench/devloop/Cargo.toml",
+      "--features",
+      "bridge"
+    ],
+    "cwd": "/workspace/scratch/work/shared-parent-lock-edges",
+    "exit_code": 0,
+    "finished_utc": "2026-10-03T03:15:10.943230+00:00",
+    "started_utc": "2026-10-03T03:15:10.846272+00:00",
+    "stderr": "raw/command-6.stderr",
+    "stdout": "raw/command-6.stdout"
+  },
+  {
+    "argv": [
+      "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+      "metadata",
+      "--offline",
+      "--locked",
+      "--format-version",
+      "1",
+      "--manifest-path",
+      "/workspace/scratch/work/shared-parent-lock-edges/bench/devloop/Cargo.toml"
+    ],
+    "cwd": "/workspace/scratch/work/shared-parent-lock-edges",
+    "exit_code": 0,
+    "finished_utc": "2026-10-03T03:15:11.048755+00:00",
+    "started_utc": "2026-10-03T03:15:10.954443+00:00",
+    "stderr": "raw/command-7.stderr",
+    "stdout": "raw/command-7.stdout"
+  },
+  {
+    "argv": [
+      "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+      "metadata",
+      "--offline",
+      "--locked",
+      "--format-version",
+      "1",
+      "--manifest-path",
+      "/workspace/scratch/work/shared-parent-lock-edges/bench/devloop/adoption/Cargo.toml",
+      "--features",
+      "bridge"
+    ],
+    "cwd": "/workspace/scratch/work/shared-parent-lock-edges",
+    "exit_code": 0,
+    "finished_utc": "2026-10-03T03:15:11.144708+00:00",
+    "started_utc": "2026-10-03T03:15:11.061208+00:00",
+    "stderr": "raw/command-8.stderr",
+    "stdout": "raw/command-8.stdout"
+  },
+  {
+    "argv": [
+      "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+      "metadata",
+      "--offline",
+      "--locked",
+      "--format-version",
+      "1",
+      "--manifest-path",
+      "/workspace/scratch/work/shared-parent-lock-edges/bench/devloop/adoption/Cargo.toml"
+    ],
+    "cwd": "/workspace/scratch/work/shared-parent-lock-edges",
+    "exit_code": 0,
+    "finished_utc": "2026-10-03T03:15:11.213075+00:00",
+    "started_utc": "2026-10-03T03:15:11.155584+00:00",
+    "stderr": "raw/command-9.stderr",
+    "stdout": "raw/command-9.stdout"
+  }
+]

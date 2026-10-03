@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/workspace/scratch/work/shared-parent-lock-edges",
+    "show",
+    "ad79b48e:docs/evidence/tc32b-collector-20261002/parent-lock-before.toml"
+  ],
+  "started_utc": "2026-10-03T03:22:57.063338+00:00",
+  "finished_utc": "2026-10-03T03:22:57.065368+00:00",
+  "exit_code": 0,
+  "stdout": "frozen-pre-bridge-parent.lock",
+  "stderr_utf8": ""
+}

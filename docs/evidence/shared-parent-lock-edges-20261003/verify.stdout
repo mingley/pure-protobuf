@@ -1,0 +1,23 @@
+{
+  "result": "passed",
+  "package_tuples_retained": {
+    "Cargo.lock": 172,
+    "bench/devloop/Cargo.lock": 154,
+    "bench/devloop/adoption/Cargo.lock": 111
+  },
+  "only_new_parent_edges": [
+    "atomic-waker",
+    "fnv",
+    "futures-sink",
+    "indexmap",
+    "slab",
+    "tokio-util",
+    "tracing"
+  ],
+  "frozen153_parent_pins_retained": true,
+  "initial_locked_rejection_preserved": true,
+  "four_metadata_runs_verified": true,
+  "workload_profile_tool_threshold_contract_unchanged": true,
+  "final_release_source_commit": null,
+  "compiler_build_capture_invocations": 0
+}

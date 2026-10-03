@@ -1,0 +1,38 @@
+{
+  "Cargo.lock": {
+    "before": {
+      "git_blob_oid": "acdfdaf68c1f6bde41bfed52347558661ef51ef0",
+      "sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5",
+      "size": 41489
+    },
+    "after": {
+      "git_blob_oid": "acdfdaf68c1f6bde41bfed52347558661ef51ef0",
+      "sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5",
+      "size": 41489
+    }
+  },
+  "bench/devloop/Cargo.lock": {
+    "before": {
+      "git_blob_oid": "be55cf450f6185f1bed5c7b7fdaaba8f328f9ca2",
+      "sha256": "a5fa1e79eb2b3741513e479c393fda804f2f6a19416b9560929f033fb944398c",
+      "size": 36428
+    },
+    "after": {
+      "git_blob_oid": "a654ee34fbf3b4137969a5698cfcb6a398aace28",
+      "sha256": "61399401c8e57ceb6aa697fb404bee9ac22f6ec48441faa8dfae74daabbf83c4",
+      "size": 36519
+    }
+  },
+  "bench/devloop/adoption/Cargo.lock": {
+    "before": {
+      "git_blob_oid": "e10eac5a6fe2d52905894d35e5622f28c9c0567f",
+      "sha256": "00aff2739394c6da0794f669d9d802ee29062888307e5258b2e854f2dc90be8b",
+      "size": 26121
+    },
+    "after": {
+      "git_blob_oid": "e10eac5a6fe2d52905894d35e5622f28c9c0567f",
+      "sha256": "00aff2739394c6da0794f669d9d802ee29062888307e5258b2e854f2dc90be8b",
+      "size": 26121
+    }
+  }
+}
