@@ -83,7 +83,10 @@ impl Service<Request<TonicBody>> for Probe {
             }
             if probe.body_error {
                 let mut metadata = tonic::metadata::MetadataMap::new();
-                metadata.insert("x-terminal", "preserved".parse().expect("metadata"));
+                metadata.insert(
+                    "x-terminal",
+                    tonic::metadata::MetadataValue::from_static("preserved"),
+                );
                 frames.push_back(Err(tonic::Status::with_details_and_metadata(
                     tonic::Code::PermissionDenied,
                     "producer body error",
@@ -304,6 +307,10 @@ async fn native_outbound_gzip_zero_cap_does_not_cap_encoded_overhead() {
     assert_eq!(fixture.state.calls.load(Ordering::SeqCst), 1);
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "synthetic frame payloads are bounded below the wire u32 ceiling"
+)]
 fn identity_wire(payload: &[u8]) -> Bytes {
     let mut wire = vec![0];
     wire.extend_from_slice(
