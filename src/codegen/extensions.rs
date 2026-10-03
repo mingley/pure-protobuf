@@ -138,7 +138,7 @@ pub(crate) fn select_typed_extensions(
             .unwrap_or(name);
         let identifier = relative
             .split('.')
-            .map(|part| to_snake(part).to_ascii_uppercase())
+            .map(|part| to_snake(part).trim_start_matches("r#").to_ascii_uppercase())
             .collect::<Vec<_>>()
             .join("_");
         if let Some(previous) = identifiers.insert((file.to_string(), identifier.clone()), name) {
