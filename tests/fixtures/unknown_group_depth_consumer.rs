@@ -36,6 +36,11 @@ mod tests {
         let wire = vectors::unknown_groups(100, 99);
         let message = Node::parse(&wire).unwrap();
         assert_eq!(message.serialize().unwrap(), wire);
+        // Keep the opaque LEN control in a baseline-green test, so a red
+        // malformed MessageSet assertion cannot prevent it from running.
+        let mut opaque = Vec::new();
+        pbrs::rt::encode_len_field(&mut opaque, 99, &vectors::unknown_groups(101, 99));
+        assert_eq!(Node::parse(&opaque).unwrap().serialize().unwrap(), opaque);
     }
 
     #[test]
