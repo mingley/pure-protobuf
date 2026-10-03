@@ -541,6 +541,11 @@ mod opaque {
     use std::task::Context;
     use tower::ServiceExt;
 
+    enum OpaqueAbort {
+        Deadline,
+        Drop,
+    }
+
     struct CountBody {
         polls: Arc<AtomicUsize>,
         dropped: Arc<AtomicBool>,
@@ -596,7 +601,7 @@ mod opaque {
         )
     }
 
-    async fn check(abort: Abort, released: Release) {
+    async fn check(abort: OpaqueAbort, released: Release) {
         for shape in SHAPES {
             let (channel, mut peer) = connected().await;
             let (_, first) = native_call(&channel, Shape::Unary, None).await;
@@ -613,16 +618,12 @@ mod opaque {
                 "body started before admission"
             );
             match abort {
-                Abort::Deadline => {
+                OpaqueAbort::Deadline => {
                     tokio::time::advance(TIMEOUT).await;
                     assert_eq!(waiting.await, Err(Code::DeadlineExceeded));
                 }
                 // Opaque Service futures are cancelled by dropping the future.
-                Abort::Drop => drop(waiting),
-                Abort::Cancel
-                | Abort::DeadlineAtRelease
-                | Abort::CancelAtRelease
-                | Abort::BothAtRelease => unreachable!("opaque cancellation uses future drop"),
+                OpaqueAbort::Drop => drop(waiting),
             }
             assert!(
                 dropped.load(Ordering::SeqCst),
@@ -637,23 +638,23 @@ mod opaque {
 
     #[tokio::test(start_paused = true)]
     async fn all_opaque_paths_expired_before_capacity_growth_emit_no_request() {
-        check(Abort::Deadline, Release::Grow).await;
+        check(OpaqueAbort::Deadline, Release::Grow).await;
     }
     #[tokio::test(start_paused = true)]
     async fn all_opaque_paths_expired_before_stream_release_emit_no_request() {
-        check(Abort::Deadline, Release::Reset).await;
+        check(OpaqueAbort::Deadline, Release::Reset).await;
     }
     #[tokio::test(start_paused = true)]
     async fn all_opaque_paths_dropped_before_capacity_growth_emit_no_request() {
-        check(Abort::Drop, Release::Grow).await;
+        check(OpaqueAbort::Drop, Release::Grow).await;
     }
     #[tokio::test(start_paused = true)]
     async fn all_opaque_paths_dropped_before_stream_release_emit_no_request() {
-        check(Abort::Drop, Release::Reset).await;
+        check(OpaqueAbort::Drop, Release::Reset).await;
     }
     #[tokio::test(start_paused = true)]
     async fn opaque_abort_while_peer_capacity_is_zero() {
-        for abort in [Abort::Deadline, Abort::Drop] {
+        for abort in [OpaqueAbort::Deadline, OpaqueAbort::Drop] {
             check(abort, Release::ZeroThenGrow).await;
         }
     }
