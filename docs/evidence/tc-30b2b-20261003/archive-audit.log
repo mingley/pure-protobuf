@@ -1,0 +1,9 @@
+{
+  "members": 139,
+  "previous_source_executions": 180,
+  "optout_only_executions": 95,
+  "combined_executions": 95,
+  "combined_source": "dfd5ba320d0dcfa57816b64211b7c1b33af9ce0b",
+  "shipping_correctness_proof_complete": true,
+  "performance_qualified": false
+}

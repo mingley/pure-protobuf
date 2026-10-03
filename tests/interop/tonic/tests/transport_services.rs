@@ -544,6 +544,18 @@ where
     T: Service<http::Request<Body>, Response = http::Response<Body>>,
     T::Error: Into<tonic::codegen::StdError>,
 {
+    all_shapes_codec_acceptance(transport, gzip, None).await
+}
+
+async fn all_shapes_codec_acceptance<T>(
+    transport: T,
+    gzip: bool,
+    accept: Option<&str>,
+) -> Result<(), BoxError>
+where
+    T: Service<http::Request<Body>, Response = http::Response<Body>>,
+    T::Error: Into<tonic::codegen::StdError>,
+{
     let mut client = routeguide::route_guide_client::RouteGuideClient::new(transport);
     if gzip {
         client = client
@@ -551,6 +563,15 @@ where
             .accept_compressed(tonic::codec::CompressionEncoding::Gzip);
     }
     let response = client.get_feature(authorized(point(10))).await?;
+    if let Some(accept) = accept {
+        assert_eq!(
+            response
+                .metadata()
+                .get("grpc-accept-encoding")
+                .expect("accept"),
+            accept
+        );
+    }
     if gzip {
         assert_eq!(
             response.metadata().get("grpc-encoding").expect("gzip"),
@@ -565,13 +586,22 @@ where
     );
     assert_eq!(response.get_ref().name, "large feature ".repeat(128));
     assert_eq!(response.get_ref().location, Some(point(10)));
-    let mut features = client
+    let response = client
         .list_features(authorized(routeguide::Rectangle {
             lo: Some(point(1)),
             hi: Some(point(2)),
         }))
-        .await?
-        .into_inner();
+        .await?;
+    if let Some(accept) = accept {
+        assert_eq!(
+            response
+                .metadata()
+                .get("grpc-accept-encoding")
+                .expect("accept"),
+            accept
+        );
+    }
+    let mut features = response.into_inner();
     assert_eq!(
         features.message().await?.expect("first").location,
         Some(point(1))
@@ -588,25 +618,189 @@ where
         error.metadata().get("x-terminal").expect("metadata"),
         "preserved"
     );
-    assert_eq!(
-        client
-            .record_route(authorized(tokio_stream::iter([
-                point(1),
-                point(2),
-                point(3)
-            ])))
-            .await?
-            .get_ref()
-            .point_count,
-        3
-    );
-    let mut chat = client
+    let response = client
+        .record_route(authorized(tokio_stream::iter([
+            point(1),
+            point(2),
+            point(3),
+        ])))
+        .await?;
+    if let Some(accept) = accept {
+        assert_eq!(
+            response
+                .metadata()
+                .get("grpc-accept-encoding")
+                .expect("accept"),
+            accept
+        );
+    }
+    assert_eq!(response.get_ref().point_count, 3);
+    let response = client
         .route_chat(authorized(tokio_stream::iter([note("one"), note("two")])))
-        .await?
-        .into_inner();
+        .await?;
+    if let Some(accept) = accept {
+        assert_eq!(
+            response
+                .metadata()
+                .get("grpc-accept-encoding")
+                .expect("accept"),
+            accept
+        );
+    }
+    let mut chat = response.into_inner();
     assert_eq!(chat.message().await?.expect("first"), note("one"));
     assert_eq!(chat.message().await?.expect("second"), note("two"));
     assert!(chat.message().await?.is_none());
+    Ok(())
+}
+
+#[tokio::test]
+async fn native_compression_opt_out_preserves_identity_all_shapes_and_mtls() -> Result<(), BoxError>
+{
+    let config = ServerConfig::default().accept_compressed(false);
+    let (addr, state, _server) = server(config, None, false).await?;
+    all_shapes_codec_acceptance(
+        tonic::transport::Endpoint::from_shared(format!("http://{addr}"))?
+            .connect()
+            .await?,
+        false,
+        Some("identity"),
+    )
+    .await?;
+    all_shapes_codec_acceptance(Channel::connect(addr).await?, false, Some("identity")).await?;
+    assert_eq!(state.calls.load(Ordering::SeqCst), 8);
+
+    let (addr, state, _server) = server(config, None, true).await?;
+    let tls = ClientTls::ca_mtls(
+        "localhost",
+        CA,
+        Identity::from_pem(CLIENT_CERT, CLIENT_KEY)?,
+    )?;
+    all_shapes_codec_acceptance(
+        Channel::connect_tls(addr, tls).await?,
+        false,
+        Some("identity"),
+    )
+    .await?;
+    assert_eq!(state.calls.load(Ordering::SeqCst), 4);
+    assert_eq!(state.tls.load(Ordering::SeqCst), 4);
+    Ok(())
+}
+
+#[tokio::test]
+async fn native_compression_opt_out_rejects_gzip_requests_for_all_shapes() -> Result<(), BoxError> {
+    let (addr, state, _server) = server(
+        ServerConfig::default().accept_compressed(false),
+        None,
+        false,
+    )
+    .await?;
+    let mut client =
+        routeguide::route_guide_client::RouteGuideClient::new(Channel::connect(addr).await?)
+            .send_compressed(tonic::codec::CompressionEncoding::Gzip);
+    let errors = [
+        client
+            .get_feature(authorized(point(10)))
+            .await
+            .expect_err("disabled request compression"),
+        client
+            .list_features(authorized(routeguide::Rectangle {
+                lo: Some(point(1)),
+                hi: Some(point(2)),
+            }))
+            .await
+            .expect_err("disabled request compression"),
+        client
+            .record_route(authorized(tokio_stream::iter([point(1)])))
+            .await
+            .expect_err("disabled request compression"),
+        client
+            .route_chat(authorized(tokio_stream::iter([note("one")])))
+            .await
+            .expect_err("disabled request compression"),
+    ];
+    for error in errors {
+        assert_eq!(error.code(), tonic::Code::Unimplemented);
+        assert_eq!(
+            error
+                .metadata()
+                .get("grpc-accept-encoding")
+                .expect("accept"),
+            "identity"
+        );
+    }
+    assert_eq!(state.calls.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn native_compression_opt_out_canonicalizes_only_native_identity_aliases()
+-> Result<(), BoxError> {
+    let (addr, state, _server) = server(
+        ServerConfig::default().accept_compressed(false),
+        None,
+        false,
+    )
+    .await?;
+    let mut client =
+        routeguide::route_guide_client::RouteGuideClient::new(Channel::connect(addr).await?)
+            .accept_compressed(tonic::codec::CompressionEncoding::Gzip);
+    for encoding in ["identity", "IDENTITY", " Identity ;q=0.5 "] {
+        let mut request = authorized(point(10));
+        request
+            .metadata_mut()
+            .insert("grpc-encoding", encoding.parse()?);
+        let response = client.get_feature(request).await?;
+        assert_eq!(response.get_ref().location, Some(point(10)));
+        assert_eq!(
+            response
+                .metadata()
+                .get("grpc-accept-encoding")
+                .expect("accept"),
+            "identity"
+        );
+        // Input opt-out does not change the generated response codec negotiation.
+        assert_eq!(
+            response
+                .metadata()
+                .get("grpc-encoding")
+                .expect("gzip response"),
+            "gzip"
+        );
+    }
+    assert_eq!(state.calls.load(Ordering::SeqCst), 3);
+    Ok(())
+}
+
+#[tokio::test]
+async fn native_compression_opt_out_does_not_impose_default_cap_on_private_decoder()
+-> Result<(), BoxError> {
+    let private_cap = 8 * 1024 * 1024;
+    let (addr, state, _server) = server(
+        ServerConfig::default().accept_compressed(false),
+        Some((private_cap, private_cap)),
+        false,
+    )
+    .await?;
+    let mut client =
+        routeguide::route_guide_client::RouteGuideClient::new(Channel::connect(addr).await?)
+            .max_encoding_message_size(private_cap)
+            .max_decoding_message_size(private_cap);
+    let large = note(&"a".repeat(pbrs_grpc::DEFAULT_MAX_DECODING_MESSAGE_SIZE + 1));
+    let response = client
+        .route_chat(authorized(tokio_stream::iter([large.clone()])))
+        .await?;
+    assert_eq!(
+        response
+            .metadata()
+            .get("grpc-accept-encoding")
+            .expect("accept"),
+        "identity"
+    );
+    let mut chat = response.into_inner();
+    assert_eq!(chat.message().await?.expect("large reply"), large);
+    assert!(chat.message().await?.is_none());
+    assert_eq!(state.calls.load(Ordering::SeqCst), 1);
     Ok(())
 }
 

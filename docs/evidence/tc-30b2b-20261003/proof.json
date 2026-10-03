@@ -1,0 +1,42 @@
+{
+  "source": "051f5ed8e5a0064b4d06527713db9dc61997abbf",
+  "previous_source": "3ac287ab2a58c26f427db96852851bb3c3d3420b",
+  "previous_passing_executions": {
+    "private-framing-final": 19,
+    "native-optout-final": 18,
+    "native-regressions-corrected": 105,
+    "generated-services-retry": 38
+  },
+  "previous_total": 180,
+  "final_passing_replay_executions": {
+    "private-framing-replay": 19,
+    "native-affected-replay": 38,
+    "generated-services-replay": 38
+  },
+  "final_total": 95,
+  "32_bit_execution": "not_run",
+  "baseline_and_guard_failures_preserved": true,
+  "missing_gates": [],
+  "standalone_strict_clippy_at_051f": "failed: two preexisting uninlined-format-args, preserved",
+  "combined_source_replay": {
+    "source": "dfd5ba320d0dcfa57816b64211b7c1b33af9ce0b",
+    "passing_executions": {
+      "combined-private-replay": 19,
+      "combined-native-replay": 38,
+      "combined-generated-replay": 38
+    },
+    "total": 95,
+    "strict_gates": [
+      "combined-native-clippy",
+      "combined-generated-clippy",
+      "combined-rustdoc",
+      "combined-msrv-feature-off",
+      "combined-default-tree",
+      "combined-root-format",
+      "combined-fixture-format",
+      "combined-whitespace"
+    ]
+  },
+  "shipping_correctness_proof_complete": true,
+  "performance_qualified": false
+}
