@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "scope": "only completed owned /workspace/scratch/work/h2-embedded/target cache",
+  "cache_produced_from_source": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a",
+  "snapshot_checkout_commit": "ec36407830c01e0c031e9b7f2a19d6932391b21e",
+  "source_or_qualification_changed_by_cleanup": false,
+  "new_compilation_run": false,
+  "artifact_file_count": 1615,
+  "all_current_cache_artifact_hashes_retained": true,
+  "full_content_preserved": "all non-artifact files, including every fingerprint, dependency and generator output; current consumer ELFs also copied",
+  "qualified_unit_elves_retained": "separate work copies and immutable topology raw archive8d899c703aabc54ef417a9d08c830f811ca1d15946fe40a2423013dcc8a2c9d6",
+  "apparent_sum_bytes_before_metadata_refresh": 1369837324,
+  "apparent_sum_bytes": 1369837783,
+  "unique_inode_apparent_bytes": 1305510959,
+  "unique_inode_allocated_bytes": 1310519296,
+  "directory_allocated_bytes": 1642496,
+  "measurement_limits": "Allocated bytes are stat st_blocks, deduplicated by device/inode, not an extent/COW or filesystem quota measurement; concurrent disk changes can affect free-space deltas.",
+  "process_inspection": {
+    "active_owned_processes": [],
+    "permissions_and_races": "instantaneous procfs inspections include2permission-limited entries; no filesystem-wide lock/future-writer guarantee",
+    "exclusive_owner": "coordinator confirmed leaf idle; capture process and launch ancestors excluded"
+  },
+  "metadata_refresh": {
+    "changed_file": ".rustc_info.json",
+    "before": {
+      "bytes": 1778,
+      "allocated_bytes": 4096,
+      "device": 27,
+      "inode": 10280,
+      "links": 1,
+      "sha256": "1394cd1bfa037c50ab680b7b8e4322d678c5fe4514efc297329dec44a5c8e2af",
+      "preserved_content": true,
+      "class": "fingerprint/dep/generator/other metadata"
+    },
+    "after": {
+      "bytes": 2237,
+      "allocated_bytes": 4096,
+      "device": 27,
+      "inode": 10280,
+      "links": 1,
+      "sha256": "c0783465a723518dfc444df8c56e80948a0b80cb3d13f0a850a12ffb6359c490",
+      "preserved_content": true,
+      "class": "fingerprint/dep/generator/other metadata"
+    },
+    "cause": "authorized locked Cargo metadata after compatible indexmap requirement refreshed compiler-query cache; no source compilation",
+    "all_other_file_hashes_unchanged": true,
+    "first_verification_stopped_before_deletion": true,
+    "both_full_versions_preserved": true
+  },
+  "removed_only": "/workspace/scratch/work/h2-embedded/target",
+  "target_absent": true,
+  "protected": [
+    "/workspace/scratch/work/h2-embedded/work/h2-embedding/miri-sysroot",
+    "/workspace/pure-protobuf/work/toolchain",
+    "/workspace/scratch/work/h2-embedded/docs/evidence/deadline-admission/embedded-topology"
+  ],
+  "protected_all_exist": true,
+  "global_free_bytes_before": 3557826560,
+  "global_free_bytes_after": 4563963904,
+  "previous_reclamations": "earlier completed-cache removals retain all-artifact hashes and phase proof; this capture does not retroactively claim their full fingerprint content was retained",
+  "archive": {
+    "file": "raw.tar.gz",
+    "bytes": 20078931,
+    "sha256": "bac4f74ac4002f9882aae32151e0df15c290a48d7cbc73fff7fb919a9ed9c810",
+    "regular_members": 1258,
+    "every_member_verified": true
+  }
+}

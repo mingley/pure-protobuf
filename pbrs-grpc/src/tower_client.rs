@@ -433,21 +433,38 @@ mod tonic_transport {
             .build()
             .map_err(|error| Status::invalid_argument(error.to_string()))?;
         parts.version = http::Version::HTTP_2;
-        if let Some(remaining) = crate::timeout::remaining_timeout(deadline).map_err(status)? {
-            let value = http::HeaderValue::from_str(&crate::timeout::encode_timeout(remaining))
-                .map_err(|error| Status::internal(error.to_string()))?;
-            parts.headers.insert("grpc-timeout", value);
-        }
         if !parts.headers.contains_key(http::header::USER_AGENT) {
             parts
                 .headers
                 .insert(http::header::USER_AGENT, channel.user_agent.clone());
         }
         let end_stream = body.is_end_stream();
-        let (response, send) = match live
+        let mut admission = live
             .send
-            .send_request(Request::from_parts(parts, ()), end_stream)
-        {
+            .send_request_when_ready(Request::from_parts(parts, ()), end_stream);
+        // Keep local deadline failures outside the backend-error branch below:
+        // exhausting a healthy connection's stream quota must not evict it.
+        // The outer biased deadline race also cancels a pending owned request.
+        let opened = poll_fn(|cx| {
+            let remaining = match crate::timeout::remaining_timeout(deadline) {
+                Ok(remaining) => remaining,
+                Err(error) => return Poll::Ready(Err(status(error))),
+            };
+            if let Some(remaining) = remaining {
+                let value =
+                    match http::HeaderValue::from_str(&crate::timeout::encode_timeout(remaining)) {
+                        Ok(value) => value,
+                        Err(error) => return Poll::Ready(Err(Status::internal(error.to_string()))),
+                    };
+                if let Some(request) = admission.request_mut() {
+                    request.headers_mut().insert("grpc-timeout", value);
+                }
+            }
+            Pin::new(&mut admission).poll(cx).map(Ok)
+        })
+        .await?;
+        drop(admission);
+        let (response, send) = match opened {
             Ok(stream) => stream,
             Err(error) => {
                 channel

@@ -66,11 +66,22 @@ pub(crate) trait SendRequest: Clone {
     /// Wait until the connection can open another stream.
     fn ready(self) -> backend::ReadySendRequest;
     /// Open a stream and send request headers.
+    #[allow(
+        dead_code,
+        reason = "legacy immediate-open seam retained for transport protocol tests"
+    )]
     fn send_request(
         &mut self,
         request: Request<()>,
         end_of_stream: bool,
     ) -> Result<(backend::ResponseFuture, backend::SendStream), Error>;
+    /// Own request headers until the backend admits a real connection slot.
+    /// Dropping a pending future does not allocate or queue an HTTP/2 stream.
+    fn send_request_when_ready(
+        &mut self,
+        request: Request<()>,
+        end_of_stream: bool,
+    ) -> backend::Admission<'_>;
     /// Peer's current MAX_CONCURRENT_STREAMS style send-stream budget.
     fn current_max_send_streams(&self) -> usize;
 }

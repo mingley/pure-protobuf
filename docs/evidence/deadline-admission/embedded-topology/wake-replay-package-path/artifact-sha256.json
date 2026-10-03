@@ -1,0 +1,126 @@
+{
+  "README.md": {
+    "bytes": 1805,
+    "sha256": "00ab6e31f93aca30cdae522d54a893891cceee6995e8b6d8357bfcb342a720cd"
+  },
+  "audit.log": {
+    "bytes": 188,
+    "sha256": "4fcadf6882d1bc3e0bcc20e100d1f9626e8d884829030b3969168643a0f5c773"
+  },
+  "capture.py": {
+    "bytes": 2714,
+    "sha256": "e035d8cf8d0babfb6016c393855ea620b178a3336e6e24732d1ffea2987e0248"
+  },
+  "check-artifacts.py": {
+    "bytes": 2739,
+    "sha256": "2d0b487c6a258d5754f94a0ca4b6f95e51bba645bcea5fb7ab610c097e837227"
+  },
+  "inputs/backend/admission_additional_tests.rs": {
+    "bytes": 20687,
+    "sha256": "5801f5d0d493ff693f38c3f95386e910596ac0fb172c9aa7bbea447e8a4f2a2e"
+  },
+  "inputs/backend/admission_tests.rs": {
+    "bytes": 9468,
+    "sha256": "cae2fb0f4218544934690dc97b9f9f75492d365b8064f3c947a16c02dca30e32"
+  },
+  "inputs/backend/provenance.json": {
+    "bytes": 30451,
+    "sha256": "8a4cd576d90dce8a1c5e168f5d245ad1828d1ba3419200f6a02ee0eb1b827909"
+  },
+  "inputs/backend/replay-wake-guard-1.88-overlay.py": {
+    "bytes": 1631,
+    "sha256": "2c942618954456ee0f252a63bffe7394228efcb3d4bed29f3f0ca7f79549f840"
+  },
+  "inputs/backend/wake-guard-1.88-overlay.json": {
+    "bytes": 4174,
+    "sha256": "7b8d4731d4bb3e4e9a6b842a7b9e36f83ea39b218fa817c291486794b039da2f"
+  },
+  "inputs/backend/wake-guard-1.88-overlay.patch": {
+    "bytes": 3161,
+    "sha256": "f7d1a0a74de2e9fb9a287f0072392f0b8c0d32c224afb2653b6a3bb8305b6601"
+  },
+  "inputs/before/admission_additional_tests.rs.before": {
+    "bytes": 20502,
+    "sha256": "af25db414524d1305805991955d7ed9492462121decfe2e69d4b8e4c6b4a305a"
+  },
+  "inputs/before/admission_tests.rs.before": {
+    "bytes": 9233,
+    "sha256": "e70019b3a3cc614b68c3be0b73b5b48266288e0f1beeb6ac2520dc4baf6a8db2"
+  },
+  "normalized-layout-after.json": {
+    "bytes": 4490,
+    "sha256": "fd4df7256911a8c9108ed1953b5178e809f086cd799cbbcbf0f5265e21be5282"
+  },
+  "normalized-layout-after.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "normalized-layout-after.stdout": {
+    "bytes": 647,
+    "sha256": "c3fb7e6e84030a5345380241014a3e3eadb9fdbdeb6dd1f8760a3d34c977b498"
+  },
+  "normalized-layout-before.json": {
+    "bytes": 4490,
+    "sha256": "41d25a105e8f2a02570e4f4841600c29ac226a45be2ae947856ed0f02266c62c"
+  },
+  "normalized-layout-before.stderr": {
+    "bytes": 931,
+    "sha256": "a58621a7f7a0450e8759616d02fe5c6c5c70c2462d2fdb2d23feb425a7e05301"
+  },
+  "normalized-layout-before.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "overlay.json": {
+    "bytes": 1600,
+    "sha256": "ec9309a44f5d90fdddb092dbf0b4db8275fd2f4281283d5fdf502d4098204465"
+  },
+  "overlay.patch": {
+    "bytes": 886,
+    "sha256": "c29ad7e37afc3e555a79d85f09cb5e850370c33976e7861b40158c7d6cf48816"
+  },
+  "replay-helper.after.py": {
+    "bytes": 1631,
+    "sha256": "2c942618954456ee0f252a63bffe7394228efcb3d4bed29f3f0ca7f79549f840"
+  },
+  "replay-helper.before.py": {
+    "bytes": 1620,
+    "sha256": "8d687f93a6eafc4f99e3477c1f78564fac2da1fa3e1d74211757339463f24be8"
+  },
+  "root-after.json": {
+    "bytes": 3639,
+    "sha256": "c83819447a108f9117e2b6411ad73413a0e8f07eaaf5ffb255af20eca51103c0"
+  },
+  "root-after.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "root-after.stdout": {
+    "bytes": 647,
+    "sha256": "c3fb7e6e84030a5345380241014a3e3eadb9fdbdeb6dd1f8760a3d34c977b498"
+  },
+  "root-before.json": {
+    "bytes": 3639,
+    "sha256": "f221e0665a3bf48bf91895c6416dc2e9995341d1cafe3c7301d7b00ae7d2dbda"
+  },
+  "root-before.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "root-before.stdout": {
+    "bytes": 647,
+    "sha256": "c3fb7e6e84030a5345380241014a3e3eadb9fdbdeb6dd1f8760a3d34c977b498"
+  },
+  "root-explicit-after.json": {
+    "bytes": 3749,
+    "sha256": "a4058dc8130326a237b2b13a071347deae7d0ec9c11ef4e40df8576e0fa9de24"
+  },
+  "root-explicit-after.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "root-explicit-after.stdout": {
+    "bytes": 647,
+    "sha256": "c3fb7e6e84030a5345380241014a3e3eadb9fdbdeb6dd1f8760a3d34c977b498"
+  }
+}

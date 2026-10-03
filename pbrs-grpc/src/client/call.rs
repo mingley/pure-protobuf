@@ -11,6 +11,7 @@ use crate::transport::{
 use crate::wire::{SegFrame, grpc_request, send_frame, status_from};
 use http::HeaderValue;
 use http::uri::Authority;
+use std::future::poll_fn;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
@@ -206,7 +207,7 @@ pub(crate) fn open(
     reason = "one HTTP/2 stream open plus headers, timeout, encoding, and scheme"
 )]
 pub(crate) async fn open_in<R: Runtime>(
-    send_req: backend::SendRequest,
+    mut send_req: backend::SendRequest,
     authority: &Authority,
     path: &'static str,
     md: &crate::metadata::Metadata,
@@ -221,31 +222,10 @@ pub(crate) async fn open_in<R: Runtime>(
     if timeout.is_some_and(|d| d.is_zero()) {
         return Err(Status::deadline_exceeded());
     }
-    // Optimistic: an idle connection is ready without arming the race. The
-    // pre-checks mirror `first_of_in`'s biased order (cancel, then deadline)
-    // so an already-fired signal still wins.
     if *cancel_rx.borrow() {
         return Err(Status::cancelled());
     }
-    remaining_timeout(deadline)?;
-    let ready = async { send_req.ready().await.map_err(Status::from_h2_pre_headers) };
-    tokio::pin!(ready);
-    let raced = match poll_now(ready.as_mut()) {
-        Some(result) => result,
-        None => first_of_in::<R, _>(ready, cancel_rx, deadline).await,
-    };
-    let mut send_req = prefer_deadline_in::<R, _>(raced, deadline)?;
-    let remaining = match (timeout, remaining_timeout(deadline)?) {
-        (Some(initial), Some(rem)) => {
-            if initial > rem && initial - rem < Duration::from_millis(20) {
-                Some(initial)
-            } else {
-                Some(rem)
-            }
-        }
-        (None, rem) => rem,
-        (Some(initial), None) => Some(initial),
-    };
+    let remaining = outgoing_timeout(timeout, remaining_timeout(deadline)?);
     let http_req = grpc_request(
         authority,
         path,
@@ -256,9 +236,60 @@ pub(crate) async fn open_in<R: Runtime>(
         user_agent,
         https,
     )?;
-    send_req
-        .send_request(http_req, false)
-        .map_err(Status::from_h2_pre_headers)
+    let mut admission = send_req.send_request_when_ready(http_req, false);
+    // grpc_request already encoded this duration. In particular, the existing
+    // sub-20ms policy leaves it unchanged on a warm call's first guarded poll.
+    let mut last_timeout = remaining;
+    // Every possible admission poll checks the same biased order as the outer
+    // race. Request headers remain untouched by h2 while pending; refresh the
+    // relative timeout here, outside its stream lock, immediately before poll.
+    let guarded = poll_fn(|cx| {
+        if *cancel_rx.borrow() {
+            return Poll::Ready(Err(Status::cancelled()));
+        }
+        let remaining = match remaining_timeout(deadline) {
+            Ok(remaining) => outgoing_timeout(timeout, remaining),
+            Err(status) => return Poll::Ready(Err(status)),
+        };
+        if let Some(remaining) = remaining {
+            if last_timeout != Some(remaining) {
+                let value = match HeaderValue::from_str(&crate::timeout::encode_timeout(remaining))
+                {
+                    Ok(value) => value,
+                    Err(error) => return Poll::Ready(Err(Status::internal(error.to_string()))),
+                };
+                if let Some(request) = admission.request_mut() {
+                    request.headers_mut().insert("grpc-timeout", value);
+                    last_timeout = Some(remaining);
+                }
+            }
+        }
+        Pin::new(&mut admission)
+            .poll(cx)
+            .map(|result| result.map_err(Status::from_h2_pre_headers))
+    });
+    tokio::pin!(guarded);
+    // Preserve the optimistic warm path, but never poll admission without the
+    // cancellation/deadline/header checks above.
+    let raced = match poll_now(guarded.as_mut()) {
+        Some(result) => result,
+        None => first_of_in::<R, _>(guarded, cancel_rx.clone(), deadline).await,
+    };
+    prefer_deadline_in::<R, _>(raced, deadline)
+}
+
+fn outgoing_timeout(initial: Option<Duration>, remaining: Option<Duration>) -> Option<Duration> {
+    match (initial, remaining) {
+        (Some(initial), Some(remaining)) => {
+            if initial > remaining && initial - remaining < Duration::from_millis(20) {
+                Some(initial)
+            } else {
+                Some(remaining)
+            }
+        }
+        (None, remaining) => remaining,
+        (Some(initial), None) => Some(initial),
+    }
 }
 
 /// Report an expired deadline as `DEADLINE_EXCEEDED`, whatever the transport

@@ -1,0 +1,738 @@
+{
+  "status": "isolated_prototype_not_shipping",
+  "upstream": {
+    "name": "h2",
+    "version": "0.4.19",
+    "registry_checksum": "ef8e5e5a340588f4452631496976cf8636d4a7ecf600239fdc27615d2530bc16",
+    "vcs": {
+      "git": {
+        "sha1": "d57d1b852fec9dda6d42d3454502006d52104da8"
+      },
+      "path_in_vcs": ""
+    },
+    "license_sha256": "b21623012e6c453d944b0342c515b631cfcbf30704c2621b291526b69c10724d"
+  },
+  "admission_patch_files": [
+    "src/client.rs",
+    "src/proto/streams/counts.rs",
+    "src/proto/streams/prioritize.rs",
+    "src/proto/streams/send.rs",
+    "src/proto/streams/streams.rs"
+  ],
+  "files": {
+    "pbrs-grpc/src/h2_backend/client.rs": {
+      "upstream_source": "src/client.rs",
+      "upstream_sha256": "f64c9089838886bb38aa6b2eaf7e10f84a98fbcdf06d6c4df6fae317de03377e",
+      "admission_source_sha256": "ef7273cafdbcd1351c3b4727054c6e862437404dae5afc4ee108bae7ae9f1ca6",
+      "embedded_sha256": "0ad04f85be7d3e67d2d15f8bbe7e83f5944dd67fd91641f5df409a8a9992e270",
+      "operations": [
+        {
+          "kind": "upstream_examples_as_nonexecuted_text",
+          "examples": 20
+        },
+        {
+          "kind": "namespace",
+          "occurrences": 26
+        },
+        {
+          "kind": "disabled_upstream_cfg",
+          "expression": "feature = \"stream\"",
+          "occurrences": 1
+        },
+        {
+          "kind": "disabled_upstream_cfg",
+          "expression": "feature = \"unstable\"",
+          "occurrences": 2
+        },
+        {
+          "kind": "edition_2021_rpit_capture",
+          "capture": "use<T, B>"
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/codec/error.rs": {
+      "upstream_source": "src/codec/error.rs",
+      "upstream_sha256": "4384868a883fc21676888f61380ddf43cd15703bd6377b79d2eec2183e8edecf",
+      "admission_source_sha256": "4384868a883fc21676888f61380ddf43cd15703bd6377b79d2eec2183e8edecf",
+      "embedded_sha256": "8a4f3ff1fccc699ba45ea9079b710f4b4bb4d62c6dfd7a64df87ab3d033060c9",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 1
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/codec/framed_read.rs": {
+      "upstream_source": "src/codec/framed_read.rs",
+      "upstream_sha256": "061131d2280ec0903507eb73b675791b79643ec312cefd5b8bf46dbe3b7707d2",
+      "admission_source_sha256": "061131d2280ec0903507eb73b675791b79643ec312cefd5b8bf46dbe3b7707d2",
+      "embedded_sha256": "26019279b112b7e960bbc7b48c62c5619ca21939a217b016a985f307856bdbf3",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 4
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/codec/framed_write.rs": {
+      "upstream_source": "src/codec/framed_write.rs",
+      "upstream_sha256": "032aab4c8c9108082e915885d0d582871bf4cdd95cd485bdcd7b717087c8ec35",
+      "admission_source_sha256": "032aab4c8c9108082e915885d0d582871bf4cdd95cd485bdcd7b717087c8ec35",
+      "embedded_sha256": "c6f6f3e26c2c246a9e5ca6d90c31109254270a11a4c1636afe5c6c9f990c2bfe",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 4
+        },
+        {
+          "kind": "disabled_upstream_cfg",
+          "expression": "feature = \"unstable\"",
+          "occurrences": 1
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/codec/mod.rs": {
+      "upstream_source": "src/codec/mod.rs",
+      "upstream_sha256": "806fc32706d789f8e48a6867df014d945c438334e981205ff8f43d5b7f8ce0ef",
+      "admission_source_sha256": "806fc32706d789f8e48a6867df014d945c438334e981205ff8f43d5b7f8ce0ef",
+      "embedded_sha256": "89c47cda3bc171e7636c582f9e9414c17a215ce97675be68b891bafe582d89bc",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 2
+        },
+        {
+          "kind": "disabled_upstream_cfg",
+          "expression": "feature = \"unstable\"",
+          "occurrences": 2
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/error.rs": {
+      "upstream_source": "src/error.rs",
+      "upstream_sha256": "b05dc52f36a29b29b1b3e0705a3f1ecf102a89896e173356f3e5fb1165dd6090",
+      "admission_source_sha256": "b05dc52f36a29b29b1b3e0705a3f1ecf102a89896e173356f3e5fb1165dd6090",
+      "embedded_sha256": "2a7a145395c84043f0638ee6a404c64ba9ebd403afd034994de64848d7d2430f",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 6
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/ext.rs": {
+      "upstream_source": "src/ext.rs",
+      "upstream_sha256": "2fb968f754829fc50392b6ccb4b90cc4c8b88657a5e3a7259f53916e13dc1c91",
+      "admission_source_sha256": "2fb968f754829fc50392b6ccb4b90cc4c8b88657a5e3a7259f53916e13dc1c91",
+      "embedded_sha256": "6212a4351f72a9c61db4cb54bbd0e34ff174e912ca209cd64d41c4fdaf091850",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 1
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/frame/data.rs": {
+      "upstream_source": "src/frame/data.rs",
+      "upstream_sha256": "8db7229fdaf0b3f750fce26a2e29a6facacb95622b6d36dfe186c42c8a2d2f73",
+      "admission_source_sha256": "8db7229fdaf0b3f750fce26a2e29a6facacb95622b6d36dfe186c42c8a2d2f73",
+      "embedded_sha256": "210898b0b995e40fcc1ff2893dedf37c6a6fc3a81679d542f915447eb1191c6e",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 1
+        },
+        {
+          "kind": "disabled_upstream_cfg",
+          "expression": "feature = \"unstable\"",
+          "occurrences": 3
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/frame/go_away.rs": {
+      "upstream_source": "src/frame/go_away.rs",
+      "upstream_sha256": "6b3fe966ed96bb941e55e6af3352d7afa43e9bde78dc261251a38b09f5c73202",
+      "admission_source_sha256": "6b3fe966ed96bb941e55e6af3352d7afa43e9bde78dc261251a38b09f5c73202",
+      "embedded_sha256": "e863fe6c7352650e136472d12371989019a97557428d4f62a1963589c9e3fd16",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 1
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/frame/head.rs": {
+      "upstream_source": "src/frame/head.rs",
+      "upstream_sha256": "4073eb70a8ed9ec0ca460e18fb470fca1dbe6900c1ac08d66397ab4d75414e4c",
+      "admission_source_sha256": "4073eb70a8ed9ec0ca460e18fb470fca1dbe6900c1ac08d66397ab4d75414e4c",
+      "embedded_sha256": "4073eb70a8ed9ec0ca460e18fb470fca1dbe6900c1ac08d66397ab4d75414e4c",
+      "operations": []
+    },
+    "pbrs-grpc/src/h2_backend/frame/headers.rs": {
+      "upstream_source": "src/frame/headers.rs",
+      "upstream_sha256": "a7630564280006b29488c2fb399d52a70d8d7ccc6d1276fd291410b329d038c5",
+      "admission_source_sha256": "a7630564280006b29488c2fb399d52a70d8d7ccc6d1276fd291410b329d038c5",
+      "embedded_sha256": "b57f12680da5c788241f95f29863b646a56406ebe9d791bb4c63372dd02fc1ff",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 7
+        },
+        {
+          "kind": "disabled_upstream_cfg",
+          "expression": "feature = \"unstable\"",
+          "occurrences": 4
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/frame/mod.rs": {
+      "upstream_source": "src/frame/mod.rs",
+      "upstream_sha256": "59b9db34f1e3a92a59557c280a14642f523483f1e659b448f1df0e2b0cdc1cd4",
+      "admission_source_sha256": "59b9db34f1e3a92a59557c280a14642f523483f1e659b448f1df0e2b0cdc1cd4",
+      "embedded_sha256": "2b8dc467e40dd5751592b2fd4e9f3da0174beb108be10238e69b6f7ad0c9e62a",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 2
+        },
+        {
+          "kind": "disabled_upstream_cfg",
+          "expression": "feature = \"unstable\"",
+          "occurrences": 1
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/frame/ping.rs": {
+      "upstream_source": "src/frame/ping.rs",
+      "upstream_sha256": "ff4e4059101300e7b03c23d271026b058da4315c3bd68280422e144c2aa1b9e6",
+      "admission_source_sha256": "ff4e4059101300e7b03c23d271026b058da4315c3bd68280422e144c2aa1b9e6",
+      "embedded_sha256": "840071fbe116f8f33e4e6bff6953856c1a9874f70947642600efba70785c2dea",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 2
+        },
+        {
+          "kind": "disabled_upstream_cfg",
+          "expression": "feature = \"unstable\"",
+          "occurrences": 4
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/frame/priority.rs": {
+      "upstream_source": "src/frame/priority.rs",
+      "upstream_sha256": "9392b7aa2636157024dc645c92d0e450a4d3f7a53bc9de1188d3b61178c2b5fc",
+      "admission_source_sha256": "9392b7aa2636157024dc645c92d0e450a4d3f7a53bc9de1188d3b61178c2b5fc",
+      "embedded_sha256": "40a14752d55d791ba681a7f7b74dc252c506934c2b368e88dbcea4aad932b69e",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 1
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/frame/reason.rs": {
+      "upstream_source": "src/frame/reason.rs",
+      "upstream_sha256": "45b13202141b1d8b261d64624b276a9b034d8c3f7d9b6870ee41a204589f4e14",
+      "admission_source_sha256": "45b13202141b1d8b261d64624b276a9b034d8c3f7d9b6870ee41a204589f4e14",
+      "embedded_sha256": "45b13202141b1d8b261d64624b276a9b034d8c3f7d9b6870ee41a204589f4e14",
+      "operations": []
+    },
+    "pbrs-grpc/src/h2_backend/frame/reset.rs": {
+      "upstream_source": "src/frame/reset.rs",
+      "upstream_sha256": "91c17a7391fcb516223fd0358f7770524023b33dd6489902ba23e47b8acc9a9e",
+      "admission_source_sha256": "91c17a7391fcb516223fd0358f7770524023b33dd6489902ba23e47b8acc9a9e",
+      "embedded_sha256": "8da212cb8b4c5329f66ee34c076bd8ceac4a94b2c850991679e959d5919f158d",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 1
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/frame/settings.rs": {
+      "upstream_source": "src/frame/settings.rs",
+      "upstream_sha256": "9aed52868a1ddbb5570025edde2e073d3da1291b58d8759bfed7f086d40ef293",
+      "admission_source_sha256": "9aed52868a1ddbb5570025edde2e073d3da1291b58d8759bfed7f086d40ef293",
+      "embedded_sha256": "f2c1b040d5355fd85e2384c1faf1444d5d0581cffc28b0aadf3328af834bc95e",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 2
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/frame/stream_id.rs": {
+      "upstream_source": "src/frame/stream_id.rs",
+      "upstream_sha256": "c26f217a6703971bde2806bad649be6ecf532dcd0a2e60142b7d34f58aa06815",
+      "admission_source_sha256": "c26f217a6703971bde2806bad649be6ecf532dcd0a2e60142b7d34f58aa06815",
+      "embedded_sha256": "c26f217a6703971bde2806bad649be6ecf532dcd0a2e60142b7d34f58aa06815",
+      "operations": []
+    },
+    "pbrs-grpc/src/h2_backend/frame/util.rs": {
+      "upstream_source": "src/frame/util.rs",
+      "upstream_sha256": "e67635feb8f2dd577b7ee9d673f3909aa6d812105ef1f9b329ddde679ec77dba",
+      "admission_source_sha256": "e67635feb8f2dd577b7ee9d673f3909aa6d812105ef1f9b329ddde679ec77dba",
+      "embedded_sha256": "e67635feb8f2dd577b7ee9d673f3909aa6d812105ef1f9b329ddde679ec77dba",
+      "operations": []
+    },
+    "pbrs-grpc/src/h2_backend/frame/window_update.rs": {
+      "upstream_source": "src/frame/window_update.rs",
+      "upstream_sha256": "05c1b84478208802d09154f5d6fb5eb886d45397f43ccc6ccbf40bf3be912819",
+      "admission_source_sha256": "05c1b84478208802d09154f5d6fb5eb886d45397f43ccc6ccbf40bf3be912819",
+      "embedded_sha256": "8ef878cd745c61b153417ba9375d431723a48882b2a09065429f7c3b33062428",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 2
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/fuzz_bridge.rs": {
+      "upstream_source": "src/fuzz_bridge.rs",
+      "upstream_sha256": "c1570c12528effecbb65b1046d0756cb4b213ee0cfa17bccb44801f30bf304ca",
+      "admission_source_sha256": "c1570c12528effecbb65b1046d0756cb4b213ee0cfa17bccb44801f30bf304ca",
+      "embedded_sha256": "6003ed09096bb11f952e631c7abeecfcb40b4dd9f6755a253ac13479af59ee7b",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 1
+        },
+        {
+          "kind": "disabled_upstream_cfg",
+          "expression": "#[cfg(fuzzing)]",
+          "occurrences": 1
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/hpack/decoder.rs": {
+      "upstream_source": "src/hpack/decoder.rs",
+      "upstream_sha256": "1013f226a9d115eb6cff16a0fd5f60eb4ba95b944a23bbc37f4ee959fd5f3115",
+      "admission_source_sha256": "1013f226a9d115eb6cff16a0fd5f60eb4ba95b944a23bbc37f4ee959fd5f3115",
+      "embedded_sha256": "1debaa681c968cdd432f898fc51199fc648cef9881cca5eed5dfa5467a400ba9",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 1
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/hpack/encoder.rs": {
+      "upstream_source": "src/hpack/encoder.rs",
+      "upstream_sha256": "85b02c0eaa35c353857f2d53fc49c4da059ae60edb0812e75342196202f10f21",
+      "admission_source_sha256": "85b02c0eaa35c353857f2d53fc49c4da059ae60edb0812e75342196202f10f21",
+      "embedded_sha256": "85b02c0eaa35c353857f2d53fc49c4da059ae60edb0812e75342196202f10f21",
+      "operations": []
+    },
+    "pbrs-grpc/src/h2_backend/hpack/header.rs": {
+      "upstream_source": "src/hpack/header.rs",
+      "upstream_sha256": "b41158784403037c347bfecb7de41b63acb46c825a9c15c4011859c418dc540d",
+      "admission_source_sha256": "b41158784403037c347bfecb7de41b63acb46c825a9c15c4011859c418dc540d",
+      "embedded_sha256": "05b78c3f83a73902f968258636dd4c2b4fc8eed626a2db04a95cc3e51a3584f2",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 1
+        },
+        {
+          "kind": "scoped_existing_unsafe_documentation",
+          "new_unsafe_blocks": 0
+        },
+        {
+          "kind": "validated_utf8_constructor_tests",
+          "tests": 3,
+          "test_source_sha256": "c27f9eb9852b6b7b806e7740a5373c21c45dd045b7d446de452427afdf5fe662"
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/hpack/huffman/mod.rs": {
+      "upstream_source": "src/hpack/huffman/mod.rs",
+      "upstream_sha256": "4fb4cc5ae0c174b6e252b01a046331a009c2a251de5141f547d0980975da55ef",
+      "admission_source_sha256": "4fb4cc5ae0c174b6e252b01a046331a009c2a251de5141f547d0980975da55ef",
+      "embedded_sha256": "8feb032c8f29aadcdcc1a7ef166e680b38debe823a289a4899c4a51863c35717",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 1
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/hpack/huffman/table.rs": {
+      "upstream_source": "src/hpack/huffman/table.rs",
+      "upstream_sha256": "c1f7063610fc6a3907389c2110b0f452f3c5cffb4bede5958e45047112c8974b",
+      "admission_source_sha256": "c1f7063610fc6a3907389c2110b0f452f3c5cffb4bede5958e45047112c8974b",
+      "embedded_sha256": "c1f7063610fc6a3907389c2110b0f452f3c5cffb4bede5958e45047112c8974b",
+      "operations": []
+    },
+    "pbrs-grpc/src/h2_backend/hpack/mod.rs": {
+      "upstream_source": "src/hpack/mod.rs",
+      "upstream_sha256": "581033d44fd5525e9ccb546549a99f8357ab8f55d58b490d9980fb36323c5dbc",
+      "admission_source_sha256": "581033d44fd5525e9ccb546549a99f8357ab8f55d58b490d9980fb36323c5dbc",
+      "embedded_sha256": "a567e54284076563ffc71e3d07b69b6224381e05e2b62633b0dc749815d6fa9b",
+      "operations": [
+        {
+          "kind": "external_hpack_suite_not_run"
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/hpack/table.rs": {
+      "upstream_source": "src/hpack/table.rs",
+      "upstream_sha256": "cac4ed7dec7b9a5d92ab7d139a4500698206ca8eff1fbd569f0e6c29d4747a59",
+      "admission_source_sha256": "cac4ed7dec7b9a5d92ab7d139a4500698206ca8eff1fbd569f0e6c29d4747a59",
+      "embedded_sha256": "cac4ed7dec7b9a5d92ab7d139a4500698206ca8eff1fbd569f0e6c29d4747a59",
+      "operations": []
+    },
+    "pbrs-grpc/src/h2_backend/hpack/test/fixture.rs": {
+      "upstream_source": "src/hpack/test/fixture.rs",
+      "upstream_sha256": "0b67a2c9eeb4762baa75156925d689b8828cd23b335a08b3a6b310882d78daba",
+      "admission_source_sha256": "0b67a2c9eeb4762baa75156925d689b8828cd23b335a08b3a6b310882d78daba",
+      "embedded_sha256": "34f8769280b123b2441888a9e7e93d3abddb6bf97e0493948f2e9fa6fc0baae6",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 1
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/hpack/test/fuzz.rs": {
+      "upstream_source": "src/hpack/test/fuzz.rs",
+      "upstream_sha256": "4ff6130c3f7eb2e0cc30416976e6c8f54b42378ff55ab47fe3a1b04465f19cb6",
+      "admission_source_sha256": "4ff6130c3f7eb2e0cc30416976e6c8f54b42378ff55ab47fe3a1b04465f19cb6",
+      "embedded_sha256": "b27a1918bb70c92e8fc2f13535c4cda07dc6724dae0500a992fd29b06ad49d53",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 3
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/hpack/test/mod.rs": {
+      "upstream_source": "src/hpack/test/mod.rs",
+      "upstream_sha256": "56ad5643e7f1e273e5bce8a6fc0552be39c326dacfffd7f9757ccdbe75e9b66e",
+      "admission_source_sha256": "56ad5643e7f1e273e5bce8a6fc0552be39c326dacfffd7f9757ccdbe75e9b66e",
+      "embedded_sha256": "56ad5643e7f1e273e5bce8a6fc0552be39c326dacfffd7f9757ccdbe75e9b66e",
+      "operations": []
+    },
+    "pbrs-grpc/src/h2_backend/mod.rs": {
+      "upstream_source": "src/lib.rs",
+      "upstream_sha256": "c8680fc4eb13ccb4ce944716042bd33c6554677cf8261c371442f91fbee352e0",
+      "admission_source_sha256": "c8680fc4eb13ccb4ce944716042bd33c6554677cf8261c371442f91fbee352e0",
+      "embedded_sha256": "d6ed9e8cad1006f2ebadc948a06ff714760012e14010ae4f58df33b3d1051cdf",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 2
+        },
+        {
+          "kind": "disabled_upstream_cfg",
+          "expression": "feature = \"unstable\"",
+          "occurrences": 7
+        },
+        {
+          "kind": "disabled_upstream_cfg",
+          "expression": "#[cfg(fuzzing)]",
+          "occurrences": 1
+        },
+        {
+          "kind": "scoped_import_lint_boundary",
+          "critical_async_lints_retained": true,
+          "unsafe_code_module_exemption": false
+        },
+        {
+          "kind": "embedded_admission_component_tests",
+          "source_tests": 18
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/proto/connection.rs": {
+      "upstream_source": "src/proto/connection.rs",
+      "upstream_sha256": "e7b371737a3648fee2a0746deab015f99765cd9ec2cb2428ea536b803f097d3c",
+      "admission_source_sha256": "e7b371737a3648fee2a0746deab015f99765cd9ec2cb2428ea536b803f097d3c",
+      "embedded_sha256": "a564ee7fc987e0f5af8b0fe20e0e96ddc21f16e8839efbd11f09bc0cb053c354",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 7
+        },
+        {
+          "kind": "disabled_upstream_cfg",
+          "expression": "feature = \"unstable\"",
+          "occurrences": 1
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/proto/error.rs": {
+      "upstream_source": "src/proto/error.rs",
+      "upstream_sha256": "ae3d3e0613586970bbcae17af539cfab739d1b8df5cabce3b9d866cdba11315a",
+      "admission_source_sha256": "ae3d3e0613586970bbcae17af539cfab739d1b8df5cabce3b9d866cdba11315a",
+      "embedded_sha256": "bf8ddcc92375b25409f7afe0a614dff49532777f66cf816dbcff2f4735e7e45d",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 2
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/proto/go_away.rs": {
+      "upstream_source": "src/proto/go_away.rs",
+      "upstream_sha256": "51d467027bc30873fc76166ed731e968a23725e7b106b58ecadcb85044466a5f",
+      "admission_source_sha256": "51d467027bc30873fc76166ed731e968a23725e7b106b58ecadcb85044466a5f",
+      "embedded_sha256": "07b27b6f0132fb35c992f2a60e337d0cc71ec7f8f5e03c93adcabb0960b34923",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 2
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/proto/mod.rs": {
+      "upstream_source": "src/proto/mod.rs",
+      "upstream_sha256": "592f8c60d97425946ff62cf694e3f36097a793863fc218fb4357dd440ed377e8",
+      "admission_source_sha256": "592f8c60d97425946ff62cf694e3f36097a793863fc218fb4357dd440ed377e8",
+      "embedded_sha256": "0df13f989c99832a41a7861f12a3fe3978d7b96c7f81ddc7f3d7698c52a710f5",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 2
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/proto/peer.rs": {
+      "upstream_source": "src/proto/peer.rs",
+      "upstream_sha256": "a383e4d81502945878333748e40e5a5f64da4403af886d1812027f522fc0d869",
+      "admission_source_sha256": "a383e4d81502945878333748e40e5a5f64da4403af886d1812027f522fc0d869",
+      "embedded_sha256": "92ecc611152fba7da4111e7be85ab3e6fa5154289f29a73c3c3a27e356b997bf",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 5
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/proto/ping_pong.rs": {
+      "upstream_source": "src/proto/ping_pong.rs",
+      "upstream_sha256": "fabf42b1b1062e361c4d45026e9bfc9c32a02a9074259c71b525e78d2113a148",
+      "admission_source_sha256": "fabf42b1b1062e361c4d45026e9bfc9c32a02a9074259c71b525e78d2113a148",
+      "embedded_sha256": "d8e45201036f14d960b3770ca3fbfc85263bd38f77d4d7a9e0b5c611c7a42ce4",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 3
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/proto/settings.rs": {
+      "upstream_source": "src/proto/settings.rs",
+      "upstream_sha256": "0fef5d01aa0233100a0cda9c0b5080a15cfbaab16c42c991933f5ed7db06bf77",
+      "admission_source_sha256": "0fef5d01aa0233100a0cda9c0b5080a15cfbaab16c42c991933f5ed7db06bf77",
+      "embedded_sha256": "30acbbf0d98530f9afd415f9b335c04642a854bec0de9b6fd8b2ad689ea569e1",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 3
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/proto/streams/buffer.rs": {
+      "upstream_source": "src/proto/streams/buffer.rs",
+      "upstream_sha256": "631aa4360b7b942c3899c6fb7455e682655c3ac099a170d5c3d566af3fec8318",
+      "admission_source_sha256": "631aa4360b7b942c3899c6fb7455e682655c3ac099a170d5c3d566af3fec8318",
+      "embedded_sha256": "631aa4360b7b942c3899c6fb7455e682655c3ac099a170d5c3d566af3fec8318",
+      "operations": []
+    },
+    "pbrs-grpc/src/h2_backend/proto/streams/counts.rs": {
+      "upstream_source": "src/proto/streams/counts.rs",
+      "upstream_sha256": "aba319047c01074d9e97afde4999c28e14f0ef21d1d39b7d6c6db4aebc786b79",
+      "admission_source_sha256": "a64db8bdf74e6282676640927bfd8ff4ab2becfe4b52be9f67a56db5ece5a4b5",
+      "embedded_sha256": "ea2d695942d009f784d711ab90be06a3a900fefe785f48803decfc997e327c8c",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 1
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/proto/streams/flow_control.rs": {
+      "upstream_source": "src/proto/streams/flow_control.rs",
+      "upstream_sha256": "a8b3c5cd24b1f83770576ba21d5fcd555f144afd88f246f7d5dbe9e39563c74a",
+      "admission_source_sha256": "a8b3c5cd24b1f83770576ba21d5fcd555f144afd88f246f7d5dbe9e39563c74a",
+      "embedded_sha256": "524109d93705ccedc85e2761ec1fb488c88ef5fe4ea17d7989eb59ba5eaede4f",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 2
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/proto/streams/mod.rs": {
+      "upstream_source": "src/proto/streams/mod.rs",
+      "upstream_sha256": "3f7afa89a19943b1ac56052f64c4e220dbf0e951a4ac74405adbf83ea7050c27",
+      "admission_source_sha256": "3f7afa89a19943b1ac56052f64c4e220dbf0e951a4ac74405adbf83ea7050c27",
+      "embedded_sha256": "5d5642c75dfadf2af4b44a850ac54173dde8080e1d080f9f7a389833f0caef81",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 2
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/proto/streams/prioritize.rs": {
+      "upstream_source": "src/proto/streams/prioritize.rs",
+      "upstream_sha256": "5eba6fc5c252104676fa76e13fe07459fdbb9bc55df6483b1683fa99ad6fa674",
+      "admission_source_sha256": "4f36786669a18fcbace8abd7a11b5d1fbb9ed6def76faed40488760347e7d461",
+      "embedded_sha256": "8fce33a1ce8c67c6c3f575e1340ea77644c4e0631a65cdaab0053527982bf027",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 3
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/proto/streams/recv.rs": {
+      "upstream_source": "src/proto/streams/recv.rs",
+      "upstream_sha256": "49888eca03594469393d8b3bf328036007aff0e87df704f61a4556e4272386f8",
+      "admission_source_sha256": "49888eca03594469393d8b3bf328036007aff0e87df704f61a4556e4272386f8",
+      "embedded_sha256": "8bf5dc294fde91cd2defede2c68a40595a4d545b4e01f1e5c224dfb54a0041e2",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 4
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/proto/streams/send.rs": {
+      "upstream_source": "src/proto/streams/send.rs",
+      "upstream_sha256": "ee355358b86ea048fd0e64642595e7be6e7f03a39d96745e74503cba2f1b08ef",
+      "admission_source_sha256": "66eda85db47211e487db074db288ec2a1a965c19c980eca6776d91f161b6e90e",
+      "embedded_sha256": "52e4d7ebd7936ea06197d0fef088fc00a6f55ff267454491d31e6ae3a13344a5",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 4
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/proto/streams/state.rs": {
+      "upstream_source": "src/proto/streams/state.rs",
+      "upstream_sha256": "486b99b293d0f874b72724e1511cb0b11b44b3906ea20eb176fae1821772794d",
+      "admission_source_sha256": "486b99b293d0f874b72724e1511cb0b11b44b3906ea20eb176fae1821772794d",
+      "embedded_sha256": "a4715ceaee341a8c9db8890f80bd613969b6900c8416d78b4c84c7b18c4cda32",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 4
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/proto/streams/store.rs": {
+      "upstream_source": "src/proto/streams/store.rs",
+      "upstream_sha256": "040005e8af13193db7bd89c20a44e28f5d18976a4b8562bf068dd8bd4a982668",
+      "admission_source_sha256": "040005e8af13193db7bd89c20a44e28f5d18976a4b8562bf068dd8bd4a982668",
+      "embedded_sha256": "740a2a5f7f42900f239fc4b93d68d7fb5a9d5be97c6ad1e3b246a4c7cb0d4cce",
+      "operations": [
+        {
+          "kind": "disabled_upstream_cfg",
+          "expression": "feature = \"unstable\"",
+          "occurrences": 3
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/proto/streams/stream.rs": {
+      "upstream_source": "src/proto/streams/stream.rs",
+      "upstream_sha256": "e31a59444ba7b885040556b89c19b308321e2adeab1cdb2cce720285701d56a0",
+      "admission_source_sha256": "e31a59444ba7b885040556b89c19b308321e2adeab1cdb2cce720285701d56a0",
+      "embedded_sha256": "7921970f130bd9a5ff2e1c7b9d87a7d010685e49c2473d2093c28653db6ff52c",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 1
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/proto/streams/streams.rs": {
+      "upstream_source": "src/proto/streams/streams.rs",
+      "upstream_sha256": "d2f866b385ea8107ecb4a56e0089523abeabb6a5dc8e107c0a6c3eeb26955290",
+      "admission_source_sha256": "0319db21d756dc0eb5c6246d636b1c5e399a2f84d1cc779b043b862275e441db",
+      "embedded_sha256": "4a2628454b17efe074a4081a29d36919aac5cf81c1343b8a90bc82b5370d377d",
+      "operations": [
+        {
+          "kind": "namespace",
+          "occurrences": 14
+        },
+        {
+          "kind": "disabled_upstream_cfg",
+          "expression": "feature = \"unstable\"",
+          "occurrences": 2
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/server.rs": {
+      "upstream_source": "src/server.rs",
+      "upstream_sha256": "6c288263c09ea51eabf87332a990547a8212bfd9d9301e5540d51cbe56b27d86",
+      "admission_source_sha256": "6c288263c09ea51eabf87332a990547a8212bfd9d9301e5540d51cbe56b27d86",
+      "embedded_sha256": "f035c4f7f579c94505fd7550212a42e772063b0b4486dbd495ff91e538fe5848",
+      "operations": [
+        {
+          "kind": "upstream_examples_as_nonexecuted_text",
+          "examples": 16
+        },
+        {
+          "kind": "namespace",
+          "occurrences": 28
+        },
+        {
+          "kind": "disabled_upstream_cfg",
+          "expression": "feature = \"stream\"",
+          "occurrences": 1
+        },
+        {
+          "kind": "disabled_upstream_cfg",
+          "expression": "feature = \"unstable\"",
+          "occurrences": 1
+        }
+      ]
+    },
+    "pbrs-grpc/src/h2_backend/share.rs": {
+      "upstream_source": "src/share.rs",
+      "upstream_sha256": "e313c11a24b649d4c9da937fb37e5c2cc7c689c53f6afd2470fd40fd030237c5",
+      "admission_source_sha256": "e313c11a24b649d4c9da937fb37e5c2cc7c689c53f6afd2470fd40fd030237c5",
+      "embedded_sha256": "e074a9c652d8bd379950dca0171d7d431e0c4681e849005682638f4dcd02c27f",
+      "operations": [
+        {
+          "kind": "upstream_examples_as_nonexecuted_text",
+          "examples": 3
+        },
+        {
+          "kind": "namespace",
+          "occurrences": 20
+        },
+        {
+          "kind": "disabled_upstream_cfg",
+          "expression": "feature = \"stream\"",
+          "occurrences": 2
+        }
+      ]
+    }
+  },
+  "owned_test_files": {
+    "pbrs-grpc/src/h2_backend/admission_tests.rs": {
+      "standalone_sha256": "6a997b94699feec78835a1cf07fd0d3212c5cf2929d570032f163ac360f77e93",
+      "before_format_sha256": "e70019b3a3cc614b68c3be0b73b5b48266288e0f1beeb6ac2520dc4baf6a8db2",
+      "embedded_sha256": "e70019b3a3cc614b68c3be0b73b5b48266288e0f1beeb6ac2520dc4baf6a8db2"
+    },
+    "pbrs-grpc/src/h2_backend/admission_additional_tests.rs": {
+      "standalone_sha256": "c72ad52ce944329a070813ab2bd3441abc9267bb7007db47803b6f579e4fe702",
+      "before_format_sha256": "6e4173e1183b4ed5cd096ce1d196ab2baf679cdd942bda020df4040fac705dab",
+      "embedded_sha256": "af25db414524d1305805991955d7ed9492462121decfe2e69d4b8e4c6b4a305a"
+    }
+  },
+  "owned_test_formatting": {
+    "rustfmt_sha256": "a3ab6c445b26eda8d7bcfd5cc3f4b068dd7136af96822fd21378fc6fe8c2f2a3",
+    "version": "rustfmt 1.10.0-stable (b940084d7e 2026-09-28)",
+    "edition": "2024",
+    "skip_children": true
+  },
+  "external_hpack_fixture_fuzz_suite": "not_run; excluded registry fixtures and extra dev dependencies",
+  "new_unsafe_blocks": 0,
+  "retained_unsafe_blocks": 1
+}

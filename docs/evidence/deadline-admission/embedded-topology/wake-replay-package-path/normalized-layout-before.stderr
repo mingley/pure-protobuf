@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/workspace/scratch/work/h2-embedded/work/h2-embedding/wake-replay-package-path/pbrs-grpc-0.1.0-alpha.2/src/h2_backend/replay-wake-guard-1.88-overlay.py", line 30, in <module>
+    assert (ROOT / path).read_bytes() == replayed
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1019, in read_bytes
+    with self.open(mode='rb') as f:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/workspace/scratch/work/h2-embedded/work/h2-embedding/wake-replay-package-path/pbrs-grpc/src/h2_backend/admission_tests.rs'
