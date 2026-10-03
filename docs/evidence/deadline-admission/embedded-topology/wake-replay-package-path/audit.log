@@ -1,0 +1,8 @@
+{
+  "status": "pass",
+  "recorded_gates": 5,
+  "original_normalized_fixture_exit": 1,
+  "corrected_normalized_fixture_exit": 0,
+  "cargo_compiler_run": false,
+  "runtime_changed": false
+}
