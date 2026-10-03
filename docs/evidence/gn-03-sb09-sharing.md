@@ -2,9 +2,10 @@
 
 This record qualifies the benchmark wiring at
 `dea20f7ae6ec5d33fe4d7cb5fe64004cf6263247`. The small and 100-message corpora
-each have one **unqualified local diagnostic pair**. The first 1,000-message
-attempt passed default cold check, then stopped at the cache cap; its shared
-profile, linked binaries, and paired comparison are **not_run**. Qualified
+each have one **unqualified local diagnostic pair**. A later 1,000-message
+historical-source retry also completed one unqualified pair. The first
+1,000-message attempt remains preserved as a cache-cap failure: its shared
+profile, linked binaries, and paired comparison were **not_run**. Qualified
 performance acceptance remains open. The
 [source-sharing record](gn-03-source-sharing.md) proves source-volume reduction
 and functional behavior; it does not prove these remaining GN03 costs.
@@ -65,7 +66,8 @@ not statistical or independent-host qualification.
 Provenance will include source/tool/generator/input/manifest/lock hashes, raw
 phase logs, actual linked executable bytes/hashes, and resource telemetry. Each
 completed target is reclaimed only after preserving its evidence and executable.
-The reused excluded bootstrap is about 691 MiB. The cache limit is 2 GiB with
+The original reused excluded bootstrap was about 691 MiB. It was later reclaimed
+after preserving its evidence, as described below. The cache limit is 2 GiB with
 at least 2 GiB global free space; budget failures terminate only the coordinator's
 own timed process groups and are retained. Capture leases can be released after
 each corpus pair. Original failed attempts and deferred cold-consumer status
@@ -157,8 +159,9 @@ smoke output, linked-executable hashes/sizes, and sampled resource bounds:
 python3 -B docs/evidence/gn-03-sb09-small-artifacts/check-pair.py
 ```
 
-Completion of the 1,000-message pair and repeat/control qualification remain
-pending separate root capture leases. GN03 remains open.
+At this stage, the 1,000-message pair and repeat/control qualification were
+pending separate root capture leases. The subsequent attempts are retained
+below; qualified performance acceptance remains open.
 
 ## First 100-message diagnostic
 
@@ -208,7 +211,8 @@ without running any compiler or archived executable:
 python3 -B docs/evidence/gn-03-sb09-100-artifacts/check-pair.py
 ```
 
-The 1,000-message pair, repeated/control qualification, and any separate
+At this stage, the 1,000-message pair was pending. Its failure and later retry
+are retained below. Repeated/control qualification and any separate
 reflective-consumer diagnostic remain pending. GN03 remains open.
 
 ## Failed first 1,000-message attempt
@@ -302,3 +306,88 @@ hash, process-check results and limitations, and the frozen generator pin.
 The unused cache is absent, so the remaining nonarchived cache-file digests are
 historical inventory records rather than files that can be reread. A later
 same-generator retry requires an additive namespace and a new quiet lease.
+
+## Completed historical-source 1,000-message retry
+
+After the excluded bootstrap cache was reclaimed, root granted a new exclusive
+quiet/LTO lease at **2026-10-03 03:42:18 UTC**. The retry used the additive
+namespace `gn03-1000-historical-retry-20261003-011228`, at source
+`795193f69e4adac3d9fc980f385d5b113f0b9aa5`. It reused the exact common
+generator `718aef4131813c1c6fc449e33202588fc6bf48cc330bd28cfd33a96e056f524b`,
+69 historical source inputs, original driver lock, schema/tool pins, seed,
+default/shared order, jobs=1, workloads, 900-second phase timeout, and original
+opt-level=3/thin-LTO/codegen-units=1 settings. No generator rebuild occurred.
+Both initially nonexistent profile targets remained separate.
+
+This is a **historical generator and locked-source comparison**, not a
+measurement of current production main. Main at preflight was the docs-only
+commit `4b2384e728bce17601d56e43a887c354d66b9024`, whose compiled baseline was
+`10bee600737b8a207159e63581bebc01b07ec2d7`. Against the 69 frozen inputs,
+current main differed in `Cargo.lock`, `src/codegen/config.rs`, and
+`src/text.rs`. The prelaunch preparation retains the historical inventory and
+exact hash differences; none of these main files replaced the historical
+capture inputs.
+
+| Observed cost | Default | Shared |
+| --- | ---: | ---: |
+| Generated source bytes | 35,782,708 | 19,310,413 |
+| First generation milliseconds | 117.737285 | 114.271150 |
+| Unchanged generation milliseconds | 114.883383 | 120.951340 |
+| Cold check seconds | 82.057415 | 75.760146 |
+| Incremental check seconds | 20.070839 | 15.500649 |
+| Release build seconds | 321.823111 | 312.725829 |
+| Linked executable bytes | 8,896,328 | 8,896,328 |
+
+Source volume was 46.03% lower with sharing. In this single pair, shared cold
+check, incremental check, and release durations were 7.67%, 22.77%, and 2.83%
+lower, respectively. **Unchanged generation was 5.28% slower**. The executables
+had **equal size** and different hashes, so there is no binary-size win. The
+frozen round-trip consumer does not read reflection metadata; this pair does
+not establish metadata-retaining consumer cost. All raw timing and RSS results,
+including the slower generation cell, remain in the reports.
+
+All seven phases passed for both profiles, including unchanged-generation
+mtime checks and the original `1\n` smoke output. Actual outer launch was
+03:46:45.705825 UTC; the coordinator recorded the pair at
+03:46:45.837930–04:00:35.084026 UTC. Default and shared began at
+03:46:45.851292 and 03:53:50.435265 UTC. Their cache cleanup completions were
+03:53:50.434549 and 04:00:35.074197 UTC. The coordinator exited zero at
+04:00:35.113768 UTC. The agent observed completion at 04:00:35.212435 UTC and
+immediately notified root of lease release; the notification's exact send time
+was not independently captured. No quiet-window exception was reported for this retry.
+The earlier small-pair overlap note and failed first 1,000 attempt remain
+unchanged.
+
+The first prelaunch process-name check refused on ten empty-argv Cargo/rustc
+rows. Their `/proc` states were all `Z` (zombies), and the corrected prelaunch
+snapshot found no active compiler. That refusal occurred before any measured
+launch, and its disposition is retained. The snapshot covers accessible names,
+arguments, states, executable paths, and working directories. Three processes denied
+executable/cwd reads; environment, descriptor, and mapping reads were not part
+of this snapshot. Root coordinated the exclusive lease; this limited snapshot
+does not claim complete system-wide process inspection.
+
+No resource guard failed. Maximum sampled allocated-cache bytes were
+1,706,467,328 for default and 1,445,179,392 for shared, below the unchanged
+2,147,483,648-byte cap. Minimum sampled global free space was 2,651,832,320
+and 2,867,990,528 bytes, above the separate unchanged 2 GiB reserve. The reused
+bootstrap was empty. Each completed target was reclaimed only after retaining
+the linked ELF and the original coordinator's fingerprint SHA256 inventory.
+These fingerprint inventories contain digests, not the original file contents.
+
+The [retry artifacts](gn-03-sb09-1000-retry-artifacts/artifact-sha256.json)
+retain the common generator, exact source/schema/tool and bootstrap records,
+both corpus/generated/consumer trees and locks, linked ELFs, reports, raw child
+logs, separately captured coordinator stdout/stderr, resource telemetry, and
+prelaunch/launch/exit/quiet-window records. The verifier reads the archive without
+executing compiler output:
+
+```sh
+python3 -B docs/evidence/gn-03-sb09-1000-retry-artifacts/check-pair.py
+```
+
+There is still one fixed-order pair per corpus, no independent reference peer,
+no statistical repeat/control qualification, and no metadata-retaining consumer
+measurement. The single historical retry does not qualify current-main
+production compilation or establish a performance improvement. GN03 remains
+open.

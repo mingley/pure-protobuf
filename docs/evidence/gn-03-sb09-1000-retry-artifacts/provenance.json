@@ -1,0 +1,135 @@
+{
+  "source_commit": "795193f69e4adac3d9fc980f385d5b113f0b9aa5",
+  "source_implementation_commit": "c7d2552e9c1b4229126aa172cd122343a292c7b6",
+  "harness_implementation_commit": "dea20f7ae6ec5d33fe4d7cb5fe64004cf6263247",
+  "historical_source_label": "pinned historical generator/compiler inputs and locked dependency graph; not a measurement of current production main after style, private-H2/caller and dependency-edge changes",
+  "current_main_comparison_commit": "4b2384e728bce17601d56e43a887c354d66b9024",
+  "differences_against_current_main": {
+    "Cargo.lock": {
+      "historical_sha256": "143bd380614c258637da68df0e839157955b0c294a5faf563e927034d557a76e",
+      "main_sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5"
+    },
+    "src/codegen/config.rs": {
+      "historical_sha256": "6e949c5d97f60a0fa0352ef2488808d09eec9e8604935d7700317807d06d1466",
+      "main_sha256": "6b8fcbd7ab49ab954b51d87af0da0c869e3d8fdad949d7b3db278fa3d8eb494d"
+    },
+    "src/text.rs": {
+      "historical_sha256": "94306401b38469e9e9df5c202edf7d1a73d5c156641af72cf6c21aeff7c1cf21",
+      "main_sha256": "4422d387177590064af057dbc045d2ad07fe2a9f04aa35b8a1ac1c2c521b9fc5"
+    }
+  },
+  "historical_source_inventory_count": 69,
+  "same_frozen_generator_sha256": "718aef4131813c1c6fc449e33202588fc6bf48cc330bd28cfd33a96e056f524b",
+  "same_frozen_driver_lock_sha256": "f6f3382c52829e93543a6bfae35c61bfcda46e23200944df25e1968a22e14d63",
+  "coordinator_sha256": "9146637996b827afd224de26ddf10cf0727f134c758b7ca28ae5bb17e98fb084",
+  "campaign": "target/codegen-bench/gn03-1000-historical-retry-20261003-011228",
+  "original_campaign_preserved": "target/codegen-bench/gn03-small-pair-20261002-234019",
+  "original_evidence_record_pins": {
+    "pair-small.json": "2efa9a15323bfc573accfcd0a72712b5e15dd9ba915f8b10590c16f8fd1b42cf",
+    "quiet-window-notes.json": "2a33120d05895cbbe369c4c537ce1d841fdabc14c8829f481b98710e68af46c0",
+    "pair-100.json": "29d7ba89e9e62700ae8bebe579cd89c6213b8459cf7c357f00c11bc79ed3a6d3",
+    "pair-1000.json": "2cfbc20e43d5e451ea5739feeaab56bf1dc310e2363d7a6af60738356a567663",
+    "1000-default/summary.json": "3a33a83452378a554f501b3f33eb1af4462c4314893454b7612ad49aade3e02a",
+    "1000-default/resource-telemetry.json": "071e6bbd7e39a4b6d382d79a56406c9f4d043463bda195a8d889846d4ce32154"
+  },
+  "original_evidence_recheck_after_retry": "all recorded original small/100/failed1000 pins unchanged",
+  "lease": "Root exclusive quiet/LTO lease granted 2026-10-03 03:42:18 UTC; actual launch independently recorded in coordinator/launch-1000-retry.json; all other compiler/test/capture/hash/archive work held",
+  "launch": {
+    "root_lease_grant_utc": "2026-10-03 03:42:18 UTC",
+    "actual_outer_launch_utc": "2026-10-03T03:46:45.705825+00:00",
+    "worktree": "/workspace/scratch/work/gn03",
+    "argv": [
+      "python3",
+      "-B",
+      "work/sb09-paired-screen.py",
+      "--case",
+      "1000",
+      "--campaign",
+      "gn03-1000-historical-retry-20261003-011228",
+      "--lease",
+      "Root exclusive quiet/LTO lease granted 2026-10-03 03:42:18 UTC; actual launch independently recorded in coordinator/launch-1000-retry.json; all other compiler/test/capture/hash/archive work held",
+      "--execute"
+    ],
+    "environment_controls": {
+      "CARGO_BUILD_JOBS": "1"
+    },
+    "stdout_log": "stdout-1000-retry.log",
+    "stderr_log": "stderr-1000-retry.log",
+    "process_visibility": "prelaunch-process-visibility.json",
+    "historical_source_label": "historical 69 source inputs, common copied generator718aef and original locked graph; not current-main production compiler inputs"
+  },
+  "exit": {
+    "actual_outer_exit_utc": "2026-10-03T04:00:35.113768+00:00",
+    "coordinator_exit_code": 0
+  },
+  "quiet_window": {
+    "agent_record_written_utc": "2026-10-03T04:01:03.067419+00:00",
+    "quiet_lease_grant_utc": "2026-10-03 03:42:18 UTC",
+    "timed_pair_start_utc": "2026-10-03T03:46:45.837930+00:00",
+    "timed_pair_end_utc": "2026-10-03T04:00:35.084026+00:00",
+    "quiet_exceptions_reported_during_retry": [],
+    "qualification": "one historical-source diagnostic pair; no statistical performance claim",
+    "note": "root held all other work during the lease; limited process snapshot is recorded separately; original small-pair exception and failed1000 attempt remain unchanged",
+    "agent_stop_observation_utc": "2026-10-03T04:00:35.212435+00:00",
+    "agent_release_notification": "sent immediately after completion observation; exact collaboration notification send time not independently captured"
+  },
+  "started_at_utc": "2026-10-03T03:46:45.837930+00:00",
+  "finished_at_utc": "2026-10-03T04:00:35.084026+00:00",
+  "numeric_classification": "unqualified historical-source single fixed-order default/shared diagnostic pair",
+  "metrics": {
+    "default": {
+      "output.rust_bytes": 35782708,
+      "release_binary.size_bytes": 8896328,
+      "generation.elapsed_ns": 117737285,
+      "generation.peak_rss_bytes": 80191488,
+      "generation_unchanged.elapsed_ns": 114883383,
+      "generation_unchanged.peak_rss_bytes": 80224256,
+      "check_clean.elapsed_ns": 82057414801,
+      "check_clean.peak_rss_bytes": 5611970560,
+      "check_incremental.elapsed_ns": 20070838876,
+      "check_incremental.peak_rss_bytes": 4347543552,
+      "build_release.elapsed_ns": 321823111482,
+      "build_release.peak_rss_bytes": 6794219520
+    },
+    "shared": {
+      "output.rust_bytes": 19310413,
+      "release_binary.size_bytes": 8896328,
+      "generation.elapsed_ns": 114271150,
+      "generation.peak_rss_bytes": 54177792,
+      "generation_unchanged.elapsed_ns": 120951340,
+      "generation_unchanged.peak_rss_bytes": 54067200,
+      "check_clean.elapsed_ns": 75760145707,
+      "check_clean.peak_rss_bytes": 4695531520,
+      "check_incremental.elapsed_ns": 15500648918,
+      "check_incremental.peak_rss_bytes": 3511939072,
+      "build_release.elapsed_ns": 312725829235,
+      "build_release.peak_rss_bytes": 6029348864
+    }
+  },
+  "resource_summaries": {
+    "default": {
+      "maximum_sampled_allocated_cache_bytes": 1706467328,
+      "minimum_sampled_global_free_bytes": 2651832320,
+      "samples": 86,
+      "failures": []
+    },
+    "shared": {
+      "maximum_sampled_allocated_cache_bytes": 1445179392,
+      "minimum_sampled_global_free_bytes": 2867990528,
+      "samples": 82,
+      "failures": []
+    }
+  },
+  "release_binary_result": "equal size (8896328 bytes), distinct retained ELF hashes; no size win",
+  "shared_unchanged_generation_result": "120951340ns versus default114883383ns; shared5.2818404555513565% slower observation",
+  "fingerprint_inventory_entries": {
+    "default": 162,
+    "shared": 162
+  },
+  "compiler_fingerprint_retention": "original coordinator v2 SHA256 inventories only; original measured-target fingerprint contents not retained",
+  "raw_archive_scope": "all retained new retry campaign files: common bootstrap/tool/source/schema/driver records, both full consumer/corpus/generated trees and manifests/locks, linked ELFs, phase logs/reports, fingerprint inventories, telemetry, separate coordinator stdout/stderr and prelaunch/launch/exit/quiet-window records; no build cache",
+  "archive_members": 233,
+  "archived_logical_file_bytes": 85094764,
+  "packaged_at_utc": "2026-10-03T04:04:26.349235+00:00",
+  "no_full_build_cache_retained": true
+}
