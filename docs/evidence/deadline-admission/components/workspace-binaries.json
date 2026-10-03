@@ -1,0 +1,34 @@
+{
+  "/workspace/scratch/work/deadline-admission/work/h2-admission-prototype/check-only-rejected/libh2_check_only.rlib": {
+    "sha256": "0f4c11278defc7d4bf5976f4f21b068c56eb397200ee1ab66ca83e8fe9eef44b",
+    "bytes": 8785618
+  },
+  "/workspace/scratch/work/deadline-admission/work/h2-admission-prototype/admission-tests": {
+    "sha256": "eabbb1e39a1ad449a6bf93f13ef5a92d2fcaa7958293f50e4a92a1c8883251a8",
+    "bytes": 11228456
+  },
+  "/workspace/scratch/work/deadline-admission/work/h2-admission-prototype/queue-reserved-untested/libh2_admission.rlib": {
+    "sha256": "debad05c95b81c027e6f0362800179e862d1c44abd1e47cc3274be591a008ca9",
+    "bytes": 8790390
+  },
+  "/workspace/scratch/work/deadline-admission/work/h2-admission-prototype/queue-reserved-corrected-seven/libh2_admission.rlib": {
+    "sha256": "4136a19e90d8fda7a140abbe18245aad86887ec8f098164351432d5be070c785",
+    "bytes": 8790566
+  },
+  "/workspace/scratch/work/deadline-admission/work/h2-admission-prototype/queue-reserved-corrected-seven/admission-tests": {
+    "sha256": "2a4433591569afd0e0704ce5c18b1170e972094190341bbb84d7a0acc0aa8526",
+    "bytes": 11228672
+  },
+  "/workspace/scratch/work/deadline-admission/work/h2-admission-prototype/additive-only-eighteen/libh2_admission.rlib": {
+    "sha256": "bdf32eeb714d9cb052d18d1a2c652289674e2cb1b7882d3c0872ab5c054811ce",
+    "bytes": 8789046
+  },
+  "/workspace/scratch/work/deadline-admission/work/h2-admission-prototype/additive-only-eighteen/admission-tests": {
+    "sha256": "0b41a4dd8da124538a252773da5cd6e63565c15b52fcbceb914c248005e0cd4d",
+    "bytes": 11738528
+  },
+  "/workspace/scratch/work/deadline-admission/work/h2-admission-prototype/mixed-waker-red/admission-tests": {
+    "sha256": "048578fa53b40f23b6651ecefc09aabf1061649ba47336abcf82608838aa07b3",
+    "bytes": 11745024
+  }
+}

@@ -1,0 +1,44 @@
+
+running 7 tests
+
+thread 'canceled_future_releases_task_waker_while_sender_remains_live' (285777) panicked at /workspace/scratch/work/deadline-admission/work/h2-admission-prototype/vendor/h2/src/client.rs:650:9:
+assertion failed: !stream.is_pending_open()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'expired_pending_request_is_untouched_and_never_allocates_stream' (285779) panicked at /workspace/scratch/work/deadline-admission/work/h2-admission-prototype/vendor/h2/src/client.rs:650:9:
+assertion failed: !stream.is_pending_open()
+test connection_death_wakes_even_a_zero_capacity_waiter ... ok
+test canceled_future_releases_task_waker_while_sender_remains_live ... FAILED
+test expired_pending_request_is_untouched_and_never_allocates_stream ... FAILED
+
+thread 'extension_drop_can_reenter_sender_without_deadlocking_stream_lock' (285780) panicked at /workspace/scratch/work/deadline-admission/work/h2-admission-prototype/vendor/h2/src/client.rs:650:9:
+assertion failed: !stream.is_pending_open()
+
+thread 'many_waiters_wake_without_oversubscribing_capacity' (285782) panicked at /workspace/scratch/work/deadline-admission/work/h2-admission-prototype/vendor/h2/src/client.rs:650:9:
+assertion failed: !stream.is_pending_open()
+
+thread 'initial_settings_zero_and_growth_wake_pending_request' (285781) panicked at /workspace/scratch/work/deadline-admission/work/h2-admission-prototype/vendor/h2/src/client.rs:650:9:
+assertion failed: !stream.is_pending_open()
+
+thread 'initial_settings_zero_and_growth_wake_pending_request' (285781) panicked at work/h2-admission-prototype/admission_tests.rs:186:29:
+called `Result::unwrap()` on an `Err` value: JoinError::Panic(Id(8), "assertion failed: !stream.is_pending_open()", ...)
+test extension_drop_can_reenter_sender_without_deadlocking_stream_lock ... FAILED
+test many_waiters_wake_without_oversubscribing_capacity ... FAILED
+test initial_settings_zero_and_growth_wake_pending_request ... FAILED
+
+thread 'shrink_below_active_count_does_not_admit_another_request' (285783) panicked at /workspace/scratch/work/deadline-admission/work/h2-admission-prototype/vendor/h2/src/client.rs:650:9:
+assertion failed: !stream.is_pending_open()
+test shrink_below_active_count_does_not_admit_another_request ... FAILED
+
+failures:
+
+failures:
+    canceled_future_releases_task_waker_while_sender_remains_live
+    expired_pending_request_is_untouched_and_never_allocates_stream
+    extension_drop_can_reenter_sender_without_deadlocking_stream_lock
+    initial_settings_zero_and_growth_wake_pending_request
+    many_waiters_wake_without_oversubscribing_capacity
+    shrink_below_active_count_does_not_admit_another_request
+
+test result: FAILED. 1 passed; 6 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

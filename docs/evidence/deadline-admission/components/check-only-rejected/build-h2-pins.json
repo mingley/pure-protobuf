@@ -1,0 +1,88 @@
+{
+  "argv": [
+    "rustc",
+    "--crate-name",
+    "h2",
+    "--edition=2021",
+    "--crate-type",
+    "rlib",
+    "/workspace/scratch/work/deadline-admission/work/h2-admission-prototype/vendor/h2/src/lib.rs",
+    "-L",
+    "dependency=/workspace/scratch/work/verify-main/target/debug/deps",
+    "-C",
+    "debuginfo=0",
+    "-C",
+    "metadata=owned_admission_prototype",
+    "-o",
+    "/workspace/scratch/work/deadline-admission/work/h2-admission-prototype/libh2_admission.rlib",
+    "--extern",
+    "futures_core=/workspace/scratch/work/verify-main/target/debug/deps/libfutures_core-c66a5fb3b29423ff.rlib",
+    "--extern",
+    "atomic_waker=/workspace/scratch/work/verify-main/target/debug/deps/libatomic_waker-8e9a2361397e5d91.rlib",
+    "--extern",
+    "fnv=/workspace/scratch/work/verify-main/target/debug/deps/libfnv-3b7948bc90dacf69.rlib",
+    "--extern",
+    "tokio=/workspace/scratch/work/verify-main/target/debug/deps/libtokio-d60741ff1b43c85b.rlib",
+    "--extern",
+    "indexmap=/workspace/scratch/work/verify-main/target/debug/deps/libindexmap-0a2423f982cdc169.rlib",
+    "--extern",
+    "bytes=/workspace/scratch/work/verify-main/target/debug/deps/libbytes-5c7552e459571a76.rlib",
+    "--extern",
+    "http=/workspace/scratch/work/verify-main/target/debug/deps/libhttp-529d7246193601b7.rlib",
+    "--extern",
+    "tracing=/workspace/scratch/work/verify-main/target/debug/deps/libtracing-58fd86493e3dd54f.rlib",
+    "--extern",
+    "slab=/workspace/scratch/work/verify-main/target/debug/deps/libslab-268a4884791f8d9d.rlib",
+    "--extern",
+    "futures_sink=/workspace/scratch/work/verify-main/target/debug/deps/libfutures_sink-a810dbeb9f6a3689.rlib",
+    "--extern",
+    "tokio_util=/workspace/scratch/work/verify-main/target/debug/deps/libtokio_util-ff6a739fbd4769ca.rlib"
+  ],
+  "exit_code": 0,
+  "externs": {
+    "futures_core": {
+      "path": "/workspace/scratch/work/verify-main/target/debug/deps/libfutures_core-c66a5fb3b29423ff.rlib",
+      "sha256": "14f5c276dcdc72006a005a11385a989f060f744516ea0e8d5508c79520becb64"
+    },
+    "atomic_waker": {
+      "path": "/workspace/scratch/work/verify-main/target/debug/deps/libatomic_waker-8e9a2361397e5d91.rlib",
+      "sha256": "1e43a5522ff2c768a5558526b5469699ee497ec76882f6336a8207c572381346"
+    },
+    "fnv": {
+      "path": "/workspace/scratch/work/verify-main/target/debug/deps/libfnv-3b7948bc90dacf69.rlib",
+      "sha256": "766c10654481d8346c02cefa1b0ca672e5843581f5a66eec83cf83259deb0064"
+    },
+    "tokio": {
+      "path": "/workspace/scratch/work/verify-main/target/debug/deps/libtokio-d60741ff1b43c85b.rlib",
+      "sha256": "19317ec4fa2e37c904ffcb1a2eb963a2b99a10d89dda67fc3ddf701312e2ea3f"
+    },
+    "indexmap": {
+      "path": "/workspace/scratch/work/verify-main/target/debug/deps/libindexmap-0a2423f982cdc169.rlib",
+      "sha256": "a286b457cd4ab22c24de6cf6d88e50c28796ceb0e60081491196e2b15a07271f"
+    },
+    "bytes": {
+      "path": "/workspace/scratch/work/verify-main/target/debug/deps/libbytes-5c7552e459571a76.rlib",
+      "sha256": "f6c0cf935d0313a60ea01b51d44c17e3e908cfe3041c60b960bb6cabe0dee1f3"
+    },
+    "http": {
+      "path": "/workspace/scratch/work/verify-main/target/debug/deps/libhttp-529d7246193601b7.rlib",
+      "sha256": "836bcce3adc98153f121f2e9c43aca6ed6d266db36ab5ed1b42fe2ad25a10e37"
+    },
+    "tracing": {
+      "path": "/workspace/scratch/work/verify-main/target/debug/deps/libtracing-58fd86493e3dd54f.rlib",
+      "sha256": "765241df83ef869f8d07a9280b27c55013ee5929caf3fdb43372f4cbdc035027"
+    },
+    "slab": {
+      "path": "/workspace/scratch/work/verify-main/target/debug/deps/libslab-268a4884791f8d9d.rlib",
+      "sha256": "7bb5879f0436d094f110cdc60c78179c700906a87ec1dfd022f06b2c8987427f"
+    },
+    "futures_sink": {
+      "path": "/workspace/scratch/work/verify-main/target/debug/deps/libfutures_sink-a810dbeb9f6a3689.rlib",
+      "sha256": "91e95b96f0734efafc530d95248259320cd5ae90d7a3fb73b54f44b3ce6678ba"
+    },
+    "tokio_util": {
+      "path": "/workspace/scratch/work/verify-main/target/debug/deps/libtokio_util-ff6a739fbd4769ca.rlib",
+      "sha256": "ed446ce54a6851b8eff609bf115e4698b0b21887cf2895bb22cb46bae3b7d8fc"
+    }
+  }
+}

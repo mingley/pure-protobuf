@@ -1,0 +1,47 @@
+{
+  "verified_utc": "2026-10-03T00:00:36.200614+00:00",
+  "original_backend_files": 68,
+  "complete_stage_archives": 5,
+  "stage_archive_file_counts": {
+    "check-only-rejected": 69,
+    "queue-reserved-untested": 68,
+    "queue-reserved-corrected-seven": 69,
+    "mixed-waker-red": 70,
+    "additive-only-eighteen": 70
+  },
+  "mixed_archive_uses_old_backend_and_exact_new_harness": true,
+  "raw_results_and_pins_match": true,
+  "patch_replays": [
+    {
+      "patch": "backend.patch",
+      "argv": [
+        "patch",
+        "--batch",
+        "--forward",
+        "-p1",
+        "-i",
+        "/workspace/scratch/work/deadline-admission/docs/evidence/deadline-admission/components/backend.patch"
+      ],
+      "exit_code": 0,
+      "stdout": "patching file src/client.rs\npatching file src/proto/streams/counts.rs\npatching file src/proto/streams/prioritize.rs\npatching file src/proto/streams/send.rs\npatching file src/proto/streams/streams.rs\n",
+      "stderr": "",
+      "all_68_final_backend_files_equal_captured_eighteen_snapshot": true
+    },
+    {
+      "patch": "additive-only-readiness.patch",
+      "argv": [
+        "patch",
+        "--batch",
+        "--forward",
+        "-p1",
+        "-i",
+        "/workspace/scratch/work/deadline-admission/docs/evidence/deadline-admission/components/additive-only-readiness.patch"
+      ],
+      "exit_code": 0,
+      "stdout": "patching file src/client.rs\npatching file src/proto/streams/streams.rs\n",
+      "stderr": "",
+      "all_68_final_backend_files_equal_captured_eighteen_snapshot": true
+    }
+  ],
+  "no_executable_or_rlib_copied": true
+}
