@@ -3384,6 +3384,76 @@ fn edition2024_extension_fields_remain_unknown_until_typed_api() {
     }
 }
 
+fn selected_int32_extension_sources(
+    targets: &[&str],
+    fds: &[u8],
+    names: &[&str],
+) -> Vec<(String, String)> {
+    let mut request = edition2024_plugin_request(targets, fds);
+    let parameter = names
+        .iter()
+        .map(|name| format!("typed_extension={name}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    pbrs::rt::encode_len_field(&mut request, 2, parameter.as_bytes());
+    pbrs::codegen::generate_from_code_generator_request(&request)
+        .expect("selected singular Edition 2024 int32 extensions must generate")
+}
+
+#[test]
+fn edition2024_selected_int32_extensions_generate_checked_identifiers() {
+    let sources = selected_int32_extension_sources(
+        &["extensions.proto"],
+        include_bytes!("fixtures/edition2024/fds/extensions.fds"),
+        &[
+            "edition2024.extensions.ext_int32",
+            "edition2024.extensions.ext_int32_with_default",
+            "edition2024.extensions.ExtendableMessage.nested_scoped_extension",
+        ],
+    );
+    let source = &sources
+        .iter()
+        .find(|(path, _)| path == "extensions.rs")
+        .expect("checked extension output")
+        .1;
+    for identifier in [
+        "EXT_INT32",
+        "EXT_INT32_WITH_DEFAULT",
+        "EXTENDABLE_MESSAGE_NESTED_SCOPED_EXTENSION",
+    ] {
+        assert!(source.contains(&format!("pub const {identifier}:")));
+    }
+    assert!(source.contains("pub fn get_extension<"));
+    assert!(source.contains("unknown: UnknownFields"));
+    assert!(!source.contains("pub fn ext_string("));
+}
+
+#[test]
+fn edition2024_selected_int32_extensions_generate_original_identifiers() {
+    let sources = selected_int32_extension_sources(
+        &["rust/test/extensions.proto"],
+        include_bytes!("fixtures/edition2024/fds/cg14_preview.fds"),
+        &[
+            "third_party_protobuf_rust_test.i32_extension",
+            "third_party_protobuf_rust_test.i32_extension_with_default",
+            "third_party_protobuf_rust_test.TestExtensions.nested_extension",
+        ],
+    );
+    let source = &sources
+        .iter()
+        .find(|(path, _)| path == "rust/test/extensions.rs")
+        .expect("original extension output")
+        .1;
+    for identifier in [
+        "I32_EXTENSION",
+        "I32_EXTENSION_WITH_DEFAULT",
+        "TEST_EXTENSIONS_NESTED_EXTENSION",
+    ] {
+        assert!(source.contains(&format!("pub const {identifier}:")));
+    }
+    assert!(!source.contains("pub fn closed_enum_extension("));
+}
+
 #[test]
 fn edition2024_original_shared_extension_suite_is_empty_at_pin() {
     // CG-14 original shared-test evidence. The pinned upstream shared suite
