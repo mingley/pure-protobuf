@@ -1,0 +1,22 @@
+{
+  "source_commit": "7ec9117d246dc91502520b6349d687d6136cc506",
+  "coordinator_sha256": "9146637996b827afd224de26ddf10cf0727f134c758b7ca28ae5bb17e98fb084",
+  "campaign": "target/codegen-bench/gn03-small-pair-20261002-234019",
+  "lease": "root quiet+LTO1000default/shared lease; actual start2026-10-03 UTC; other compilers/Miri/tests/captures/large packaging held; root executes ready coordinator directly",
+  "started_at_utc": "2026-10-03T00:31:20.043366+00:00",
+  "finished_at_utc": "2026-10-03T00:32:55.653432+00:00",
+  "classification": "failed first 1000 attempt, preserved without adjustment or replacement",
+  "same_frozen_generator_as_small_and_100_sha256": "718aef4131813c1c6fc449e33202588fc6bf48cc330bd28cfd33a96e056f524b",
+  "archive_members": 154,
+  "source_output_bytes": 35782708,
+  "cold_check_elapsed_ns": 80580564534,
+  "cold_check_peak_rss_bytes": 5608468480,
+  "resource_limit_bytes": 2147483648,
+  "observed_owned_cache_bytes": 2153570304,
+  "over_limit_bytes": 6086656,
+  "minimum_sampled_free_bytes": 5077155840,
+  "shared_and_later_phases": "not_run; no linked binary, no paired metrics",
+  "fingerprint_retention": "SHA256 inventories only, not original failed-target fingerprint contents",
+  "coordinator_output": "supplemental exact root tool-output chunks; separate stdout/stderr not captured at launch",
+  "retry_scope": "no retry or cache-reclamation action taken while packaging this record"
+}
