@@ -14,7 +14,7 @@ use protos::*;
 
 use googletest::prelude::*;
 use paste::paste;
-use protobuf::{proto, AsMut, AsView, Repeated};
+use protobuf::{proto, Repeated};
 use unittest_rust_proto::{test_all_types, test_all_types::NestedMessage, TestAllTypes};
 
 macro_rules! generate_repeated_numeric_test {

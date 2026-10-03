@@ -466,6 +466,10 @@ fn test_into_proxied_for_bytes() {
     assert_that!(msg.optional_bytes(), eq(b"eighth"));
 
     // &Vec<u8>
+    #[expect(
+        clippy::needless_borrows_for_generic_args,
+        reason = "exercise borrowed Vec setter input"
+    )]
     msg.set_optional_bytes(&Vec::from(b"ninth"));
     assert_that!(msg.optional_bytes(), eq(b"ninth"));
 }
@@ -570,6 +574,10 @@ fn test_into_proxied_for_string() {
     assert_that!(msg.optional_string(), eq("tenth"));
 
     // &String
+    #[expect(
+        clippy::needless_borrows_for_generic_args,
+        reason = "exercise borrowed String setter input"
+    )]
     msg.set_optional_string(&"eleventh".to_string());
     assert_that!(msg.optional_string(), eq("eleventh"));
 }
