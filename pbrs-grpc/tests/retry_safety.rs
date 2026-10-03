@@ -1253,15 +1253,12 @@ async fn scenario_d_deadline_preserved_and_remaining_timeout_decreases_across_re
     // 1. Initial attempt was close to 1500ms.
     assert!(
         t1 <= Duration::from_millis(1500) && t1 >= Duration::from_millis(1400),
-        "t1 was {:?}",
-        t1
+        "t1 was {t1:?}"
     );
     // 2. Retry attempt timeout must strictly decrease (deadline preserved across retry).
     assert!(
         t2 < t1,
-        "t2 ({:?}) must be strictly less than t1 ({:?})",
-        t2,
-        t1
+        "t2 ({t2:?}) must be strictly less than t1 ({t1:?})"
     );
     // 3. Difference should reflect the ~50ms elapsed sleep.
     assert!(
