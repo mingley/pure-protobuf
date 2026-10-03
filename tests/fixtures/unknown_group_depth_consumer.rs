@@ -16,7 +16,7 @@ mod vectors;
 #[cfg(test)]
 mod tests {
     use super::{
-        generated::{Box, Node},
+        generated::{PbBox as Box, Node},
         vectors,
     };
     use pbrs::{Parse, Serialize};
