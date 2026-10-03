@@ -1,0 +1,67 @@
+{
+  "status": "pass",
+  "metadata_members": 131,
+  "stages": {
+    "semver": {
+      "hashed_regular_paths": 4882,
+      "archived_regular_paths": 4836,
+      "hash_only_paths": 46,
+      "elf_paths_archived": 965,
+      "payload": {
+        "members": 5798,
+        "regular_paths": 4836,
+        "hash_content_mode_ownership_links": "pass"
+      }
+    },
+    "gn13": {
+      "hashed_regular_paths": 1175,
+      "archived_regular_paths": 1175,
+      "hash_only_paths": 0,
+      "elf_paths_archived": 105,
+      "payload": {
+        "members": 1503,
+        "regular_paths": 1175,
+        "hash_content_mode_ownership_links": "pass"
+      }
+    },
+    "native": {
+      "hashed_regular_paths": 1375,
+      "archived_regular_paths": 1375,
+      "hash_only_paths": 0,
+      "elf_paths_archived": 91,
+      "payload": {
+        "members": 1679,
+        "regular_paths": 1375,
+        "hash_content_mode_ownership_links": "pass"
+      }
+    }
+  },
+  "limits": [
+    "Historical semver terminal logs do not bind a provider source commit; current b297 context is not historical compiler acceptance.",
+    "GN13 cache is historical mixed consumer output; current1b050 context does not attribute every ELF.",
+    "Native interop188 was actually built with1.85 atcc4; stable normalized packages use d6. Original capture source/tool labels are preserved.",
+    "35 native and20 other previously pruned ELF paths are unavailable; this retains only remaining cache payloads and prior hash records.",
+    "46 semver incremental/nonselected files retain exact hashes only, not archived content.",
+    "Root-owned dockerd/containerd fd/maps visibility denials and point-in-time zombie/process/lock limits are retained.",
+    "Resources are sampled observations plus per-write free-space checks; observed minima/maxima do not promise unsampled peaks.",
+    "No compiler, Cargo, performance, shipping qualification, or verify-main retirement occurred.",
+    "Default checker verifies the small self-contained metadata capsule; local large payload hashes/content/modes/links require --payload-root."
+  ],
+  "root_verification": {
+    "recorded_utc": "2026-10-03T05:51:42.201388+00:00",
+    "argv": [
+      "python3",
+      "docs/evidence/cache-retirement-20261003/check.py",
+      "--payload-root",
+      "/workspace/pure-protobuf/work/cache-retirement/gn13-approved-20261003T052944270800Z"
+    ],
+    "checker_sha256": "9f2f2dbdbec67aed9fdd661750108f7122aa8fabc5869e72668275c966bd149b",
+    "metadata_capsule_sha256": "9023d7478394668bd6527fb893b31afad7135444373facda8a09768dd382e739",
+    "payload_archive_sha256": {
+      "semver": "d561b7106374bc7080adc41a545b3d664f53f9baa09691b3fa9f8785a5e62675",
+      "gn13": "44b86f912d41631f6a5281ac437dfc23811bc0121601f6b185adc042d49fa605",
+      "native": "6058bbf3c1af570dc8fbfe93ea8ffb3878da22797c58b69f88b59b855b894307"
+    },
+    "scope": "actual independent root invocation reread every retained archive payload, metadata and link topology; historical qualification limitations unchanged"
+  }
+}

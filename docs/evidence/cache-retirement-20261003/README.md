@@ -83,3 +83,9 @@ also independently reread all 5,798 semver archive members before handoff; its
 separate result is retained in the capsule. Large archives remain local and are
 not added as Git blobs. This preserves reviewable housekeeping evidence without
 claiming full reconstruction of older qualification campaigns.
+
+A subsequent independent root invocation reread all three large archives and
+passed all 7,386 retained regular paths and 8,980 total members. The command,
+checker/capsule/archive hashes, results and historical limits are retained in
+`root-payload-audit.json`. This is preservation integrity evidence, not a new
+shipping or historical compiler qualification.
