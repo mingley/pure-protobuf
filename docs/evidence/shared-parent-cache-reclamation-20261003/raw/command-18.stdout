@@ -1,0 +1,9 @@
+{
+  "source_commit": "e946b5fdd1a8372c54113289151e10b04184d591",
+  "binary_sha256": "1b765bb833e920c4585d5cc3f78168565df8dafeca1e05b0dbee5fd7ca4011f2",
+  "registry_sha256": "33b529f76973efd5478fe4c3f5a40929a6c2ce564eb25cb22b76f9b31b4adb90",
+  "registry_rows": 1634,
+  "bridge_rows": 0,
+  "bridge_inventory_returncode": 2,
+  "tier": "debug CLI correctness only; no numeric measurement"
+}

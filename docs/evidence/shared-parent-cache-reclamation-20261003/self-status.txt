@@ -1,0 +1,59 @@
+Name:	python3
+Umask:	0077
+State:	R (running)
+Tgid:	372776
+Ngid:	0
+Pid:	372776
+PPid:	521
+TracerPid:	0
+Uid:	1000	1000	1000	1000
+Gid:	1000	1000	1000	1000
+FDSize:	64
+Groups:	 
+NStgid:	372776
+NSpid:	372776
+NSpgid:	372776
+NSsid:	372776
+Kthread:	0
+VmPeak:	   38984 kB
+VmSize:	   38984 kB
+VmLck:	       0 kB
+VmPin:	       0 kB
+VmHWM:	   12780 kB
+VmRSS:	   12780 kB
+RssAnon:	    8260 kB
+RssFile:	    4520 kB
+RssShmem:	       0 kB
+VmData:	    9660 kB
+VmStk:	     132 kB
+VmExe:	   21284 kB
+VmLib:	       0 kB
+VmPTE:	     104 kB
+VmSwap:	       0 kB
+HugetlbPages:	       0 kB
+CoreDumping:	0
+THP_enabled:	1
+untag_mask:	0xffffffffffffffff
+Threads:	1
+SigQ:	10/71955
+SigPnd:	0000000000000000
+ShdPnd:	0000000000000000
+SigBlk:	0000000000000000
+SigIgn:	0000000001001000
+SigCgt:	0000000000000002
+CapInh:	0000000000000000
+CapPrm:	0000000000000000
+CapEff:	0000000000000000
+CapBnd:	000001ffffffffff
+CapAmb:	0000000000000000
+NoNewPrivs:	0
+Seccomp:	0
+Seccomp_filters:	0
+Speculation_Store_Bypass:	vulnerable
+SpeculationIndirectBranch:	always enabled
+Cpus_allowed:	1f
+Cpus_allowed_list:	0-4
+Mems_allowed:	00000000,00000001
+Mems_allowed_list:	0
+voluntary_ctxt_switches:	11
+nonvoluntary_ctxt_switches:	2

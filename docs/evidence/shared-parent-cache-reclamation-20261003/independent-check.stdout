@@ -1,0 +1,30 @@
+{
+  "result": "passed",
+  "files_inventoried": 2564,
+  "payloads_verified": 2219,
+  "archive_hardlinks_verified": 42,
+  "elf_paths_verified": 6,
+  "proc_scans": {
+    "before-preservation": {
+      "views": 271,
+      "permission_limits": 589,
+      "transient": 470
+    },
+    "after-preservation": {
+      "views": 270,
+      "permission_limits": 589,
+      "transient": 470
+    },
+    "immediately-before-rename": {
+      "views": 270,
+      "permission_limits": 589,
+      "transient": 470
+    },
+    "after-rename": {
+      "views": 270,
+      "permission_limits": 589,
+      "transient": 470
+    }
+  },
+  "space_scope": "global observations are distinct from unique inode allocated/apparent sums; permissions and races remain bounded"
+}

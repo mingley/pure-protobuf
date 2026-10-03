@@ -1,0 +1,1 @@
+Initial exact-HEAD guard rejected a clean concurrently advanced main b8a8bd9171f58b5ec67b487d34e6b78f284fb4f7. It stopped before cache lock acquisition, inventory, archival, rename or deletion. Cleanup commit parent remains explicitly f37b68ce; retry permits only its clean descendant and verifies all historical proof bytes against that fixed parent.

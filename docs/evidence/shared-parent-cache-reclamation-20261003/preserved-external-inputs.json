@@ -1,0 +1,41 @@
+{
+  "files": {
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12": {
+      "historical_version": "Python 3.12.14",
+      "sha256": "fa67443527ed9647f760d807e2a38f26340757123e643c4639cf273ed15d5ea7",
+      "size": 30894944,
+      "tool": "python"
+    },
+    "/workspace/pure-protobuf/target/conformance-build/protoc-35.1.0": {
+      "historical_version": "libprotoc 35.1",
+      "sha256": "ba5165ada96fc34d1295b2056ab8ea99756f7896a0ef0449d07f721595702b28",
+      "size": 10908816,
+      "tool": "protoc"
+    },
+    "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo": {
+      "historical_version": "cargo 1.99.0 (5f94df478 2026-08-27)",
+      "sha256": "e951141cc55a6cd7b9876d187bd30a3720e6086b99413af95e3b8de1cdd72f14",
+      "size": 36160240,
+      "tool": "cargo"
+    },
+    "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc": {
+      "historical_version": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.0\nLLVM version: 23.1.1",
+      "sha256": "f3834d26669b03f6855fa54bd2381443123e860167bc0c7a8dd137e5cf6e5e4f",
+      "size": 647376,
+      "tool": "rustc"
+    },
+    "/workspace/scratch/work/tc32b/work/tc32b/preserved-sb32-debug/0-devloop-cb03ed700fd195bf": {
+      "sha256": "036a401c6f0e52f24863626d1541ad59602542b6f63cb5bc278d37ca99ee8571",
+      "size": 37759736
+    },
+    "/workspace/scratch/work/tc32b/work/tc32b/preserved-sb32-debug/1-adoption.transport.rs": {
+      "sha256": "b830564fdff24411fd61175f642a96fe6e3c7607ee3970643ebb00a363896ba2",
+      "size": 65766
+    },
+    "/workspace/scratch/work/tc32b/work/tc32b/preserved-sb32-debug/2-adoption.transport.rs": {
+      "sha256": "b830564fdff24411fd61175f642a96fe6e3c7607ee3970643ebb00a363896ba2",
+      "size": 65766
+    }
+  },
+  "scope": "existing immutable external peers, tools and proofs are verified and remain outside deleted target; no version process or build was run"
+}

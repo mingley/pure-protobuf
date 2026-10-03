@@ -1,0 +1,5 @@
+{
+  "observed_clean_descendant": "b8a8bd9171f58b5ec67b487d34e6b78f284fb4f7",
+  "qualification": "coordinator main may advance; cleanup is additive on fixed requested parent and historical blobs are checked against that parent",
+  "requested_cleanup_commit_parent": "f37b68ce0f426bccf025858ac3339481eb46376d"
+}
