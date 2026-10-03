@@ -1,0 +1,11 @@
+syntax = "proto2";
+package qg18;
+
+message Node {
+  optional Node child = 1;
+  optional int32 value = 2;
+  repeated Node children = 3;
+  optional group ChildGroup = 4 {
+    optional Node child = 1;
+  }
+}
