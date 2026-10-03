@@ -205,11 +205,17 @@ mod tests {
         assert!(!value.has_extension(&EXT_INT32));
         value.clear_extension(&EXT_INT32);
         assert_eq!(value.serialize().unwrap(), wire);
-        // Existing unknown capture canonicalizes overlong tag/value varints;
-        // merely reading the typed value does not change that baseline.
-        let overlong = [0xa8, 0x86, 0, 0x87, 0];
-        let value = checked::ExtendableMessage::parse(&overlong).unwrap();
+        // Existing tag validation rejects overlong tags in both generated paths.
+        let overlong_tag = [0xa8, 0x86, 0, 0x87, 0];
+        assert!(checked::ExtendableMessage::parse(&overlong_tag).is_err());
+        assert!(default_checked::ExtendableMessage::parse(&overlong_tag).is_err());
+        // A canonical tag with an overlong value retains the typed value, while
+        // serialization canonicalizes it exactly as the default generated path.
+        let overlong_value = [0xa8, 0x06, 0x87, 0];
+        let value = checked::ExtendableMessage::parse(&overlong_value).unwrap();
+        let default_value = default_checked::ExtendableMessage::parse(&overlong_value).unwrap();
         assert_eq!(value.get_extension(&EXT_INT32), 7);
         assert_eq!(value.serialize().unwrap(), [0xa8, 0x06, 7]);
+        assert_eq!(value.serialize().unwrap(), default_value.serialize().unwrap());
     }
 }
