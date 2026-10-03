@@ -1,0 +1,25 @@
+{
+  "kind": "matched metadata-only driver amendment; actual generator/Cargo/child execution NOT_RUN",
+  "original_test_only_baseline": "e12c6c42973c8b35c48fc132ac028d68580195f7",
+  "shipping_baseline": "5c6e5eeac36e297d0eb67fc1ac9302a77fb451b6",
+  "driver_sha256": "70913464a528055042c9d5b97533ec6a23431cc40093599e70e91fad39b527e5",
+  "consumer_oracle_sha256": "3992a98866a0b2f215f48a3bcb31990e94373e3650c195b75f1eafe5f8b5ef91",
+  "semantic_consumer_tests_unchanged": 15,
+  "source_formatter_exit": 0,
+  "recorded_paths": [
+    "qg20-run-records/run-NNNN/command.txt",
+    "qg20-run-records/run-NNNN/process-exit.txt",
+    "qg20-run-records/run-NNNN/stdout",
+    "qg20-run-records/run-NNNN/stderr",
+    "qg20-run-records/run-NNNN/root-seed.Cargo.lock",
+    "qg20-run-records/run-NNNN/root-after.Cargo.lock",
+    "qg20-run-records/run-NNNN/before.Cargo.lock",
+    "qg20-run-records/run-NNNN/after.Cargo.lock",
+    "qg20-run-records/run-NNNN/lock-byte-equality.txt",
+    "qg20-run-records/run-NNNN/previous-replay.Cargo.lock if present",
+    "qg20-run-records/run-NNNN/Cargo.toml and generated consumer source files"
+  ],
+  "lock_guards": "before/after child and root bytes retained and equal-asserted before semantic outcome assertions, including expected-red child exits",
+  "hash_provenance": "std-only portable driver records bytes/equality; reviewed ordinary runner/proof verifier must calculate SHA256 for all raw locks and compare before/after hashes plus registry tuples",
+  "qualification": "do not call locked/compile infrastructure errors semantic reds. Require actual child15-test execution and preserve unobserved matrix rows as unobserved. Root timeout/process-group/resources/native/source helper remains required."
+}
