@@ -72,7 +72,7 @@ mod tests {
         assert_eq!(value.get_extension(&EXT_INT32), 0);
         assert_eq!(value.get_extension(&EXT_INT32_WITH_DEFAULT), 42);
         assert!(!value.has_extension(&EXT_INT32_WITH_DEFAULT));
-        assert_eq!(value.serialize().unwrap(), []);
+        assert_eq!(value.serialize().unwrap(), [0_u8; 0]);
         value.set_extension(&EXT_INT32_WITH_DEFAULT, 42);
         assert!(value.has_extension(&EXT_INT32_WITH_DEFAULT));
         assert_eq!(value.serialize().unwrap(), [0xd0, 0x06, 42]);
@@ -81,7 +81,7 @@ mod tests {
         value.clear_extension(&EXT_INT32_WITH_DEFAULT);
         assert!(!value.has_extension(&EXT_INT32_WITH_DEFAULT));
         assert_eq!(value.get_extension(&EXT_INT32_WITH_DEFAULT), 42);
-        assert_eq!(value.serialize().unwrap(), []);
+        assert_eq!(value.serialize().unwrap(), [0_u8; 0]);
     }
 
     #[test]
@@ -136,7 +136,7 @@ mod tests {
         );
         value.clear_extension(&EXT_INT32);
         assert_eq!(value.serialized_len(), 0);
-        assert_eq!(value.serialize().unwrap(), []);
+        assert_eq!(value.serialize().unwrap(), [0_u8; 0]);
     }
 
     #[test]

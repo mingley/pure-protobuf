@@ -3596,7 +3596,7 @@ fn edition2024_selected_extensions_check_only_emitted_service_namespace() {
     );
     let mut file = pbrs::rt::read_len_bytes(&fds, &mut pos).unwrap().to_vec();
     let mut naming = Vec::new();
-    pbrs::rt::encode_tag(&mut naming, 9, pbrs::rt::WIRE_VARINT);
+    pbrs::rt::encode_tag(&mut naming, 7, pbrs::rt::WIRE_VARINT);
     pbrs::rt::encode_varint(&mut naming, 2); // STYLE_LEGACY allows lowercase service names.
     let mut options = Vec::new();
     pbrs::rt::encode_len_field(&mut options, 50, &naming);
@@ -4220,7 +4220,7 @@ fn scalar_test_imported_service(public: bool) -> Vec<u8> {
     imported = scalar_test_without_tag(&scalar_test_without_tag(&imported, 4), 7);
     imported = scalar_test_set_len(&imported, 1, b"imported.proto");
     imported = scalar_test_set_len(&imported, 2, b"imported");
-    let legacy = scalar_test_set_varint(&[], 9, 2);
+    let legacy = scalar_test_set_varint(&[], 7, 2);
     imported = scalar_test_set_len(&imported, 8, &scalar_test_set_len(&[], 50, &legacy));
     let service = scalar_test_set_len(&[], 1, b"extensions");
     pbrs::rt::encode_len_field(&mut imported, 6, &service);
@@ -4313,7 +4313,7 @@ fn renamed_runtime_typed_extensions_round_trip() {
     assert_eq!(absolute.get_extension(&absolute::extensions::VALUE), -7);
     absolute.clear_extension(&absolute::extensions::VALUE);
     assert!(!absolute.has_extension(&absolute::extensions::VALUE));
-    assert_eq!(absolute.serialize().unwrap(), []);
+    assert_eq!(absolute.serialize().unwrap(), [0_u8; 0]);
     absolute.set_extension(&absolute::extensions::VALUE, 0);
     assert!(absolute.has_extension(&absolute::extensions::VALUE));
     let parsed = relative::Host::parse(&absolute.serialize().unwrap()).unwrap();
