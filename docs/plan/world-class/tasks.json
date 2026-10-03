@@ -12259,11 +12259,12 @@
     "CL-07",
     "TC-29"
    ],
-   "notes": "First source de0bcdf2 integrated all-features run fails retry_safety scenario_d_deadline_expires_waiting_for_slot_returns_deadline_exceeded: call2_executions1 instead of0 after50ms deadline, while sole stream is occupied. Source unchanged from prior scoped passing gates; retain failure and investigate rather than hide host contention. Deterministic paused-clock rawpeer proofs a944c9a5 reproduce lateHEADERS/fullDATA/CANCEL bothafterSETTINGSgrowth andafterfirststreamreset with unchangedcap1;0pass/2fail. Exactdiagnostic source archivedunderdocs with originalred logs/ELF/libraryhashes; noignore/no productionchange. h2stable0.4.19 readiness is perhandle and retains resetpending-open headers. Approved isolated pinnedbackend atomic-admission API investigation under realCounts/Streams lock; no shippingdependency decision or mirroredcounter workaround approved.",
+   "notes": "First source de0bcdf2 integrated all-features run fails retry_safety scenario_d_deadline_expires_waiting_for_slot_returns_deadline_exceeded: call2_executions1 instead of0 after50ms deadline, while sole stream is occupied. Source unchanged from prior scoped passing gates; retain failure and investigate rather than hide host contention. Deterministic paused-clock rawpeer proofs a944c9a5 reproduce lateHEADERS/fullDATA/CANCEL bothafterSETTINGSgrowth andafterfirststreamreset with unchangedcap1;0pass/2fail. Exactdiagnostic source archivedunderdocs with originalred logs/ELF/libraryhashes; noignore/no productionchange. h2stable0.4.19 readiness is perhandle and retains resetpending-open headers. Approved isolated pinnedbackend atomic-admission API investigation under realCounts/Streams lock; no shippingdependency decision or mirroredcounter workaround approved. 2026-10-03: prototype component proofca3a0b60 merged ad610821. Root49artifacthashes/all6archives/bothpatchreplays68backendfiles verify. EarliermixedAPIwaker regression0pass/1fail retained against7-passlibrary; additive-onlyreadiness final18componentpass. NativeRPCreds remainopen. Privatepinnedupstreamembedding topology underindependentMSRV/Miri/package/status/consumer review; notyetapprovedshippingbackend/callerintegration.",
    "evidence": [
     "docs/evidence/deadline-admission.md",
     "docs/evidence/deadline-admission/raw-peer-two-red.log",
-    "docs/evidence/deadline-admission/raw-peer-two-pins.json"
+    "docs/evidence/deadline-admission/raw-peer-two-pins.json",
+    "docs/evidence/deadline-admission/components/README.md"
    ]
   },
   {
@@ -12274,7 +12275,7 @@
    "priority": "P0",
    "executor": "small",
    "size": "M",
-   "status": "in_progress",
+   "status": "done",
    "implementer": "production_resources",
    "depends_on": [
     "TC-30b1"
@@ -12312,7 +12313,10 @@
     "TC-30b",
     "SB-32"
    ],
-   "notes": "Scope reviewed at integrated76d43b7d. Original semantic red and both native/unchanged-generated single-member-tail characterization retained before source edit. Outbound gzip policies and complete native retained-memory accounting remain unresolved in TC-30b."
+   "notes": "Scope reviewed at integrated76d43b7d. Original semantic red and both native/unchanged-generated single-member-tail characterization retained before source edit. Outbound gzip policies and complete native retained-memory accounting remain unresolved in TC-30b. 2026-10-03: sourcef8ce5732/proof4722382b merged to main. Exactstable22a77333 gates16private+117native+34standaloneconsumer executions, strictClippy/docs, finalsourceMSRV1.85off/1.88Tonic checks pass. Rootindependently verified78rawmembers/25records/167executions/source-lockpins. Onlyfinalcomment differs fromstabletestedsource. Finiteinboundgzip encoded/inflatedcap+firstmemberCRC/ISIZE+completeboundary/originalBytesreplay qualified; default/identity branches andpinsunchanged. RetainedcoalescedDATA/backingallocs/headerfiniteoperations explicitlyoutside ByteBudget/RSS guarantee. Doubleinflate performance not_run; outboundgzip/preferences/level/hooks/fullprivateTonicbudget remainblockingforparentTC-30b.",
+   "evidence": [
+    "docs/evidence/tc30b2a-inbound-gzip-20261003.md"
+   ]
   }
  ],
  "last_audit": {
