@@ -1,0 +1,14 @@
+{
+  "authorization": "root explicitly authorized reclamation only of completed final-go-peer/cache and final-go-peer/modcache; no compilation or performance capture",
+  "requested_docs_parent": "a4f012ab7aae9ba579dac3b0133e3dc18a1251ff",
+  "peer_proof_owner": "/root/sv09_proof",
+  "cache_readers_idle_confirmed": true,
+  "owner_message": "Go cache/modcache readers are now idle. Three tiny preload metadata inputs copied with recorded SHA checks. F2 inputs and four ELFs sealed; later repack reads only retained top-level records/binaries and private snapshots.",
+  "F2_source": "cc4db05383776ad39e8af34dee12a164b35ffcf2",
+  "native_client_sha256": "8003c86ad02dfb00f0c3703740138313b17172078c771d493b04f7e721f9aa7d",
+  "native_server_sha256": "15119d132e37e0f9239ef04db29b682a762497197633bb0803b4907e53ea1f6e",
+  "go_client_sha256": "8f90ffac376025f580b18cf2297bfa05d828fbc9cbf1a504cda788e6fc788c4a",
+  "go_server_sha256": "defc08302c99a0991e0e037d5e029df1e5d4d1af1b1ac05e0cab07bdd8dea796",
+  "initial_sealed_F2_archive_sha256": "5cc136c84f795e31020988af0fac32b9c012da6ea3ab63b4dd1b29e1c9c9f424",
+  "limits": "Owner statement is coordination evidence, not a kernel-enforced global lock. The F2 archive is under its owner's immutable proof namespace and is not relabeled by this cleanup."
+}

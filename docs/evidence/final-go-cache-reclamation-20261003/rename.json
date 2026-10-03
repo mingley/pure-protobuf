@@ -1,0 +1,16 @@
+{
+  "cache": {
+    "at": "2026-10-03T02:34:44.324874+00:00",
+    "dev": 27,
+    "from": "/workspace/pure-protobuf/work/final-go-peer/cache",
+    "ino": 1981700,
+    "to": "/workspace/pure-protobuf/work/final-go-cache-reclamation-20261003/quarantine-cache"
+  },
+  "modcache": {
+    "at": "2026-10-03T02:34:44.324939+00:00",
+    "dev": 27,
+    "from": "/workspace/pure-protobuf/work/final-go-peer/modcache",
+    "ino": 1981701,
+    "to": "/workspace/pure-protobuf/work/final-go-cache-reclamation-20261003/quarantine-modcache"
+  }
+}
