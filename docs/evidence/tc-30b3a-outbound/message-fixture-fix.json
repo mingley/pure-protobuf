@@ -1,0 +1,25 @@
+{
+  "original_candidate": "ed2e145af62ffb62361722caa2e489486441726e",
+  "candidate": "44bfcecb99a7d3ed11333a951815c4f3560f98dd",
+  "original_baseline": "2608fa0ca3542797102cbc89d6150ef5a61acbd2",
+  "baseline": "c2a9c9f8899d1a4bd634f4f077693390ca28d825",
+  "delta": [
+    "M\tpbrs-grpc/src/tonic_server.rs",
+    "A\tpbrs-grpc/src/tonic_server/outbound.rs"
+  ],
+  "fix": "Raw producer-error grpc-message oracle matches existing native printable-ASCII encoding; no shipping changes. Both fixture files remain identical across lanes.",
+  "original_failure": "candidate-native-affected.json",
+  "original_failure_archive": "artifacts/candidate-before-message-oracle-fix/manifest.json",
+  "source_evidence": "pbrs-grpc/src/wire/send.rs:372-388 preserves0x20..0x7e exceptpercent; tonic_server::native_status uses native grpc_trailers",
+  "justified_reruns": [
+    "baseline-native-build-after-fixture-fix",
+    "baseline-native-red-after-fixture-fix",
+    "candidate-native-affected-after-fixture-fix"
+  ],
+  "unchanged_exercised_source": [
+    "candidate-private-bodies: all library/module inputs unchanged",
+    "baseline-generated-red: all standalone generated build inputs and oracle source unchanged"
+  ],
+  "runtime_qualification": "in_progress",
+  "performance": "not_run"
+}

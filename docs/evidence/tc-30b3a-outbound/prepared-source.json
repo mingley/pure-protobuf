@@ -1,0 +1,13 @@
+{
+  "state": "prepared_not_run",
+  "launches": 0,
+  "syntax": "parsed_without_execution",
+  "files_sha256": {
+    "plan.json": "7f1e90391a4dc3fe8406738650f95c01a9530e311fd44e393714a506368134db",
+    "README.txt": "8a81c0328e07b5ad86ddb982305ee33811abcfaa370c227b18fa1fb97f140db7",
+    "run-stage.py": "96da036992950ce7173b61113df781582fd7e3a6b02fc72d688bb1223def1c87",
+    "capture-command.py": "95a0b99b9288a453534a7b1203ccc2ea0309f1fd6f7630ba7ead6b197147435d"
+  },
+  "all_gates": "not_run",
+  "performance": "not_run"
+}

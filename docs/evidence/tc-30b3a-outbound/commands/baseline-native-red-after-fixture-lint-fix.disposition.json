@@ -1,0 +1,7 @@
+{
+  "stage": "baseline-native-red-after-fixture-lint-fix",
+  "disposition": "executed_baseline_semantic_red",
+  "native_exit": 101,
+  "source": "8f009b9452aeab54d075daacb99371d988f89b98",
+  "performance": "not_run"
+}

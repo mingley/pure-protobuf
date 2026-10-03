@@ -1,0 +1,418 @@
+{
+  "schema": "tc30b-outbound-ordinary-plan-v1",
+  "state": "prepared_not_run",
+  "requires_root_ordinary_lease": true,
+  "performance": "not_run",
+  "candidate": "ed2e145af62ffb62361722caa2e489486441726e",
+  "baseline": "2608fa0ca3542797102cbc89d6150ef5a61acbd2",
+  "environment_setup": "source /workspace/pure-protobuf/work/toolchain/env.sh",
+  "environment": {
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_TARGET_DIR": "/workspace/scratch/work/tc30b-outbound/target/qualification",
+    "PROTOC": "/workspace/pure-protobuf/target/conformance-build/protoc-35.1.0"
+  },
+  "resources": {
+    "CPU": 4,
+    "memory_GiB": 16,
+    "minimum_global_free_bytes": 2147483648,
+    "maximum_aggregate_owned_target_bytes": 2147483648,
+    "sample_seconds": 1,
+    "owned_target_roots": [
+      "/workspace/scratch/work/tc30b-outbound/target",
+      "/workspace/scratch/work/tc30b-outbound-baseline/target"
+    ]
+  },
+  "helper_provenance": {
+    "source": "/workspace/scratch/work/tc30b3a/work/tc30b3a/gate.py",
+    "sha256": "73d594ea6ae33da726b45f9c02d904ab4498cb8dc4b280179ea623c2019cf502",
+    "adaptations": "Explicit pinned cwd and records; aggregate both owned target roots; preflight/final/1-second samples; expanded non-secret command environment. No launch during preparation."
+  },
+  "cache_retirement": "Archive completed-stage ELF, generated Rust and Cargo fingerprint/dependency metadata with file hashes and source pin before retiring the exact owned qualification cache. Preserve all failed commands and distinguish build error from semantic red. No lifecycle soak or unrelated full-workspace gate.",
+  "stages": [
+    {
+      "name": "baseline-native-build",
+      "argv": [
+        "rustup",
+        "run",
+        "1.88.0",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--all-features",
+        "--test",
+        "tonic_opaque_transport",
+        "--no-run",
+        "--message-format=json-render-diagnostics"
+      ],
+      "lane": "baseline",
+      "cwd": "/workspace/scratch/work/tc30b-outbound-baseline",
+      "expected_source": "2608fa0ca3542797102cbc89d6150ef5a61acbd2",
+      "expected_exit": 0,
+      "state": "not_run"
+    },
+    {
+      "name": "baseline-native-red",
+      "argv": [
+        "@artifact:baseline-native-build:tonic_opaque_transport",
+        "native_outbound_gzip_zero_cap_does_not_cap_encoded_overhead",
+        "--exact",
+        "--nocapture"
+      ],
+      "lane": "baseline",
+      "cwd": "/workspace/scratch/work/tc30b-outbound-baseline",
+      "expected_source": "2608fa0ca3542797102cbc89d6150ef5a61acbd2",
+      "expected_exit": 101,
+      "state": "not_run",
+      "semantic_red": true,
+      "red_evidence": "left: \"9\""
+    },
+    {
+      "name": "baseline-generated-build",
+      "argv": [
+        "rustup",
+        "run",
+        "1.88.0",
+        "cargo",
+        "test",
+        "--locked",
+        "--manifest-path",
+        "tests/interop/tonic/Cargo.toml",
+        "--test",
+        "transport_services",
+        "--no-run",
+        "--message-format=json-render-diagnostics"
+      ],
+      "lane": "baseline",
+      "cwd": "/workspace/scratch/work/tc30b-outbound-baseline",
+      "expected_source": "2608fa0ca3542797102cbc89d6150ef5a61acbd2",
+      "expected_exit": 0,
+      "state": "not_run"
+    },
+    {
+      "name": "baseline-generated-red",
+      "argv": [
+        "@artifact:baseline-generated-build:transport_services",
+        "native_finite_outbound_gzip_transform_all_generated_shapes",
+        "--exact",
+        "--nocapture"
+      ],
+      "lane": "baseline",
+      "cwd": "/workspace/scratch/work/tc30b-outbound-baseline",
+      "expected_source": "2608fa0ca3542797102cbc89d6150ef5a61acbd2",
+      "expected_exit": 101,
+      "state": "not_run",
+      "semantic_red": true,
+      "red_evidence": "FailedPrecondition"
+    },
+    {
+      "name": "candidate-private-bodies",
+      "argv": [
+        "rustup",
+        "run",
+        "1.88.0",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--all-features",
+        "--lib",
+        "tonic_server::",
+        "--",
+        "--nocapture"
+      ],
+      "lane": "candidate",
+      "cwd": "/workspace/scratch/work/tc30b-outbound",
+      "expected_source": "ed2e145af62ffb62361722caa2e489486441726e",
+      "expected_exit": 0,
+      "state": "not_run"
+    },
+    {
+      "name": "candidate-native-affected",
+      "argv": [
+        "rustup",
+        "run",
+        "1.88.0",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--all-features",
+        "--test",
+        "tonic_opaque_transport",
+        "--test",
+        "tonic_service_transport",
+        "--",
+        "--nocapture"
+      ],
+      "lane": "candidate",
+      "cwd": "/workspace/scratch/work/tc30b-outbound",
+      "expected_source": "ed2e145af62ffb62361722caa2e489486441726e",
+      "expected_exit": 0,
+      "state": "not_run"
+    },
+    {
+      "name": "candidate-native-regressions",
+      "argv": [
+        "rustup",
+        "run",
+        "1.88.0",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--all-features",
+        "--test",
+        "compression",
+        "--test",
+        "message_size",
+        "--test",
+        "byte_budget_public",
+        "--test",
+        "resource_bounds",
+        "--test",
+        "regress_metadata",
+        "--test",
+        "tonic_server",
+        "--test",
+        "tonic_behavior",
+        "--",
+        "--nocapture"
+      ],
+      "lane": "candidate",
+      "cwd": "/workspace/scratch/work/tc30b-outbound",
+      "expected_source": "ed2e145af62ffb62361722caa2e489486441726e",
+      "expected_exit": 0,
+      "state": "not_run"
+    },
+    {
+      "name": "candidate-generated-transport",
+      "argv": [
+        "rustup",
+        "run",
+        "1.88.0",
+        "cargo",
+        "test",
+        "--locked",
+        "--manifest-path",
+        "tests/interop/tonic/Cargo.toml",
+        "--test",
+        "transport_services",
+        "--",
+        "--nocapture"
+      ],
+      "lane": "candidate",
+      "cwd": "/workspace/scratch/work/tc30b-outbound",
+      "expected_source": "ed2e145af62ffb62361722caa2e489486441726e",
+      "expected_exit": 0,
+      "state": "not_run"
+    },
+    {
+      "name": "candidate-native-strict",
+      "argv": [
+        "rustup",
+        "run",
+        "1.88.0",
+        "cargo",
+        "clippy",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--all-features",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "lane": "candidate",
+      "cwd": "/workspace/scratch/work/tc30b-outbound",
+      "expected_source": "ed2e145af62ffb62361722caa2e489486441726e",
+      "expected_exit": 0,
+      "state": "not_run"
+    },
+    {
+      "name": "candidate-standalone-strict",
+      "argv": [
+        "rustup",
+        "run",
+        "1.88.0",
+        "cargo",
+        "clippy",
+        "--locked",
+        "--manifest-path",
+        "tests/interop/tonic/Cargo.toml",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "lane": "candidate",
+      "cwd": "/workspace/scratch/work/tc30b-outbound",
+      "expected_source": "ed2e145af62ffb62361722caa2e489486441726e",
+      "expected_exit": 0,
+      "state": "not_run"
+    },
+    {
+      "name": "candidate-rustdoc",
+      "argv": [
+        "rustup",
+        "run",
+        "1.88.0",
+        "cargo",
+        "doc",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--all-features",
+        "--no-deps"
+      ],
+      "lane": "candidate",
+      "cwd": "/workspace/scratch/work/tc30b-outbound",
+      "expected_source": "ed2e145af62ffb62361722caa2e489486441726e",
+      "expected_exit": 0,
+      "state": "not_run",
+      "rustdoc": true
+    },
+    {
+      "name": "candidate-msrv-feature-off",
+      "argv": [
+        "rustup",
+        "run",
+        "1.85.0",
+        "cargo",
+        "check",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--no-default-features",
+        "--lib"
+      ],
+      "lane": "candidate",
+      "cwd": "/workspace/scratch/work/tc30b-outbound",
+      "expected_source": "ed2e145af62ffb62361722caa2e489486441726e",
+      "expected_exit": 0,
+      "state": "not_run"
+    },
+    {
+      "name": "candidate-feature-off-graph",
+      "argv": [
+        "rustup",
+        "run",
+        "1.85.0",
+        "cargo",
+        "tree",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--no-default-features",
+        "-e",
+        "normal",
+        "--prefix",
+        "none",
+        "--format",
+        "{p}"
+      ],
+      "lane": "candidate",
+      "cwd": "/workspace/scratch/work/tc30b-outbound",
+      "expected_source": "ed2e145af62ffb62361722caa2e489486441726e",
+      "expected_exit": 0,
+      "state": "not_run",
+      "graph_excludes": [
+        "tonic",
+        "tower",
+        "hyper"
+      ]
+    },
+    {
+      "name": "candidate-msrv-tonic",
+      "argv": [
+        "rustup",
+        "run",
+        "1.88.0",
+        "cargo",
+        "check",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--no-default-features",
+        "--features",
+        "tonic",
+        "--lib"
+      ],
+      "lane": "candidate",
+      "cwd": "/workspace/scratch/work/tc30b-outbound",
+      "expected_source": "ed2e145af62ffb62361722caa2e489486441726e",
+      "expected_exit": 0,
+      "state": "not_run"
+    },
+    {
+      "name": "candidate-tonic-graph",
+      "argv": [
+        "rustup",
+        "run",
+        "1.88.0",
+        "cargo",
+        "tree",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--no-default-features",
+        "--features",
+        "tonic",
+        "-e",
+        "normal",
+        "--prefix",
+        "none",
+        "--format",
+        "{p}"
+      ],
+      "lane": "candidate",
+      "cwd": "/workspace/scratch/work/tc30b-outbound",
+      "expected_source": "ed2e145af62ffb62361722caa2e489486441726e",
+      "expected_exit": 0,
+      "state": "not_run"
+    },
+    {
+      "name": "candidate-scoped-format",
+      "argv": [
+        "rustfmt",
+        "--check",
+        "--edition",
+        "2024",
+        "--config",
+        "skip_children=true",
+        "pbrs-grpc/src/tonic_server.rs",
+        "pbrs-grpc/src/tonic_server/outbound.rs",
+        "pbrs-grpc/tests/tonic_opaque_transport.rs",
+        "tests/interop/tonic/tests/transport_services.rs"
+      ],
+      "lane": "candidate",
+      "cwd": "/workspace/scratch/work/tc30b-outbound",
+      "expected_source": "ed2e145af62ffb62361722caa2e489486441726e",
+      "expected_exit": 0,
+      "state": "not_run"
+    },
+    {
+      "name": "candidate-whitespace",
+      "argv": [
+        "git",
+        "diff",
+        "--check",
+        "dfd5ba320d0dcfa57816b64211b7c1b33af9ce0b",
+        "HEAD"
+      ],
+      "lane": "candidate",
+      "cwd": "/workspace/scratch/work/tc30b-outbound",
+      "expected_source": "ed2e145af62ffb62361722caa2e489486441726e",
+      "expected_exit": 0,
+      "state": "not_run"
+    }
+  ]
+}

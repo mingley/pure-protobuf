@@ -1,0 +1,7 @@
+{
+  "stage": "baseline-native-build-after-fixture-fix",
+  "disposition": "passed_correctness_gate",
+  "native_exit": 0,
+  "source": "c2a9c9f8899d1a4bd634f4f077693390ca28d825",
+  "performance": "not_run"
+}

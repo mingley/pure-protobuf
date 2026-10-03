@@ -1,0 +1,66 @@
+{
+  "schema": "tc30b-outbound-command-v1",
+  "name": "baseline-native-red-after-fixture-fix",
+  "argv": [
+    "/workspace/scratch/work/tc30b-outbound/target/qualification/debug/deps/tonic_opaque_transport-85819680f7db26d5",
+    "native_outbound_gzip_zero_cap_does_not_cap_encoded_overhead",
+    "--exact",
+    "--nocapture"
+  ],
+  "executable_sha256_before": "d2b8e183d6a85c731c0beeb66fe420a03b359d6a37e134039ccd9008e212dc48",
+  "cwd": "/workspace/scratch/work/tc30b-outbound-baseline",
+  "source_before": "c2a9c9f8899d1a4bd634f4f077693390ca28d825",
+  "tracked_changes_before": "",
+  "started_utc": "2026-10-03T04:19:24.433608+00:00",
+  "environment": {
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_TARGET_DIR": "/workspace/scratch/work/tc30b-outbound/target/qualification",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RUSTDOCFLAGS": null,
+    "RUSTUP_HOME": "/workspace/pure-protobuf/work/toolchain/rustup",
+    "CARGO_HOME": "/workspace/pure-protobuf/work/toolchain/cargo",
+    "PROTOC": "/workspace/pure-protobuf/target/conformance-build/protoc-35.1.0",
+    "PATH": "/workspace/pure-protobuf/target/conformance-build:/workspace/pure-protobuf/work/toolchain/cargo/bin:/workspace/pure-protobuf/work/toolchain/python/cmake/data/bin:/workspace/pure-protobuf/work/toolchain/python/ninja/data/bin:/workspace/pure-protobuf/work/toolchain/deb/usr/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "RUSTFLAGS": null,
+    "RUSTC_WRAPPER": null
+  },
+  "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "correctness only; elapsed time is not comparative performance evidence",
+  "disk_observations": [
+    {
+      "free": 2864988160,
+      "owned_cache_bytes": 704954438,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 704954438,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 2864984064,
+      "owned_cache_bytes": 704954438,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 704954438,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 2864812032,
+      "owned_cache_bytes": 704954438,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 704954438,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    }
+  ],
+  "disk_guard": null,
+  "native_exit": 101,
+  "minimum_free": 2864812032,
+  "maximum_owned_cache": 704954438,
+  "executable_sha256_after": "d2b8e183d6a85c731c0beeb66fe420a03b359d6a37e134039ccd9008e212dc48",
+  "exit": 101,
+  "finished_utc": "2026-10-03T04:19:25.459179+00:00",
+  "source_after": "c2a9c9f8899d1a4bd634f4f077693390ca28d825",
+  "tracked_changes_after": ""
+}

@@ -1,0 +1,12 @@
+{
+  "recorded_utc": "2026-10-03T05:17:43.005019+00:00",
+  "owned_cache_roots": {
+    "/workspace/scratch/work/tc30b-outbound/target": 0,
+    "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+  },
+  "aggregate_owned_cache_bytes": 0,
+  "global_free_bytes": 3057020928,
+  "minimum_global_free_bytes": 2147483648,
+  "compiler_lease_released": true,
+  "future_cargo_or_performance_commands_planned": false
+}

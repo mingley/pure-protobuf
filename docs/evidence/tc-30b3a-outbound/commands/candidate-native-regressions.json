@@ -1,0 +1,779 @@
+{
+  "schema": "tc30b-outbound-command-v1",
+  "name": "candidate-native-regressions",
+  "argv": [
+    "rustup",
+    "run",
+    "1.88.0",
+    "cargo",
+    "test",
+    "--locked",
+    "-p",
+    "pbrs-grpc",
+    "--all-features",
+    "--test",
+    "compression",
+    "--test",
+    "message_size",
+    "--test",
+    "byte_budget_public",
+    "--test",
+    "resource_bounds",
+    "--test",
+    "regress_metadata",
+    "--test",
+    "tonic_server",
+    "--test",
+    "tonic_behavior",
+    "--",
+    "--nocapture",
+    "--skip",
+    "fairness",
+    "--skip",
+    "isolation",
+    "--skip",
+    "competing",
+    "--skip",
+    "graceful_shutdown",
+    "--skip",
+    "unending_stream",
+    "--skip",
+    "idle_peers",
+    "--skip",
+    "overload",
+    "--skip",
+    "large_stream_frame",
+    "--skip",
+    "cancellation_cleanup",
+    "--skip",
+    "concurrent_requests"
+  ],
+  "executable_sha256_before": null,
+  "cwd": "/workspace/scratch/work/tc30b-outbound",
+  "source_before": "44bfcecb99a7d3ed11333a951815c4f3560f98dd",
+  "tracked_changes_before": "",
+  "started_utc": "2026-10-03T04:22:46.394826+00:00",
+  "environment": {
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_TARGET_DIR": "/workspace/scratch/work/tc30b-outbound/target/qualification",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RUSTDOCFLAGS": null,
+    "RUSTUP_HOME": "/workspace/pure-protobuf/work/toolchain/rustup",
+    "CARGO_HOME": "/workspace/pure-protobuf/work/toolchain/cargo",
+    "PROTOC": "/workspace/pure-protobuf/target/conformance-build/protoc-35.1.0",
+    "PATH": "/workspace/pure-protobuf/target/conformance-build:/workspace/pure-protobuf/work/toolchain/cargo/bin:/workspace/pure-protobuf/work/toolchain/python/cmake/data/bin:/workspace/pure-protobuf/work/toolchain/python/ninja/data/bin:/workspace/pure-protobuf/work/toolchain/deb/usr/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "RUSTFLAGS": null,
+    "RUSTC_WRAPPER": null
+  },
+  "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "correctness only; elapsed time is not comparative performance evidence",
+  "disk_observations": [
+    {
+      "free": 3108376576,
+      "owned_cache_bytes": 668776780,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 668776780,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3108376576,
+      "owned_cache_bytes": 668776780,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 668776780,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170045952,
+      "owned_cache_bytes": 607112270,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607112270,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170045952,
+      "owned_cache_bytes": 607112270,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607112270,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170045952,
+      "owned_cache_bytes": 607112270,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607112270,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170045952,
+      "owned_cache_bytes": 607112270,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607112270,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170045952,
+      "owned_cache_bytes": 607112270,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607112270,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170045952,
+      "owned_cache_bytes": 607112270,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607112270,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170045952,
+      "owned_cache_bytes": 607112270,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607112270,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170045952,
+      "owned_cache_bytes": 607112270,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607112270,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170045952,
+      "owned_cache_bytes": 607112270,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607112270,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3167285248,
+      "owned_cache_bytes": 609865811,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 609865811,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3157008384,
+      "owned_cache_bytes": 620145626,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 620145626,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3167842304,
+      "owned_cache_bytes": 609314942,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 609314942,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3160809472,
+      "owned_cache_bytes": 616340438,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 616340438,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3156799488,
+      "owned_cache_bytes": 620344078,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 620344078,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3144683520,
+      "owned_cache_bytes": 632453494,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 632453494,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3136729088,
+      "owned_cache_bytes": 640392598,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 640392598,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3129507840,
+      "owned_cache_bytes": 647609646,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 647609646,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170025472,
+      "owned_cache_bytes": 607111422,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607111422,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170025472,
+      "owned_cache_bytes": 607111422,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607111422,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170025472,
+      "owned_cache_bytes": 607111422,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607111422,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170025472,
+      "owned_cache_bytes": 607111422,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607111422,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170025472,
+      "owned_cache_bytes": 607111422,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607111422,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170025472,
+      "owned_cache_bytes": 607111422,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607111422,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170025472,
+      "owned_cache_bytes": 607111422,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607111422,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170025472,
+      "owned_cache_bytes": 607111422,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607111422,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170025472,
+      "owned_cache_bytes": 607111422,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607111422,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170025472,
+      "owned_cache_bytes": 607111422,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607111422,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3156987904,
+      "owned_cache_bytes": 620144778,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 620144778,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3170025472,
+      "owned_cache_bytes": 607111422,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 607111422,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3163828224,
+      "owned_cache_bytes": 613305246,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 613305246,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3156893696,
+      "owned_cache_bytes": 620236062,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 620236062,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3148890112,
+      "owned_cache_bytes": 628238398,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 628238398,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3140251648,
+      "owned_cache_bytes": 636867710,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 636867710,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3132502016,
+      "owned_cache_bytes": 644613486,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 644613486,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3190972416,
+      "owned_cache_bytes": 586159808,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 586159808,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3190972416,
+      "owned_cache_bytes": 586159808,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 586159808,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3190972416,
+      "owned_cache_bytes": 586159808,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 586159808,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3190972416,
+      "owned_cache_bytes": 586159808,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 586159808,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3190972416,
+      "owned_cache_bytes": 586159808,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 586159808,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3190972416,
+      "owned_cache_bytes": 586159808,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 586159808,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3190972416,
+      "owned_cache_bytes": 586159808,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 586159808,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3190972416,
+      "owned_cache_bytes": 586159808,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 586159808,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3190972416,
+      "owned_cache_bytes": 586159808,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 586159808,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3190972416,
+      "owned_cache_bytes": 586159808,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 586159808,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3190972416,
+      "owned_cache_bytes": 586159808,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 586159808,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3184873472,
+      "owned_cache_bytes": 592188673,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 592188673,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3167965184,
+      "owned_cache_bytes": 609159386,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 609159386,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3167965184,
+      "owned_cache_bytes": 609159386,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 609159386,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3190972416,
+      "owned_cache_bytes": 586159808,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 586159808,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3181797376,
+      "owned_cache_bytes": 595332760,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 595332760,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3176419328,
+      "owned_cache_bytes": 600709000,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 600709000,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3171381248,
+      "owned_cache_bytes": 605742968,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 605742968,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3163443200,
+      "owned_cache_bytes": 613677328,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 613677328,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3156574208,
+      "owned_cache_bytes": 620542664,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 620542664,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3150069760,
+      "owned_cache_bytes": 627042944,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 627042944,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3147100160,
+      "owned_cache_bytes": 630007304,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 630007304,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3108339712,
+      "owned_cache_bytes": 668777843,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 668777843,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3104423936,
+      "owned_cache_bytes": 672668867,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 672668867,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3103879168,
+      "owned_cache_bytes": 673208227,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 673208227,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3091075072,
+      "owned_cache_bytes": 686021060,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 686021060,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3089870848,
+      "owned_cache_bytes": 687209881,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 687209881,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3086315520,
+      "owned_cache_bytes": 690737873,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 690737873,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3085565952,
+      "owned_cache_bytes": 691480225,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 691480225,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3073191936,
+      "owned_cache_bytes": 703869510,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 703869510,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3073191936,
+      "owned_cache_bytes": 703869510,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 703869510,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3065942016,
+      "owned_cache_bytes": 711111662,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 711111662,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3058319360,
+      "owned_cache_bytes": 718716262,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 718716262,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3056066560,
+      "owned_cache_bytes": 720962950,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 720962950,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3049582592,
+      "owned_cache_bytes": 736605385,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 736605385,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3049693184,
+      "owned_cache_bytes": 727345971,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 727345971,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3048202240,
+      "owned_cache_bytes": 728821389,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 728821389,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3046801408,
+      "owned_cache_bytes": 730206197,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 730206197,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3043618816,
+      "owned_cache_bytes": 733375717,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 733375717,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3038855168,
+      "owned_cache_bytes": 738112005,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 738112005,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3038855168,
+      "owned_cache_bytes": 738112005,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 738112005,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3027976192,
+      "owned_cache_bytes": 749006342,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 749006342,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3025416192,
+      "owned_cache_bytes": 751542550,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 751542550,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3029749760,
+      "owned_cache_bytes": 747242406,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 747242406,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3024879616,
+      "owned_cache_bytes": 752079670,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 752079670,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3024879616,
+      "owned_cache_bytes": 752079670,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 752079670,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3028041728,
+      "owned_cache_bytes": 748922638,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 748922638,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3027148800,
+      "owned_cache_bytes": 749796366,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 749796366,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3029020672,
+      "owned_cache_bytes": 747944542,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 747944542,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3029020672,
+      "owned_cache_bytes": 747944542,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 747944542,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 3029733376,
+      "owned_cache_bytes": 747242454,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 747242454,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    }
+  ],
+  "disk_guard": null,
+  "native_exit": 0,
+  "minimum_free": 3024879616,
+  "maximum_owned_cache": 752079670,
+  "executable_sha256_after": null,
+  "exit": 0,
+  "finished_utc": "2026-10-03T04:24:11.831248+00:00",
+  "source_after": "44bfcecb99a7d3ed11333a951815c4f3560f98dd",
+  "tracked_changes_after": ""
+}

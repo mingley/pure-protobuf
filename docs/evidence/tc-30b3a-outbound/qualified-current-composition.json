@@ -1,0 +1,63 @@
+{
+  "state": "source_frozen_not_runtime_qualified",
+  "original_base": "051f5ed8e5a0064b4d06527713db9dc61997abbf",
+  "original_baseline_oracle": "fa66e79c1e31f24abbaa4701f10e2d5c10971ef3",
+  "frozen_source": "6603408540c7b5450d76afc28aa87aeb55e2220c",
+  "qualified_backend_optout": "dfd5ba320d0dcfa57816b64211b7c1b33af9ce0b",
+  "candidate": "ed2e145af62ffb62361722caa2e489486441726e",
+  "candidate_worktree": "/workspace/scratch/work/tc30b-outbound",
+  "baseline": "2608fa0ca3542797102cbc89d6150ef5a61acbd2",
+  "baseline_worktree": "/workspace/scratch/work/tc30b-outbound-baseline",
+  "candidate_parents": [
+    "6603408540c7b5450d76afc28aa87aeb55e2220c",
+    "dfd5ba320d0dcfa57816b64211b7c1b33af9ce0b"
+  ],
+  "source_changes_vs_qualified": [
+    "M\tpbrs-grpc/src/tonic_server.rs",
+    "A\tpbrs-grpc/src/tonic_server/outbound.rs",
+    "M\tpbrs-grpc/tests/tonic_opaque_transport.rs",
+    "M\ttests/interop/tonic/tests/transport_services.rs"
+  ],
+  "baseline_changes_vs_qualified": [
+    "M\tpbrs-grpc/tests/tonic_opaque_transport.rs",
+    "M\ttests/interop/tonic/tests/transport_services.rs"
+  ],
+  "candidate_vs_baseline": [
+    "M\tpbrs-grpc/src/tonic_server.rs",
+    "A\tpbrs-grpc/src/tonic_server/outbound.rs"
+  ],
+  "frozen_delta_exact": true,
+  "fixtures_identical": true,
+  "baseline_shipping_identical_to_qualified": true,
+  "shared_tracked_inputs": "Every tracked path except tonic_server.rs and new tonic_server/outbound.rs is identical between baseline and candidate, including Cargo manifests/locks, current backend and inbound opt-out.",
+  "compiled_input_differences": "Candidate changes opaque outbound routing and adds outbound transform module/private tests; baseline has no outbound shipping changes. Both compile identical final public transport and unchanged generated service fixture source.",
+  "clean_worktrees": true,
+  "source_sha256": {
+    "pbrs-grpc/src/tonic_server.rs": "03cf891816468948447561e0eae01e662372941efd84fd5b2e4a7ff207b1e8ef",
+    "pbrs-grpc/src/tonic_server/outbound.rs": "e545c47fabdda45562b35229c0cd1d48d9104a9470606c44d5a0a016a734a7bc",
+    "pbrs-grpc/tests/tonic_opaque_transport.rs": "8dfe99e47636c9d31acd7f541e4ff1fc57712cc9294e9301cb0bcad705e751cf",
+    "tests/interop/tonic/tests/transport_services.rs": "8e3ee057c5925ef50bea641ef5e78d352a8369cd069d82235b38d9034964e00e"
+  },
+  "patch_sha256": {
+    "qualified-current-complete.patch": "101fa293d567c81bc9d0c409aa0f772e0dfe6dadf2d51e1c3399dec47c4ebd7a",
+    "qualified-current-baseline.patch": "f89cd4ed665a7d405486a36f3b4112d38f81193c442453d189ecd73c65928237",
+    "qualified-current-shipping.patch": "1ae7004d8fcc602b4de03c56fdda604672ed1486609f0d8941157153081df2ce"
+  },
+  "frozen_delta_sha256": "101fa293d567c81bc9d0c409aa0f772e0dfe6dadf2d51e1c3399dec47c4ebd7a",
+  "validation": {
+    "diff_check": "passed",
+    "runtime": "not_run",
+    "strict": "not_run",
+    "docs": "not_run",
+    "msrv": "not_run",
+    "performance": "not_run"
+  },
+  "main_readonly_pin_at_audit": "10bee600737b8a207159e63581bebc01b07ec2d7",
+  "preserved_original_artifacts": [
+    "baseline-oracle.patch",
+    "source.patch",
+    "complete.patch",
+    "content-length-before-fix.patch",
+    "prototype.json"
+  ]
+}
