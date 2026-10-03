@@ -484,8 +484,9 @@ async fn campaign() -> Value {
             .serve_connection(server)
             .await
     });
-    let channel = Channel::from_io(client, "localhost")
+    let channel = tokio::time::timeout(BOUND, Channel::from_io(client, "localhost"))
         .await
+        .expect("setup handshake bound")
         .expect("duplex SETTINGS handshake");
     assert_eq!(
         library_spawns(),
@@ -497,7 +498,9 @@ async fn campaign() -> Value {
     let setup = spawn_json(library_spawns());
     let shapes = ["unary", "server_stream", "client_stream", "bidi"];
     for shape in shapes {
-        exercise(&channel, &state, shape, "echo").await;
+        tokio::time::timeout(BOUND, exercise(&channel, &state, shape, "echo"))
+            .await
+            .expect("warmup case bound");
         state.quiet(2).await;
     }
     let mut rows = Vec::new();
