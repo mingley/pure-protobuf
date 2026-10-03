@@ -1,0 +1,12 @@
+diff --git a/pbrs-grpc/src/h2_backend/mod.rs b/pbrs-grpc/src/h2_backend/mod.rs
+index ce93ce5a..a7214905 100644
+--- a/pbrs-grpc/src/h2_backend/mod.rs
++++ b/pbrs-grpc/src/h2_backend/mod.rs
+@@ -111,6 +111,7 @@
+     clippy::items_after_test_module,
+     clippy::bool_assert_comparison,
+     clippy::vec_init_then_push,
++    clippy::uninlined_format_args,
+     reason = "private pinned upstream h2 import retains original invariant checks, mutexes, integer operations and public source surface; admission changes receive independent component tests and review"
+ )]
+ // uncomment me to run benchmarks
