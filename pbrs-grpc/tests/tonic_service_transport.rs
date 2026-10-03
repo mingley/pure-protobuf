@@ -548,13 +548,15 @@ async fn ordinary_tower_layer_retains_generated_service_routing_name() {
 async fn opaque_native_policies_fail_before_tower_readiness_and_dispatch() {
     let defaults = ServerConfig::default();
     let variants = [
-        defaults.accept_compressed(false),
         defaults.send_compressed(true),
         defaults.gzip_compression_level(8),
         defaults.compression_codec(pbrs_grpc::compression::Codec::Deflate),
         defaults.max_send_buffer_size(8),
     ];
-    for config in variants {
+    for config in variants
+        .into_iter()
+        .flat_map(|config| [config, config.accept_compressed(false)])
+    {
         let (server, state) = server(Mode::Echo);
         let (mut client, _guard) = connect(server.config(config)).await;
         let (response, _) = client.send_request(request(None), true).expect("request");
@@ -563,8 +565,10 @@ async fn opaque_native_policies_fail_before_tower_readiness_and_dispatch() {
         assert_eq!(state.ready.load(Ordering::SeqCst), 0);
         assert_eq!(state.calls.load(Ordering::SeqCst), 0);
     }
-    for policy in 0..4 {
+    for (policy, accepts_compressed) in (0..4).flat_map(|policy| [(policy, true), (policy, false)])
+    {
         let (server, state) = server(Mode::Echo);
+        let server = server.config(defaults.accept_compressed(accepts_compressed));
         let server = match policy {
             0 => server.byte_budget(8),
             1 => server.on_response(|_: &mut pbrs_grpc::ResponseParts| Ok(())),
@@ -636,31 +640,46 @@ async fn native_security_interceptor_mutations_and_extensions_reach_tonic_servic
 
 #[tokio::test]
 async fn reset_before_response_headers_drops_pending_handler() {
-    let (server, state) = server(Mode::PendingHandler);
-    let (mut client, _guard) = connect(server).await;
-    let (response, mut send) = client.send_request(request(None), true).expect("request");
-    notified(&state.entered).await;
-    send.send_reset(h2::Reason::CANCEL);
-    notified(&state.dropped).await;
-    drop(response);
+    for accepts_compressed in [true, false] {
+        let (server, state) = server(Mode::PendingHandler);
+        let (mut client, _guard) =
+            connect(server.config(ServerConfig::default().accept_compressed(accepts_compressed)))
+                .await;
+        let (response, mut send) = client.send_request(request(None), true).expect("request");
+        notified(&state.entered).await;
+        send.send_reset(h2::Reason::CANCEL);
+        notified(&state.dropped).await;
+        drop(response);
+    }
 }
 
 #[tokio::test]
 async fn reset_after_response_headers_drops_pending_body() {
-    let (server, state) = server(Mode::PendingBody);
-    let (mut client, _guard) = connect(server).await;
-    let (response, mut send) = client.send_request(request(None), true).expect("request");
-    let response = response.await.expect("headers");
-    send.send_reset(h2::Reason::CANCEL);
-    notified(&state.dropped).await;
-    drop(response);
+    for accepts_compressed in [true, false] {
+        let (server, state) = server(Mode::PendingBody);
+        let (mut client, _guard) =
+            connect(server.config(ServerConfig::default().accept_compressed(accepts_compressed)))
+                .await;
+        let (response, mut send) = client.send_request(request(None), true).expect("request");
+        let response = response.await.expect("headers");
+        send.send_reset(h2::Reason::CANCEL);
+        notified(&state.dropped).await;
+        drop(response);
+    }
 }
 
 #[tokio::test]
 async fn server_deadline_covers_readiness_and_pending_handler() {
-    for mode in [Mode::PendingReady, Mode::PendingHandler] {
+    for (mode, accepts_compressed) in [Mode::PendingReady, Mode::PendingHandler]
+        .into_iter()
+        .flat_map(|mode| [(mode, true), (mode, false)])
+    {
         let (server, state) = server(mode);
-        let server = server.config(ServerConfig::default().timeout(Duration::from_millis(20)));
+        let server = server.config(
+            ServerConfig::default()
+                .accept_compressed(accepts_compressed)
+                .timeout(Duration::from_millis(20)),
+        );
         let (mut client, _guard) = connect(server).await;
         let (response, _) = client
             .send_request(request(Some("1S")), true)
@@ -680,87 +699,112 @@ async fn server_deadline_covers_readiness_and_pending_handler() {
 
 #[tokio::test]
 async fn peer_deadline_covers_response_body_and_drops_producer() {
-    let (server, state) = server(Mode::PendingBody);
-    let (mut client, _guard) = connect(server).await;
-    let (response, _) = client
-        .send_request(request(Some("20m")), true)
-        .expect("request");
-    let mut body = response.await.expect("headers").into_body();
-    assert!(body.data().await.is_none());
-    let trailers = body.trailers().await.expect("trailers").expect("status");
-    assert_eq!(trailers.get("grpc-status").expect("status"), "4");
-    notified(&state.dropped).await;
+    for accepts_compressed in [true, false] {
+        let (server, state) = server(Mode::PendingBody);
+        let (mut client, _guard) =
+            connect(server.config(ServerConfig::default().accept_compressed(accepts_compressed)))
+                .await;
+        let (response, _) = client
+            .send_request(request(Some("20m")), true)
+            .expect("request");
+        let mut body = response.await.expect("headers").into_body();
+        assert!(body.data().await.is_none());
+        let trailers = body.trailers().await.expect("trailers").expect("status");
+        assert_eq!(trailers.get("grpc-status").expect("status"), "4");
+        notified(&state.dropped).await;
+    }
 }
 
 #[tokio::test]
 async fn deadline_wakes_detached_incoming_body_reader_with_open_upload() {
-    let (server, state) = server(Mode::DetachedInput);
-    let (mut client, _guard) = connect(server).await;
-    let (response, _upload) = client
-        .send_request(request(Some("20m")), false)
-        .expect("open upload");
-    let mut body = response.await.expect("headers").into_body();
-    assert!(body.data().await.is_none());
-    assert_eq!(
-        body.trailers()
-            .await
-            .expect("trailers")
-            .expect("status")
-            .get("grpc-status")
-            .expect("status"),
-        "4"
-    );
-    notified(&state.dropped).await;
-    notified(&state.upload_stopped).await;
+    for accepts_compressed in [true, false] {
+        let (server, state) = server(Mode::DetachedInput);
+        let (mut client, _guard) =
+            connect(server.config(ServerConfig::default().accept_compressed(accepts_compressed)))
+                .await;
+        let (response, mut upload) = client
+            .send_request(request(Some("20m")), false)
+            .expect("open upload");
+        let mut body = response.await.expect("headers").into_body();
+        if !accepts_compressed {
+            upload
+                .send_data(Bytes::from_static(b"\0\0"), false)
+                .expect("partial input prefix");
+        }
+        assert!(body.data().await.is_none());
+        assert_eq!(
+            body.trailers()
+                .await
+                .expect("trailers")
+                .expect("status")
+                .get("grpc-status")
+                .expect("status"),
+            "4"
+        );
+        notified(&state.dropped).await;
+        notified(&state.upload_stopped).await;
+    }
 }
 
 #[tokio::test]
 async fn local_response_body_status_preserves_details_and_metadata() {
-    let (server, _) = server(Mode::BodyError);
-    let (mut client, _guard) = connect(server).await;
-    let (response, _) = client.send_request(request(None), true).expect("request");
-    let mut body = response.await.expect("headers").into_body();
-    assert!(body.data().await.is_none());
-    let trailers = body.trailers().await.expect("trailers").expect("status");
-    assert_eq!(trailers.get("grpc-status").expect("status"), "7");
-    assert_eq!(
-        trailers.get("grpc-message").expect("message"),
-        "local producer error"
-    );
-    assert_eq!(
-        trailers.get("grpc-status-details-bin").expect("details"),
-        "ZGV0YWlscw"
-    );
-    assert_eq!(trailers.get("x-terminal").expect("metadata"), "local");
+    for accepts_compressed in [true, false] {
+        let (server, _) = server(Mode::BodyError);
+        let (mut client, _guard) =
+            connect(server.config(ServerConfig::default().accept_compressed(accepts_compressed)))
+                .await;
+        let (response, _) = client.send_request(request(None), true).expect("request");
+        let mut body = response.await.expect("headers").into_body();
+        assert!(body.data().await.is_none());
+        let trailers = body.trailers().await.expect("trailers").expect("status");
+        assert_eq!(trailers.get("grpc-status").expect("status"), "7");
+        assert_eq!(
+            trailers.get("grpc-message").expect("message"),
+            "local producer error"
+        );
+        assert_eq!(
+            trailers.get("grpc-status-details-bin").expect("details"),
+            "ZGV0YWlscw"
+        );
+        assert_eq!(trailers.get("x-terminal").expect("metadata"), "local");
+    }
 }
 
 #[tokio::test]
 async fn native_concurrency_slot_lives_until_body_drain_and_releases_on_reset() {
-    let (server, state) = server(Mode::PendingBody);
-    let (mut client, _guard) =
-        connect(server.config(ServerConfig::default().max_concurrent_rpcs(1))).await;
-    let (response, mut send) = client.send_request(request(None), true).expect("request");
-    let first = response.await.expect("headers");
-    let (response, _) = client.send_request(request(None), true).expect("second");
-    assert_eq!(
-        response
-            .await
-            .expect("rejection")
-            .headers()
-            .get("grpc-status")
-            .expect("status"),
-        "8"
-    );
-    assert_eq!(state.calls.load(Ordering::SeqCst), 1);
-    send.send_reset(h2::Reason::CANCEL);
-    notified(&state.dropped).await;
-    drop(first);
-    // Let the owning dispatch task release its admission permit after drop.
-    tokio::task::yield_now().await;
-    let (response, mut send) = client.send_request(request(None), true).expect("third");
-    let response = response.await.expect("released slot");
-    assert!(response.headers().get("grpc-status").is_none());
-    assert_eq!(state.calls.load(Ordering::SeqCst), 2);
-    send.send_reset(h2::Reason::CANCEL);
-    drop(response);
+    for accepts_compressed in [true, false] {
+        let (server, state) = server(Mode::PendingBody);
+        let (mut client, _guard) = connect(
+            server.config(
+                ServerConfig::default()
+                    .accept_compressed(accepts_compressed)
+                    .max_concurrent_rpcs(1),
+            ),
+        )
+        .await;
+        let (response, mut send) = client.send_request(request(None), true).expect("request");
+        let first = response.await.expect("headers");
+        let (response, _) = client.send_request(request(None), true).expect("second");
+        assert_eq!(
+            response
+                .await
+                .expect("rejection")
+                .headers()
+                .get("grpc-status")
+                .expect("status"),
+            "8"
+        );
+        assert_eq!(state.calls.load(Ordering::SeqCst), 1);
+        send.send_reset(h2::Reason::CANCEL);
+        notified(&state.dropped).await;
+        drop(first);
+        // Let the owning dispatch task release its admission permit after drop.
+        tokio::task::yield_now().await;
+        let (response, mut send) = client.send_request(request(None), true).expect("third");
+        let response = response.await.expect("released slot");
+        assert!(response.headers().get("grpc-status").is_none());
+        assert_eq!(state.calls.load(Ordering::SeqCst), 2);
+        send.send_reset(h2::Reason::CANCEL);
+        drop(response);
+    }
 }

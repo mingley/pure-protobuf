@@ -35,8 +35,16 @@
 //! Other encodings and unlimited changed decoding caps reject compressed input
 //! before readiness; configured outbound caps
 //! reject nonidentity response encoding after the handler, before headers.
-//! Compressed opaque responses need a separate bounded retention policy. Native compression
-//! settings, finite byte budgets, response hooks, binary logging, lifecycle observers
+//! Disabling native input compression admits identity requests and advertises
+//! identity acceptance without changing tonic's negotiated response codec.
+//! Nonidentity request headers are rejected before readiness; a compressed flag
+//! without such a header is rejected only when its prefix is read, which can
+//! happen after readiness and handler entry for streaming methods. Native
+//! identity aliases are canonicalized only for this input opt-out. An unchanged
+//! native decoding cap does not constrain tonic's separately configured decoder.
+//! Compressed opaque responses need a separate bounded retention policy. Native
+//! outbound compression preferences/level/codec, finite byte budgets, response
+//! hooks, binary logging, lifecycle observers
 //! and grpc-web cannot currently apply to these bodies: they fail with
 //! `FAILED_PRECONDITION` before Tower readiness or business dispatch. This
 //! includes a native send-buffer setting that implicitly enables a finite
@@ -138,10 +146,10 @@ where
     const NAME: &'static str = N::NAME;
 
     async fn call(&self, rpc: Rpc) {
-        if rpc.limits() != ServerConfig::default().limits() {
+        if rpc.limits() != ServerConfig::default().limits() || !rpc.config.accepts_compressed() {
             // Keep the framing state and cap-body boxes out of the default
-            // path. The cold future owns them only for explicit overrides.
-            Box::pin(call_identity_capped(self, rpc)).await;
+            // path. Only configured caps or disabled input compression use it.
+            Box::pin(call_configured(self, rpc)).await;
             return;
         }
         if let Some(policy) = unsupported_policy(&rpc) {
@@ -233,8 +241,7 @@ where
 
 fn unsupported_policy(rpc: &Rpc) -> Option<&'static str> {
     let defaults = ServerConfig::default();
-    if rpc.config.accepts_compressed() != defaults.accepts_compressed()
-        || rpc.config.compresses_outbound() != defaults.compresses_outbound()
+    if rpc.config.compresses_outbound() != defaults.compresses_outbound()
         || rpc.config.gzip_level() != defaults.gzip_level()
         || rpc.config.send_algorithm() != defaults.send_algorithm()
         || rpc.config.send_codec() != defaults.send_codec()
@@ -260,7 +267,7 @@ fn unsupported_policy(rpc: &Rpc) -> Option<&'static str> {
     None
 }
 
-async fn call_identity_capped<N, S, B>(server: &TonicServer<N, S>, rpc: Rpc)
+async fn call_configured<N, S, B>(server: &TonicServer<N, S>, rpc: Rpc)
 where
     N: NamedService + 'static,
     S: TowerService<http::Request<TonicBody>, Response = http::Response<B>>
@@ -279,6 +286,7 @@ where
         )));
         return;
     }
+    let compression_disabled = !rpc.config.accepts_compressed();
     let limits = rpc.limits();
     let defaults = ServerConfig::default().limits();
     let cap_input = limits.max_decoding() != defaults.max_decoding();
@@ -314,14 +322,34 @@ where
         parts.headers.remove(name);
     }
     if let Err(status) = metadata.write_to(&mut parts.headers) {
-        crate::wire::send_trailers_only(&mut respond, status, &Metadata::new());
+        send_configured_error(&mut respond, status, compression_disabled);
         return;
+    }
+    if compression_disabled && parts.headers.contains_key("grpc-encoding") {
+        // Native validation already admitted exactly its identity aliases.
+        // Tonic's decoder requires the canonical token; defaults stay opaque.
+        parts
+            .headers
+            .insert("grpc-encoding", http::HeaderValue::from_static("identity"));
     }
     parts.extensions.extend(extensions);
     let (cancel, cancelled) = watch::channel(false);
     let incoming = IncomingBody::new(recv, cancelled);
     let body = if let Some(max) = input_gzip {
         TonicBody::new(gzip::GzipBody::new(incoming, limits, max))
+    } else if compression_disabled {
+        // Input opt-out is not an implicit native default-size override on
+        // tonic's independently configured private decoder.
+        let guard_limits = if cap_input {
+            limits
+        } else {
+            limits.with_unlimited_decoding()
+        };
+        TonicBody::new(opaque::CappedBody::new(
+            incoming,
+            guard_limits,
+            opaque::Direction::DecodeCompressionDisabled,
+        ))
     } else if cap_input {
         TonicBody::new(opaque::CappedBody::new(
             incoming,
@@ -351,21 +379,24 @@ where
         let response = match outcome {
             Ok(response) => response,
             Err(status) => {
-                crate::wire::send_trailers_only(&mut respond, status, &Metadata::new());
+                send_configured_error(&mut respond, status, compression_disabled);
                 return;
             }
         };
         // Unlike request encoding, the response encoding is only observable
         // after business dispatch. Reject before emitting response headers.
         if cap_output && crate::wire::grpc_encoding(response.headers()).is_some() {
-            crate::wire::send_trailers_only(
+            send_configured_error(
                 &mut respond,
                 opaque::compressed_policy(),
-                &Metadata::new(),
+                compression_disabled,
             );
             return;
         }
-        let (parts, body) = response.into_parts();
+        let (mut parts, body) = response.into_parts();
+        if compression_disabled {
+            opaque::identity_acceptance(&mut parts.headers);
+        }
         let end = body.is_end_stream();
         let header_ok = end && successful_status(&parts.headers);
         let Ok(mut send) = respond.send_response(http::Response::from_parts(parts, ()), end) else {
@@ -376,7 +407,19 @@ where
             return;
         }
         let writer = async {
-            if cap_output {
+            if compression_disabled {
+                let body = opaque::IdentityAcceptance::new(body);
+                if cap_output {
+                    drain_response(
+                        &mut send,
+                        opaque::CappedBody::new(body, limits, opaque::Direction::Encode),
+                        config.send_buffer_size(),
+                    )
+                    .await
+                } else {
+                    drain_response(&mut send, body, config.send_buffer_size()).await
+                }
+            } else if cap_output {
                 drain_response(
                     &mut send,
                     opaque::CappedBody::new(body, limits, opaque::Direction::Encode),
@@ -399,13 +442,28 @@ where
             Ok(ok) => accounting.ok = ok,
             Err(status) => {
                 cancel.send(true).ok();
-                if let Ok(trailers) = crate::wire::grpc_trailers(&status) {
+                if let Ok(mut trailers) = crate::wire::grpc_trailers(&status) {
+                    if compression_disabled {
+                        opaque::identity_acceptance(&mut trailers);
+                    }
                     send.send_trailers(trailers).ok();
                 }
             }
         }
     })
     .await;
+}
+
+fn send_configured_error(
+    respond: &mut backend::SendResponse,
+    status: Status,
+    compression_disabled: bool,
+) {
+    if compression_disabled {
+        crate::wire::reject(respond, status, false);
+    } else {
+        crate::wire::send_trailers_only(respond, status, &Metadata::new());
+    }
 }
 
 fn service_error<E: Into<tonic::codegen::StdError>>(error: E) -> Status {

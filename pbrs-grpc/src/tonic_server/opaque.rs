@@ -10,6 +10,7 @@ use std::task::{Context, Poll};
 #[derive(Clone, Copy)]
 pub(super) enum Direction {
     Decode,
+    DecodeCompressionDisabled,
     Encode,
 }
 
@@ -87,6 +88,7 @@ impl Prefix {
             }
             match self.header[0] {
                 0 => {}
+                1 if matches!(self.direction, Direction::DecodeCompressionDisabled) => {}
                 1 => return Err(compressed_policy()),
                 flag => {
                     return Err(Status::internal(format!(
@@ -103,8 +105,15 @@ impl Prefix {
             let length =
                 usize::try_from(length).map_err(|_| Status::internal("message too large"))?;
             match self.direction {
-                Direction::Decode => self.limits.check_decode(length)?,
+                Direction::Decode | Direction::DecodeCompressionDisabled => {
+                    self.limits.check_decode(length)?;
+                }
                 Direction::Encode => self.limits.check_encode(length)?,
+            }
+            // Native framing checks a claimed length before rejecting disabled
+            // compression. Other configured cap guards retain their policy error.
+            if self.header[0] == 1 {
+                return Err(crate::wire::headers::encoding_not_supported(false));
             }
             5usize
                 .checked_add(length)
@@ -152,11 +161,63 @@ fn tonic_status(status: Status) -> tonic::Status {
     )
 }
 
-/// Boxed only for explicitly configured native caps; the default body and
-/// default call future do not embed this framing state or allocate this box.
+/// Boxed only for explicitly configured caps or disabled input compression;
+/// the default body and call future do not embed this framing state.
 pub(super) struct CappedBody<B> {
     inner: Option<Pin<Box<B>>>,
     prefix: Prefix,
+}
+
+/// Cold response wrapper for the native identity-only input advertisement.
+/// Encoded response DATA and the independently negotiated output codec remain
+/// unchanged. Only the acceptance header in terminal trailers is normalized.
+pub(super) struct IdentityAcceptance<B> {
+    inner: Pin<Box<B>>,
+}
+
+impl<B> IdentityAcceptance<B> {
+    pub(super) fn new(inner: B) -> Self {
+        Self {
+            inner: Box::pin(inner),
+        }
+    }
+}
+
+impl<B: Body<Data = Bytes>> Body for IdentityAcceptance<B> {
+    type Data = Bytes;
+    type Error = B::Error;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Bytes>, Self::Error>>> {
+        self.inner.as_mut().poll_frame(cx).map(|frame| {
+            frame.map(|result| {
+                result.map(|frame| match frame.into_trailers() {
+                    Ok(mut trailers) => {
+                        identity_acceptance(&mut trailers);
+                        Frame::trailers(trailers)
+                    }
+                    Err(frame) => frame,
+                })
+            })
+        })
+    }
+
+    fn is_end_stream(&self) -> bool {
+        self.inner.is_end_stream()
+    }
+
+    fn size_hint(&self) -> http_body::SizeHint {
+        self.inner.size_hint()
+    }
+}
+
+pub(super) fn identity_acceptance(headers: &mut http::HeaderMap) {
+    headers.insert(
+        "grpc-accept-encoding",
+        http::HeaderValue::from_static("identity"),
+    );
 }
 
 impl<B> CappedBody<B> {
@@ -245,7 +306,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{CappedBody, Direction, Prefix};
+    use super::{CappedBody, Direction, IdentityAcceptance, Prefix};
     use crate::{Code, MessageLimits};
     use bytes::Bytes;
     use http_body::{Body, Frame};
@@ -322,6 +383,95 @@ mod tests {
         }
     }
 
+    #[test]
+    fn disabled_flag_respects_native_cap_order_without_changing_other_guards() {
+        for (direction, limits, wire, expected) in [
+            (
+                Direction::DecodeCompressionDisabled,
+                MessageLimits::default().with_max_decoding(3),
+                b"\x01\0\0\0\x04".as_slice(),
+                Code::ResourceExhausted,
+            ),
+            (
+                Direction::DecodeCompressionDisabled,
+                MessageLimits::default().with_max_decoding(3),
+                b"\x01\0\0\0\x03".as_slice(),
+                Code::Unimplemented,
+            ),
+            (
+                Direction::DecodeCompressionDisabled,
+                MessageLimits::unlimited(),
+                b"\x01\xff\xff\xff\xff".as_slice(),
+                Code::Unimplemented,
+            ),
+            (
+                Direction::DecodeCompressionDisabled,
+                MessageLimits::default().with_max_decoding(3),
+                b"\x02\0\0\0\x04".as_slice(),
+                Code::Internal,
+            ),
+            (
+                Direction::Decode,
+                MessageLimits::default().with_max_decoding(3),
+                b"\x01\0\0\0\x04".as_slice(),
+                Code::FailedPrecondition,
+            ),
+            (
+                Direction::Encode,
+                MessageLimits::default().with_max_encoding(3),
+                b"\x01\0\0\0\x04".as_slice(),
+                Code::FailedPrecondition,
+            ),
+        ] {
+            let mut parser = Prefix::new(limits, direction);
+            parser.data = Bytes::copy_from_slice(wire);
+            let status = parser
+                .next()
+                .expect_err("prefix must be rejected before forwarding");
+            assert_eq!(status.code(), expected);
+        }
+    }
+
+    #[test]
+    fn disabled_flag_preserves_earlier_identity_message_for_every_segmentation() {
+        let wire = Bytes::from_static(b"\0\0\0\0\x01x\x01\0\0\0\0");
+        for cuts in 0..(1usize << (wire.len() - 1)) {
+            let mut parser = Prefix::new(
+                MessageLimits::unlimited(),
+                Direction::DecodeCompressionDisabled,
+            );
+            let mut got = Vec::new();
+            let mut start = 0;
+            let mut rejected = false;
+            for end in 1..=wire.len() {
+                if end != wire.len() && cuts & (1 << (end - 1)) == 0 {
+                    continue;
+                }
+                parser.data = wire.slice(start..end);
+                loop {
+                    match parser.next() {
+                        Ok(Some(data)) => {
+                            assert_eq!(data.as_ptr(), wire.as_ptr().wrapping_add(got.len()));
+                            got.extend_from_slice(&data);
+                        }
+                        Ok(None) => break,
+                        Err(status) => {
+                            assert_eq!(status.code(), Code::Unimplemented);
+                            rejected = true;
+                            break;
+                        }
+                    }
+                }
+                start = end;
+                if rejected {
+                    break;
+                }
+            }
+            assert!(rejected, "cut mask {cuts}");
+            assert_eq!(got, b"\0\0\0\0\x01x", "cut mask {cuts}");
+        }
+    }
+
     struct Chunks {
         frames: VecDeque<Result<Frame<Bytes>, tonic::Status>>,
         dropped: Arc<AtomicUsize>,
@@ -342,6 +492,46 @@ mod tests {
         ) -> Poll<Option<Result<Frame<Bytes>, Self::Error>>> {
             Poll::Ready(self.frames.pop_front())
         }
+    }
+
+    #[tokio::test]
+    async fn identity_advertisement_preserves_data_codec_and_terminal_metadata() {
+        let data = Bytes::from_static(b"encoded original DATA");
+        let mut trailers = http::HeaderMap::new();
+        trailers.insert("grpc-status", "7".parse().expect("status"));
+        trailers.insert(
+            "grpc-status-details-bin",
+            "ZGV0YWlscw".parse().expect("details"),
+        );
+        trailers.insert("grpc-encoding", "gzip".parse().expect("codec"));
+        trailers.insert(
+            "grpc-accept-encoding",
+            "gzip,deflate".parse().expect("accept"),
+        );
+        trailers.insert("x-terminal", "preserved".parse().expect("metadata"));
+        let mut body = IdentityAcceptance::new(Chunks {
+            frames: VecDeque::from([
+                Ok(Frame::data(data.clone())),
+                Ok(Frame::trailers(trailers.clone())),
+            ]),
+            dropped: Arc::new(AtomicUsize::new(0)),
+        });
+        let got = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx))
+            .await
+            .expect("DATA")
+            .expect("frame")
+            .into_data()
+            .expect("DATA");
+        assert_eq!(got.as_ptr(), data.as_ptr());
+        assert_eq!(got, data);
+        let got = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx))
+            .await
+            .expect("trailers")
+            .expect("frame")
+            .into_trailers()
+            .expect("trailers");
+        trailers.insert("grpc-accept-encoding", "identity".parse().expect("accept"));
+        assert_eq!(got, trailers);
     }
 
     #[tokio::test]
