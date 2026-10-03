@@ -464,7 +464,7 @@ async fn native_outbound_transform_body_error_preserves_status_details_and_metad
     assert_eq!(terminal.get("grpc-status").expect("status"), "7");
     assert_eq!(
         terminal.get("grpc-message").expect("message"),
-        "producer%20body%20error"
+        "producer body error"
     );
     assert_eq!(
         terminal.get("grpc-status-details-bin").expect("details"),
