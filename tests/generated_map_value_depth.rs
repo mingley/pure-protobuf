@@ -15,7 +15,34 @@
 mod vectors;
 
 #[cfg(feature = "codegen")]
+fn qg20_registry_tuples(lock: &[u8]) -> std::collections::BTreeSet<(String, String, String, String)> {
+    std::str::from_utf8(lock)
+        .unwrap()
+        .split("[[package]]")
+        .filter_map(|block| {
+            let value = |key: &str| {
+                block
+                    .lines()
+                    .find_map(|line| line.trim().strip_prefix(key))
+                    .map(str::to_owned)
+            };
+            let source = value("source = ")?;
+            Some((
+                value("name = ").expect("locked provider package name"),
+                value("version = ").expect("locked provider package version"),
+                source,
+                value("checksum = ").unwrap_or_default(),
+            ))
+        })
+        .collect()
+}
+
+#[cfg(feature = "codegen")]
 #[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "retained actual child command, raw provider/seed/accepted locks and metadata fallback are one bounded driver record"
+)]
 fn fresh_generated_map_value_depth_consumer() {
     use std::path::PathBuf;
     use std::process::Command;
@@ -82,17 +109,70 @@ fn fresh_generated_map_value_depth_consumer() {
     std::fs::write(record.join("root-seed.Cargo.lock"), &root_seed).unwrap();
     let mut lock = String::from_utf8(root_seed.clone()).unwrap();
     lock.push_str("\n[[package]]\nname = \"qg20-map-value-consumer\"\nversion = \"0.0.0\"\ndependencies = [\n \"pbrs\",\n]\n");
-    std::fs::write(consumer.join("Cargo.lock"), lock.as_bytes()).unwrap();
+    std::fs::write(record.join("seed-before-normalization.Cargo.lock"), lock.as_bytes()).unwrap();
+    let native_cargo =
+        std::env::var_os("PBRS_QG20_CONSUMER_CARGO").unwrap_or_else(|| "cargo".into());
+    if let Some(accepted_path) = std::env::var_os("PBRS_QG20_ACCEPTED_CONSUMER_LOCK") {
+        let accepted = std::fs::read(&accepted_path).expect("prefrozen accepted child lock");
+        std::fs::write(record.join("accepted.Cargo.lock"), &accepted).unwrap();
+        std::fs::write(
+            record.join("accepted-lock-origin.txt"),
+            format!("prefrozen accepted path = {accepted_path:?}\nactive lock must already equal accepted bytes; driver does not overwrite it\n"),
+        )
+        .unwrap();
+        assert_eq!(
+            std::fs::read(consumer.join("Cargo.lock")).unwrap(),
+            accepted,
+            "prepared active child lock differs from immutable accepted lock"
+        );
+    } else {
+        // Standard standalone invocation: explicit graph preparation is separate
+        // from the actual locked test, never silently treated as locked evidence.
+        std::fs::write(consumer.join("Cargo.lock"), lock.as_bytes()).unwrap();
+        let mut metadata = Command::new(&native_cargo);
+        metadata
+            .env("CARGO_BUILD_JOBS", "1")
+            .env("CARGO_INCREMENTAL", "0")
+            .args(["metadata", "--offline", "--format-version=1"])
+            .current_dir(&consumer);
+        std::fs::write(
+            record.join("fallback-metadata-command.txt"),
+            format!(
+                "program = {:?}\nargv = {:#?}\ncwd = {:?}\nexplicit_env = {:#?}\npolicy = explicit offline graph preparation without --locked; actual test remains --locked\n",
+                metadata.get_program(),
+                metadata.get_args().collect::<Vec<_>>(),
+                metadata.get_current_dir(),
+                metadata.get_envs().collect::<Vec<_>>()
+            ),
+        )
+        .unwrap();
+        let prepared = metadata.output().unwrap();
+        std::fs::write(record.join("fallback-metadata.stdout"), &prepared.stdout).unwrap();
+        std::fs::write(record.join("fallback-metadata.stderr"), &prepared.stderr).unwrap();
+        std::fs::write(
+            record.join("fallback-metadata-exit.txt"),
+            format!("exit_code = {:?}\nstatus = {:?}\n", prepared.status.code(), prepared.status),
+        )
+        .unwrap();
+        assert!(prepared.status.success(), "offline child graph preparation failed");
+        std::fs::write(
+            record.join("accepted.Cargo.lock"),
+            std::fs::read(consumer.join("Cargo.lock")).unwrap(),
+        )
+        .unwrap();
+    }
     let before = std::fs::read(consumer.join("Cargo.lock")).unwrap();
     std::fs::write(record.join("before.Cargo.lock"), &before).unwrap();
+    assert!(
+        qg20_registry_tuples(&before).is_subset(&qg20_registry_tuples(&root_seed)),
+        "normalized child selected a version/source/checksum outside the frozen provider"
+    );
     for path in ["Cargo.toml", "src/qg20.rs", "src/vectors.rs", "src/lib.rs"] {
         let retained = record.join(path);
         std::fs::create_dir_all(retained.parent().unwrap()).unwrap();
         std::fs::copy(consumer.join(path), retained).unwrap();
     }
-    let mut command = Command::new(
-        std::env::var_os("PBRS_QG20_CONSUMER_CARGO").unwrap_or_else(|| "cargo".into()),
-    );
+    let mut command = Command::new(&native_cargo);
     command
         .env("CARGO_BUILD_JOBS", "1")
         .env("CARGO_INCREMENTAL", "0")
@@ -137,6 +217,7 @@ fn fresh_generated_map_value_depth_consumer() {
     let after = std::fs::read(consumer.join("Cargo.lock")).unwrap();
     let root_after = std::fs::read(root.join("Cargo.lock")).unwrap();
     std::fs::write(record.join("after.Cargo.lock"), &after).unwrap();
+    std::fs::write(record.join("accepted-after-test.Cargo.lock"), &after).unwrap();
     std::fs::write(record.join("root-after.Cargo.lock"), &root_after).unwrap();
     std::fs::write(
         record.join("lock-byte-equality.txt"),
@@ -150,6 +231,11 @@ fn fresh_generated_map_value_depth_consumer() {
     std::fs::write(consumer.join("stdout"), &result.stdout).unwrap();
     std::fs::write(consumer.join("stderr"), &result.stderr).unwrap();
     assert_eq!(before, after, "child --locked invocation changed its lock");
+    assert_eq!(
+        before,
+        std::fs::read(record.join("accepted.Cargo.lock")).unwrap(),
+        "actual test did not use the retained accepted lock"
+    );
     assert_eq!(
         root_seed, root_after,
         "child invocation changed the root seed lock"
