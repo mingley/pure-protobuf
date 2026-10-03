@@ -12543,6 +12543,52 @@
     "UK-08"
    ],
    "notes": "2026-10-03: root reviewed the concrete additive Extension<Host,i32>/sealed scalar and cold unknown-bag proposal at219f3c30 and authorized isolated source work. Repeatable typed_extension=FQN/Config builder selects only supported identifiers; no selections remains existing behavior. Checked Edition2024 FDS is pinned preview output, not fresh protoc35.1 compilation. Source, baseline runtime and all compiler/performance gates remain not_run until final pins and a build lease."
+  },
+  {
+   "id": "QG-18",
+   "title": "Bound unknown protobuf group recursion",
+   "lane": "QG",
+   "milestone": "M2",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "status": "in_progress",
+   "implementer": "sb32_review",
+   "depends_on": [
+    "QG-05"
+   ],
+   "read": [
+    "src/wire.rs",
+    "src/codegen/parse.rs",
+    "src/runtime.rs",
+    "src/dynamic.rs",
+    "tests/"
+   ],
+   "write": [
+    "src/wire.rs",
+    "src/codegen/parse.rs",
+    "tests/",
+    "docs/evidence/"
+   ],
+   "deliverable": "Enforce the existing protobuf recursion limit while skipping or retaining unknown groups, including known-message plus unknown-group nesting in newly generated parsers. Preserve existing public helper signatures and ordinary non-group parse behavior.",
+   "accept": [
+    "Retain a genuine bounded baseline semantic failure at the existing recursion boundary; do not rely on a stack-crash workload. Cover limit and limit+1, wrong-wire unknown groups, truncation and malformed framing, and known-message plus unknown-group composition.",
+    "Keep existing non-group paths, unknown canonical encoding, public signatures, dependencies and unsafe policy. Describe compatibility limits for previously generated callers and any intentional rejection of over-limit group inputs.",
+    "Qualify actual generated consumers, native MSRV1.85, strict1.88 and existing parser/unknown-field regressions before integration. No performance or complete parser-security claim."
+   ],
+   "checks": [
+    "core-lib",
+    "codegen",
+    "shared",
+    "clippy"
+   ],
+   "scoreboard": [
+    "F1"
+   ],
+   "relates": [
+    "GN-15"
+   ],
+   "notes": "2026-10-03: independent GN-15 review found existing recursive skip_field/capture_unknown group helpers without a depth counter, while generated known-message merge_inner checks RECURSION_LIMIT. Root source inspection confirms the gap; exploit/reproducer and compiler gates remain not_run. Separate source-only proposal and bounded test-only baseline are authorized from main0a0ae991. Shipping API/files require concrete coordinator review before edits."
   }
  ],
  "last_audit": {
