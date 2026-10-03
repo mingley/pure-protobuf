@@ -28,6 +28,7 @@ use std::time::{Duration, Instant};
 mod adoption_rpc;
 mod blob;
 mod counters;
+mod scheduler_rpc;
 #[path = "../cells/map.rs"]
 mod map_cells;
 #[path = "../cells/text.rs"]
@@ -398,7 +399,8 @@ fn usage() -> String {
      \x20 devloop run-cell <id> --iters N [--warmup N] [--prepare-iters N]\n\
      \x20 devloop run [--cells a,b] [--iters N] [--repeats N] [--out FILE]\n\
      \x20 devloop compare --baseline FILE [--current FILE] [--rpc] [--budget FILE]\n\
-     \x20 devloop sizes\n"
+     \x20 devloop sizes\n\
+     \x20 devloop scheduler-check\n"
         .to_owned()
 }
 
@@ -2534,6 +2536,7 @@ fn main() {
         "run" => cmd_run(&args[2..]),
         "compare" => cmd_compare(&args[2..]),
         "sizes" => blob::print_sizes(),
+        "scheduler-check" => scheduler_rpc::run(),
         _ => {
             eprint!("{}", usage());
             std::process::exit(2);
