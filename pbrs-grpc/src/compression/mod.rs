@@ -275,7 +275,7 @@ mod tests {
             let dec = codec
                 .decode_limited(&enc, crate::limits::MessageLimits::unlimited())
                 .expect("decode");
-            assert_eq!(dec, payload, "codec {:?}", codec);
+            assert_eq!(dec, payload, "codec {codec:?}");
         }
     }
 

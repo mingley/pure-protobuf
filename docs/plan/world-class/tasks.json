@@ -12321,6 +12321,56 @@
    "evidence": [
     "docs/evidence/tc30b2a-inbound-gzip-20261003.md"
    ]
+  },
+  {
+   "id": "TC-30b2b",
+   "title": "Honor native inbound compression opt-out for opaque tonic services",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P0",
+   "executor": "small",
+   "size": "S",
+   "status": "in_progress",
+   "implementer": "production_resources",
+   "depends_on": [
+    "TC-30b2a"
+   ],
+   "read": [
+    "pbrs-grpc/src/wire/headers.rs",
+    "pbrs-grpc/src/server/connection.rs",
+    "pbrs-grpc/src/tonic_server.rs",
+    "pbrs-grpc/src/tonic_server/opaque.rs",
+    "tests/interop/tonic/tests/transport_services.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/tonic_server.rs",
+    "pbrs-grpc/src/tonic_server/opaque.rs",
+    "pbrs-grpc/tests/tonic_service_transport.rs",
+    "pbrs-grpc/tests/tonic_opaque_transport.rs",
+    "tests/interop/tonic/tests/transport_services.rs",
+    "docs/evidence/tc-30b2b.md"
+   ],
+   "deliverable": "Allow identity requests with native accept_compressed(false), preserving the native header rejection boundary, cold per-message flag validation and identity acceptance advertisement. Keep every other unsupported opaque policy fail-closed.",
+   "accept": [
+    "Disabled nonidentity grpc-encoding is rejected before Tower readiness and dispatch. A compressed flag without a coding header rejects during body reading before forwarding that message; preserve duplex progress and describe the different stages.",
+    "Unchanged tonic-generated clients exercise all four RPC shapes, identity aliases accepted by the existing native parser, fragmented/malformed prefixes, prior-message delivery, cap interaction and cancellation/deadline behavior. Retain the baseline semantic failure and exact source/tool/raw pins.",
+    "Opt-out-only header canonicalization follows existing native identity token semantics and response grpc-accept-encoding headers/trailers advertise identity. No default-path, public API, dependency, wire-policy, gzip output, private tonic buffer budget or performance-claim change."
+   ],
+   "checks": [
+    "tonic",
+    "native-serving",
+    "native-hostile",
+    "clippy"
+   ],
+   "scoreboard": [
+    "F2",
+    "D4"
+   ],
+   "relates": [
+    "TC-30b",
+    "TC-30a"
+   ],
+   "notes": "Scope reviewed at main b2861236. Native connection validation already rejects disabled nonidentity coding before RPC admission; current tonic unsupported_policy also rejects valid identity calls. Agent prepares an isolated baseline-red/source prototype before guarded ordinary compilation. Native default decode cap must not be imposed over a separately configured tonic decoder unless explicitly overridden. Outbound compression, preferences/level, hooks and full retained-private-buffer budgets remain open in TC-30b. No quiet/LTO work is authorized for this leaf."
   }
  ],
  "last_audit": {
