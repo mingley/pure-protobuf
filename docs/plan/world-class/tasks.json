@@ -12029,7 +12029,7 @@
     "QG-06a"
    ],
    "status": "in_progress",
-   "notes": " Bounded identity message-cap enforcement is split into TC-30b1. Full native compressed-size/preference/level and retained tonic buffer-budget policy remain unresolved and explicitly rejected; transient DATA permits cannot certify private tonic codec buffers."
+   "notes": "2026-10-03: bounded identity caps (TC-30b1), finite inbound gzip/deflate validation (TC-30b2a), Compression::None rejection (TC-30b2b), and finite outbound native identity/gzip/deflate transform (TC-30b3a) are qualified. Full retained private tonic codec buffers, finite opaque byte budgets, hooks, unlimited changed-compression paths and unsupported configured policies remain unresolved and fail closed. Transient DATA permits do not certify private codec buffers. Parent stays in_progress; no performance claim."
   },
   {
    "id": "SB-32",
@@ -12388,7 +12388,7 @@
    "priority": "P0",
    "executor": "small",
    "size": "M",
-   "status": "in_progress",
+   "status": "done",
    "implementer": "tc30_outbound",
    "depends_on": [
     "TC-30b2b"
@@ -12399,14 +12399,16 @@
     "pbrs-grpc/src/wire/encode.rs",
     "pbrs-grpc/src/tonic_server.rs",
     "pbrs-grpc/src/tonic_server/opaque.rs",
+    "pbrs-grpc/src/tonic_server/outbound.rs",
     "tests/interop/tonic/tests/transport_services.rs"
    ],
    "write": [
     "pbrs-grpc/src/tonic_server.rs",
-    "pbrs-grpc/src/tonic_server/opaque.rs",
+    "pbrs-grpc/src/tonic_server/outbound.rs",
     "pbrs-grpc/tests/tonic_opaque_transport.rs",
     "tests/interop/tonic/tests/transport_services.rs",
-    "docs/evidence/tc-30b3a.md"
+    "docs/evidence/tc-30b3a.md",
+    "docs/evidence/tc-30b3a-outbound/"
    ],
    "deliverable": "When native outbound compression settings differ from their defaults and the native outbound message cap is finite, force unchanged tonic serialization to identity and apply the selected native identity/gzip/deflate coding and actual configured level to one message at a time. Preserve the default and existing cap-only opaque paths; reject every policy the adapter cannot enforce.",
    "accept": [
@@ -12430,7 +12432,7 @@
     "TC-30b",
     "TC-30b2a"
    ],
-   "notes": "2026-10-03: bounded isolated design/prototype authorized after read-only pinned tonic0.14.6 API review. Its private encoder allocates before the generic Body boundary and uses level6; a negotiation-only pass-through cannot enforce native level1 or full retained budgets. Source preparation may proceed while earlier ordinary gates finish; no Cargo or release/performance lease yet. This leaf does not close TC-30b. The trigger requires changed outbound compression settings plus finite max_encoding; existing finite-cap-only behavior is unchanged. Forcing identity may expose a stricter independently configured tonic serialization cap; it never enlarges that service cap. Unsupported selected native codecs remain explicit policy rejections."
+   "notes": "2026-10-03: bounded leaf qualified and pushed in main0a0ae991, shipping source87f031d7 against matched semantic baseline8f009b94, final evidence96e652b9. 128 successful executions (127 distinct tests) cover private framing, native malformed/flow-control, and unchanged generated clients across all four RPC shapes in plaintext and mTLS. Four genuine successfully built baseline semantic failures, initial fixture/lint failures and their corrections remain retained. Actual native1.85 feature-off and native1.88 tonic checks/graphs, strict Clippy, strict rustdoc and scoped format pass. Root independently checked all10,710 retained ELF/generated/full-fingerprint/dependency artifacts plus rustdoc archive and exact two-file shipping delta. Own transform storage is charged before allocation and held across Bytes clones/backlog; private tonic buffers, finite opaque byte budgets, unsupported codecs/hooks and broader policies remain fail-closed. Trigger is changed compression settings AND finite max_encoding; cap-only/default paths and stricter tonic serialization limits are preserved. No client/server performance capture or full TC-30b completion claim. Portable proof is committed; large retained artifacts remain local and explicitly indexed."
   },
   {
    "id": "RX-10a",
