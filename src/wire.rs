@@ -146,9 +146,9 @@ impl FieldList {
     }
 
     /// Retain matching records in their existing order, without allocating.
-    pub fn retain(&mut self, mut keep: impl FnMut(&UnknownField) -> bool) {
+    pub fn retain(&mut self, keep: impl FnMut(&UnknownField) -> bool) {
         if let Some(fields) = self.0.as_mut() {
-            fields.retain(|field| keep(field));
+            fields.retain(keep);
         }
     }
 }
