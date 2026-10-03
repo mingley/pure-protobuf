@@ -12333,7 +12333,7 @@
    "priority": "P0",
    "executor": "small",
    "size": "S",
-   "status": "in_progress",
+   "status": "done",
    "implementer": "production_resources",
    "depends_on": [
     "TC-30b2a"
@@ -12373,7 +12373,10 @@
     "TC-30b",
     "TC-30a"
    ],
-   "notes": "Scope reviewed at main b2861236. Native connection validation already rejects disabled nonidentity coding before RPC admission; current tonic unsupported_policy also rejects valid identity calls. Agent prepares an isolated baseline-red/source prototype before guarded ordinary compilation. Native default decode cap must not be imposed over a separately configured tonic decoder unless explicitly overridden. Outbound compression, preferences/level, hooks and full retained-private-buffer budgets remain open in TC-30b. No quiet/LTO work is authorized for this leaf."
+   "notes": "Scope reviewed at main b2861236. Native connection validation already rejects disabled nonidentity coding before RPC admission; current tonic unsupported_policy also rejects valid identity calls. Agent prepares an isolated baseline-red/source prototype before guarded ordinary compilation. Native default decode cap must not be imposed over a separately configured tonic decoder unless explicitly overridden. Outbound compression, preferences/level, hooks and full retained-private-buffer budgets remain open in TC-30b. No quiet/LTO work is authorized for this leaf. 2026-10-03: qualified combined source dfd5ba32/proof fbb54734 merged after ad79b48e. Final 95 affected executions, actual Rust 1.88 native/standalone all-targets strict Clippy and rustdoc, Rust 1.85 feature-off, default graph without tonic, scoped stable formatting and whitespace checks pass. Root independently verified the 139-member archive, exact four-file opt-out delta, unchanged 66 backend files and the distinct 180/95/95 source scopes. Baseline semantic reds, disk-guard interruption, old standalone lint failure and missing Rust 1.88 rustfmt remain preserved. Only bounded inbound opt-out correctness is closed; 32-bit runtime, performance, outbound transforms and private tonic retained-buffer budgets remain unqualified in the parent.",
+   "evidence": [
+    "docs/evidence/tc-30b2b.md"
+   ]
   },
   {
    "id": "TC-30b3a",
