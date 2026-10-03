@@ -170,10 +170,10 @@ fn proto3_float_double_json_subnormals_and_exponents() {
 fn proto3_float_double_json_boundary_rounding() {
     // Official conformance float32 max: 3.402823e+38
     let msg = TestAllTypesProto3::from_json(r#"{"optionalFloat": 3.402823e+38}"#).unwrap();
-    assert!((msg.optional_float() - 3.402823e+38_f32).abs() < 1e32);
+    assert!((msg.optional_float() - 3.402_823e38_f32).abs() < 1e32);
 
     let msg = TestAllTypesProto3::from_json(r#"{"optionalFloat": -3.402823e+38}"#).unwrap();
-    assert!((msg.optional_float() - (-3.402823e+38_f32)).abs() < 1e32);
+    assert!((msg.optional_float() - (-3.402_823e38_f32)).abs() < 1e32);
 
     // Exact float32 max as f64
     let exact_f32_max_json = format!(r#"{{"optionalFloat": {}}}"#, f32::MAX as f64);
