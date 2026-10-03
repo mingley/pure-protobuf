@@ -1,0 +1,34 @@
+{
+  "run-ordinary.py": {
+    "bytes": 45009,
+    "sha256": "1ed127fe9a8ec29f41ea898ec7c6112a918befd6d6c2b9d180411581c9308405"
+  },
+  "provenance.json": {
+    "bytes": 39900,
+    "sha256": "7824ffa1597f218f6368c4d6aa12853d9948f20abafa580827dece39c853ba9a"
+  },
+  "check-evidence.py": {
+    "bytes": 15627,
+    "sha256": "36c2f05e86356a00f6509322421034a07474a296ef6d98baf1ac1382b5282dc1"
+  },
+  "sealed-config.json": {
+    "bytes": 260829,
+    "sha256": "b1c271e1dc4f2519fe06f99db71f201f65e8ecc07345e35308ba12ce400ea445"
+  },
+  "raw-member-sha256.json": {
+    "bytes": 1310383,
+    "sha256": "99c46d82a5cbe9f6f32235e04aae080bc1a97524cb1f4e6f02fabfaf5bf26aa5"
+  },
+  "raw-artifacts.tar.gz": {
+    "bytes": 97326796,
+    "sha256": "eb7f705b5b789e46f05e3befbeae9375753406a5a8ef5234dbfc49e975fd23f5"
+  },
+  "hash-only-cache-audit.json": {
+    "bytes": 298677,
+    "sha256": "3b29de6051f26454897b146e91595f3484f8ff9d0c614174f15100aba3f09aa8"
+  },
+  "qualification.json": {
+    "bytes": 115479,
+    "sha256": "ded1413fc6711b8ea83d373f2bab841402b97f82feb2097e7874a8f29eff7619"
+  }
+}

@@ -1,0 +1,480 @@
+{
+  "sealed_at_utc": "2026-10-03T05:58:17.259112+00:00",
+  "scope": "additive ordinary qualification of active opt-in shared descriptor byte-string emission only; historical matched source points",
+  "baseline": "4b2384e728bce17601d56e43a887c354d66b9024",
+  "candidate": "5fe226b015a2c2bc667db976390b8337db6e9a2e",
+  "prototype": "54aac01bbaf06e9cb1cc664ca9e8d36d8c375acd",
+  "shipping_files": [
+    "src/codegen/descriptors.rs",
+    "src/codegen/reflection.rs"
+  ],
+  "existing_test_file": "tests/codegen_shared_descriptors.rs",
+  "source_guard": {
+    "snapshot_inputs_per_variant": 1027,
+    "frozen_compiler_inventory": 69,
+    "full_maps": "sealed-config.json",
+    "baseline_test_overlay_sha256": "328ed6b8b5fb1174f89da4ed82e95abad9badd6862fcfaafa18386752722b204"
+  },
+  "tool_identity": {
+    "native_versions": {
+      "stable-baseline": {
+        "tool_identity": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.0\nLLVM version: 23.1.1\n",
+        "cargo-version": "cargo 1.99.0 (5f94df478 2026-08-27)\nrelease: 1.99.0\ncommit-hash: 5f94df4789f005f9a352888e8355ffc645b7ed0e\ncommit-date: 2026-08-27\nhost: x86_64-unknown-linux-gnu\nlibgit2: 1.9.6 (sys:0.21.0 vendored)\nlibcurl: 8.21.0-DEV (sys:0.4.90+curl-8.21.0 vendored ssl:OpenSSL/3.6.3)\nssl: OpenSSL 3.6.3 9 Jun 2026\nos: Debian 13.0.0 (trixie) [64-bit]\n",
+        "clippy-driver-version": "clippy 0.1.99 (b940084d7e 2026-09-28)\n"
+      },
+      "stable-candidate": {
+        "tool_identity": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.0\nLLVM version: 23.1.1\n",
+        "cargo-version": "cargo 1.99.0 (5f94df478 2026-08-27)\nrelease: 1.99.0\ncommit-hash: 5f94df4789f005f9a352888e8355ffc645b7ed0e\ncommit-date: 2026-08-27\nhost: x86_64-unknown-linux-gnu\nlibgit2: 1.9.6 (sys:0.21.0 vendored)\nlibcurl: 8.21.0-DEV (sys:0.4.90+curl-8.21.0 vendored ssl:OpenSSL/3.6.3)\nssl: OpenSSL 3.6.3 9 Jun 2026\nos: Debian 13.0.0 (trixie) [64-bit]\n",
+        "clippy-driver-version": "clippy 0.1.99 (b940084d7e 2026-09-28)\n"
+      },
+      "msrv185-baseline": {
+        "tool_identity": "rustc 1.85.0 (4d91de4e4 2025-02-17)\nbinary: rustc\ncommit-hash: 4d91de4e48198da2e33413efdcd9cd2cc0c46688\ncommit-date: 2025-02-17\nhost: x86_64-unknown-linux-gnu\nrelease: 1.85.0\nLLVM version: 19.1.7\n",
+        "cargo-version": "cargo 1.85.0 (d73d2caf9 2024-12-31)\nrelease: 1.85.0\ncommit-hash: d73d2caf9e41a39daf2a8d6ce60ec80bf354d2a7\ncommit-date: 2024-12-31\nhost: x86_64-unknown-linux-gnu\nlibgit2: 1.8.1 (sys:0.19.0 vendored)\nlibcurl: 8.9.0-DEV (sys:0.4.74+curl-8.9.0 vendored ssl:OpenSSL/1.1.1w)\nssl: OpenSSL 1.1.1w  11 Sep 2023\nos: Debian 13.0.0 [64-bit]\n"
+      },
+      "msrv185-candidate": {
+        "tool_identity": "rustc 1.85.0 (4d91de4e4 2025-02-17)\nbinary: rustc\ncommit-hash: 4d91de4e48198da2e33413efdcd9cd2cc0c46688\ncommit-date: 2025-02-17\nhost: x86_64-unknown-linux-gnu\nrelease: 1.85.0\nLLVM version: 19.1.7\n",
+        "cargo-version": "cargo 1.85.0 (d73d2caf9 2024-12-31)\nrelease: 1.85.0\ncommit-hash: d73d2caf9e41a39daf2a8d6ce60ec80bf354d2a7\ncommit-date: 2024-12-31\nhost: x86_64-unknown-linux-gnu\nlibgit2: 1.8.1 (sys:0.19.0 vendored)\nlibcurl: 8.9.0-DEV (sys:0.4.74+curl-8.9.0 vendored ssl:OpenSSL/1.1.1w)\nssl: OpenSSL 1.1.1w  11 Sep 2023\nos: Debian 13.0.0 [64-bit]\n"
+      },
+      "strict188-baseline": {
+        "tool_identity": "rustc 1.88.0 (6b00bc388 2025-06-23)\nbinary: rustc\ncommit-hash: 6b00bc3880198600130e1cf62b8f8a93494488cc\ncommit-date: 2025-06-23\nhost: x86_64-unknown-linux-gnu\nrelease: 1.88.0\nLLVM version: 20.1.5\n",
+        "cargo-version": "cargo 1.88.0 (873a06493 2025-05-10)\nrelease: 1.88.0\ncommit-hash: 873a0649350c486caf67be772828a4f36bb4734c\ncommit-date: 2025-05-10\nhost: x86_64-unknown-linux-gnu\nlibgit2: 1.9.0 (sys:0.20.0 vendored)\nlibcurl: 8.12.1-DEV (sys:0.4.80+curl-8.12.1 vendored ssl:OpenSSL/3.4.1)\nssl: OpenSSL 3.4.1 11 Feb 2025\nos: Debian 13.0.0 [64-bit]\n",
+        "clippy-driver-version": "clippy 0.1.88 (6b00bc3880 2025-06-23)\n"
+      },
+      "strict188-candidate": {
+        "tool_identity": "rustc 1.88.0 (6b00bc388 2025-06-23)\nbinary: rustc\ncommit-hash: 6b00bc3880198600130e1cf62b8f8a93494488cc\ncommit-date: 2025-06-23\nhost: x86_64-unknown-linux-gnu\nrelease: 1.88.0\nLLVM version: 20.1.5\n",
+        "cargo-version": "cargo 1.88.0 (873a06493 2025-05-10)\nrelease: 1.88.0\ncommit-hash: 873a0649350c486caf67be772828a4f36bb4734c\ncommit-date: 2025-05-10\nhost: x86_64-unknown-linux-gnu\nlibgit2: 1.9.0 (sys:0.20.0 vendored)\nlibcurl: 8.12.1-DEV (sys:0.4.80+curl-8.12.1 vendored ssl:OpenSSL/3.4.1)\nssl: OpenSSL 3.4.1 11 Feb 2025\nos: Debian 13.0.0 [64-bit]\n",
+        "clippy-driver-version": "clippy 0.1.88 (6b00bc3880 2025-06-23)\n"
+      }
+    },
+    "binary_compiler_driver_hashes": {
+      "stable": {
+        "root": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu",
+        "expected_rustc_version_prefix": "rustc 1.99.0 ",
+        "version_status": "not_run; binary/sysroot-library identity sealed by read-only hashes",
+        "sha256": {
+          "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo": "e951141cc55a6cd7b9876d187bd30a3720e6086b99413af95e3b8de1cdd72f14",
+          "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc": "f3834d26669b03f6855fa54bd2381443123e860167bc0c7a8dd137e5cf6e5e4f",
+          "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustdoc": "a1321a60578a6b2e3e0ff428201b8618bbd9a9fbcd475c0d0f151bbf17cb0a9e",
+          "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo-clippy": "2d6d576cdd70e29c1c6b6ae8026b35f6295b6bd67e6845552697440d9c3edf15",
+          "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/clippy-driver": "ecf6d74d4e13728405acd3749bff486db899e793b5e3cd179ab663f7fe9d6fe6",
+          "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/librustc_driver-999a121de2f042be.so": "f45c41337f1516bb9f4d504a2a507202a01c431fc2063334913dde5480ffee03"
+        }
+      },
+      "msrv185": {
+        "root": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu",
+        "expected_rustc_version_prefix": "rustc 1.85.0 ",
+        "version_status": "not_run; binary/sysroot-library identity sealed by read-only hashes",
+        "sha256": {
+          "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/cargo": "1815642e0eaa0cf4ea86c3ba4299c21c4f2d68ae4a427881ea1f33070b2aae9b",
+          "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/rustc": "07d5a76ba859dc045883efd538d96c7b86cf10166f4e834afbb5981012b461c3",
+          "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/rustdoc": "1cd0edbcce02fd5c2a9db63541cb086f4f89f85911cf705317a12241ef15653f",
+          "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/lib/librustc_driver-77ea5bfe5f9d9ec5.so": "b2c5c096d7881d154824bb2455c433f8f4384139786eacef2ab7f201eb063d78"
+        }
+      },
+      "strict188": {
+        "root": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.88.0-x86_64-unknown-linux-gnu",
+        "expected_rustc_version_prefix": "rustc 1.88.0 ",
+        "version_status": "not_run; binary/sysroot-library identity sealed by read-only hashes",
+        "sha256": {
+          "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.88.0-x86_64-unknown-linux-gnu/bin/cargo": "de9be4299324f5c1f5d12103792d35e8b8ab195df3a374194b8ffc33562c7e3d",
+          "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.88.0-x86_64-unknown-linux-gnu/bin/rustc": "ac3e92e45fe15c789939deedf7614f4f9578cc9609cb9ead39c9b1808a316c5b",
+          "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.88.0-x86_64-unknown-linux-gnu/bin/rustdoc": "131bfb775dd5c1ca2a074881322a9d3b4e6b802c51f5a461d9300486f0edfc18",
+          "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.88.0-x86_64-unknown-linux-gnu/bin/cargo-clippy": "06860a0528fa8018b85bf4d0ca05f1df95862f7288d4ff3447d2961b65eca20b",
+          "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.88.0-x86_64-unknown-linux-gnu/bin/clippy-driver": "a7a873792a901a1c916939dfbaa56d6ca64c1458bc883c1d01b6efe7ba6aea81",
+          "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.88.0-x86_64-unknown-linux-gnu/lib/librustc_driver-277627f6f3b9f29c.so": "ce408ed4018b56fe4175475b516b1440946bcaf0edf33f957ac581b405c8a9b4"
+        }
+      }
+    },
+    "not_claimed": "every sysroot stdlib/linker dependency is not hashed; this is not a complete native compiler closure"
+  },
+  "compiled_plugins": {
+    "baseline": {
+      "path": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/generators/baseline-protoc-gen-pbrs",
+      "bytes": 4439304,
+      "sha256": "06db8d54d4ac2bb6577fd3604a6ea9e75459647e242ac5e3197c9083564d3249",
+      "source_commit": "4b2384e728bce17601d56e43a887c354d66b9024",
+      "tool": "stable",
+      "build_profile": "debug ordinary bootstrap, excluded from any future performance timing"
+    },
+    "candidate": {
+      "path": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/generators/candidate-protoc-gen-pbrs",
+      "bytes": 4441072,
+      "sha256": "eb5fcbb47e640fdd21fa80b619755e7182da215f5ccf20bbb954b4ebcccb0ae7",
+      "source_commit": "5fe226b015a2c2bc667db976390b8337db6e9a2e",
+      "tool": "stable",
+      "build_profile": "debug ordinary bootstrap, excluded from any future performance timing"
+    }
+  },
+  "compiled_plugin_provenance_limit": "fresh source-guarded cargo build --bin protoc-gen-pbrs debug outputs copied and hashed with native tool records; no compiler-artifact JSON or complete native closure; not a release BUILD artifact claim",
+  "legacy_proof": {
+    "root": "/workspace/pure-protobuf/docs/evidence/gn-03-source-artifacts",
+    "sha256": {
+      "raw-artifacts.tar.gz": "8bbe3dff12b868bb27bee83bb2dae67be274635a5a44096d8dd8957c46282259",
+      "raw-member-sha256.json": "139cfed4409ad93774cda0769fa790a3842f66be5f510eb35f575c170d19e691",
+      "volume-before.json": "0fa79fcae090bed8a95ee48353e9840f8415b940518104997ab09eb001cccd5f",
+      "volume-default-final.json": "4e07202f202bb2d6586f01124ab7af120b387745472ab6f615a811dc626cc1ba",
+      "volume-shared-final.json": "6184aae0c6d6ebe8c2b0f466b57ea63bcc7278d039235ef39e40b8f87f78f32f",
+      "provenance.json": "5ff6f2c3f5faefd45514eb676c50c42a835a99d208dead56496c91aa943e00c9",
+      "artifact-sha256.json": "d74c5650f169e79f3b97c37757fc0eaaa57d7500c31139e35f813380da83cb75",
+      "record-source-volume.py": "38815d8049d7fd1c79e025fedae09a997584d5fd7f6e13d247e1bdc2b51f1fff"
+    }
+  },
+  "legacy_plugin_role": "archivedfbf560 default golden comparator only; matched reference is newly compiled4b plugin, not old795/718aef historical performance driver",
+  "correctness_counts": {
+    "hex_all256_empty_unit_passes": 6,
+    "compiled_byte_string_all256_empty_unit_passes": 3,
+    "integration_suite_runs": 6,
+    "integration_test_passes": 42,
+    "actual_successful_generated_consumer_executions": 42,
+    "expected_missing_helper_compile_reds": 6,
+    "shipping_strict_runs": 4,
+    "strict_consumer_profiles": 28,
+    "harness_total_tests": 66,
+    "harness_passed": 65,
+    "harness_optional_skipped": 1
+  },
+  "profile": {
+    "dev_debug": 0,
+    "test_debug": 0,
+    "incremental": 0,
+    "strict_consumer_target": "reuse per-stage target/integration-consumers",
+    "scope": "same ordinary profile for both frozen source variants; no release/LTO/performance invocation"
+  },
+  "guard": {
+    "jobs": 1,
+    "owned_allocated_cache_limit_bytes": 2147483648,
+    "global_free_reserve_bytes": 2147483648,
+    "sample_seconds": 1,
+    "phase_timeout_seconds": 900,
+    "scope": "sum of allocated bytes of every runner-owned target tree; artifact bytes separately tracked and included in filesystem reserve; sampled guard is not continuous cap proof"
+  },
+  "resource_summary": {
+    "samples": 369,
+    "maximum_owned_allocated_bytes": 111292416,
+    "minimum_global_available_bytes": 5099614208,
+    "guard_failure_sample_count": 0,
+    "scope": "raw per-phase sampled ledger only; no continuous cap or between-sample maximum certification"
+  },
+  "retention": "all own cache file hashes; complete original fingerprints, actual ELF payloads, generated fixture/manifest/lock/source/compiler logs retained and verified before exact completed target retirement; other non-ELF compiler cache payloads are hash-inventory only",
+  "cache_retirement": {
+    "stable-baseline": {
+      "status": "passed",
+      "retired_scopes": [
+        "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target/gn03-byte-string-correctness",
+        "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target/gn03-tests",
+        "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target/integration-consumers"
+      ],
+      "archive": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/retained/stable-baseline/fixtures-fingerprints-executables.tar.gz",
+      "archive_sha256": "54c6958af950837437340a6dcdedb729a2ca4bacc41d26c51ab6d85689ff4f0e",
+      "all_target_file_count": 591,
+      "retained_payload_count": 411,
+      "fingerprints": "all fingerprint file contents retained; other non-ELF compiler cache files are hash inventory only",
+      "before": {
+        "observed_at_utc": "2026-10-03T05:44:30.122046+00:00",
+        "owned_target_roots": [
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+        ],
+        "allocated_unique_inode_bytes": 111276032,
+        "apparent_path_sum_bytes": 126811564,
+        "path_count": 736,
+        "global_available_bytes": 5668380672,
+        "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+      },
+      "after": {
+        "observed_at_utc": "2026-10-03T05:44:30.259121+00:00",
+        "owned_target_roots": [
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+        ],
+        "allocated_unique_inode_bytes": 4096,
+        "apparent_path_sum_bytes": 4096,
+        "path_count": 1,
+        "global_available_bytes": 5779652608,
+        "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+      },
+      "retirement_utc": "2026-10-03T05:44:30.265673+00:00",
+      "process_scope_limit": "accessible status/cmdline/exe/cwd/fd links only; mappings, environments and inaccessible process internals are not proved"
+    },
+    "stable-candidate": {
+      "status": "passed",
+      "retired_scopes": [
+        "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target/gn03-byte-string-correctness",
+        "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target/gn03-tests",
+        "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target/integration-consumers"
+      ],
+      "archive": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/retained/stable-candidate/fixtures-fingerprints-executables.tar.gz",
+      "archive_sha256": "ca1d646d6ccc5b70ac9c44a61e66ae604e90a34b99d4db1e3650123ea240a72f",
+      "all_target_file_count": 591,
+      "retained_payload_count": 411,
+      "fingerprints": "all fingerprint file contents retained; other non-ELF compiler cache files are hash inventory only",
+      "before": {
+        "observed_at_utc": "2026-10-03T05:45:17.260238+00:00",
+        "owned_target_roots": [
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+        ],
+        "allocated_unique_inode_bytes": 111292416,
+        "apparent_path_sum_bytes": 126834166,
+        "path_count": 737,
+        "global_available_bytes": 5624496128,
+        "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+      },
+      "after": {
+        "observed_at_utc": "2026-10-03T05:45:17.400344+00:00",
+        "owned_target_roots": [
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+        ],
+        "allocated_unique_inode_bytes": 8192,
+        "apparent_path_sum_bytes": 8192,
+        "path_count": 2,
+        "global_available_bytes": 5735780352,
+        "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+      },
+      "retirement_utc": "2026-10-03T05:45:17.407372+00:00",
+      "process_scope_limit": "accessible status/cmdline/exe/cwd/fd links only; mappings, environments and inaccessible process internals are not proved"
+    },
+    "msrv185-baseline": {
+      "status": "passed",
+      "retired_scopes": [
+        "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target/gn03-byte-string-msrv",
+        "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target/gn03-tests",
+        "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target/integration-consumers"
+      ],
+      "archive": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/retained/msrv185-baseline/fixtures-fingerprints-executables.tar.gz",
+      "archive_sha256": "e2a5f2e7ba6341242dc09e572bb280f8a405268311e9b5a7a2a380c5f3ca9ceb",
+      "all_target_file_count": 399,
+      "retained_payload_count": 287,
+      "fingerprints": "all fingerprint file contents retained; other non-ELF compiler cache files are hash inventory only",
+      "before": {
+        "observed_at_utc": "2026-10-03T05:46:04.149438+00:00",
+        "owned_target_roots": [
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+        ],
+        "allocated_unique_inode_bytes": 93044736,
+        "apparent_path_sum_bytes": 107603210,
+        "path_count": 512,
+        "global_available_bytes": 5223677952,
+        "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+      },
+      "after": {
+        "observed_at_utc": "2026-10-03T05:46:04.261613+00:00",
+        "owned_target_roots": [
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+        ],
+        "allocated_unique_inode_bytes": 12288,
+        "apparent_path_sum_bytes": 12288,
+        "path_count": 3,
+        "global_available_bytes": 5316710400,
+        "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+      },
+      "retirement_utc": "2026-10-03T05:46:04.268643+00:00",
+      "process_scope_limit": "accessible status/cmdline/exe/cwd/fd links only; mappings, environments and inaccessible process internals are not proved"
+    },
+    "msrv185-candidate": {
+      "status": "passed",
+      "retired_scopes": [
+        "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target/gn03-byte-string-msrv",
+        "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target/gn03-tests",
+        "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target/integration-consumers"
+      ],
+      "archive": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/retained/msrv185-candidate/fixtures-fingerprints-executables.tar.gz",
+      "archive_sha256": "6342575bebf6e36e7230f747344bb515d88d39d1a6d32664ccbbb307486fd82a",
+      "all_target_file_count": 399,
+      "retained_payload_count": 287,
+      "fingerprints": "all fingerprint file contents retained; other non-ELF compiler cache files are hash inventory only",
+      "before": {
+        "observed_at_utc": "2026-10-03T05:46:35.033057+00:00",
+        "owned_target_roots": [
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+        ],
+        "allocated_unique_inode_bytes": 93081600,
+        "apparent_path_sum_bytes": 107642066,
+        "path_count": 513,
+        "global_available_bytes": 5182488576,
+        "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+      },
+      "after": {
+        "observed_at_utc": "2026-10-03T05:46:35.145580+00:00",
+        "owned_target_roots": [
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+        ],
+        "allocated_unique_inode_bytes": 16384,
+        "apparent_path_sum_bytes": 16384,
+        "path_count": 4,
+        "global_available_bytes": 5275553792,
+        "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+      },
+      "retirement_utc": "2026-10-03T05:46:35.152728+00:00",
+      "process_scope_limit": "accessible status/cmdline/exe/cwd/fd links only; mappings, environments and inaccessible process internals are not proved"
+    },
+    "strict188-baseline": {
+      "status": "passed",
+      "retired_scopes": [
+        "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target/gn03-byte-string-correctness",
+        "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target/gn03-tests",
+        "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target/integration-consumers"
+      ],
+      "archive": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/retained/strict188-baseline/fixtures-fingerprints-executables.tar.gz",
+      "archive_sha256": "125242a52dcca4a3b0852489d261a10a3d2cdf1d68e271a38459022f8d12d89d",
+      "all_target_file_count": 586,
+      "retained_payload_count": 411,
+      "fingerprints": "all fingerprint file contents retained; other non-ELF compiler cache files are hash inventory only",
+      "before": {
+        "observed_at_utc": "2026-10-03T05:47:22.135378+00:00",
+        "owned_target_roots": [
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+        ],
+        "allocated_unique_inode_bytes": 106971136,
+        "apparent_path_sum_bytes": 121250557,
+        "path_count": 735,
+        "global_available_bytes": 5129207808,
+        "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+      },
+      "after": {
+        "observed_at_utc": "2026-10-03T05:47:22.265758+00:00",
+        "owned_target_roots": [
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+        ],
+        "allocated_unique_inode_bytes": 20480,
+        "apparent_path_sum_bytes": 20480,
+        "path_count": 5,
+        "global_available_bytes": 5236158464,
+        "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+      },
+      "retirement_utc": "2026-10-03T05:47:22.272571+00:00",
+      "process_scope_limit": "accessible status/cmdline/exe/cwd/fd links only; mappings, environments and inaccessible process internals are not proved"
+    },
+    "strict188-candidate": {
+      "status": "passed",
+      "retired_scopes": [
+        "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target/gn03-byte-string-correctness",
+        "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target/gn03-tests",
+        "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target/integration-consumers"
+      ],
+      "archive": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/retained/strict188-candidate/fixtures-fingerprints-executables.tar.gz",
+      "archive_sha256": "056fe7cc5085adbbda390760dc34d1988888d0c7b899c5717cceb44c74952bd1",
+      "all_target_file_count": 586,
+      "retained_payload_count": 411,
+      "fingerprints": "all fingerprint file contents retained; other non-ELF compiler cache files are hash inventory only",
+      "before": {
+        "observed_at_utc": "2026-10-03T05:48:10.358482+00:00",
+        "owned_target_roots": [
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+        ],
+        "allocated_unique_inode_bytes": 107040768,
+        "apparent_path_sum_bytes": 121325250,
+        "path_count": 736,
+        "global_available_bytes": 5089918976,
+        "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+      },
+      "after": {
+        "observed_at_utc": "2026-10-03T05:48:10.492502+00:00",
+        "owned_target_roots": [
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+          "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+        ],
+        "allocated_unique_inode_bytes": 24576,
+        "apparent_path_sum_bytes": 24576,
+        "path_count": 6,
+        "global_available_bytes": 5196935168,
+        "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+      },
+      "retirement_utc": "2026-10-03T05:48:10.499464+00:00",
+      "process_scope_limit": "accessible status/cmdline/exe/cwd/fd links only; mappings, environments and inaccessible process internals are not proved"
+    }
+  },
+  "process_visibility_limit": "accessible /proc status/cmdline/exe/cwd/fd and owned group/session stat only; disappearing paths treated as exited, zombies not live; inaccessible internals/maps/env not proved",
+  "lease": {
+    "scope": "GN03 byte-string ordinary qualification",
+    "owner": "root",
+    "grant_utc": "2026-10-03T05:42:54.379613+00:00",
+    "runner_sha256": "1ed127fe9a8ec29f41ea898ec7c6112a918befd6d6c2b9d180411581c9308405",
+    "sealed_config_sha256": "b1c271e1dc4f2519fe06f99db71f201f65e8ecc07345e35308ba12ce400ea445",
+    "baseline_commit": "4b2384e728bce17601d56e43a887c354d66b9024",
+    "candidate_commit": "5fe226b015a2c2bc667db976390b8337db6e9a2e",
+    "jobs": 1,
+    "owned_cache_cap_bytes": 2147483648,
+    "global_free_reserve_bytes": 2147483648,
+    "free_at_grant": 5823348736,
+    "release_performance_authorized": false,
+    "authorization": "User explicitly authorized improvements, subagents and direct main pushes; root ordinary coordinator authorizes reviewed correctness stages only."
+  },
+  "campaign_utc": {
+    "start": "2026-10-03T05:43:45.259227+00:00",
+    "end": "2026-10-03T05:48:10.502938+00:00",
+    "release_clock_second_precision": "2026-10-03 05:48:25 UTC"
+  },
+  "default_output_count": 30,
+  "count_clarification": "3+6+21 actual seeded default outputs;308 refers to original source-proof archive members",
+  "real_unexpected_failure_count": 0,
+  "source_only_review_corrections": "prototype actual-sharing predicate and raw-owner alias count corrected before qualification; these are not invented runtime red attempts",
+  "performance_status": "not_run",
+  "parent_GN03_acceptance": "open",
+  "not_claimed": [
+    "current production compiler inputs",
+    "release/LTO/build-performance or memory improvement",
+    "release consumer binary-size win",
+    "repeated large-corpus or independent paired-host qualification",
+    "fastest-in-world result"
+  ],
+  "historical_artifacts": "prior source/small/100/failed1000/retry/reclamation archives unchanged",
+  "explicit_retention_audit": "hash-only-cache-audit.json: all-target inventory minus retained members, direct retained ELF-magic classification; hash-only paths/counts are published and replayed",
+  "retirement_primitive": "reviewed namespace/path/source/file-hash/visible-process rechecks followed by shutil.rmtree; no held advisory Cargo locks or fd/inode-qualified retirement"
+}
