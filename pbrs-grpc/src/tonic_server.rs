@@ -429,6 +429,9 @@ where
         if !end {
             if let Some(settings) = &outbound {
                 if let Some(codec) = settings.codec {
+                    // Compression changes DATA lengths; the complete encoded
+                    // response length is not known for a streaming body.
+                    parts.headers.remove(http::header::CONTENT_LENGTH);
                     parts.headers.insert("grpc-encoding", http::HeaderValue::from_static(codec.name()));
                 } else {
                     parts.headers.remove("grpc-encoding");

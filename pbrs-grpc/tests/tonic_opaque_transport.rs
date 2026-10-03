@@ -26,6 +26,7 @@ struct Probe {
     encoding: Option<&'static str>,
     pending_tail: bool,
     disable_compression: bool,
+    content_length: Option<usize>,
 }
 
 #[derive(Default)]
@@ -90,6 +91,9 @@ impl Service<Request<TonicBody>> for Probe {
                 .header("x-initial", "preserved");
             if let Some(encoding) = probe.encoding {
                 response = response.header("grpc-encoding", encoding);
+            }
+            if let Some(length) = probe.content_length {
+                response = response.header("content-length", length.to_string());
             }
             let mut response = response
                 .body(Frames {
@@ -249,6 +253,7 @@ fn probe(output: Vec<Bytes>) -> Probe {
         encoding: None,
         pending_tail: false,
         disable_compression: false,
+        content_length: None,
     }
 }
 
@@ -384,6 +389,57 @@ async fn native_outbound_failure_withholds_later_prefix_and_preserves_first_mess
             if later.first() == Some(&1) { "9" } else { "8" }
         );
         assert_eq!(fixture.state.dropped.load(Ordering::SeqCst), 1);
+    }
+}
+
+#[tokio::test]
+async fn native_outbound_compression_drops_stale_content_length_and_forwarding_preserves_it() {
+    use pbrs_grpc::compression::{Codec, CompressionAlgorithm};
+    let source = identity_wire(b"x");
+    assert_eq!(source.len(), 6);
+    let finite = ServerConfig::default().max_encoding_message_size(1);
+    for (config, accepted, selected) in [
+        (ServerConfig::default(), "gzip", None),
+        (finite, "gzip", None),
+        (finite.send_compressed(true), "identity", None),
+        (
+            finite.send_compressed(true),
+            "gzip",
+            Some(CompressionAlgorithm::Gzip),
+        ),
+        (
+            finite
+                .send_compressed(true)
+                .compression_codec(Codec::Deflate),
+            "deflate",
+            Some(CompressionAlgorithm::Deflate),
+        ),
+    ] {
+        let mut service = probe(vec![source.clone()]);
+        service.content_length = Some(source.len());
+        let mut fixture = connect(service, config, 65_535).await;
+        let mut req = request();
+        req.headers_mut().insert(
+            "grpc-accept-encoding",
+            accepted.parse().expect("acceptance"),
+        );
+        let (wire, terminal, headers) = exchange(&mut fixture, req, Vec::new()).await;
+        assert_eq!(terminal.get("grpc-status").expect("status"), "0");
+        assert_eq!(headers.get("x-initial").expect("metadata"), "preserved");
+        assert_eq!(terminal.get("x-terminal").expect("metadata"), "preserved");
+        if let Some(codec) = selected {
+            assert!(headers.get("content-length").is_none());
+            assert_eq!(headers.get("grpc-encoding").expect("coding"), codec.name());
+            let encoded = codec.encode_level(b"x", 1).expect("native codec");
+            let mut expected = identity_wire(&encoded).to_vec();
+            *expected.first_mut().expect("flag") = 1;
+            assert_eq!(wire, expected);
+            assert!(wire.len() > source.len());
+        } else {
+            assert_eq!(headers.get("content-length").expect("original length"), "6");
+            assert!(headers.get("grpc-encoding").is_none());
+            assert_eq!(wire, source);
+        }
     }
 }
 
