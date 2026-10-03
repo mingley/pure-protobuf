@@ -3750,6 +3750,51 @@ struct TypedExtensionConsumerLock {
     accepted: Option<std::path::PathBuf>,
 }
 
+fn typed_extension_registry_tuples(
+    lock: &[u8],
+) -> std::collections::BTreeSet<(String, String, String, String)> {
+    std::str::from_utf8(lock)
+        .unwrap()
+        .split("[[package]]")
+        .filter_map(|block| {
+            let value = |key: &str| {
+                block
+                    .lines()
+                    .find_map(|line| line.trim().strip_prefix(key))
+                    .map(str::to_owned)
+            };
+            let source = value("source = ")?;
+            Some((
+                value("name = ").expect("locked provider package name"),
+                value("version = ").expect("locked provider package version"),
+                source,
+                value("checksum = ").unwrap_or_default(),
+            ))
+        })
+        .collect()
+}
+
+#[test]
+fn typed_extension_lock_tuple_guard_preserves_registry_identity() {
+    let provider = "version = 4\n[[package]]\nname = \"bytes\"\nversion = \"1.11.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"recorded-checksum\"\n";
+    let tuples = typed_extension_registry_tuples(provider.as_bytes());
+    assert_eq!(tuples.len(), 1);
+    for (old, new) in [
+        ("bytes", "another-package"),
+        ("1.11.1", "1.11.2"),
+        ("registry+", "git+"),
+        ("recorded-checksum", "different-checksum"),
+    ] {
+        assert!(
+            !typed_extension_registry_tuples(provider.replace(old, new).as_bytes())
+                .is_subset(&tuples),
+            "provider drift was accepted: {old} -> {new}"
+        );
+    }
+    let local = "[[package]]\nname = \"typed-int32-consumer\"\nversion = \"0.0.0\"\n";
+    assert!(typed_extension_registry_tuples(local.as_bytes()).is_empty());
+}
+
 fn typed_extension_consumer_seed_lock(
     root: &std::path::Path,
     consumer: &std::path::Path,
@@ -3769,17 +3814,19 @@ fn typed_extension_consumer_seed_lock(
         _ => panic!("unexpected typed-extension consumer name: {name}"),
     };
     let accepted = std::env::var_os(accepted_key).map(PathBuf::from);
-    let expected = accepted
+    let mut expected = accepted
         .as_ref()
         .map_or_else(|| seed.clone(), |path| std::fs::read(path).unwrap());
     let path = consumer.join("Cargo.lock");
     if path.exists() {
         // Never replace an existing lock, including a retained 1.85 replay.
-        assert_eq!(
-            std::fs::read(&path).unwrap(),
-            expected,
-            "requested consumer lock differs from the exact accepted handoff or raw seed"
-        );
+        if accepted.is_some() {
+            assert_eq!(
+                std::fs::read(&path).unwrap(),
+                expected,
+                "requested consumer lock differs from the exact accepted handoff"
+            );
+        }
     } else {
         use std::io::Write;
         let mut file = std::fs::OpenOptions::new()
@@ -3789,8 +3836,70 @@ fn typed_extension_consumer_seed_lock(
             .unwrap();
         file.write_all(&expected).unwrap();
     }
-    std::fs::write(consumer.join("Cargo.lock.root-source"), root_lock).unwrap();
-    std::fs::write(consumer.join("Cargo.lock.seed"), seed).unwrap();
+    std::fs::write(consumer.join("Cargo.lock.root-source"), &root_lock).unwrap();
+    std::fs::write(consumer.join("Cargo.lock.seed"), &seed).unwrap();
+    if accepted.is_none() {
+        // Standard invocation explicitly prepares the graph before the locked
+        // test. The qualified path never runs this setup operation.
+        let records = consumer.join("lock-setup-records");
+        std::fs::create_dir_all(&records).unwrap();
+        let mut index = 0u32;
+        let record = loop {
+            let directory = records.join(format!("run-{index:04}"));
+            match std::fs::create_dir(&directory) {
+                Ok(()) => break directory,
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                    index = index.checked_add(1).expect("lock setup index overflow");
+                }
+                result => result.unwrap(),
+            }
+        };
+        std::fs::write(record.join("root-source.Cargo.lock"), &root_lock).unwrap();
+        std::fs::write(record.join("raw-seed.Cargo.lock"), seed).unwrap();
+        std::fs::write(
+            record.join("before.Cargo.lock"),
+            std::fs::read(&path).unwrap(),
+        )
+        .unwrap();
+        let mut metadata = shared_consumer_cargo();
+        metadata
+            .env("CARGO_BUILD_JOBS", "1")
+            .env("CARGO_INCREMENTAL", "0")
+            .args(["metadata", "--offline", "--format-version=1"])
+            .current_dir(consumer);
+        std::fs::write(
+            record.join("metadata.command.txt"),
+            format!("{metadata:?}\npolicy: explicit offline setup; actual test stays --locked\n"),
+        )
+        .unwrap();
+        let result = run_shared_consumer_cargo(&mut metadata).unwrap();
+        std::fs::write(record.join("metadata.stdout"), &result.stdout).unwrap();
+        std::fs::write(record.join("metadata.stderr"), &result.stderr).unwrap();
+        std::fs::write(
+            record.join("metadata.exit"),
+            format!("{:?}\n", result.status.code()),
+        )
+        .unwrap();
+        expected = std::fs::read(&path).unwrap();
+        std::fs::write(record.join("after.Cargo.lock"), &expected).unwrap();
+        assert_eq!(
+            std::fs::read(root.join("Cargo.lock")).unwrap(),
+            root_lock,
+            "root provider changed during explicit metadata setup"
+        );
+        assert!(
+            result.status.success(),
+            "offline child graph preparation failed:\n{}\n{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+        std::fs::write(record.join("accepted.Cargo.lock"), &expected).unwrap();
+    }
+    assert!(
+        typed_extension_registry_tuples(&expected)
+            .is_subset(&typed_extension_registry_tuples(&root_lock)),
+        "child selected a version/source/checksum outside the frozen root provider"
+    );
     std::fs::write(consumer.join("Cargo.lock.before"), &expected).unwrap();
     if accepted.is_some() {
         std::fs::write(consumer.join("Cargo.lock.accepted"), &expected).unwrap();
