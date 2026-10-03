@@ -1,0 +1,5 @@
+plaintext: {'passed': 46, 'unsupported': 8}; executed cases passed on first attempts; matrix validator exit expectation 0
+tls: {'passed': 46, 'unsupported': 8}; executed cases passed on first attempts; matrix validator exit expectation 0
+mtls: {'passed': 18, 'unsupported': 36}; executed cases passed on first attempts; matrix validator exit expectation 1
+PASS: 930 member hashes, four ELF pins, exact 32 Go module tuples, frozen cases/default bounds, source scopes and fail-closed mTLS matrix replay
+This audit verifies bounded protocol evidence; it does not qualify release performance, full mTLS/C++ matrices, long soaks, or current-main runtime behavior.

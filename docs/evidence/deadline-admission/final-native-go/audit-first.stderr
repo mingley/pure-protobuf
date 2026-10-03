@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/workspace/scratch/work/final-native-go-proof/docs/evidence/deadline-admission/final-native-go/audit.py", line 340, in <module>
+    main()
+  File "/workspace/scratch/work/final-native-go-proof/docs/evidence/deadline-admission/final-native-go/audit.py", line 215, in main
+    assert first['input_sha256_before'] == first['input_sha256_after'] == go_record['input_sha256_before']
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
