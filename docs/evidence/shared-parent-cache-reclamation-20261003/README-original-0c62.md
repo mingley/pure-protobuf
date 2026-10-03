@@ -33,9 +33,8 @@ The archive additionally preserves the existing immutable TC32b/SB32 raw and
 tool/source proof files and full compiled-source-root Git archives for
 `8ca03da51ab3723f53858800ca5b8e2a33d0f448` and
 `5a263139f0963488bab9e34b5282803abc3d9138`. Original historical failures and
-debug-only qualifications remain unchanged. Every devloop executable ELF is
-preserved; eleven other `.so` compiler artifacts remain hash-inventoried.
-The two test ELF hashes without independently established source association
+debug-only qualifications remain unchanged. Every cache ELF is preserved;
+the two test ELF hashes without independently established source association
 are not assigned a guessed source. `raw-payload-aliases.json` identifies the
 two exact captured Git-archive stdout payloads already retained inside the
 archive, avoiding redundant uncompressed copies in this sealed proof.
@@ -80,10 +79,6 @@ Git output are retained under `attempt-1-head-advance/`. The retry accepted
 only a clean descendant main checkout and continued to compare historical
 proof bytes against the fixed requested parent. It did not relax any cache,
 inode, hash, lock or process guard.
-
-The original README and artifact manifest from `0c62da0f` are retained as
-`README-original-0c62.md` and `artifact-manifest-original-0c62.json`. This
-additive wording correction changes no raw archive or historical qualification.
 
 Run `python3 verify.py .` from this directory for an independent read-only
 check of all sealed artifact hashes, full inventory equality, required

@@ -2,8 +2,8 @@
   "schema": "sealed-reclamation-artifacts/1",
   "files": {
     "README.md": {
-      "sha256": "27da906f50bbfd704af6ce8a6e0c82a5bcba6c1da93ede00f9c31eb4ae61b25e",
-      "size": 5758
+      "sha256": "5a9c753ef4fff2e8ccafd8bf8a692d77283b3c79faa2e54ac9dbe4935df2221f",
+      "size": 5452
     },
     "allocation-scope.json": {
       "sha256": "5132bd7e52a33350e724245ae369fa5a85dbfe0c3f7622c2ce7a9dff9cc83eea",
@@ -660,14 +660,6 @@
     "verify.py": {
       "sha256": "b2544d64e367b37806200b5ef3cf49fe29abd3feff3e59e81e0e18fefdd2c960",
       "size": 6830
-    },
-    "README-original-0c62.md": {
-      "size": 5452,
-      "sha256": "5a9c753ef4fff2e8ccafd8bf8a692d77283b3c79faa2e54ac9dbe4935df2221f"
-    },
-    "artifact-manifest-original-0c62.json": {
-      "size": 23250,
-      "sha256": "ad81e198efb2a624b16bfad71836c9164a6cd9765f193f4a5eb8eafcb47d48cc"
     }
   }
 }
