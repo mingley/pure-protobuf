@@ -1,0 +1,105 @@
+{
+  "kind": "source/test-only QG20 preparation; no generator, Cargo, rustc, protoc or runtime execution",
+  "shipping_baseline": "5c6e5eeac36e297d0eb67fc1ac9302a77fb451b6",
+  "qg18_shipping_equivalent": "1ae03ee10a908b0e26098eefe121f9e1e547ec15",
+  "source_worktree": "/workspace/scratch/work/generated-map-value-depth",
+  "shipping_unchanged_argv": [
+    "git",
+    "diff",
+    "--exit-code",
+    "5c6e5eeac36e297d0eb67fc1ac9302a77fb451b6",
+    "--",
+    "src",
+    "Cargo.toml",
+    "Cargo.lock",
+    "scripts/regen-generated.sh"
+  ],
+  "shipping_unchanged_exit": 0,
+  "fixture_sha256": {
+    "tests/generated_map_value_depth.rs": "e25bb2e558d4173907ffc8d334f930ac1d26628ab6742a3f8b56be48b381d74b",
+    "tests/support/generated_map_value_depth.rs": "326c0c71f47d0c832c6e06fba415cdf1932202ed14539fa06703d03768545865",
+    "tests/fixtures/generated_map_value_depth_consumer.rs": "3992a98866a0b2f215f48a3bcb31990e94373e3650c195b75f1eafe5f8b5ef91",
+    "tests/fixtures/generated_map_value_depth.proto": "7e8ab42639d8ada0ec55cf8a6061a58f2a167ee2fa826e648d40bd5a0da7c38b",
+    "docs/evidence/qg-20-generated-map-value-depth-proposal.md": "6b24a7c88f48e8b13fa30ca116092db2e0fe9d645b44b0bc61deb3eeb45974ab"
+  },
+  "future_ordinary_gate_argv": [
+    "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+    "test",
+    "--offline",
+    "--locked",
+    "-p",
+    "pbrs",
+    "--test",
+    "generated_map_value_depth",
+    "--",
+    "--test-threads=1"
+  ],
+  "future_gate_requirements": [
+    "root ordinary lease and exact native tool/source hashes",
+    "matched baseline/candidate fixture bytes",
+    "jobs1 and offline/locked registry tuple equality",
+    "fresh distinct owned targets and retained child sources/logs/locks",
+    "root process-group timeout/exception/interrupt cleanup, per-sample numeric allocated-cache/global-free ledger",
+    "fixed aggregate owned-cache cap2147483648 and global floor2147483648",
+    "archive and verify full fingerprints/ELFs/fixtures and explicit non-ELF hash-only audit before exact retirement"
+  ],
+  "consumer_tests": [
+    "present_message_values_total_100_accept_eager_lazy_and_validator",
+    "present_message_values_total_101_reject_eager_and_lazy",
+    "known_message_value_validator_rejects_total_101",
+    "scalar_map_entry_total_100_accepts_eager_lazy_and_validator",
+    "map_entries_total_101_reject_even_with_no_value",
+    "supplied_parent_depth_100_rejects_a_known_map_entry",
+    "malformed_known_values_reject_through_lazy_ancestors",
+    "known_map_value_validator_checks_malformed_structure",
+    "legacy_group_end_number_difference_remains_explicit",
+    "unknown_length_delimited_values_remain_opaque",
+    "omitted_keys_values_and_scalar_defaults_are_preserved",
+    "duplicate_keys_keep_last_value_and_complete_wire_order",
+    "repeated_message_values_in_one_entry_deep_merge",
+    "required_known_payloads_validate_through_lazy_ancestors",
+    "proto2_unchecked_utf8_in_known_values_remains_accepted"
+  ],
+  "expected_baseline_semantic_red_tests_not_observed": [
+    "present_message_values_total_101_reject_eager_and_lazy",
+    "known_message_value_validator_rejects_total_101",
+    "map_entries_total_101_reject_even_with_no_value",
+    "supplied_parent_depth_100_rejects_a_known_map_entry",
+    "malformed_known_values_reject_through_lazy_ancestors",
+    "known_map_value_validator_checks_malformed_structure",
+    "required_known_payloads_validate_through_lazy_ancestors"
+  ],
+  "expected_baseline_green_controls_not_observed": [
+    "present_message_values_total_100_accept_eager_lazy_and_validator",
+    "scalar_map_entry_total_100_accepts_eager_lazy_and_validator",
+    "legacy_group_end_number_difference_remains_explicit",
+    "unknown_length_delimited_values_remain_opaque",
+    "omitted_keys_values_and_scalar_defaults_are_preserved",
+    "duplicate_keys_keep_last_value_and_complete_wire_order",
+    "repeated_message_values_in_one_entry_deep_merge",
+    "proto2_unchecked_utf8_in_known_values_remains_accepted"
+  ],
+  "child_lock_seed": {
+    "root_lock_sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5",
+    "prepared_bytes_sha256": "0dcf248a9ee479d48e713cdb6cc06018365b7128e55387d6104961e14eb6857c",
+    "root_registry_tuple_count": 166,
+    "prepared_registry_tuple_count": 166,
+    "registry_tuples_unchanged_source_check": true,
+    "added_local_package": "qg20-map-value-consumer0.0.0",
+    "actual_offline_locked_acceptance": "NOT_RUN"
+  },
+  "depth_model": "parent+1 entry; parent+2 present message value; omitted value gets old default with no invented wire frame",
+  "not_run": [
+    "actual code generation and consumer typecheck",
+    "baseline semantic outcomes",
+    "candidate implementation",
+    "native1.85",
+    "strict1.88",
+    "dependency locked acceptance",
+    "genuine pinned regeneration comparison",
+    "compiler gates",
+    "performance/LTO/release qualification"
+  ],
+  "source_format_status": "PASS: three initial files and one meaningful follow-up key-encoding correction; no Cargo/compiler/version probes",
+  "source_formatter_sha256": "a3ab6c445b26eda8d7bcfd5cc3f4b068dd7136af96822fd21378fc6fe8c2f2a3"
+}
