@@ -243,11 +243,22 @@ fn server(mode: Mode) -> (Server<TonicServer<Probe>>, Arc<State>) {
 }
 
 async fn connect(server: Server<TonicServer<Probe>>) -> (h2::client::SendRequest<Bytes>, Guard) {
+    connect_with_window(server, 65_535).await
+}
+
+async fn connect_with_window(
+    server: Server<TonicServer<Probe>>,
+    window: u32,
+) -> (h2::client::SendRequest<Bytes>, Guard) {
     let (client, io) = tokio::io::duplex(64 * 1024);
     let server = tokio::spawn(async move {
         server.serve_connection(io).await.expect("server");
     });
-    let (client, connection) = h2::client::handshake(client).await.expect("handshake");
+    let (client, connection) = h2::client::Builder::new()
+        .initial_window_size(window)
+        .handshake(client)
+        .await
+        .expect("handshake");
     let driver = tokio::spawn(async move {
         connection.await.ok();
     });
@@ -472,6 +483,44 @@ async fn compression_opt_out_preserves_explicit_identity_input_and_output_caps()
             headers.get("grpc-accept-encoding").expect("accept"),
             "identity"
         );
+        assert_eq!(state.calls.load(Ordering::SeqCst), 1);
+    }
+}
+
+#[tokio::test]
+async fn compression_opt_out_preserves_prior_identity_message_with_one_byte_windows() {
+    let wire = Bytes::from_static(b"\0\0\0\0\x01x\x01\0\0\0\0");
+    for cap in [None, Some(1)] {
+        let (server, state) = server(Mode::AdvertiseCompression);
+        let mut config = ServerConfig::default()
+            .accept_compressed(false)
+            .initial_stream_window_size(1);
+        if let Some(cap) = cap {
+            config = config.max_decoding_message_size(cap);
+        }
+        let (mut client, _guard) = connect_with_window(server.config(config), 1).await;
+        let (response, mut upload) = client.send_request(request(None), false).expect("request");
+        for offset in 0..wire.len() {
+            upload
+                .send_data(wire.slice(offset..offset + 1), offset + 1 == wire.len())
+                .expect("fragment");
+        }
+        let (got, headers, terminal) = tokio::time::timeout(Duration::from_secs(2), async {
+            collect_response(response.await.expect("response")).await
+        })
+        .await
+        .expect("sub-prefix windows must make progress");
+        assert_eq!(got, b"\0\0\0\0\x01x".as_slice());
+        assert_eq!(terminal.get("grpc-status").expect("status"), "12");
+        assert_eq!(
+            headers.get("grpc-accept-encoding").expect("accept"),
+            "identity"
+        );
+        assert_eq!(
+            terminal.get("grpc-accept-encoding").expect("accept"),
+            "identity"
+        );
+        assert_eq!(state.ready.load(Ordering::SeqCst), 1);
         assert_eq!(state.calls.load(Ordering::SeqCst), 1);
     }
 }
