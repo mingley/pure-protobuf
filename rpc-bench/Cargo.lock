@@ -516,21 +516,28 @@ dependencies = [
 name = "pbrs-grpc"
 version = "0.1.0-alpha.2"
 dependencies = [
+ "atomic-waker",
  "base64",
  "bytes",
  "flate2",
+ "fnv",
  "futures-core",
+ "futures-sink",
  "h2",
  "http",
+ "indexmap",
  "libc",
  "pbrs",
  "rustls",
  "rustls-graviola",
  "rustls-pemfile",
  "serde_json",
+ "slab",
  "socket2",
  "tokio",
  "tokio-rustls",
+ "tokio-util",
+ "tracing",
  "webpki-roots",
 ]
 
