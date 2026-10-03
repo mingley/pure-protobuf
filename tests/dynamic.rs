@@ -125,7 +125,7 @@ fn exhaustive_descriptor_literals_remain_external_source_compatible() {
         file_name: "legacy.proto".into(),
         message_set_wire_format: false,
         options: Vec::new(),
-        comments: pbrs::codegen::Comments::default(),
+        comments: Default::default(),
         deprecated: false,
     };
     let en = EnumDescriptor {
@@ -137,7 +137,7 @@ fn exhaustive_descriptor_literals_remain_external_source_compatible() {
         listed: Vec::new(),
         closed: false,
         options: Vec::new(),
-        comments: pbrs::codegen::Comments::default(),
+        comments: Default::default(),
         value_comments: BTreeMap::new(),
         value_comments_by_name: BTreeMap::new(),
         deprecated: false,
@@ -148,7 +148,7 @@ fn exhaustive_descriptor_literals_remain_external_source_compatible() {
         package: "example".into(),
         options: Vec::new(),
         source_code_info: None,
-        comments: pbrs::codegen::Comments::default(),
+        comments: Default::default(),
         deprecated: false,
     };
     assert_eq!(message.file_name, en.file_name);
@@ -289,21 +289,24 @@ fn enum_deprecation_is_independent_of_alias_options() {
                     Some(b"custom enum option".as_slice())
                 );
 
-                let generated = pbrs::codegen::generate_from_file_descriptor_set(
-                    &fds,
-                    &["enum_options.proto".to_string()],
-                )
-                .expect("generate enum options");
-                let content = &generated
-                    .iter()
-                    .find(|(name, _)| name.ends_with("enum_options.rs"))
-                    .expect("generated enum options file")
-                    .1;
-                assert_eq!(
-                    content.contains("#[deprecated]\n#[repr(transparent)]"),
-                    deprecated.unwrap_or(false),
-                    "generated {syntax}: allow_alias={allow_alias:?}, deprecated={deprecated:?}"
-                );
+                #[cfg(feature = "codegen")]
+                {
+                    let generated = pbrs::codegen::generate_from_file_descriptor_set(
+                        &fds,
+                        &["enum_options.proto".to_string()],
+                    )
+                    .expect("generate enum options");
+                    let content = &generated
+                        .iter()
+                        .find(|(name, _)| name.ends_with("enum_options.rs"))
+                        .expect("generated enum options file")
+                        .1;
+                    assert_eq!(
+                        content.contains("#[deprecated]\n#[repr(transparent)]"),
+                        deprecated.unwrap_or(false),
+                        "generated {syntax}: allow_alias={allow_alias:?}, deprecated={deprecated:?}"
+                    );
+                }
             }
         }
     }
@@ -723,6 +726,7 @@ fn source_code_info_and_deprecation_preserved() {
     assert_eq!(m.span(), &[30, 2, 30, 45]);
 }
 
+#[cfg(feature = "codegen")]
 #[test]
 fn source_code_info_codegen_doc_comments() {
     let (file, _fds) = build_source_info_file_and_fds();
@@ -825,6 +829,7 @@ fn source_code_info_codegen_doc_comments() {
     );
 }
 
+#[cfg(feature = "codegen")]
 #[test]
 fn codegen_config_include_source_info() {
     let mut config = pbrs::codegen::Config::new();
@@ -866,6 +871,7 @@ fn edition2024_wire(name: &str) -> Vec<u8> {
         .expect("pinned Edition 2024 wire vector")
 }
 
+#[cfg(feature = "json")]
 fn edition2024_assert_field_oracle(field: &FieldDescriptor, expected: &serde_json::Value) {
     assert_eq!(field.name, expected["name"].as_str().expect("field name"));
     assert_eq!(
@@ -954,6 +960,7 @@ fn edition2024_assert_field_oracle(field: &FieldDescriptor, expected: &serde_jso
     }
 }
 
+#[cfg(feature = "json")]
 fn edition2024_assert_symbol_oracle(
     pool: &DescriptorPool,
     expected: &serde_json::Value,
@@ -994,6 +1001,7 @@ fn edition2024_assert_symbol_oracle(
     assert_eq!(pool.symbol_naming_style(name), Some(1), "{name}");
 }
 
+#[cfg(feature = "json")]
 fn edition2024_assert_enum_oracle(
     pool: &DescriptorPool,
     expected: &serde_json::Value,
@@ -1025,6 +1033,7 @@ fn edition2024_assert_enum_oracle(
     }
 }
 
+#[cfg(feature = "json")]
 fn edition2024_assert_message_oracle(
     pool: &DescriptorPool,
     expected: &serde_json::Value,
@@ -1075,6 +1084,7 @@ fn edition2024_assert_message_oracle(
     }
 }
 
+#[cfg(feature = "json")]
 #[test]
 fn edition2024_resolved_descriptors_match_complete_fixture_oracles() {
     for name in [
