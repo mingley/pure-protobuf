@@ -1,0 +1,22 @@
+{
+  "status": "completed excluded bootstrap cache reclaimed; original evidence unchanged",
+  "literal_cache_path": "/workspace/scratch/work/gn03/target/base",
+  "resolved_cache_path": "/workspace/scratch/work/gn11/target/base",
+  "accounting_before": {
+    "non_directory_paths": 1772,
+    "directories": 323,
+    "path_sum_logical_bytes": 877185904,
+    "path_sum_allocated_bytes": 880754688,
+    "unique_inode_logical_bytes": 808147304,
+    "unique_inode_allocated_bytes": 812244992,
+    "directory_allocated_bytes": 1347584,
+    "multiple_link_paths": 52
+  },
+  "retained_original_content_files": 652,
+  "global_free_before_bytes": 5556858880,
+  "global_free_after_bytes": 6370451456,
+  "observed_global_free_delta_bytes": 813592576,
+  "physical_accounting_limit": "unique-inode allocated bytes count cache storage before deletion; global free delta is observed filesystem state and can include concurrent unrelated activity",
+  "remaining_cache_entries": 0,
+  "retry": "not_run pending new root quiet lease"
+}
