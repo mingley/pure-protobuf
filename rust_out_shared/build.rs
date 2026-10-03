@@ -152,7 +152,10 @@ fn resolve_input(proto_root: &Path, src: Option<&Path>, file: &str) -> PathBuf {
             return b;
         }
     }
-    panic!("missing proto {file} (looked under {} and src)", proto_root.display());
+    panic!(
+        "missing proto {file} (looked under {} and src)",
+        proto_root.display()
+    );
 }
 
 #[allow(dead_code)]
@@ -203,6 +206,7 @@ fn main() {
             mapping.push('\n');
         }
     }
+    #[expect(clippy::disallowed_methods, reason = "synchronous Cargo build script")]
     fs::write(&mapping_path, mapping).unwrap();
 
     let gendir = out_dir.join("protobuf_generated");
@@ -228,7 +232,7 @@ fn main() {
             cmd.arg(format!("--proto_path={}", s.display()));
         }
         let output = cmd.output().unwrap_or_else(|e| {
-            panic!("failed to spawn protoc ({:?}): {e}", protoc);
+            panic!("failed to spawn protoc ({protoc:?}): {e}");
         });
         if !output.status.success() {
             panic!(
@@ -262,6 +266,7 @@ fn main() {
             lib.module
         ));
     }
+    #[expect(clippy::disallowed_methods, reason = "synchronous Cargo build script")]
     fs::write(out_dir.join("mods.rs"), mods).unwrap();
 }
 
