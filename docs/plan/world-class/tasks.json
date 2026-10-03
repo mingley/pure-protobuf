@@ -12595,7 +12595,7 @@
    "relates": [
     "GN-15"
    ],
-   "notes": "2026-10-03: root reviewed the concrete four handwritten files plus13 registered generated-callers proposal from main0a0ae991 and frozen test-only baseline676adacb; source implementation is authorized, compiler gates not_run. Depth0 root allows100 group frames, rejects101 before group allocation/increment; new generated/table callers compose enclosing known depth. Preserve public wrappers, legacy skip end-number acceptance and capture matching-end errors; old external/generated wrappers gain only a per-chain cap until regenerated. Bundled callers must migrate in this leaf. Prefer genuine pinned staging when prerequisites are available; otherwise exact inventoried helper-call migration is authorized and must be labeled migrated, never regenerated. Separate rust_out known-message recursion remains open as QG-19. GN03 default30/performance source pins remain deliberately pre-QG18; no performance/full-security claim."
+   "notes": "2026-10-03: root reviewed the concrete four handwritten files plus13 registered generated-callers proposal from main0a0ae991 and frozen test-only baseline676adacb; source implementation is authorized, compiler gates not_run. Depth0 root allows100 group frames, rejects101 before group allocation/increment; new generated/table callers compose enclosing known depth. Preserve public wrappers, legacy skip end-number acceptance and capture matching-end errors; old external/generated wrappers gain only a per-chain cap until regenerated. Bundled callers must migrate in this leaf. Prefer genuine pinned staging when prerequisites are available; otherwise exact inventoried helper-call migration is authorized and must be labeled migrated, never regenerated. Separate rust_out known-message recursion remains open as QG-19. GN03 default30/performance source pins remain deliberately pre-QG18; no performance/full-security claim. Independent review also identified unchanged generated message-valued map depth/lazy-validator gaps, tracked separately as QG-20; QG-18 does not establish a universal total-depth guarantee across those known map-value paths."
   },
   {
    "id": "QG-19",
@@ -12641,6 +12641,52 @@
     "UK-08"
    ],
    "notes": "2026-10-03: source review confirms private parse_into/decode_field/decode_one/decode_map_entry have no depth parameter or known-message limit. Actual public surface is ClearAndParse/MergeFrom, not hypothetical decode APIs. Separate concrete source proposal/baseline is authorized; implementation and compiler gates remain not_run until review/lease."
+  },
+  {
+   "id": "QG-20",
+   "title": "Compose generated message-valued map recursion and lazy validation",
+   "lane": "QG",
+   "milestone": "M2",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "status": "pending",
+   "depends_on": [
+    "QG-18"
+   ],
+   "read": [
+    "src/codegen/parse.rs",
+    "src/codegen/rust.rs",
+    "src/generated/",
+    "src/lazy.rs",
+    "tests/"
+   ],
+   "write": [
+    "src/codegen/parse.rs",
+    "src/generated/",
+    "tests/",
+    "docs/evidence/"
+   ],
+   "deliverable": "Count generated map-entry and message-value frames separately and validate known message-valued map payloads through lazy ancestors with the existing recursion budget. Preserve opaque unknown length-delimited fields and public generated parse APIs.",
+   "accept": [
+    "Retain genuine bounded compiled-consumer baseline semantic reds for total100/101 map-entry/message-value/unknown-group depth, including lazy ancestors and malformed known values; no stack-crash workload.",
+    "Check entry/value depth before constructing child defaults or allocating storage. Preserve map key/duplicate/order, required/closed-enum/UTF8 and valid wire behavior; add no unsafe, dependencies or limit value.",
+    "Qualify actual generated and owned bundled callers with native1.85, strict1.88, pinned regeneration comparison and parser/map regressions before integration. Keep QG-18 group-helper qualification bounded; no performance or complete-parser-security claim."
+   ],
+   "checks": [
+    "core-lib",
+    "codegen",
+    "shared",
+    "clippy"
+   ],
+   "scoreboard": [
+    "F1"
+   ],
+   "relates": [
+    "QG-18",
+    "QG-19"
+   ],
+   "notes": "2026-10-03 independent QG-18 source review found pre-existing generated message-valued map gaps: caller passes parent+1 for the entry, emit_map_scalar_decode forwards that same depth to the message value, and emit_validate_arm skips length-delimited map values opaquely. The int32/int32 map fixture cannot qualify these paths. Separate concrete proposal/test-only baseline authorized; shipping implementation and compiler gates remain not_run until source review and ordinary lease."
   }
  ],
  "last_audit": {
