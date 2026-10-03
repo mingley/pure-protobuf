@@ -1227,10 +1227,7 @@ impl<'a> Parser<'a> {
                 self.pos += 1;
                 self.ws();
             }
-            if self.peek() == b'['
-                && (field.cardinality == Cardinality::Repeated || field.is_map)
-                && !field.is_map
-            {
+            if self.peek() == b'[' && field.cardinality == Cardinality::Repeated && !field.is_map {
                 self.parse_list(&mut msg, &field)?;
             } else {
                 let v = self.parse_value(&field)?;

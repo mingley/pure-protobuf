@@ -488,8 +488,7 @@ fn parse_args() -> Args {
 
     if soak_iterations % soak_num_threads != 0 {
         eprintln!(
-            "error: soak_iterations ({}) must be divisible by soak_num_threads ({})",
-            soak_iterations, soak_num_threads
+            "error: soak_iterations ({soak_iterations}) must be divisible by soak_num_threads ({soak_num_threads})"
         );
         std::process::exit(1);
     }
@@ -884,19 +883,17 @@ async fn run(args: Args) -> Result<(), Status> {
             ch = ch.origin(format!("{host_override}:{}", args.server_port))?;
         }
         TestServiceClient::new(ch)
+    } else if args.test_case == "rpc_soak" {
+        let target = format!("{}:{}", args.server_host, args.server_port);
+        let ch = Channel::connect_lazy(target)?;
+        TestServiceClient::new(ch)
     } else {
-        if args.test_case == "rpc_soak" {
-            let target = format!("{}:{}", args.server_host, args.server_port);
-            let ch = Channel::connect_lazy(target)?;
-            TestServiceClient::new(ch)
-        } else {
-            let addr: SocketAddr = (args.server_host.as_str(), args.server_port)
-                .to_socket_addrs()
-                .map_err(|e| Status::unavailable(e.to_string()))?
-                .next()
-                .ok_or_else(|| Status::unavailable("resolve"))?;
-            interop_cases::connect(addr).await?
-        }
+        let addr: SocketAddr = (args.server_host.as_str(), args.server_port)
+            .to_socket_addrs()
+            .map_err(|e| Status::unavailable(e.to_string()))?
+            .next()
+            .ok_or_else(|| Status::unavailable("resolve"))?;
+        interop_cases::connect(addr).await?
     };
 
     if args.bench {
