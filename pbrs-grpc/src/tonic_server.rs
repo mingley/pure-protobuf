@@ -33,8 +33,8 @@
 //! The guard bounds logical retained bytes and descriptor count, while Bytes
 //! backing allocations and tonic's private decoded buffers remain opaque.
 //! Other encodings and unlimited changed decoding caps reject compressed input
-//! before readiness; configured outbound caps
-//! reject nonidentity response encoding after the handler, before headers.
+//! before readiness. Cap-only outbound forwarding without the native outbound
+//! transform rejects nonidentity response encoding after the handler, before headers.
 //! Disabling native input compression admits identity requests and advertises
 //! identity acceptance without changing tonic's negotiated response codec.
 //! Nonidentity request headers are rejected before readiness; a compressed flag
