@@ -4075,7 +4075,7 @@ fn edition2024_selected_extensions_reject_required_delimited_messageset_and_maps
     let pool = pbrs::DescriptorPool::from_file_descriptor_set(&fds).unwrap();
     assert_eq!(
         pool.get_extension("test.value").unwrap().1.cardinality,
-        pbrs::dynamic::Cardinality::Required
+        pbrs::Cardinality::Required
     );
     scalar_test_invalid_selection(
         &["scalar.proto"],
