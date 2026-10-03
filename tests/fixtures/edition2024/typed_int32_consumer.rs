@@ -109,6 +109,9 @@ mod tests {
         assert_eq!(value.serialized_len(), 3);
         value.merge_from_bytes(&[0xa8, 0x06, 11]).unwrap();
         assert_eq!(value.get_extension(&EXT_INT32), 11);
+        let source = checked::ExtendableMessage::parse(&[0xa8, 0x06, 12]).unwrap();
+        pbrs::MergeFrom::merge_from(&mut value, &source);
+        assert_eq!(value.get_extension(&EXT_INT32), 12);
         value.set_extension(&EXT_INT32, -1);
         let negative = [
             0xa8, 0x06, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 1,
@@ -192,5 +195,11 @@ mod tests {
         assert!(!value.has_extension(&EXT_INT32));
         value.clear_extension(&EXT_INT32);
         assert_eq!(value.serialize().unwrap(), wire);
+        // Existing unknown capture canonicalizes overlong tag/value varints;
+        // merely reading the typed value does not change that baseline.
+        let overlong = [0xa8, 0x86, 0, 0x87, 0];
+        let value = checked::ExtendableMessage::parse(&overlong).unwrap();
+        assert_eq!(value.get_extension(&EXT_INT32), 7);
+        assert_eq!(value.serialize().unwrap(), [0xa8, 0x06, 7]);
     }
 }
