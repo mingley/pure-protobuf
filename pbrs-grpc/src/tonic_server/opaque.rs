@@ -110,14 +110,15 @@ impl Prefix {
                 }
                 Direction::Encode => self.limits.check_encode(length)?,
             }
-            // Native framing checks a claimed length before rejecting disabled
-            // compression. Other configured cap guards retain their policy error.
-            if self.header[0] == 1 {
-                return Err(crate::wire::headers::encoding_not_supported(false));
-            }
             5usize
                 .checked_add(length)
                 .ok_or_else(|| Status::internal("message too large"))?;
+            // Native framing checks a claimed length before rejecting disabled
+            // compression, including overflow of the complete frame length.
+            // Other configured cap guards retain their policy error.
+            if self.header[0] == 1 {
+                return Err(crate::wire::headers::encoding_not_supported(false));
+            }
             self.remaining = length;
             self.admitted = true;
         }
@@ -402,7 +403,11 @@ mod tests {
                 Direction::DecodeCompressionDisabled,
                 MessageLimits::unlimited(),
                 b"\x01\xff\xff\xff\xff".as_slice(),
-                Code::Unimplemented,
+                if usize::BITS <= 32 {
+                    Code::Internal
+                } else {
+                    Code::Unimplemented
+                },
             ),
             (
                 Direction::DecodeCompressionDisabled,
