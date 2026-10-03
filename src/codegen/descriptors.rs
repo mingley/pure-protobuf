@@ -334,7 +334,7 @@ pub fn generate_from_code_generator_request(
     // Render once. Keep standalone output stable, while the opt-in shared
     // owner uses one byte-string token for its identical descriptor bytes.
     let fds_block = (!resolved.no_reflect && !resolved.shared_pool).then(|| {
-        if resolved.shared_descriptor_set {
+        if share_descriptors {
             fds_byte_string_block(&fds)
         } else {
             fds_hex_block(&fds)

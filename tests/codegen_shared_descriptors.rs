@@ -123,16 +123,24 @@ fn compile(
         "[package]\nname = \"gn03-{name}\"\nversion = \"0.0.0\"\nedition = \"2021\"\n[workspace]\n[dependencies]\nrenamed_pbrs = {{ package = \"pbrs\", path = {root:?}, default-features = false, features = {features:?} }}\n"
     )).unwrap();
     std::fs::write(out.join("src/main.rs"), source).unwrap();
-    let result = Command::new("cargo")
+    let mut command = Command::new("cargo");
+    command
         .args(["run", "--offline", "--quiet"])
         .current_dir(&out)
         .env(
             "CARGO_TARGET_DIR",
             root.join("target/integration-consumers"),
         )
-        .env("CARGO_BUILD_JOBS", "1")
-        .output()
-        .unwrap();
+        .env("CARGO_BUILD_JOBS", "1");
+    std::fs::write(out.join("compile-command.txt"), format!("{command:?}\n")).unwrap();
+    let result = command.output().unwrap();
+    std::fs::write(out.join("compile.stdout.log"), &result.stdout).unwrap();
+    std::fs::write(out.join("compile.stderr.log"), &result.stderr).unwrap();
+    std::fs::write(
+        out.join("compile-status.txt"),
+        format!("{}\n", result.status),
+    )
+    .unwrap();
     let stderr = String::from_utf8_lossy(&result.stderr).into_owned();
     assert_eq!(result.status.success(), succeeds, "{stderr}");
     stderr
@@ -146,7 +154,9 @@ fn opt_in_embeds_one_literal_and_default_single_output_remain_exact() {
     assert_eq!(
         default
             .values()
-            .map(|s| s.matches("pub const FILE_DESCRIPTOR_SET: &[u8] = ").count())
+            .map(|s| s
+                .matches("pub const FILE_DESCRIPTOR_SET: &[u8] = &[")
+                .count())
             .sum::<usize>(),
         2
     );
@@ -154,7 +164,9 @@ fn opt_in_embeds_one_literal_and_default_single_output_remain_exact() {
     assert_eq!(
         shared
             .values()
-            .map(|s| s.matches("pub const FILE_DESCRIPTOR_SET: &[u8] = ").count())
+            .map(|s| s
+                .matches("pub const FILE_DESCRIPTOR_SET: &[u8] = b\"")
+                .count())
             .sum::<usize>(),
         1
     );
@@ -203,23 +215,38 @@ fn opt_in_embeds_one_literal_and_default_single_output_remain_exact() {
 fn shared_pool_is_lazy_and_reflection_json_text_and_binary_are_unchanged() {
     let mut files = fixture();
     files.push(any_schema());
+    // Request files are deliberately not in canonical filename order. Build
+    // the independent byte oracle from the fixture blobs in that known order;
+    // it is compiled as a decimal array, rather than parsing renderer text.
+    let mut expected_fds = Vec::new();
+    for file in [
+        files.first().unwrap(),
+        files.last().unwrap(),
+        files.get(1).unwrap(),
+    ] {
+        field_bytes(&mut expected_fds, 1, file);
+    }
     let generated = generate(
         &files,
         &["first.proto", "second.proto", "google/protobuf/any.proto"],
         "stubs=none,shared_descriptor_set=true,runtime_crate=renamed_pbrs",
     )
     .unwrap();
-    compile(
-        "runtime",
-        &generated,
-        r#"
+    let consumer = r#"
 include!("../mod.rs");
+const EXPECTED_FDS: &[u8] = &__EXPECTED_FDS_ARRAY__;
 fn main() {
     use renamed_pbrs::{Parse, Serialize};
+    assert!(__pbrs_shared_descriptors::POOL.get().is_none());
+    assert_eq!(__pbrs_shared_descriptors::FILE_DESCRIPTOR_SET, EXPECTED_FDS);
+    assert_eq!(first::FILE_DESCRIPTOR_SET, EXPECTED_FDS);
+    assert_eq!(second::FILE_DESCRIPTOR_SET, EXPECTED_FDS);
+    assert_eq!(google::protobuf::FILE_DESCRIPTOR_SET, EXPECTED_FDS);
     assert!(__pbrs_shared_descriptors::POOL.get().is_none());
     let mut first = first::First::new();
     first.set_id(41);
     let wire = first.serialize().unwrap();
+    assert_eq!(wire, [8, 41]);
     assert_eq!(first::First::parse(&wire).unwrap().id(), 41);
     assert!(__pbrs_shared_descriptors::POOL.get().is_none());
     assert_eq!(first.to_json().unwrap(), "{\"id\":41}");
@@ -236,20 +263,36 @@ fn main() {
     let any_text = any.to_text().unwrap();
     assert_eq!(google::protobuf::Any::from_text(&any_text).unwrap().value(), wire);
     let pool = __pbrs_shared_descriptors::POOL.get().unwrap();
-    assert!(pool.get_message("first.First").is_some());
-    assert!(pool.get_message("second.Second").is_some());
+    assert_eq!(pool.collect_names(), ["first.First", "google.protobuf.Any", "second.Second"]);
+    let first_descriptor = pool.get_message("first.First").unwrap();
+    assert_eq!(first_descriptor.full_name, "first.First");
+    assert_eq!(first_descriptor.file_name, "first.proto");
+    assert_eq!(first_descriptor.field(1).unwrap().name, "id");
+    assert_eq!(first_descriptor.field(1).unwrap().field_type, renamed_pbrs::FieldType::Int32);
+    let second_descriptor = pool.get_message("second.Second").unwrap();
+    assert_eq!(second_descriptor.full_name, "second.Second");
+    assert_eq!(second_descriptor.file_name, "second.proto");
+    assert_eq!(second_descriptor.field(1).unwrap().name, "label");
+    assert_eq!(second_descriptor.field(1).unwrap().field_type, renamed_pbrs::FieldType::String);
     assert!(std::sync::Arc::ptr_eq(pool, &__pbrs_shared_descriptors::generated_pool()));
     assert!(std::ptr::eq(first::FILE_DESCRIPTOR_SET, second::FILE_DESCRIPTOR_SET));
     assert!(std::ptr::eq(first::FILE_DESCRIPTOR_SET, google::protobuf::FILE_DESCRIPTOR_SET));
     assert!(std::ptr::eq(first::FILE_DESCRIPTOR_SET, __pbrs_shared_descriptors::FILE_DESCRIPTOR_SET));
-    let parsed = renamed_pbrs::DescriptorPool::from_file_descriptor_set(first::FILE_DESCRIPTOR_SET).unwrap();
-    assert!(parsed.get_message("second.Second").is_some());
+    let parsed = renamed_pbrs::DescriptorPool::from_file_descriptor_set(EXPECTED_FDS).unwrap();
+    assert_eq!(parsed.collect_names(), pool.collect_names());
+    assert!(std::sync::Arc::ptr_eq(&first_descriptor, &parsed.get_message("first.First").unwrap()));
+    assert!(std::sync::Arc::ptr_eq(&second_descriptor, &parsed.get_message("second.Second").unwrap()));
     let mut second = second::Second::new();
     second.set_label("payload");
     assert_eq!(second::Second::from_json(&second.to_json().unwrap()).unwrap().label(), "payload");
     assert_eq!(second::Second::from_text(&second.to_text().unwrap()).unwrap().label(), "payload");
 }
-"#,
+"#
+    .replace("__EXPECTED_FDS_ARRAY__", &format!("{expected_fds:?}"));
+    compile(
+        "runtime",
+        &generated,
+        &consumer,
         &["reflect", "json", "text"],
         true,
     );
