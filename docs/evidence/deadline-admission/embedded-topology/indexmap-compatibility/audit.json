@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "source_parent_commit": "c177348cba27c9b85bf0e592e7735d7d2756a8d0",
+  "kind": "new direct indexmap requirement compatibility; no lock or package pin change",
+  "manifest": "pbrs-grpc/Cargo.toml",
+  "before_manifest_sha256": "9c9152f571e3f72743d505cb5c75c4b0e15d7765faf64c40d91bfa50d81607c3",
+  "after_manifest_sha256": "baec394b23f6c024d7a1d75d901c07add9bb8363b6991cf7d5f05ffd79bb0b79",
+  "requirement_before": "=2.14.0",
+  "requirement_after": "2.14.0",
+  "range_semantics": ">=2.14.0,<3.0.0",
+  "accepted_existing_locked_versions": [
+    "2.14.0",
+    "2.14.2"
+  ],
+  "only_requirement_changed": true,
+  "features_and_default_flags_unchanged": true,
+  "root_lock_before_sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5",
+  "root_lock_after_sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5",
+  "workspace_package_tuple_count": 172,
+  "registry_package_tuple_count": 166,
+  "all_name_version_source_checksum_tuples_unchanged": true,
+  "all_root_lock_dependency_edges_unchanged": true,
+  "selected_root_indexmap_version": "2.14.0",
+  "metadata_command": [
+    "cargo",
+    "+stable",
+    "metadata",
+    "--offline",
+    "--locked",
+    "--format-version",
+    "1",
+    "--filter-platform",
+    "x86_64-unknown-linux-gnu"
+  ],
+  "metadata_exit": 0,
+  "metadata_sha256": "157d251ce2d7c5dad3cd0761724ad22ce5cfde9a7af0c42ff66fe7e56211252b",
+  "metadata_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "compiler_invoked": false,
+  "exact_patch_sha256": "10ba63df05e5a8ca475982844587425497060b4abd7e40915f03e594d063ce53",
+  "limits": "root locked metadata audit only; SB32 owns unchanged standalone2.14.2 graph review and GN13 owns final current-source strict/package/consumer gates;604f proof is not relabeled"
+}
