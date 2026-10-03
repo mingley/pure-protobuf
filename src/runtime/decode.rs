@@ -483,8 +483,15 @@ mod tests {
         // null-MiniTable no-op parser. At entry depth 100, value depth 101 must
         // fail before either action, even though the payload is empty.
         assert!(
-            decode_one(field, &[0], &mut pos, WIRE_LEN, &arena, crate::RECURSION_LIMIT)
-                .is_err()
+            decode_one(
+                field,
+                &[0],
+                &mut pos,
+                WIRE_LEN,
+                &arena,
+                crate::RECURSION_LIMIT
+            )
+            .is_err()
         );
         assert_eq!(pos, 1);
     }
