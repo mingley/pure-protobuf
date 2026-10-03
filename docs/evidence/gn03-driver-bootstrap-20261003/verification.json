@@ -48,7 +48,9 @@
           "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
           "bytes": 2
         }
-      }
+      },
+      "checker_sha256": "374529fca093dcf6d4fb9ed4d156dfd4e93dd46c1644e60cd1a8c61a82472b75",
+      "checker_snapshot": "audit-outputs/checker-001.py"
     },
     {
       "argv": [
@@ -98,7 +100,9 @@
           "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
           "bytes": 2
         }
-      }
+      },
+      "checker_sha256": "374529fca093dcf6d4fb9ed4d156dfd4e93dd46c1644e60cd1a8c61a82472b75",
+      "checker_snapshot": "audit-outputs/checker-001.py"
     },
     {
       "argv": [
@@ -136,7 +140,8 @@
           "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
           "bytes": 2
         }
-      }
+      },
+      "checker_snapshot": "audit-outputs/checker-002.py"
     },
     {
       "argv": [
@@ -187,7 +192,8 @@
           "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
           "bytes": 2
         }
-      }
+      },
+      "checker_snapshot": "audit-outputs/checker-002.py"
     }
   ],
   "current_selected_tool_file_readback": {
