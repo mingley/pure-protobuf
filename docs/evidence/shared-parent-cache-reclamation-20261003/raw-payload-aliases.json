@@ -1,0 +1,14 @@
+{
+  "raw/command-57.stdout": {
+    "archive_member": "historical/source-8ca03da51ab3723f53858800ca5b8e2a33d0f448.tar",
+    "sha256": "b5f405ff25b5292f757cd5a45fc86ba7d17fdfea43ec19e58ee3dfa0a3c935ea",
+    "size": 13670400,
+    "scope": "Exact captured Git archive stdout is retained losslessly as this archive member; the redundant work-only raw file remains preserved outside the sealed proof."
+  },
+  "raw/command-59.stdout": {
+    "archive_member": "historical/source-5a263139f0963488bab9e34b5282803abc3d9138.tar",
+    "sha256": "4f3484e99a1ada88b9fff4b871b596956fff1b0ca759c33568e812b3040e56d5",
+    "size": 14141440,
+    "scope": "Exact captured Git archive stdout is retained losslessly as this archive member; the redundant work-only raw file remains preserved outside the sealed proof."
+  }
+}

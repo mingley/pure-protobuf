@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "/workspace/pure-protobuf/work/sb32-cache-reclamation-20261003/reclaim.py",
+    "--execute-authorized-reclamation"
+  ],
+  "authorization": "root explicitly authorized this exact completed historical target; no builds/captures authorized",
+  "base_commit": "f37b68ce0f426bccf025858ac3339481eb46376d",
+  "cache_path": "/workspace/scratch/work/sb32/target",
+  "lock_fd": 3,
+  "lock_path": "/workspace/scratch/work/sb32/target/debug/.cargo-lock",
+  "locking": "Linux advisory flock LOCK_EX|LOCK_NB on existing Cargo cache lock; cooperative only",
+  "script_sha256": "31034fab4faa249b6eb9c520ccb7c4e59f2bed563ec0541f4358c08b95a7e1c5",
+  "started_utc": "2026-10-03T02:02:52.140929+00:00"
+}

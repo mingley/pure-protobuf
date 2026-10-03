@@ -1,0 +1,7 @@
+warning: pbrs@0.2.0: wrote conformance descriptor set
+   Compiling devloop v0.1.0 (/workspace/scratch/work/sb32/bench/devloop)
+    Checking prost_tat v0.0.1 (/workspace/scratch/work/sb32/prost_tat)
+    Checking pbrs-adoption-corpus v0.0.0 (/workspace/scratch/work/sb32/bench/devloop/adoption)
+    Checking v4_tat v0.0.1 (/workspace/scratch/work/sb32/v4_tat)
+    Checking tonic-prost v0.14.6
+    Finished `dev` profile [unoptimized] target(s) in 12.30s

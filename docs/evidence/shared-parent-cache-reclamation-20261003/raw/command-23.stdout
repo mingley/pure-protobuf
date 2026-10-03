@@ -1,0 +1,17 @@
+{
+  "source_commit": "d9a7c323586e11e649c40e605ff13b45b2a8b013",
+  "binary_sha256": "247aa72e67e23332d0832eb9a0fc363a5eb5dea9252af3e21eb707ac54e36ccd",
+  "binary_tier": "debug CLI semantic/registry proof only; no numeric capture",
+  "old_registry_rows": 1634,
+  "new_bridge_rows": 336,
+  "combined_registry_rows": 1970,
+  "old_registry_byte_identical_when_filtered": true,
+  "default_registry_sha256": "33b529f76973efd5478fe4c3f5a40929a6c2ce564eb25cb22b76f9b31b4adb90",
+  "enabled_registry_sha256": "f1733ac9c848987b02f9f5e5a254a955c6fbbd00100ff38b0ee1f280488bd49e",
+  "parent_inventory_sha256": "c4b3909a290f841d4ea1d82fadbe4483d8a8365e71c721bb23fbde316c0b5648",
+  "semantic_cells": 336,
+  "retained_complete_work_oracles_match": 336,
+  "eligible_wire_guards": 324,
+  "map_costs_blocked": 12,
+  "numeric_cost": "not_run"
+}

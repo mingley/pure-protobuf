@@ -1,0 +1,24 @@
+{
+  "source_commit": "d9a7c323586e11e649c40e605ff13b45b2a8b013",
+  "base_commit": "1d0f56bdf696f801d9c8ccad286a253a871213e6",
+  "source_clean": true,
+  "source_sha256": {
+    "bench/devloop/Cargo.toml": "2350a0ed18ddc8c8594d64e8467abf1a6f70715b42a9c3b862ae2c20084a751d",
+    "bench/devloop/Cargo.lock": "a5fa1e79eb2b3741513e479c393fda804f2f6a19416b9560929f033fb944398c",
+    "bench/devloop/src/main.rs": "c9f38323351620ed3cc2dcc05920fd2d0fc028d81333c4bf3965c981e8605d4c",
+    "scripts/measure-tc32-bridges.py": "99a5d93fbaac9d7cd2005b82e88432015d1cc9492b82a921bb2fa6b66910b65b",
+    "scripts/audit-tc32-bridges.py": "0e84c1da555456ce69f7e936447d40015698c76e26fd858717f7e73ef0ce87d8",
+    "tests/bench/test_tc32_bridge_collectors.py": "18eed74197383e06e03fc0f1964aad500c9e1ad5b80910d63d1a307a1ea46571",
+    "protobuf-tonic/src/lib.rs": "20ddfede04f82b5d0b72817105c318851d8690f5398127155042b308ac5e002f",
+    "bench/devloop/adoption/src/bridge.rs": "6eec81e67cb2aac1ded0c6e6fb3b7e25262e3142d5fe48bbd01b0f33648300b5"
+  },
+  "all_tracked_rust_manifests_and_locks_identical_to_gated_5a263139": true,
+  "main_rs_additions": 131,
+  "main_rs_original_lines_removed_or_replaced": 0,
+  "original_shipping_files_changed": [],
+  "upstream_protobuf_commit": "35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03",
+  "shared_debug_target_bytes": 1950040186,
+  "numeric_cost": "not_run",
+  "release_build": "not_run",
+  "performance_capture": "not_run"
+}
