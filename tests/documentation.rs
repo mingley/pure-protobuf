@@ -638,8 +638,7 @@ fn validate_links_in_document(
                             .display()
                     )),
                     Err(error) => errors.push(format!(
-                        "Failed to read Markdown anchor target '{}': {error}",
-                        target_part
+                        "Failed to read Markdown anchor target '{target_part}': {error}"
                     )),
                     Ok(_) => {}
                 }
