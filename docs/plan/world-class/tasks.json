@@ -12371,6 +12371,58 @@
     "TC-30a"
    ],
    "notes": "Scope reviewed at main b2861236. Native connection validation already rejects disabled nonidentity coding before RPC admission; current tonic unsupported_policy also rejects valid identity calls. Agent prepares an isolated baseline-red/source prototype before guarded ordinary compilation. Native default decode cap must not be imposed over a separately configured tonic decoder unless explicitly overridden. Outbound compression, preferences/level, hooks and full retained-private-buffer budgets remain open in TC-30b. No quiet/LTO work is authorized for this leaf."
+  },
+  {
+   "id": "TC-30b3a",
+   "title": "Apply finite outbound caps and native compression to opaque tonic bodies",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "status": "in_progress",
+   "implementer": "tc30_outbound",
+   "depends_on": [
+    "TC-30b2b"
+   ],
+   "read": [
+    "pbrs-grpc/src/config.rs",
+    "pbrs-grpc/src/limits.rs",
+    "pbrs-grpc/src/wire/encode.rs",
+    "pbrs-grpc/src/tonic_server.rs",
+    "pbrs-grpc/src/tonic_server/opaque.rs",
+    "tests/interop/tonic/tests/transport_services.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/tonic_server.rs",
+    "pbrs-grpc/src/tonic_server/opaque.rs",
+    "pbrs-grpc/tests/tonic_opaque_transport.rs",
+    "tests/interop/tonic/tests/transport_services.rs",
+    "docs/evidence/tc-30b3a.md"
+   ],
+   "deliverable": "For a finite native outbound message cap, force unchanged tonic serialization to identity and apply the selected native identity/gzip/deflate coding and actual configured level to one message at a time. Preserve the default opaque path and reject every policy the adapter cannot enforce.",
+   "accept": [
+    "Retain a genuine baseline semantic failure before the prototype; run unchanged tonic-generated clients across all four RPC shapes and compare negotiated coding and configured compression bytes against the native codec oracle.",
+    "Enforce the native uncompressed message cap before forwarding that message. Empty payload with cap zero may produce a nonempty gzip member: never infer an encoded-byte cap from the uncompressed cap. Preserve prior-message delivery, duplex progress, cancellation, deadlines, malformed framing, terminal status/details and user metadata.",
+    "Record original peer acceptance before suppressing tonic compression negotiation. Unexpected nonidentity tonic output or SingleMessageCompressionOverride::Disable remains an explicit policy rejection on this cold path; do not infer RPC shape from generic NamedService or change default tonic override semantics.",
+    "Account the transform’s own retained storage even with the observable unlimited tracker, and retain permits through emitted Bytes clones and transport backlog. Full private tonic buffers, finite native byte budgets, response hooks and other unsupported policies remain fail-closed. Document received coalesced tails, fragment backing capacity and private tonic allocation boundaries; no claim that the body wrapper preempts serialization allocation.",
+    "No public API, default, dependency, wire-policy, security, new-unsafe or performance-claim change. Qualify final-source strict/MSRV, native malformed/flow-control and generated-consumer gates before integration."
+   ],
+   "checks": [
+    "tonic",
+    "native-serving",
+    "native-hostile",
+    "clippy"
+   ],
+   "scoreboard": [
+    "F2",
+    "D4"
+   ],
+   "relates": [
+    "TC-30b",
+    "TC-30b2a"
+   ],
+   "notes": "2026-10-03: bounded isolated design/prototype authorized after read-only pinned tonic0.14.6 API review. Its private encoder allocates before the generic Body boundary and uses level6; a negotiation-only pass-through cannot enforce native level1 or full retained budgets. Source preparation may proceed while earlier ordinary gates finish; no Cargo or release/performance lease yet. This leaf does not close TC-30b."
   }
  ],
  "last_audit": {
