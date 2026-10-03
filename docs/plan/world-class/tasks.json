@@ -10256,7 +10256,8 @@
     "SV-03",
     "H2-16",
     "AD-04"
-   ]
+   ],
+   "notes": " 2026-10-03 current-source audit: historical Tokio self/context-switch figures are not current per-side wake measurements. First bounded leaf RX-10a qualifies side/site-labelled library spawn counts only; parent wake/channel/migration/context-switch and <=5% instruction-attribution acceptance remains open. Frozen original workload worker counts and failed inline-dispatch controls must remain unchanged."
   },
   {
    "id": "SV-08",
@@ -12429,6 +12430,61 @@
     "TC-30b2a"
    ],
    "notes": "2026-10-03: bounded isolated design/prototype authorized after read-only pinned tonic0.14.6 API review. Its private encoder allocates before the generic Body boundary and uses level6; a negotiation-only pass-through cannot enforce native level1 or full retained budgets. Source preparation may proceed while earlier ordinary gates finish; no Cargo or release/performance lease yet. This leaf does not close TC-30b. The trigger requires changed outbound compression settings plus finite max_encoding; existing finite-cap-only behavior is unchanged. Forcing identity may expose a stricter independently configured tonic serialization cap; it never enlarges that service cap. Unsupported selected native codecs remain explicit policy rejections."
+  },
+  {
+   "id": "RX-10a",
+   "title": "Count per-side library task spawns across all RPC shapes",
+   "lane": "RX",
+   "milestone": "M2",
+   "priority": "P0",
+   "executor": "small",
+   "size": "S",
+   "status": "in_progress",
+   "implementer": "gn13",
+   "depends_on": [],
+   "read": [
+    "docs/plan/dominance/README.md",
+    "docs/evidence/h2-costs.md",
+    "docs/evidence/rx-08.md",
+    "docs/decisions/server-dispatch.md",
+    "pbrs-grpc/src/client/",
+    "pbrs-grpc/src/server/",
+    "pbrs-grpc/src/rt/",
+    "pbrs-grpc/src/copy_counts.rs",
+    "pbrs-grpc/src/runtime.rs",
+    "bench/devloop/main.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/copy_counts.rs",
+    "pbrs-grpc/src/lib.rs",
+    "pbrs-grpc/src/server/connection.rs",
+    "pbrs-grpc/src/client/pool.rs",
+    "pbrs-grpc/src/client/streaming.rs",
+    "pbrs-grpc/src/wire/send.rs",
+    "bench/devloop/",
+    "docs/decisions/",
+    "docs/evidence/"
+   ],
+   "deliverable": "Feature-gated side/site-labelled library task-spawn accounting and an independent deterministic four-shape diagnostic fixture, preserving every existing spawn expression, future ownership and scheduler choice. Separate connection-driver and application-producer work from library RPC events.",
+   "accept": [
+    "Existing copy-counts bench feature guards every counter call and storage; feature-off source adds no runtime branch, future wrapper, atomics, scheduling or public production behavior.",
+    "A separate diagnostic fixture verifies exact message bytes, statuses and event counts for unary, server-streaming, client-streaming and bidi after warmup, with explicit terminal/body/producer acknowledgements, cancellation after headers, early upload termination and quiescent drops. Preserve a meaningful pre-change baseline and source/tool/raw pins.",
+    "Keep original20 controls, workers, warmup, profiles, thresholds and comparator byte-identical. Any report fields are additive; uninstrumented reference wake/channel/context-switch data is not_run rather than zero. Counts alone do not close RX-10 or establish disjoint instruction attribution/budgets."
+   ],
+   "checks": [
+    "native-rpc",
+    "rpc-bench-tests"
+   ],
+   "scoreboard": [
+    "C5",
+    "D4"
+   ],
+   "relates": [
+    "RX-10",
+    "SV-08",
+    "CL-08"
+   ],
+   "notes": "Root expanded the bounded source scope based on the 10bee600 read-only audit. No implementation or runtime/performance gate has run. Direct Tokio spawn sites bypass Runtime::spawn; task/poll hooks requiring tokio_unstable are outside this leaf. Wait for the root work lease after GN1000 exclusive timing."
   }
  ],
  "last_audit": {
