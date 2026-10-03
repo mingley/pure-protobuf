@@ -12559,14 +12559,20 @@
    ],
    "read": [
     "src/wire.rs",
+    "src/rt.rs",
     "src/codegen/parse.rs",
-    "src/runtime.rs",
-    "src/dynamic.rs",
+    "src/table.rs",
+    "src/generated/",
+    "src/runtime/decode.rs",
+    "scripts/regen-generated.sh",
     "tests/"
    ],
    "write": [
     "src/wire.rs",
+    "src/rt.rs",
     "src/codegen/parse.rs",
+    "src/table.rs",
+    "src/generated/",
     "tests/",
     "docs/evidence/"
    ],
@@ -12588,7 +12594,52 @@
    "relates": [
     "GN-15"
    ],
-   "notes": "2026-10-03: independent GN-15 review found existing recursive skip_field/capture_unknown group helpers without a depth counter, while generated known-message merge_inner checks RECURSION_LIMIT. Root source inspection confirms the gap; exploit/reproducer and compiler gates remain not_run. Separate source-only proposal and bounded test-only baseline are authorized from main0a0ae991. Shipping API/files require concrete coordinator review before edits."
+   "notes": "2026-10-03: root reviewed the concrete four handwritten files plus13 registered generated-callers proposal from main0a0ae991 and frozen test-only baseline676adacb; source implementation is authorized, compiler gates not_run. Depth0 root allows100 group frames, rejects101 before group allocation/increment; new generated/table callers compose enclosing known depth. Preserve public wrappers, legacy skip end-number acceptance and capture matching-end errors; old external/generated wrappers gain only a per-chain cap until regenerated. Bundled callers must migrate in this leaf. Prefer genuine pinned staging when prerequisites are available; otherwise exact inventoried helper-call migration is authorized and must be labeled migrated, never regenerated. Separate rust_out known-message recursion remains open as QG-19. GN03 default30/performance source pins remain deliberately pre-QG18; no performance/full-security claim."
+  },
+  {
+   "id": "QG-19",
+   "title": "Bound rust_out arena parser message recursion",
+   "lane": "QG",
+   "milestone": "M2",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "status": "pending",
+   "depends_on": [
+    "QG-18"
+   ],
+   "read": [
+    "src/runtime/decode.rs",
+    "src/runtime/arena.rs",
+    "src/runtime/mini_table.rs",
+    "src/wire.rs",
+    "tests/"
+   ],
+   "write": [
+    "src/runtime/decode.rs",
+    "tests/",
+    "docs/evidence/"
+   ],
+   "deliverable": "Thread the existing recursion budget through private rust_out arena decoding while preserving public ClearAndParse and MergeFrom trait signatures. Check depth before allocating singular/repeated child messages and map-entry/value frames; compose unknown-group depth using QG-18 helpers.",
+   "accept": [
+    "Retain genuine bounded MiniTable baseline semantic reds at100/101 known-message levels and mixed message/group/map contexts; never use a stack-crash workload.",
+    "Preserve required checks, arena ownership, scalar dispatch, closed-enum/rejected-map semantics, unknown dropping and existing unsafe boundaries; add no unsafe, dependency or new limit value.",
+    "Qualify actual linked generated rust_out callers, native1.85, strict1.88 and existing arena/enum regressions before integration; no performance or full-parser-security claim."
+   ],
+   "checks": [
+    "core-lib",
+    "shared",
+    "shared-out",
+    "clippy"
+   ],
+   "scoreboard": [
+    "F1"
+   ],
+   "relates": [
+    "QG-18",
+    "UK-08"
+   ],
+   "notes": "2026-10-03: source review confirms private parse_into/decode_field/decode_one/decode_map_entry have no depth parameter or known-message limit. Actual public surface is ClearAndParse/MergeFrom, not hypothetical decode APIs. Separate concrete source proposal/baseline is authorized; implementation and compiler gates remain not_run until review/lease."
   }
  ],
  "last_audit": {
