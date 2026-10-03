@@ -1,0 +1,22 @@
+    Checking tokio v1.53.1
+    Checking tokio-util v0.7.19
+    Checking futures-task v0.3.34
+    Checking futures-util v0.3.34
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/tc30b-outbound)
+    Checking h2 v0.4.19
+   Compiling getrandom v0.3.4
+    Checking hyper v1.11.0
+    Checking hyper-util v0.1.20
+    Checking tower v0.5.3
+    Checking axum v0.8.9
+    Checking hyper-timeout v0.5.2
+    Checking graviola v0.2.1
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/tc30b-outbound/pbrs-grpc)
+    Checking tokio-rustls v0.26.4
+    Checking tokio-stream v0.1.19
+    Checking tonic v0.14.6
+    Checking rustls-graviola v0.2.1
+    Checking opentelemetry v0.31.0
+ Documenting pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/tc30b-outbound/pbrs-grpc)
+    Finished `dev` profile [unoptimized] target(s) in 58.14s
+   Generated /workspace/scratch/work/tc30b-outbound/target/qualification/doc/pbrs_grpc/index.html and 4 other files

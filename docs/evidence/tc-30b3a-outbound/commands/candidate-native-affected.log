@@ -1,0 +1,52 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/tc30b-outbound)
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/tc30b-outbound/pbrs-grpc)
+    Finished `test` profile [unoptimized] target(s) in 1m 15s
+     Running tests/tonic_opaque_transport.rs (target/qualification/debug/deps/tonic_opaque_transport-85819680f7db26d5)
+
+running 31 tests
+test deadline_during_open_partial_input_prefix_drops_reader ... ok
+test finite_gzip_input_rejects_encoded_claim_and_inflated_bomb_without_prefix ... ok
+test finite_inbound_gzip_cap_preserves_original_encoded_frame ... ok
+test identity_input_and_output_caps_handle_tiny_windows_fragmentation_and_trailers ... ok
+test identity_input_caps_reject_header_claim_before_payload_arrives ... ok
+test identity_outbound_cap_rejects_oversize_without_emitting_prefix ... ok
+test identity_output_caps_accept_boundaries_and_preserve_valid_messages_before_failure ... ok
+test invalid_gzip_and_partial_encoded_frames_end_in_internal ... ok
+test malformed_identity_output_never_counts_as_clean_success ... ok
+test native_gzip_decoder_uses_first_member_and_ignores_encoded_tail ... ok
+test native_outbound_compression_drops_stale_content_length_and_forwarding_preserves_it ... ok
+test deadline_while_waiting_for_output_prefix_drops_body_and_recovers_rpc_slot ... ok
+test deadline_while_gzip_crc_or_ignored_tail_is_incomplete_recovers_slot ... ok
+test deadline_in_partial_gzip_header_drops_reader_and_recovers_slot ... ok
+test native_outbound_gzip_zero_cap_does_not_cap_encoded_overhead ... ok
+test native_outbound_failure_withholds_later_prefix_and_preserves_first_message ... ok
+test native_outbound_h2_backlog_keeps_output_permit_until_peer_reset ... ok
+test native_outbound_selected_zstd_stays_unsupported_before_readiness ... ok
+
+thread 'native_outbound_transform_body_error_preserves_status_details_and_metadata' panicked at pbrs-grpc/tests/tonic_opaque_transport.rs:465:5:
+assertion `left == right` failed
+  left: "producer body error"
+ right: "producer%20body%20error"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test native_outbound_transform_body_error_preserves_status_details_and_metadata ... FAILED
+test native_outbound_transform_partial_prefix_and_invalid_flag_are_internal ... ok
+test native_outbound_unexpected_coding_and_override_fail_before_headers ... ok
+test native_outbound_transform_preserves_independent_input_opt_out_advertisement ... ok
+test reset_during_partial_input_prefix_drops_reader_and_next_rpc_succeeds ... ok
+test reset_during_partial_output_prefix_drops_producer_and_recovers_rpc_slot ... ok
+test reset_in_partial_gzip_header_drops_reader_and_next_rpc_succeeds ... ok
+test unlimited_gzip_input_remains_unsupported_before_readiness ... ok
+test reset_while_gzip_crc_or_ignored_tail_is_incomplete_recovers_slot ... ok
+test unsupported_compressed_input_rejects_before_readiness_but_output_after_handler ... ok
+test zero_native_gzip_cap_distinguishes_identity_empty_member_and_missing_gzip_header ... ok
+test native_outbound_deadline_drops_partial_transform_and_its_capacity ... ok
+test native_outbound_levels_preferences_and_peer_fallback_use_native_bytes ... ok
+
+failures:
+
+failures:
+    native_outbound_transform_body_error_preserves_status_details_and_metadata
+
+test result: FAILED. 30 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+
+error: test failed, to rerun pass `-p pbrs-grpc --test tonic_opaque_transport`

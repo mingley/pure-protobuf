@@ -1,0 +1,71 @@
+   Compiling pbrs v0.2.0 (/workspace/scratch/work/tc30b-outbound)
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/scratch/work/tc30b-outbound/pbrs-grpc)
+    Finished `test` profile [unoptimized] target(s) in 1m 24s
+     Running tests/byte_budget_public.rs (target/qualification/debug/deps/byte_budget_public-e3257aff6833f5bd)
+
+running 1 test
+test public_byte_budget_reclaims_permits ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/compression.rs (target/qualification/debug/deps/compression-58ad207413b7bdec)
+
+running 4 tests
+test extended_compression_selection_reports_and_restores_legacy_settings ... ok
+test published_codec_methods_keep_their_wire_behavior ... ok
+test published_codec_remains_exhaustive_with_original_discriminants ... ok
+test zstd::zstd_negotiates_for_unary_requests_and_responses ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/message_size.rs (target/qualification/debug/deps/message_size-51217664e9f467f3)
+
+running 7 tests
+test channel_oversize_outbound_is_resource_exhausted ... ok
+test oversize_outbound_is_resource_exhausted ... ok
+test client_stream_oversize_send_is_resource_exhausted ... ok
+test oversize_inbound_is_resource_exhausted ... ok
+test server_oversize_decode_is_resource_exhausted ... ok
+test server_oversize_encode_is_resource_exhausted ... ok
+test under_limit_unary_still_works ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/regress_metadata.rs (target/qualification/debug/deps/regress_metadata-474caf085214331e)
+
+running 1 test
+test ascii_metadata_rejects_non_ascii_values ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/resource_bounds.rs (target/qualification/debug/deps/resource_bounds-94b0513a18352594)
+
+running 9 tests
+test test_client_unary_byte_budget_rejection_and_quiescence ... ok
+test test_client_cancellation_releases_budget ... ok
+test test_client_streaming_byte_budget_rejection_and_quiescence ... ok
+test test_max_send_buffer_size_sets_budget_limit ... ok
+test test_bidi_streaming_byte_budget_rejection_and_quiescence ... ok
+test test_mixed_large_small_compressed_byte_budget ... ok
+test test_server_streaming_byte_budget_rejection_and_quiescence ... ok
+test test_server_unary_byte_budget_rejection_and_quiescence ... ok
+test test_encode_error_releases_budget_to_baseline ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.16s
+
+     Running tests/tonic_behavior.rs (target/qualification/debug/deps/tonic_behavior-d25be3dae9121d45)
+
+running 2 tests
+test metadata_keys_follow_lowercase_http2_rules ... ok
+test migration_guide_pins_every_branch_sensitive_behavior ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/tonic_server.rs (target/qualification/debug/deps/tonic_server-36f941a46310a98e)
+
+running 2 tests
+test tonic_tls_connect_info_keeps_peer_certificate_api_available ... ok
+test generated_service_mounts_in_tonic_and_exposes_tonic_connect_info ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

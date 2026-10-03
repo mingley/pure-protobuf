@@ -1,0 +1,7 @@
+{
+  "stage": "baseline-native-red-after-fixture-fix",
+  "disposition": "executed_baseline_semantic_red",
+  "native_exit": 101,
+  "source": "c2a9c9f8899d1a4bd634f4f077693390ca28d825",
+  "performance": "not_run"
+}

@@ -1,0 +1,7 @@
+{
+  "stage": "candidate-msrv-tonic",
+  "disposition": "passed_correctness_gate",
+  "native_exit": 0,
+  "source": "87f031d7431355ddcc370a5dba9329e74b838b91",
+  "performance": "not_run"
+}

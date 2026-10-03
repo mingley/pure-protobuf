@@ -1,0 +1,7 @@
+{
+  "stage": "candidate-native-affected-after-fixture-fix",
+  "disposition": "passed_correctness_gate",
+  "native_exit": 0,
+  "source": "44bfcecb99a7d3ed11333a951815c4f3560f98dd",
+  "performance": "not_run"
+}

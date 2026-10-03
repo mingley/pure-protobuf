@@ -1,0 +1,7 @@
+{
+  "stage": "baseline-native-build-after-fixture-lint-fix",
+  "disposition": "passed_correctness_gate",
+  "native_exit": 0,
+  "source": "8f009b9452aeab54d075daacb99371d988f89b98",
+  "performance": "not_run"
+}

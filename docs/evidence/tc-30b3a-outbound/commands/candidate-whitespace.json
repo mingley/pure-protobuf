@@ -1,0 +1,67 @@
+{
+  "schema": "tc30b-outbound-command-v1",
+  "name": "candidate-whitespace",
+  "argv": [
+    "git",
+    "diff",
+    "--check",
+    "dfd5ba320d0dcfa57816b64211b7c1b33af9ce0b",
+    "HEAD"
+  ],
+  "executable_sha256_before": null,
+  "cwd": "/workspace/scratch/work/tc30b-outbound",
+  "source_before": "87f031d7431355ddcc370a5dba9329e74b838b91",
+  "tracked_changes_before": "",
+  "started_utc": "2026-10-03T04:59:39.100024+00:00",
+  "environment": {
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_TARGET_DIR": "/workspace/scratch/work/tc30b-outbound/target/qualification",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RUSTDOCFLAGS": null,
+    "RUSTUP_HOME": "/workspace/pure-protobuf/work/toolchain/rustup",
+    "CARGO_HOME": "/workspace/pure-protobuf/work/toolchain/cargo",
+    "PROTOC": "/workspace/pure-protobuf/target/conformance-build/protoc-35.1.0",
+    "PATH": "/workspace/pure-protobuf/target/conformance-build:/workspace/pure-protobuf/work/toolchain/cargo/bin:/workspace/pure-protobuf/work/toolchain/python/cmake/data/bin:/workspace/pure-protobuf/work/toolchain/python/ninja/data/bin:/workspace/pure-protobuf/work/toolchain/deb/usr/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "RUSTFLAGS": null,
+    "RUSTC_WRAPPER": null
+  },
+  "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "correctness only; elapsed time is not comparative performance evidence",
+  "disk_observations": [
+    {
+      "free": 2838736896,
+      "owned_cache_bytes": 246181061,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 246181061,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 2838736896,
+      "owned_cache_bytes": 246181061,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 246181061,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    },
+    {
+      "free": 2838736896,
+      "owned_cache_bytes": 246181061,
+      "owned_cache_roots": {
+        "/workspace/scratch/work/tc30b-outbound/target": 246181061,
+        "/workspace/scratch/work/tc30b-outbound-baseline/target": 0
+      }
+    }
+  ],
+  "disk_guard": null,
+  "native_exit": 0,
+  "minimum_free": 2838736896,
+  "maximum_owned_cache": 246181061,
+  "executable_sha256_after": null,
+  "exit": 0,
+  "finished_utc": "2026-10-03T04:59:40.113735+00:00",
+  "source_after": "87f031d7431355ddcc370a5dba9329e74b838b91",
+  "tracked_changes_after": ""
+}

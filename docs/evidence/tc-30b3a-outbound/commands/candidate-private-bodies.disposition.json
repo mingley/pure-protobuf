@@ -1,0 +1,7 @@
+{
+  "stage": "candidate-private-bodies",
+  "disposition": "passed_correctness_gate",
+  "native_exit": 0,
+  "source": "ed2e145af62ffb62361722caa2e489486441726e",
+  "performance": "not_run"
+}

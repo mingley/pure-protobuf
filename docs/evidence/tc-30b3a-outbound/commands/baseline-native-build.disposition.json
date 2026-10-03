@@ -1,0 +1,7 @@
+{
+  "stage": "baseline-native-build",
+  "disposition": "passed_correctness_gate",
+  "native_exit": 0,
+  "source": "2608fa0ca3542797102cbc89d6150ef5a61acbd2",
+  "performance": "not_run"
+}

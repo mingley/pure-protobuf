@@ -1,0 +1,72 @@
+diff --git a/pbrs-grpc/tests/tonic_opaque_transport.rs b/pbrs-grpc/tests/tonic_opaque_transport.rs
+index ea31cad0..16ec8072 100644
+--- a/pbrs-grpc/tests/tonic_opaque_transport.rs
++++ b/pbrs-grpc/tests/tonic_opaque_transport.rs
+@@ -245,6 +245,29 @@ fn gzip_wire(payload: &[u8]) -> Bytes {
+     Bytes::from(wire)
+ }
+ 
++#[tokio::test]
++async fn native_outbound_gzip_zero_cap_does_not_cap_encoded_overhead() {
++    let mut fixture = connect(
++        probe(vec![Bytes::from_static(b"\0\0\0\0\0")]),
++        ServerConfig::default()
++            .send_compressed(true)
++            .max_encoding_message_size(0),
++        65_535,
++    )
++    .await;
++    let mut req = request();
++    req.headers_mut().insert(
++        "grpc-accept-encoding",
++        http::HeaderValue::from_static("gzip"),
++    );
++    let (bytes, terminal, headers) = exchange(&mut fixture, req, Vec::new()).await;
++    assert_eq!(terminal.get("grpc-status").expect("status"), "0");
++    assert_eq!(headers.get("grpc-encoding").expect("gzip"), "gzip");
++    assert_eq!(bytes, gzip_wire(b""));
++    assert!(bytes.len() > 5);
++    assert_eq!(fixture.state.calls.load(Ordering::SeqCst), 1);
++}
++
+ #[test]
+ fn native_gzip_decoder_uses_first_member_and_ignores_encoded_tail() {
+     let first = pbrs_grpc::gzip::encode(b"one").expect("first");
+diff --git a/tests/interop/tonic/tests/transport_services.rs b/tests/interop/tonic/tests/transport_services.rs
+index 023fb86f..2ce434ac 100644
+--- a/tests/interop/tonic/tests/transport_services.rs
++++ b/tests/interop/tonic/tests/transport_services.rs
+@@ -1054,6 +1054,33 @@ async fn native_identity_caps_do_not_enlarge_generated_codec_caps() -> Result<()
+     Ok(())
+ }
+ 
++#[tokio::test]
++async fn native_finite_outbound_gzip_transform_all_generated_shapes() -> Result<(), BoxError> {
++    for tls in [false, true] {
++        let config = ServerConfig::default()
++            .send_compressed(true)
++            .gzip_compression_level(9)
++            .max_encoding_message_size(8192);
++        let (addr, state, _server) = server(config, None, tls).await?;
++        let channel = if tls {
++            Channel::connect_tls(
++                addr,
++                ClientTls::ca_mtls(
++                    "localhost",
++                    CA,
++                    Identity::from_pem(CLIENT_CERT, CLIENT_KEY)?,
++                )?,
++            )
++            .await?
++        } else {
++            Channel::connect(addr).await?
++        };
++        all_shapes_codec(channel, true).await?;
++        assert_eq!(state.calls.load(Ordering::SeqCst), 4);
++    }
++    Ok(())
++}
++
+ #[tokio::test]
+ async fn unchanged_generated_server_all_shapes_layers_interceptors_gzip_both_transports()
+ -> Result<(), BoxError> {

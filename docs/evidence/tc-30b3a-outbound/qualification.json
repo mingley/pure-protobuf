@@ -1,0 +1,515 @@
+{
+  "schema": "tc30b3a-outbound-qualification-v1",
+  "recorded_utc": "2026-10-03T05:14:07.953580+00:00",
+  "status": "bounded outbound leaf qualified; parent compression, private-buffer budgets and performance remain open",
+  "pins": {
+    "candidate": "87f031d7431355ddcc370a5dba9329e74b838b91",
+    "baseline": "8f009b9452aeab54d075daacb99371d988f89b98",
+    "common": "dfd5ba320d0dcfa57816b64211b7c1b33af9ce0b",
+    "frozen": "6603408540c7b5450d76afc28aa87aeb55e2220c",
+    "original_baseline": "fa66e79c1e31f24abbaa4701f10e2d5c10971ef3",
+    "initial_candidate": "ed2e145af62ffb62361722caa2e489486441726e",
+    "corrected_candidate": "44bfcecb99a7d3ed11333a951815c4f3560f98dd",
+    "initial_baseline": "2608fa0ca3542797102cbc89d6150ef5a61acbd2",
+    "corrected_baseline": "c2a9c9f8899d1a4bd634f4f077693390ca28d825"
+  },
+  "shipping_files": [
+    "pbrs-grpc/src/tonic_server.rs",
+    "pbrs-grpc/src/tonic_server/outbound.rs"
+  ],
+  "owned_files": [
+    "pbrs-grpc/src/tonic_server.rs",
+    "pbrs-grpc/src/tonic_server/outbound.rs",
+    "pbrs-grpc/tests/tonic_opaque_transport.rs",
+    "tests/interop/tonic/tests/transport_services.rs"
+  ],
+  "source_sha256": {
+    "pbrs-grpc/src/tonic_server.rs": "03cf891816468948447561e0eae01e662372941efd84fd5b2e4a7ff207b1e8ef",
+    "pbrs-grpc/src/tonic_server/outbound.rs": "e545c47fabdda45562b35229c0cd1d48d9104a9470606c44d5a0a016a734a7bc",
+    "pbrs-grpc/tests/tonic_opaque_transport.rs": "cab4aca1a34fe4ea298ab92edba78f394b32aac1c184f16a923e1b1928c3e58b",
+    "tests/interop/tonic/tests/transport_services.rs": "8e3ee057c5925ef50bea641ef5e78d352a8369cd069d82235b38d9034964e00e",
+    "pbrs-grpc/src/compression/mod.rs": "1cf4dba8c271ee766cf968bd1f2bb1e717b53d2074ac632cf6b2880f0b0c6058",
+    "pbrs-grpc/src/compression/gzip.rs": "f87cab18bb58af0dbed93902aed930eb9ef7f51f26b2b0d502b83b893d8b913c",
+    "pbrs-grpc/src/compression/deflate.rs": "5b08eeabbcf0af3a62985a42e951d67f2a6b4f23785c001db8dfb3b6f4b7cdbd",
+    "pbrs-grpc/src/wire/encode.rs": "11589eb80c412b125b95f326cc530e3f1029d35c9fdcfe89f2cf6dc3d1f9a7eb",
+    "pbrs-grpc/src/wire/send.rs": "e8929baaf1f55a6a7df63ede57014933d402eab302d31bbdc5f7add3a821cbaa",
+    "pbrs-grpc/src/config.rs": "9ecd390ae51b5583c8bd19149034b0ab75fac98790718d65b03aad3808f60232"
+  },
+  "candidate_vs_baseline_tracked_difference": [
+    "pbrs-grpc/src/tonic_server.rs",
+    "pbrs-grpc/src/tonic_server/outbound.rs"
+  ],
+  "shipping_identical_to_frozen": true,
+  "public_fixtures_identical_to_baseline": true,
+  "executions": [
+    {
+      "name": "baseline-generated-build",
+      "source": "2608fa0ca3542797102cbc89d6150ef5a61acbd2",
+      "exit": 0,
+      "native_exit": 0,
+      "record_sha256": "66a8d70f52097ba054038f33c1669232878c20c35f57e4ed9e0eff8f6dfa6989",
+      "log_sha256": "841776fa1dd6b2e28efc7cba3c18e4e81f198cb4bf4de8238230afd5090f3320",
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "name": "baseline-generated-red",
+      "source": "2608fa0ca3542797102cbc89d6150ef5a61acbd2",
+      "exit": 101,
+      "native_exit": 101,
+      "record_sha256": "fc5ddcaa4d60bbeb6424c11d95fb3b242726ba4d456bf8e688ebe225dc018b4e",
+      "log_sha256": "9348f4772b26762c2e976e91fd92ac3938a40dbf2ec02aad46b9397b1116dca9",
+      "passed": 0,
+      "failed": 1
+    },
+    {
+      "name": "baseline-native-build-after-fixture-fix",
+      "source": "c2a9c9f8899d1a4bd634f4f077693390ca28d825",
+      "exit": 0,
+      "native_exit": 0,
+      "record_sha256": "09f1ca427962a8ad5050bf256e63f9b872e692d7e280633669d9fc8193da1b55",
+      "log_sha256": "f79f37c7ddc3f501d3c019789ed6da6300d3bfce10a044e8be5f349b9529daa2",
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "name": "baseline-native-build-after-fixture-lint-fix",
+      "source": "8f009b9452aeab54d075daacb99371d988f89b98",
+      "exit": 0,
+      "native_exit": 0,
+      "record_sha256": "b52c5f89b76a6ac3e5f76d847e893f8b8bf102288da09c1fb38d4425245fe6cc",
+      "log_sha256": "76160c77cba46c4680095c140f4eb955d951e735d9dd16a157ba5f30d842bbaf",
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "name": "baseline-native-build",
+      "source": "2608fa0ca3542797102cbc89d6150ef5a61acbd2",
+      "exit": 0,
+      "native_exit": 0,
+      "record_sha256": "fac44c7b3ca6b0f702bdccbfa31e2047beeef608d8adf06d441deb4fd05a26df",
+      "log_sha256": "a4fcb5327bd3113286392e3d44cc66710aa2067c2bccb0199f706619198a9767",
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "name": "baseline-native-red-after-fixture-fix",
+      "source": "c2a9c9f8899d1a4bd634f4f077693390ca28d825",
+      "exit": 101,
+      "native_exit": 101,
+      "record_sha256": "36950a6eed17c23b4ebffcde7f96a59c378d43a93a62747801c7d8d33bc375e9",
+      "log_sha256": "60bc5fea3c0cc3df4baa81b428ceb612215c6d43b3b75edc591d9be5443f7e52",
+      "passed": 0,
+      "failed": 1
+    },
+    {
+      "name": "baseline-native-red-after-fixture-lint-fix",
+      "source": "8f009b9452aeab54d075daacb99371d988f89b98",
+      "exit": 101,
+      "native_exit": 101,
+      "record_sha256": "d028a8681d47899fdd35aad4adc09b05a99098a9a09937c9005dad2f322810fb",
+      "log_sha256": "d1b5768e10318c6f103ef942d87e2d7c60957ec0f28099b7ea01264fb8243e6b",
+      "passed": 0,
+      "failed": 1
+    },
+    {
+      "name": "baseline-native-red",
+      "source": "2608fa0ca3542797102cbc89d6150ef5a61acbd2",
+      "exit": 101,
+      "native_exit": 101,
+      "record_sha256": "6ecddb919bad152645881145cf9158e6f8ee8e686ebe845ab70b65de638158ab",
+      "log_sha256": "60bc5fea3c0cc3df4baa81b428ceb612215c6d43b3b75edc591d9be5443f7e52",
+      "passed": 0,
+      "failed": 1
+    },
+    {
+      "name": "candidate-feature-off-graph",
+      "source": "87f031d7431355ddcc370a5dba9329e74b838b91",
+      "exit": 0,
+      "native_exit": 0,
+      "record_sha256": "b9e89661e17796d8d04f96fd2472cfd538204fa3c42c51373b0871b79afea157",
+      "log_sha256": "ab597f6146845926d764640ff56383b2d454996fdfde57930b4feac0c97e1574",
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "name": "candidate-generated-transport",
+      "source": "44bfcecb99a7d3ed11333a951815c4f3560f98dd",
+      "exit": 0,
+      "native_exit": 0,
+      "record_sha256": "5667c25984404ea275f851ff15a430d75e4c9675d51c392b736ead628cb03f49",
+      "log_sha256": "f12c8214eb72d3e0f82113ba558e4a7fb65b118a7851eb06358dbff92f704cf9",
+      "passed": 26,
+      "failed": 0
+    },
+    {
+      "name": "candidate-msrv-feature-off",
+      "source": "87f031d7431355ddcc370a5dba9329e74b838b91",
+      "exit": 0,
+      "native_exit": 0,
+      "record_sha256": "3b0c4c551745c3090e1702b31ac6039d0bd21d90487c78c6f228884bdd1b2bf7",
+      "log_sha256": "0ec286d7e9d1ad4c70260e69c85de88862ccfbbeb95f947bcf833207d3d95a01",
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "name": "candidate-msrv-tonic",
+      "source": "87f031d7431355ddcc370a5dba9329e74b838b91",
+      "exit": 0,
+      "native_exit": 0,
+      "record_sha256": "7290717e61337ae89e8efaf6096ed954f01ff25838ab67f36ecfaf84ec2607ff",
+      "log_sha256": "a198f173010ab9cd8ba98584dc6dfe0a473ea95f61533cb59daa57a42b42cc51",
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "name": "candidate-native-affected-after-fixture-fix",
+      "source": "44bfcecb99a7d3ed11333a951815c4f3560f98dd",
+      "exit": 0,
+      "native_exit": 0,
+      "record_sha256": "562f0d837ffa9305fec04c81882f997ba9a5d7ec69acb1073163a73f65cd456e",
+      "log_sha256": "05764c35e94bed0fbaa7bc91fe156f23ea95afbc5f766fbd90b17312ac28d01e",
+      "passed": 49,
+      "failed": 0
+    },
+    {
+      "name": "candidate-native-affected",
+      "source": "ed2e145af62ffb62361722caa2e489486441726e",
+      "exit": 101,
+      "native_exit": 101,
+      "record_sha256": "cf7ee850bbf24ecede5c91ad21c42952f646ebcc6db752eb6fefc2fa9c7a8324",
+      "log_sha256": "24b164b7ac801975e6b856a9530c950f35f1c73d64c5711ef62200d6063ef5e5",
+      "passed": 30,
+      "failed": 1
+    },
+    {
+      "name": "candidate-native-regressions",
+      "source": "44bfcecb99a7d3ed11333a951815c4f3560f98dd",
+      "exit": 0,
+      "native_exit": 0,
+      "record_sha256": "18dfec98b86b5c73a4bb6c366537a2e41b2e3d5ff2762c1ea52998c7832ef701",
+      "log_sha256": "c602442bfab03d4155f2c254eb09487b27d775a1b26ff75c145c5a2d3c8b2ab3",
+      "passed": 26,
+      "failed": 0
+    },
+    {
+      "name": "candidate-native-strict-after-fixture-lint-fix",
+      "source": "87f031d7431355ddcc370a5dba9329e74b838b91",
+      "exit": 0,
+      "native_exit": 0,
+      "record_sha256": "ff2169c4ab4654247d0978ced935c07fa037147bdb1ac4d669bcf00e456f13be",
+      "log_sha256": "87946a7b8738e857385a70f0c596f9344aaa00b1715950ce2d4a4858a8f5176e",
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "name": "candidate-native-strict",
+      "source": "44bfcecb99a7d3ed11333a951815c4f3560f98dd",
+      "exit": 101,
+      "native_exit": 101,
+      "record_sha256": "45f66bcf96714f601813873625fcd9cd49b32258fa0f09547298ee0673a58b3c",
+      "log_sha256": "3fa503dfcee5ed38889c26df5a9d9b8fe2c5bf8b8c17e20b60c998ae4d71a5d0",
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "name": "candidate-private-bodies",
+      "source": "ed2e145af62ffb62361722caa2e489486441726e",
+      "exit": 0,
+      "native_exit": 0,
+      "record_sha256": "f0448f75c0102fa2f07f8a6b982da663302b3a0edddae1ea5e9443a415c44d22",
+      "log_sha256": "d14f9631ecd06e17d1c3c3dc762a977617c13c49e3dc5a6dce053c430c00beca",
+      "passed": 26,
+      "failed": 0
+    },
+    {
+      "name": "candidate-producer-error-after-fixture-lint-fix",
+      "source": "87f031d7431355ddcc370a5dba9329e74b838b91",
+      "exit": 0,
+      "native_exit": 0,
+      "record_sha256": "70c8a58b4b9c29ef774084a080a3b2226be16dcfd9f2fe3b77066193ffff0c77",
+      "log_sha256": "535b8b8018fe1e1745d1f457437408bd318594902d23203501bb8578f3df7952",
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "name": "candidate-rustdoc",
+      "source": "87f031d7431355ddcc370a5dba9329e74b838b91",
+      "exit": 0,
+      "native_exit": 0,
+      "record_sha256": "d6547d2aa667775b8c6b6df30edd525496d99c7e9f7cc44a58265d740c445046",
+      "log_sha256": "ee3c17533a69fc8c2ff447ff898ede7b4cc9cd84b02bdf2563f9d6a3edd58368",
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "name": "candidate-scoped-format",
+      "source": "87f031d7431355ddcc370a5dba9329e74b838b91",
+      "exit": 0,
+      "native_exit": 0,
+      "record_sha256": "f2ff4ab955aba6d3677a9d729e62b412603fa537c742bb2af851797833edb440",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "name": "candidate-standalone-strict",
+      "source": "44bfcecb99a7d3ed11333a951815c4f3560f98dd",
+      "exit": 0,
+      "native_exit": 0,
+      "record_sha256": "ba5abe98df39d46b73c35c3882835d5c74273cad14a3cf1c5b2684da57802a93",
+      "log_sha256": "78266aed7ba1e2fb31aadb46500aa5aadd9f07794db80daae019e47523593668",
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "name": "candidate-tonic-graph",
+      "source": "87f031d7431355ddcc370a5dba9329e74b838b91",
+      "exit": 0,
+      "native_exit": 0,
+      "record_sha256": "2a4c9f261514115305dde7d7b4f0101aa675bceb3b029656d5da3f9249e25d2d",
+      "log_sha256": "2b67b7a752318b57c3a0590aaf67a03f02c4275b72318e3cf126b45eb098c588",
+      "passed": 0,
+      "failed": 0
+    },
+    {
+      "name": "candidate-whitespace",
+      "source": "87f031d7431355ddcc370a5dba9329e74b838b91",
+      "exit": 0,
+      "native_exit": 0,
+      "record_sha256": "f89bde5da56014ada63c7c2c7b05400a680e0353e5bc2c4e41e82ce5d21fe635",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "passed": 0,
+      "failed": 0
+    }
+  ],
+  "checks": [
+    "candidate-private-bodies",
+    "candidate-native-affected-after-fixture-fix",
+    "candidate-native-regressions",
+    "candidate-generated-transport",
+    "candidate-standalone-strict",
+    "candidate-native-strict-after-fixture-lint-fix",
+    "candidate-rustdoc",
+    "candidate-producer-error-after-fixture-lint-fix",
+    "candidate-msrv-feature-off",
+    "candidate-feature-off-graph",
+    "candidate-msrv-tonic",
+    "candidate-tonic-graph",
+    "candidate-scoped-format",
+    "candidate-whitespace"
+  ],
+  "semantic_reds": [
+    "baseline-native-red",
+    "baseline-generated-red",
+    "baseline-native-red-after-fixture-fix",
+    "baseline-native-red-after-fixture-lint-fix"
+  ],
+  "functional": {
+    "successful_execution_events": 128,
+    "distinct_selected_tests": 127,
+    "stages": {
+      "candidate-private-bodies": 26,
+      "candidate-native-affected-after-fixture-fix": 49,
+      "candidate-native-regressions": 26,
+      "candidate-generated-transport": 26,
+      "candidate-producer-error-after-fixture-lint-fix": 1
+    },
+    "actual_source_scope": {
+      "candidate-private-bodies": "26 at ed2; all library/dependency inputs unchanged through final87. The later integration-fixture changes are outside this library target.",
+      "candidate-native-affected-after-fixture-fix": "49 at 44; final87 changed only raw producer-error metadata construction and bounded synthetic-frame lint annotations. The directly affected producer-error case was replayed at87; no claim of all49 replayed at87.",
+      "candidate-native-regressions": "26 at44; final87 changes only tonic_opaque_transport.rs, which these targets do not compile.",
+      "candidate-generated-transport": "26 at44; standalone target source/dependencies and its fixture are identical at87. All four generated RPC shapes include plaintext and mTLS coverage.",
+      "candidate-producer-error-after-fixture-lint-fix": "1 direct affected-case replay at87; already included among49 selected tests, hence128 executions/127distinct."
+    }
+  },
+  "preserved_original_failures": [
+    {
+      "stage": "candidate-native-affected",
+      "source": "ed2e145af62ffb62361722caa2e489486441726e",
+      "passed": 30,
+      "failed": 1,
+      "cause": "Fixture expected Tonic percent-escaped space; unchanged native wire writer preserves printable space. Corrected fixture only; tonic_service_transport18 was not_run in this aborted stage."
+    },
+    {
+      "stage": "candidate-native-strict",
+      "source": "44bfcecb99a7d3ed11333a951815c4f3560f98dd",
+      "cause": "Two fixture expect_used errors. Constant metadata switched to MetadataValue::from_static and bounded synthetic-frame conversion given focused lint expectation. Shipping source unchanged."
+    }
+  ],
+  "baseline_scope": "Build0 precedes each executed red101; no build failure treated as semantic red. Native red replayed final8f. Generated red executed2608 only: later baseline changes touch the native raw-peer fixture outside the standalone compiled-input graph; no generated replay at8f claimed.",
+  "default_scope": {
+    "incoming_body_source_identical": true,
+    "default_drain_response_source_identical": true,
+    "new_top_branch_requested_predicate": true,
+    "compiler_cse_or_predicate_elimination": "not_established",
+    "entire_default_compiled_path_identity": "not_claimed",
+    "zero_default_instruction_overhead": "not_run",
+    "default_performance": "not_run"
+  },
+  "policy_scope": [
+    "Changed native outbound compression settings AND finite max_encoding activate transform; existing cap-only/default paths preserved.",
+    "Native-selected identity/gzip/deflate use original peer negotiation and actual native configured compression levels. Selected unsupportedzstd and observed SingleMessageCompressionOverride::Disable fail9 within this leaf.",
+    "Decoded N validated before owned input allocation and frame payload forwarding; no inferred encoded E=N limit. Previous valid streaming message prefixes can pass before a later invalid message.",
+    "Actual gzip/deflate path removes stale HTTP content-length before headers; identity fallback and trailers-only lengths retained.",
+    "Force-identity dispatch can make private Tonic encoding cap stricter; never enlarge it. Private serialization allocation is not preempted by this body wrapper.",
+    "Owned input/output Vec reported capacity is charged even under Unlimited; BytePermit follows Bytes ownership/clones and H2 blocked writer. Deterministic writer reserve failure preserves original Status8 across compressor IO wrapping.",
+    "Private Tonic storage, native compressor state, original coalesced DATA/backing allocation, fragment metadata, allocator bin/slack are outside this wrapper accounting. Synchronous single-message compressor cannot be interrupted mid-call.",
+    "Finite private retained-byte budgets, hooks, observers, binlog/grpcweb, and unlimited nondefault compression remain unsupported9. This leaf does not close TC-30b/full budget policy."
+  ],
+  "tools": {
+    "compile_and_strict": "actual Rust/Cargo1.88.0; feature-off MSRV actual1.85.0",
+    "format": "actual available stable rustfmt reports1.10.0-stable b940084d7e (stable Rust1.99); capture hashes rustup proxy, not a retrospective direct formatter binary before/after comparison",
+    "protoc_sha256": "ba5165ada96fc34d1295b2056ab8ea99756f7896a0ef0449d07f721595702b28",
+    "tool_hashes_before_after_equal": true,
+    "environment_script_before_after_equal": true
+  },
+  "resources": {
+    "CPU_affinity": 4,
+    "memory_lease_bytes": 17179869184,
+    "cargo_jobs": 1,
+    "aggregate_owned_cache_limit_bytes": 2147483648,
+    "minimum_global_free_floor_bytes": 2147483648,
+    "maximum_observed_aggregate_owned_cache_bytes": 1268741060,
+    "minimum_observed_global_free_bytes": 2255147008,
+    "guard_violations": 0,
+    "both_build_caches_retired": true
+  },
+  "artifact_manifests": [
+    {
+      "stage": "baseline-after-fixture-fix",
+      "manifest_sha256": "301a380a417d6da301135dabf4bec9a6e719a96a077c852d9e3fa2cd48ff6d41",
+      "files": 857,
+      "counts": {
+        "elf": 55,
+        "fingerprint_or_dependency": 778,
+        "generated_rust": 24
+      },
+      "cache_bytes": 704954438,
+      "retired": true
+    },
+    {
+      "stage": "baseline-complete",
+      "manifest_sha256": "f8f295c2380c50767694aab12a88649a1e8f5022b5be80718c81600e112a095d",
+      "files": 1478,
+      "counts": {
+        "elf": 92,
+        "fingerprint_or_dependency": 1322,
+        "generated_rust": 64
+      },
+      "cache_bytes": 1260548787,
+      "retired": true
+    },
+    {
+      "stage": "baseline-final-raw-red",
+      "manifest_sha256": "3f0a0bff837ae37fde6c649a88478fbfc1b9f8ba534203715166d6b567533999",
+      "files": 845,
+      "counts": {
+        "elf": 53,
+        "fingerprint_or_dependency": 768,
+        "generated_rust": 24
+      },
+      "cache_bytes": 658586475,
+      "retired": false
+    },
+    {
+      "stage": "candidate-before-fixture-lint-fix",
+      "manifest_sha256": "d5ad04c3cbb28e7414fd55cbe47395ac1db729a990a762a21893fe921c8d6874",
+      "files": 894,
+      "counts": {
+        "elf": 44,
+        "fingerprint_or_dependency": 826,
+        "generated_rust": 24
+      },
+      "cache_bytes": 289056401,
+      "retired": false
+    },
+    {
+      "stage": "candidate-before-message-oracle-fix",
+      "manifest_sha256": "0436e39396d42628271cf39f067b2c875fe6c93bb896fc8972ef235836b1e833",
+      "files": 857,
+      "counts": {
+        "elf": 55,
+        "fingerprint_or_dependency": 778,
+        "generated_rust": 24
+      },
+      "cache_bytes": 705322809,
+      "retired": false
+    },
+    {
+      "stage": "candidate-generated-strict-complete",
+      "manifest_sha256": "ebe14110a12a708dcff4d41146778017c82db4c06a47b140cc4bcfc97c23ca23",
+      "files": 1534,
+      "counts": {
+        "elf": 66,
+        "fingerprint_or_dependency": 1422,
+        "generated_rust": 46
+      },
+      "cache_bytes": 802780893,
+      "retired": true
+    },
+    {
+      "stage": "candidate-native-complete",
+      "manifest_sha256": "959b45c252ad5e79839415b98cef78018623824d2b17e7bf60856e422c436e7a",
+      "files": 893,
+      "counts": {
+        "elf": 61,
+        "fingerprint_or_dependency": 808,
+        "generated_rust": 24
+      },
+      "cache_bytes": 747242454,
+      "retired": true
+    },
+    {
+      "stage": "candidate-strict-rustdoc-complete",
+      "manifest_sha256": "ace2484b6311efb207e35901e225dbf2c30dd86d9af5b5d5efdc311892708622",
+      "files": 1316,
+      "counts": {
+        "elf": 50,
+        "fingerprint_or_dependency": 1222,
+        "generated_rust": 44
+      },
+      "cache_bytes": 500476848,
+      "retired": true
+    },
+    {
+      "stage": "final-baseline-producer-msrv185-complete",
+      "manifest_sha256": "d02f182a6e37b0239ebd4ffdba21df4294205f4df6d1de28a4cb998cc5fdcac8",
+      "files": 1348,
+      "counts": {
+        "elf": 81,
+        "fingerprint_or_dependency": 1221,
+        "generated_rust": 46
+      },
+      "cache_bytes": 854365668,
+      "retired": true
+    },
+    {
+      "stage": "final-tonic188-check-graphs-complete",
+      "manifest_sha256": "31f2f240c3d6e586a13289c0c73c02dfeb2a210a775cde6cf02a79802b17045d",
+      "files": 688,
+      "counts": {
+        "elf": 35,
+        "fingerprint_or_dependency": 630,
+        "generated_rust": 23
+      },
+      "cache_bytes": 246181061,
+      "retired": true
+    }
+  ],
+  "local_artifact_root": "/workspace/scratch/work/tc30b-outbound/work/tc30b-outbound-proof/ordinary-qualification/artifacts",
+  "local_rustdoc_archive": "/workspace/scratch/work/tc30b-outbound/work/tc30b-outbound-proof/ordinary-qualification/rustdoc-generated.tar.gz",
+  "not_run": [
+    "Matched release/default controls, instruction/copy/allocation comparative performance, LTO and all comparative performance.",
+    "Runtime red of historical stale content-length source2ae9; original source/patch retained, fixed raw-peer oracle passes within qualified native suite.",
+    "Whole private Tonic retained-buffer/capacity budget, hooks/observer policy and parent TC-30b closure.",
+    "Additional complete-workspace tests, unchanged5000-cycle native lifecycle soak or broad performance soak."
+  ],
+  "performance": "not_run",
+  "main_mutated_or_pushed_by_this_agent": false,
+  "packaging_notes": {
+    "prepared_plan_states": "Plan snapshots retain prepared not_run states. Actual execution disposition comes from commands, records and qualification tables.",
+    "checker_initial_failure": "First packaging checker had an incorrect capture-schema PROTOC locator; corrected to executable path. No project source or runtime qualification affected.",
+    "raw_capture_whitespace": "First proof packaging git diff --check reported literal unified-patch context whitespace and native log EOF blank lines. Exact records preserved; scoped .gitattributes disables whitespace diagnostics only for proof patches and captured command logs. The independently executed shipping source whitespace gate at87 passed."
+  }
+}

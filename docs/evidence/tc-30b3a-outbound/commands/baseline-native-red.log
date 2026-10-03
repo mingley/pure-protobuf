@@ -1,0 +1,17 @@
+
+running 1 test
+
+thread 'native_outbound_gzip_zero_cap_does_not_cap_encoded_overhead' panicked at pbrs-grpc/tests/tonic_opaque_transport.rs:300:5:
+assertion `left == right` failed
+  left: "9"
+ right: "0"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test native_outbound_gzip_zero_cap_does_not_cap_encoded_overhead ... FAILED
+
+failures:
+
+failures:
+    native_outbound_gzip_zero_cap_does_not_cap_encoded_overhead
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 30 filtered out; finished in 0.00s
+
