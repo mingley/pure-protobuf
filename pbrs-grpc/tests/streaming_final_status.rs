@@ -213,10 +213,10 @@ impl Peer {
 }
 
 async fn server_stream(channel: &Channel) -> Streaming<HelloReply> {
-    bounded(channel.server_streaming::<HelloRequest, HelloReply>(
-        SERVER_STREAM,
-        Request::new(request()),
-    ))
+    bounded(
+        channel
+            .server_streaming::<HelloRequest, HelloReply>(SERVER_STREAM, Request::new(request())),
+    )
     .await
     .expect("response headers")
     .into_inner()
@@ -226,9 +226,24 @@ async fn server_stream(channel: &Channel) -> Streaming<HelloReply> {
 async fn server_streaming_missing_status_is_unknown() {
     let (channel, peer) = Peer::start(vec![Reply::missing(SERVER_STREAM)]).await;
     let mut stream = server_stream(&channel).await;
-    assert_reply(bounded(stream.message()).await.expect("message").expect("reply"), "reply");
-    assert_missing(&bounded(stream.message()).await.expect_err("response EOF needs status"));
-    assert!(bounded(stream.message()).await.expect("fused stream").is_none());
+    assert_reply(
+        bounded(stream.message())
+            .await
+            .expect("message")
+            .expect("reply"),
+        "reply",
+    );
+    assert_missing(
+        &bounded(stream.message())
+            .await
+            .expect_err("response EOF needs status"),
+    );
+    assert!(
+        bounded(stream.message())
+            .await
+            .expect("fused stream")
+            .is_none()
+    );
     peer.finish(1).await;
 }
 
@@ -239,21 +254,43 @@ async fn bidi_missing_status_is_unknown() {
     bounded(sender.send(request())).await.expect("send request");
     sender.close();
     let mut stream = bounded(call).await.expect("response headers").into_inner();
-    assert_reply(bounded(stream.message()).await.expect("message").expect("reply"), "reply");
-    assert_missing(&bounded(stream.message()).await.expect_err("response EOF needs status"));
-    assert!(bounded(stream.message()).await.expect("fused stream").is_none());
+    assert_reply(
+        bounded(stream.message())
+            .await
+            .expect("message")
+            .expect("reply"),
+        "reply",
+    );
+    assert_missing(
+        &bounded(stream.message())
+            .await
+            .expect_err("response EOF needs status"),
+    );
+    assert!(
+        bounded(stream.message())
+            .await
+            .expect("fused stream")
+            .is_none()
+    );
     peer.finish(1).await;
 }
 
 #[tokio::test]
 async fn unary_and_client_streaming_already_reject_missing_status() {
-    let (channel, peer) = Peer::start(vec![Reply::missing(UNARY), Reply::missing(CLIENT_STREAM)]).await;
-    let result = bounded(channel.unary::<HelloRequest, HelloReply>(UNARY, Request::new(request()))).await;
+    let (channel, peer) =
+        Peer::start(vec![Reply::missing(UNARY), Reply::missing(CLIENT_STREAM)]).await;
+    let result =
+        bounded(channel.unary::<HelloRequest, HelloReply>(UNARY, Request::new(request()))).await;
     assert_missing(&result.expect_err("unary requires status"));
-    let (sender, call) = channel.client_streaming::<HelloRequest, HelloReply>(CLIENT_STREAM, Request::new(()));
+    let (sender, call) =
+        channel.client_streaming::<HelloRequest, HelloReply>(CLIENT_STREAM, Request::new(()));
     bounded(sender.send(request())).await.expect("send request");
     sender.close();
-    assert_missing(&bounded(call).await.expect_err("client-streaming requires status"));
+    assert_missing(
+        &bounded(call)
+            .await
+            .expect_err("client-streaming requires status"),
+    );
     peer.finish(2).await;
 }
 
@@ -265,8 +302,17 @@ async fn empty_data_response_eof_requires_status() {
     let (channel, peer) = Peer::start(vec![reply]).await;
     let mut stream = server_stream(&channel).await;
     peer.observed.permit_data.notify_one();
-    assert_missing(&bounded(stream.message()).await.expect_err("empty DATA EOF needs status"));
-    assert!(bounded(stream.message()).await.expect("fused stream").is_none());
+    assert_missing(
+        &bounded(stream.message())
+            .await
+            .expect_err("empty DATA EOF needs status"),
+    );
+    assert!(
+        bounded(stream.message())
+            .await
+            .expect("fused stream")
+            .is_none()
+    );
     peer.finish(1).await;
 }
 
@@ -274,8 +320,17 @@ async fn empty_data_response_eof_requires_status() {
 async fn trailers_drain_requires_response_status() {
     let (channel, peer) = Peer::start(vec![Reply::missing(SERVER_STREAM)]).await;
     let mut stream = server_stream(&channel).await;
-    assert_missing(&bounded(stream.trailers()).await.expect_err("drained response needs status"));
-    assert!(bounded(stream.message()).await.expect("fused stream").is_none());
+    assert_missing(
+        &bounded(stream.trailers())
+            .await
+            .expect_err("drained response needs status"),
+    );
+    assert!(
+        bounded(stream.message())
+            .await
+            .expect("fused stream")
+            .is_none()
+    );
     peer.finish(1).await;
 }
 
@@ -289,16 +344,35 @@ async fn explicit_ok_preserves_fragmented_messages_and_metadata() {
         Bytes::from_static(SECOND),
     ];
     let (channel, peer) = Peer::start(vec![reply]).await;
-    let response = bounded(channel.server_streaming::<HelloRequest, HelloReply>(SERVER_STREAM, Request::new(request()))).await.expect("headers");
+    let response = bounded(
+        channel
+            .server_streaming::<HelloRequest, HelloReply>(SERVER_STREAM, Request::new(request())),
+    )
+    .await
+    .expect("headers");
     assert_eq!(response.metadata().get("x-initial"), Some("kept"));
     let mut stream = response.into_inner();
     for expected in ["first", "second"] {
-        assert_reply(bounded(stream.message()).await.expect("message").expect("reply"), expected);
+        assert_reply(
+            bounded(stream.message())
+                .await
+                .expect("message")
+                .expect("reply"),
+            expected,
+        );
     }
-    assert!(bounded(stream.message()).await.expect("explicit OK").is_none());
+    assert!(
+        bounded(stream.message())
+            .await
+            .expect("explicit OK")
+            .is_none()
+    );
     let metadata = bounded(stream.trailers()).await.expect("trailing metadata");
     assert_eq!(metadata.get("x-terminal"), Some("kept"));
-    assert_eq!(metadata.get_bin("x-terminal-bin").as_deref(), Some([0, 1, 255].as_slice()));
+    assert_eq!(
+        metadata.get_bin("x-terminal-bin").as_deref(),
+        Some([0, 1, 255].as_slice())
+    );
     peer.finish(1).await;
 }
 
@@ -309,39 +383,83 @@ async fn explicit_error_preserves_prior_messages_details_and_metadata() {
     reply.terminal = Terminal::RichError;
     let (channel, peer) = Peer::start(vec![reply]).await;
     let mut stream = server_stream(&channel).await;
-    assert_reply(bounded(stream.message()).await.expect("message").expect("reply"), "first");
-    let status = bounded(stream.message()).await.expect_err("explicit peer error");
+    assert_reply(
+        bounded(stream.message())
+            .await
+            .expect("message")
+            .expect("reply"),
+        "first",
+    );
+    let status = bounded(stream.message())
+        .await
+        .expect_err("explicit peer error");
     assert_eq!(status.code(), Code::InvalidArgument);
     assert_eq!(status.message(), "bad input");
     assert_eq!(status.details(), [8, 1]);
     assert_eq!(status.metadata().get("x-terminal"), Some("kept"));
-    assert_eq!(status.metadata().get_bin("x-terminal-bin").as_deref(), Some([0, 1, 255].as_slice()));
-    assert!(bounded(stream.message()).await.expect("fused error").is_none());
+    assert_eq!(
+        status.metadata().get_bin("x-terminal-bin").as_deref(),
+        Some([0, 1, 255].as_slice())
+    );
+    assert!(
+        bounded(stream.message())
+            .await
+            .expect("fused error")
+            .is_none()
+    );
     peer.finish(1).await;
 }
 
 #[tokio::test]
 async fn valid_trailers_only_ok_remains_clean_for_both_streaming_shapes() {
-    let replies = [SERVER_STREAM, BIDI].into_iter().map(|path| Reply {
-        terminal: Terminal::HeadersOnlyOk,
-        ..Reply::missing(path)
-    }).collect();
+    let replies = [SERVER_STREAM, BIDI]
+        .into_iter()
+        .map(|path| Reply {
+            terminal: Terminal::HeadersOnlyOk,
+            ..Reply::missing(path)
+        })
+        .collect();
     let (channel, peer) = Peer::start(replies).await;
     let mut stream = server_stream(&channel).await;
-    assert!(bounded(stream.message()).await.expect("trailers-only OK").is_none());
-    assert!(bounded(stream.trailers()).await.expect("trailers-only metadata").is_empty());
+    assert!(
+        bounded(stream.message())
+            .await
+            .expect("trailers-only OK")
+            .is_none()
+    );
+    assert!(
+        bounded(stream.trailers())
+            .await
+            .expect("trailers-only metadata")
+            .is_empty()
+    );
     let (sender, call) = channel.bidi::<HelloRequest, HelloReply>(BIDI, Request::new(()));
     sender.close();
-    let mut stream = bounded(call).await.expect("trailers-only headers").into_inner();
-    assert!(bounded(stream.message()).await.expect("trailers-only OK").is_none());
+    let mut stream = bounded(call)
+        .await
+        .expect("trailers-only headers")
+        .into_inner();
+    assert!(
+        bounded(stream.message())
+            .await
+            .expect("trailers-only OK")
+            .is_none()
+    );
     peer.finish(2).await;
 }
 
 #[tokio::test]
 async fn header_only_missing_status_is_rejected_at_call_completion() {
-    let reply = Reply { terminal: Terminal::HeadersOnlyMissing, ..Reply::missing(SERVER_STREAM) };
+    let reply = Reply {
+        terminal: Terminal::HeadersOnlyMissing,
+        ..Reply::missing(SERVER_STREAM)
+    };
     let (channel, peer) = Peer::start(vec![reply]).await;
-    let result = bounded(channel.server_streaming::<HelloRequest, HelloReply>(SERVER_STREAM, Request::new(request()))).await;
+    let result = bounded(
+        channel
+            .server_streaming::<HelloRequest, HelloReply>(SERVER_STREAM, Request::new(request())),
+    )
+    .await;
     assert_missing(&result.expect_err("headers-only needs status"));
     peer.finish(1).await;
 }
@@ -353,13 +471,25 @@ async fn malformed_frame_and_message_cap_precede_missing_status() {
         reply.chunks = vec![Bytes::copy_from_slice(bytes)];
         let (channel, peer) = Peer::start(vec![reply]).await;
         let mut stream = server_stream(&channel).await;
-        assert_eq!(bounded(stream.message()).await.expect_err("incomplete frame").code(), Code::Internal);
+        assert_eq!(
+            bounded(stream.message())
+                .await
+                .expect_err("incomplete frame")
+                .code(),
+            Code::Internal
+        );
         peer.finish(1).await;
     }
     let (channel, peer) = Peer::start(vec![Reply::missing(SERVER_STREAM)]).await;
     let channel = channel.max_decoding_message_size(1);
     let mut stream = server_stream(&channel).await;
-    assert_eq!(bounded(stream.message()).await.expect_err("native message cap").code(), Code::ResourceExhausted);
+    assert_eq!(
+        bounded(stream.message())
+            .await
+            .expect_err("native message cap")
+            .code(),
+        Code::ResourceExhausted
+    );
     peer.finish(1).await;
 }
 
@@ -370,7 +500,11 @@ struct HalfCloseEcho {
 impl HalfCloseEcho {
     async fn drain(&self, mut stream: Streaming<HelloRequest>) -> HelloReply {
         let mut count = 0;
-        while let Some(request) = stream.message().await.expect("request message or clean half-close") {
+        while let Some(request) = stream
+            .message()
+            .await
+            .expect("request message or clean half-close")
+        {
             assert_eq!(request.name().to_str().expect("request UTF-8"), "request");
             count += 1;
         }
@@ -380,19 +514,31 @@ impl HalfCloseEcho {
 }
 
 impl Greeter for HalfCloseEcho {
-    async fn say_hello(&self, _request: Request<HelloRequest>) -> Result<Response<HelloReply>, Status> {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
         Err(Status::unimplemented("unused fixture shape"))
     }
 
-    async fn client_hello(&self, request: Request<Streaming<HelloRequest>>) -> Result<Response<HelloReply>, Status> {
+    async fn client_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
         Ok(Response::new(self.drain(request.into_inner()).await))
     }
 
-    async fn server_hello(&self, _request: Request<HelloRequest>) -> Result<Response<Streaming<HelloReply>>, Status> {
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
         Err(Status::unimplemented("unused fixture shape"))
     }
 
-    async fn stream_hello(&self, request: Request<Streaming<HelloRequest>>) -> Result<Response<Streaming<HelloReply>>, Status> {
+    async fn stream_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
         let reply = self.drain(request.into_inner()).await;
         let (sender, stream) = Streaming::channel(1);
         sender.send(reply).await?;
@@ -412,23 +558,46 @@ async fn native_request_half_closes_remain_accepted() {
             .await
             .expect("native fixture server");
     });
-    let peer = Peer { task: Some(task), observed: Arc::new(Observed::default()) };
-    let channel = bounded(Channel::from_io(client, "localhost")).await.expect("native handshake");
+    let peer = Peer {
+        task: Some(task),
+        observed: Arc::new(Observed::default()),
+    };
+    let channel = bounded(Channel::from_io(client, "localhost"))
+        .await
+        .expect("native handshake");
     for count in [0, 2] {
-        let (sender, call) = channel.client_streaming::<HelloRequest, HelloReply>(CLIENT_STREAM, Request::new(()));
+        let (sender, call) =
+            channel.client_streaming::<HelloRequest, HelloReply>(CLIENT_STREAM, Request::new(()));
         for _ in 0..count {
             bounded(sender.send(request())).await.expect("request");
         }
         sender.close();
-        assert_reply(bounded(call).await.expect("client-streaming half-close").into_inner(), &count.to_string());
+        assert_reply(
+            bounded(call)
+                .await
+                .expect("client-streaming half-close")
+                .into_inner(),
+            &count.to_string(),
+        );
         let (sender, call) = channel.bidi::<HelloRequest, HelloReply>(BIDI, Request::new(()));
         for _ in 0..count {
             bounded(sender.send(request())).await.expect("request");
         }
         sender.close();
         let mut stream = bounded(call).await.expect("bidi half-close").into_inner();
-        assert_reply(bounded(stream.message()).await.expect("message").expect("reply"), &count.to_string());
-        assert!(bounded(stream.message()).await.expect("server final status").is_none());
+        assert_reply(
+            bounded(stream.message())
+                .await
+                .expect("message")
+                .expect("reply"),
+            &count.to_string(),
+        );
+        assert!(
+            bounded(stream.message())
+                .await
+                .expect("server final status")
+                .is_none()
+        );
     }
     assert_eq!(observed.load(Ordering::SeqCst), 4);
     peer.finish(0).await;
@@ -440,16 +609,38 @@ async fn terminal_error_drop_returns_rpc_and_byte_permits_for_recovery() {
     let channel = channel.max_concurrent_rpcs(1).byte_budget(256);
     let tracker = channel.byte_budget_tracker().clone();
     let mut stream = server_stream(&channel).await;
-    assert_reply(bounded(stream.message()).await.expect("message").expect("reply"), "reply");
-    assert_missing(&bounded(stream.message()).await.expect_err("missing status is terminal error"));
+    assert_reply(
+        bounded(stream.message())
+            .await
+            .expect("message")
+            .expect("reply"),
+        "reply",
+    );
+    assert_missing(
+        &bounded(stream.message())
+            .await
+            .expect_err("missing status is terminal error"),
+    );
     // The documented RPC slot belongs to the received stream until Drop.
-    let rejected = bounded(channel.unary::<HelloRequest, HelloReply>(UNARY, Request::new(request()))).await;
-    assert_eq!(rejected.expect_err("live stream still owns its RPC slot").code(), Code::ResourceExhausted);
+    let rejected =
+        bounded(channel.unary::<HelloRequest, HelloReply>(UNARY, Request::new(request()))).await;
+    assert_eq!(
+        rejected
+            .expect_err("live stream still owns its RPC slot")
+            .code(),
+        Code::ResourceExhausted
+    );
     drop(stream);
     assert_eq!(tracker.allocated(), 0);
     assert_eq!(tracker.active_byte_permit_tokens(), 0);
-    assert!(tracker.peak_allocated() > 0, "actual request bytes were accounted");
-    let response = bounded(channel.unary::<HelloRequest, HelloReply>(UNARY, Request::new(request()))).await.expect("same-connection recovery after Drop");
+    assert!(
+        tracker.peak_allocated() > 0,
+        "actual request bytes were accounted"
+    );
+    let response =
+        bounded(channel.unary::<HelloRequest, HelloReply>(UNARY, Request::new(request())))
+            .await
+            .expect("same-connection recovery after Drop");
     assert_reply(response.into_inner(), "reply");
     assert_eq!(tracker.allocated(), 0);
     assert_eq!(tracker.active_byte_permit_tokens(), 0);
