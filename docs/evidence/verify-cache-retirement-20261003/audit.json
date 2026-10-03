@@ -1,0 +1,32 @@
+{
+  "status": "pass",
+  "scope": "portable metadata and semantic/source-oracle validation; large payload readback not run by this invocation",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "/workspace/scratch/work/rx10/docs/evidence/verify-cache-retirement-20261003/check.py"
+  ],
+  "cwd": "/workspace/scratch/work/rx10",
+  "exit": 0,
+  "utc": "2026-10-03T07:39:03.382042+00:00",
+  "inputs_before": {
+    "docs/evidence/verify-cache-retirement-20261003/check.py": "cdc4fa31ba82e5bca33b4917ac20f96db8d45fedab2193db73fa48928a61e5a7",
+    "docs/evidence/verify-cache-retirement-20261003/index.json": "8bd7a026b7921829884298ac90f2e344a7eb220330d285ef5267db775c18eac0",
+    "docs/evidence/verify-cache-retirement-20261003/records.tar.gz": "a4802c762dc163d0e2728f8e522a3134aa183b1fe733066002b985b52f1530ee"
+  },
+  "inputs_after": {
+    "docs/evidence/verify-cache-retirement-20261003/check.py": "cdc4fa31ba82e5bca33b4917ac20f96db8d45fedab2193db73fa48928a61e5a7",
+    "docs/evidence/verify-cache-retirement-20261003/index.json": "8bd7a026b7921829884298ac90f2e344a7eb220330d285ef5267db775c18eac0",
+    "docs/evidence/verify-cache-retirement-20261003/records.tar.gz": "a4802c762dc163d0e2728f8e522a3134aa183b1fe733066002b985b52f1530ee"
+  },
+  "inputs_unchanged": true,
+  "stdout_sha256": "3e3a36749896e5fa71c6b5bc97f1e28e6a7cbd68b160ea4bdafa35324c9bc37f",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "python": {
+    "invoked": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "resolved": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+    "sha256": "fa67443527ed9647f760d807e2a38f26340757123e643c4639cf273ed15d5ea7",
+    "version": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]"
+  },
+  "metadata_source_context": "6d6678cf6f6be9f18ade57d2f2f9e4a094d3997b",
+  "compiler_or_performance_launch": false
+}

@@ -1,0 +1,25 @@
+{
+  "status": "pass",
+  "metadata_members": 194,
+  "limits": [
+    "Clean source context does not independently attribute every historical cached artifact.",
+    "Previously pruned 35 native and 20 other ELF paths remain unavailable.",
+    "External cache symlinks archived as metadata only; their shared targets untouched.",
+    "Process visibility denials and point-in-time limits retained.",
+    "Large payload archives local and hash-indexed; default checker does not reread them."
+  ],
+  "retirements": {
+    "verify_shared": {
+      "regular_paths": 559,
+      "elf_paths": 45,
+      "lock_scope": "dedicated OFD plus flock",
+      "payload": "indexed; not reread by this metadata-only invocation"
+    },
+    "verify_remaining": {
+      "regular_paths": 9579,
+      "elf_paths": 308,
+      "lock_scope": "dedicated OFD plus flock",
+      "payload": "indexed; not reread by this metadata-only invocation"
+    }
+  }
+}
