@@ -1,0 +1,14 @@
+warning: field `payload` is never read
+  --> work/h2-admission-prototype/admission_tests.rs:20:5
+   |
+16 | struct Frame {
+   |        ----- field in this struct
+...
+20 |     payload: Vec<u8>,
+   |     ^^^^^^^
+   |
+   = note: `Frame` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: 1 warning emitted
+

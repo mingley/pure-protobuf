@@ -1,0 +1,10 @@
+{
+  "source_files": {
+    "src/client.rs": "2a4d8e45fe81650cffb91c00c20b072852843e0eceb51e82dbf3a7ad0178b089",
+    "src/proto/streams/counts.rs": "a64db8bdf74e6282676640927bfd8ff4ab2becfe4b52be9f67a56db5ece5a4b5",
+    "src/proto/streams/prioritize.rs": "4f36786669a18fcbace8abd7a11b5d1fbb9ed6def76faed40488760347e7d461",
+    "src/proto/streams/send.rs": "66eda85db47211e487db074db288ec2a1a965c19c980eca6776d91f161b6e90e",
+    "src/proto/streams/streams.rs": "24851e7db036ce43449f9644c945b8330fefcd7f8d90bed1cadd52f88a688082"
+  },
+  "status": "compiled, not tested; preserved before root review fixes"
+}

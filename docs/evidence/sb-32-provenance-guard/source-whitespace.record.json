@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "git",
+    "diff",
+    "4cc3c99ad25a3c241c83b150e90e60d43bb3c86b^",
+    "4cc3c99ad25a3c241c83b150e90e60d43bb3c86b",
+    "--check"
+  ],
+  "cwd": "/workspace/scratch/work/sb32",
+  "started_utc": "2026-10-02T23:45:59.340687+00:00",
+  "finished_utc": "2026-10-02T23:45:59.343758+00:00",
+  "exit_code": 0,
+  "stdout_path": "source-whitespace.stdout",
+  "stderr_path": "source-whitespace.stderr",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

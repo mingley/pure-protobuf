@@ -2943,12 +2943,13 @@
    ],
    "relates": [],
    "status": "in_progress",
-   "notes": "2026-09-29 coordinator: option slice + runtime sharing slice (e494b80f: Arc pool + 64-slot OnceLock cache + COW; lib 85/dynamic 27/codegen_compat 10/plugin 41/clippy/fmt/no-default green; lazy once-per-process on first use achieved) integrated. REMAINDER narrowed: opt-in source-level shared emission only (emitter change in descriptors.rs with standalone-include! tradeoff; SB-09 size/check cells unmoved by construction). Blocked on GN-02/GN-04 landing. 2026-10-02: GN-02 and GN-11 source work has landed; GN-04 remains partially qualified but is no longer a source-ownership blocker. Reopened the remaining opt-in source-level descriptor emission design for bounded review; preserve standalone includes and reflection behavior, and measure actual SB-09 binary/check costs before closure. 2026-10-02: opt-in shared descriptor source c7d2552e and source-volume proof97997f66 integrated on76d43b7d. Default308 archived outputs unchanged; source volume falls4.66%/15.82%/46.03% across small/100/1000. Cold check and linked binary cost still not_run; source reduction alone does not close GN-03.",
+   "notes": "2026-09-29 coordinator: option slice + runtime sharing slice (e494b80f: Arc pool + 64-slot OnceLock cache + COW; lib 85/dynamic 27/codegen_compat 10/plugin 41/clippy/fmt/no-default green; lazy once-per-process on first use achieved) integrated. REMAINDER narrowed: opt-in source-level shared emission only (emitter change in descriptors.rs with standalone-include! tradeoff; SB-09 size/check cells unmoved by construction). Blocked on GN-02/GN-04 landing. 2026-10-02: GN-02 and GN-11 source work has landed; GN-04 remains partially qualified but is no longer a source-ownership blocker. Reopened the remaining opt-in source-level descriptor emission design for bounded review; preserve standalone includes and reflection behavior, and measure actual SB-09 binary/check costs before closure. 2026-10-02: opt-in shared descriptor source c7d2552e and source-volume proof97997f66 integrated on76d43b7d. Default308 archived outputs unchanged; source volume falls4.66%/15.82%/46.03% across small/100/1000. Cold check and linked binary cost still not_run; source reduction alone does not close GN-03. First small off/on coldpair8b6+aa6fb299 preserves samegenerator/source/input/lock/manifest/tool pins:14.264721s→13.811340s coldcheck,linkedELF545936B→545936B(equal). Allphases/smokes pass; singlepair and.374s recordedbackgroundarchive overlap make timing unqualified.100/1000 costs pending; equalbinaryresultcannotcloseplannedsizeacceptance.",
    "evidence": [
     "docs/evidence/gn-03-reflection-options.md",
     "docs/evidence/gn-02-generated-shrink.md",
     "docs/evidence/gn-03-descriptor-sharing.md",
-    "docs/evidence/gn-03-source-sharing.md"
+    "docs/evidence/gn-03-source-sharing.md",
+    "docs/evidence/gn-03-sb09-sharing.md"
    ]
   },
   {
@@ -10343,14 +10344,15 @@
    ],
    "status": "in_progress",
    "implementer": "server_streaming",
-   "notes": " Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure. Four transport boundary/error/live-producer/cancel tests passed on integrated unchanged production streaming runtime. Experimental closed-producer yield patch remains separate and unqualified until paired original-threshold controls pass. 2026-10-02: five independent streaming regressions and source-pinned current attribution/evidence 4deca0e4 integrated. Matched native prost stream still loses 10.887% instructions and 7.848% heap bytes to tonic, despite lower allocation count. Closed-producer-only yield candidate 0f7fb8fd is rejected: original N200/400x3 screen improves instructions 1.534%, allocations 0.026%, bytes 0.0015%, below unchanged 2% target. Runtime restored exactly to baseline in fc109a11; no rejected runtime change ships. Full archived 51 artifacts/hashes include both experiment patches and raw profiles; allocation-stack/sampled profilers remain not_run. Future-construction copy costs are the next reviewed hypothesis, coordinated with CL-08; parent full acceptance remains open. Inline-writer source1ea1d3a0 is rejected and reverted: primaryIR−0.362%, allocations−1.754% miss the unchanged≥2% target despite exactly3096B fewer bytes. Four cancellation/drop-order regressions plus narrowed fixture lint corrections remain; strictlib/all-testsClippy and4+5scoped regressions pass atb6c2c69f. Coordinator verifies33 primary-proof and7 restored-lint archive members. Runtime boxed helper is unchanged. New safe allocation-before-construction diagnostic is separate and unqualified. Diagnostic989fb406 is rejected before runtime mutation: actual native11536B servicefuture memcpy becomes11544B emptyOption memcpy plus8Bwrapper allocation. Fivepairedshape tests pass, but source prerequisite fails; all17archivedfiles/7symlinks verified. Borrowed unchanged timeout helper is next isolated diagnostic only, exact future-size/copy/drop-order prerequisite before any runtimecandidate.",
+   "notes": " Claimed 2026-10-02 from f5c4482f under renewed direct-main execution authorization. Isolated worktree; coordinator serializes shared write scopes and reviews exact acceptance evidence before closure. Four transport boundary/error/live-producer/cancel tests passed on integrated unchanged production streaming runtime. Experimental closed-producer yield patch remains separate and unqualified until paired original-threshold controls pass. 2026-10-02: five independent streaming regressions and source-pinned current attribution/evidence 4deca0e4 integrated. Matched native prost stream still loses 10.887% instructions and 7.848% heap bytes to tonic, despite lower allocation count. Closed-producer-only yield candidate 0f7fb8fd is rejected: original N200/400x3 screen improves instructions 1.534%, allocations 0.026%, bytes 0.0015%, below unchanged 2% target. Runtime restored exactly to baseline in fc109a11; no rejected runtime change ships. Full archived 51 artifacts/hashes include both experiment patches and raw profiles; allocation-stack/sampled profilers remain not_run. Future-construction copy costs are the next reviewed hypothesis, coordinated with CL-08; parent full acceptance remains open. Inline-writer source1ea1d3a0 is rejected and reverted: primaryIR−0.362%, allocations−1.754% miss the unchanged≥2% target despite exactly3096B fewer bytes. Four cancellation/drop-order regressions plus narrowed fixture lint corrections remain; strictlib/all-testsClippy and4+5scoped regressions pass atb6c2c69f. Coordinator verifies33 primary-proof and7 restored-lint archive members. Runtime boxed helper is unchanged. New safe allocation-before-construction diagnostic is separate and unqualified. Diagnostic989fb406 is rejected before runtime mutation: actual native11536B servicefuture memcpy becomes11544B emptyOption memcpy plus8Bwrapper allocation. Fivepairedshape tests pass, but source prerequisite fails; all17archivedfiles/7symlinks verified. Borrowed unchanged timeout helper is next isolated diagnostic only, exact future-size/copy/drop-order prerequisite before any runtimecandidate. Borrowed request-timeout experiment6ffafa94 rejected and restored7db67c36; evidence4c97c978 integratedd33ebe08. PrimaryIR−1.68767%,alloccount0% miss unchanged≥2% target despite2304Bbyte reduction; eight original-runtime lifetime/deadline/reset fixtures retained. Root independentlyverified219archivefiles/2links/18rawchildren/12fullgraphs/110uniqueall-featurechecks and restoredrpc.rs byteidentity. Nofull20/adoption claim.",
    "evidence": [
     "pbrs-grpc/tests/sv09_streaming.rs",
     "docs/evidence/current-improvements/integration.json",
     "docs/evidence/sv-09.md",
     "docs/evidence/sv-09/manifest.json",
     "docs/evidence/sv-09-inline-writer.md",
-    "docs/evidence/sv-09-dispatch-slot.md"
+    "docs/evidence/sv-09-dispatch-slot.md",
+    "docs/evidence/sv-09-borrowed-timeout.md"
    ],
    "reviewer": "coordinator"
   },
@@ -12072,12 +12074,14 @@
     "TC-30",
     "SB-26"
    ],
-   "notes": "Frozen before implementation during the current transport integration work. Benchmark-only existing dependency feature additions require graph/lock review; shipping manifests/default graphs and all original thresholds stay unchanged. Existing typed low-level RPC profiles remain distinct baselines. PK-30 map-policy review stays pending; do not bypass its equal-wire qualification. Claimed2026-10-02. Offline graph audit retains all153 package/version/source/checksum pins; only reviewed existing tonic/tower/TLS feature edges activate in the benchmark. Native custom Incoming will reproduce existing built-in TCP_NODELAY=true policy and read actual accepted socket state; report that observer scope explicitly rather than claiming built-in tuning telemetry. Source8ca03da5/proofb66382d5 integrated on main0282c7ed. Final17tests/strictalltargetsClippy pass;512new unchanged-tonic-codegen IDs,488actualnetwork qualified/24originalmap blocks. Coordinator independently verifies30hashes/all153package identities/complete512inventoryand488network equality/byte/read/socket facts. Original512typed IDs/corpus untouched. NumericN16/32x3 fullmatrix and two unchangedreference replays not_run; new raw-preserving driver underway, no performance claim.",
+   "notes": "Frozen before implementation during the current transport integration work. Benchmark-only existing dependency feature additions require graph/lock review; shipping manifests/default graphs and all original thresholds stay unchanged. Existing typed low-level RPC profiles remain distinct baselines. PK-30 map-policy review stays pending; do not bypass its equal-wire qualification. Claimed2026-10-02. Offline graph audit retains all153 package/version/source/checksum pins; only reviewed existing tonic/tower/TLS feature edges activate in the benchmark. Native custom Incoming will reproduce existing built-in TCP_NODELAY=true policy and read actual accepted socket state; report that observer scope explicitly rather than claiming built-in tuning telemetry. Source8ca03da5/proofb66382d5 integrated on main0282c7ed. Final17tests/strictalltargetsClippy pass;512new unchanged-tonic-codegen IDs,488actualnetwork qualified/24originalmap blocks. Coordinator independently verifies30hashes/all153package identities/complete512inventoryand488network equality/byte/read/socket facts. Original512typed IDs/corpus untouched. NumericN16/32x3 fullmatrix and two unchangedreference replays not_run; new raw-preserving driver underway, no performance claim. Raw-preserving transportcollector andexpandedcompiled-input guards source61e6f9f1/4cc3c99a +proof53c69b67 integrated6447b992. Rootindependent12Pythongates and11artifact/3sourcehash checks pass;14thirdpartyschemas plus OTLP/fallbackFDS/allsidecarextras guarded. Sharedrelease andfull512state numeric/replayremainnot_run; functional sourcequalificationdoesnotcloseperformance.",
    "implementer": "tonic_client_transport",
    "evidence": [
     "docs/evidence/sb-32.md",
     "docs/evidence/sb-32/validation.json",
-    "docs/evidence/sb-32/preflight-inventory.json"
+    "docs/evidence/sb-32/preflight-inventory.json",
+    "docs/evidence/sb-32-driver.md",
+    "docs/evidence/sb-32-provenance-guard.md"
    ]
   },
   {
@@ -12162,7 +12166,7 @@
     "Map actual conversion order/default wire mismatches remain explicit blocked qualifications, without sorting/patching inside the bridge API. Parent TC-32 stays open until full cost acceptance is qualified."
    ],
    "checks": [],
-   "notes": "Claimed after SB-32/TC-32a main integration1d0f56bd and explicit parent-file ownership handoff. Approved opt-in parent bridge feature(default=[]), cfg-gated new registry/dispatch, exact153old package pins retained and only existingroot protobuf-tonic path addition/requiredexistingedges. Offline default/enabled graph audit precedes compilation. Separate raw-preserving collector/independent auditor; no release/capture before coordinated quiet lease. Absolute actualAPI costs, 12map blocks, original1% replay controls retained.",
+   "notes": "Claimed after SB-32/TC-32a main integration1d0f56bd and explicit parent-file ownership handoff. Approved opt-in parent bridge feature(default=[]), cfg-gated new registry/dispatch, exact153old package pins retained and only existingroot protobuf-tonic path addition/requiredexistingedges. Offline default/enabled graph audit precedes compilation. Separate raw-preserving collector/independent auditor; no release/capture before coordinated quiet lease. Absolute actualAPI costs, 12map blocks, original1% replay controls retained. Source and collector proof b8b724e4 integrated6c6d2f7c:20enabled/17defaultRusttests,15Pythoncorruptiontests,153oldpins/1634rows unchanged,336APIsemantic/324wire/12blockedmaps. Numeric/replay/full-controls remain not_run.",
    "implementer": "sb31_bridge"
   },
   {
@@ -12255,11 +12259,12 @@
     "CL-07",
     "TC-29"
    ],
-   "notes": "First source de0bcdf2 integrated all-features run fails retry_safety scenario_d_deadline_expires_waiting_for_slot_returns_deadline_exceeded: call2_executions1 instead of0 after50ms deadline, while sole stream is occupied. Source unchanged from prior scoped passing gates; retain failure and investigate rather than hide host contention. Deterministic paused-clock rawpeer proofs a944c9a5 reproduce lateHEADERS/fullDATA/CANCEL bothafterSETTINGSgrowth andafterfirststreamreset with unchangedcap1;0pass/2fail. Exactdiagnostic source archivedunderdocs with originalred logs/ELF/libraryhashes; noignore/no productionchange. h2stable0.4.19 readiness is perhandle and retains resetpending-open headers. Approved isolated pinnedbackend atomic-admission API investigation under realCounts/Streams lock; no shippingdependency decision or mirroredcounter workaround approved.",
+   "notes": "First source de0bcdf2 integrated all-features run fails retry_safety scenario_d_deadline_expires_waiting_for_slot_returns_deadline_exceeded: call2_executions1 instead of0 after50ms deadline, while sole stream is occupied. Source unchanged from prior scoped passing gates; retain failure and investigate rather than hide host contention. Deterministic paused-clock rawpeer proofs a944c9a5 reproduce lateHEADERS/fullDATA/CANCEL bothafterSETTINGSgrowth andafterfirststreamreset with unchangedcap1;0pass/2fail. Exactdiagnostic source archivedunderdocs with originalred logs/ELF/libraryhashes; noignore/no productionchange. h2stable0.4.19 readiness is perhandle and retains resetpending-open headers. Approved isolated pinnedbackend atomic-admission API investigation under realCounts/Streams lock; no shippingdependency decision or mirroredcounter workaround approved. 2026-10-03: prototype component proofca3a0b60 merged ad610821. Root49artifacthashes/all6archives/bothpatchreplays68backendfiles verify. EarliermixedAPIwaker regression0pass/1fail retained against7-passlibrary; additive-onlyreadiness final18componentpass. NativeRPCreds remainopen. Privatepinnedupstreamembedding topology underindependentMSRV/Miri/package/status/consumer review; notyetapprovedshippingbackend/callerintegration.",
    "evidence": [
     "docs/evidence/deadline-admission.md",
     "docs/evidence/deadline-admission/raw-peer-two-red.log",
-    "docs/evidence/deadline-admission/raw-peer-two-pins.json"
+    "docs/evidence/deadline-admission/raw-peer-two-pins.json",
+    "docs/evidence/deadline-admission/components/README.md"
    ]
   },
   {
@@ -12270,7 +12275,7 @@
    "priority": "P0",
    "executor": "small",
    "size": "M",
-   "status": "in_progress",
+   "status": "done",
    "implementer": "production_resources",
    "depends_on": [
     "TC-30b1"
@@ -12283,6 +12288,7 @@
    "write": [
     "pbrs-grpc/src/tonic_server.rs",
     "pbrs-grpc/src/tonic_server/opaque.rs",
+    "pbrs-grpc/src/tonic_server/gzip.rs",
     "pbrs-grpc/tests/tonic_opaque_transport.rs",
     "tests/interop/tonic/tests/transport_services.rs",
     "docs/evidence/tc-30b2a.md"
@@ -12307,7 +12313,10 @@
     "TC-30b",
     "SB-32"
    ],
-   "notes": "Scope reviewed at integrated76d43b7d. Original semantic red and both native/unchanged-generated single-member-tail characterization retained before source edit. Outbound gzip policies and complete native retained-memory accounting remain unresolved in TC-30b."
+   "notes": "Scope reviewed at integrated76d43b7d. Original semantic red and both native/unchanged-generated single-member-tail characterization retained before source edit. Outbound gzip policies and complete native retained-memory accounting remain unresolved in TC-30b. 2026-10-03: sourcef8ce5732/proof4722382b merged to main. Exactstable22a77333 gates16private+117native+34standaloneconsumer executions, strictClippy/docs, finalsourceMSRV1.85off/1.88Tonic checks pass. Rootindependently verified78rawmembers/25records/167executions/source-lockpins. Onlyfinalcomment differs fromstabletestedsource. Finiteinboundgzip encoded/inflatedcap+firstmemberCRC/ISIZE+completeboundary/originalBytesreplay qualified; default/identity branches andpinsunchanged. RetainedcoalescedDATA/backingallocs/headerfiniteoperations explicitlyoutside ByteBudget/RSS guarantee. Doubleinflate performance not_run; outboundgzip/preferences/level/hooks/fullprivateTonicbudget remainblockingforparentTC-30b.",
+   "evidence": [
+    "docs/evidence/tc30b2a-inbound-gzip-20261003.md"
+   ]
   }
  ],
  "last_audit": {

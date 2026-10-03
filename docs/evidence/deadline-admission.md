@@ -103,3 +103,15 @@ shapes, early responses during upload, and stream/resource-guard drop. The
 Tower opaque-body transport uses native `grab` but opens HEADERS itself and
 must receive the same protection. No defaults, security reset behavior,
 dependencies, benchmark fixtures, or thresholds have changed here.
+
+## Isolated backend component follow-up
+
+The [component evidence pack](deadline-admission/components/README.md) retains
+the rejected first prototype, an untested intermediate snapshot, seven passing
+tests, a specific mixed-API waker red against that earlier library, and eighteen
+passing component tests after the additive-only readiness correction. Complete
+source archives, the five-file upstream patch, source/extern/compiler pins,
+license, and raw logs are retained. No prototype code is compiled by the
+shipping library. These component results do not clear the original integrated
+failure or either raw RPC deadline red, and do not qualify native/Tower caller
+integration, packaging, all RPC shapes, compression, or performance.

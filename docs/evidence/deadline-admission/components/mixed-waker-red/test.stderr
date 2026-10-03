@@ -1,0 +1,4 @@
+
+thread 'additional::mixed_legacy_pending_cancel_releases_only_new_task_and_request' (305309) panicked at /workspace/scratch/work/deadline-admission/work/h2-admission-prototype/additive-only-eighteen/admission_additional_tests.rs:280:5:
+new task retained on legacy stream
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

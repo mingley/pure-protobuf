@@ -1,0 +1,278 @@
+--- a/src/client.rs
++++ b/src/client.rs
+@@ -540,6 +540,23 @@
+             })
+     }
+ 
++    /// Wait for actual peer stream capacity before enqueueing request HEADERS.
++    ///
++    /// Dropping this future while pending drops its untouched request.
++    /// The capacity check and HEADERS enqueue happen under the same stream lock.
++    pub fn send_request_when_ready(
++        &mut self,
++        request: Request<()>,
++        end_of_stream: bool,
++    ) -> SendRequestWhenReady<'_, B> {
++        SendRequestWhenReady {
++            sender: self,
++            request: Some(request),
++            end_of_stream,
++            waiter: None,
++        }
++    }
++
+     /// Returns whether the [extended CONNECT protocol][1] is enabled or not.
+     ///
+     /// This setting is configured by the server peer by sending the
+@@ -605,6 +622,40 @@
+     /// userspace handles pointing to the slot.
+     pub fn num_wired_streams(&self) -> usize {
+         self.inner.num_wired_streams()
++    }
++}
++
++/// A request waiting for a real connection-wide stream slot.
++#[derive(Debug)]
++pub struct SendRequestWhenReady<'a, B: Buf> {
++    sender: &'a mut SendRequest<B>,
++    request: Option<Request<()>>,
++    end_of_stream: bool,
++    waiter: Option<std::sync::Arc<atomic_waker::AtomicWaker>>,
++}
++
++impl<B: Buf> Future for SendRequestWhenReady<'_, B> {
++    type Output = Result<(ResponseFuture, SendStream<B>), crate::Error>;
++
++    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
++        let this = self.get_mut();
++        ready!(this.sender.poll_ready(cx))?;
++        let (stream, _is_full) = ready!(this.sender.inner.poll_send_request(
++            &mut this.request,
++            this.end_of_stream,
++            this.sender.pending.as_ref(),
++            cx,
++            &mut this.waiter,
++        ))?;
++        debug_assert!(!stream.is_pending_open());
++        this.waiter = None;
++        Poll::Ready(Ok((
++            ResponseFuture {
++                inner: stream.clone_to_opaque(),
++                push_promise_consumed: false,
++            },
++            SendStream::new(stream),
++        )))
+     }
+ }
+ 
+--- a/src/proto/streams/counts.rs
++++ b/src/proto/streams/counts.rs
+@@ -29,6 +29,8 @@
+ 
+ #[derive(Debug)]
+ pub(super) struct Counts {
++    /// Weak registrations do not retain canceled request futures or tasks.
++    send_capacity_waiters: Vec<std::sync::Weak<atomic_waker::AtomicWaker>>,
+     /// Acting as a client or server. This allows us to track which values to
+     /// inc / dec.
+     peer: peer::Dyn,
+@@ -79,6 +81,7 @@
+     /// Create a new `Counts` using the provided configuration values.
+     pub fn new(peer: peer::Dyn, config: &Config) -> Self {
+         Counts {
++            send_capacity_waiters: Vec::new(),
+             peer,
+             max_send_streams: config.initial_max_send_streams,
+             num_send_streams: 0,
+@@ -186,6 +189,29 @@
+         self.max_send_streams > self.num_send_streams
+     }
+ 
++    pub fn wait_send_capacity(
++        &mut self,
++        cx: &std::task::Context<'_>,
++        waiter: &mut Option<std::sync::Arc<atomic_waker::AtomicWaker>>,
++    ) {
++        let waiter = waiter.get_or_insert_with(|| {
++            std::sync::Arc::new(atomic_waker::AtomicWaker::new())
++        });
++        waiter.register(cx.waker());
++        self.send_capacity_waiters.retain(|old| old.strong_count() > 0);
++        if !self.send_capacity_waiters.iter().any(|old| old.as_ptr() == std::sync::Arc::as_ptr(waiter)) {
++            self.send_capacity_waiters.push(std::sync::Arc::downgrade(waiter));
++        }
++    }
++
++    pub fn wake_send_capacity(&mut self) {
++        for waiter in self.send_capacity_waiters.drain(..) {
++            if let Some(waiter) = waiter.upgrade() {
++                waiter.wake();
++            }
++        }
++    }
++
+     /// Increments the number of concurrent send streams.
+     ///
+     /// # Panics
+@@ -249,6 +275,7 @@
+             None if is_initial => self.max_send_streams = usize::MAX,
+             None => {}
+         }
++        self.wake_send_capacity();
+     }
+ 
+     /// Run a block of code that could potentially transition a stream's state.
+@@ -327,6 +354,7 @@
+             assert!(self.num_send_streams > 0);
+             self.num_send_streams -= 1;
+             stream.is_counted = false;
++            self.wake_send_capacity();
+         } else {
+             assert!(self.num_recv_streams > 0);
+             self.num_recv_streams -= 1;
+--- a/src/proto/streams/streams.rs
++++ b/src/proto/streams/streams.rs
+@@ -356,6 +356,113 @@
+         ))
+     }
+ 
++
++    pub fn poll_send_request(
++        &mut self,
++        request: &mut Option<Request<()>>,
++        end_of_stream: bool,
++        pending: Option<&OpaqueStreamRef>,
++        cx: &Context<'_>,
++        waiter: &mut Option<std::sync::Arc<atomic_waker::AtomicWaker>>,
++    ) -> Poll<Result<(StreamRef<B>, bool), crate::Error>> {
++        use super::stream::ContentLength;
++        use http::Method;
++
++        // Declare before the lock so any extension-owned StreamRef is dropped
++        // after the lock, including on early error returns.
++        let mut deferred_extensions = http::Extensions::new();
++
++        // TODO: There is a hazard with assigning a stream ID before the
++        // prioritize layer. If prioritization reorders new streams, this
++        // implicitly closes the earlier stream IDs.
++        //
++        // See: hyperium/h2#11
++        let mut me = self.inner.lock().unwrap();
++        let me = &mut *me;
++
++        let mut send_buffer = self.send_buffer.inner.lock().unwrap();
++        let send_buffer = &mut *send_buffer;
++
++        me.actions.ensure_no_conn_error()?;
++        me.actions.send.ensure_next_stream_id()?;
++
++        if !me.counts.can_inc_num_send_streams() {
++            me.counts.wait_send_capacity(cx, waiter);
++            return Poll::Pending;
++        }
++        let mut request = request.take().expect("request future polled after completion");
++        std::mem::swap(request.extensions_mut(), &mut deferred_extensions);
++        let protocol = deferred_extensions.remove::<Protocol>();
++
++        // The `pending` argument is provided by the `Client`, and holds
++        // a store `Key` of a `Stream` that may have been not been opened
++        // yet.
++        //
++        // If that stream is still pending, the Client isn't allowed to
++        // queue up another pending stream. They should use `poll_ready`.
++        if let Some(stream) = pending {
++            if me.store.resolve(stream.key).is_pending_open {
++                return Poll::Ready(Err(UserError::Rejected.into()));
++            }
++        }
++
++        if me.counts.peer().is_server() {
++            // Servers cannot open streams. PushPromise must first be reserved.
++            return Poll::Ready(Err(UserError::UnexpectedFrameType.into()));
++        }
++
++        let stream_id = me.actions.send.open()?;
++
++        let mut stream = Stream::new(
++            stream_id,
++            me.actions.send.init_window_sz(),
++            me.actions.recv.init_window_sz(),
++        );
++
++        if *request.method() == Method::HEAD {
++            stream.content_length = ContentLength::Head;
++        }
++
++        // Convert the message
++        let headers =
++            client::Peer::convert_send_message(stream_id, request, protocol, end_of_stream)?;
++
++        let mut stream = me.store.insert(stream.id, stream);
++
++        let sent = me.actions.send.send_headers(
++            headers,
++            send_buffer,
++            &mut stream,
++            &mut me.counts,
++            &mut me.actions.task,
++        );
++
++        // send_headers can return a UserError, if it does,
++        // we should forget about this stream.
++        if let Err(err) = sent {
++            stream.unlink();
++            stream.remove();
++            return Poll::Ready(Err(err.into()));
++        }
++
++        // Given that the stream has been initialized, it should not be in the
++        // closed state.
++        debug_assert!(!stream.state.is_closed());
++
++        // TODO: ideally, OpaqueStreamRefs::new would do this, but we're holding
++        // the lock, so it can't.
++        me.refs += 1;
++
++        let is_full = me.counts.next_send_stream_will_reach_capacity();
++        Poll::Ready(Ok((
++            StreamRef {
++                opaque: OpaqueStreamRef::new(self.inner.clone(), &mut stream),
++                send_buffer: self.send_buffer.clone(),
++            },
++            is_full,
++        )))
++    }
++
+     pub(crate) fn is_extended_connect_protocol_enabled(&self) -> bool {
+         self.inner
+             .lock()
+@@ -405,11 +512,13 @@
+     /// Notify all streams that a connection-level error happened.
+     pub fn handle_error(&mut self, err: proto::Error) -> StreamId {
+         let mut me = self.inner.lock().unwrap();
++        me.counts.wake_send_capacity();
+         me.handle_error(self.send_buffer, err)
+     }
+ 
+     pub fn recv_go_away(&mut self, frame: &frame::GoAway) -> Result<(), Error> {
+         let mut me = self.inner.lock().unwrap();
++        me.counts.wake_send_capacity();
+         me.recv_go_away(self.send_buffer, frame)
+     }
+ 
+@@ -429,6 +538,7 @@
+ 
+     pub fn recv_eof(&mut self, clear_pending_accept: bool) -> Result<(), ()> {
+         let mut me = self.inner.lock().map_err(|_| ())?;
++        me.counts.wake_send_capacity();
+         me.recv_eof(self.send_buffer, clear_pending_accept)
+     }
+ 
+@@ -443,6 +553,7 @@
+ 
+     pub fn send_go_away(&mut self, last_processed_id: StreamId) {
+         let mut me = self.inner.lock().unwrap();
++        me.counts.wake_send_capacity();
+         me.actions.recv.go_away(last_processed_id);
+     }
+ }

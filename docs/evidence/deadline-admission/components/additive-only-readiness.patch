@@ -1,0 +1,43 @@
+--- a/src/client.rs
++++ b/src/client.rs
+@@ -639,11 +639,9 @@
+ 
+     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+         let this = self.get_mut();
+-        ready!(this.sender.poll_ready(cx))?;
+         let (stream, _is_full) = ready!(this.sender.inner.poll_send_request(
+             &mut this.request,
+             this.end_of_stream,
+-            this.sender.pending.as_ref(),
+             cx,
+             &mut this.waiter,
+         ))?;
+--- a/src/proto/streams/streams.rs
++++ b/src/proto/streams/streams.rs
+@@ -361,7 +361,6 @@
+         &mut self,
+         request: &mut Option<Request<()>>,
+         end_of_stream: bool,
+-        pending: Option<&OpaqueStreamRef>,
+         cx: &Context<'_>,
+         waiter: &mut Option<std::sync::Arc<atomic_waker::AtomicWaker>>,
+     ) -> Poll<Result<(StreamRef<B>, bool), crate::Error>> {
+@@ -393,18 +392,6 @@
+         let mut request = request.take().expect("request future polled after completion");
+         std::mem::swap(request.extensions_mut(), &mut deferred_extensions);
+         let protocol = deferred_extensions.remove::<Protocol>();
+-
+-        // The `pending` argument is provided by the `Client`, and holds
+-        // a store `Key` of a `Stream` that may have been not been opened
+-        // yet.
+-        //
+-        // If that stream is still pending, the Client isn't allowed to
+-        // queue up another pending stream. They should use `poll_ready`.
+-        if let Some(stream) = pending {
+-            if me.store.resolve(stream.key).is_pending_open {
+-                return Poll::Ready(Err(UserError::Rejected.into()));
+-            }
+-        }
+ 
+         if me.counts.peer().is_server() {
+             // Servers cannot open streams. PushPromise must first be reserved.

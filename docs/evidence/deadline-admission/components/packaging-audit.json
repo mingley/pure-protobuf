@@ -1,0 +1,37 @@
+{
+  "audited_utc": "2026-10-02T23:56:26.519178+00:00",
+  "proof_parent_commit": "a33296f7e3615584553008d7ad9dad7db519abb4",
+  "original_upstream_cache_all_68_hashes_match": true,
+  "upstream_registry_archive_hash_matches": true,
+  "upstream_vcs": {
+    "git": {
+      "sha1": "d57d1b852fec9dda6d42d3454502006d52104da8"
+    },
+    "path_in_vcs": ""
+  },
+  "final_changed_backend_files": [
+    "src/client.rs",
+    "src/proto/streams/counts.rs",
+    "src/proto/streams/prioritize.rs",
+    "src/proto/streams/send.rs",
+    "src/proto/streams/streams.rs"
+  ],
+  "unchanged_original_functions_sha256": {
+    "src/client.rs:pub fn send_request(": "79b4f786986d8f89445996f4242fdf01570174419c7af91e68d953be78274bbe",
+    "src/client.rs:pub fn poll_ready(": "c948a22973fd03f3e98222f9ad4e217fd92451db7f196a2222fc6a5f7ad0a3f1",
+    "src/proto/streams/streams.rs:pub fn send_request(": "463b22d30282173af213d1204ef6cea57680711e6ea0392bab7ba3234047f265",
+    "src/proto/streams/send.rs:pub fn send_reset<B>(": "a05da341d8c66a19f86a4508f043d2cb48b857ea21fafdbb60788571a16bada9"
+  },
+  "source_archives_self_contained_for_backend_and_used_harness": true,
+  "first_source_reconstructed_from_retained_exact_patch_then_verified_against_original_changed_file_pins": true,
+  "untested_source_reconstructed_from_retained_five_file_archive_plus_verified_original_upstream": true,
+  "mixed_test_links_old_backend_and_unchanged_new_harness": true,
+  "shipping_source_or_dependency_graph_changed": false,
+  "first_test_compile_and_launch_original_argv_not_retained": true,
+  "limitations": [
+    "extern dependency/toolchain binaries remain workspace-only; exact hashes/paths are retained",
+    "18 component tests do not qualify native or Tower integration, all RPC shapes, gzip, packaging, or performance",
+    "broadcast capacity wakeups do not supply a FIFO or bounded-starvation guarantee",
+    "original all-feature failure and both raw RPC deadline red regressions remain unchanged"
+  ]
+}

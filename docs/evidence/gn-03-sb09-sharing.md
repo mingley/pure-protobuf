@@ -1,9 +1,10 @@
 # GN03 SB09 shared-descriptor profile and measurement preparation
 
 This record qualifies the benchmark wiring at
-`dea20f7ae6ec5d33fe4d7cb5fe64004cf6263247`. Numeric cold-check and linked-binary
-results for **small, 100, and 1,000 messages are not_run**. The root coordinator
-has not yet released their timing leases. The
+`dea20f7ae6ec5d33fe4d7cb5fe64004cf6263247`. The small corpus now has one
+**unqualified local diagnostic pair**; numeric cold-check and linked-binary
+results for **100 and 1,000 messages are not_run**. Qualified performance
+acceptance remains open. The
 [source-sharing record](gn-03-source-sharing.md) proves source-volume reduction
 and functional behavior; it does not prove these remaining GN03 costs.
 
@@ -101,3 +102,59 @@ two revised scripts into its ignored `work/` directory and run:
 cp docs/evidence/gn-03-sb09-profile-artifacts/coordinator-v2/{sb09-paired-screen.py,test_sb09_paired_screen.py} work/
 python3 -B work/test_sb09_paired_screen.py
 ```
+
+## First small-corpus diagnostic
+
+At source `8b6cc270af49838b3cd4793141ca5b269a795202`, one default/shared
+pair used the corrected coordinator and the same copied generator executable
+(`718aef4131813c1c6fc449e33202588fc6bf48cc330bd28cfd33a96e056f524b`).
+All 69 compiled-source hashes matched root main's inputs before capture. Both
+profiles used the original seeded six-message corpus, identical consumer
+manifest and lock, jobs=1, distinct initially nonexistent targets, and the
+unchanged opt-level=3/thin-LTO/codegen-units=1 release profile.
+
+| Observed cost | Default | Shared |
+| --- | ---: | ---: |
+| Generated source bytes | 135,821 | 129,486 |
+| Cold check seconds | 14.264721 | 13.811340 |
+| Incremental check seconds | 0.167422 | 0.165418 |
+| Release build seconds | 58.404685 | 57.624617 |
+| Linked executable bytes | 545,936 | 545,936 |
+
+Generation, unchanged-generation verification, clean and incremental checks,
+release build, and release smoke passed for both profiles. The shared helper was
+active only with the opt-in. Both release smokes produced the original `1\n`
+output. The executables have different hashes but equal size; there is **no
+binary-size win** in this cell. The existing consumer does not read reflection
+metadata, which the linker may remove. This does not qualify reflective-consumer
+binary cost.
+
+The pair is explicitly unqualified: it has one run per profile, a fixed order,
+no independent reference peer, and incomplete corpus coverage. Root also
+reported a 0.374-second SV09 Python compression/hash operation around
+23:41:32.856 UTC during the default release build. A separate quiet-window
+sidecar retains that exception and the observed log-file times; the original
+phase durations were neither adjusted nor replaced. These values are
+observations, not a statistical cold-check or release performance claim.
+
+Sampled owned-cache use peaked at 1,064,169,472 bytes, and sampled global free
+space stayed at or above 5,765,459,968 bytes. No resource-limit failure was
+recorded. Each completed target was removed only after retaining its actual
+linked executable and compiler fingerprint hashes. The excluded common
+bootstrap remains reusable.
+
+The [small-pair artifacts](gn-03-sb09-small-artifacts/artifact-sha256.json)
+retain a 156-member raw archive with reports and phase/tool logs, actual corpus
+inputs and generated/consumer sources, manifests/locks, source/schema capsules,
+the common generator and both linked executables, fingerprints, resource
+telemetry, and quiet-window notes. The verifier checks every member hash/size,
+same paired inputs/source/tools/generator/manifest/lock, original release profile,
+generated source totals, helper activation, raw GNU-time RSS and exit status,
+smoke output, linked-executable hashes/sizes, and sampled resource bounds:
+
+```sh
+python3 -B docs/evidence/gn-03-sb09-small-artifacts/check-pair.py
+```
+
+The first 100- and 1,000-message pairs and repeat/control qualification remain
+pending separate root capture leases. GN03 remains open.
