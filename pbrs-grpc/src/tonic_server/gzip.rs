@@ -8,7 +8,9 @@ use std::io::{self, BufRead, Read};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-// Bounds each synchronous inflater/header-parser invocation before yielding.
+// Caps newly consumed input and produced output per call before yielding.
+// Flate2 can allocate/checksum a complete optional u16-sized header field in
+// one call; those separate finite bounds are not reduced by this quota.
 const QUANTUM: usize = 8 * 1024;
 
 struct Segments {
