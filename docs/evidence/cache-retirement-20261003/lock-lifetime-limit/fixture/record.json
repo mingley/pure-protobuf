@@ -1,0 +1,225 @@
+{
+  "finished_utc": "2026-10-03T06:57:49.109639+00:00",
+  "local_UAPI_sources": {
+    "/usr/include/asm-generic/fcntl.h": {
+      "sha256": "0908276bc4c3da9314d4986bd07c19f9ce8f403f602d40a8be0599249db95515",
+      "source_definition": "F_OFD_SETLK 37"
+    },
+    "/usr/include/x86_64-linux-gnu/bits/fcntl-linux.h": {
+      "sha256": "baf689c717312a204955009a86614c818c5d3355a6a181722e5e085d80dbc0c2",
+      "source_definition": "F_OFD_SETLK 37"
+    }
+  },
+  "observations": [
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-B",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot/lock-contender.py",
+        "--path",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/fixture/.cargo-lock",
+        "--kind",
+        "posix",
+        "--expect",
+        "blocked"
+      ],
+      "exit_code": 0,
+      "stage": "classic_posix_before_other_fd_close",
+      "stderr": "",
+      "stdout": "{\"kind\": \"posix\", \"expected\": \"blocked\", \"observed\": \"blocked\", \"inode\": 159196, \"device\": 27, \"ofd_command\": 37}\n",
+      "utc": "2026-10-03T06:57:48.885019+00:00"
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-B",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot/lock-contender.py",
+        "--path",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/fixture/.cargo-lock",
+        "--kind",
+        "posix",
+        "--expect",
+        "acquired"
+      ],
+      "exit_code": 0,
+      "stage": "classic_posix_after_hash_fd_close",
+      "stderr": "",
+      "stdout": "{\"kind\": \"posix\", \"expected\": \"acquired\", \"observed\": \"acquired\", \"inode\": 159196, \"device\": 27, \"ofd_command\": 37}\n",
+      "utc": "2026-10-03T06:57:48.909352+00:00"
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-B",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot/lock-contender.py",
+        "--path",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/fixture/.cargo-lock",
+        "--kind",
+        "ofd",
+        "--expect",
+        "acquired"
+      ],
+      "exit_code": 0,
+      "stage": "classic_posix_after_hash_fd_close",
+      "stderr": "",
+      "stdout": "{\"kind\": \"ofd\", \"expected\": \"acquired\", \"observed\": \"acquired\", \"inode\": 159196, \"device\": 27, \"ofd_command\": 37}\n",
+      "utc": "2026-10-03T06:57:48.937022+00:00"
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-B",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot/lock-contender.py",
+        "--path",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/fixture/.cargo-lock",
+        "--kind",
+        "flock",
+        "--expect",
+        "blocked"
+      ],
+      "exit_code": 0,
+      "stage": "classic_flock_survives_hash_fd_close",
+      "stderr": "",
+      "stdout": "{\"kind\": \"flock\", \"expected\": \"blocked\", \"observed\": \"blocked\", \"inode\": 159196, \"device\": 27, \"ofd_command\": 37}\n",
+      "utc": "2026-10-03T06:57:48.960925+00:00"
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-B",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot/lock-contender.py",
+        "--path",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/fixture/.cargo-lock",
+        "--kind",
+        "posix",
+        "--expect",
+        "blocked"
+      ],
+      "exit_code": 0,
+      "stage": "ofd_flock_after_hash_and_archive_fd_closes",
+      "stderr": "",
+      "stdout": "{\"kind\": \"posix\", \"expected\": \"blocked\", \"observed\": \"blocked\", \"inode\": 159196, \"device\": 27, \"ofd_command\": 37}\n",
+      "utc": "2026-10-03T06:57:48.987658+00:00"
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-B",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot/lock-contender.py",
+        "--path",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/fixture/.cargo-lock",
+        "--kind",
+        "flock",
+        "--expect",
+        "blocked"
+      ],
+      "exit_code": 0,
+      "stage": "ofd_flock_after_hash_and_archive_fd_closes",
+      "stderr": "",
+      "stdout": "{\"kind\": \"flock\", \"expected\": \"blocked\", \"observed\": \"blocked\", \"inode\": 159196, \"device\": 27, \"ofd_command\": 37}\n",
+      "utc": "2026-10-03T06:57:49.011198+00:00"
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-B",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot/lock-contender.py",
+        "--path",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/fixture/.cargo-lock",
+        "--kind",
+        "ofd",
+        "--expect",
+        "blocked"
+      ],
+      "exit_code": 0,
+      "stage": "ofd_flock_after_hash_and_archive_fd_closes",
+      "stderr": "",
+      "stdout": "{\"kind\": \"ofd\", \"expected\": \"blocked\", \"observed\": \"blocked\", \"inode\": 159196, \"device\": 27, \"ofd_command\": 37}\n",
+      "utc": "2026-10-03T06:57:49.037148+00:00"
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-B",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot/lock-contender.py",
+        "--path",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/fixture/.cargo-lock",
+        "--kind",
+        "posix",
+        "--expect",
+        "acquired"
+      ],
+      "exit_code": 0,
+      "stage": "ofd_flock_after_anchor_fd_close",
+      "stderr": "",
+      "stdout": "{\"kind\": \"posix\", \"expected\": \"acquired\", \"observed\": \"acquired\", \"inode\": 159196, \"device\": 27, \"ofd_command\": 37}\n",
+      "utc": "2026-10-03T06:57:49.060836+00:00"
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-B",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot/lock-contender.py",
+        "--path",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/fixture/.cargo-lock",
+        "--kind",
+        "flock",
+        "--expect",
+        "acquired"
+      ],
+      "exit_code": 0,
+      "stage": "ofd_flock_after_anchor_fd_close",
+      "stderr": "",
+      "stdout": "{\"kind\": \"flock\", \"expected\": \"acquired\", \"observed\": \"acquired\", \"inode\": 159196, \"device\": 27, \"ofd_command\": 37}\n",
+      "utc": "2026-10-03T06:57:49.086500+00:00"
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-B",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot/lock-contender.py",
+        "--path",
+        "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/fixture/.cargo-lock",
+        "--kind",
+        "ofd",
+        "--expect",
+        "acquired"
+      ],
+      "exit_code": 0,
+      "stage": "ofd_flock_after_anchor_fd_close",
+      "stderr": "",
+      "stdout": "{\"kind\": \"ofd\", \"expected\": \"acquired\", \"observed\": \"acquired\", \"inode\": 159196, \"device\": 27, \"ofd_command\": 37}\n",
+      "utc": "2026-10-03T06:57:49.109448+00:00"
+    }
+  ],
+  "observations_count": 10,
+  "ofd_abi": {
+    "command": 37,
+    "constant_source": "Linux UAPI asm-generic/fcntl.h F_OFD_SETLK=37",
+    "flock_offsets": [
+      0,
+      2,
+      8,
+      16,
+      24
+    ],
+    "flock_size": 32,
+    "machine": "x86_64",
+    "platform": "linux"
+  },
+  "schema": "linux-lock-lifetime-fixture/1",
+  "source_after": {
+    "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot/factor_common.py": "e189ad98c66d82b226ecd4e653ec3c8c53b59e98e21ee351f46734a1a041b891",
+    "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot/lock-contender.py": "be85ab2b71fdffbc478695adabe7f83ccf7fffeb00900dee82097880a392319f",
+    "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot/lock-lifetime-fixture.py": "ac7b0e4f306926ba43ca399c86bfb2bc9a84da8c707d0a6600782d2074a08737",
+    "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot/retirement_adapter.py": "1529716419b27a04d7a9301a620189e382c2fbc8c5aaff912461d33894fa84d8"
+  },
+  "source_before": {
+    "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot/factor_common.py": "e189ad98c66d82b226ecd4e653ec3c8c53b59e98e21ee351f46734a1a041b891",
+    "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot/lock-contender.py": "be85ab2b71fdffbc478695adabe7f83ccf7fffeb00900dee82097880a392319f",
+    "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot/lock-lifetime-fixture.py": "ac7b0e4f306926ba43ca399c86bfb2bc9a84da8c707d0a6600782d2074a08737",
+    "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot/retirement_adapter.py": "1529716419b27a04d7a9301a620189e382c2fbc8c5aaff912461d33894fa84d8"
+  },
+  "started_utc": "2026-10-03T06:57:48.852585+00:00",
+  "status": "passed"
+}

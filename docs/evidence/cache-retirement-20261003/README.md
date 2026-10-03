@@ -89,3 +89,26 @@ passed all 7,386 retained regular paths and 8,980 total members. The command,
 checker/capsule/archive hashes, results and historical limits are retained in
 `root-payload-audit.json`. This is preservation integrity evidence, not a new
 shipping or historical compiler qualification.
+
+A later independent lock-lifetime fixture narrows the lock claim above. The
+executed helpers acquired both `flock` and classic POSIX `lockf`, and kept their
+anchor descriptors open. On Linux, closing another descriptor for the same inode
+while hashing or archiving releases that process's classic POSIX record lock.
+Continuous POSIX protection throughout those earlier operations is therefore
+not certified. The dedicated-descriptor `flock`, archive/payload checks and
+directory-relative inode-qualified removal remain separate recorded evidence.
+This limitation also applies to the earlier RX benchmark and native1.85 cache
+retirements that reused the same classic lock primitives. Their raw helpers and
+results remain immutable.
+
+The retained fresh fixture in `lock-lifetime-limit/` passed ten independent
+contender observations: it reproduces the classic POSIX release after hashing
+while `flock` remains blocked, then confirms that dedicated-descriptor Linux OFD
+plus `flock` locks block POSIX, OFD and flock contenders after hashing and archive
+reads close their descriptors. All three acquire after the anchor closes. Its
+exact executed Python source snapshot and raw records are included. An earlier
+fixture passed with the same lock functions, but its full executed helper bytes
+were not snapshotted; that gap is recorded and no reconstruction is claimed.
+The new helper supports only the verified Linux x86_64 ABI and fails closed on
+unsupported layout or kernel calls. This is a tiny lock fixture, not a
+retrospective execution of any historical cache operation.

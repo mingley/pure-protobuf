@@ -1,0 +1,80 @@
+{
+  "scope": "Additive historical lock-lifetime limitation; fresh exact-source tiny independent fixture, no historical cache replay or compiler qualification",
+  "files": [
+    {
+      "path": "fixture/.cargo-lock",
+      "bytes": 18,
+      "sha256": "71831c4ba64c5977869c8a62d5ed604685fbcae8002f40e5c828db54f2c7b789"
+    },
+    {
+      "path": "fixture/record.json",
+      "bytes": 11179,
+      "sha256": "78a2765c67837ca79904ccf84899c099f8c6833514cd62f08f5e471a18a490ff"
+    },
+    {
+      "path": "fixture/tiny.tar.gz",
+      "bytes": 212,
+      "sha256": "df7d996775e6d0a817a0fa7dc9bcddc3cf76725f9245cfac3b72c6d11e9a2b10"
+    },
+    {
+      "path": "record.json",
+      "bytes": 3954,
+      "sha256": "769c39023f4dd9398da3c7d9fd18cfaa2960b7703d9c0471e0b3a2b15d814405"
+    },
+    {
+      "path": "source-snapshot/audit-gn03-factors.py",
+      "bytes": 19179,
+      "sha256": "9600abcf5930c51390c52b45dbbd09c8d1277ce2a0dcde8848311df1a8474097"
+    },
+    {
+      "path": "source-snapshot/coordinate-gn03-factors.py",
+      "bytes": 21575,
+      "sha256": "733ee0ba79a84e2888911cbc7529e7630ecdc7daa74aaa722ea159abbf613921"
+    },
+    {
+      "path": "source-snapshot/factor_common.py",
+      "bytes": 16070,
+      "sha256": "e189ad98c66d82b226ecd4e653ec3c8c53b59e98e21ee351f46734a1a041b891"
+    },
+    {
+      "path": "source-snapshot/lock-contender.py",
+      "bytes": 2101,
+      "sha256": "be85ab2b71fdffbc478695adabe7f83ccf7fffeb00900dee82097880a392319f"
+    },
+    {
+      "path": "source-snapshot/lock-lifetime-fixture.py",
+      "bytes": 3836,
+      "sha256": "ac7b0e4f306926ba43ca399c86bfb2bc9a84da8c707d0a6600782d2074a08737"
+    },
+    {
+      "path": "source-snapshot/prepare-factor-inputs.py",
+      "bytes": 11738,
+      "sha256": "5d9474d7562dd6c664992eda282ab7007b807cfe4e7f2c0503d3205a49263eff"
+    },
+    {
+      "path": "source-snapshot/retirement_adapter.py",
+      "bytes": 12740,
+      "sha256": "1529716419b27a04d7a9301a620189e382c2fbc8c5aaff912461d33894fa84d8"
+    },
+    {
+      "path": "source-snapshot/reviewed-retirement-primitives.py",
+      "bytes": 22146,
+      "sha256": "e825d1b734154455d2293bf8f6d388e704b029fbca36f377aa890ebe0671667e"
+    },
+    {
+      "path": "source-snapshot/test_factor_workflow.py",
+      "bytes": 27486,
+      "sha256": "3d09f20378e097bdc13c02bdc99857b52e55ed25ffc0774a9ffaa5e7b3b41265"
+    },
+    {
+      "path": "stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "stdout.log",
+      "bytes": 7,
+      "sha256": "2700165975f68815c97d605c56eca8e90d497ade1264b6282401d13fee99ac27"
+    }
+  ]
+}

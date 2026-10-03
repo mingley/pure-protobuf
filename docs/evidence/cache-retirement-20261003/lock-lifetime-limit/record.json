@@ -1,0 +1,51 @@
+{
+  "scope": "Fresh Python-only lock fixture on immutable exact executed source; previous d36f helper bytes not retained, only hashes/raw; no reconstruction of old source or historical retirement",
+  "source_before": {
+    "audit-gn03-factors.py": "9600abcf5930c51390c52b45dbbd09c8d1277ce2a0dcde8848311df1a8474097",
+    "coordinate-gn03-factors.py": "733ee0ba79a84e2888911cbc7529e7630ecdc7daa74aaa722ea159abbf613921",
+    "factor_common.py": "e189ad98c66d82b226ecd4e653ec3c8c53b59e98e21ee351f46734a1a041b891",
+    "lock-contender.py": "be85ab2b71fdffbc478695adabe7f83ccf7fffeb00900dee82097880a392319f",
+    "lock-lifetime-fixture.py": "ac7b0e4f306926ba43ca399c86bfb2bc9a84da8c707d0a6600782d2074a08737",
+    "prepare-factor-inputs.py": "5d9474d7562dd6c664992eda282ab7007b807cfe4e7f2c0503d3205a49263eff",
+    "retirement_adapter.py": "1529716419b27a04d7a9301a620189e382c2fbc8c5aaff912461d33894fa84d8",
+    "reviewed-retirement-primitives.py": "e825d1b734154455d2293bf8f6d388e704b029fbca36f377aa890ebe0671667e",
+    "test_factor_workflow.py": "3d09f20378e097bdc13c02bdc99857b52e55ed25ffc0774a9ffaa5e7b3b41265"
+  },
+  "source_snapshot": "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "-B",
+    "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot/lock-lifetime-fixture.py",
+    "--out",
+    "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/fixture"
+  ],
+  "cwd": "/workspace/scratch/work/prost-contiguous/work/gn03-factor-performance-proposal-20261003/python-gates/lock-lifetime-002/source-snapshot",
+  "started_utc": "2026-10-03T06:57:48.804062+00:00",
+  "python_executable": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+  "python_version_builtin": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "environment": {
+    "PATH": "/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "PYTHONPATH": null,
+    "PYTHONHOME": null,
+    "PYTHONHASHSEED": null
+  },
+  "exit_code": 0,
+  "elapsed_seconds": 0.3147371570012183,
+  "finished_utc": "2026-10-03T06:57:49.118825+00:00",
+  "source_after": {
+    "audit-gn03-factors.py": "9600abcf5930c51390c52b45dbbd09c8d1277ce2a0dcde8848311df1a8474097",
+    "coordinate-gn03-factors.py": "733ee0ba79a84e2888911cbc7529e7630ecdc7daa74aaa722ea159abbf613921",
+    "factor_common.py": "e189ad98c66d82b226ecd4e653ec3c8c53b59e98e21ee351f46734a1a041b891",
+    "lock-contender.py": "be85ab2b71fdffbc478695adabe7f83ccf7fffeb00900dee82097880a392319f",
+    "lock-lifetime-fixture.py": "ac7b0e4f306926ba43ca399c86bfb2bc9a84da8c707d0a6600782d2074a08737",
+    "prepare-factor-inputs.py": "5d9474d7562dd6c664992eda282ab7007b807cfe4e7f2c0503d3205a49263eff",
+    "retirement_adapter.py": "1529716419b27a04d7a9301a620189e382c2fbc8c5aaff912461d33894fa84d8",
+    "reviewed-retirement-primitives.py": "e825d1b734154455d2293bf8f6d388e704b029fbca36f377aa890ebe0671667e",
+    "test_factor_workflow.py": "3d09f20378e097bdc13c02bdc99857b52e55ed25ffc0774a9ffaa5e7b3b41265"
+  },
+  "raw_sha256": {
+    "stdout.log": "2700165975f68815c97d605c56eca8e90d497ade1264b6282401d13fee99ac27",
+    "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "fixture_record_sha256": "78a2765c67837ca79904ccf84899c099f8c6833514cd62f08f5e471a18a490ff"
+}
