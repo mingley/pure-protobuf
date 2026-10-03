@@ -216,6 +216,9 @@ mod tests {
         let default_value = default_checked::ExtendableMessage::parse(&overlong_value).unwrap();
         assert_eq!(value.get_extension(&EXT_INT32), 7);
         assert_eq!(value.serialize().unwrap(), [0xa8, 0x06, 7]);
-        assert_eq!(value.serialize().unwrap(), default_value.serialize().unwrap());
+        assert_eq!(
+            value.serialize().unwrap(),
+            default_value.serialize().unwrap()
+        );
     }
 }

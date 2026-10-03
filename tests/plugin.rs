@@ -3917,7 +3917,10 @@ fn typed_extension_consumer_assert_lock(
 ) {
     let actual = std::fs::read(consumer.join("Cargo.lock")).unwrap();
     std::fs::write(consumer.join(format!("Cargo.lock.after-{label}")), &actual).unwrap();
-    assert_eq!(actual, expected.bytes, "consumer lock changed during {label}");
+    assert_eq!(
+        actual, expected.bytes,
+        "consumer lock changed during {label}"
+    );
     if let Some(path) = &expected.accepted {
         assert_eq!(
             std::fs::read(path).unwrap(),
