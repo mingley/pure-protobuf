@@ -468,6 +468,69 @@ fn note(message: &str) -> routeguide::RouteNote {
     }
 }
 
+struct OneFrame(Option<Bytes>);
+impl http_body::Body for OneFrame {
+    type Data = Bytes;
+    type Error = std::convert::Infallible;
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+    ) -> Poll<Option<Result<http_body::Frame<Bytes>, Self::Error>>> {
+        Poll::Ready(self.0.take().map(|bytes| Ok(http_body::Frame::data(bytes))))
+    }
+    fn is_end_stream(&self) -> bool {
+        self.0.is_none()
+    }
+}
+
+#[tokio::test]
+async fn tonic_generated_decoder_uses_first_gzip_member_and_ignores_encoded_tail()
+-> Result<(), BoxError> {
+    use prost::Message;
+    let first = pbrs_grpc::gzip::encode(&point(10).encode_to_vec())?;
+    for tail in [
+        pbrs_grpc::gzip::encode(&point(20).encode_to_vec())?,
+        vec![255, 0, 123],
+    ] {
+        let encoded = [first.as_slice(), tail.as_slice()].concat();
+        let mut wire = vec![1];
+        wire.extend_from_slice(&u32::try_from(encoded.len())?.to_be_bytes());
+        wire.extend_from_slice(&encoded);
+        let state = Arc::new(State::default());
+        let mut service =
+            routeguide::route_guide_server::RouteGuideServer::new(RouteGuide(state.clone()))
+                .accept_compressed(tonic::codec::CompressionEncoding::Gzip);
+        let mut request = http::Request::builder()
+            .method("POST")
+            .uri("/routeguide.RouteGuide/GetFeature")
+            .header("content-type", "application/grpc")
+            .header("grpc-encoding", "gzip")
+            .body(Body::new(OneFrame(Some(Bytes::from(wire)))))?;
+        // Direct generated decoder characterization, independent of transport auth.
+        request.extensions_mut().insert(GeneratedAuthenticated);
+        let response = service.call(request).await?;
+        let headers = response.headers().clone();
+        let mut body = response.into_body();
+        let mut bytes = Vec::new();
+        let mut terminal = headers;
+        while let Some(frame) =
+            futures_util::future::poll_fn(|cx| http_body::Body::poll_frame(Pin::new(&mut body), cx))
+                .await
+        {
+            let frame = frame?;
+            match frame.into_data() {
+                Ok(data) => bytes.extend_from_slice(&data),
+                Err(frame) => terminal = frame.into_trailers().expect("trailers"),
+            }
+        }
+        assert_eq!(terminal.get("grpc-status").expect("status"), "0");
+        let response = routeguide::Feature::decode(bytes.get(5..).expect("framed response"))?;
+        assert_eq!(response.location, Some(point(10)));
+        assert_eq!(state.calls.load(Ordering::SeqCst), 1);
+    }
+    Ok(())
+}
+
 async fn all_shapes<T>(transport: T) -> Result<(), BoxError>
 where
     T: Service<http::Request<Body>, Response = http::Response<Body>>,
@@ -544,6 +607,145 @@ where
     assert_eq!(chat.message().await?.expect("first"), note("one"));
     assert_eq!(chat.message().await?.expect("second"), note("two"));
     assert!(chat.message().await?.is_none());
+    Ok(())
+}
+
+#[tokio::test]
+async fn native_finite_gzip_input_caps_all_shapes_plaintext_and_mtls() -> Result<(), BoxError> {
+    let config = ServerConfig::default().max_decoding_message_size(8192);
+    let (addr, state, _server) = server(config, Some((16_384, 16_384)), false).await?;
+    all_shapes(
+        tonic::transport::Endpoint::from_shared(format!("http://{addr}"))?
+            .connect()
+            .await?,
+    )
+    .await?;
+    all_shapes(Channel::connect(addr).await?).await?;
+    assert_eq!(state.calls.load(Ordering::SeqCst), 8);
+
+    let (addr, state, _server) = server(config, Some((16_384, 16_384)), true).await?;
+    let tls = ClientTls::ca_mtls(
+        "localhost",
+        CA,
+        Identity::from_pem(CLIENT_CERT, CLIENT_KEY)?,
+    )?;
+    all_shapes(Channel::connect_tls(addr, tls).await?).await?;
+    assert_eq!(state.calls.load(Ordering::SeqCst), 4);
+    assert_eq!(state.tls.load(Ordering::SeqCst), 4);
+    Ok(())
+}
+
+#[tokio::test]
+async fn native_finite_gzip_input_caps_reject_encoded_messages_for_all_shapes()
+-> Result<(), BoxError> {
+    let (addr, state, _server) = server(
+        ServerConfig::default().max_decoding_message_size(1),
+        Some((16_384, 16_384)),
+        false,
+    )
+    .await?;
+    let mut client =
+        routeguide::route_guide_client::RouteGuideClient::new(Channel::connect(addr).await?)
+            .send_compressed(tonic::codec::CompressionEncoding::Gzip);
+    let error = client
+        .get_feature(authorized(point(10)))
+        .await
+        .expect_err("native encoded cap");
+    assert_eq!(error.code(), tonic::Code::ResourceExhausted);
+    let error = match client
+        .list_features(authorized(routeguide::Rectangle {
+            lo: Some(point(1)),
+            hi: Some(point(2)),
+        }))
+        .await
+    {
+        Err(error) => error,
+        Ok(response) => response
+            .into_inner()
+            .message()
+            .await
+            .expect_err("native encoded cap"),
+    };
+    assert_eq!(error.code(), tonic::Code::ResourceExhausted);
+    let error = client
+        .record_route(authorized(tokio_stream::iter([point(1), point(2)])))
+        .await
+        .expect_err("native encoded cap");
+    assert_eq!(error.code(), tonic::Code::ResourceExhausted);
+    let error = match client
+        .route_chat(authorized(tokio_stream::iter([note("one")])))
+        .await
+    {
+        Err(error) => error,
+        Ok(response) => response
+            .into_inner()
+            .message()
+            .await
+            .expect_err("native encoded cap"),
+    };
+    assert_eq!(error.code(), tonic::Code::ResourceExhausted);
+    // Streaming handlers receive their stream before reading its messages.
+    assert_eq!(state.calls.load(Ordering::SeqCst), 2);
+    Ok(())
+}
+
+#[tokio::test]
+async fn native_finite_gzip_input_cap_rejects_inflated_message_and_preserves_auth()
+-> Result<(), BoxError> {
+    use prost::Message;
+    let bomb = note(&"a".repeat(2048));
+    let encoded = pbrs_grpc::gzip::encode(&bomb.encode_to_vec())?;
+    assert!(encoded.len() < 512);
+    assert!(bomb.encoded_len() > 512);
+    let (addr, state, _server) = server(
+        ServerConfig::default().max_decoding_message_size(512),
+        Some((16_384, 16_384)),
+        false,
+    )
+    .await?;
+    let mut client =
+        routeguide::route_guide_client::RouteGuideClient::new(Channel::connect(addr).await?)
+            .send_compressed(tonic::codec::CompressionEncoding::Gzip);
+    let error = client
+        .get_feature(point(10))
+        .await
+        .expect_err("native auth");
+    assert_eq!(error.code(), tonic::Code::Unauthenticated);
+    assert_eq!(state.calls.load(Ordering::SeqCst), 0);
+    let error = match client
+        .route_chat(authorized(tokio_stream::iter([bomb])))
+        .await
+    {
+        Err(error) => error,
+        Ok(response) => response
+            .into_inner()
+            .message()
+            .await
+            .expect_err("native inflated cap"),
+    };
+    assert_eq!(error.code(), tonic::Code::ResourceExhausted);
+    assert_eq!(state.calls.load(Ordering::SeqCst), 1);
+    Ok(())
+}
+
+#[tokio::test]
+async fn native_finite_gzip_input_cap_does_not_enlarge_generated_codec_cap() -> Result<(), BoxError>
+{
+    let (addr, state, _server) = server(
+        ServerConfig::default().max_decoding_message_size(8192),
+        Some((1, 16_384)),
+        false,
+    )
+    .await?;
+    let mut client =
+        routeguide::route_guide_client::RouteGuideClient::new(Channel::connect(addr).await?)
+            .send_compressed(tonic::codec::CompressionEncoding::Gzip);
+    let error = client
+        .get_feature(authorized(point(10)))
+        .await
+        .expect_err("tonic cap remains");
+    assert_eq!(error.code(), tonic::Code::OutOfRange);
+    assert_eq!(state.calls.load(Ordering::SeqCst), 0);
     Ok(())
 }
 

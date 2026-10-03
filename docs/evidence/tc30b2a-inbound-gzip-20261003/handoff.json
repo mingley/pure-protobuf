@@ -1,0 +1,54 @@
+{
+  "schema": "tc30b2a-inbound-gzip-handoff-v1",
+  "qualified": false,
+  "scope": "finite inbound gzip correctness only; no performance/full-byte-budget/outbound-gzip/compression-preference qualification",
+  "base": "76d43b7d064ee63d2231fb0be2e31128b0f165b0",
+  "final_source": "f8ce573279228ff0a76ee48daa176aadb685f729",
+  "stable_gates_source": "22a77333c409a8949f7c030a94e084ca1e17087d",
+  "msrv_gates_source": "f8ce573279228ff0a76ee48daa176aadb685f729",
+  "source_history": [
+    "031685dad46c99e63e7d9db37ee3564a1590e77b",
+    "3ca3d0b69934041998c55e39689b7642eb02c4f0",
+    "673459e12043fe248f986c11c793fe21692b2ec5",
+    "0d6c835202f15f1ed049d377dd02612dbce624d1",
+    "22a77333c409a8949f7c030a94e084ca1e17087d",
+    "f8ce573279228ff0a76ee48daa176aadb685f729"
+  ],
+  "final_test_execution_count": 167,
+  "final_test_counts": {
+    "private": 16,
+    "native": 117,
+    "standalone_generated": 34
+  },
+  "archive_sha256": "941d7febe7787edfa1349adf116c1383dee679aaca1a409a5986a6570ae8f606",
+  "archive_bytes": 38693,
+  "raw_member_count": 78,
+  "verifier_sha256": "ec28148627f0239dbf006063f3d1ecf89ae59d77bc4f64cf58f686eb8e72c918",
+  "unchanged_manifests_locks": [
+    "Cargo.toml",
+    "Cargo.lock",
+    "pbrs-grpc/Cargo.toml",
+    "tests/interop/tonic/Cargo.toml",
+    "tests/interop/tonic/Cargo.lock"
+  ],
+  "source_lock_file_sha256": {
+    "pbrs-grpc/src/tonic_server.rs": "8b0f80e61e3ac2be66e6838a7dccdddec052d8feb0c4c98d6b0d8bbb9d3eff32",
+    "pbrs-grpc/src/tonic_server/opaque.rs": "be05402a7c97167e32937956cf39b16301b4c3045c2275fb6b4ae4e8a2f57da5",
+    "pbrs-grpc/src/tonic_server/gzip.rs": "12c24034b2f19c6279d6cdba5b6cc5f3d73360852e88e659b025897dff5e787b",
+    "pbrs-grpc/tests/tonic_opaque_transport.rs": "db594b1c2c43052be3e79439e482c9a43f84290df09d65683691a55b09b6a652",
+    "tests/interop/tonic/tests/transport_services.rs": "2ab7a186adbf96772cfcd8a8315590390ccc9f1dfb9be02bee2b35e7027a600e",
+    "Cargo.toml": "f5534592582743ef3d6fbac8b8a9c3b4bdcb4d21a6718c2f84bcfe20e1833c39",
+    "Cargo.lock": "143bd380614c258637da68df0e839157955b0c294a5faf563e927034d557a76e",
+    "pbrs-grpc/Cargo.toml": "82273f732b027c700f49ce445fcb7bc98887df1491afae593d15679d96a6f870",
+    "tests/interop/tonic/Cargo.toml": "bbc11491fcdd6816e34ae5b32b4351da02e083086ae7725cbf664f6507515011",
+    "tests/interop/tonic/Cargo.lock": "54ae424e91c4032d97306aea5464afe7a3d8f0137d65973023e15d3c14a70c19"
+  },
+  "remaining": [
+    "Full opaque finite byte-budget lifetime accounting",
+    "Native configured compression preference/level parity",
+    "Bounded outbound gzip policy",
+    "Default path performance/allocations and dedicated-host qualification",
+    "QG-06 production resource soak",
+    "Inherited standalone build.rs/example_ports.rs formatting debt"
+  ]
+}
