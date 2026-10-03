@@ -1,0 +1,22 @@
+{
+  "verified_members": 233,
+  "case": "1000",
+  "status": "unqualified historical-source diagnostic",
+  "metrics": {
+    "default": {
+      "source_bytes": 35782708,
+      "cold_check_seconds": 82.057414801,
+      "release_seconds": 321.823111482,
+      "linked_binary_bytes": 8896328
+    },
+    "shared": {
+      "source_bytes": 19310413,
+      "cold_check_seconds": 75.760145707,
+      "release_seconds": 312.725829235,
+      "linked_binary_bytes": 8896328
+    }
+  },
+  "binary_size_result": "equal",
+  "unchanged_generation_result": "shared slower",
+  "fingerprints": "inventories only; original file contents not retained"
+}
