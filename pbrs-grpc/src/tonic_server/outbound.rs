@@ -85,13 +85,15 @@ impl AsRef<[u8]> for OwnedFrame {
     }
 }
 
-/// Accounts actual vector capacity, including allocator over-reservation.
+/// Accounts the capacity reported by Vec, including any reported excess.
+/// Allocator size classes and backing-allocation slack are not observable here.
 /// Only unlimited trackers reach this leaf; finite opaque budgets reject
 /// before readiness. These permits do not account the compressor's state.
 struct Buffer {
     bytes: Vec<u8>,
     permit: BytePermit,
     budget: ByteBudgetTracker,
+    error: Option<Status>,
 }
 
 impl Buffer {
@@ -100,6 +102,7 @@ impl Buffer {
             bytes: Vec::new(),
             permit: BytePermit::empty(),
             budget,
+            error: None,
         }
     }
 
@@ -152,7 +155,13 @@ impl Write for Buffer {
         {
             return Err(io::Error::other("message too large"));
         }
-        self.reserve(next).map_err(io::Error::other)?;
+        if let Err(status) = self.reserve(next) {
+            // Native codec helpers translate Write errors to Internal. Retain
+            // this buffer's original status so allocation/accounting refusal
+            // still reaches the client as ResourceExhausted.
+            self.error = Some(status.clone());
+            return Err(io::Error::other(status));
+        }
         self.bytes.extend_from_slice(input);
         Ok(input.len())
     }
@@ -255,9 +264,10 @@ impl State {
                 .settings
                 .codec
                 .ok_or_else(|| tonic::Status::internal("missing outbound coding"))?;
-            codec
-                .encode_into(&payload.bytes, self.settings.level, &mut output)
-                .map_err(tonic_status)?;
+            if let Err(status) = codec.encode_into(&payload.bytes, self.settings.level, &mut output)
+            {
+                return Err(tonic_status(output.error.take().unwrap_or(status)));
+            }
             let frame = output.into_frame().map_err(tonic_status)?;
             self.remaining = None;
             self.filled = 0;
@@ -567,5 +577,35 @@ mod tests {
         drop(body);
         assert_eq!(tracker.allocated(), 0);
         assert_eq!(tracker.active_byte_permit_tokens(), 0);
+    }
+
+    #[tokio::test]
+    async fn writer_budget_refusal_retains_resource_status_and_releases_both_buffers() {
+        // Public opaque finite budgets still reject before readiness. Exercise
+        // the private writer's failure deterministically, without real OOM:
+        // three input bytes plus a five-byte prefix fit, the gzip header does
+        // not. The codec itself maps this IO error to Internal; the body must
+        // recover the writer's original ResourceExhausted status.
+        let tracker = ByteBudgetTracker::with_limit(8);
+        let mut body = body(
+            VecDeque::from([Ok(Frame::data(Bytes::from_static(b"\0\0\0\0\x03abc")))]),
+            false,
+            3,
+            tracker.clone(),
+        );
+        let error = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx))
+            .await
+            .expect("error")
+            .expect_err("writer allocation refused");
+        assert_eq!(error.code(), tonic::Code::ResourceExhausted);
+        assert!(error.message().contains("transport byte budget exceeded"));
+        assert_eq!(tracker.allocated(), 0);
+        assert_eq!(tracker.active_byte_permit_tokens(), 0);
+        assert!(body.is_end_stream());
+        assert!(
+            poll_fn(|cx| Pin::new(&mut body).poll_frame(cx))
+                .await
+                .is_none()
+        );
     }
 }
