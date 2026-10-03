@@ -245,6 +245,29 @@ fn gzip_wire(payload: &[u8]) -> Bytes {
     Bytes::from(wire)
 }
 
+#[tokio::test]
+async fn native_outbound_gzip_zero_cap_does_not_cap_encoded_overhead() {
+    let mut fixture = connect(
+        probe(vec![Bytes::from_static(b"\0\0\0\0\0")]),
+        ServerConfig::default()
+            .send_compressed(true)
+            .max_encoding_message_size(0),
+        65_535,
+    )
+    .await;
+    let mut req = request();
+    req.headers_mut().insert(
+        "grpc-accept-encoding",
+        http::HeaderValue::from_static("gzip"),
+    );
+    let (bytes, terminal, headers) = exchange(&mut fixture, req, Vec::new()).await;
+    assert_eq!(terminal.get("grpc-status").expect("status"), "0");
+    assert_eq!(headers.get("grpc-encoding").expect("gzip"), "gzip");
+    assert_eq!(bytes, gzip_wire(b""));
+    assert!(bytes.len() > 5);
+    assert_eq!(fixture.state.calls.load(Ordering::SeqCst), 1);
+}
+
 #[test]
 fn native_gzip_decoder_uses_first_member_and_ignores_encoded_tail() {
     let first = pbrs_grpc::gzip::encode(b"one").expect("first");

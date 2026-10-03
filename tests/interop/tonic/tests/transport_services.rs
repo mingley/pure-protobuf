@@ -1055,6 +1055,33 @@ async fn native_identity_caps_do_not_enlarge_generated_codec_caps() -> Result<()
 }
 
 #[tokio::test]
+async fn native_finite_outbound_gzip_transform_all_generated_shapes() -> Result<(), BoxError> {
+    for tls in [false, true] {
+        let config = ServerConfig::default()
+            .send_compressed(true)
+            .gzip_compression_level(9)
+            .max_encoding_message_size(8192);
+        let (addr, state, _server) = server(config, None, tls).await?;
+        let channel = if tls {
+            Channel::connect_tls(
+                addr,
+                ClientTls::ca_mtls(
+                    "localhost",
+                    CA,
+                    Identity::from_pem(CLIENT_CERT, CLIENT_KEY)?,
+                )?,
+            )
+            .await?
+        } else {
+            Channel::connect(addr).await?
+        };
+        all_shapes_codec(channel, true).await?;
+        assert_eq!(state.calls.load(Ordering::SeqCst), 4);
+    }
+    Ok(())
+}
+
+#[tokio::test]
 async fn unchanged_generated_server_all_shapes_layers_interceptors_gzip_both_transports()
 -> Result<(), BoxError> {
     let (addr, state, _server) = server(ServerConfig::default(), None, false).await?;
