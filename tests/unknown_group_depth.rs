@@ -331,15 +331,43 @@ fn fresh_generated_unknown_group_depth_consumer() {
     std::fs::write(consumer.join("Cargo.toml"), format!(
         "[package]\nname=\"qg18-unknown-group-consumer\"\nversion=\"0.0.0\"\nedition=\"2024\"\n[workspace]\n[dependencies]\npbrs={{path={:?}}}\n", root.to_str().unwrap()
     )).unwrap();
-    // Seed every existing registry pin; this adds only the new local consumer
-    // root. Its locked acceptance must be qualified before calling baseline
-    // assertion failures semantic reds.
-    let mut lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    lock.push_str("\n[[package]]\nname = \"qg18-unknown-group-consumer\"\nversion = \"0.0.0\"\ndependencies = [\n \"pbrs\",\n]\n");
-    std::fs::write(consumer.join("Cargo.lock"), lock).unwrap();
-    let mut command = Command::new(
-        std::env::var_os("PBRS_QG18_CONSUMER_CARGO").unwrap_or_else(|| "cargo".into()),
-    );
+    // Preserve the original root+local seed independently of the accepted lock.
+    let mut seed = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
+    seed.push_str("\n[[package]]\nname = \"qg18-unknown-group-consumer\"\nversion = \"0.0.0\"\ndependencies = [\n \"pbrs\",\n]\n");
+    let seed_path = consumer.join("Cargo.lock.seed");
+    if seed_path.exists() {
+        assert_eq!(std::fs::read_to_string(&seed_path).unwrap(), seed);
+    } else {
+        std::fs::write(&seed_path, &seed).unwrap();
+    }
+    let cargo = std::env::var_os("PBRS_QG18_CONSUMER_CARGO")
+        .unwrap_or_else(|| "cargo".into());
+    if let Some(accepted) = std::env::var_os("PBRS_QG18_ACCEPTED_CONSUMER_LOCK") {
+        assert_eq!(
+            std::fs::read(consumer.join("Cargo.lock")).unwrap(),
+            std::fs::read(accepted).unwrap(),
+            "qualification must preinstall the immutable accepted consumer lock"
+        );
+    } else {
+        std::fs::write(consumer.join("Cargo.lock"), &seed).unwrap();
+        let preparation = Command::new(&cargo)
+            .env("CARGO_BUILD_JOBS", "1")
+            .env("CARGO_INCREMENTAL", "0")
+            .args(["metadata", "--offline", "--format-version=1", "--manifest-path"])
+            .arg(consumer.join("Cargo.toml"))
+            .current_dir(&consumer)
+            .output()
+            .unwrap();
+        std::fs::write(consumer.join("metadata-preparation.stdout"), &preparation.stdout).unwrap();
+        std::fs::write(consumer.join("metadata-preparation.stderr"), &preparation.stderr).unwrap();
+        std::fs::write(
+            consumer.join("metadata-preparation.exit"),
+            format!("{:?}\n", preparation.status.code()),
+        )
+        .unwrap();
+        assert!(preparation.status.success(), "metadata-only lock preparation failed");
+    }
+    let mut command = Command::new(&cargo);
     command
         .env("CARGO_BUILD_JOBS", "1")
         .env("CARGO_INCREMENTAL", "0")
