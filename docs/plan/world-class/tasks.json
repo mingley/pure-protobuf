@@ -12502,7 +12502,7 @@
    "priority": "P1",
    "executor": "small",
    "size": "M",
-   "status": "in_progress",
+   "status": "done",
    "implementer": "production_resources",
    "depends_on": [
     "CG-14"
@@ -12547,7 +12547,7 @@
     "CG-14b",
     "UK-08"
    ],
-   "notes": "2026-10-03: composed source71635367/base68e4d57d passed all22 original ordinary stages: native1.85 and strict1.88, primitive4, plugin16, generated primary7/alias1 and wrong-host rejection; affected213 plus generated group9/map15; all6 raw controls and genuine13 regeneration byte-identical. Accepted consumer locks/graphs and feature-off graph preserved. Full selected compiler assets, executed binaries and child payloads retained and independently read back. Failed Python interpretations and resource-interrupted185 primary remain recorded; only that interrupted check retried. Nineteen commits integrated on main with all11 changed files byte-identical; combined-main compiler qualification remains pending. No performance/dependency/unsafe/default/parse-policy claim. Broader kinds, repeated/enum/message/cross-file/view and official registry/ABI/O(1) parents remain open.",
+   "notes": "2026-10-03: composed source71635367/base68e4d57d passed all22 original ordinary stages: native1.85 and strict1.88, primitive4, plugin16, generated primary7/alias1 and wrong-host rejection; affected213 plus generated group9/map15; all6 raw controls and genuine13 regeneration byte-identical. Accepted consumer locks/graphs and feature-off graph preserved. Full selected compiler assets, executed binaries and child payloads retained and independently read back. Failed Python interpretations and resource-interrupted185 primary remain recorded; only that interrupted check retried. Nineteen commits integrated on main with all11 changed files byte-identical; Combined-main c7f21cd8 identical-tree qualification passed Rust1.88 primitive4/plugin16/build-script1/strict core Clippy plus both actual full consumer graphs. Only the new std-only fallback test target differs; all14 registry tuples/whole dependency edges/dependency kinds/features/provider edges preserved. Root full readback492903b1. Combined-main context uses vendored fallback, not a separate SDK or gRPC runtime qualification. No performance/dependency/unsafe/default/parse-policy claim. Broader kinds, repeated/enum/message/cross-file/view and official registry/ABI/O(1) parents remain open.",
    "evidence": [
     "docs/evidence/typed-int32-extensions-20261003.md"
    ]

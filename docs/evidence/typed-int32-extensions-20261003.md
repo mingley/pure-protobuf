@@ -18,7 +18,17 @@ remain separate open work.
 The composed source is `71635367928994b1df46378f5dc7cdfe32b3f219`, based on
 `68e4d57d67c73ff87ea1404bee18c3c70a9dfb93`. Its 19 commits integrate without
 conflicts on main. All 11 changed files match the qualified source byte for byte.
-This is source integration; a new combined-main compiler run is still pending.
+The combined-main tree at `c7f21cd8c79127501ecd088f5fc02e565706f55a`
+was then qualified in an isolated worktree with the identical Git tree. Rust
+1.88 passed the 4 primitives, all 16 generator cases, the actual build-script
+fallback test and strict core Clippy. Both consumers produced new complete
+locked metadata graphs: the only change is the new std-only
+`build_script_fallback` local test target. All 14 registry tuples, dependency
+edges, dependency kinds, features and provider edges remain identical. The
+independent full readback is
+`492903b1e455320780bbb588709d014a123d90ddd0cfa8584b692247955e5e98`.
+This combined-main check uses the fallback build context; it does not qualify
+a separate SDK context or the gRPC runtime.
 
 | Check | Actual result |
 |---|---|
