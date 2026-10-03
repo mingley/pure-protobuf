@@ -334,10 +334,19 @@ where
         if self.inner.is_none() {
             return Poll::Ready(None);
         }
+        // Coalesced DATA may contain many empty messages. Charge each output
+        // so compression cannot bypass cooperation without another source poll.
+        let output_progress = match tokio::task::coop::poll_proceed(cx) {
+            Poll::Pending => return Poll::Pending,
+            Poll::Ready(progress) => progress,
+        };
         let mut quota = QUANTUM;
         loop {
             match self.state.next(&mut quota) {
-                Ok(Step::Data(data)) => return Poll::Ready(Some(Ok(Frame::data(data)))),
+                Ok(Step::Data(data)) => {
+                    output_progress.made_progress();
+                    return Poll::Ready(Some(Ok(Frame::data(data))));
+                }
                 Ok(Step::NeedData) => {}
                 Ok(Step::Yield) => {
                     cx.waker().wake_by_ref();
@@ -574,6 +583,38 @@ mod tests {
         );
         assert_eq!(tracker.allocated(), 3);
         assert_eq!(tracker.active_byte_permit_tokens(), 1);
+        drop(body);
+        assert_eq!(tracker.allocated(), 0);
+        assert_eq!(tracker.active_byte_permit_tokens(), 0);
+    }
+
+    #[tokio::test]
+    async fn coalesced_empty_messages_yield_before_compressing_the_entire_chunk() {
+        let tracker = ByteBudgetTracker::unlimited();
+        let mut body = body(
+            VecDeque::from([Ok(Frame::data(Bytes::from(vec![0; 5 * 1024])))]),
+            false,
+            0,
+            tracker.clone(),
+        );
+        let mut completed = 0;
+        let yielded = poll_fn(|cx| {
+            for _ in 0..1024 {
+                match Pin::new(&mut body).poll_frame(cx) {
+                    Poll::Ready(Some(Ok(frame))) => {
+                        assert!(frame.into_data().is_ok());
+                        completed += 1;
+                    }
+                    Poll::Pending => return Poll::Ready(true),
+                    _ => return Poll::Ready(false),
+                }
+            }
+            Poll::Ready(false)
+        })
+        .await;
+        assert!(yielded);
+        assert!(completed < 1024);
+        assert!(!body.state.data.is_empty());
         drop(body);
         assert_eq!(tracker.allocated(), 0);
         assert_eq!(tracker.active_byte_permit_tokens(), 0);
