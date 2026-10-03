@@ -2,9 +2,10 @@
 
 This record qualifies the benchmark wiring at
 `dea20f7ae6ec5d33fe4d7cb5fe64004cf6263247`. The small and 100-message corpora
-each have one **unqualified local diagnostic pair**; numeric cold-check and
-linked-binary results for **1,000 messages are not_run**. Qualified performance
-acceptance remains open. The
+each have one **unqualified local diagnostic pair**. The first 1,000-message
+attempt passed default cold check, then stopped at the cache cap; its shared
+profile, linked binaries, and paired comparison are **not_run**. Qualified
+performance acceptance remains open. The
 [source-sharing record](gn-03-source-sharing.md) proves source-volume reduction
 and functional behavior; it does not prove these remaining GN03 costs.
 
@@ -156,8 +157,8 @@ smoke output, linked-executable hashes/sizes, and sampled resource bounds:
 python3 -B docs/evidence/gn-03-sb09-small-artifacts/check-pair.py
 ```
 
-The first 1,000-message pair and repeat/control qualification remain pending
-separate root capture leases. GN03 remains open.
+Completion of the 1,000-message pair and repeat/control qualification remain
+pending separate root capture leases. GN03 remains open.
 
 ## First 100-message diagnostic
 
@@ -209,3 +210,52 @@ python3 -B docs/evidence/gn-03-sb09-100-artifacts/check-pair.py
 
 The 1,000-message pair, repeated/control qualification, and any separate
 reflective-consumer diagnostic remain pending. GN03 remains open.
+
+## Failed first 1,000-message attempt
+
+Root launched the unchanged coordinator directly at source
+`7ec9117d246dc91502520b6349d687d6136cc506`, with the exact same common
+generator, source/schema/tool pins, and jobs=1 controls. The default attempt ran
+from 00:31:20.043366 to 00:32:55.653432 UTC on October 3, 2026. Root collected
+the exit-1 result and explicitly released the quiet/LTO lease at 00:37:17 UTC.
+No quiet-window exception was reported.
+
+Consumer lock generation, initial generation, unchanged-generation verification,
+and default cold check passed. Output was 35,782,708 bytes in 21 Rust files.
+Cold check took 80.580565 seconds, with recorded peak RSS 5,608,468,480 bytes.
+This is one successful default phase, not a completed paired measurement.
+
+During incremental check, the resource watchdog sampled owned-cache use of
+**2,153,570,304 bytes** at 00:32:55.519467 UTC. That exceeded the unchanged
+2,147,483,648-byte cap by 6,086,656 bytes. Sampled global free space remained
+5,077,155,840 bytes, above its separate 2 GiB minimum. The watchdog's own timed
+process-group termination left the incremental stderr without the GNU-time
+RSS/exit trailer. The unchanged parser consequently reported
+`missing Linux maximum resident set size in time log`. No incremental duration,
+RSS, or child exit result is invented from the interrupted phase.
+
+The original default report remains `error`, and the pair remains `incomplete`.
+Default release build, smoke, and linked executable were **not_run**; the shared
+profile never started. There is no binary or paired comparison result. The
+failed target was reclaimed after the frozen coordinator retained its original
+fingerprint SHA256 inventory; the inventory contains digests rather than the
+original fingerprint file contents.
+
+The [failed-attempt artifacts](gn-03-sb09-1000-failed-artifacts/artifact-sha256.json)
+retain 154 archive members, including every successful/interrupted child log,
+argv-bearing report, actual inputs and generated/consumer sources, locks,
+source/schema capsules, common generator, telemetry, and quiet-window notes.
+Root's exact tool-returned start/completion chunks are retained as a supplemental
+record. Separate coordinator stdout/stderr streams were not captured at launch;
+the record does not reconstruct them or invent missing process metadata.
+
+```sh
+python3 -B docs/evidence/gn-03-sb09-1000-failed-artifacts/check-failed-attempt.py
+```
+
+The verifier checks all member hashes/sizes, unchanged source/generator/profile,
+successful raw child exits/RSS, exact cache-cap event, missing interrupted
+trailer, and absent shared/release results. Any later retry must retain this
+failure, use an additive namespace and the same frozen generator, and obtain a
+new quiet lease. These artifacts do not alter the cap or benchmark controls.
+GN03 remains open.

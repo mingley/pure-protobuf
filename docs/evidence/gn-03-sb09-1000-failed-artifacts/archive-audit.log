@@ -1,0 +1,11 @@
+{
+  "verified_members": 154,
+  "status": "incomplete resource-limited attempt; comparison and later phases not_run",
+  "default_source_bytes": 35782708,
+  "default_cold_check_seconds": 80.580564534,
+  "default_cold_check_peak_rss_bytes": 5608468480,
+  "resource_limit_bytes": 2147483648,
+  "observed_cache_bytes": 2153570304,
+  "incremental": "missing GNU-time trailer; no elapsed/RSS measurement",
+  "shared_release_smoke_and_binary": "not_run"
+}
