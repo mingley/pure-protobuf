@@ -1,0 +1,10 @@
+docs/evidence/sb-32/check-after-extern-fix.log
+docs/evidence/sb-32/clippy-final.log
+docs/evidence/sb-32/clippy.log
+docs/evidence/sb-32/final-network-and-regression-tests.log
+docs/evidence/sb-32/final-network-and-regression-tests.record.json
+docs/evidence/sb-32/graph-audit.json
+docs/evidence/sb-32/initial-check.log
+docs/evidence/sb-32/network-and-regression-tests.log
+docs/evidence/sb-32/preflight-inventory.json
+docs/evidence/sb-32/validation.json

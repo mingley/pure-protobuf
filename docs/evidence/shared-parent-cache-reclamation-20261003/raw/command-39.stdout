@@ -1,0 +1,13 @@
+test_capture_retains_nonzero_exit_and_byte_exact_streams_before_parse (test_tonic_transport_collectors.CollectorTests.test_capture_retains_nonzero_exit_and_byte_exact_streams_before_parse) ... ok
+test_changed_fingerprint_and_rehashed_counter_summary_are_rejected (test_tonic_transport_collectors.CollectorTests.test_changed_fingerprint_and_rehashed_counter_summary_are_rejected) ... ok
+test_complete_inventory_and_provenance_audit_rejects_blocked_measurement_and_hidden_replay_loss (test_tonic_transport_collectors.CollectorTests.test_complete_inventory_and_provenance_audit_rejects_blocked_measurement_and_hidden_replay_loss) ... ok
+test_independent_reconstruction_checks_allocations_deltas_and_whole_process_syscalls (test_tonic_transport_collectors.CollectorTests.test_independent_reconstruction_checks_allocations_deltas_and_whole_process_syscalls) ... ok
+test_missing_instruction_counter_and_failed_strace_remain_not_run (test_tonic_transport_collectors.CollectorTests.test_missing_instruction_counter_and_failed_strace_remain_not_run) ... ok
+test_missing_strace_raw_cannot_hide_behind_a_reported_median (test_tonic_transport_collectors.CollectorTests.test_missing_strace_raw_cannot_hide_behind_a_reported_median) ... ok
+test_tool_wrapper_keeps_strace_failures_and_callgrind_summary_files (test_tonic_transport_collectors.CollectorTests.test_tool_wrapper_keeps_strace_failures_and_callgrind_summary_files) ... ok
+test_unspawnable_tool_has_an_explicit_disposition_without_an_invented_process_exit (test_tonic_transport_collectors.CollectorTests.test_unspawnable_tool_has_an_explicit_disposition_without_an_invented_process_exit) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.428s
+
+OK

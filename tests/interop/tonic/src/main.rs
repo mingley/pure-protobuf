@@ -835,8 +835,7 @@ pub async fn custom_metadata(
         .ok_or("missing x-grpc-test-echo-initial")?;
     if initial_echo.to_str()? != ECHO_INITIAL_VAL {
         return Err(format!(
-            "custom_metadata unary: expected {ECHO_INITIAL_VAL}, got {:?}",
-            initial_echo
+            "custom_metadata unary: expected {ECHO_INITIAL_VAL}, got {initial_echo:?}"
         )
         .into());
     }
@@ -869,8 +868,7 @@ pub async fn custom_metadata(
         .ok_or("missing x-grpc-test-echo-initial")?;
     if initial_echo.to_str()? != ECHO_INITIAL_VAL {
         return Err(format!(
-            "custom_metadata duplex: expected {ECHO_INITIAL_VAL}, got {:?}",
-            initial_echo
+            "custom_metadata duplex: expected {ECHO_INITIAL_VAL}, got {initial_echo:?}"
         )
         .into());
     }

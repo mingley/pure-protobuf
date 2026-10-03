@@ -1,0 +1,16 @@
+[
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/workspace/pure-protobuf",
+      "rev-parse",
+      "HEAD"
+    ],
+    "exit_code": 0,
+    "finished_utc": "2026-10-03T02:01:58.127084+00:00",
+    "started_utc": "2026-10-03T02:01:58.125378+00:00",
+    "stderr": "raw/command-0.stderr",
+    "stdout": "raw/command-0.stdout"
+  }
+]

@@ -12227,7 +12227,7 @@
    "priority": "P0",
    "executor": "small",
    "size": "M",
-   "status": "in_progress",
+   "status": "done",
    "implementer": "gn13_deadline_admission",
    "depends_on": [],
    "read": [
@@ -12263,12 +12263,15 @@
     "CL-07",
     "TC-29"
    ],
-   "notes": "First source de0bcdf2 integrated all-features run fails retry_safety scenario_d_deadline_expires_waiting_for_slot_returns_deadline_exceeded: call2_executions1 instead of0 after50ms deadline, while sole stream is occupied. Source unchanged from prior scoped passing gates; retain failure and investigate rather than hide host contention. Deterministic paused-clock rawpeer proofs a944c9a5 reproduce lateHEADERS/fullDATA/CANCEL bothafterSETTINGSgrowth andafterfirststreamreset with unchangedcap1;0pass/2fail. Exactdiagnostic source archivedunderdocs with originalred logs/ELF/libraryhashes; noignore/no productionchange. h2stable0.4.19 readiness is perhandle and retains resetpending-open headers. Approved isolated pinnedbackend atomic-admission API investigation under realCounts/Streams lock; no shippingdependency decision or mirroredcounter workaround approved. 2026-10-03: prototype component proofca3a0b60 merged ad610821. Root49artifacthashes/all6archives/bothpatchreplays68backendfiles verify. EarliermixedAPIwaker regression0pass/1fail retained against7-passlibrary; additive-onlyreadiness final18componentpass. NativeRPCreds remainopen. Privatepinnedupstreamembedding topology underindependentMSRV/Miri/package/status/consumer review; notyetapprovedshippingbackend/callerintegration. 2026-10-03: root explicitly narrowed the original self-imposed no-dependency-change condition to unchanged registry/public/default/wire identity plus independently audited existing direct-edge changes for a publishable private pinned-upstream embedding. Root-only Cargo patch does not propagate to independent consumers; separate fork publishing is outside this work. Peer audit07783fad verifies52source transforms/172package tuples/default60to59/Tower68/Tonic90 unchangedpin closures. An isolated nativecaller prototype is authorized only: ownedpending-request accessor through concrete private Admission, cancel/deadline prechecks beforeeverypoll and timeoutrefresh outsidebackendlock, preserve native20ms/opaqueexactremainingpolicy, localtimeout doesnotdiscardhealthyconnection and bodypump starts onlyafteradmit. Finaltopology/package/consumer/status and nativeallshape/TLS/lifecycle gates remainopen; no shippingmainbackend/callerapproval yet.",
+   "notes": "First source de0bcdf2 integrated all-features run fails retry_safety scenario_d_deadline_expires_waiting_for_slot_returns_deadline_exceeded: call2_executions1 instead of0 after50ms deadline, while sole stream is occupied. Source unchanged from prior scoped passing gates; retain failure and investigate rather than hide host contention. Deterministic paused-clock rawpeer proofs a944c9a5 reproduce lateHEADERS/fullDATA/CANCEL bothafterSETTINGSgrowth andafterfirststreamreset with unchangedcap1;0pass/2fail. Exactdiagnostic source archivedunderdocs with originalred logs/ELF/libraryhashes; noignore/no productionchange. h2stable0.4.19 readiness is perhandle and retains resetpending-open headers. Approved isolated pinnedbackend atomic-admission API investigation under realCounts/Streams lock; no shippingdependency decision or mirroredcounter workaround approved. 2026-10-03: prototype component proofca3a0b60 merged ad610821. Root49artifacthashes/all6archives/bothpatchreplays68backendfiles verify. EarliermixedAPIwaker regression0pass/1fail retained against7-passlibrary; additive-onlyreadiness final18componentpass. NativeRPCreds remainopen. Privatepinnedupstreamembedding topology underindependentMSRV/Miri/package/status/consumer review; notyetapprovedshippingbackend/callerintegration. 2026-10-03: root explicitly narrowed the original self-imposed no-dependency-change condition to unchanged registry/public/default/wire identity plus independently audited existing direct-edge changes for a publishable private pinned-upstream embedding. Root-only Cargo patch does not propagate to independent consumers; separate fork publishing is outside this work. Peer audit07783fad verifies52source transforms/172package tuples/default60to59/Tower68/Tonic90 unchangedpin closures. An isolated nativecaller prototype is authorized only: ownedpending-request accessor through concrete private Admission, cancel/deadline prechecks beforeeverypoll and timeoutrefresh outsidebackendlock, preserve native20ms/opaqueexactremainingpolicy, localtimeout doesnotdiscardhealthyconnection and bodypump starts onlyafteradmit. Finaltopology/package/consumer/status and nativeallshape/TLS/lifecycle gates remainopen; no shippingmainbackend/callerapproval yet. 2026-10-03: qualified caller proof 97d01c8e and source/test-lock 52b9a921 integrated after independent root audits. Deterministic paused-clock regressions cover all four native shapes plus opaque deadline/cancel/drop, timeout refresh and body-before-admission guards. Final Rust 1.85 default gates pass 564 executions; final Rust 1.88 Tonic gates pass 589; unchanged generated clients/services pass 27. Six independent path/unpacked consumers and actual 1.88 strict all-target/all-feature Clippy pass. Earlier 2826 broad 809 passes include retry and complete 13-fixture TCP/TLS/mTLS/UDS lifecycle checks; all original reds and the incomplete lifecycle attempt remain archived. Pinned embedding provenance, 172 workspace/166 registry tuples, package/status/Miri gates and narrowly normalized seven-edge test lock are audited. This closes the bounded cooperative pending-admission correctness fix. No FIFO, atomic wall-clock boundary, contention/performance, full cross-language mTLS, long-soak or CL-07 preface-pipeline acceptance is inferred.",
    "evidence": [
     "docs/evidence/deadline-admission.md",
     "docs/evidence/deadline-admission/raw-peer-two-red.log",
     "docs/evidence/deadline-admission/raw-peer-two-pins.json",
-    "docs/evidence/deadline-admission/components/README.md"
+    "docs/evidence/deadline-admission/components/README.md",
+    "docs/evidence/deadline-admission/native-caller/README.md",
+    "docs/evidence/deadline-admission/embedded-topology/README.md",
+    "docs/evidence/deadline-admission/final-native-go/README.md"
    ]
   },
   {
@@ -12371,6 +12374,58 @@
     "TC-30a"
    ],
    "notes": "Scope reviewed at main b2861236. Native connection validation already rejects disabled nonidentity coding before RPC admission; current tonic unsupported_policy also rejects valid identity calls. Agent prepares an isolated baseline-red/source prototype before guarded ordinary compilation. Native default decode cap must not be imposed over a separately configured tonic decoder unless explicitly overridden. Outbound compression, preferences/level, hooks and full retained-private-buffer budgets remain open in TC-30b. No quiet/LTO work is authorized for this leaf."
+  },
+  {
+   "id": "TC-30b3a",
+   "title": "Apply finite outbound caps and native compression to opaque tonic bodies",
+   "lane": "TC",
+   "milestone": "M5",
+   "priority": "P0",
+   "executor": "small",
+   "size": "M",
+   "status": "in_progress",
+   "implementer": "tc30_outbound",
+   "depends_on": [
+    "TC-30b2b"
+   ],
+   "read": [
+    "pbrs-grpc/src/config.rs",
+    "pbrs-grpc/src/limits.rs",
+    "pbrs-grpc/src/wire/encode.rs",
+    "pbrs-grpc/src/tonic_server.rs",
+    "pbrs-grpc/src/tonic_server/opaque.rs",
+    "tests/interop/tonic/tests/transport_services.rs"
+   ],
+   "write": [
+    "pbrs-grpc/src/tonic_server.rs",
+    "pbrs-grpc/src/tonic_server/opaque.rs",
+    "pbrs-grpc/tests/tonic_opaque_transport.rs",
+    "tests/interop/tonic/tests/transport_services.rs",
+    "docs/evidence/tc-30b3a.md"
+   ],
+   "deliverable": "When native outbound compression settings differ from their defaults and the native outbound message cap is finite, force unchanged tonic serialization to identity and apply the selected native identity/gzip/deflate coding and actual configured level to one message at a time. Preserve the default and existing cap-only opaque paths; reject every policy the adapter cannot enforce.",
+   "accept": [
+    "Retain a genuine baseline semantic failure before the prototype; run unchanged tonic-generated clients across all four RPC shapes and compare negotiated coding and configured compression bytes against the native codec oracle.",
+    "Enforce the native uncompressed message cap before forwarding that message. Empty payload with cap zero may produce a nonempty gzip member: never infer an encoded-byte cap from the uncompressed cap. Preserve prior-message delivery, duplex progress, cancellation, deadlines, malformed framing, terminal status/details and user metadata.",
+    "Record original peer acceptance before suppressing tonic compression negotiation. Unexpected nonidentity tonic output or SingleMessageCompressionOverride::Disable remains an explicit policy rejection on this cold path; do not infer RPC shape from generic NamedService or change default tonic override semantics.",
+    "Account the transform’s own retained storage even with the observable unlimited tracker, and retain permits through emitted Bytes clones and transport backlog. Full private tonic buffers, finite native byte budgets, response hooks and other unsupported policies remain fail-closed. Document received coalesced tails, fragment backing capacity and private tonic allocation boundaries; no claim that the body wrapper preempts serialization allocation.",
+    "No public API, default, dependency, wire-policy, security, new-unsafe or performance-claim change. Qualify final-source strict/MSRV, native malformed/flow-control and generated-consumer gates before integration."
+   ],
+   "checks": [
+    "tonic",
+    "native-serving",
+    "native-hostile",
+    "clippy"
+   ],
+   "scoreboard": [
+    "F2",
+    "D4"
+   ],
+   "relates": [
+    "TC-30b",
+    "TC-30b2a"
+   ],
+   "notes": "2026-10-03: bounded isolated design/prototype authorized after read-only pinned tonic0.14.6 API review. Its private encoder allocates before the generic Body boundary and uses level6; a negotiation-only pass-through cannot enforce native level1 or full retained budgets. Source preparation may proceed while earlier ordinary gates finish; no Cargo or release/performance lease yet. This leaf does not close TC-30b. The trigger requires changed outbound compression settings plus finite max_encoding; existing finite-cap-only behavior is unchanged. Forcing identity may expose a stricter independently configured tonic serialization cap; it never enlarges that service cap. Unsupported selected native codecs remain explicit policy rejections."
   }
  ],
  "last_audit": {

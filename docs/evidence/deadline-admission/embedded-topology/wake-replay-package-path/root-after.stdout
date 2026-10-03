@@ -1,0 +1,18 @@
+{
+  "status": "pass",
+  "files": [
+    {
+      "file": "pbrs-grpc/src/h2_backend/admission_tests.rs",
+      "old_sha256": "e70019b3a3cc614b68c3be0b73b5b48266288e0f1beeb6ac2520dc4baf6a8db2",
+      "new_sha256": "cae2fb0f4218544934690dc97b9f9f75492d365b8064f3c947a16c02dca30e32"
+    },
+    {
+      "file": "pbrs-grpc/src/h2_backend/admission_additional_tests.rs",
+      "old_sha256": "af25db414524d1305805991955d7ed9492462121decfe2e69d4b8e4c6b4a305a",
+      "new_sha256": "5801f5d0d493ff693f38c3f95386e910596ac0fb172c9aa7bbea447e8a4f2a2e"
+    }
+  ],
+  "runtime_changed": false,
+  "new_compilation_run": false,
+  "original_mapping_preserved": true
+}

@@ -115,3 +115,16 @@ license, and raw logs are retained. No prototype code is compiled by the
 shipping library. These component results do not clear the original integrated
 failure or either raw RPC deadline red, and do not qualify native/Tower caller
 integration, packaging, all RPC shapes, compression, or performance.
+
+## Isolated native caller qualification follow-up
+
+The subsequent [native caller evidence pack](deadline-admission/native-caller/README.md)
+qualifies the reviewed embedded backend and guarded native/opaque admission
+callers at their exact source identities. It retains the original reds and all
+later failed captures, then records passing unchanged retry tests, four-shape
+deadline/cancellation regressions, six fresh guarded path/package consumers,
+actual Rust 1.85/1.88 gates, and 27 generated Tonic executions. Its portable
+auditor checks the self-contained source snapshots, raw captures, lock pins and
+package bytes without compiling or running the library. This bounded
+correctness evidence remains subject to coordinator review and makes no
+performance, cross-language mTLS, or long-soak qualification claim.

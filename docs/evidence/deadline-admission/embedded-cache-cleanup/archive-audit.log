@@ -1,0 +1,10 @@
+{
+  "status": "pass",
+  "regular_archive_members": 1258,
+  "all_cache_file_hash_records": 1615,
+  "full_content_files_verified": 1244,
+  "consumer_elves_verified": 4,
+  "qualified_unit_elves_verified": 2,
+  "scope": "/workspace/scratch/work/h2-embedded/target",
+  "new_compilation_run": false
+}

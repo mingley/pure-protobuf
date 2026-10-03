@@ -1,0 +1,37 @@
+{
+  "result": "passed",
+  "inventoried_file_paths": 13599,
+  "archive_payloads": 2281,
+  "runtime_module_tuples": 32,
+  "ZIP_source_members_verified": 9955,
+  "directory_permission_changes_verified": 3594,
+  "process_scans": {
+    "before-preservation": {
+      "views": 279,
+      "permission": 605,
+      "transient": 486
+    },
+    "after-preservation": {
+      "views": 280,
+      "permission": 605,
+      "transient": 486
+    },
+    "immediately-before-rename": {
+      "views": 280,
+      "permission": 607,
+      "transient": 488
+    },
+    "before-exact-node-rename": {
+      "views": 280,
+      "permission": 607,
+      "transient": 488
+    },
+    "after-exact-node-rename": {
+      "views": 280,
+      "permission": 607,
+      "transient": 488
+    }
+  },
+  "new_compilation_run": false,
+  "scope": "two exact completed Go cache inodes only; hash-only outputs and permission/race/physical-allocation limits retained"
+}

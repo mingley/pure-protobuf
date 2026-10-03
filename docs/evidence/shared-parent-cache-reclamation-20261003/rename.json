@@ -1,0 +1,8 @@
+{
+  "dev": 27,
+  "from": "/workspace/scratch/work/sb32/target",
+  "ino": 2002079,
+  "scope": "same exact authorized directory inode; newly created target at original pathname will never be deleted",
+  "to": "/workspace/pure-protobuf/work/sb32-cache-reclamation-20261003/authorized-target-pending-deletion",
+  "utc": "2026-10-03T02:03:14.538256+00:00"
+}

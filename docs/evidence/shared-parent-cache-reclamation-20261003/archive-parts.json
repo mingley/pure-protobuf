@@ -1,0 +1,32 @@
+{
+  "format": "concatenated exact original gzip bytes, numbered in order",
+  "parts": [
+    {
+      "path": "archive/retained-cache.tar.gz.part-000",
+      "sha256": "1e4ac6caf661c7e75f59b799d3fae28a8ac23205f60d88596325ae841262172d",
+      "size": 25165824
+    },
+    {
+      "path": "archive/retained-cache.tar.gz.part-001",
+      "sha256": "7ec934556e392f6e79e0f7db06a4ce9a1af6ae5727f69741cb9fd794713d8d01",
+      "size": 25165824
+    },
+    {
+      "path": "archive/retained-cache.tar.gz.part-002",
+      "sha256": "cf9b69a9701ac041cce5b79e919d0de46ccab9771608f3da81cb292feae98322",
+      "size": 25165824
+    },
+    {
+      "path": "archive/retained-cache.tar.gz.part-003",
+      "sha256": "22ee6bd32600bb7563bada546e018635a6530dcf18f568873956ed085a1fbb36",
+      "size": 21511206
+    }
+  ],
+  "original_archive": {
+    "members": 2219,
+    "path": "retained-cache.tar.gz",
+    "sha256": "51d9e9478a4a9450d85e61668b756cdd636e38fe29bc5bff5059033c099d1011",
+    "size": 97008678,
+    "verified_against_fresh_predelete_input": true
+  }
+}

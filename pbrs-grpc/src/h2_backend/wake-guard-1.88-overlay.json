@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "kind": "test-only observable WakeGuard compatibility overlay",
+  "base_commit": "94347fc6e744b4782a975d1167d326a3799aa448",
+  "base_topology_source": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a",
+  "original_topology_mapping_sha256": "8a4cd576d90dce8a1c5e168f5d245ad1828d1ba3419200f6a02ee0eb1b827909",
+  "original_mapping_preserved": true,
+  "runtime_backend_changed": false,
+  "ownership_request_drop_capacity_assertions_and_bounds_retained": true,
+  "unknown_lint_removed": "clippy::manual_noop_waker",
+  "reason": "Clippy1.88 has no manual_noop_waker lint; retain unique Arc task ownership and observe wakes with an independent AtomicUsize counter instead of suppressing warnings or substituting a static noop",
+  "diagnostic_source_commit": "98a43c552f53cb37c99c348b22588f68addb6691",
+  "diagnostic_log_file": "029-final-clippy188.stderr.log",
+  "exact_patch_file": "wake-guard-1.88-overlay.patch",
+  "exact_patch_sha256": "f7d1a0a74de2e9fb9a287f0072392f0b8c0d32c224afb2653b6a3bb8305b6601",
+  "qualification": "GN13 owns resulting-source Rust1.88 strict/unit/package/consumer gates; original604f gates are not relabeled",
+  "files": [
+    {
+      "file": "pbrs-grpc/src/h2_backend/admission_tests.rs",
+      "old_sha256": "e70019b3a3cc614b68c3be0b73b5b48266288e0f1beeb6ac2520dc4baf6a8db2",
+      "new_sha256": "cae2fb0f4218544934690dc97b9f9f75492d365b8064f3c947a16c02dca30e32",
+      "operations": [
+        {
+          "start_line_index": 253,
+          "end_line_index": 258,
+          "old": "struct WakeGuard;\n#[allow(\n    clippy::manual_noop_waker,\n    reason = \"unique Arc ownership measures canceled task retention; a static noop waker cannot provide that oracle\"\n)]\n",
+          "new": "// Unique task ownership measures cancellation retention; the counter also\n// makes Wake observable without relying on a static noop waker.\nstruct WakeGuard(Arc<AtomicUsize>);\n"
+        },
+        {
+          "start_line_index": 259,
+          "end_line_index": 260,
+          "old": "    fn wake(self: Arc<Self>) {}\n",
+          "new": "    fn wake(self: Arc<Self>) {\n        self.0.fetch_add(1, Ordering::SeqCst);\n    }\n"
+        },
+        {
+          "start_line_index": 265,
+          "end_line_index": 266,
+          "old": "    let waker = Arc::new(WakeGuard);\n",
+          "new": "    let wakes = Arc::new(AtomicUsize::new(0));\n    let waker = Arc::new(WakeGuard(wakes.clone()));\n"
+        },
+        {
+          "start_line_index": 268,
+          "end_line_index": 268,
+          "old": "",
+          "new": "    waker.wake_by_ref();\n    assert_eq!(wakes.load(Ordering::SeqCst), 1);\n"
+        },
+        {
+          "start_line_index": 280,
+          "end_line_index": 280,
+          "old": "",
+          "new": "    assert_eq!(wakes.load(Ordering::SeqCst), 1);\n"
+        }
+      ]
+    },
+    {
+      "file": "pbrs-grpc/src/h2_backend/admission_additional_tests.rs",
+      "old_sha256": "af25db414524d1305805991955d7ed9492462121decfe2e69d4b8e4c6b4a305a",
+      "new_sha256": "5801f5d0d493ff693f38c3f95386e910596ac0fb172c9aa7bbea447e8a4f2a2e",
+      "operations": [
+        {
+          "start_line_index": 291,
+          "end_line_index": 292,
+          "old": "    let task_waker = Arc::new(WakeGuard);\n",
+          "new": "    let wakes = Arc::new(AtomicUsize::new(0));\n    let task_waker = Arc::new(WakeGuard(wakes.clone()));\n"
+        },
+        {
+          "start_line_index": 294,
+          "end_line_index": 294,
+          "old": "",
+          "new": "    waker.wake_by_ref();\n    assert_eq!(wakes.load(Ordering::SeqCst), 1);\n"
+        },
+        {
+          "start_line_index": 308,
+          "end_line_index": 308,
+          "old": "",
+          "new": "    assert_eq!(wakes.load(Ordering::SeqCst), 1);\n"
+        }
+      ]
+    }
+  ],
+  "diagnostic_log_sha256": "c0f2e133e238bb0be27e151a4efc6342265a400ddf78741a3b69b1dcba5d3a93",
+  "replay_script": "replay-wake-guard-1.88-overlay.py",
+  "replay_script_sha256": "8d687f93a6eafc4f99e3477c1f78564fac2da1fa3e1d74211757339463f24be8",
+  "read_only_replay_exit": 0,
+  "read_only_replay_stdout_sha256": "c3fb7e6e84030a5345380241014a3e3eadb9fdbdeb6dd1f8760a3d34c977b498"
+}

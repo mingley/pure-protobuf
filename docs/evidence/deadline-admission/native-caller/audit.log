@@ -1,0 +1,64 @@
+{
+  "status": "pass",
+  "source_sets": 7,
+  "raw_members": 1052,
+  "gate_records": 60,
+  "checked_final_test_counts": {
+    "033-final-msrv185-lib": [
+      526,
+      0,
+      1
+    ],
+    "034-final-msrv185-deadline": [
+      10,
+      0,
+      0
+    ],
+    "035-final-msrv185-retry": [
+      18,
+      0,
+      0
+    ],
+    "036-final-msrv185-preface": [
+      10,
+      0,
+      0
+    ],
+    "040-final-tonic188-lib": [
+      544,
+      0,
+      1
+    ],
+    "041-final-tonic188-deadline": [
+      17,
+      0,
+      0
+    ],
+    "042-final-tonic188-retry": [
+      18,
+      0,
+      0
+    ],
+    "043-final-tonic188-preface": [
+      10,
+      0,
+      0
+    ],
+    "046-final-generated-tonic-clients": [
+      8,
+      0,
+      0
+    ],
+    "047-final-generated-tonic-services": [
+      19,
+      0,
+      0
+    ]
+  },
+  "consumers": 6,
+  "provider_registry_tuples": 166,
+  "consumer_registry_tuples": 105,
+  "test_registry_tuples": 146,
+  "backend_rust_members": 54,
+  "compiler_or_runtime_launched": false
+}

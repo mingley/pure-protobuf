@@ -1,0 +1,61 @@
+{
+  "archive": {
+    "members": 2219,
+    "path": "retained-cache.tar.gz",
+    "sha256": "51d9e9478a4a9450d85e61668b756cdd636e38fe29bc5bff5059033c099d1011",
+    "size": 97008678,
+    "verified_against_fresh_predelete_input": true
+  },
+  "authorized_inode": {
+    "dev": 27,
+    "ino": 2002079
+  },
+  "base_commit": "f37b68ce0f426bccf025858ac3339481eb46376d",
+  "cache_before": {
+    "allocation_scope": "unique device/inode st_blocks; overlay/CoW may share extents; not exclusively attributable physical storage",
+    "directory_paths": 573,
+    "file_path_apparent_bytes_including_hardlink_aliases": 2189839546,
+    "file_paths": 2564,
+    "paths": 3137,
+    "unique_allocated_st_blocks_bytes_including_directories": 1956614144,
+    "unique_apparent_bytes_including_directories": 1952448634,
+    "unique_file_inodes": 2522
+  },
+  "exact_deleted_cache": "/workspace/scratch/work/sb32/target",
+  "finished_utc": "2026-10-03T02:03:16.490379+00:00",
+  "global_space_after": {
+    "observed_global_available": 4767744000,
+    "observed_global_total": 33770192896,
+    "observed_global_used": 27267686400,
+    "utc": "2026-10-03T02:03:16.487259+00:00"
+  },
+  "global_space_before": {
+    "observed_global_available": 2948313088,
+    "observed_global_total": 33770192896,
+    "observed_global_used": 29087117312,
+    "utc": "2026-10-03T02:02:52.140174+00:00"
+  },
+  "global_space_pre_delete": {
+    "observed_global_available": 2813493248,
+    "observed_global_total": 33770192896,
+    "observed_global_used": 29221937152,
+    "utc": "2026-10-03T02:03:14.538039+00:00"
+  },
+  "no_compilers_builds_benchmark_tools_or_other_cache_mutations": true,
+  "observed_global_available_increase_since_predelete": 1954250752,
+  "qualification": "All archived payloads match fresh full inventories. Visible process/thread surfaces contained no references except the own explicitly excluded guard fd. Known Docker permission restrictions and zombies prevent universal observation; scans, advisory locks, rename and deletion are not a global atomic guarantee. Global free is observed under concurrent external writes, distinct from inode/allocated/apparent totals. No performance claim.",
+  "result": "completed",
+  "retained_build_files": 633,
+  "retained_dep_info_files": 298,
+  "retained_elf_paths": [
+    "debug/deps/devloop-3edf37a4da344103",
+    "debug/deps/devloop-62f1f8d1c78ec16b",
+    "debug/deps/devloop-cb03ed700fd195bf",
+    "debug/deps/devloop-cf80bb9f980aa1b8",
+    "debug/deps/devloop-e443ab2d00a6ad20",
+    "debug/devloop"
+  ],
+  "retained_full_fingerprint_files": 1270,
+  "retained_unique_elf_inodes": 5,
+  "schema": "sb32-historical-cache-reclamation/1"
+}

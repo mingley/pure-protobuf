@@ -1,0 +1,36 @@
+{
+  "archive": {
+    "bytes": 78821045,
+    "members": 2281,
+    "sha256": "f8735053b0315fb437997a4cc00d21fac25779cd1f2feb41891a209097f2c2e8"
+  },
+  "at": "2026-10-03T02:33:32.023765+00:00",
+  "cache_inventories": {
+    "cache": {
+      "apparent_file_path_bytes": 359842829,
+      "directory_paths": 257,
+      "file_paths": 3449,
+      "paths": 3706,
+      "scope": "stat st_blocks by device/inode, not exclusive physical/COW extents; free-space observation may change concurrently",
+      "unique_directory_allocated_bytes": 1052672,
+      "unique_file_inodes": 3449,
+      "unique_regular_allocated_bytes": 371924992,
+      "unique_regular_apparent_bytes": 359842829
+    },
+    "modcache": {
+      "apparent_file_path_bytes": 623312294,
+      "directory_paths": 3727,
+      "file_paths": 10150,
+      "paths": 13877,
+      "scope": "stat st_blocks by device/inode, not exclusive physical/COW extents; free-space observation may change concurrently",
+      "unique_directory_allocated_bytes": 15294464,
+      "unique_file_inodes": 10150,
+      "unique_regular_allocated_bytes": 646750208,
+      "unique_regular_apparent_bytes": 623312294
+    }
+  },
+  "new_compilation_run": false,
+  "not_deleted_yet": true,
+  "protected_inputs_verified": true,
+  "status": "payloads_verified"
+}

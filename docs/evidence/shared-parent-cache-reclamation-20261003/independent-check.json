@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "/workspace/pure-protobuf/work/sb32-cache-reclamation-20261003/proof/verify.py",
+    "/workspace/pure-protobuf/work/sb32-cache-reclamation-20261003/proof"
+  ],
+  "started_utc": "2026-10-03T02:09:14.466361+00:00",
+  "finished_utc": "2026-10-03T02:09:16.414919+00:00",
+  "exit_code": 0,
+  "stdout": "independent-check.stdout",
+  "stderr": "independent-check.stderr",
+  "checked_manifest_sha256_before_adding_own_capture": "44d207300acefb45361406847684cfc25e0797de0c3afdcda372b7bde5674550",
+  "checker_sha256": "b2544d64e367b37806200b5ef3cf49fe29abd3feff3e59e81e0e18fefdd2c960",
+  "scope": "Read-only full preservation/inventory/archive/process proof check; no deleted cache or compiler needed."
+}

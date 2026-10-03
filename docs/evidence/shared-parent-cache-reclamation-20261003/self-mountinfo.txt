@@ -1,0 +1,9 @@
+52 37 0:27 / / rw,relatime shared:1 - overlay overlay rw,lowerdir=/run/kata-containers/erofs-multi-layer/a6f398f51d0e4a1e897904e3b5b38aba/lower-0,upperdir=/run/kata-containers/erofs-multi-layer/a6f398f51d0e4a1e897904e3b5b38aba/upper/upper,workdir=/run/kata-containers/erofs-multi-layer/a6f398f51d0e4a1e897904e3b5b38aba/upper/work,index=off,metacopy=off
+53 52 0:30 / /proc rw,nosuid,nodev,noexec,relatime shared:2 - proc proc rw
+54 52 0:31 / /dev rw,nosuid shared:3 - tmpfs tmpfs rw,size=65536k,mode=755
+55 54 0:32 / /dev/pts rw,nosuid,noexec,relatime shared:4 - devpts devpts rw,gid=5,mode=620,ptmxmode=666
+56 54 0:26 / /dev/shm rw,relatime shared:5 - tmpfs shm rw
+57 54 0:25 / /dev/mqueue rw,nosuid,nodev,noexec,relatime shared:6 - mqueue mqueue rw
+58 52 0:20 / /sys rw,nosuid,nodev,noexec,relatime shared:7 - sysfs sysfs rw
+59 58 0:24 /.. /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime shared:8 - cgroup2 cgroup2 rw,nsdelegate
+38 52 0:33 / /tmp rw,relatime shared:9 - tmpfs none rw

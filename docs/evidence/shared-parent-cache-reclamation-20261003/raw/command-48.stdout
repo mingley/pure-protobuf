@@ -1,0 +1,79 @@
+{
+  "base": "c9aef45c",
+  "source_commit": "8ca03da51ab3723f53858800ca5b8e2a33d0f448",
+  "package_count": 153,
+  "canonical_package_identity_sha256": "c63f12d92519867af86bc444e4e621862fda77932750b660cd825c6e3a1eca77",
+  "canonical_recipe": "Sorted name/version/source/checksum dictionaries; json.dumps(sort_keys=True,separators=(',',':')); UTF-8 SHA-256",
+  "package_pins_unchanged": true,
+  "added_dependency_edges": [
+    {
+      "package": "pbrs-grpc",
+      "added_dependency": "http-body"
+    },
+    {
+      "package": "pbrs-grpc",
+      "added_dependency": "http-body-util"
+    },
+    {
+      "package": "pbrs-grpc",
+      "added_dependency": "tonic"
+    },
+    {
+      "package": "pbrs-grpc",
+      "added_dependency": "tower"
+    },
+    {
+      "package": "rustls",
+      "added_dependency": "log"
+    },
+    {
+      "package": "tonic",
+      "added_dependency": "tokio-rustls"
+    }
+  ],
+  "added_features": [
+    {
+      "package": "pbrs-grpc",
+      "version": "0.1.0-alpha.2",
+      "added_features": [
+        "tonic",
+        "tower"
+      ]
+    },
+    {
+      "package": "rustls",
+      "version": "0.23.45",
+      "added_features": [
+        "log",
+        "logging"
+      ]
+    },
+    {
+      "package": "tokio-rustls",
+      "version": "0.26.5",
+      "added_features": [
+        "logging"
+      ]
+    },
+    {
+      "package": "tonic",
+      "version": "0.14.6",
+      "added_features": [
+        "_tls-any",
+        "tls-connect-info"
+      ]
+    },
+    {
+      "package": "tower",
+      "version": "0.5.3",
+      "added_features": [
+        "retry",
+        "timeout"
+      ]
+    }
+  ],
+  "offline_metadata_sha256": {
+    "before": "9ea34ec1c62802df5ecd3605ac8dedcceb128e4c68ab7cc643dcd056a382468e",
+    "after": "88d360f41ba1008b509f80b8c4e511b7cf5250c4b65e27244a7391329f104bf3"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "status": "isolated_native_caller_prototype_not_shipping_qualification",
+  "original_topology_commit": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a",
+  "original_provenance_file": "provenance.json",
+  "original_provenance_sha256": "8a4cd576d90dce8a1c5e168f5d245ad1828d1ba3419200f6a02ee0eb1b827909",
+  "original_provenance_unchanged": true,
+  "caller_implementation_commit": "51ee0fba",
+  "file": "pbrs-grpc/src/h2_backend/client.rs",
+  "old_sha256": "0ad04f85be7d3e67d2d15f8bbe7e83f5944dd67fd91641f5df409a8a9992e270",
+  "new_sha256": "946fa72a063e324642266bbc15e9bb41864c712567d0d405e47e32759467726b",
+  "patch_file": "caller-overlay.patch",
+  "patch_sha256": "1253fff3d94f69c051a742e74199bba9cf3239c2bdcacc96ae52812904e6f534",
+  "operation": "Add only a crate-private request_mut accessor on SendRequestWhenReady. The owned request is borrowed outside the backend stream lock before each guarded admission poll. No queue, counts, reset, old API, or import-transform changes.",
+  "replay": {
+    "base_source": "git show 604f4c2e5b1e33050bf859a97dc69fb7ae791f3a:pbrs-grpc/src/h2_backend/client.rs",
+    "working_tree_location": "separate scratch directory outside the source git worktree",
+    "argv_and_results": [
+      {
+        "argv": [
+          "git",
+          "apply",
+          "--check",
+          "/workspace/scratch/work/deadline-admission-native/pbrs-grpc/src/h2_backend/caller-overlay.patch"
+        ],
+        "cwd": "/workspace/scratch/work/deadline-admission-native-proof/request-mut-replay",
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "git",
+          "apply",
+          "/workspace/scratch/work/deadline-admission-native/pbrs-grpc/src/h2_backend/caller-overlay.patch"
+        ],
+        "cwd": "/workspace/scratch/work/deadline-admission-native-proof/request-mut-replay",
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      }
+    ],
+    "result_sha256": "946fa72a063e324642266bbc15e9bb41864c712567d0d405e47e32759467726b",
+    "exact_current_bytes": true
+  },
+  "limits": [
+    "Cancellation/deadline prechecks are cooperative and outside the stream mutex; already-admitted cancellation retains existing HEADERS/reset semantics.",
+    "Original imported topology hashes describe the unchanged base; this additive overlay describes the caller accessor bytes.",
+    "This record is provenance, not package, concurrency, performance, or shipping qualification."
+  ]
+}

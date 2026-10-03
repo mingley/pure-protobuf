@@ -1,0 +1,9 @@
+{
+  "archive": "artifacts.tar.gz",
+  "bytes": 846395,
+  "sha256": "d5f96c754716e67cdb9f81e70c6b54cdb38b42d94bf9697e07d7f7ee1f890972",
+  "members": 63,
+  "shipping_common_source": "f37b68ce0f426bccf025858ac3339481eb46376d",
+  "isolated_grpc_strict_source": "ed9027b76474fc84b642c6d0d8b6ccd164bf55da",
+  "scope": "Common-source style/strict/core evidence only; no hook adoption/performance qualification."
+}
