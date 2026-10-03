@@ -12443,7 +12443,7 @@
    "priority": "P0",
    "executor": "small",
    "size": "S",
-   "status": "in_progress",
+   "status": "done",
    "implementer": "gn13",
    "depends_on": [],
    "read": [
@@ -12488,7 +12488,10 @@
     "SV-08",
     "CL-08"
    ],
-   "notes": "Root expanded the bounded source scope based on the 10bee600 read-only audit. No implementation or runtime/performance gate has run. Direct Tokio spawn sites bypass Runtime::spawn; task/poll hooks requiring tokio_unstable are outside this leaf. Wait for the root work lease after GN1000 exclusive timing. Source prototype2eaa7701 and semantic baseline ddb13711 are frozen but uncompiled. Independent review found setup/warmup boundedness requiring a mirrored fixture-only correction before runtime gates; original20 controls remain exact."
+   "notes": "2026-10-03: integrated qualified sourcef2638b90 as e7939332/8f4c625f/2c8b3348, proof8d6122c5. Baseline1308bd98 and candidatef2638b90 each passed14 bounded current-thread four-shape cases;107 native1.85,172 registered RPC1.88 and18 stable1.99 test executions plus strict1.88 checks passed at exact retained source labels. Original20 controls and feature-off spawn expressions unchanged; four counters count attempted invocations only. Root independently reread both capsules and every archived payload/mode/ownership/link for all4 RX caches and2 historical verification cache stages. All7 genuine Cargo101 failures remain retained. RX-10 parent wake/channel/handoff/context-switch/instruction attribution, scheduling budgets and performance remain open/not_run.",
+   "evidence": [
+    "docs/evidence/rx-10a/README.md"
+   ]
   },
   {
    "id": "GN-15",
@@ -12595,7 +12598,7 @@
    "relates": [
     "GN-15"
    ],
-   "notes": "2026-10-03: root reviewed the concrete four handwritten files plus13 registered generated-callers proposal from main0a0ae991 and frozen test-only baseline676adacb; source implementation is authorized, compiler gates not_run. Depth0 root allows100 group frames, rejects101 before group allocation/increment; new generated/table callers compose enclosing known depth. Preserve public wrappers, legacy skip end-number acceptance and capture matching-end errors; old external/generated wrappers gain only a per-chain cap until regenerated. Bundled callers must migrate in this leaf. Prefer genuine pinned staging when prerequisites are available; otherwise exact inventoried helper-call migration is authorized and must be labeled migrated, never regenerated. Separate rust_out known-message recursion remains open as QG-19. GN03 default30/performance source pins remain deliberately pre-QG18; no performance/full-security claim. Independent review also identified unchanged generated message-valued map depth/lazy-validator gaps, tracked separately as QG-20; QG-18 does not establish a universal total-depth guarantee across those known map-value paths. Frozen candidate1ae03ee1 independently source-reviewed:13 bundled files reconstruct exactly outside2402 helper migrations and four MessageSetLEN validator arms (2410 new calls);17 shipping paths, registry/manifests/locks/rust_out decoder unchanged. Recognized MessageSettag1LEN now scans inner fields at item depth, intentionally rejecting malformed recognized LEN previously accepted by lazy validation; generic unknown LEN stays opaque. Final shipping-byte-identical test baselinef1b6d96f retains676/e018 histories and direct SGROUP/LEN controls. Bounded source approval only: native/runtime/regeneration gates remain not_run before integration."
+   "notes": "2026-10-03: root reviewed the concrete four handwritten files plus13 registered generated-callers proposal from main0a0ae991 and frozen test-only baseline676adacb; source implementation is authorized, compiler gates not_run. Depth0 root allows100 group frames, rejects101 before group allocation/increment; new generated/table callers compose enclosing known depth. Preserve public wrappers, legacy skip end-number acceptance and capture matching-end errors; old external/generated wrappers gain only a per-chain cap until regenerated. Bundled callers must migrate in this leaf. Prefer genuine pinned staging when prerequisites are available; otherwise exact inventoried helper-call migration is authorized and must be labeled migrated, never regenerated. Separate rust_out known-message recursion remains open as QG-19. GN03 default30/performance source pins remain deliberately pre-QG18; no performance/full-security claim. Independent review also identified unchanged generated message-valued map depth/lazy-validator gaps, tracked separately as QG-20; QG-18 does not establish a universal total-depth guarantee across those known map-value paths. Frozen candidate1ae03ee1 independently source-reviewed:13 bundled files reconstruct exactly outside2402 helper migrations and four MessageSetLEN validator arms (2410 new calls);17 shipping paths, registry/manifests/locks/rust_out decoder unchanged. Recognized MessageSettag1LEN now scans inner fields at item depth, intentionally rejecting malformed recognized LEN previously accepted by lazy validation; generic unknown LEN stays opaque. Final shipping-byte-identical test baselinef1b6d96f retains676/e018 histories and direct SGROUP/LEN controls. Bounded source approval only: native/runtime/regeneration gates remain not_run before integration. First frozen25-step ordinary attempt on5c6e5eea: nine actual tool probes passed; three baselines showed bounded semantic depth reds. Fresh generated baseline failed nested --locked resolution before tests and is infrastructure failure, not behavioral qualification. Candidate native1.85 passed75 library and11 integration tests but one assertion incorrectly expected discarded ParseError message text. Campaign stopped, remaining11 gates not_run; original raw sources/tools/records retained. Test-only assertion and separately captured child-lock normalization amendments are underway; shipping1ae03ee1 remains unchanged."
   },
   {
    "id": "QG-19",
@@ -12605,7 +12608,7 @@
    "priority": "P0",
    "executor": "small",
    "size": "M",
-   "status": "pending",
+   "status": "in_progress",
    "depends_on": [
     "QG-18"
    ],
@@ -12640,7 +12643,8 @@
     "QG-18",
     "UK-08"
    ],
-   "notes": "2026-10-03: source review confirms private parse_into/decode_field/decode_one/decode_map_entry have no depth parameter or known-message limit. Actual public surface is ClearAndParse/MergeFrom, not hypothetical decode APIs. Separate concrete source proposal/baseline is authorized; implementation and compiler gates remain not_run until review/lease."
+   "notes": "2026-10-03: source review confirms private parse_into/decode_field/decode_one/decode_map_entry have no depth parameter or known-message limit. Actual public surface is ClearAndParse/MergeFrom, not hypothetical decode APIs. Separate concrete source proposal/baseline is authorized; implementation and compiler gates remain not_run until review/lease. Root authorized bounded private-depth shipping e020c617 on QG-18 source5c6e5eea. Current candidate0a45e110 and matched baseline8dbb6c89 retain identical15 safe linked-caller oracles, including explicit serialized100/101 programmatic-source checks. Static audit preserves23 existing unsafe blocks, five public trait signatures and required-mode behavior; no native/generated provenance/compiler/security/performance claim. Independent source review and ordinary runner preparation continue; native gates not_run.",
+   "implementer": "production_resources"
   },
   {
    "id": "QG-20",
@@ -12686,7 +12690,7 @@
     "QG-18",
     "QG-19"
    ],
-   "notes": "2026-10-03 independent QG-18 source review found pre-existing generated message-valued map gaps: caller passes parent+1 for the entry, emit_map_scalar_decode forwards that same depth to the message value, and emit_validate_arm skips length-delimited map values opaquely. The int32/int32 map fixture cannot qualify these paths. Separate concrete proposal/test-only baseline authorized; shipping implementation and compiler gates remain not_run until source review and ordinary lease. Root reviewed e12c6c42 proposal and authorized bounded shipping implementation on2026-10-03. Matched test/command-recording baselinead04010b is frozen before shipping edits. Guard entry before Wire/defaults and present known message value before construction/increment, compose parent+2, and validate known LEN values through lazy ancestors. Preserve omitted defaults, duplicate deep merge, required/UTF8 behavior and opaque unknown LEN. Source implementation, inventoried seven-file bundled migration and genuine native1.85/strict1.88/regeneration gates are in progress; no completed-security or performance claim."
+   "notes": "2026-10-03 independent QG-18 source review found pre-existing generated message-valued map gaps: caller passes parent+1 for the entry, emit_map_scalar_decode forwards that same depth to the message value, and emit_validate_arm skips length-delimited map values opaquely. The int32/int32 map fixture cannot qualify these paths. Separate concrete proposal/test-only baseline authorized; shipping implementation and compiler gates remain not_run until source review and ordinary lease. Root reviewed e12c6c42 proposal and authorized bounded shipping implementation on2026-10-03. Matched test/command-recording baselinead04010b is frozen before shipping edits. Guard entry before Wire/defaults and present known message value before construction/increment, compose parent+2, and validate known LEN values through lazy ancestors. Preserve omitted defaults, duplicate deep merge, required/UTF8 behavior and opaque unknown LEN. Source implementation, inventoried seven-file bundled migration and genuine native1.85/strict1.88/regeneration gates are in progress; no completed-security or performance claim. Source candidate04e6aece now removes109 migration-only blank lines to match the emitter; original91c7f86e source/proof stays immutable. Both source reconstruction capsules pass327 operation/109 map/17 message-value checks and15 prepared oracle identities, all native/regeneration results not_run. Independent harness review found incorrect copied environment names, nonexistent duplicated argv paths and an unnormalized child seed lock; preserve original27-step readiness as rejected source prerequisite and repair before compiler lease."
   }
  ],
  "last_audit": {
