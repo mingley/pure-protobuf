@@ -21,7 +21,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 
 /// Transport error. Forwards `h2::Error` exactly: message, kind probes, and
 /// `std::error::Error` cause chain.
-pub(crate) struct Error(::h2::Error);
+pub(crate) struct Error(crate::h2_backend::Error);
 
 impl Error {
     /// The reset reason carried by this error, if any.
@@ -63,15 +63,15 @@ impl std::error::Error for Error {
     }
 }
 
-impl From<::h2::Error> for Error {
-    fn from(err: ::h2::Error) -> Self {
+impl From<crate::h2_backend::Error> for Error {
+    fn from(err: crate::h2_backend::Error) -> Self {
         Self(err)
     }
 }
 
 impl From<Reason> for Error {
     fn from(reason: Reason) -> Self {
-        Self(::h2::Error::from(reason.0))
+        Self(crate::h2_backend::Error::from(reason.0))
     }
 }
 
@@ -81,27 +81,32 @@ impl From<Reason> for Error {
 
 /// HTTP/2 error code (RST_STREAM / GOAWAY). Same code points as `h2::Reason`.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) struct Reason(::h2::Reason);
+pub(crate) struct Reason(crate::h2_backend::Reason);
 
 #[allow(
     dead_code,
     reason = "complete RFC 9113 code space; the crate sends only CANCEL, INTERNAL_ERROR, and REFUSED_STREAM today"
 )]
 impl Reason {
-    pub(crate) const NO_ERROR: Reason = Reason(::h2::Reason::NO_ERROR);
-    pub(crate) const PROTOCOL_ERROR: Reason = Reason(::h2::Reason::PROTOCOL_ERROR);
-    pub(crate) const INTERNAL_ERROR: Reason = Reason(::h2::Reason::INTERNAL_ERROR);
-    pub(crate) const FLOW_CONTROL_ERROR: Reason = Reason(::h2::Reason::FLOW_CONTROL_ERROR);
-    pub(crate) const SETTINGS_TIMEOUT: Reason = Reason(::h2::Reason::SETTINGS_TIMEOUT);
-    pub(crate) const STREAM_CLOSED: Reason = Reason(::h2::Reason::STREAM_CLOSED);
-    pub(crate) const FRAME_SIZE_ERROR: Reason = Reason(::h2::Reason::FRAME_SIZE_ERROR);
-    pub(crate) const REFUSED_STREAM: Reason = Reason(::h2::Reason::REFUSED_STREAM);
-    pub(crate) const CANCEL: Reason = Reason(::h2::Reason::CANCEL);
-    pub(crate) const COMPRESSION_ERROR: Reason = Reason(::h2::Reason::COMPRESSION_ERROR);
-    pub(crate) const CONNECT_ERROR: Reason = Reason(::h2::Reason::CONNECT_ERROR);
-    pub(crate) const ENHANCE_YOUR_CALM: Reason = Reason(::h2::Reason::ENHANCE_YOUR_CALM);
-    pub(crate) const INADEQUATE_SECURITY: Reason = Reason(::h2::Reason::INADEQUATE_SECURITY);
-    pub(crate) const HTTP_1_1_REQUIRED: Reason = Reason(::h2::Reason::HTTP_1_1_REQUIRED);
+    pub(crate) const NO_ERROR: Reason = Reason(crate::h2_backend::Reason::NO_ERROR);
+    pub(crate) const PROTOCOL_ERROR: Reason = Reason(crate::h2_backend::Reason::PROTOCOL_ERROR);
+    pub(crate) const INTERNAL_ERROR: Reason = Reason(crate::h2_backend::Reason::INTERNAL_ERROR);
+    pub(crate) const FLOW_CONTROL_ERROR: Reason =
+        Reason(crate::h2_backend::Reason::FLOW_CONTROL_ERROR);
+    pub(crate) const SETTINGS_TIMEOUT: Reason = Reason(crate::h2_backend::Reason::SETTINGS_TIMEOUT);
+    pub(crate) const STREAM_CLOSED: Reason = Reason(crate::h2_backend::Reason::STREAM_CLOSED);
+    pub(crate) const FRAME_SIZE_ERROR: Reason = Reason(crate::h2_backend::Reason::FRAME_SIZE_ERROR);
+    pub(crate) const REFUSED_STREAM: Reason = Reason(crate::h2_backend::Reason::REFUSED_STREAM);
+    pub(crate) const CANCEL: Reason = Reason(crate::h2_backend::Reason::CANCEL);
+    pub(crate) const COMPRESSION_ERROR: Reason =
+        Reason(crate::h2_backend::Reason::COMPRESSION_ERROR);
+    pub(crate) const CONNECT_ERROR: Reason = Reason(crate::h2_backend::Reason::CONNECT_ERROR);
+    pub(crate) const ENHANCE_YOUR_CALM: Reason =
+        Reason(crate::h2_backend::Reason::ENHANCE_YOUR_CALM);
+    pub(crate) const INADEQUATE_SECURITY: Reason =
+        Reason(crate::h2_backend::Reason::INADEQUATE_SECURITY);
+    pub(crate) const HTTP_1_1_REQUIRED: Reason =
+        Reason(crate::h2_backend::Reason::HTTP_1_1_REQUIRED);
 }
 
 impl fmt::Debug for Reason {
@@ -118,7 +123,7 @@ impl fmt::Display for Reason {
 
 impl From<u32> for Reason {
     fn from(code: u32) -> Self {
-        Self(::h2::Reason::from(code))
+        Self(crate::h2_backend::Reason::from(code))
     }
 }
 
@@ -133,7 +138,7 @@ impl From<Reason> for u32 {
 // ---------------------------------------------------------------------------
 
 /// Outbound half of one stream.
-pub(crate) struct SendStream(::h2::SendStream<Bytes>);
+pub(crate) struct SendStream(crate::h2_backend::SendStream<Bytes>);
 
 impl fmt::Debug for SendStream {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -179,12 +184,12 @@ impl super::SendStream for SendStream {
 
 /// Inbound half of one stream.
 pub(crate) struct RecvStream {
-    inner: ::h2::RecvStream,
+    inner: crate::h2_backend::RecvStream,
     recorder: bdp::Recorder,
 }
 
 impl RecvStream {
-    fn new(inner: ::h2::RecvStream, recorder: bdp::Recorder) -> Self {
+    fn new(inner: crate::h2_backend::RecvStream, recorder: bdp::Recorder) -> Self {
         Self { inner, recorder }
     }
 }
@@ -231,7 +236,7 @@ impl super::RecvStream for RecvStream {
 
 /// Receive-window handle for one stream.
 #[derive(Clone)]
-pub(crate) struct FlowControl(::h2::FlowControl);
+pub(crate) struct FlowControl(crate::h2_backend::FlowControl);
 
 impl fmt::Debug for FlowControl {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -252,12 +257,12 @@ impl super::FlowControl for FlowControl {
 /// Client handle that opens outbound streams. Cheap to clone.
 #[derive(Clone)]
 pub(crate) struct SendRequest {
-    inner: ::h2::client::SendRequest<Bytes>,
+    inner: crate::h2_backend::client::SendRequest<Bytes>,
     recorder: bdp::Recorder,
 }
 
 impl SendRequest {
-    fn new(inner: ::h2::client::SendRequest<Bytes>) -> Self {
+    fn new(inner: crate::h2_backend::client::SendRequest<Bytes>) -> Self {
         Self {
             inner,
             recorder: bdp::Recorder::disabled(),
@@ -302,10 +307,29 @@ impl super::SendRequest for SendRequest {
     fn current_max_send_streams(&self) -> usize {
         self.inner.current_max_send_streams()
     }
+
+    fn send_request_when_ready(
+        &mut self,
+        request: Request<()>,
+        end_of_stream: bool,
+    ) -> impl Future<Output = Result<(ResponseFuture, SendStream), Error>> {
+        let recorder = self.recorder.clone();
+        let future = self.inner.send_request_when_ready(request, end_of_stream);
+        async move {
+            let (response, send) = future.await.map_err(Error)?;
+            Ok((
+                ResponseFuture {
+                    inner: response,
+                    recorder,
+                },
+                SendStream(send),
+            ))
+        }
+    }
 }
 
 /// Future that resolves to a ready [`SendRequest`].
-pub(crate) struct ReadySendRequest(::h2::client::ReadySendRequest<Bytes>);
+pub(crate) struct ReadySendRequest(crate::h2_backend::client::ReadySendRequest<Bytes>);
 
 impl fmt::Debug for ReadySendRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -325,7 +349,7 @@ impl Future for ReadySendRequest {
 
 /// Future that resolves to the response headers of one request.
 pub(crate) struct ResponseFuture {
-    inner: ::h2::client::ResponseFuture,
+    inner: crate::h2_backend::client::ResponseFuture,
     recorder: bdp::Recorder,
 }
 
@@ -349,12 +373,12 @@ impl Future for ResponseFuture {
 
 /// Client connection driver: polled until the connection closes.
 pub(crate) struct ClientConnection<IO> {
-    inner: ::h2::client::Connection<IO, Bytes>,
+    inner: crate::h2_backend::client::Connection<IO, Bytes>,
     ping: Option<bdp::Driver>,
 }
 
 impl<IO> ClientConnection<IO> {
-    fn new(inner: ::h2::client::Connection<IO, Bytes>) -> Self {
+    fn new(inner: crate::h2_backend::client::Connection<IO, Bytes>) -> Self {
         Self { inner, ping: None }
     }
 
@@ -402,7 +426,7 @@ impl<IO: AsyncRead + AsyncWrite + Unpin> super::ClientConnection for ClientConne
 
 /// Builder for client connections.
 pub(crate) struct ClientBuilder {
-    inner: ::h2::client::Builder,
+    inner: crate::h2_backend::client::Builder,
     adaptive: Option<bdp::Config>,
 }
 
@@ -415,7 +439,7 @@ impl fmt::Debug for ClientBuilder {
 impl super::ClientBuilder for ClientBuilder {
     fn new() -> Self {
         Self {
-            inner: ::h2::client::Builder::new(),
+            inner: crate::h2_backend::client::Builder::new(),
             adaptive: None,
         }
     }
@@ -531,7 +555,7 @@ impl super::ClientBuilder for ClientBuilder {
 // ---------------------------------------------------------------------------
 
 /// Server handle that answers one accepted stream.
-pub(crate) struct SendResponse(::h2::server::SendResponse<Bytes>);
+pub(crate) struct SendResponse(crate::h2_backend::server::SendResponse<Bytes>);
 
 impl fmt::Debug for SendResponse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -562,14 +586,14 @@ impl super::SendResponse for SendResponse {
 
 /// Server connection driver: accepts streams until the connection closes.
 pub(crate) struct ServerConnection<IO> {
-    inner: ::h2::server::Connection<IO, Bytes>,
+    inner: crate::h2_backend::server::Connection<IO, Bytes>,
     recorder: bdp::Recorder,
     ping: Option<bdp::Driver>,
     ping_timed_out: bool,
 }
 
 impl<IO> ServerConnection<IO> {
-    fn new(inner: ::h2::server::Connection<IO, Bytes>) -> Self {
+    fn new(inner: crate::h2_backend::server::Connection<IO, Bytes>) -> Self {
         Self {
             inner,
             recorder: bdp::Recorder::disabled(),
@@ -658,7 +682,7 @@ impl<IO: AsyncRead + AsyncWrite + Unpin> super::ServerConnection for ServerConne
 
 /// Builder for server connections.
 pub(crate) struct ServerBuilder {
-    inner: ::h2::server::Builder,
+    inner: crate::h2_backend::server::Builder,
     adaptive: Option<bdp::Config>,
 }
 
@@ -671,7 +695,7 @@ impl fmt::Debug for ServerBuilder {
 impl super::ServerBuilder for ServerBuilder {
     fn new() -> Self {
         Self {
-            inner: ::h2::server::Builder::new(),
+            inner: crate::h2_backend::server::Builder::new(),
             adaptive: None,
         }
     }
@@ -771,7 +795,7 @@ impl super::ServerBuilder for ServerBuilder {
 // ---------------------------------------------------------------------------
 
 /// Keepalive ping handle for one connection.
-pub(crate) struct PingPong(::h2::PingPong);
+pub(crate) struct PingPong(crate::h2_backend::PingPong);
 
 impl fmt::Debug for PingPong {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -797,7 +821,7 @@ impl PingPong {
 }
 
 /// Outbound PING frame. Payload is always empty (`opaque`), as in h2.
-pub(crate) struct Ping(::h2::Ping);
+pub(crate) struct Ping(crate::h2_backend::Ping);
 
 impl fmt::Debug for Ping {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -807,15 +831,114 @@ impl fmt::Debug for Ping {
 
 impl Ping {
     pub(crate) fn opaque() -> Self {
-        Self(::h2::Ping::opaque())
+        Self(crate::h2_backend::Ping::opaque())
     }
 }
 
 /// Acknowledgement of a [`Ping`].
-pub(crate) struct Pong(::h2::Pong);
+pub(crate) struct Pong(crate::h2_backend::Pong);
 
 impl fmt::Debug for Pong {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.0, f)
+    }
+}
+
+#[cfg(all(test, feature = "tonic"))]
+mod embedding_status_oracles {
+    use super::{Error, Reason};
+    use crate::{Code, Status};
+    use std::error::Error as _;
+
+    #[test]
+    fn registry_and_private_bare_reason_paths_retain_distinct_tonic_mappings() {
+        let cases = [
+            (0, tonic::Code::Internal),
+            (1, tonic::Code::Internal),
+            (2, tonic::Code::Internal),
+            (3, tonic::Code::Internal),
+            (4, tonic::Code::Internal),
+            (5, tonic::Code::Unknown),
+            (6, tonic::Code::Unknown),
+            (7, tonic::Code::Unavailable),
+            (8, tonic::Code::Cancelled),
+            (9, tonic::Code::Internal),
+            (10, tonic::Code::Internal),
+            (11, tonic::Code::ResourceExhausted),
+            (12, tonic::Code::PermissionDenied),
+            (13, tonic::Code::Unknown),
+            (u32::MAX, tonic::Code::Unknown),
+        ];
+        for (number, expected) in cases {
+            let registry: ::h2::Error = ::h2::Reason::from(number).into();
+            let registry_display = registry.to_string();
+            let registry_status = tonic::Status::from_error(Box::new(registry));
+            assert_eq!(registry_status.code(), expected, "registry reason {number}");
+            assert_eq!(
+                registry_status.message(),
+                format!("h2 protocol error: {registry_display}")
+            );
+
+            let seam: Error = Reason::from(number).into();
+            assert_eq!(seam.to_string(), registry_display);
+            assert!(seam.source().is_none());
+            assert_eq!(seam.reason().map(u32::from), Some(number));
+            assert!(!seam.is_reset() && !seam.is_go_away() && !seam.is_io());
+            let seam_status = tonic::Status::from_error(Box::new(seam));
+            assert_eq!(
+                seam_status.code(),
+                tonic::Code::Unknown,
+                "seam reason {number}"
+            );
+            assert_eq!(seam_status.message(), registry_display);
+            assert!(seam_status.details().is_empty());
+            assert!(seam_status.metadata().is_empty());
+
+            let before = Status::from_h2_pre_headers(Reason::from(number));
+            let after = Status::from_h2_post_dispatch(Reason::from(number));
+            assert_eq!(before.code(), Code::Unavailable);
+            assert_eq!(after.code(), Code::Unavailable);
+            assert_eq!(before.message(), registry_display);
+            assert_eq!(after.message(), registry_display);
+            assert_eq!(before.is_transparent_retryable(), number == 7);
+            assert_eq!(after.is_transparent_retryable(), number == 7);
+            assert!(before.source().is_some());
+            assert!(after.source().is_some());
+        }
+    }
+
+    fn io_error() -> Error {
+        crate::h2_backend::Error::from_io(std::io::Error::new(
+            std::io::ErrorKind::ConnectionReset,
+            "embedding IO oracle",
+        ))
+        .into()
+    }
+
+    #[test]
+    fn private_io_path_retains_cause_display_and_native_retry_phase() {
+        let error = io_error();
+        assert!(error.is_io());
+        assert!(!error.is_reset() && !error.is_go_away());
+        assert!(error.reason().is_none());
+        assert!(error.source().is_none());
+        let status = tonic::Status::from_error(Box::new(error));
+        assert_eq!(status.code(), tonic::Code::Unknown);
+        assert_eq!(status.message(), "embedding IO oracle");
+
+        let before = Status::from_h2_pre_headers(io_error());
+        let after = Status::from_h2_post_dispatch(io_error());
+        let sending = Status::from_h2_send(io_error());
+        for status in [&before, &after, &sending] {
+            assert_eq!(status.code(), Code::Unavailable);
+            assert_eq!(status.message(), "embedding IO oracle");
+            assert_eq!(
+                status.source().map(ToString::to_string).as_deref(),
+                Some("embedding IO oracle")
+            );
+        }
+        assert!(before.is_transparent_retryable());
+        assert!(!after.is_transparent_retryable());
+        assert!(!sending.is_transparent_retryable());
     }
 }

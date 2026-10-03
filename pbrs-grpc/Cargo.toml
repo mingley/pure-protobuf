@@ -16,17 +16,23 @@ categories = ["network-programming", "asynchronous"]
 pbrs = { version = "0.2.0", path = ".." }
 
 [dependencies]
+# Private embedded h2 backend: these are the already-locked upstream support
+# dependencies. Registry h2 remains an independent peer / Tower oracle.
+atomic-waker = "=1.1.2"
 base64 = "0.22"
 bytes = "1"
+fnv = "=1.0.7"
 # Already in the graph via h2. Direct so `Streaming` can be a `Stream` without
 # a per-message allocation. No C.
 futures-core = { version = "0.3", default-features = false }
+futures-sink = { version = "=0.3.34", default-features = false }
 # `rust_backend` is miniz_oxide: pure Rust, no C in the compression path.
 flate2 = { version = "1", default-features = false, features = ["rust_backend", "runtime_detection"] }
-h2 = "0.4.18"
+h2 = { version = "0.4.18", optional = true }
 http = "1"
 http-body = { version = "1", optional = true }
 http-body-util = { version = "0.1", optional = true }
+indexmap = { version = "=2.14.0", default-features = false, features = ["std"] }
 # Optional OpenTelemetry bridge (GF-01 metrics, GF-02 tracing). Pure Rust, no C.
 # Default off: zero cost when disabled (module compiles out).
 opentelemetry = { version = "0.31", default-features = false, features = ["metrics", "trace"], optional = true }
@@ -41,14 +47,17 @@ rustls-graviola = "0.2.1"
 rustls-pemfile = "2"
 rustls-native-certs = { version = "0.8", optional = true }
 serde_json = "1"
+slab = "=0.4.12"
 # Pure-Rust wrapper around libc socket options. Tokio already depends on it;
 # a direct dep lets the kernel set SO_KEEPALIVE without compiling C.
 # `all` is an empty feature that unlocks `TCP_KEEPCNT` (`with_retries`).
 socket2 = { version = "0.6", features = ["all"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util", "fs"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["tls12"] }
+tokio-util = { version = "=0.7.19", default-features = false, features = ["codec", "io"] }
 tower = { version = "0.5", default-features = false, features = ["balance", "buffer", "limit", "load-shed", "retry", "timeout", "util"], optional = true }
 tonic = { version = "0.14.6", default-features = false, features = ["codegen", "transport", "router", "_tls-any"], optional = true }
+tracing = { version = "=0.1.44", default-features = false, features = ["std"] }
 webpki-roots = "1"
 ruzstd = { version = "0.9", optional = true }
 
@@ -72,7 +81,7 @@ prost = ["dep:prost"]
 copy-counts = ["pbrs/copy-counts"]
 # Tower Service adapters for Router and Channel. Off by default so the
 # default dependency graph stays unchanged.
-tower = ["dep:http-body", "dep:http-body-util", "dep:tower"]
+tower = ["dep:h2", "dep:http-body", "dep:http-body-util", "dep:tower"]
 # Mount native generated services in tonic's typed transport stack. This is
 # separate from the lightweight Tower adapter so tonic stays out of the
 # default and `tower` dependency graphs.

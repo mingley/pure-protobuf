@@ -71,6 +71,17 @@ pub(crate) trait SendRequest: Clone {
         request: Request<()>,
         end_of_stream: bool,
     ) -> Result<(backend::ResponseFuture, backend::SendStream), Error>;
+    /// Own request headers until the backend admits a real connection slot.
+    /// Dropping a pending future does not allocate or queue an HTTP/2 stream.
+    #[allow(
+        dead_code,
+        reason = "isolated additive backend prototype; native callers are unchanged"
+    )]
+    fn send_request_when_ready(
+        &mut self,
+        request: Request<()>,
+        end_of_stream: bool,
+    ) -> impl Future<Output = Result<(backend::ResponseFuture, backend::SendStream), Error>>;
     /// Peer's current MAX_CONCURRENT_STREAMS style send-stream budget.
     fn current_max_send_streams(&self) -> usize;
 }

@@ -612,14 +612,18 @@ dependencies = [
 name = "pbrs-grpc"
 version = "0.1.0-alpha.2"
 dependencies = [
+ "atomic-waker",
  "base64",
  "bytes",
  "flate2",
+ "fnv",
  "futures-core",
+ "futures-sink",
  "h2",
  "http",
  "http-body",
  "http-body-util",
+ "indexmap",
  "libc",
  "opentelemetry",
  "opentelemetry_sdk",
@@ -631,12 +635,15 @@ dependencies = [
  "rustls-pemfile",
  "ruzstd",
  "serde_json",
+ "slab",
  "socket2",
  "tokio",
  "tokio-rustls",
  "tokio-stream",
+ "tokio-util",
  "tonic",
  "tower",
+ "tracing",
  "webpki-roots",
 ]
 
