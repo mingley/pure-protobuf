@@ -1,6 +1,7 @@
 {
   "schema": "tc30b3a-proof-files-v1",
   "sha256": {
+    ".gitattributes": "af4610ec3c44836ee34844881e065b8b00646197674b654b9f9b36361a779317",
     "README.md": "ccc6a99f121ea7a580395160fa3872a6bbe612f43563b5adaf751150acbc3e17",
     "archive-dedup-after-baseline-fix.json": "c945d3726e663fdec41f69fc422df065d70ed3417a564894d89a93be474e4a05",
     "artifacts/baseline-after-fixture-fix/manifest.json": "301a380a417d6da301135dabf4bec9a6e719a96a077c852d9e3fa2cd48ff6d41",
@@ -133,7 +134,7 @@
     "plan.json": "aab451007db4584cb1e93e770b6c0904dbdeeb2814a0f753f8d248f4da64cbe5",
     "prepared-plan-before-resource-scope.json": "7f1e90391a4dc3fe8406738650f95c01a9530e311fd44e393714a506368134db",
     "prepared-source.json": "2c1efb502ab2327c63f105bf4ea63a062a7305cde25599fc96eac9e7c2115500",
-    "qualification.json": "99574988c827614da25c18658075726fef7f551019aa9b18d785cef595b01099",
+    "qualification.json": "71adf705cf0501679098ff8c33724434232c2f3303db08afafc8220541a5182c",
     "qualified-current-composition.json": "a951adcd4d512fd16c5c3c3a217da2a719faa5f78ff6314b65a5568d279a4f8e",
     "rustdoc-generated.json": "1e3cdc79bd9bbe3653bfea658fa4113f22b0fe02311c03a7d078d56b6eb08fc5",
     "shipping.patch": "1ae7004d8fcc602b4de03c56fdda604672ed1486609f0d8941157153081df2ce",

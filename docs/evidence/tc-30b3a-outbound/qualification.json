@@ -509,6 +509,7 @@
   "main_mutated_or_pushed_by_this_agent": false,
   "packaging_notes": {
     "prepared_plan_states": "Plan snapshots retain prepared not_run states. Actual execution disposition comes from commands, records and qualification tables.",
-    "checker_initial_failure": "First packaging checker had an incorrect capture-schema PROTOC locator; corrected to executable path. No project source or runtime qualification affected."
+    "checker_initial_failure": "First packaging checker had an incorrect capture-schema PROTOC locator; corrected to executable path. No project source or runtime qualification affected.",
+    "raw_capture_whitespace": "First proof packaging git diff --check reported literal unified-patch context whitespace and native log EOF blank lines. Exact records preserved; scoped .gitattributes disables whitespace diagnostics only for proof patches and captured command logs. The independently executed shipping source whitespace gate at87 passed."
   }
 }
