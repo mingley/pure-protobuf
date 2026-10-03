@@ -1082,6 +1082,39 @@ async fn native_finite_outbound_gzip_transform_all_generated_shapes() -> Result<
 }
 
 #[tokio::test]
+async fn native_outbound_transform_bidi_progresses_before_upload_eof_and_cancels()
+-> Result<(), BoxError> {
+    let config = ServerConfig::default()
+        .send_compressed(true)
+        .gzip_compression_level(0)
+        .max_encoding_message_size(8192);
+    let (addr, state, _server) = server(config, None, false).await?;
+    let mut client =
+        routeguide::route_guide_client::RouteGuideClient::new(Channel::connect(addr).await?)
+            .accept_compressed(tonic::codec::CompressionEncoding::Gzip);
+    let (tx, rx) = tokio::sync::mpsc::channel(1);
+    tx.send(note("first")).await?;
+    let response = client
+        .route_chat(authorized(ReceiverStream::new(rx)))
+        .await?;
+    assert_eq!(
+        response.metadata().get("grpc-encoding").expect("gzip"),
+        "gzip"
+    );
+    let mut response = response.into_inner();
+    let first = tokio::time::timeout(Duration::from_secs(2), response.message()).await??;
+    assert_eq!(first.expect("first"), note("first"));
+    tx.send(note("second before input EOF")).await?;
+    let second = tokio::time::timeout(Duration::from_secs(2), response.message()).await??;
+    assert_eq!(second.expect("second"), note("second before input EOF"));
+    drop(response);
+    tokio::time::timeout(Duration::from_secs(2), state.dropped.notified()).await?;
+    tokio::time::timeout(Duration::from_secs(2), tx.closed()).await?;
+    assert_eq!(state.calls.load(Ordering::SeqCst), 1);
+    Ok(())
+}
+
+#[tokio::test]
 async fn unchanged_generated_server_all_shapes_layers_interceptors_gzip_both_transports()
 -> Result<(), BoxError> {
     let (addr, state, _server) = server(ServerConfig::default(), None, false).await?;

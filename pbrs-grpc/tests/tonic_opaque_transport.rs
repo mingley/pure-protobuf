@@ -25,6 +25,7 @@ struct Probe {
     read_input: bool,
     encoding: Option<&'static str>,
     pending_tail: bool,
+    disable_compression: bool,
 }
 
 #[derive(Default)]
@@ -90,13 +91,19 @@ impl Service<Request<TonicBody>> for Probe {
             if let Some(encoding) = probe.encoding {
                 response = response.header("grpc-encoding", encoding);
             }
-            response
+            let mut response = response
                 .body(Frames {
                     frames,
                     state: probe.state,
                     pending_tail: probe.pending_tail,
                 })
-                .map_err(|error| tonic::Status::internal(error.to_string()))
+                .map_err(|error| tonic::Status::internal(error.to_string()))?;
+            if probe.disable_compression {
+                response
+                    .extensions_mut()
+                    .insert(tonic::codec::SingleMessageCompressionOverride::Disable);
+            }
+            Ok(response)
         })
     }
 }
@@ -142,14 +149,26 @@ struct Fixture {
     state: Arc<State>,
 }
 
+async fn connect(service: Probe, config: ServerConfig, window: u32) -> Fixture {
+    connect_with_tracker(service, config, window, None).await
+}
+
 #[expect(
     clippy::expect_used,
     reason = "transport fixture setup must fail the test on error"
 )]
-async fn connect(service: Probe, config: ServerConfig, window: u32) -> Fixture {
+async fn connect_with_tracker(
+    service: Probe,
+    config: ServerConfig,
+    window: u32,
+    tracker: Option<pbrs_grpc::ByteBudgetTracker>,
+) -> Fixture {
     let state = service.state.clone();
     let (client, io) = tokio::io::duplex(64 * 1024);
-    let server = Server::new(service.into_pbrs_service()).config(config);
+    let mut server = Server::new(service.into_pbrs_service()).config(config);
+    if let Some(tracker) = tracker {
+        server = server.with_byte_budget_tracker(tracker);
+    }
     let serving = tokio::spawn(async move {
         server.serve_connection(io).await.expect("server");
     });
@@ -229,6 +248,7 @@ fn probe(output: Vec<Bytes>) -> Probe {
         read_input: false,
         encoding: None,
         pending_tail: false,
+        disable_compression: false,
     }
 }
 
@@ -266,6 +286,228 @@ async fn native_outbound_gzip_zero_cap_does_not_cap_encoded_overhead() {
     assert_eq!(bytes, gzip_wire(b""));
     assert!(bytes.len() > 5);
     assert_eq!(fixture.state.calls.load(Ordering::SeqCst), 1);
+}
+
+fn identity_wire(payload: &[u8]) -> Bytes {
+    let mut wire = vec![0];
+    wire.extend_from_slice(
+        &u32::try_from(payload.len())
+            .expect("small fixture")
+            .to_be_bytes(),
+    );
+    wire.extend_from_slice(payload);
+    Bytes::from(wire)
+}
+
+#[tokio::test]
+async fn native_outbound_levels_preferences_and_peer_fallback_use_native_bytes() {
+    use pbrs_grpc::compression::{Codec, CompressionAlgorithm};
+    let payload = b"a fairly compressible payload ".repeat(64);
+    for level in [0, 1, 9] {
+        for (preferred, accepted, selected) in [
+            (
+                Codec::Gzip,
+                "gzip,deflate",
+                Some(CompressionAlgorithm::Gzip),
+            ),
+            (
+                Codec::Deflate,
+                "gzip,deflate",
+                Some(CompressionAlgorithm::Deflate),
+            ),
+            (Codec::Deflate, "gzip", Some(CompressionAlgorithm::Gzip)),
+            (Codec::Gzip, "deflate", Some(CompressionAlgorithm::Deflate)),
+            (Codec::Gzip, "identity", None),
+        ] {
+            let identity = identity_wire(&payload);
+            let mut fixture = connect(
+                probe(
+                    (0..identity.len())
+                        .map(|offset| identity.slice(offset..offset + 1))
+                        .collect(),
+                ),
+                ServerConfig::default()
+                    .send_compressed(true)
+                    .gzip_compression_level(level)
+                    .compression_codec(preferred)
+                    .max_encoding_message_size(payload.len()),
+                1,
+            )
+            .await;
+            let mut req = request();
+            req.headers_mut().insert(
+                "grpc-accept-encoding",
+                accepted.parse().expect("acceptance"),
+            );
+            let (wire, terminal, headers) = exchange(&mut fixture, req, Vec::new()).await;
+            assert_eq!(terminal.get("grpc-status").expect("status"), "0");
+            assert_eq!(headers.get("x-initial").expect("header"), "preserved");
+            assert_eq!(terminal.get("x-terminal").expect("trailer"), "preserved");
+            let expected = if let Some(codec) = selected {
+                assert_eq!(headers.get("grpc-encoding").expect("coding"), codec.name());
+                let encoded = codec
+                    .encode_level(&payload, level)
+                    .expect("native encoding");
+                let mut expected = identity_wire(&encoded).to_vec();
+                *expected.first_mut().expect("flag") = 1;
+                Bytes::from(expected)
+            } else {
+                assert!(headers.get("grpc-encoding").is_none());
+                identity_wire(&payload)
+            };
+            assert_eq!(wire, expected);
+        }
+    }
+}
+
+#[tokio::test]
+async fn native_outbound_failure_withholds_later_prefix_and_preserves_first_message() {
+    for later in [identity_wire(b"ab"), Bytes::from_static(b"\x01\0\0\0\0")] {
+        let first = identity_wire(b"x");
+        let mut fixture = connect(
+            probe(vec![Bytes::from([first.as_ref(), later.as_ref()].concat())]),
+            ServerConfig::default()
+                .send_compressed(true)
+                .max_encoding_message_size(1),
+            65_535,
+        )
+        .await;
+        let mut req = request();
+        req.headers_mut().insert(
+            "grpc-accept-encoding",
+            http::HeaderValue::from_static("gzip"),
+        );
+        let (wire, terminal, _) = exchange(&mut fixture, req, Vec::new()).await;
+        assert_eq!(wire, gzip_wire(b"x"));
+        assert_eq!(
+            terminal.get("grpc-status").expect("status"),
+            if later.first() == Some(&1) { "9" } else { "8" }
+        );
+        assert_eq!(fixture.state.dropped.load(Ordering::SeqCst), 1);
+    }
+}
+
+#[tokio::test]
+async fn native_outbound_unexpected_coding_and_override_fail_before_headers() {
+    for override_only in [false, true] {
+        let mut service = probe(vec![identity_wire(b"x")]);
+        service.disable_compression = override_only;
+        service.encoding = (!override_only).then_some("gzip");
+        let mut fixture = connect(
+            service,
+            ServerConfig::default()
+                .send_compressed(true)
+                .max_encoding_message_size(1),
+            65_535,
+        )
+        .await;
+        let (wire, terminal, headers) = exchange(&mut fixture, request(), Vec::new()).await;
+        assert!(wire.is_empty());
+        assert_eq!(terminal.get("grpc-status").expect("status"), "9");
+        assert!(headers.get("x-initial").is_none());
+        assert_eq!(fixture.state.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(fixture.state.dropped.load(Ordering::SeqCst), 1);
+    }
+}
+
+#[tokio::test]
+async fn native_outbound_deadline_drops_partial_transform_and_its_capacity() {
+    let tracker = pbrs_grpc::ByteBudgetTracker::unlimited();
+    let mut service = probe(vec![Bytes::from_static(b"\0\0\0\0\x03ab")]);
+    service.pending_tail = true;
+    let mut fixture = connect_with_tracker(
+        service,
+        ServerConfig::default()
+            .send_compressed(true)
+            .max_encoding_message_size(3),
+        65_535,
+        Some(tracker.clone()),
+    )
+    .await;
+    let mut req = request();
+    req.headers_mut().insert(
+        "grpc-accept-encoding",
+        http::HeaderValue::from_static("gzip"),
+    );
+    req.headers_mut()
+        .insert("grpc-timeout", http::HeaderValue::from_static("50m"));
+    let (wire, terminal, _) = exchange(&mut fixture, req, Vec::new()).await;
+    assert!(wire.is_empty());
+    assert_eq!(terminal.get("grpc-status").expect("status"), "4");
+    assert!(tracker.peak_allocated() >= 3);
+    assert_eq!(tracker.allocated(), 0);
+    assert_eq!(tracker.active_byte_permit_tokens(), 0);
+    assert_eq!(fixture.state.dropped.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn native_outbound_h2_backlog_keeps_output_permit_until_peer_reset() {
+    let tracker = pbrs_grpc::ByteBudgetTracker::unlimited();
+    let payload = vec![7; 32 * 1024];
+    let mut service = probe(vec![identity_wire(&payload)]);
+    service.pending_tail = true;
+    let mut fixture = connect_with_tracker(
+        service,
+        ServerConfig::default()
+            .send_compressed(true)
+            .gzip_compression_level(0)
+            .max_encoding_message_size(payload.len()),
+        1,
+        Some(tracker.clone()),
+    )
+    .await;
+    let mut req = request();
+    req.headers_mut().insert(
+        "grpc-accept-encoding",
+        http::HeaderValue::from_static("gzip"),
+    );
+    let (response, mut send) = fixture.client.send_request(req, true).expect("request");
+    let response = response.await.expect("headers");
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while tracker.peak_allocated() < payload.len() * 2
+            || tracker.active_byte_permit_tokens() != 1
+        {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("completed compressed output held by backlog");
+    assert!(tracker.allocated() >= payload.len());
+    assert!(tracker.active_byte_permit_tokens() > 0);
+    send.send_reset(h2::Reason::CANCEL);
+    drop(response);
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while tracker.allocated() != 0 || tracker.active_byte_permit_tokens() != 0 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("reset releases all transform storage");
+    wait_counter(&fixture.state.dropped, 1).await;
+}
+
+#[cfg(feature = "zstd")]
+#[tokio::test]
+async fn native_outbound_selected_zstd_stays_unsupported_before_readiness() {
+    let mut fixture = connect(
+        probe(vec![identity_wire(b"")]),
+        ServerConfig::default()
+            .send_compressed(true)
+            .compression_algorithm(pbrs_grpc::compression::CompressionAlgorithm::Zstd)
+            .max_encoding_message_size(0),
+        65_535,
+    )
+    .await;
+    let mut req = request();
+    req.headers_mut().insert(
+        "grpc-accept-encoding",
+        http::HeaderValue::from_static("zstd"),
+    );
+    let (wire, terminal, _) = exchange(&mut fixture, req, Vec::new()).await;
+    assert!(wire.is_empty());
+    assert_eq!(terminal.get("grpc-status").expect("status"), "9");
+    assert_eq!(fixture.state.ready.load(Ordering::SeqCst), 0);
+    assert_eq!(fixture.state.calls.load(Ordering::SeqCst), 0);
 }
 
 #[test]
