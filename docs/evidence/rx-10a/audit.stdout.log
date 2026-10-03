@@ -1,0 +1,50 @@
+{
+  "status": "pass",
+  "metadata_members": 2019,
+  "limits": [
+    "wakeups",
+    "channel_sends",
+    "cross_thread_handoffs",
+    "context_switches",
+    "instruction_attribution",
+    "performance",
+    "RX10_parent_budgets",
+    "Source/tool/compiler-input hash records are direct capture guards. Registry cache bytes/full native header closure are not independently archived. Older test labels are not promoted to later source commits."
+  ],
+  "retirements": {
+    "bench_stable": {
+      "regular_paths": 1725,
+      "elf_paths": 88,
+      "lock_scope": "flock; POSIX lock acquired but continuous hold not certified",
+      "payload": "indexed; not reread by this metadata-only invocation"
+    },
+    "native185": {
+      "regular_paths": 1018,
+      "elf_paths": 64,
+      "lock_scope": "flock; POSIX lock acquired but continuous hold not certified",
+      "payload": "indexed; not reread by this metadata-only invocation"
+    },
+    "native188": {
+      "regular_paths": 2289,
+      "elf_paths": 74,
+      "lock_scope": "dedicated OFD plus flock",
+      "payload": "indexed; not reread by this metadata-only invocation"
+    },
+    "bench_final": {
+      "regular_paths": 2957,
+      "elf_paths": 147,
+      "lock_scope": "dedicated OFD plus flock",
+      "payload": "indexed; not reread by this metadata-only invocation"
+    }
+  },
+  "ordinary_qualification": {
+    "ordinary_captures": 37,
+    "genuine_Cargo_reds": 7,
+    "native185_executions": 107,
+    "registered_RPC_executions": 172,
+    "stable_unit_executions": 18,
+    "diagnostic_cases_each_variant": 14,
+    "parent_RX10": "open",
+    "performance": "not_run"
+  }
+}

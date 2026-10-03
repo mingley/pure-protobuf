@@ -1,0 +1,32 @@
+{
+  "status": "pass",
+  "scope": "portable metadata and semantic/source-oracle validation; large payload readback not run by this invocation",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "/workspace/scratch/work/rx10/docs/evidence/rx-10a/check.py"
+  ],
+  "cwd": "/workspace/scratch/work/rx10",
+  "exit": 0,
+  "utc": "2026-10-03T07:39:03.176101+00:00",
+  "inputs_before": {
+    "docs/evidence/rx-10a/check.py": "cdc4fa31ba82e5bca33b4917ac20f96db8d45fedab2193db73fa48928a61e5a7",
+    "docs/evidence/rx-10a/index.json": "5c22a790b2a15496ea0488db411fb0d53d21468af53f20e623d55da32a59dab5",
+    "docs/evidence/rx-10a/records.tar.gz": "b32bd96d5f9245af325478c8a0d21daf21da01411b5b2fdd0d73564e9dd3bd44"
+  },
+  "inputs_after": {
+    "docs/evidence/rx-10a/check.py": "cdc4fa31ba82e5bca33b4917ac20f96db8d45fedab2193db73fa48928a61e5a7",
+    "docs/evidence/rx-10a/index.json": "5c22a790b2a15496ea0488db411fb0d53d21468af53f20e623d55da32a59dab5",
+    "docs/evidence/rx-10a/records.tar.gz": "b32bd96d5f9245af325478c8a0d21daf21da01411b5b2fdd0d73564e9dd3bd44"
+  },
+  "inputs_unchanged": true,
+  "stdout_sha256": "2102b557caba5660a0a19ace3f7a91516f4ccd26403fb0daccc68ad95f4bdf27",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "python": {
+    "invoked": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "resolved": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+    "sha256": "fa67443527ed9647f760d807e2a38f26340757123e643c4639cf273ed15d5ea7",
+    "version": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]"
+  },
+  "metadata_source_context": "6d6678cf6f6be9f18ade57d2f2f9e4a094d3997b",
+  "compiler_or_performance_launch": false
+}
