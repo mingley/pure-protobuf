@@ -1190,6 +1190,8 @@ pub use config::{
     DEFAULT_RESET_STREAM_DURATION, DEFAULT_STREAM_BUFFER, DEFAULT_WINDOW_SIZE, ServerConfig,
 };
 pub use copy_counts::{CopyCounts, copy_counts, reset_copy_counts};
+#[cfg(feature = "copy-counts")]
+pub use copy_counts::{SchedulerCounts, reset_scheduler_counts, scheduler_counts};
 /// `futures_core::Stream`, so [`Streaming`] can be driven with `StreamExt`.
 pub use futures_core::Stream;
 /// `futures_core::future::FusedFuture`, so a finished [`Call`] is skipped by

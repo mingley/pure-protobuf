@@ -616,6 +616,8 @@ where
                 let dispatch = Arc::clone(&dispatch);
                 let rpc_peer = peer.clone();
                 let byte_budget = dispatch.byte_budget();
+                #[cfg(feature = "copy-counts")]
+                crate::copy_counts::note_spawn(crate::copy_counts::SpawnSite::ServerRpcDispatch);
                 drop(R::spawn(async move {
                     let _lease = lease;
                     let _permit = permit;

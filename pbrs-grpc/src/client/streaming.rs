@@ -477,6 +477,8 @@ where
     let (hold_tx, hold_rx) = tokio::sync::oneshot::channel::<()>();
     let (completed_tx, mut completed_rx) = tokio::sync::oneshot::channel::<()>();
     let pump_tap = tap.clone();
+    #[cfg(feature = "copy-counts")]
+    crate::copy_counts::note_spawn(crate::copy_counts::SpawnSite::ClientBidiUpload);
     drop(tokio::spawn({
         let mut cancel_rx = cancel_rx.clone();
         async move {

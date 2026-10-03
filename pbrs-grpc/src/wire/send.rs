@@ -337,6 +337,8 @@ pub(crate) fn reset_on_cancel(
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,
     deadline: Option<tokio::time::Instant>,
 ) {
+    #[cfg(feature = "copy-counts")]
+    crate::copy_counts::note_spawn(crate::copy_counts::SpawnSite::ClientServerStreamCancel);
     drop(tokio::spawn(async move {
         let until_deadline = async {
             match deadline {

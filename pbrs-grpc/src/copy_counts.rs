@@ -18,6 +18,98 @@
 //!   before compression.
 //! - `shared_*`: large bytes fields handed to the segmented send sink via
 //!   `WireOut::put_shared` (PK-11). A zero-copy witness, not a copy.
+//!
+//! With `copy-counts`, `SchedulerCounts` separately records four named
+//! library task spawn expressions. It does not count wakeups, channel sends,
+//! context switches, application tasks, or task completion.
+
+/// Process-wide counts of named library task spawn expressions (RX-10a).
+///
+/// Available only with the bench-only `copy-counts` feature. Connection setup
+/// is separate from per-RPC work. These are spawn events, not active task
+/// counts, completed tasks, or successful RPCs. Each site increments immediately
+/// before its existing spawn expression, so this records invocation attempts,
+/// including a spawn that panics; it does not certify successful scheduling.
+#[cfg(feature = "copy-counts")]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SchedulerCounts {
+    /// Client HTTP/2 connection drivers, after the peer SETTINGS preface.
+    pub client_connection_driver: u64,
+    /// Client bidirectional request-body pumps.
+    pub client_bidi_upload: u64,
+    /// Client cancellation owners retaining a server-stream request send half.
+    pub client_server_stream_cancel: u64,
+    /// Server dispatch tasks for admitted RPCs.
+    pub server_rpc_dispatch: u64,
+}
+
+#[cfg(feature = "copy-counts")]
+pub(crate) enum SpawnSite {
+    ClientConnectionDriver,
+    ClientBidiUpload,
+    ClientServerStreamCancel,
+    ServerRpcDispatch,
+}
+
+#[cfg(feature = "copy-counts")]
+mod scheduler_state {
+    use super::{SchedulerCounts, SpawnSite};
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static CLIENT_CONNECTION_DRIVER: AtomicU64 = AtomicU64::new(0);
+    static CLIENT_BIDI_UPLOAD: AtomicU64 = AtomicU64::new(0);
+    static CLIENT_SERVER_STREAM_CANCEL: AtomicU64 = AtomicU64::new(0);
+    static SERVER_RPC_DISPATCH: AtomicU64 = AtomicU64::new(0);
+
+    pub(super) fn snapshot() -> SchedulerCounts {
+        SchedulerCounts {
+            client_connection_driver: CLIENT_CONNECTION_DRIVER.load(Ordering::Relaxed),
+            client_bidi_upload: CLIENT_BIDI_UPLOAD.load(Ordering::Relaxed),
+            client_server_stream_cancel: CLIENT_SERVER_STREAM_CANCEL.load(Ordering::Relaxed),
+            server_rpc_dispatch: SERVER_RPC_DISPATCH.load(Ordering::Relaxed),
+        }
+    }
+
+    pub(super) fn reset() {
+        CLIENT_CONNECTION_DRIVER.store(0, Ordering::Relaxed);
+        CLIENT_BIDI_UPLOAD.store(0, Ordering::Relaxed);
+        CLIENT_SERVER_STREAM_CANCEL.store(0, Ordering::Relaxed);
+        SERVER_RPC_DISPATCH.store(0, Ordering::Relaxed);
+    }
+
+    pub(super) fn note(site: SpawnSite) {
+        let counter = match site {
+            SpawnSite::ClientConnectionDriver => &CLIENT_CONNECTION_DRIVER,
+            SpawnSite::ClientBidiUpload => &CLIENT_BIDI_UPLOAD,
+            SpawnSite::ClientServerStreamCancel => &CLIENT_SERVER_STREAM_CANCEL,
+            SpawnSite::ServerRpcDispatch => &SERVER_RPC_DISPATCH,
+        };
+        counter.fetch_add(1, Ordering::Relaxed);
+    }
+}
+
+/// Read the named library spawn counters.
+///
+/// Snapshots are not atomic across fields. Use an exclusive diagnostic process
+/// and acknowledge completion before reading a window; unrelated RPCs count.
+#[cfg(feature = "copy-counts")]
+pub fn scheduler_counts() -> SchedulerCounts {
+    scheduler_state::snapshot()
+}
+
+/// Reset every named library spawn counter.
+///
+/// This is separate from [`reset_copy_counts`], so existing copy windows stay
+/// unchanged. Benchmarks must exclude concurrent producers while resetting.
+#[cfg(feature = "copy-counts")]
+pub fn reset_scheduler_counts() {
+    scheduler_state::reset();
+}
+
+#[cfg(feature = "copy-counts")]
+pub(crate) fn note_spawn(site: SpawnSite) {
+    scheduler_state::note(site);
+}
 
 /// Snapshot of the process-wide copy counters.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

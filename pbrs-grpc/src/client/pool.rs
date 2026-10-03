@@ -3457,6 +3457,8 @@ where
     let (stop_tx, stop_rx) = watch::channel(false);
     let busy = (config.connection_idle().is_some() || config.connection_age().is_some())
         .then(crate::keepalive::Busy::new);
+    #[cfg(feature = "copy-counts")]
+    crate::copy_counts::note_spawn(crate::copy_counts::SpawnSite::ClientConnectionDriver);
     drop(tokio::spawn(async move {
         tokio::select! {
             r = conn => {
