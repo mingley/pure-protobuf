@@ -20,7 +20,6 @@ use protos::*;
 // behaviors while b/304774814 is open.
 
 use googletest::prelude::*;
-use protobuf::prelude::*;
 
 use feature_verify_rust_proto::Verify;
 use no_features_proto2_rust_proto::NoFeaturesProto2;

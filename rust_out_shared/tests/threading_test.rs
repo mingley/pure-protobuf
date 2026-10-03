@@ -14,11 +14,13 @@ use protos::*;
 
 use googletest::prelude::*;
 
+#[expect(clippy::disallowed_types, reason = "synchronous thread fixture")]
 use std::sync::{Arc, Mutex};
 use unittest_rust_proto::TestAllTypes;
 
 #[gtest]
 fn test_sending_owned_arc() {
+    #[expect(clippy::disallowed_types, reason = "synchronous thread fixture")]
     let msg = Arc::new(Mutex::new(TestAllTypes::default()));
 
     let msg_clone = Arc::clone(&msg);
