@@ -152,7 +152,7 @@ impl std::fmt::Display for CodegenError {
                         detail
                     )
                 } else {
-                    write!(f, "malformed protobuf descriptor: {}", detail)
+                    write!(f, "malformed protobuf descriptor: {detail}")
                 }
             }
             Self::UnwritableOutput { path, source } => {
