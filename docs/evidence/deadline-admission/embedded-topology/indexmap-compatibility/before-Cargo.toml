@@ -32,7 +32,7 @@ h2 = { version = "0.4.18", optional = true }
 http = "1"
 http-body = { version = "1", optional = true }
 http-body-util = { version = "0.1", optional = true }
-indexmap = { version = "2.14.0", default-features = false, features = ["std"] }
+indexmap = { version = "=2.14.0", default-features = false, features = ["std"] }
 # Optional OpenTelemetry bridge (GF-01 metrics, GF-02 tracing). Pure Rust, no C.
 # Default off: zero cost when disabled (module compiles out).
 opentelemetry = { version = "0.31", default-features = false, features = ["metrics", "trace"], optional = true }
