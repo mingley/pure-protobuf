@@ -1,0 +1,2092 @@
+{
+  "schema": "gn03-byte-string-ordinary/1",
+  "scope": "ordinary correctness qualification only; no performance measurements",
+  "start_utc": "2026-10-03T05:43:45.259227+00:00",
+  "lease": {
+    "scope": "GN03 byte-string ordinary qualification",
+    "owner": "root",
+    "grant_utc": "2026-10-03T05:42:54.379613+00:00",
+    "runner_sha256": "1ed127fe9a8ec29f41ea898ec7c6112a918befd6d6c2b9d180411581c9308405",
+    "sealed_config_sha256": "b1c271e1dc4f2519fe06f99db71f201f65e8ecc07345e35308ba12ce400ea445",
+    "baseline_commit": "4b2384e728bce17601d56e43a887c354d66b9024",
+    "candidate_commit": "5fe226b015a2c2bc667db976390b8337db6e9a2e",
+    "jobs": 1,
+    "owned_cache_cap_bytes": 2147483648,
+    "global_free_reserve_bytes": 2147483648,
+    "free_at_grant": 5823348736,
+    "release_performance_authorized": false,
+    "authorization": "User explicitly authorized improvements, subagents and direct main pushes; root ordinary coordinator authorizes reviewed correctness stages only."
+  },
+  "sealed_config_sha256": "b1c271e1dc4f2519fe06f99db71f201f65e8ecc07345e35308ba12ce400ea445",
+  "runner_sha256": "1ed127fe9a8ec29f41ea898ec7c6112a918befd6d6c2b9d180411581c9308405",
+  "status": "passed",
+  "stages": {
+    "stable-baseline": {
+      "status": "passed",
+      "source": {
+        "commit": "4b2384e728bce17601d56e43a887c354d66b9024",
+        "capsule_sha256": "5421f5889bb2fbd80f5b06a8e8a60a074b9883d1f2f142124405aae3a43db1a2",
+        "tracked_source_files": 1027,
+        "test_overlay_sha256": "328ed6b8b5fb1174f89da4ed82e95abad9badd6862fcfaafa18386752722b204"
+      },
+      "gates": {
+        "tool_identity": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-baseline-tool_identity",
+          "expected_tests": null
+        },
+        "hex_unit": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-baseline-hex_unit",
+          "expected_tests": 1
+        },
+        "byte_unit": {
+          "status": "not_applicable",
+          "reason": "baseline contains no byte-string renderer; old hex unit includes every byte and empty input"
+        },
+        "consumer_suite": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-baseline-consumer_suite",
+          "expected_tests": 7
+        },
+        "shipping_clippy": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-baseline-shipping_clippy",
+          "expected_tests": null
+        },
+        "consumer_clippy": {
+          "status": "passed",
+          "profiles": {
+            "runtime": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-baseline-clippy-runtime"
+            },
+            "flat-with-helper": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-baseline-clippy-flat-with-helper"
+            },
+            "no-reflect": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-baseline-clippy-no-reflect"
+            },
+            "single-flat": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-baseline-clippy-single-flat"
+            },
+            "root-message-default": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-baseline-clippy-root-message-default"
+            },
+            "root-enum-default": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-baseline-clippy-root-enum-default"
+            },
+            "root-nested-default": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-baseline-clippy-root-nested-default"
+            }
+          }
+        },
+        "harness_contracts": {
+          "status": "not_applicable",
+          "reason": "unchanged harness checked once in candidate stable stage"
+        },
+        "compiled_generator": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-baseline-compiled_generator",
+          "expected_tests": null
+        },
+        "archive_and_retirement": {
+          "status": "passed",
+          "retired_scopes": [
+            "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target/gn03-byte-string-correctness",
+            "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target/gn03-tests",
+            "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target/integration-consumers"
+          ],
+          "archive": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/retained/stable-baseline/fixtures-fingerprints-executables.tar.gz",
+          "archive_sha256": "54c6958af950837437340a6dcdedb729a2ca4bacc41d26c51ab6d85689ff4f0e",
+          "all_target_file_count": 591,
+          "retained_payload_count": 411,
+          "fingerprints": "all fingerprint file contents retained; other non-ELF compiler cache files are hash inventory only",
+          "before": {
+            "observed_at_utc": "2026-10-03T05:44:30.122046+00:00",
+            "owned_target_roots": [
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+            ],
+            "allocated_unique_inode_bytes": 111276032,
+            "apparent_path_sum_bytes": 126811564,
+            "path_count": 736,
+            "global_available_bytes": 5668380672,
+            "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+          },
+          "after": {
+            "observed_at_utc": "2026-10-03T05:44:30.259121+00:00",
+            "owned_target_roots": [
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+            ],
+            "allocated_unique_inode_bytes": 4096,
+            "apparent_path_sum_bytes": 4096,
+            "path_count": 1,
+            "global_available_bytes": 5779652608,
+            "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+          },
+          "retirement_utc": "2026-10-03T05:44:30.265673+00:00",
+          "process_scope_limit": "accessible status/cmdline/exe/cwd/fd links only; mappings, environments and inaccessible process internals are not proved"
+        }
+      },
+      "environment_controls": {
+        "set": {
+          "PATH": {
+            "inherited": "/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+            "applied": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/wrappers/stable-baseline:/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+          },
+          "RUSTC": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc"
+          },
+          "RUSTDOC": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustdoc"
+          },
+          "RUSTUP_TOOLCHAIN": {
+            "inherited": null,
+            "applied": "stable-x86_64-unknown-linux-gnu"
+          },
+          "CARGO_HOME": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/cargo"
+          },
+          "RUSTUP_HOME": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup"
+          },
+          "CARGO_BUILD_JOBS": {
+            "inherited": null,
+            "applied": "1"
+          },
+          "CARGO_INCREMENTAL": {
+            "inherited": null,
+            "applied": "0"
+          },
+          "CARGO_PROFILE_DEV_DEBUG": {
+            "inherited": null,
+            "applied": "0"
+          },
+          "CARGO_PROFILE_TEST_DEBUG": {
+            "inherited": null,
+            "applied": "0"
+          },
+          "CARGO_TARGET_DIR": {
+            "inherited": null,
+            "applied": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target/gn03-byte-string-correctness"
+          },
+          "GN03_ACTUAL_CARGO": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo"
+          },
+          "GN03_CARGO_INVOCATIONS": {
+            "inherited": null,
+            "applied": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-baseline-cargo-invocations.jsonl"
+          }
+        },
+        "removed_empty_or_unset": {
+          "RUSTFLAGS": null,
+          "CARGO_ENCODED_RUSTFLAGS": null,
+          "RUSTDOCFLAGS": null,
+          "RUSTC_WRAPPER": null,
+          "RUSTC_WORKSPACE_WRAPPER": null,
+          "RUSTC_BOOTSTRAP": null
+        },
+        "policy": "nonempty unsupported compiler/profile overrides refuse preflight; explicit common dev/test debug0 and incremental0 match both source variants, not a release/performance profile"
+      },
+      "intentional_consumer_red": {
+        "profile": "flat-missing-registry",
+        "actual_status": "exit status: 101",
+        "expected_missing_helper": true,
+        "raw_logs_retained": true
+      },
+      "consumer_locks": {
+        "runtime": "e0ac9653b2714a6f274964d08a9183e22d1d392d3562534e81ed2595546b9144",
+        "flat-with-helper": "9ee06af12fbef3cbc42c9181e9738d50a1c5473d65544335f38084595b5d58d0",
+        "no-reflect": "beb8ce37cd35b9e4161ab83e08d7ab8ed3bd6e7a9c69b13be28f206fb0f0d508",
+        "single-flat": "83956fabfb28f500be19b640ab773070850d0c2e8d30f114a772ab5a86bab69e",
+        "root-message-default": "28a30fee0f95a6d4ba0067895d0f3f837f6b5d955f61def9dd523ad774047469",
+        "root-enum-default": "33f1a6a1a563c7f88ab649a8cca17bd3850bdaff5ac5354ea63a17d7229e0ce0",
+        "root-nested-default": "0ab9f06e4765516fc1449252d1a86989195a2b64e59e364d17e6375389118ce4"
+      },
+      "consumer_main_sources": {
+        "runtime": "dbb12c8e83dab434c07e9448cc01be59456121b17aa9597f67db357a72c4a0ec",
+        "flat-with-helper": "814ebb4cebc54f5bdef02746b6a0f10c8a121c65f8bb3eba3924fd4a9be3ba98",
+        "no-reflect": "fec59da5a8a26e403ebb36d477fc671a03c758726ff60ff091806e2cfbe4bd1f",
+        "single-flat": "76b4a549ddafe246d3f2058574490e4978cab3b99ec6319aeea4bd0c72f3764e",
+        "root-message-default": "acac494430afb6aeea2603933927698a138e3439d7850c812887969f7afca54c",
+        "root-enum-default": "699b3b73d627347bec2bc1f92d62d967f5683ccdda9719f0dd294f71f1b1c794",
+        "root-nested-default": "daef522759a2d87f4d5fc2e0dde40e0db558dcf1076f156c762a6f3026ffc755"
+      },
+      "consumer_normalized_manifests": {
+        "runtime": "170e9087bf2c36522f3c993867196684f81492fa39f367df71b883ca9a4c0d1f",
+        "flat-with-helper": "8495f8e850ea46b138bb8e61a58400259dc0bd559bb6682105b42c753512f159",
+        "no-reflect": "ed147e7ae1179764c6b01ad4d6f32ee90306c47d70987b8d77f8dca7a7189a53",
+        "single-flat": "dddbfd8ad00fe52e54c73e2ea7701d4fda5fc629c2dd221273b8e712daadecf5",
+        "root-message-default": "17bd6c9024583497741a7bb84b1f1fa448a4d0a9b8dfb087ceadf1e956f5f82c",
+        "root-enum-default": "34907f5ef6c84a6df9d21a8f964a70394b3091cd0a8b7d2c8c67865d8ed17dee",
+        "root-nested-default": "798373d75581a1735f2cab9b6e5e64b01037cfe307fcb399da7ee8d4dd7cd764"
+      },
+      "generator": {
+        "path": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/generators/baseline-protoc-gen-pbrs",
+        "bytes": 4439304,
+        "sha256": "06db8d54d4ac2bb6577fd3604a6ea9e75459647e242ac5e3197c9083564d3249",
+        "source_commit": "4b2384e728bce17601d56e43a887c354d66b9024",
+        "tool": "stable",
+        "build_profile": "debug ordinary bootstrap, excluded from any future performance timing"
+      }
+    },
+    "stable-candidate": {
+      "status": "passed",
+      "source": {
+        "commit": "5fe226b015a2c2bc667db976390b8337db6e9a2e",
+        "capsule_sha256": "139b0dfc6fb09e233ad4dec0133f21860c8bad56bf91b55487a8d9988b275339",
+        "tracked_source_files": 1027,
+        "test_overlay_sha256": "4e25e98c754a2b068163f524c132f229bfccf7a6ba99e736848dabda72b5ed52"
+      },
+      "gates": {
+        "tool_identity": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-candidate-tool_identity",
+          "expected_tests": null
+        },
+        "hex_unit": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-candidate-hex_unit",
+          "expected_tests": 1
+        },
+        "byte_unit": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-candidate-byte_unit",
+          "expected_tests": 1
+        },
+        "consumer_suite": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-candidate-consumer_suite",
+          "expected_tests": 7
+        },
+        "shipping_clippy": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-candidate-shipping_clippy",
+          "expected_tests": null
+        },
+        "consumer_clippy": {
+          "status": "passed",
+          "profiles": {
+            "runtime": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-candidate-clippy-runtime"
+            },
+            "flat-with-helper": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-candidate-clippy-flat-with-helper"
+            },
+            "no-reflect": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-candidate-clippy-no-reflect"
+            },
+            "single-flat": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-candidate-clippy-single-flat"
+            },
+            "root-message-default": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-candidate-clippy-root-message-default"
+            },
+            "root-enum-default": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-candidate-clippy-root-enum-default"
+            },
+            "root-nested-default": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-candidate-clippy-root-nested-default"
+            }
+          }
+        },
+        "harness_contracts": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-candidate-harness_contracts",
+          "expected_tests": null
+        },
+        "compiled_generator": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-candidate-compiled_generator",
+          "expected_tests": null
+        },
+        "archive_and_retirement": {
+          "status": "passed",
+          "retired_scopes": [
+            "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target/gn03-byte-string-correctness",
+            "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target/gn03-tests",
+            "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target/integration-consumers"
+          ],
+          "archive": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/retained/stable-candidate/fixtures-fingerprints-executables.tar.gz",
+          "archive_sha256": "ca1d646d6ccc5b70ac9c44a61e66ae604e90a34b99d4db1e3650123ea240a72f",
+          "all_target_file_count": 591,
+          "retained_payload_count": 411,
+          "fingerprints": "all fingerprint file contents retained; other non-ELF compiler cache files are hash inventory only",
+          "before": {
+            "observed_at_utc": "2026-10-03T05:45:17.260238+00:00",
+            "owned_target_roots": [
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+            ],
+            "allocated_unique_inode_bytes": 111292416,
+            "apparent_path_sum_bytes": 126834166,
+            "path_count": 737,
+            "global_available_bytes": 5624496128,
+            "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+          },
+          "after": {
+            "observed_at_utc": "2026-10-03T05:45:17.400344+00:00",
+            "owned_target_roots": [
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+            ],
+            "allocated_unique_inode_bytes": 8192,
+            "apparent_path_sum_bytes": 8192,
+            "path_count": 2,
+            "global_available_bytes": 5735780352,
+            "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+          },
+          "retirement_utc": "2026-10-03T05:45:17.407372+00:00",
+          "process_scope_limit": "accessible status/cmdline/exe/cwd/fd links only; mappings, environments and inaccessible process internals are not proved"
+        }
+      },
+      "environment_controls": {
+        "set": {
+          "PATH": {
+            "inherited": "/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+            "applied": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/wrappers/stable-candidate:/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+          },
+          "RUSTC": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc"
+          },
+          "RUSTDOC": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustdoc"
+          },
+          "RUSTUP_TOOLCHAIN": {
+            "inherited": null,
+            "applied": "stable-x86_64-unknown-linux-gnu"
+          },
+          "CARGO_HOME": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/cargo"
+          },
+          "RUSTUP_HOME": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup"
+          },
+          "CARGO_BUILD_JOBS": {
+            "inherited": null,
+            "applied": "1"
+          },
+          "CARGO_INCREMENTAL": {
+            "inherited": null,
+            "applied": "0"
+          },
+          "CARGO_PROFILE_DEV_DEBUG": {
+            "inherited": null,
+            "applied": "0"
+          },
+          "CARGO_PROFILE_TEST_DEBUG": {
+            "inherited": null,
+            "applied": "0"
+          },
+          "CARGO_TARGET_DIR": {
+            "inherited": null,
+            "applied": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target/gn03-byte-string-correctness"
+          },
+          "GN03_ACTUAL_CARGO": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo"
+          },
+          "GN03_CARGO_INVOCATIONS": {
+            "inherited": null,
+            "applied": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/stable-candidate-cargo-invocations.jsonl"
+          }
+        },
+        "removed_empty_or_unset": {
+          "RUSTFLAGS": null,
+          "CARGO_ENCODED_RUSTFLAGS": null,
+          "RUSTDOCFLAGS": null,
+          "RUSTC_WRAPPER": null,
+          "RUSTC_WORKSPACE_WRAPPER": null,
+          "RUSTC_BOOTSTRAP": null
+        },
+        "policy": "nonempty unsupported compiler/profile overrides refuse preflight; explicit common dev/test debug0 and incremental0 match both source variants, not a release/performance profile"
+      },
+      "intentional_consumer_red": {
+        "profile": "flat-missing-registry",
+        "actual_status": "exit status: 101",
+        "expected_missing_helper": true,
+        "raw_logs_retained": true
+      },
+      "consumer_locks": {
+        "runtime": "e0ac9653b2714a6f274964d08a9183e22d1d392d3562534e81ed2595546b9144",
+        "flat-with-helper": "9ee06af12fbef3cbc42c9181e9738d50a1c5473d65544335f38084595b5d58d0",
+        "no-reflect": "beb8ce37cd35b9e4161ab83e08d7ab8ed3bd6e7a9c69b13be28f206fb0f0d508",
+        "single-flat": "83956fabfb28f500be19b640ab773070850d0c2e8d30f114a772ab5a86bab69e",
+        "root-message-default": "28a30fee0f95a6d4ba0067895d0f3f837f6b5d955f61def9dd523ad774047469",
+        "root-enum-default": "33f1a6a1a563c7f88ab649a8cca17bd3850bdaff5ac5354ea63a17d7229e0ce0",
+        "root-nested-default": "0ab9f06e4765516fc1449252d1a86989195a2b64e59e364d17e6375389118ce4"
+      },
+      "consumer_main_sources": {
+        "runtime": "dbb12c8e83dab434c07e9448cc01be59456121b17aa9597f67db357a72c4a0ec",
+        "flat-with-helper": "814ebb4cebc54f5bdef02746b6a0f10c8a121c65f8bb3eba3924fd4a9be3ba98",
+        "no-reflect": "fec59da5a8a26e403ebb36d477fc671a03c758726ff60ff091806e2cfbe4bd1f",
+        "single-flat": "76b4a549ddafe246d3f2058574490e4978cab3b99ec6319aeea4bd0c72f3764e",
+        "root-message-default": "acac494430afb6aeea2603933927698a138e3439d7850c812887969f7afca54c",
+        "root-enum-default": "699b3b73d627347bec2bc1f92d62d967f5683ccdda9719f0dd294f71f1b1c794",
+        "root-nested-default": "daef522759a2d87f4d5fc2e0dde40e0db558dcf1076f156c762a6f3026ffc755"
+      },
+      "consumer_normalized_manifests": {
+        "runtime": "170e9087bf2c36522f3c993867196684f81492fa39f367df71b883ca9a4c0d1f",
+        "flat-with-helper": "8495f8e850ea46b138bb8e61a58400259dc0bd559bb6682105b42c753512f159",
+        "no-reflect": "ed147e7ae1179764c6b01ad4d6f32ee90306c47d70987b8d77f8dca7a7189a53",
+        "single-flat": "dddbfd8ad00fe52e54c73e2ea7701d4fda5fc629c2dd221273b8e712daadecf5",
+        "root-message-default": "17bd6c9024583497741a7bb84b1f1fa448a4d0a9b8dfb087ceadf1e956f5f82c",
+        "root-enum-default": "34907f5ef6c84a6df9d21a8f964a70394b3091cd0a8b7d2c8c67865d8ed17dee",
+        "root-nested-default": "798373d75581a1735f2cab9b6e5e64b01037cfe307fcb399da7ee8d4dd7cd764"
+      },
+      "matched_consumer_fixture_equality": "locks, independent oracle source, and manifests after only absolute runtime-root normalization equal baseline",
+      "generator": {
+        "path": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/generators/candidate-protoc-gen-pbrs",
+        "bytes": 4441072,
+        "sha256": "eb5fcbb47e640fdd21fa80b619755e7182da215f5ccf20bbb954b4ebcccb0ae7",
+        "source_commit": "5fe226b015a2c2bc667db976390b8337db6e9a2e",
+        "tool": "stable",
+        "build_profile": "debug ordinary bootstrap, excluded from any future performance timing"
+      }
+    },
+    "msrv185-baseline": {
+      "status": "passed",
+      "source": {
+        "commit": "4b2384e728bce17601d56e43a887c354d66b9024",
+        "capsule_sha256": "5421f5889bb2fbd80f5b06a8e8a60a074b9883d1f2f142124405aae3a43db1a2",
+        "tracked_source_files": 1027,
+        "test_overlay_sha256": "328ed6b8b5fb1174f89da4ed82e95abad9badd6862fcfaafa18386752722b204"
+      },
+      "gates": {
+        "tool_identity": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/msrv185-baseline-tool_identity",
+          "expected_tests": null
+        },
+        "hex_unit": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/msrv185-baseline-hex_unit",
+          "expected_tests": 1
+        },
+        "byte_unit": {
+          "status": "not_applicable",
+          "reason": "baseline contains no byte-string renderer; old hex unit includes every byte and empty input"
+        },
+        "consumer_suite": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/msrv185-baseline-consumer_suite",
+          "expected_tests": 7
+        },
+        "shipping_clippy": {
+          "status": "not_applicable",
+          "reason": "native1.85 semantic/MSRV stage; strict native1.88 has its own gates"
+        },
+        "consumer_clippy": {
+          "status": "not_applicable",
+          "reason": "native1.85 semantic/MSRV stage; strict native1.88 has its own gates"
+        },
+        "harness_contracts": {
+          "status": "not_applicable",
+          "reason": "unchanged harness checked once in candidate stable stage"
+        },
+        "compiled_generator": {
+          "status": "not_applicable",
+          "reason": "source-matched ordinary copied plugins built in stable stages"
+        },
+        "archive_and_retirement": {
+          "status": "passed",
+          "retired_scopes": [
+            "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target/gn03-byte-string-msrv",
+            "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target/gn03-tests",
+            "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target/integration-consumers"
+          ],
+          "archive": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/retained/msrv185-baseline/fixtures-fingerprints-executables.tar.gz",
+          "archive_sha256": "e2a5f2e7ba6341242dc09e572bb280f8a405268311e9b5a7a2a380c5f3ca9ceb",
+          "all_target_file_count": 399,
+          "retained_payload_count": 287,
+          "fingerprints": "all fingerprint file contents retained; other non-ELF compiler cache files are hash inventory only",
+          "before": {
+            "observed_at_utc": "2026-10-03T05:46:04.149438+00:00",
+            "owned_target_roots": [
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+            ],
+            "allocated_unique_inode_bytes": 93044736,
+            "apparent_path_sum_bytes": 107603210,
+            "path_count": 512,
+            "global_available_bytes": 5223677952,
+            "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+          },
+          "after": {
+            "observed_at_utc": "2026-10-03T05:46:04.261613+00:00",
+            "owned_target_roots": [
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+            ],
+            "allocated_unique_inode_bytes": 12288,
+            "apparent_path_sum_bytes": 12288,
+            "path_count": 3,
+            "global_available_bytes": 5316710400,
+            "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+          },
+          "retirement_utc": "2026-10-03T05:46:04.268643+00:00",
+          "process_scope_limit": "accessible status/cmdline/exe/cwd/fd links only; mappings, environments and inaccessible process internals are not proved"
+        }
+      },
+      "environment_controls": {
+        "set": {
+          "PATH": {
+            "inherited": "/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+            "applied": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/wrappers/msrv185-baseline:/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+          },
+          "RUSTC": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/rustc"
+          },
+          "RUSTDOC": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/rustdoc"
+          },
+          "RUSTUP_TOOLCHAIN": {
+            "inherited": null,
+            "applied": "1.85.0-x86_64-unknown-linux-gnu"
+          },
+          "CARGO_HOME": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/cargo"
+          },
+          "RUSTUP_HOME": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup"
+          },
+          "CARGO_BUILD_JOBS": {
+            "inherited": null,
+            "applied": "1"
+          },
+          "CARGO_INCREMENTAL": {
+            "inherited": null,
+            "applied": "0"
+          },
+          "CARGO_PROFILE_DEV_DEBUG": {
+            "inherited": null,
+            "applied": "0"
+          },
+          "CARGO_PROFILE_TEST_DEBUG": {
+            "inherited": null,
+            "applied": "0"
+          },
+          "CARGO_TARGET_DIR": {
+            "inherited": null,
+            "applied": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target/gn03-byte-string-msrv"
+          },
+          "GN03_ACTUAL_CARGO": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/cargo"
+          },
+          "GN03_CARGO_INVOCATIONS": {
+            "inherited": null,
+            "applied": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/msrv185-baseline-cargo-invocations.jsonl"
+          }
+        },
+        "removed_empty_or_unset": {
+          "RUSTFLAGS": null,
+          "CARGO_ENCODED_RUSTFLAGS": null,
+          "RUSTDOCFLAGS": null,
+          "RUSTC_WRAPPER": null,
+          "RUSTC_WORKSPACE_WRAPPER": null,
+          "RUSTC_BOOTSTRAP": null
+        },
+        "policy": "nonempty unsupported compiler/profile overrides refuse preflight; explicit common dev/test debug0 and incremental0 match both source variants, not a release/performance profile"
+      },
+      "intentional_consumer_red": {
+        "profile": "flat-missing-registry",
+        "actual_status": "exit status: 101",
+        "expected_missing_helper": true,
+        "raw_logs_retained": true
+      },
+      "consumer_locks": {
+        "runtime": "e0ac9653b2714a6f274964d08a9183e22d1d392d3562534e81ed2595546b9144",
+        "flat-with-helper": "9ee06af12fbef3cbc42c9181e9738d50a1c5473d65544335f38084595b5d58d0",
+        "no-reflect": "beb8ce37cd35b9e4161ab83e08d7ab8ed3bd6e7a9c69b13be28f206fb0f0d508",
+        "single-flat": "83956fabfb28f500be19b640ab773070850d0c2e8d30f114a772ab5a86bab69e",
+        "root-message-default": "28a30fee0f95a6d4ba0067895d0f3f837f6b5d955f61def9dd523ad774047469",
+        "root-enum-default": "33f1a6a1a563c7f88ab649a8cca17bd3850bdaff5ac5354ea63a17d7229e0ce0",
+        "root-nested-default": "0ab9f06e4765516fc1449252d1a86989195a2b64e59e364d17e6375389118ce4"
+      },
+      "consumer_main_sources": {
+        "runtime": "dbb12c8e83dab434c07e9448cc01be59456121b17aa9597f67db357a72c4a0ec",
+        "flat-with-helper": "814ebb4cebc54f5bdef02746b6a0f10c8a121c65f8bb3eba3924fd4a9be3ba98",
+        "no-reflect": "fec59da5a8a26e403ebb36d477fc671a03c758726ff60ff091806e2cfbe4bd1f",
+        "single-flat": "76b4a549ddafe246d3f2058574490e4978cab3b99ec6319aeea4bd0c72f3764e",
+        "root-message-default": "acac494430afb6aeea2603933927698a138e3439d7850c812887969f7afca54c",
+        "root-enum-default": "699b3b73d627347bec2bc1f92d62d967f5683ccdda9719f0dd294f71f1b1c794",
+        "root-nested-default": "daef522759a2d87f4d5fc2e0dde40e0db558dcf1076f156c762a6f3026ffc755"
+      },
+      "consumer_normalized_manifests": {
+        "runtime": "170e9087bf2c36522f3c993867196684f81492fa39f367df71b883ca9a4c0d1f",
+        "flat-with-helper": "8495f8e850ea46b138bb8e61a58400259dc0bd559bb6682105b42c753512f159",
+        "no-reflect": "ed147e7ae1179764c6b01ad4d6f32ee90306c47d70987b8d77f8dca7a7189a53",
+        "single-flat": "dddbfd8ad00fe52e54c73e2ea7701d4fda5fc629c2dd221273b8e712daadecf5",
+        "root-message-default": "17bd6c9024583497741a7bb84b1f1fa448a4d0a9b8dfb087ceadf1e956f5f82c",
+        "root-enum-default": "34907f5ef6c84a6df9d21a8f964a70394b3091cd0a8b7d2c8c67865d8ed17dee",
+        "root-nested-default": "798373d75581a1735f2cab9b6e5e64b01037cfe307fcb399da7ee8d4dd7cd764"
+      }
+    },
+    "msrv185-candidate": {
+      "status": "passed",
+      "source": {
+        "commit": "5fe226b015a2c2bc667db976390b8337db6e9a2e",
+        "capsule_sha256": "139b0dfc6fb09e233ad4dec0133f21860c8bad56bf91b55487a8d9988b275339",
+        "tracked_source_files": 1027,
+        "test_overlay_sha256": "4e25e98c754a2b068163f524c132f229bfccf7a6ba99e736848dabda72b5ed52"
+      },
+      "gates": {
+        "tool_identity": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/msrv185-candidate-tool_identity",
+          "expected_tests": null
+        },
+        "hex_unit": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/msrv185-candidate-hex_unit",
+          "expected_tests": 1
+        },
+        "byte_unit": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/msrv185-candidate-byte_unit",
+          "expected_tests": 1
+        },
+        "consumer_suite": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/msrv185-candidate-consumer_suite",
+          "expected_tests": 7
+        },
+        "shipping_clippy": {
+          "status": "not_applicable",
+          "reason": "native1.85 semantic/MSRV stage; strict native1.88 has its own gates"
+        },
+        "consumer_clippy": {
+          "status": "not_applicable",
+          "reason": "native1.85 semantic/MSRV stage; strict native1.88 has its own gates"
+        },
+        "harness_contracts": {
+          "status": "not_applicable",
+          "reason": "unchanged harness checked once in candidate stable stage"
+        },
+        "compiled_generator": {
+          "status": "not_applicable",
+          "reason": "source-matched ordinary copied plugins built in stable stages"
+        },
+        "archive_and_retirement": {
+          "status": "passed",
+          "retired_scopes": [
+            "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target/gn03-byte-string-msrv",
+            "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target/gn03-tests",
+            "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target/integration-consumers"
+          ],
+          "archive": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/retained/msrv185-candidate/fixtures-fingerprints-executables.tar.gz",
+          "archive_sha256": "6342575bebf6e36e7230f747344bb515d88d39d1a6d32664ccbbb307486fd82a",
+          "all_target_file_count": 399,
+          "retained_payload_count": 287,
+          "fingerprints": "all fingerprint file contents retained; other non-ELF compiler cache files are hash inventory only",
+          "before": {
+            "observed_at_utc": "2026-10-03T05:46:35.033057+00:00",
+            "owned_target_roots": [
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+            ],
+            "allocated_unique_inode_bytes": 93081600,
+            "apparent_path_sum_bytes": 107642066,
+            "path_count": 513,
+            "global_available_bytes": 5182488576,
+            "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+          },
+          "after": {
+            "observed_at_utc": "2026-10-03T05:46:35.145580+00:00",
+            "owned_target_roots": [
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+            ],
+            "allocated_unique_inode_bytes": 16384,
+            "apparent_path_sum_bytes": 16384,
+            "path_count": 4,
+            "global_available_bytes": 5275553792,
+            "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+          },
+          "retirement_utc": "2026-10-03T05:46:35.152728+00:00",
+          "process_scope_limit": "accessible status/cmdline/exe/cwd/fd links only; mappings, environments and inaccessible process internals are not proved"
+        }
+      },
+      "environment_controls": {
+        "set": {
+          "PATH": {
+            "inherited": "/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+            "applied": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/wrappers/msrv185-candidate:/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+          },
+          "RUSTC": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/rustc"
+          },
+          "RUSTDOC": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/rustdoc"
+          },
+          "RUSTUP_TOOLCHAIN": {
+            "inherited": null,
+            "applied": "1.85.0-x86_64-unknown-linux-gnu"
+          },
+          "CARGO_HOME": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/cargo"
+          },
+          "RUSTUP_HOME": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup"
+          },
+          "CARGO_BUILD_JOBS": {
+            "inherited": null,
+            "applied": "1"
+          },
+          "CARGO_INCREMENTAL": {
+            "inherited": null,
+            "applied": "0"
+          },
+          "CARGO_PROFILE_DEV_DEBUG": {
+            "inherited": null,
+            "applied": "0"
+          },
+          "CARGO_PROFILE_TEST_DEBUG": {
+            "inherited": null,
+            "applied": "0"
+          },
+          "CARGO_TARGET_DIR": {
+            "inherited": null,
+            "applied": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target/gn03-byte-string-msrv"
+          },
+          "GN03_ACTUAL_CARGO": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/cargo"
+          },
+          "GN03_CARGO_INVOCATIONS": {
+            "inherited": null,
+            "applied": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/msrv185-candidate-cargo-invocations.jsonl"
+          }
+        },
+        "removed_empty_or_unset": {
+          "RUSTFLAGS": null,
+          "CARGO_ENCODED_RUSTFLAGS": null,
+          "RUSTDOCFLAGS": null,
+          "RUSTC_WRAPPER": null,
+          "RUSTC_WORKSPACE_WRAPPER": null,
+          "RUSTC_BOOTSTRAP": null
+        },
+        "policy": "nonempty unsupported compiler/profile overrides refuse preflight; explicit common dev/test debug0 and incremental0 match both source variants, not a release/performance profile"
+      },
+      "intentional_consumer_red": {
+        "profile": "flat-missing-registry",
+        "actual_status": "exit status: 101",
+        "expected_missing_helper": true,
+        "raw_logs_retained": true
+      },
+      "consumer_locks": {
+        "runtime": "e0ac9653b2714a6f274964d08a9183e22d1d392d3562534e81ed2595546b9144",
+        "flat-with-helper": "9ee06af12fbef3cbc42c9181e9738d50a1c5473d65544335f38084595b5d58d0",
+        "no-reflect": "beb8ce37cd35b9e4161ab83e08d7ab8ed3bd6e7a9c69b13be28f206fb0f0d508",
+        "single-flat": "83956fabfb28f500be19b640ab773070850d0c2e8d30f114a772ab5a86bab69e",
+        "root-message-default": "28a30fee0f95a6d4ba0067895d0f3f837f6b5d955f61def9dd523ad774047469",
+        "root-enum-default": "33f1a6a1a563c7f88ab649a8cca17bd3850bdaff5ac5354ea63a17d7229e0ce0",
+        "root-nested-default": "0ab9f06e4765516fc1449252d1a86989195a2b64e59e364d17e6375389118ce4"
+      },
+      "consumer_main_sources": {
+        "runtime": "dbb12c8e83dab434c07e9448cc01be59456121b17aa9597f67db357a72c4a0ec",
+        "flat-with-helper": "814ebb4cebc54f5bdef02746b6a0f10c8a121c65f8bb3eba3924fd4a9be3ba98",
+        "no-reflect": "fec59da5a8a26e403ebb36d477fc671a03c758726ff60ff091806e2cfbe4bd1f",
+        "single-flat": "76b4a549ddafe246d3f2058574490e4978cab3b99ec6319aeea4bd0c72f3764e",
+        "root-message-default": "acac494430afb6aeea2603933927698a138e3439d7850c812887969f7afca54c",
+        "root-enum-default": "699b3b73d627347bec2bc1f92d62d967f5683ccdda9719f0dd294f71f1b1c794",
+        "root-nested-default": "daef522759a2d87f4d5fc2e0dde40e0db558dcf1076f156c762a6f3026ffc755"
+      },
+      "consumer_normalized_manifests": {
+        "runtime": "170e9087bf2c36522f3c993867196684f81492fa39f367df71b883ca9a4c0d1f",
+        "flat-with-helper": "8495f8e850ea46b138bb8e61a58400259dc0bd559bb6682105b42c753512f159",
+        "no-reflect": "ed147e7ae1179764c6b01ad4d6f32ee90306c47d70987b8d77f8dca7a7189a53",
+        "single-flat": "dddbfd8ad00fe52e54c73e2ea7701d4fda5fc629c2dd221273b8e712daadecf5",
+        "root-message-default": "17bd6c9024583497741a7bb84b1f1fa448a4d0a9b8dfb087ceadf1e956f5f82c",
+        "root-enum-default": "34907f5ef6c84a6df9d21a8f964a70394b3091cd0a8b7d2c8c67865d8ed17dee",
+        "root-nested-default": "798373d75581a1735f2cab9b6e5e64b01037cfe307fcb399da7ee8d4dd7cd764"
+      },
+      "matched_consumer_fixture_equality": "locks, independent oracle source, and manifests after only absolute runtime-root normalization equal baseline"
+    },
+    "strict188-baseline": {
+      "status": "passed",
+      "source": {
+        "commit": "4b2384e728bce17601d56e43a887c354d66b9024",
+        "capsule_sha256": "5421f5889bb2fbd80f5b06a8e8a60a074b9883d1f2f142124405aae3a43db1a2",
+        "tracked_source_files": 1027,
+        "test_overlay_sha256": "328ed6b8b5fb1174f89da4ed82e95abad9badd6862fcfaafa18386752722b204"
+      },
+      "gates": {
+        "tool_identity": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-baseline-tool_identity",
+          "expected_tests": null
+        },
+        "hex_unit": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-baseline-hex_unit",
+          "expected_tests": 1
+        },
+        "byte_unit": {
+          "status": "not_applicable",
+          "reason": "baseline contains no byte-string renderer; old hex unit includes every byte and empty input"
+        },
+        "consumer_suite": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-baseline-consumer_suite",
+          "expected_tests": 7
+        },
+        "shipping_clippy": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-baseline-shipping_clippy",
+          "expected_tests": null
+        },
+        "consumer_clippy": {
+          "status": "passed",
+          "profiles": {
+            "runtime": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-baseline-clippy-runtime"
+            },
+            "flat-with-helper": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-baseline-clippy-flat-with-helper"
+            },
+            "no-reflect": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-baseline-clippy-no-reflect"
+            },
+            "single-flat": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-baseline-clippy-single-flat"
+            },
+            "root-message-default": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-baseline-clippy-root-message-default"
+            },
+            "root-enum-default": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-baseline-clippy-root-enum-default"
+            },
+            "root-nested-default": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-baseline-clippy-root-nested-default"
+            }
+          }
+        },
+        "harness_contracts": {
+          "status": "not_applicable",
+          "reason": "unchanged harness checked once in candidate stable stage"
+        },
+        "compiled_generator": {
+          "status": "not_applicable",
+          "reason": "source-matched ordinary copied plugins built in stable stages"
+        },
+        "archive_and_retirement": {
+          "status": "passed",
+          "retired_scopes": [
+            "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target/gn03-byte-string-correctness",
+            "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target/gn03-tests",
+            "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target/integration-consumers"
+          ],
+          "archive": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/retained/strict188-baseline/fixtures-fingerprints-executables.tar.gz",
+          "archive_sha256": "125242a52dcca4a3b0852489d261a10a3d2cdf1d68e271a38459022f8d12d89d",
+          "all_target_file_count": 586,
+          "retained_payload_count": 411,
+          "fingerprints": "all fingerprint file contents retained; other non-ELF compiler cache files are hash inventory only",
+          "before": {
+            "observed_at_utc": "2026-10-03T05:47:22.135378+00:00",
+            "owned_target_roots": [
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+            ],
+            "allocated_unique_inode_bytes": 106971136,
+            "apparent_path_sum_bytes": 121250557,
+            "path_count": 735,
+            "global_available_bytes": 5129207808,
+            "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+          },
+          "after": {
+            "observed_at_utc": "2026-10-03T05:47:22.265758+00:00",
+            "owned_target_roots": [
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+            ],
+            "allocated_unique_inode_bytes": 20480,
+            "apparent_path_sum_bytes": 20480,
+            "path_count": 5,
+            "global_available_bytes": 5236158464,
+            "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+          },
+          "retirement_utc": "2026-10-03T05:47:22.272571+00:00",
+          "process_scope_limit": "accessible status/cmdline/exe/cwd/fd links only; mappings, environments and inaccessible process internals are not proved"
+        }
+      },
+      "environment_controls": {
+        "set": {
+          "PATH": {
+            "inherited": "/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+            "applied": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/wrappers/strict188-baseline:/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.88.0-x86_64-unknown-linux-gnu/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+          },
+          "RUSTC": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.88.0-x86_64-unknown-linux-gnu/bin/rustc"
+          },
+          "RUSTDOC": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.88.0-x86_64-unknown-linux-gnu/bin/rustdoc"
+          },
+          "RUSTUP_TOOLCHAIN": {
+            "inherited": null,
+            "applied": "1.88.0-x86_64-unknown-linux-gnu"
+          },
+          "CARGO_HOME": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/cargo"
+          },
+          "RUSTUP_HOME": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup"
+          },
+          "CARGO_BUILD_JOBS": {
+            "inherited": null,
+            "applied": "1"
+          },
+          "CARGO_INCREMENTAL": {
+            "inherited": null,
+            "applied": "0"
+          },
+          "CARGO_PROFILE_DEV_DEBUG": {
+            "inherited": null,
+            "applied": "0"
+          },
+          "CARGO_PROFILE_TEST_DEBUG": {
+            "inherited": null,
+            "applied": "0"
+          },
+          "CARGO_TARGET_DIR": {
+            "inherited": null,
+            "applied": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target/gn03-byte-string-correctness"
+          },
+          "GN03_ACTUAL_CARGO": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.88.0-x86_64-unknown-linux-gnu/bin/cargo"
+          },
+          "GN03_CARGO_INVOCATIONS": {
+            "inherited": null,
+            "applied": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-baseline-cargo-invocations.jsonl"
+          }
+        },
+        "removed_empty_or_unset": {
+          "RUSTFLAGS": null,
+          "CARGO_ENCODED_RUSTFLAGS": null,
+          "RUSTDOCFLAGS": null,
+          "RUSTC_WRAPPER": null,
+          "RUSTC_WORKSPACE_WRAPPER": null,
+          "RUSTC_BOOTSTRAP": null
+        },
+        "policy": "nonempty unsupported compiler/profile overrides refuse preflight; explicit common dev/test debug0 and incremental0 match both source variants, not a release/performance profile"
+      },
+      "intentional_consumer_red": {
+        "profile": "flat-missing-registry",
+        "actual_status": "exit status: 101",
+        "expected_missing_helper": true,
+        "raw_logs_retained": true
+      },
+      "consumer_locks": {
+        "runtime": "e0ac9653b2714a6f274964d08a9183e22d1d392d3562534e81ed2595546b9144",
+        "flat-with-helper": "9ee06af12fbef3cbc42c9181e9738d50a1c5473d65544335f38084595b5d58d0",
+        "no-reflect": "beb8ce37cd35b9e4161ab83e08d7ab8ed3bd6e7a9c69b13be28f206fb0f0d508",
+        "single-flat": "83956fabfb28f500be19b640ab773070850d0c2e8d30f114a772ab5a86bab69e",
+        "root-message-default": "28a30fee0f95a6d4ba0067895d0f3f837f6b5d955f61def9dd523ad774047469",
+        "root-enum-default": "33f1a6a1a563c7f88ab649a8cca17bd3850bdaff5ac5354ea63a17d7229e0ce0",
+        "root-nested-default": "0ab9f06e4765516fc1449252d1a86989195a2b64e59e364d17e6375389118ce4"
+      },
+      "consumer_main_sources": {
+        "runtime": "dbb12c8e83dab434c07e9448cc01be59456121b17aa9597f67db357a72c4a0ec",
+        "flat-with-helper": "814ebb4cebc54f5bdef02746b6a0f10c8a121c65f8bb3eba3924fd4a9be3ba98",
+        "no-reflect": "fec59da5a8a26e403ebb36d477fc671a03c758726ff60ff091806e2cfbe4bd1f",
+        "single-flat": "76b4a549ddafe246d3f2058574490e4978cab3b99ec6319aeea4bd0c72f3764e",
+        "root-message-default": "acac494430afb6aeea2603933927698a138e3439d7850c812887969f7afca54c",
+        "root-enum-default": "699b3b73d627347bec2bc1f92d62d967f5683ccdda9719f0dd294f71f1b1c794",
+        "root-nested-default": "daef522759a2d87f4d5fc2e0dde40e0db558dcf1076f156c762a6f3026ffc755"
+      },
+      "consumer_normalized_manifests": {
+        "runtime": "170e9087bf2c36522f3c993867196684f81492fa39f367df71b883ca9a4c0d1f",
+        "flat-with-helper": "8495f8e850ea46b138bb8e61a58400259dc0bd559bb6682105b42c753512f159",
+        "no-reflect": "ed147e7ae1179764c6b01ad4d6f32ee90306c47d70987b8d77f8dca7a7189a53",
+        "single-flat": "dddbfd8ad00fe52e54c73e2ea7701d4fda5fc629c2dd221273b8e712daadecf5",
+        "root-message-default": "17bd6c9024583497741a7bb84b1f1fa448a4d0a9b8dfb087ceadf1e956f5f82c",
+        "root-enum-default": "34907f5ef6c84a6df9d21a8f964a70394b3091cd0a8b7d2c8c67865d8ed17dee",
+        "root-nested-default": "798373d75581a1735f2cab9b6e5e64b01037cfe307fcb399da7ee8d4dd7cd764"
+      }
+    },
+    "strict188-candidate": {
+      "status": "passed",
+      "source": {
+        "commit": "5fe226b015a2c2bc667db976390b8337db6e9a2e",
+        "capsule_sha256": "139b0dfc6fb09e233ad4dec0133f21860c8bad56bf91b55487a8d9988b275339",
+        "tracked_source_files": 1027,
+        "test_overlay_sha256": "4e25e98c754a2b068163f524c132f229bfccf7a6ba99e736848dabda72b5ed52"
+      },
+      "gates": {
+        "tool_identity": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-candidate-tool_identity",
+          "expected_tests": null
+        },
+        "hex_unit": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-candidate-hex_unit",
+          "expected_tests": 1
+        },
+        "byte_unit": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-candidate-byte_unit",
+          "expected_tests": 1
+        },
+        "consumer_suite": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-candidate-consumer_suite",
+          "expected_tests": 7
+        },
+        "shipping_clippy": {
+          "status": "passed",
+          "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-candidate-shipping_clippy",
+          "expected_tests": null
+        },
+        "consumer_clippy": {
+          "status": "passed",
+          "profiles": {
+            "runtime": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-candidate-clippy-runtime"
+            },
+            "flat-with-helper": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-candidate-clippy-flat-with-helper"
+            },
+            "no-reflect": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-candidate-clippy-no-reflect"
+            },
+            "single-flat": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-candidate-clippy-single-flat"
+            },
+            "root-message-default": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-candidate-clippy-root-message-default"
+            },
+            "root-enum-default": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-candidate-clippy-root-enum-default"
+            },
+            "root-nested-default": {
+              "status": "passed",
+              "phase": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-candidate-clippy-root-nested-default"
+            }
+          }
+        },
+        "harness_contracts": {
+          "status": "not_applicable",
+          "reason": "unchanged harness checked once in candidate stable stage"
+        },
+        "compiled_generator": {
+          "status": "not_applicable",
+          "reason": "source-matched ordinary copied plugins built in stable stages"
+        },
+        "archive_and_retirement": {
+          "status": "passed",
+          "retired_scopes": [
+            "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target/gn03-byte-string-correctness",
+            "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target/gn03-tests",
+            "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target/integration-consumers"
+          ],
+          "archive": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/retained/strict188-candidate/fixtures-fingerprints-executables.tar.gz",
+          "archive_sha256": "056fe7cc5085adbbda390760dc34d1988888d0c7b899c5717cceb44c74952bd1",
+          "all_target_file_count": 586,
+          "retained_payload_count": 411,
+          "fingerprints": "all fingerprint file contents retained; other non-ELF compiler cache files are hash inventory only",
+          "before": {
+            "observed_at_utc": "2026-10-03T05:48:10.358482+00:00",
+            "owned_target_roots": [
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+            ],
+            "allocated_unique_inode_bytes": 107040768,
+            "apparent_path_sum_bytes": 121325250,
+            "path_count": 736,
+            "global_available_bytes": 5089918976,
+            "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+          },
+          "after": {
+            "observed_at_utc": "2026-10-03T05:48:10.492502+00:00",
+            "owned_target_roots": [
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+              "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+            ],
+            "allocated_unique_inode_bytes": 24576,
+            "apparent_path_sum_bytes": 24576,
+            "path_count": 6,
+            "global_available_bytes": 5196935168,
+            "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+          },
+          "retirement_utc": "2026-10-03T05:48:10.499464+00:00",
+          "process_scope_limit": "accessible status/cmdline/exe/cwd/fd links only; mappings, environments and inaccessible process internals are not proved"
+        }
+      },
+      "environment_controls": {
+        "set": {
+          "PATH": {
+            "inherited": "/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+            "applied": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/wrappers/strict188-candidate:/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.88.0-x86_64-unknown-linux-gnu/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+          },
+          "RUSTC": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.88.0-x86_64-unknown-linux-gnu/bin/rustc"
+          },
+          "RUSTDOC": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.88.0-x86_64-unknown-linux-gnu/bin/rustdoc"
+          },
+          "RUSTUP_TOOLCHAIN": {
+            "inherited": null,
+            "applied": "1.88.0-x86_64-unknown-linux-gnu"
+          },
+          "CARGO_HOME": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/cargo"
+          },
+          "RUSTUP_HOME": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup"
+          },
+          "CARGO_BUILD_JOBS": {
+            "inherited": null,
+            "applied": "1"
+          },
+          "CARGO_INCREMENTAL": {
+            "inherited": null,
+            "applied": "0"
+          },
+          "CARGO_PROFILE_DEV_DEBUG": {
+            "inherited": null,
+            "applied": "0"
+          },
+          "CARGO_PROFILE_TEST_DEBUG": {
+            "inherited": null,
+            "applied": "0"
+          },
+          "CARGO_TARGET_DIR": {
+            "inherited": null,
+            "applied": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target/gn03-byte-string-correctness"
+          },
+          "GN03_ACTUAL_CARGO": {
+            "inherited": null,
+            "applied": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/1.88.0-x86_64-unknown-linux-gnu/bin/cargo"
+          },
+          "GN03_CARGO_INVOCATIONS": {
+            "inherited": null,
+            "applied": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/phases/strict188-candidate-cargo-invocations.jsonl"
+          }
+        },
+        "removed_empty_or_unset": {
+          "RUSTFLAGS": null,
+          "CARGO_ENCODED_RUSTFLAGS": null,
+          "RUSTDOCFLAGS": null,
+          "RUSTC_WRAPPER": null,
+          "RUSTC_WORKSPACE_WRAPPER": null,
+          "RUSTC_BOOTSTRAP": null
+        },
+        "policy": "nonempty unsupported compiler/profile overrides refuse preflight; explicit common dev/test debug0 and incremental0 match both source variants, not a release/performance profile"
+      },
+      "intentional_consumer_red": {
+        "profile": "flat-missing-registry",
+        "actual_status": "exit status: 101",
+        "expected_missing_helper": true,
+        "raw_logs_retained": true
+      },
+      "consumer_locks": {
+        "runtime": "e0ac9653b2714a6f274964d08a9183e22d1d392d3562534e81ed2595546b9144",
+        "flat-with-helper": "9ee06af12fbef3cbc42c9181e9738d50a1c5473d65544335f38084595b5d58d0",
+        "no-reflect": "beb8ce37cd35b9e4161ab83e08d7ab8ed3bd6e7a9c69b13be28f206fb0f0d508",
+        "single-flat": "83956fabfb28f500be19b640ab773070850d0c2e8d30f114a772ab5a86bab69e",
+        "root-message-default": "28a30fee0f95a6d4ba0067895d0f3f837f6b5d955f61def9dd523ad774047469",
+        "root-enum-default": "33f1a6a1a563c7f88ab649a8cca17bd3850bdaff5ac5354ea63a17d7229e0ce0",
+        "root-nested-default": "0ab9f06e4765516fc1449252d1a86989195a2b64e59e364d17e6375389118ce4"
+      },
+      "consumer_main_sources": {
+        "runtime": "dbb12c8e83dab434c07e9448cc01be59456121b17aa9597f67db357a72c4a0ec",
+        "flat-with-helper": "814ebb4cebc54f5bdef02746b6a0f10c8a121c65f8bb3eba3924fd4a9be3ba98",
+        "no-reflect": "fec59da5a8a26e403ebb36d477fc671a03c758726ff60ff091806e2cfbe4bd1f",
+        "single-flat": "76b4a549ddafe246d3f2058574490e4978cab3b99ec6319aeea4bd0c72f3764e",
+        "root-message-default": "acac494430afb6aeea2603933927698a138e3439d7850c812887969f7afca54c",
+        "root-enum-default": "699b3b73d627347bec2bc1f92d62d967f5683ccdda9719f0dd294f71f1b1c794",
+        "root-nested-default": "daef522759a2d87f4d5fc2e0dde40e0db558dcf1076f156c762a6f3026ffc755"
+      },
+      "consumer_normalized_manifests": {
+        "runtime": "170e9087bf2c36522f3c993867196684f81492fa39f367df71b883ca9a4c0d1f",
+        "flat-with-helper": "8495f8e850ea46b138bb8e61a58400259dc0bd559bb6682105b42c753512f159",
+        "no-reflect": "ed147e7ae1179764c6b01ad4d6f32ee90306c47d70987b8d77f8dca7a7189a53",
+        "single-flat": "dddbfd8ad00fe52e54c73e2ea7701d4fda5fc629c2dd221273b8e712daadecf5",
+        "root-message-default": "17bd6c9024583497741a7bb84b1f1fa448a4d0a9b8dfb087ceadf1e956f5f82c",
+        "root-enum-default": "34907f5ef6c84a6df9d21a8f964a70394b3091cd0a8b7d2c8c67865d8ed17dee",
+        "root-nested-default": "798373d75581a1735f2cab9b6e5e64b01037cfe307fcb399da7ee8d4dd7cd764"
+      },
+      "matched_consumer_fixture_equality": "locks, independent oracle source, and manifests after only absolute runtime-root normalization equal baseline"
+    }
+  },
+  "default30": {
+    "status": "passed",
+    "cases": {
+      "small": {
+        "status": "passed",
+        "default_files": 3,
+        "fds_sha256": "d892f8fcd283c3083c60308c2a834c485c9de358f2374278e58d4759099c6b21",
+        "owner_counts": {
+          "archived-default": {
+            "array": 2,
+            "byte-string": 0
+          },
+          "baseline-default": {
+            "array": 2,
+            "byte-string": 0
+          },
+          "candidate-default": {
+            "array": 2,
+            "byte-string": 0
+          },
+          "baseline-shared": {
+            "array": 1,
+            "byte-string": 0
+          },
+          "candidate-shared": {
+            "array": 0,
+            "byte-string": 1
+          }
+        },
+        "files": {
+          "archived-default": {
+            "mod.rs": {
+              "bytes": 140,
+              "sha256": "c02e2f6e8055908a7745df696d223b7652d6a44bed1c4ab72a6bac139075a3b6"
+            },
+            "part_00.rs": {
+              "bytes": 66590,
+              "sha256": "9782b33f221b56e4fd9fa6c4402b610ed5943d64860952a2fd6076b6d9cb127d"
+            },
+            "part_01.rs": {
+              "bytes": 69091,
+              "sha256": "a5c8baca35ec9c18bcfe6ceef7a8fc2249186db5a3d05dde5ae0cfac2fdad3ba"
+            }
+          },
+          "baseline-default": {
+            "mod.rs": {
+              "bytes": 140,
+              "sha256": "c02e2f6e8055908a7745df696d223b7652d6a44bed1c4ab72a6bac139075a3b6"
+            },
+            "part_00.rs": {
+              "bytes": 66590,
+              "sha256": "9782b33f221b56e4fd9fa6c4402b610ed5943d64860952a2fd6076b6d9cb127d"
+            },
+            "part_01.rs": {
+              "bytes": 69091,
+              "sha256": "a5c8baca35ec9c18bcfe6ceef7a8fc2249186db5a3d05dde5ae0cfac2fdad3ba"
+            }
+          },
+          "candidate-default": {
+            "mod.rs": {
+              "bytes": 140,
+              "sha256": "c02e2f6e8055908a7745df696d223b7652d6a44bed1c4ab72a6bac139075a3b6"
+            },
+            "part_00.rs": {
+              "bytes": 66590,
+              "sha256": "9782b33f221b56e4fd9fa6c4402b610ed5943d64860952a2fd6076b6d9cb127d"
+            },
+            "part_01.rs": {
+              "bytes": 69091,
+              "sha256": "a5c8baca35ec9c18bcfe6ceef7a8fc2249186db5a3d05dde5ae0cfac2fdad3ba"
+            }
+          },
+          "baseline-shared": {
+            "__pbrs_shared_descriptors.rs": {
+              "bytes": 7099,
+              "sha256": "2a38ca192eb7156536700f00f6a3c2a3e3e0d21688dd056fdf5a1fd19ba47691"
+            },
+            "mod.rs": {
+              "bytes": 216,
+              "sha256": "8d9b5cdb16bdc914aa73701312915941c65d341d03d20ee1dd99482b23766a42"
+            },
+            "part_00.rs": {
+              "bytes": 59835,
+              "sha256": "f9b3d4a008a05992893b80a528670ee7af22c65fb7a71370bbfd67e508dd2cf5"
+            },
+            "part_01.rs": {
+              "bytes": 62336,
+              "sha256": "5358202aa3d09340bf36b826486d71fcde724613d67f17667a6239d54d34a45e"
+            }
+          },
+          "candidate-shared": {
+            "__pbrs_shared_descriptors.rs": {
+              "bytes": 5490,
+              "sha256": "73a43be6d1eabf3729b3567d9e58eec74b7353937283637a2a730fe89a18fdb3"
+            },
+            "mod.rs": {
+              "bytes": 216,
+              "sha256": "8d9b5cdb16bdc914aa73701312915941c65d341d03d20ee1dd99482b23766a42"
+            },
+            "part_00.rs": {
+              "bytes": 59835,
+              "sha256": "f9b3d4a008a05992893b80a528670ee7af22c65fb7a71370bbfd67e508dd2cf5"
+            },
+            "part_01.rs": {
+              "bytes": 62336,
+              "sha256": "5358202aa3d09340bf36b826486d71fcde724613d67f17667a6239d54d34a45e"
+            }
+          }
+        }
+      },
+      "100": {
+        "status": "passed",
+        "default_files": 6,
+        "fds_sha256": "fd5d0ab966f3729585f34be7490c0d84677ebae0202b39333012decb1cbc6f16",
+        "owner_counts": {
+          "archived-default": {
+            "array": 5,
+            "byte-string": 0
+          },
+          "baseline-default": {
+            "array": 5,
+            "byte-string": 0
+          },
+          "candidate-default": {
+            "array": 5,
+            "byte-string": 0
+          },
+          "baseline-shared": {
+            "array": 1,
+            "byte-string": 0
+          },
+          "candidate-shared": {
+            "array": 0,
+            "byte-string": 1
+          }
+        },
+        "files": {
+          "archived-default": {
+            "mod.rs": {
+              "bytes": 236,
+              "sha256": "171be21c107e9e673346338d684087d3865d32a79c119481834cf208a791270f"
+            },
+            "part_00.rs": {
+              "bytes": 447680,
+              "sha256": "658749647ee58d735968133bf907958cb7e0df8fc54ed22d25395cf8344df54e"
+            },
+            "part_01.rs": {
+              "bytes": 470162,
+              "sha256": "ab6cca708b8d4ea9084dcf0d5288f9679abc0d121d07a849c45530a92a86942e"
+            },
+            "part_02.rs": {
+              "bytes": 469294,
+              "sha256": "9be7d1ae76159114a8e1d84684d35ccb674c5ad783a5e07e4c5bfec8a7288cdd"
+            },
+            "part_03.rs": {
+              "bytes": 466909,
+              "sha256": "ddb17096f38a6bf65db20ff6479971a44e86b8e8974407145394f7e88625e91c"
+            },
+            "part_04.rs": {
+              "bytes": 459180,
+              "sha256": "61aceedb38c648e5b2e1d0cc488cf4d338a3d40508f998d24b208d16a030bfa8"
+            }
+          },
+          "baseline-default": {
+            "mod.rs": {
+              "bytes": 236,
+              "sha256": "171be21c107e9e673346338d684087d3865d32a79c119481834cf208a791270f"
+            },
+            "part_00.rs": {
+              "bytes": 447680,
+              "sha256": "658749647ee58d735968133bf907958cb7e0df8fc54ed22d25395cf8344df54e"
+            },
+            "part_01.rs": {
+              "bytes": 470162,
+              "sha256": "ab6cca708b8d4ea9084dcf0d5288f9679abc0d121d07a849c45530a92a86942e"
+            },
+            "part_02.rs": {
+              "bytes": 469294,
+              "sha256": "9be7d1ae76159114a8e1d84684d35ccb674c5ad783a5e07e4c5bfec8a7288cdd"
+            },
+            "part_03.rs": {
+              "bytes": 466909,
+              "sha256": "ddb17096f38a6bf65db20ff6479971a44e86b8e8974407145394f7e88625e91c"
+            },
+            "part_04.rs": {
+              "bytes": 459180,
+              "sha256": "61aceedb38c648e5b2e1d0cc488cf4d338a3d40508f998d24b208d16a030bfa8"
+            }
+          },
+          "candidate-default": {
+            "mod.rs": {
+              "bytes": 236,
+              "sha256": "171be21c107e9e673346338d684087d3865d32a79c119481834cf208a791270f"
+            },
+            "part_00.rs": {
+              "bytes": 447680,
+              "sha256": "658749647ee58d735968133bf907958cb7e0df8fc54ed22d25395cf8344df54e"
+            },
+            "part_01.rs": {
+              "bytes": 470162,
+              "sha256": "ab6cca708b8d4ea9084dcf0d5288f9679abc0d121d07a849c45530a92a86942e"
+            },
+            "part_02.rs": {
+              "bytes": 469294,
+              "sha256": "9be7d1ae76159114a8e1d84684d35ccb674c5ad783a5e07e4c5bfec8a7288cdd"
+            },
+            "part_03.rs": {
+              "bytes": 466909,
+              "sha256": "ddb17096f38a6bf65db20ff6479971a44e86b8e8974407145394f7e88625e91c"
+            },
+            "part_04.rs": {
+              "bytes": 459180,
+              "sha256": "61aceedb38c648e5b2e1d0cc488cf4d338a3d40508f998d24b208d16a030bfa8"
+            }
+          },
+          "baseline-shared": {
+            "__pbrs_shared_descriptors.rs": {
+              "bytes": 91944,
+              "sha256": "d3da6418fe0432bb0270889ccb640110f4ce76e24bd8813a8479113663ddaf97"
+            },
+            "mod.rs": {
+              "bytes": 312,
+              "sha256": "11088b66ec6edbf9b22becda67b7a1a470137ff60799544afd47e74d0e488170"
+            },
+            "part_00.rs": {
+              "bytes": 356080,
+              "sha256": "d2e84cf54589e13ee5b6ed6c71a70d6e4bd51a57321b71a25ab49900e86d8607"
+            },
+            "part_01.rs": {
+              "bytes": 378562,
+              "sha256": "457612fdf014b9162d5c4f05e42335a3c1dd1083c436e49d294c5c161c858c13"
+            },
+            "part_02.rs": {
+              "bytes": 377694,
+              "sha256": "14b905394ea931c5b2bcba1f518273cba44259d67ee8f989c9c0a5fb0e8c10f0"
+            },
+            "part_03.rs": {
+              "bytes": 375309,
+              "sha256": "5d697b9bb2804bf5c8793ed6501c1d23c897689428d787543f16445ce3918203"
+            },
+            "part_04.rs": {
+              "bytes": 367580,
+              "sha256": "d0de757d3547a5ba18bf37682a974601a215a98ad503608bad4ff958038a5332"
+            }
+          },
+          "candidate-shared": {
+            "__pbrs_shared_descriptors.rs": {
+              "bytes": 69374,
+              "sha256": "f7ee84098e2a3ebfe15b12ce7961cd5a49a64cd05285738c535cd46261921161"
+            },
+            "mod.rs": {
+              "bytes": 312,
+              "sha256": "11088b66ec6edbf9b22becda67b7a1a470137ff60799544afd47e74d0e488170"
+            },
+            "part_00.rs": {
+              "bytes": 356080,
+              "sha256": "d2e84cf54589e13ee5b6ed6c71a70d6e4bd51a57321b71a25ab49900e86d8607"
+            },
+            "part_01.rs": {
+              "bytes": 378562,
+              "sha256": "457612fdf014b9162d5c4f05e42335a3c1dd1083c436e49d294c5c161c858c13"
+            },
+            "part_02.rs": {
+              "bytes": 377694,
+              "sha256": "14b905394ea931c5b2bcba1f518273cba44259d67ee8f989c9c0a5fb0e8c10f0"
+            },
+            "part_03.rs": {
+              "bytes": 375309,
+              "sha256": "5d697b9bb2804bf5c8793ed6501c1d23c897689428d787543f16445ce3918203"
+            },
+            "part_04.rs": {
+              "bytes": 367580,
+              "sha256": "d0de757d3547a5ba18bf37682a974601a215a98ad503608bad4ff958038a5332"
+            }
+          }
+        }
+      },
+      "1000": {
+        "status": "passed",
+        "default_files": 21,
+        "fds_sha256": "cb2d308fd5c8e7769964f8656da25f32d0635ff4281e9a0f2e558367596e1fa0",
+        "owner_counts": {
+          "archived-default": {
+            "array": 20,
+            "byte-string": 0
+          },
+          "baseline-default": {
+            "array": 20,
+            "byte-string": 0
+          },
+          "candidate-default": {
+            "array": 20,
+            "byte-string": 0
+          },
+          "baseline-shared": {
+            "array": 1,
+            "byte-string": 0
+          },
+          "candidate-shared": {
+            "array": 0,
+            "byte-string": 1
+          }
+        },
+        "files": {
+          "archived-default": {
+            "mod.rs": {
+              "bytes": 716,
+              "sha256": "93517948fe01b32819e84ac49404f090301893b04f7a8b979e394f4bfc507138"
+            },
+            "part_00.rs": {
+              "bytes": 1778167,
+              "sha256": "7bf1f991ebd3ea24f09c487199c96f39fafac5f735e201cea6cfb81f7aa4e0f2"
+            },
+            "part_01.rs": {
+              "bytes": 1801086,
+              "sha256": "30592a928fefc0fc0f8308bb1aea358f25358acac9c09753c476f63c0d7b07bd"
+            },
+            "part_02.rs": {
+              "bytes": 1788827,
+              "sha256": "b5953e914a28619c083428ce36890567bf035459a359c282e34569b91c860e0d"
+            },
+            "part_03.rs": {
+              "bytes": 1766692,
+              "sha256": "6466f247f0eb698dcf58356cb2c7fdf498b60c82ec15ef6c9156c6bd82295c27"
+            },
+            "part_04.rs": {
+              "bytes": 1769330,
+              "sha256": "5fb11a72dcbfbe059299f537060839bcdebac891e905e910c3ac4ffc6a113b30"
+            },
+            "part_05.rs": {
+              "bytes": 1788729,
+              "sha256": "786082ed84fbbb89f9d420b6c7743c1ee20bc43e6f2cb0a6bbe4dfe90026c500"
+            },
+            "part_06.rs": {
+              "bytes": 1771597,
+              "sha256": "186b96583ee453221e56249aad7585acbf332dda9c5bcad4bdb44c421901b0f1"
+            },
+            "part_07.rs": {
+              "bytes": 1753326,
+              "sha256": "62bb1a18c5b148c478897537518091d850d80dc68eda99a5f63ef8e7a28a9c71"
+            },
+            "part_08.rs": {
+              "bytes": 1787634,
+              "sha256": "45b0dcd52f415514ea54dd601a1c552d2eddd1e371e298e131c0814a4e844ab7"
+            },
+            "part_09.rs": {
+              "bytes": 1799607,
+              "sha256": "25ead3edaf2c27649f80a93f7e5d139c29af09c82b6f5011603c4aa2deae0eab"
+            },
+            "part_10.rs": {
+              "bytes": 1806143,
+              "sha256": "0e12b17fb35bfc20f8644cfa2cd58ed8b106dac03561bade406d53b787c43e92"
+            },
+            "part_11.rs": {
+              "bytes": 1794077,
+              "sha256": "e9001afaa9eef1aae931b9e28131148e5c98dbd1f7dd8ce9439f818c6d285469"
+            },
+            "part_12.rs": {
+              "bytes": 1800055,
+              "sha256": "2b7a79bf313ad34954353da350698d0049cde99d7b1a345a5f1e090f9427582f"
+            },
+            "part_13.rs": {
+              "bytes": 1806368,
+              "sha256": "54a8574aa25fe63ac98ef9e61c317ed72bf6e6e2e891d3bf64f96b8fdb5023d7"
+            },
+            "part_14.rs": {
+              "bytes": 1795670,
+              "sha256": "14d0f8086d881b3c99aa1c1c217b725847955bf5757dcb5c0ef8982a24a31400"
+            },
+            "part_15.rs": {
+              "bytes": 1775065,
+              "sha256": "2d1e0aeb69aeffd59493aea200d3f83f8d541d26de77cc27b9ea7061259d022e"
+            },
+            "part_16.rs": {
+              "bytes": 1814686,
+              "sha256": "b2b72cc4db592bcad58fb5964a5bf7d52ba6ee8ac0d5d3b678b929e7f5fd020c"
+            },
+            "part_17.rs": {
+              "bytes": 1783528,
+              "sha256": "c238d2b4c14124b5b0fe8ed4244e7d881ec12919959e312358fde9581365ab4d"
+            },
+            "part_18.rs": {
+              "bytes": 1788377,
+              "sha256": "c8070c99239247a966462db165c35ae638f130ea91e0eb9dde358a782fe53eba"
+            },
+            "part_19.rs": {
+              "bytes": 1813028,
+              "sha256": "bf6163c7ebbd911b44d53ca631d81e34304ce75da8358209df1eba432221a8a0"
+            }
+          },
+          "baseline-default": {
+            "mod.rs": {
+              "bytes": 716,
+              "sha256": "93517948fe01b32819e84ac49404f090301893b04f7a8b979e394f4bfc507138"
+            },
+            "part_00.rs": {
+              "bytes": 1778167,
+              "sha256": "7bf1f991ebd3ea24f09c487199c96f39fafac5f735e201cea6cfb81f7aa4e0f2"
+            },
+            "part_01.rs": {
+              "bytes": 1801086,
+              "sha256": "30592a928fefc0fc0f8308bb1aea358f25358acac9c09753c476f63c0d7b07bd"
+            },
+            "part_02.rs": {
+              "bytes": 1788827,
+              "sha256": "b5953e914a28619c083428ce36890567bf035459a359c282e34569b91c860e0d"
+            },
+            "part_03.rs": {
+              "bytes": 1766692,
+              "sha256": "6466f247f0eb698dcf58356cb2c7fdf498b60c82ec15ef6c9156c6bd82295c27"
+            },
+            "part_04.rs": {
+              "bytes": 1769330,
+              "sha256": "5fb11a72dcbfbe059299f537060839bcdebac891e905e910c3ac4ffc6a113b30"
+            },
+            "part_05.rs": {
+              "bytes": 1788729,
+              "sha256": "786082ed84fbbb89f9d420b6c7743c1ee20bc43e6f2cb0a6bbe4dfe90026c500"
+            },
+            "part_06.rs": {
+              "bytes": 1771597,
+              "sha256": "186b96583ee453221e56249aad7585acbf332dda9c5bcad4bdb44c421901b0f1"
+            },
+            "part_07.rs": {
+              "bytes": 1753326,
+              "sha256": "62bb1a18c5b148c478897537518091d850d80dc68eda99a5f63ef8e7a28a9c71"
+            },
+            "part_08.rs": {
+              "bytes": 1787634,
+              "sha256": "45b0dcd52f415514ea54dd601a1c552d2eddd1e371e298e131c0814a4e844ab7"
+            },
+            "part_09.rs": {
+              "bytes": 1799607,
+              "sha256": "25ead3edaf2c27649f80a93f7e5d139c29af09c82b6f5011603c4aa2deae0eab"
+            },
+            "part_10.rs": {
+              "bytes": 1806143,
+              "sha256": "0e12b17fb35bfc20f8644cfa2cd58ed8b106dac03561bade406d53b787c43e92"
+            },
+            "part_11.rs": {
+              "bytes": 1794077,
+              "sha256": "e9001afaa9eef1aae931b9e28131148e5c98dbd1f7dd8ce9439f818c6d285469"
+            },
+            "part_12.rs": {
+              "bytes": 1800055,
+              "sha256": "2b7a79bf313ad34954353da350698d0049cde99d7b1a345a5f1e090f9427582f"
+            },
+            "part_13.rs": {
+              "bytes": 1806368,
+              "sha256": "54a8574aa25fe63ac98ef9e61c317ed72bf6e6e2e891d3bf64f96b8fdb5023d7"
+            },
+            "part_14.rs": {
+              "bytes": 1795670,
+              "sha256": "14d0f8086d881b3c99aa1c1c217b725847955bf5757dcb5c0ef8982a24a31400"
+            },
+            "part_15.rs": {
+              "bytes": 1775065,
+              "sha256": "2d1e0aeb69aeffd59493aea200d3f83f8d541d26de77cc27b9ea7061259d022e"
+            },
+            "part_16.rs": {
+              "bytes": 1814686,
+              "sha256": "b2b72cc4db592bcad58fb5964a5bf7d52ba6ee8ac0d5d3b678b929e7f5fd020c"
+            },
+            "part_17.rs": {
+              "bytes": 1783528,
+              "sha256": "c238d2b4c14124b5b0fe8ed4244e7d881ec12919959e312358fde9581365ab4d"
+            },
+            "part_18.rs": {
+              "bytes": 1788377,
+              "sha256": "c8070c99239247a966462db165c35ae638f130ea91e0eb9dde358a782fe53eba"
+            },
+            "part_19.rs": {
+              "bytes": 1813028,
+              "sha256": "bf6163c7ebbd911b44d53ca631d81e34304ce75da8358209df1eba432221a8a0"
+            }
+          },
+          "candidate-default": {
+            "mod.rs": {
+              "bytes": 716,
+              "sha256": "93517948fe01b32819e84ac49404f090301893b04f7a8b979e394f4bfc507138"
+            },
+            "part_00.rs": {
+              "bytes": 1778167,
+              "sha256": "7bf1f991ebd3ea24f09c487199c96f39fafac5f735e201cea6cfb81f7aa4e0f2"
+            },
+            "part_01.rs": {
+              "bytes": 1801086,
+              "sha256": "30592a928fefc0fc0f8308bb1aea358f25358acac9c09753c476f63c0d7b07bd"
+            },
+            "part_02.rs": {
+              "bytes": 1788827,
+              "sha256": "b5953e914a28619c083428ce36890567bf035459a359c282e34569b91c860e0d"
+            },
+            "part_03.rs": {
+              "bytes": 1766692,
+              "sha256": "6466f247f0eb698dcf58356cb2c7fdf498b60c82ec15ef6c9156c6bd82295c27"
+            },
+            "part_04.rs": {
+              "bytes": 1769330,
+              "sha256": "5fb11a72dcbfbe059299f537060839bcdebac891e905e910c3ac4ffc6a113b30"
+            },
+            "part_05.rs": {
+              "bytes": 1788729,
+              "sha256": "786082ed84fbbb89f9d420b6c7743c1ee20bc43e6f2cb0a6bbe4dfe90026c500"
+            },
+            "part_06.rs": {
+              "bytes": 1771597,
+              "sha256": "186b96583ee453221e56249aad7585acbf332dda9c5bcad4bdb44c421901b0f1"
+            },
+            "part_07.rs": {
+              "bytes": 1753326,
+              "sha256": "62bb1a18c5b148c478897537518091d850d80dc68eda99a5f63ef8e7a28a9c71"
+            },
+            "part_08.rs": {
+              "bytes": 1787634,
+              "sha256": "45b0dcd52f415514ea54dd601a1c552d2eddd1e371e298e131c0814a4e844ab7"
+            },
+            "part_09.rs": {
+              "bytes": 1799607,
+              "sha256": "25ead3edaf2c27649f80a93f7e5d139c29af09c82b6f5011603c4aa2deae0eab"
+            },
+            "part_10.rs": {
+              "bytes": 1806143,
+              "sha256": "0e12b17fb35bfc20f8644cfa2cd58ed8b106dac03561bade406d53b787c43e92"
+            },
+            "part_11.rs": {
+              "bytes": 1794077,
+              "sha256": "e9001afaa9eef1aae931b9e28131148e5c98dbd1f7dd8ce9439f818c6d285469"
+            },
+            "part_12.rs": {
+              "bytes": 1800055,
+              "sha256": "2b7a79bf313ad34954353da350698d0049cde99d7b1a345a5f1e090f9427582f"
+            },
+            "part_13.rs": {
+              "bytes": 1806368,
+              "sha256": "54a8574aa25fe63ac98ef9e61c317ed72bf6e6e2e891d3bf64f96b8fdb5023d7"
+            },
+            "part_14.rs": {
+              "bytes": 1795670,
+              "sha256": "14d0f8086d881b3c99aa1c1c217b725847955bf5757dcb5c0ef8982a24a31400"
+            },
+            "part_15.rs": {
+              "bytes": 1775065,
+              "sha256": "2d1e0aeb69aeffd59493aea200d3f83f8d541d26de77cc27b9ea7061259d022e"
+            },
+            "part_16.rs": {
+              "bytes": 1814686,
+              "sha256": "b2b72cc4db592bcad58fb5964a5bf7d52ba6ee8ac0d5d3b678b929e7f5fd020c"
+            },
+            "part_17.rs": {
+              "bytes": 1783528,
+              "sha256": "c238d2b4c14124b5b0fe8ed4244e7d881ec12919959e312358fde9581365ab4d"
+            },
+            "part_18.rs": {
+              "bytes": 1788377,
+              "sha256": "c8070c99239247a966462db165c35ae638f130ea91e0eb9dde358a782fe53eba"
+            },
+            "part_19.rs": {
+              "bytes": 1813028,
+              "sha256": "bf6163c7ebbd911b44d53ca631d81e34304ce75da8358209df1eba432221a8a0"
+            }
+          },
+          "baseline-shared": {
+            "__pbrs_shared_descriptors.rs": {
+              "bytes": 867329,
+              "sha256": "914cf33a273077ab6aad7ae8fee6c22bebd94318bedca49aa6779b2d4e3a320d"
+            },
+            "mod.rs": {
+              "bytes": 792,
+              "sha256": "09c818f65aceeb9f776d0c82f323ad2dfcbcb1f3c85a85cf507cb393c26f674f"
+            },
+            "part_00.rs": {
+              "bytes": 911182,
+              "sha256": "1b9235a80cc1322081bdd624255609c2a373bc5bb352c47e354f4c1b1db90849"
+            },
+            "part_01.rs": {
+              "bytes": 934101,
+              "sha256": "25a275430d9ec9b999af388fab24a785994efd0edb4add0b522d420b16b5edc0"
+            },
+            "part_02.rs": {
+              "bytes": 921842,
+              "sha256": "a9ed3b3b373d129328fea9dfdd8a45fae02a1892604f7df1d363d222f2a4e1ce"
+            },
+            "part_03.rs": {
+              "bytes": 899707,
+              "sha256": "f4293f18fe28e25f34e5a3ba6ed35c7e1c1a20aa1e96b94a3429c03c5b995e17"
+            },
+            "part_04.rs": {
+              "bytes": 902345,
+              "sha256": "45f337f43dbad00743107da4d35bbcf21622f37dd9680129b79ec705688f659c"
+            },
+            "part_05.rs": {
+              "bytes": 921744,
+              "sha256": "6eb5a18ac8b9c52ec2cc21e5f9fceb9de89031302c5dd1c59f61bdc41441bfb4"
+            },
+            "part_06.rs": {
+              "bytes": 904612,
+              "sha256": "afba215eac296669bc167bdf87cd7f72d385da6c13c2782771d84374e168168c"
+            },
+            "part_07.rs": {
+              "bytes": 886341,
+              "sha256": "7b8597ed8ed3767b9362c5e514746e89f67c38e4f653d756c0fde920135e1187"
+            },
+            "part_08.rs": {
+              "bytes": 920649,
+              "sha256": "79e76df5150ac7bc1c02744734fad657848b561833aedb9db569df0d3ef38c23"
+            },
+            "part_09.rs": {
+              "bytes": 932622,
+              "sha256": "b76fc8eb9b80775d521e6eb36780dffb8ff4026b8247f7f79ff7ec873744b90c"
+            },
+            "part_10.rs": {
+              "bytes": 939158,
+              "sha256": "1abcbe3adbc0c4e39dd6226c9f8df29fad7b7772f4efefb4980ed709f2484991"
+            },
+            "part_11.rs": {
+              "bytes": 927092,
+              "sha256": "542379a3aaa61d1a38d1564991e7ccfe7c0514b7d3f7c44f36b8a663e5f58846"
+            },
+            "part_12.rs": {
+              "bytes": 933070,
+              "sha256": "9b0a5b52b5f327e26a4e6ca217458484a01dcd88f1f70518ab34720f173aedd6"
+            },
+            "part_13.rs": {
+              "bytes": 939383,
+              "sha256": "050e599074e20e2636b6461e3504965c640e8c722559fc41edbba059f82ccff0"
+            },
+            "part_14.rs": {
+              "bytes": 928685,
+              "sha256": "3678eeffa8d8f9716b102a4c77d6af51bfd76e9dd13a87d8b4a9a4e019b9a2ac"
+            },
+            "part_15.rs": {
+              "bytes": 908080,
+              "sha256": "c85959b3d82edb11818e9861fd0631c8e99d66d12565d55f9620339bb40b5142"
+            },
+            "part_16.rs": {
+              "bytes": 947701,
+              "sha256": "fc387fed6a125fa4060ae2b6ce9191aaf45abbb52dd6e65306b63482f0d77950"
+            },
+            "part_17.rs": {
+              "bytes": 916543,
+              "sha256": "f72d7aa3a104fa54e7d4ca166eac94261f25c5cbaa3dbbce897c9c0a446d78ce"
+            },
+            "part_18.rs": {
+              "bytes": 921392,
+              "sha256": "2c9108377ac0bdc306b11327accd3ea276c3ddd21d3dd5f947d3e39706c74110"
+            },
+            "part_19.rs": {
+              "bytes": 946043,
+              "sha256": "fcadf7525f0419c564509a5be6c59b4003e5df355ca193bf9d1ccb614f2f46bc"
+            }
+          },
+          "candidate-shared": {
+            "__pbrs_shared_descriptors.rs": {
+              "bytes": 653194,
+              "sha256": "020a180a5581945cc17bd66ed1f81af2595bfad8f04eb1575d43858ae8af15fe"
+            },
+            "mod.rs": {
+              "bytes": 792,
+              "sha256": "09c818f65aceeb9f776d0c82f323ad2dfcbcb1f3c85a85cf507cb393c26f674f"
+            },
+            "part_00.rs": {
+              "bytes": 911182,
+              "sha256": "1b9235a80cc1322081bdd624255609c2a373bc5bb352c47e354f4c1b1db90849"
+            },
+            "part_01.rs": {
+              "bytes": 934101,
+              "sha256": "25a275430d9ec9b999af388fab24a785994efd0edb4add0b522d420b16b5edc0"
+            },
+            "part_02.rs": {
+              "bytes": 921842,
+              "sha256": "a9ed3b3b373d129328fea9dfdd8a45fae02a1892604f7df1d363d222f2a4e1ce"
+            },
+            "part_03.rs": {
+              "bytes": 899707,
+              "sha256": "f4293f18fe28e25f34e5a3ba6ed35c7e1c1a20aa1e96b94a3429c03c5b995e17"
+            },
+            "part_04.rs": {
+              "bytes": 902345,
+              "sha256": "45f337f43dbad00743107da4d35bbcf21622f37dd9680129b79ec705688f659c"
+            },
+            "part_05.rs": {
+              "bytes": 921744,
+              "sha256": "6eb5a18ac8b9c52ec2cc21e5f9fceb9de89031302c5dd1c59f61bdc41441bfb4"
+            },
+            "part_06.rs": {
+              "bytes": 904612,
+              "sha256": "afba215eac296669bc167bdf87cd7f72d385da6c13c2782771d84374e168168c"
+            },
+            "part_07.rs": {
+              "bytes": 886341,
+              "sha256": "7b8597ed8ed3767b9362c5e514746e89f67c38e4f653d756c0fde920135e1187"
+            },
+            "part_08.rs": {
+              "bytes": 920649,
+              "sha256": "79e76df5150ac7bc1c02744734fad657848b561833aedb9db569df0d3ef38c23"
+            },
+            "part_09.rs": {
+              "bytes": 932622,
+              "sha256": "b76fc8eb9b80775d521e6eb36780dffb8ff4026b8247f7f79ff7ec873744b90c"
+            },
+            "part_10.rs": {
+              "bytes": 939158,
+              "sha256": "1abcbe3adbc0c4e39dd6226c9f8df29fad7b7772f4efefb4980ed709f2484991"
+            },
+            "part_11.rs": {
+              "bytes": 927092,
+              "sha256": "542379a3aaa61d1a38d1564991e7ccfe7c0514b7d3f7c44f36b8a663e5f58846"
+            },
+            "part_12.rs": {
+              "bytes": 933070,
+              "sha256": "9b0a5b52b5f327e26a4e6ca217458484a01dcd88f1f70518ab34720f173aedd6"
+            },
+            "part_13.rs": {
+              "bytes": 939383,
+              "sha256": "050e599074e20e2636b6461e3504965c640e8c722559fc41edbba059f82ccff0"
+            },
+            "part_14.rs": {
+              "bytes": 928685,
+              "sha256": "3678eeffa8d8f9716b102a4c77d6af51bfd76e9dd13a87d8b4a9a4e019b9a2ac"
+            },
+            "part_15.rs": {
+              "bytes": 908080,
+              "sha256": "c85959b3d82edb11818e9861fd0631c8e99d66d12565d55f9620339bb40b5142"
+            },
+            "part_16.rs": {
+              "bytes": 947701,
+              "sha256": "fc387fed6a125fa4060ae2b6ce9191aaf45abbb52dd6e65306b63482f0d77950"
+            },
+            "part_17.rs": {
+              "bytes": 916543,
+              "sha256": "f72d7aa3a104fa54e7d4ca166eac94261f25c5cbaa3dbbce897c9c0a446d78ce"
+            },
+            "part_18.rs": {
+              "bytes": 921392,
+              "sha256": "2c9108377ac0bdc306b11327accd3ea276c3ddd21d3dd5f947d3e39706c74110"
+            },
+            "part_19.rs": {
+              "bytes": 946043,
+              "sha256": "fcadf7525f0419c564509a5be6c59b4003e5df355ca193bf9d1ccb614f2f46bc"
+            }
+          }
+        }
+      }
+    },
+    "archived_plugin": {
+      "path": "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/legacy-inputs/work/baseline-protoc-gen-pbrs",
+      "sha256": "fbf560873fe5844b6e3ba1a46443c30e79bc97db74fd5bfc7cce4465f061fdc5"
+    },
+    "scope": "30 actual seeded default outputs, not308 archive members; generation observations only",
+    "default_generated_file_count": 30
+  },
+  "end_utc": "2026-10-03T05:48:10.502938+00:00",
+  "final_resource": {
+    "observed_at_utc": "2026-10-03T05:48:10.503076+00:00",
+    "owned_target_roots": [
+      "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-baseline/target",
+      "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/stable-candidate/target",
+      "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-baseline/target",
+      "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/msrv185-candidate/target",
+      "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-baseline/target",
+      "/workspace/scratch/work/gn03-byte-string/work/gn03-byte-string-ordinary-campaigns/ordinary-20261003-5fe226b0/snapshots/strict188-candidate/target"
+    ],
+    "allocated_unique_inode_bytes": 24576,
+    "apparent_path_sum_bytes": 24576,
+    "path_count": 6,
+    "global_available_bytes": 5196926976,
+    "accounting_limit": "st_blocks allocated paths, de-duplicated by device/inode; not exclusive overlay backing-store attribution"
+  },
+  "resource_sample_summary": {
+    "samples": 369,
+    "maximum_owned_allocated_bytes": 111292416,
+    "minimum_global_available_bytes": 5099614208,
+    "guard_failure_sample_count": 0,
+    "scope": "raw per-phase sampled ledger only; no continuous cap or between-sample maximum certification"
+  }
+}
