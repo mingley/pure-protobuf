@@ -3,7 +3,7 @@
 #![forbid(unsafe_code)]
 
 use pbrs::runtime::AssociatedMiniTable;
-use pbrs::{AsMut, AsView, ClearAndParse, MergeFrom, Parse, ParseError, RECURSION_LIMIT, Serialize};
+use pbrs::{ClearAndParse, MergeFrom, Parse, ParseError, RECURSION_LIMIT, Serialize};
 use rust_out_shared::map_unittest_rust_proto::MessageContainingEnumCalledType as RecursiveMap;
 use rust_out_shared::unittest_rust_proto::{NestedTestAllTypes as Node, TestRequired, TestRequiredForeign};
 
@@ -127,8 +127,8 @@ fn arena_merge_bytes_no_required_known_depth_100_101() { public_entry(Entry::Mer
 #[test]
 fn arena_shared_parse_has_same_known_depth_budget() {
     assert_linked::<Node>();
-    Node::parse_shared(chain(1, 100, Vec::new()).into()).expect("shared 100 frames");
-    assert!(Node::parse_shared(chain(1, 101, Vec::new()).into()).is_err(),
+    Node::parse_bytes(chain(1, 100, Vec::new()).into()).expect("shared 100 frames");
+    assert!(Node::parse_bytes(chain(1, 101, Vec::new()).into()).is_err(),
             "shared 101 frames must not escape the same kernel budget");
 }
 
