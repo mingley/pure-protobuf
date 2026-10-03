@@ -526,7 +526,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -565,7 +567,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     }
                 }
                 match n {
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -781,12 +783,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -829,9 +835,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -1106,7 +1112,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     123 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -1115,12 +1123,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -1163,15 +1175,15 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     123 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -1416,7 +1428,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -1455,7 +1469,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     }
                 }
                 match n {
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -1683,12 +1697,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -1731,9 +1749,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -2029,7 +2047,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     }
                     continue;
                 }
@@ -2064,7 +2084,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 },
                 3 => match w {
                     pbrs::rt::WIRE_LEN => {
@@ -2099,12 +2121,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 },
                 _ => self
                     .unknown
                     .fields
-                    .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                    .push(pbrs::rt::capture_unknown_with_depth(
+                        data, pos, n, w, depth,
+                    )?),
             }
             Ok(())
         }
@@ -2140,21 +2166,21 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     2 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     3 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -3761,7 +3787,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     2 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -3770,7 +3798,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     3 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -3779,7 +3809,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     4 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -3788,7 +3820,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     5 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -3799,7 +3833,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     6 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -3810,7 +3846,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     7 => match w {
                         pbrs::rt::WIRE_I32 => {
@@ -3819,7 +3857,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     8 => match w {
                         pbrs::rt::WIRE_I64 => {
@@ -3828,7 +3868,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     9 => match w {
                         pbrs::rt::WIRE_I32 => {
@@ -3838,7 +3880,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     10 => match w {
                         pbrs::rt::WIRE_I64 => {
@@ -3848,7 +3892,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     11 => match w {
                         pbrs::rt::WIRE_I32 => {
@@ -3858,7 +3904,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     12 => match w {
                         pbrs::rt::WIRE_I64 => {
@@ -3868,7 +3916,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     13 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -3878,7 +3928,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     14 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -3890,7 +3942,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     15 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -3902,7 +3956,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     18 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -3933,7 +3989,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     19 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -3964,7 +4022,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     21 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -3974,7 +4034,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     22 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -3984,7 +4046,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     24 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -3996,7 +4060,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     25 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -4008,7 +4074,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     27 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -4039,7 +4107,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     28 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -4072,7 +4142,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     201 => match w {
                         pbrs::rt::WIRE_SGROUP => match &mut self.data {
@@ -4088,7 +4160,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     241 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -4097,7 +4171,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     242 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -4106,7 +4182,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     243 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -4115,7 +4193,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     244 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -4124,7 +4204,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     245 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -4135,7 +4217,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     246 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -4146,7 +4230,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     247 => match w {
                         pbrs::rt::WIRE_I32 => {
@@ -4155,7 +4241,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     248 => match w {
                         pbrs::rt::WIRE_I64 => {
@@ -4164,7 +4252,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     249 => match w {
                         pbrs::rt::WIRE_I32 => {
@@ -4173,7 +4263,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     250 => match w {
                         pbrs::rt::WIRE_I64 => {
@@ -4182,7 +4274,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     251 => match w {
                         pbrs::rt::WIRE_I32 => {
@@ -4192,7 +4286,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     252 => match w {
                         pbrs::rt::WIRE_I64 => {
@@ -4202,7 +4298,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     253 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -4212,7 +4310,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     254 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -4224,7 +4324,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     255 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -4236,12 +4338,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -4286,105 +4392,105 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                             seen |= 1 << 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     2 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                             seen |= 1 << 1;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     3 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                             seen |= 1 << 2;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     4 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)?;
                             seen |= 1 << 3;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     5 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, pos)?);
                             seen |= 1 << 4;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     6 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, pos)?);
                             seen |= 1 << 5;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     7 => match w {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)?;
                             seen |= 1 << 6;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     8 => match w {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)?;
                             seen |= 1 << 7;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     9 => match w {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
                             seen |= 1 << 8;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     10 => match w {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)? as i64;
                             seen |= 1 << 9;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     11 => match w {
                         pbrs::rt::WIRE_I32 => {
                             let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                             seen |= 1 << 10;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     12 => match w {
                         pbrs::rt::WIRE_I64 => {
                             let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                             seen |= 1 << 11;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     13 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                             seen |= 1 << 12;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     14 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             seen |= 1 << 13;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     15 => match w {
                         pbrs::rt::WIRE_LEN => {
                             pbrs::rt::read_len_span(data, pos)?;
                             seen |= 1 << 14;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     18 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -4393,7 +4499,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             NestedMessage::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                             seen |= 1 << 15;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     19 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -4406,35 +4512,35 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             )?;
                             seen |= 1 << 16;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     21 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                             seen |= 1 << 17;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     22 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                             seen |= 1 << 18;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     24 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             seen |= 1 << 19;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     25 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             seen |= 1 << 20;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     27 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -4447,7 +4553,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             )?;
                             seen |= 1 << 21;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     28 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -4459,121 +4565,121 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     201 => match w {
                         pbrs::rt::WIRE_SGROUP => {
                             Data::validate_until(wire, pos, depth + 1, Some(201))?;
                             seen |= 1 << 22;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     241 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                             seen |= 1 << 23;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     242 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                             seen |= 1 << 24;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     243 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                             seen |= 1 << 25;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     244 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)?;
                             seen |= 1 << 26;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     245 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, pos)?);
                             seen |= 1 << 27;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     246 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, pos)?);
                             seen |= 1 << 28;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     247 => match w {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)?;
                             seen |= 1 << 29;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     248 => match w {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)?;
                             seen |= 1 << 30;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     249 => match w {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
                             seen |= 1 << 31;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     250 => match w {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)? as i64;
                             seen |= 1 << 32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     251 => match w {
                         pbrs::rt::WIRE_I32 => {
                             let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                             seen |= 1 << 33;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     252 => match w {
                         pbrs::rt::WIRE_I64 => {
                             let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                             seen |= 1 << 34;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     253 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                             seen |= 1 << 35;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     254 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             seen |= 1 << 36;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     255 => match w {
                         pbrs::rt::WIRE_LEN => {
                             pbrs::rt::read_len_span(data, pos)?;
                             seen |= 1 << 37;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -5112,7 +5218,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     203 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -5121,12 +5229,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -5171,16 +5283,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                             seen |= 1 << 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     203 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                             seen |= 1 << 1;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -5526,7 +5638,12 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                             payload =
                                                 pbrs::rt::read_len_bytes(inner, &mut p)?.to_vec()
                                         }
-                                        _ => pbrs::rt::skip_field(inner, &mut p, ww)?,
+                                        _ => pbrs::rt::skip_field_with_depth(
+                                            inner,
+                                            &mut p,
+                                            ww,
+                                            depth + 1,
+                                        )?,
                                     }
                                 }
                             } else {
@@ -5542,7 +5659,12 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                         (3, pbrs::rt::WIRE_LEN) => {
                                             payload = pbrs::rt::read_len_bytes(data, pos)?.to_vec()
                                         }
-                                        _ => pbrs::rt::skip_field(data, pos, ww)?,
+                                        _ => pbrs::rt::skip_field_with_depth(
+                                            data,
+                                            pos,
+                                            ww,
+                                            depth + 1,
+                                        )?,
                                     }
                                 }
                             }
@@ -5591,7 +5713,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     1547769 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -5622,7 +5746,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     4135312 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -5655,12 +5781,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -5699,6 +5829,17 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     }
                 }
                 match n {
+                    1 => match w {
+                        pbrs::rt::WIRE_LEN => {
+                            let inner = pbrs::rt::read_len_bytes(data, pos)?;
+                            let mut ip = 0;
+                            while ip < inner.len() {
+                                let (_, ww) = pbrs::rt::decode_tag(inner, &mut ip)?;
+                                pbrs::rt::skip_field_with_depth(inner, &mut ip, ww, depth + 1)?;
+                            }
+                        }
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                    },
                     1547769 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
@@ -5709,7 +5850,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     4135312 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -5721,9 +5862,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -6060,12 +6201,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -6110,9 +6255,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             seen |= 1 << 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -6364,12 +6509,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -6414,9 +6563,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                             seen |= 1 << 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -6755,7 +6904,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     }
                     continue;
                 }
@@ -6809,7 +6960,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 },
                 3 => match w {
                     pbrs::rt::WIRE_LEN => {
@@ -6840,12 +6993,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 },
                 _ => self
                     .unknown
                     .fields
-                    .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                    .push(pbrs::rt::capture_unknown_with_depth(
+                        data, pos, n, w, depth,
+                    )?),
             }
             Ok(())
         }
@@ -6883,7 +7040,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                             seen |= 1 << 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     2 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -6896,7 +7053,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             )?;
                             seen |= 1 << 1;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     3 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -6908,9 +7065,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -10832,7 +10989,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     2 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -10841,7 +11000,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     3 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -10850,7 +11011,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     4 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -10859,7 +11022,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     5 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -10870,7 +11035,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     6 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -10881,7 +11048,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     7 => match w {
                         pbrs::rt::WIRE_I32 => {
@@ -10890,7 +11059,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     8 => match w {
                         pbrs::rt::WIRE_I64 => {
@@ -10899,7 +11070,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     9 => match w {
                         pbrs::rt::WIRE_I32 => {
@@ -10909,7 +11082,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     10 => match w {
                         pbrs::rt::WIRE_I64 => {
@@ -10919,7 +11094,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     11 => match w {
                         pbrs::rt::WIRE_I32 => {
@@ -10929,7 +11106,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     12 => match w {
                         pbrs::rt::WIRE_I64 => {
@@ -10939,7 +11118,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     13 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -10949,7 +11130,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     14 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -10961,7 +11144,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     15 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -10973,7 +11158,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     18 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11004,7 +11191,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     19 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11035,7 +11224,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     21 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -11045,7 +11236,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     22 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -11055,7 +11248,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     24 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11067,7 +11262,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     25 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11079,7 +11276,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     27 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11110,7 +11309,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     31 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11148,7 +11349,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     32 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11186,7 +11389,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     33 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11224,7 +11429,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     34 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11262,7 +11469,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     35 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11306,7 +11515,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     36 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11350,7 +11561,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     37 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11388,7 +11601,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     38 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11426,7 +11641,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     39 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11464,7 +11681,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     40 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11502,7 +11721,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     41 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11540,7 +11761,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     42 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11578,7 +11801,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     43 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11616,7 +11841,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     44 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11650,7 +11877,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     45 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11681,7 +11910,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     48 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11732,7 +11963,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     49 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11784,7 +12017,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     51 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11822,7 +12057,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     52 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11860,7 +12097,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     54 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11895,7 +12134,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     55 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11930,7 +12171,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     56 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11944,7 +12187,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     57 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11958,7 +12203,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     58 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11973,7 +12220,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     59 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -11988,7 +12237,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     60 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12003,7 +12254,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     61 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12018,7 +12271,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     62 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12033,7 +12288,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     63 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12048,7 +12305,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     64 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12063,7 +12322,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     65 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12078,7 +12339,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     66 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12092,7 +12355,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     67 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12106,7 +12371,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     68 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12120,7 +12387,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     69 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12135,7 +12404,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     70 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12149,7 +12420,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     71 => {
                         match w {
@@ -12161,7 +12434,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             _ => self
                                 .unknown
                                 .fields
-                                .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                                .push(pbrs::rt::capture_unknown_with_depth(
+                                    data, pos, n, w, depth,
+                                )?),
                         }
                     }
                     72 => {
@@ -12174,7 +12449,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             _ => self
                                 .unknown
                                 .fields
-                                .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                                .push(pbrs::rt::capture_unknown_with_depth(
+                                    data, pos, n, w, depth,
+                                )?),
                         }
                     }
                     73 => match w {
@@ -12190,7 +12467,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     74 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12205,7 +12484,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     75 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12240,7 +12521,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     76 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12275,7 +12558,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     77 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12310,7 +12595,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     78 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12345,7 +12632,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     79 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12384,7 +12673,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     80 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12423,7 +12714,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     81 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12454,7 +12747,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     82 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12485,7 +12780,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     83 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12520,7 +12817,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     84 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12555,7 +12854,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     85 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12587,7 +12888,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     86 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12622,7 +12925,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     87 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12657,7 +12962,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     88 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12692,7 +12999,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     89 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12730,7 +13039,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     90 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12768,7 +13079,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     91 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12806,7 +13119,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     92 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12844,7 +13159,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     93 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12888,7 +13205,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     94 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12932,7 +13251,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     95 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -12970,7 +13291,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     96 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13008,7 +13331,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     97 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13046,7 +13371,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     98 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13084,7 +13411,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     99 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13122,7 +13451,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     100 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13160,7 +13491,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     101 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13199,7 +13532,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     102 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13238,7 +13573,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     103 => {
                         match w {
@@ -13250,7 +13587,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             _ => self
                                 .unknown
                                 .fields
-                                .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                                .push(pbrs::rt::capture_unknown_with_depth(
+                                    data, pos, n, w, depth,
+                                )?),
                         }
                     }
                     104 => match w {
@@ -13265,7 +13604,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     111 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13282,7 +13623,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     112 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13321,7 +13664,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     113 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13341,7 +13686,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     114 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13361,7 +13708,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     115 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13379,7 +13728,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     116 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13396,7 +13747,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     117 => match w {
                         pbrs::rt::WIRE_I32 => {
@@ -13414,7 +13767,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     118 => match w {
                         pbrs::rt::WIRE_I64 => {
@@ -13432,7 +13787,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     119 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13449,7 +13806,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     120 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13458,7 +13817,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     121 => match w {
                         pbrs::rt::WIRE_SGROUP => match &mut self.groupfield {
@@ -13474,7 +13835,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     133 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13486,7 +13849,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     134 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13498,7 +13863,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     201 => match w {
                         pbrs::rt::WIRE_SGROUP => match &mut self.data {
@@ -13514,7 +13881,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     204 => match w {
                         pbrs::rt::WIRE_SGROUP => match &mut self.multiwordgroupfield {
@@ -13530,7 +13899,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     241 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13539,7 +13910,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     242 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13548,7 +13921,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     243 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13557,7 +13932,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     244 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13566,7 +13943,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     245 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13577,7 +13956,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     246 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13588,7 +13969,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     247 => match w {
                         pbrs::rt::WIRE_I32 => {
@@ -13597,7 +13980,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     248 => match w {
                         pbrs::rt::WIRE_I64 => {
@@ -13606,7 +13991,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     249 => match w {
                         pbrs::rt::WIRE_I32 => {
@@ -13615,7 +14002,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     250 => match w {
                         pbrs::rt::WIRE_I64 => {
@@ -13624,7 +14013,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     251 => match w {
                         pbrs::rt::WIRE_I32 => {
@@ -13634,7 +14025,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     252 => match w {
                         pbrs::rt::WIRE_I64 => {
@@ -13644,7 +14037,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     253 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13654,7 +14049,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     254 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13666,7 +14063,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     255 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13678,7 +14077,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     401 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13687,7 +14088,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     402 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13696,7 +14099,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     403 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13705,7 +14110,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     404 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13714,7 +14121,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     405 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13723,7 +14132,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     406 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13732,7 +14143,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     407 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13741,7 +14154,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     408 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13750,7 +14165,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     409 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13759,7 +14176,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     410 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13768,7 +14187,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     411 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13777,7 +14198,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     412 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13786,7 +14209,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     413 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13795,7 +14220,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     414 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13804,7 +14231,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     415 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13813,7 +14242,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     416 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13822,7 +14253,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     417 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13831,7 +14264,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     418 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -13840,7 +14275,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     500 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -13871,12 +14308,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -13919,91 +14360,91 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     2 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     3 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     4 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     5 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     6 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     7 => match w {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     8 => match w {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     9 => match w {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     10 => match w {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     11 => match w {
                         pbrs::rt::WIRE_I32 => {
                             let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     12 => match w {
                         pbrs::rt::WIRE_I64 => {
                             let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     13 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     14 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     15 => match w {
                         pbrs::rt::WIRE_LEN => {
                             pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     18 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14015,7 +14456,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     19 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14027,31 +14468,31 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     21 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     22 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     24 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     25 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     27 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14063,7 +14504,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     31 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14073,7 +14514,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     32 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14083,7 +14524,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     33 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14093,7 +14534,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     34 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14103,7 +14544,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     35 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14113,7 +14554,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     36 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14123,7 +14564,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     37 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14133,7 +14574,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     38 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14143,7 +14584,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     39 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14153,7 +14594,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     40 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14163,7 +14604,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     41 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14173,7 +14614,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     42 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14183,7 +14624,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     43 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14193,19 +14634,19 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     44 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     45 => match w {
                         pbrs::rt::WIRE_LEN => {
                             pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     48 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14217,7 +14658,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     49 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14229,7 +14670,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     51 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14239,7 +14680,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     52 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14249,19 +14690,19 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     54 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     55 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     56 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14271,10 +14712,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     57 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14284,10 +14725,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     58 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14297,10 +14738,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     59 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14310,10 +14751,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     60 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14323,10 +14764,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     61 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14336,10 +14777,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     62 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14349,10 +14790,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     63 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14362,10 +14803,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     64 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14375,10 +14816,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     65 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14388,10 +14829,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     66 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14401,10 +14842,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     67 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14414,10 +14855,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     68 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14427,10 +14868,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     69 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14440,10 +14881,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     70 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14453,10 +14894,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     71 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14466,10 +14907,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     72 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14479,10 +14920,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     73 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14492,10 +14933,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     74 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14505,10 +14946,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     75 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14518,7 +14959,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     76 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14528,7 +14969,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     77 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14538,7 +14979,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     78 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14548,7 +14989,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     79 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14558,7 +14999,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     80 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14568,7 +15009,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     81 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14578,7 +15019,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     82 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14588,7 +15029,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     83 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14598,7 +15039,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     84 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14608,7 +15049,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     85 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14618,7 +15059,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     86 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14628,7 +15069,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     87 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14638,7 +15079,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     88 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14648,7 +15089,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     89 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14658,7 +15099,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     90 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14668,7 +15109,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     91 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14678,7 +15119,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     92 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14688,7 +15129,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     93 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14698,7 +15139,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     94 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14708,7 +15149,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     95 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14718,7 +15159,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     96 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14728,7 +15169,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     97 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14738,7 +15179,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     98 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14748,7 +15189,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     99 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14758,7 +15199,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     100 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14768,7 +15209,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     101 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14778,7 +15219,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     102 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14788,7 +15229,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     103 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14798,10 +15239,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     104 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14811,16 +15252,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field(d, &mut ip, ww)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
                             }
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     111 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     112 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -14832,73 +15273,73 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     113 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     114 => match w {
                         pbrs::rt::WIRE_LEN => {
                             pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     115 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     116 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     117 => match w {
                         pbrs::rt::WIRE_I32 => {
                             let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     118 => match w {
                         pbrs::rt::WIRE_I64 => {
                             let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     119 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     120 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     121 => match w {
                         pbrs::rt::WIRE_SGROUP => {
                             GroupField::validate_until(wire, pos, depth + 1, Some(121))?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     133 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     134 => match w {
                         pbrs::rt::WIRE_LEN => {
                             pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     201 => match w {
                         pbrs::rt::WIRE_SGROUP => {
@@ -14909,211 +15350,211 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                 Some(201),
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     204 => match w {
                         pbrs::rt::WIRE_SGROUP => {
                             MultiWordGroupField::validate_until(wire, pos, depth + 1, Some(204))?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     241 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     242 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     243 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     244 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     245 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     246 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     247 => match w {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     248 => match w {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     249 => match w {
                         pbrs::rt::WIRE_I32 => {
                             let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     250 => match w {
                         pbrs::rt::WIRE_I64 => {
                             let _ = pbrs::rt::read_fixed64(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     251 => match w {
                         pbrs::rt::WIRE_I32 => {
                             let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     252 => match w {
                         pbrs::rt::WIRE_I64 => {
                             let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     253 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     254 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     255 => match w {
                         pbrs::rt::WIRE_LEN => {
                             pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     401 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     402 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     403 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     404 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     405 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     406 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     407 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     408 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     409 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     410 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     411 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     412 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     413 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     414 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     415 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     416 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     417 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     418 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     500 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -15125,9 +15566,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -17419,7 +17860,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_VARINT) => key = pbrs::rt::decode_varint(data, &mut pos)? as i32,
                 (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)? as i32,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17438,7 +17879,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_VARINT) => key = pbrs::rt::decode_varint(data, &mut pos)? as i64,
                 (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)? as i64,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17457,7 +17898,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_VARINT) => key = pbrs::rt::decode_varint(data, &mut pos)? as u32,
                 (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)? as u32,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17476,7 +17917,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_VARINT) => key = pbrs::rt::decode_varint(data, &mut pos)?,
                 (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)?,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17499,7 +17940,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                 (2, pbrs::rt::WIRE_VARINT) => {
                     val = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, &mut pos)?)
                 }
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17522,7 +17963,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                 (2, pbrs::rt::WIRE_VARINT) => {
                     val = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, &mut pos)?)
                 }
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17541,7 +17982,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_I32) => key = pbrs::rt::read_fixed32(data, &mut pos)?,
                 (2, pbrs::rt::WIRE_I32) => val = pbrs::rt::read_fixed32(data, &mut pos)?,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17560,7 +18001,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_I64) => key = pbrs::rt::read_fixed64(data, &mut pos)?,
                 (2, pbrs::rt::WIRE_I64) => val = pbrs::rt::read_fixed64(data, &mut pos)?,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17579,7 +18020,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_I32) => key = pbrs::rt::read_fixed32(data, &mut pos)? as i32,
                 (2, pbrs::rt::WIRE_I32) => val = pbrs::rt::read_fixed32(data, &mut pos)? as i32,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17598,7 +18039,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_I64) => key = pbrs::rt::read_fixed64(data, &mut pos)? as i64,
                 (2, pbrs::rt::WIRE_I64) => val = pbrs::rt::read_fixed64(data, &mut pos)? as i64,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17619,7 +18060,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                 (2, pbrs::rt::WIRE_I32) => {
                     val = f32::from_bits(pbrs::rt::read_fixed32(data, &mut pos)?)
                 }
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17640,7 +18081,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                 (2, pbrs::rt::WIRE_I64) => {
                     val = f64::from_bits(pbrs::rt::read_fixed64(data, &mut pos)?)
                 }
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17659,7 +18100,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_VARINT) => key = pbrs::rt::decode_varint(data, &mut pos)? != 0,
                 (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)? != 0,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17684,7 +18125,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     val = pbrs::rt::LazyStr::from_span(wire, s, e);
                 }
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17709,7 +18150,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     val = pbrs::rt::LazyBytes::from_wire_span(wire, s, e);
                 }
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17736,7 +18177,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     let mut sw = None;
                     val.merge_inner(&data[s..e], &mut sw, &mut ip, depth, true, None)?;
                 }
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17763,7 +18204,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     let mut sw = None;
                     val.merge_inner(&data[s..e], &mut sw, &mut ip, depth, true, None)?;
                 }
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17785,7 +18226,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     key = pbrs::rt::LazyStr::from_span(wire, s, e);
                 }
                 (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)? as i32,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17807,7 +18248,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     key = pbrs::rt::LazyStr::from_span(wire, s, e);
                 }
                 (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)? as i32,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17831,7 +18272,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     let mut sw = None;
                     val.merge_inner(&data[s..e], &mut sw, &mut ip, depth, true, None)?;
                 }
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -17850,7 +18291,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_VARINT) => key = pbrs::rt::decode_varint(data, &mut pos)? as i32,
                 (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)? != 0,
-                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
+                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
         Ok((key, val))
@@ -18007,7 +18448,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     203 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -18016,12 +18459,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -18064,15 +18511,15 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     203 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -18388,7 +18835,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     2 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -18398,12 +18847,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -18446,15 +18899,15 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     2 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -18865,7 +19318,12 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                                 payload = pbrs::rt::read_len_bytes(inner, &mut p)?
                                                     .to_vec()
                                             }
-                                            _ => pbrs::rt::skip_field(inner, &mut p, ww)?,
+                                            _ => pbrs::rt::skip_field_with_depth(
+                                                inner,
+                                                &mut p,
+                                                ww,
+                                                depth + 1,
+                                            )?,
                                         }
                                     }
                                 } else {
@@ -18882,7 +19340,12 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                                 payload =
                                                     pbrs::rt::read_len_bytes(data, pos)?.to_vec()
                                             }
-                                            _ => pbrs::rt::skip_field(data, pos, ww)?,
+                                            _ => pbrs::rt::skip_field_with_depth(
+                                                data,
+                                                pos,
+                                                ww,
+                                                depth + 1,
+                                            )?,
                                         }
                                     }
                                 }
@@ -18943,7 +19406,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             _ => self
                                 .unknown
                                 .fields
-                                .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                                .push(pbrs::rt::capture_unknown_with_depth(
+                                    data, pos, n, w, depth,
+                                )?),
                         }
                     }
                     1547769 => match w {
@@ -18975,7 +19440,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     4135312 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -19008,7 +19475,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     123456789 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -19039,12 +19508,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -19083,6 +19556,17 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     }
                 }
                 match n {
+                    1 => match w {
+                        pbrs::rt::WIRE_LEN => {
+                            let inner = pbrs::rt::read_len_bytes(data, pos)?;
+                            let mut ip = 0;
+                            while ip < inner.len() {
+                                let (_, ww) = pbrs::rt::decode_tag(inner, &mut ip)?;
+                                pbrs::rt::skip_field_with_depth(inner, &mut ip, ww, depth + 1)?;
+                            }
+                        }
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                    },
                     1547769 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
@@ -19093,7 +19577,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     4135312 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -19105,7 +19589,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     123456789 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -19117,9 +19601,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -19386,12 +19870,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -19434,9 +19922,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -19724,7 +20212,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     }
                     continue;
                 }
@@ -19778,12 +20268,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 },
                 _ => self
                     .unknown
                     .fields
-                    .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                    .push(pbrs::rt::capture_unknown_with_depth(
+                        data, pos, n, w, depth,
+                    )?),
             }
             Ok(())
         }
@@ -19819,7 +20313,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     10 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -19831,9 +20325,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -20068,7 +20562,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     206 => match w {
                         pbrs::rt::WIRE_VARINT => {
@@ -20077,12 +20573,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -20125,15 +20625,15 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     206 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -20454,7 +20954,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     }
                     continue;
                 }
@@ -20508,12 +21010,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 },
                 _ => self
                     .unknown
                     .fields
-                    .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                    .push(pbrs::rt::capture_unknown_with_depth(
+                        data, pos, n, w, depth,
+                    )?),
             }
             Ok(())
         }
@@ -20549,7 +21055,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     2 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -20561,9 +21067,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -21017,7 +21523,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     2 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -21052,7 +21560,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     3 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -21087,7 +21597,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     4 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -21122,7 +21634,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     5 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -21157,12 +21671,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -21207,7 +21725,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let mut ip = 0;
                             A1::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     2 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -21215,7 +21733,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let mut ip = 0;
                             A2::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     3 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -21223,7 +21741,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let mut ip = 0;
                             A3::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     4 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -21231,7 +21749,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let mut ip = 0;
                             A4::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     5 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -21239,9 +21757,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                             let mut ip = 0;
                             A5::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -21695,7 +22213,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -21734,7 +22254,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     }
                 }
                 match n {
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -21918,7 +22438,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -21957,7 +22479,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     }
                 }
                 match n {
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -22141,7 +22663,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -22180,7 +22704,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     }
                 }
                 match n {
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -22364,7 +22888,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -22403,7 +22929,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     }
                 }
                 match n {
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -22587,7 +23113,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -22626,7 +23154,7 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     }
                 }
                 match n {
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -23043,7 +23571,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     }
                     continue;
                 }
@@ -23056,7 +23586,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     }
                     continue;
                 }
@@ -23091,7 +23623,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 },
                 1003 => match w {
                     pbrs::rt::WIRE_LEN => {
@@ -23122,7 +23656,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 },
                 1004 => match w {
                     pbrs::rt::WIRE_SGROUP => match &mut self.cold_mut().optionalgroup {
@@ -23136,7 +23672,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 },
                 1011 => match w {
                     pbrs::rt::WIRE_LEN => {
@@ -23174,12 +23712,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 },
                 _ => self
                     .unknown
                     .fields
-                    .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                    .push(pbrs::rt::capture_unknown_with_depth(
+                        data, pos, n, w, depth,
+                    )?),
             }
             Ok(())
         }
@@ -23215,13 +23757,13 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     1002 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     1003 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -23233,19 +23775,19 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     1004 => match w {
                         pbrs::rt::WIRE_SGROUP => {
                             OptionalGroup::validate_until(wire, pos, depth + 1, Some(1004))?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     1006 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     1011 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -23255,9 +23797,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -23730,12 +24272,16 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -23778,9 +24324,9 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {

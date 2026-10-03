@@ -217,7 +217,9 @@ mod __gen_google_protobuf_empty_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -256,7 +258,7 @@ mod __gen_google_protobuf_empty_proto {
                     }
                 }
                 match n {
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {

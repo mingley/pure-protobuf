@@ -8,4 +8,11 @@ message Node {
   optional group ChildGroup = 4 {
     optional Node child = 1;
   }
+  map<int32, int32> tags = 5;
+  optional Box message_set = 6;
+}
+
+message Box {
+  option message_set_wire_format = true;
+  extensions 100 to max;
 }

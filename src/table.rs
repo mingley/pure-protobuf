@@ -38,8 +38,8 @@ use crate::error::ParseError;
 use crate::lazy::{LazyBytes, LazyStr, Wire};
 use crate::wire::{
     UnknownField, UnknownFields, WIRE_EGROUP, WIRE_I32, WIRE_I64, WIRE_LEN, WIRE_SGROUP,
-    WIRE_VARINT, capture_unknown, decode_tag, decode_varint, decode_zigzag32, decode_zigzag64,
-    read_fixed32, read_fixed64, read_len_bytes, read_len_span, validate_varints,
+    WIRE_VARINT, capture_unknown_with_depth, decode_tag, decode_varint, decode_zigzag32,
+    decode_zigzag64, read_fixed32, read_fixed64, read_len_bytes, read_len_span, validate_varints,
 };
 
 /// Maximum nesting depth for table-driven parse.
@@ -532,8 +532,7 @@ pub trait TableMerge {
         depth: u32,
     ) -> Result<(), ParseError> {
         let _ = wire;
-        let _ = depth;
-        let field = capture_unknown(data, pos, 1, wire_type)?;
+        let field = capture_unknown_with_depth(data, pos, 1, wire_type, depth)?;
         self.unknown_mut().fields.push(field);
         Ok(())
     }
@@ -575,9 +574,9 @@ pub fn merge_table<M: TableMerge>(
             continue;
         }
         let Some(entry) = find_entry(table, number) else {
-            msg.unknown_mut()
-                .fields
-                .push(capture_unknown(data, pos, number, wire_type)?);
+            msg.unknown_mut().fields.push(capture_unknown_with_depth(
+                data, pos, number, wire_type, depth,
+            )?);
             continue;
         };
         // Repeated packable fields accept both packed (LEN) and unpacked
@@ -592,9 +591,9 @@ pub fn merge_table<M: TableMerge>(
             && !unpacked_wire
             && !map_wire
         {
-            msg.unknown_mut()
-                .fields
-                .push(capture_unknown(data, pos, number, wire_type)?);
+            msg.unknown_mut().fields.push(capture_unknown_with_depth(
+                data, pos, number, wire_type, depth,
+            )?);
             continue;
         }
         dispatch_typed(msg, entry, data, wire, pos, wire_type, depth)?;
@@ -734,7 +733,9 @@ use crate::dynamic::{
 #[cfg(feature = "reflect")]
 use crate::string::{ProtoBytes, ProtoString};
 #[cfg(feature = "reflect")]
-use crate::wire::{decode_tag as dyn_decode_tag, skip_field as dyn_skip_field};
+use crate::wire::{
+    decode_tag as dyn_decode_tag, skip_field_with_depth as dyn_skip_field_with_depth,
+};
 #[cfg(feature = "reflect")]
 use std::sync::Arc;
 
@@ -1098,7 +1099,7 @@ pub(crate) fn merge_dynamic_loop(
             .entries
             .binary_search_by_key(&number, |entry| entry.number)
         else {
-            let unknown = capture_unknown(data, pos, number, wire_type)?;
+            let unknown = capture_unknown_with_depth(data, pos, number, wire_type, depth)?;
             msg.unknown_mut().fields.push(unknown);
             continue;
         };
@@ -1180,7 +1181,7 @@ fn merge_dynamic_entry(
     let packed_ok = entry.is_packable_repeated() && wire_type == WIRE_LEN;
     let map_wire = entry.is_map() && wire_type == WIRE_LEN;
     if wire_type != expected && !packed_ok && !map_wire {
-        let unknown = capture_unknown(data, pos, number, wire_type)?;
+        let unknown = capture_unknown_with_depth(data, pos, number, wire_type, depth)?;
         msg.unknown_mut().fields.push(unknown);
         return Ok(());
     }
@@ -1464,7 +1465,7 @@ fn decode_dynamic_map_entry_direct(
         let (number, wire) = dyn_decode_tag(payload, &mut pos)?;
         if number == 1 {
             if wire != u32::from(key_entry.expected_wire) {
-                let _ = capture_unknown(payload, &mut pos, number, wire)?;
+                let _ = capture_unknown_with_depth(payload, &mut pos, number, wire, entry_depth)?;
                 continue;
             }
             let value = decode_dynamic_leaf(
@@ -1485,7 +1486,7 @@ fn decode_dynamic_map_entry_direct(
             set_map_slot(&mut key, &mut val, key_clears_val, value);
         } else if number == 2 {
             if wire != u32::from(val_entry.expected_wire) {
-                let _ = capture_unknown(payload, &mut pos, number, wire)?;
+                let _ = capture_unknown_with_depth(payload, &mut pos, number, wire, entry_depth)?;
                 continue;
             }
             let value = decode_dynamic_leaf(
@@ -1505,7 +1506,7 @@ fn decode_dynamic_map_entry_direct(
             }
             set_map_slot(&mut val, &mut key, val_clears_key, value);
         } else {
-            let _ = capture_unknown(payload, &mut pos, number, wire)?;
+            let _ = capture_unknown_with_depth(payload, &mut pos, number, wire, entry_depth)?;
         }
     }
     let key = match key {
@@ -1543,7 +1544,7 @@ fn merge_dynamic_message_set(
             match (number, wire) {
                 (2, WIRE_VARINT) => type_id = decode_varint(inner, &mut item)? as u32,
                 (3, WIRE_LEN) => payload = read_len_bytes(inner, &mut item)?.to_vec(),
-                _ => dyn_skip_field(inner, &mut item, wire)?,
+                _ => dyn_skip_field_with_depth(inner, &mut item, wire, depth + 1)?,
             }
         }
     } else if wire_type == WIRE_SGROUP {
@@ -1559,13 +1560,13 @@ fn merge_dynamic_message_set(
                 (2, WIRE_VARINT) => type_id = decode_varint(data, pos)? as u32,
                 (3, WIRE_LEN) => payload = read_len_bytes(data, pos)?.to_vec(),
                 _ => {
-                    let unknown = capture_unknown(data, pos, number, wire)?;
+                    let unknown = capture_unknown_with_depth(data, pos, number, wire, depth + 1)?;
                     msg.unknown_mut().fields.push(unknown);
                 }
             }
         }
     } else {
-        let unknown = capture_unknown(data, pos, 1, wire_type)?;
+        let unknown = capture_unknown_with_depth(data, pos, 1, wire_type, depth)?;
         msg.unknown_mut().fields.push(unknown);
         return Ok(());
     }
@@ -1629,6 +1630,7 @@ mod tests {
     use crate::message::Serialize;
     use crate::packed::{PackedFx32, PackedI32};
     use crate::repeated::Repeated;
+    use crate::wire::capture_unknown;
     use crate::wire::{encode_len_field, encode_tag, encode_varint, encode_zigzag32, skip_field};
     use std::collections::BTreeMap;
 
@@ -3016,6 +3018,48 @@ mod tests {
         // Nested messages: depth == limit parses, deeper fails.
         assert!(TMsg::parse(&nest_payload(RECURSION_LIMIT)).is_ok());
         assert!(TMsg::parse(&nest_payload(RECURSION_LIMIT + 1)).is_err());
+    }
+
+    #[test]
+    fn unknown_groups_compose_with_typed_table_depth() {
+        for number in [5, 99] {
+            for (groups, valid) in [(1, true), (2, false)] {
+                let mut bytes = Vec::new();
+                for _ in 0..groups {
+                    encode_tag(&mut bytes, number, WIRE_SGROUP);
+                }
+                for _ in 0..groups {
+                    encode_tag(&mut bytes, number, WIRE_EGROUP);
+                }
+                let mut message = TMsg::default();
+                assert_eq!(
+                    merge_table(&mut message, &bytes, &mut None, &mut 0, 99, false, None).is_ok(),
+                    valid
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn default_message_set_capture_uses_the_typed_parent_depth() {
+        for (groups, valid) in [(1, true), (2, false)] {
+            let mut bytes = Vec::new();
+            for _ in 0..groups {
+                encode_tag(&mut bytes, 1, WIRE_SGROUP);
+            }
+            for _ in 0..groups {
+                encode_tag(&mut bytes, 1, WIRE_EGROUP);
+            }
+            let mut message = TMsg::default();
+            let mut pos = 0;
+            decode_tag(&bytes, &mut pos).unwrap();
+            assert_eq!(
+                message
+                    .merge_message_set(&bytes, &mut None, &mut pos, WIRE_SGROUP, 99)
+                    .is_ok(),
+                valid
+            );
+        }
     }
 
     #[test]

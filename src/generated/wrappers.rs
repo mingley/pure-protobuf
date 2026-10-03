@@ -237,12 +237,16 @@ mod __gen_google_protobuf_wrappers_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -285,9 +289,9 @@ mod __gen_google_protobuf_wrappers_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -504,12 +508,16 @@ mod __gen_google_protobuf_wrappers_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -552,9 +560,9 @@ mod __gen_google_protobuf_wrappers_proto {
                         pbrs::rt::WIRE_LEN => {
                             pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -771,12 +779,16 @@ mod __gen_google_protobuf_wrappers_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -819,9 +831,9 @@ mod __gen_google_protobuf_wrappers_proto {
                         pbrs::rt::WIRE_I64 => {
                             let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -1036,12 +1048,16 @@ mod __gen_google_protobuf_wrappers_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -1084,9 +1100,9 @@ mod __gen_google_protobuf_wrappers_proto {
                         pbrs::rt::WIRE_I32 => {
                             let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -1301,12 +1317,16 @@ mod __gen_google_protobuf_wrappers_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -1349,9 +1369,9 @@ mod __gen_google_protobuf_wrappers_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -1567,12 +1587,16 @@ mod __gen_google_protobuf_wrappers_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -1615,9 +1639,9 @@ mod __gen_google_protobuf_wrappers_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -1834,12 +1858,16 @@ mod __gen_google_protobuf_wrappers_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -1883,9 +1911,9 @@ mod __gen_google_protobuf_wrappers_proto {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             pbrs::rt::require_utf8(&data[s..e])?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -2105,12 +2133,16 @@ mod __gen_google_protobuf_wrappers_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -2153,9 +2185,9 @@ mod __gen_google_protobuf_wrappers_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -2371,12 +2403,16 @@ mod __gen_google_protobuf_wrappers_proto {
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown_with_depth(
+                                data, pos, n, w, depth,
+                            )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown_with_depth(
+                            data, pos, n, w, depth,
+                        )?),
                 }
             }
             if until.is_some() {
@@ -2419,9 +2455,9 @@ mod __gen_google_protobuf_wrappers_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                 }
             }
             if until.is_some() {

@@ -10,9 +10,15 @@
 )]
 
 #[path = "support/unknown_group_depth.rs"]
-#[allow(dead_code, reason = "shared vectors also serve feature-gated and generated consumer oracles")]
+#[allow(
+    dead_code,
+    reason = "shared vectors also serve feature-gated and generated consumer oracles"
+)]
 mod vectors;
-use pbrs::rt::{UnknownField, WIRE_EGROUP, WIRE_I32, WIRE_I64, WIRE_LEN, WIRE_VARINT, capture_unknown, decode_tag, skip_field};
+use pbrs::rt::{
+    UnknownField, WIRE_EGROUP, WIRE_I32, WIRE_I64, WIRE_LEN, WIRE_VARINT, capture_unknown,
+    decode_tag, skip_field,
+};
 use pbrs::{ParseError, UnknownFields};
 
 fn skip_first(bytes: &[u8]) -> Result<usize, ParseError> {
@@ -63,14 +69,28 @@ fn legacy_skip_end_tag_and_truncation_behavior_is_explicit() {
     // mismatched end-group numbers. QG-18 changes depth, not this public contract.
     assert_eq!(skip_first(&[0x0b, 0x14]).unwrap(), 2);
     assert_eq!(skip_first(&[0x0b, 0x13, 0x1c, 0x0c]).unwrap(), 4);
-    for bytes in [&[0x0b][..], &[0x0b, 0x08, 0x80][..], &[0x0c][..], &[0x0f][..], &[0][..]] {
+    for bytes in [
+        &[0x0b][..],
+        &[0x0b, 0x08, 0x80][..],
+        &[0x0c][..],
+        &[0x0f][..],
+        &[0][..],
+    ] {
         assert!(skip_first(bytes).is_err());
     }
 }
 
 #[test]
 fn capture_retains_matching_end_validation_and_malformed_errors() {
-    for bytes in [&[0x0b][..], &[0x0b, 0x14][..], &[0x0b, 0x13, 0x1c, 0x0c][..], &[0x0b, 0x08, 0x80][..], &[0x0c][..], &[0x0f][..], &[0][..]] {
+    for bytes in [
+        &[0x0b][..],
+        &[0x0b, 0x14][..],
+        &[0x0b, 0x13, 0x1c, 0x0c][..],
+        &[0x0b, 0x08, 0x80][..],
+        &[0x0c][..],
+        &[0x0f][..],
+        &[0][..],
+    ] {
         assert!(capture_first(bytes).is_err());
     }
     assert!(capture_first(&[0x0b, 0x0c]).is_ok());
@@ -113,9 +133,84 @@ fn group_consumption_stops_before_a_following_sibling() {
     assert_eq!(pos, wire.len());
 }
 
+#[test]
+fn depth_aware_group_helpers_reject_before_reading_or_incrementing() {
+    use pbrs::rt::{WIRE_SGROUP, capture_unknown_with_depth, skip_field_with_depth};
+    for depth in [100, 101, u32::MAX] {
+        let mut pos = usize::MAX;
+        let error = skip_field_with_depth(&[], &mut pos, WIRE_SGROUP, depth).unwrap_err();
+        assert!(error.to_string().contains("recursion limit exceeded"));
+        assert_eq!(pos, usize::MAX);
+        let error = capture_unknown_with_depth(&[], &mut pos, 99, WIRE_SGROUP, depth).unwrap_err();
+        assert!(error.to_string().contains("recursion limit exceeded"));
+        assert_eq!(pos, usize::MAX);
+    }
+}
+
+#[test]
+fn depth_aware_group_helpers_compose_at_99_and_keep_sibling_depth() {
+    use pbrs::rt::{capture_unknown_with_depth, skip_field_with_depth};
+    for (groups, valid) in [(1, true), (2, false)] {
+        let bytes = vectors::unknown_groups(groups, 99);
+        let mut pos = 0;
+        let (number, wire) = decode_tag(&bytes, &mut pos).unwrap();
+        assert_eq!(
+            skip_field_with_depth(&bytes, &mut pos, wire, 99).is_ok(),
+            valid
+        );
+        let mut pos = 0;
+        decode_tag(&bytes, &mut pos).unwrap();
+        assert_eq!(
+            capture_unknown_with_depth(&bytes, &mut pos, number, wire, 99).is_ok(),
+            valid
+        );
+    }
+    let siblings = [0x0b, 0x13, 0x14, 0x13, 0x14, 0x0c];
+    let mut pos = 1;
+    skip_field_with_depth(&siblings, &mut pos, pbrs::rt::WIRE_SGROUP, 98).unwrap();
+    assert_eq!(pos, siblings.len());
+    let mut pos = 1;
+    capture_unknown_with_depth(&siblings, &mut pos, 1, pbrs::rt::WIRE_SGROUP, 98).unwrap();
+    assert_eq!(pos, siblings.len());
+}
+
+#[test]
+fn depth_aware_non_groups_match_old_helpers_at_arbitrary_depth() {
+    use pbrs::rt::{capture_unknown_with_depth, skip_field_with_depth};
+    for depth in [0, 99, 100, 101, u32::MAX] {
+        for (wire, bytes) in [
+            (WIRE_VARINT, vec![7]),
+            (WIRE_I32, vec![1, 2, 3, 4]),
+            (WIRE_I64, vec![1, 2, 3, 4, 5, 6, 7, 8]),
+            (WIRE_LEN, vec![2, 7, 8]),
+        ] {
+            let mut old_pos = 0;
+            let old = capture_unknown(&bytes, &mut old_pos, 7, wire).unwrap();
+            let mut new_pos = 0;
+            let new = capture_unknown_with_depth(&bytes, &mut new_pos, 7, wire, depth).unwrap();
+            assert_eq!(new, old);
+            assert_eq!(new_pos, old_pos);
+            let mut skipped = 0;
+            skip_field_with_depth(&bytes, &mut skipped, wire, depth).unwrap();
+            assert_eq!(skipped, old_pos);
+        }
+    }
+}
+
+#[test]
+fn depth_aware_helpers_retain_legacy_end_tag_difference() {
+    let bytes = [0x0b, 0x14];
+    assert!(pbrs::rt::skip_field_with_depth(&bytes, &mut 1, pbrs::rt::WIRE_SGROUP, 0).is_ok());
+    assert!(
+        pbrs::rt::capture_unknown_with_depth(&bytes, &mut 1, 1, pbrs::rt::WIRE_SGROUP, 0).is_err()
+    );
+}
+
 #[cfg(feature = "reflect")]
 fn dynamic_parse(bytes: &[u8]) -> Result<pbrs::DynamicMessage, ParseError> {
-    let pool = std::sync::Arc::new(pbrs::DescriptorPool::from_file_descriptor_set(&vectors::descriptor_set()).unwrap());
+    let pool = std::sync::Arc::new(
+        pbrs::DescriptorPool::from_file_descriptor_set(&vectors::descriptor_set()).unwrap(),
+    );
     let descriptor = pool.get_message("qg18.Node").unwrap();
     pbrs::DynamicMessage::parse_with_pool(descriptor, Some(pool), bytes)
 }
@@ -148,13 +243,41 @@ fn dynamic_known_and_unknown_share_the_100_depth_budget() {
     assert!(dynamic_parse(&vectors::known_group_pairs_then_unknown(50, 1)).is_err());
 }
 
+#[cfg(feature = "reflect")]
+#[test]
+fn dynamic_map_entry_unknown_groups_use_entry_depth() {
+    for number in [99, 2] {
+        assert!(dynamic_parse(&vectors::map_unknown(98, 1, number)).is_ok());
+        assert!(dynamic_parse(&vectors::map_unknown(98, 2, number)).is_err());
+        assert!(dynamic_parse(&vectors::map_unknown(99, 1, number)).is_err());
+    }
+}
+
+#[cfg(feature = "reflect")]
+#[test]
+fn dynamic_message_set_inner_unknown_groups_use_item_depth() {
+    for delimited in [false, true] {
+        assert!(dynamic_parse(&vectors::message_set_unknown(97, 1, delimited)).is_ok());
+        assert!(dynamic_parse(&vectors::message_set_unknown(97, 2, delimited)).is_err());
+        assert!(dynamic_parse(&vectors::message_set_unknown(98, 1, delimited)).is_err());
+    }
+}
+
 #[cfg(feature = "conformance")]
 #[test]
 fn checked_bundled_merge_composes_its_supplied_depth_with_unknown_groups() {
     let mut message = pbrs::gencode::Empty::new();
-    assert!(message.merge_bytes(&vectors::unknown_groups(1, 99), 99).is_ok());
+    assert!(
+        message
+            .merge_bytes(&vectors::unknown_groups(1, 99), 99)
+            .is_ok()
+    );
     let mut message = pbrs::gencode::Empty::new();
-    assert!(message.merge_bytes(&vectors::unknown_groups(2, 99), 99).is_err());
+    assert!(
+        message
+            .merge_bytes(&vectors::unknown_groups(2, 99), 99)
+            .is_err()
+    );
 }
 
 #[cfg(feature = "conformance")]
@@ -163,7 +286,10 @@ fn checked_bundled_validation_composes_its_supplied_depth_with_unknown_groups() 
     for (groups, valid) in [(1, true), (2, false)] {
         let bytes = vectors::unknown_groups(groups, 99);
         let wire = pbrs::rt::Wire::from_slice(&bytes);
-        assert_eq!(pbrs::gencode::Empty::validate_inner(&wire, &mut 0, 99).is_ok(), valid);
+        assert_eq!(
+            pbrs::gencode::Empty::validate_inner(&wire, &mut 0, 99).is_ok(),
+            valid
+        );
     }
 }
 
@@ -175,15 +301,33 @@ fn fresh_generated_unknown_group_depth_consumer() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let retained = std::env::var_os("PBRS_QG18_CONSUMER_DIR");
     let consumer = retained.as_ref().map_or_else(
-        || root.join("target").join(format!("qg18-consumer-{}", std::process::id())),
+        || {
+            root.join("target")
+                .join(format!("qg18-consumer-{}", std::process::id()))
+        },
         PathBuf::from,
     );
     std::fs::create_dir_all(consumer.join("src")).unwrap();
-    let files = pbrs::codegen::generate_from_file_descriptor_set(&vectors::descriptor_set(), &["qg18.proto".into()]).unwrap();
-    let (_, source) = files.into_iter().find(|(name, _)| name == "qg18.rs").unwrap();
+    let files = pbrs::codegen::generate_from_file_descriptor_set(
+        &vectors::descriptor_set(),
+        &["qg18.proto".into()],
+    )
+    .unwrap();
+    let (_, source) = files
+        .into_iter()
+        .find(|(name, _)| name == "qg18.rs")
+        .unwrap();
     std::fs::write(consumer.join("src/qg18.rs"), source).unwrap();
-    std::fs::write(consumer.join("src/vectors.rs"), include_str!("support/unknown_group_depth.rs")).unwrap();
-    std::fs::write(consumer.join("src/lib.rs"), include_str!("fixtures/unknown_group_depth_consumer.rs")).unwrap();
+    std::fs::write(
+        consumer.join("src/vectors.rs"),
+        include_str!("support/unknown_group_depth.rs"),
+    )
+    .unwrap();
+    std::fs::write(
+        consumer.join("src/lib.rs"),
+        include_str!("fixtures/unknown_group_depth_consumer.rs"),
+    )
+    .unwrap();
     std::fs::write(consumer.join("Cargo.toml"), format!(
         "[package]\nname=\"qg18-unknown-group-consumer\"\nversion=\"0.0.0\"\nedition=\"2024\"\n[workspace]\n[dependencies]\npbrs={{path={:?}}}\n", root.to_str().unwrap()
     )).unwrap();
@@ -193,9 +337,21 @@ fn fresh_generated_unknown_group_depth_consumer() {
     let mut lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
     lock.push_str("\n[[package]]\nname = \"qg18-unknown-group-consumer\"\nversion = \"0.0.0\"\ndependencies = [\n \"pbrs\",\n]\n");
     std::fs::write(consumer.join("Cargo.lock"), lock).unwrap();
-    let mut command = Command::new(std::env::var_os("PBRS_QG18_CONSUMER_CARGO").unwrap_or_else(|| "cargo".into()));
-    command.env("CARGO_BUILD_JOBS", "1").env("CARGO_INCREMENTAL", "0")
-        .args(["test", "--offline", "--locked", "--quiet", "--lib", "--", "--test-threads=1"])
+    let mut command = Command::new(
+        std::env::var_os("PBRS_QG18_CONSUMER_CARGO").unwrap_or_else(|| "cargo".into()),
+    );
+    command
+        .env("CARGO_BUILD_JOBS", "1")
+        .env("CARGO_INCREMENTAL", "0")
+        .args([
+            "test",
+            "--offline",
+            "--locked",
+            "--quiet",
+            "--lib",
+            "--",
+            "--test-threads=1",
+        ])
         .current_dir(&consumer);
     // Root's ordinary gate supplies the exact owned CARGO_TARGET_DIR. A normal
     // standalone test run gets its own cache, never plugin.rs's shared cache.
@@ -205,8 +361,13 @@ fn fresh_generated_unknown_group_depth_consumer() {
     let result = command.output().unwrap();
     std::fs::write(consumer.join("stdout"), &result.stdout).unwrap();
     std::fs::write(consumer.join("stderr"), &result.stderr).unwrap();
-    assert!(result.status.success(), "fresh generated consumer failed: {}\n{}", String::from_utf8_lossy(&result.stdout), String::from_utf8_lossy(&result.stderr));
-    assert!(String::from_utf8_lossy(&result.stdout).contains("6 passed; 0 failed"));
+    assert!(
+        result.status.success(),
+        "fresh generated consumer failed: {}\n{}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(String::from_utf8_lossy(&result.stdout).contains("9 passed; 0 failed"));
     if retained.is_none() {
         std::fs::remove_dir_all(consumer).unwrap();
     }

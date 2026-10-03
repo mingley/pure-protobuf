@@ -606,17 +606,45 @@ pub fn skip_field(buf: &[u8], pos: &mut usize, wire: u32) -> Result<(), ParseErr
             let len = decode_len(buf, pos)?;
             *pos += len;
         }
-        WIRE_SGROUP => loop {
-            let (_, inner) = decode_tag(buf, pos)?;
-            if inner == WIRE_EGROUP {
-                break;
-            }
-            skip_field(buf, pos, inner)?;
-        },
+        WIRE_SGROUP => skip_group_with_depth(buf, pos, 0)?,
         WIRE_EGROUP => return Err(ParseError::new("unexpected end-group")),
         _ => return Err(ParseError::new("unknown wire type")),
     }
     Ok(())
+}
+
+/// Skip one field, counting unknown groups with its enclosing parse depth.
+///
+/// Root depth is zero. Each group consumes one level of [`crate::RECURSION_LIMIT`];
+/// non-group fields retain [`skip_field`]'s behavior without a depth check.
+/// Like `skip_field`, this helper has no expected outer field number and does
+/// not validate matching end-group numbers.
+pub fn skip_field_with_depth(
+    buf: &[u8],
+    pos: &mut usize,
+    wire: u32,
+    depth: u32,
+) -> Result<(), ParseError> {
+    if wire == WIRE_SGROUP {
+        skip_group_with_depth(buf, pos, depth)
+    } else {
+        skip_field(buf, pos, wire)
+    }
+}
+
+#[cold]
+fn skip_group_with_depth(buf: &[u8], pos: &mut usize, depth: u32) -> Result<(), ParseError> {
+    if depth >= crate::RECURSION_LIMIT {
+        return Err(ParseError::new("recursion limit exceeded"));
+    }
+    let group_depth = depth + 1;
+    loop {
+        let (_, inner) = decode_tag(buf, pos)?;
+        if inner == WIRE_EGROUP {
+            return Ok(());
+        }
+        skip_field_with_depth(buf, pos, inner, group_depth)?;
+    }
 }
 
 pub fn read_len_bytes<'a>(buf: &'a [u8], pos: &mut usize) -> Result<&'a [u8], ParseError> {
@@ -687,21 +715,54 @@ pub fn capture_unknown(
             number,
             value: read_len_bytes(buf, pos)?.to_vec(),
         }),
-        WIRE_SGROUP => {
-            let mut fields = UnknownFields::default();
-            loop {
-                let (n, w) = decode_tag(buf, pos)?;
-                if w == WIRE_EGROUP {
-                    if n != number {
-                        return Err(ParseError::new("mismatched end-group"));
-                    }
-                    break;
-                }
-                fields.fields.push(capture_unknown(buf, pos, n, w)?);
-            }
-            Ok(UnknownField::Group { number, fields })
-        }
+        WIRE_SGROUP => capture_group_with_depth(buf, pos, number, 0),
         _ => Err(ParseError::new("unknown wire type")),
+    }
+}
+
+/// Capture an unknown field, counting groups with its enclosing parse depth.
+///
+/// Root depth is zero. Each group consumes one level of [`crate::RECURSION_LIMIT`];
+/// excessive depth is rejected before group storage or an increment is created.
+/// Non-group fields retain [`capture_unknown`]'s behavior without a depth check.
+/// Matching end-group numbers continue to be checked.
+pub fn capture_unknown_with_depth(
+    buf: &[u8],
+    pos: &mut usize,
+    number: u32,
+    wire: u32,
+    depth: u32,
+) -> Result<UnknownField, ParseError> {
+    if wire == WIRE_SGROUP {
+        capture_group_with_depth(buf, pos, number, depth)
+    } else {
+        capture_unknown(buf, pos, number, wire)
+    }
+}
+
+#[cold]
+fn capture_group_with_depth(
+    buf: &[u8],
+    pos: &mut usize,
+    number: u32,
+    depth: u32,
+) -> Result<UnknownField, ParseError> {
+    if depth >= crate::RECURSION_LIMIT {
+        return Err(ParseError::new("recursion limit exceeded"));
+    }
+    let group_depth = depth + 1;
+    let mut fields = UnknownFields::default();
+    loop {
+        let (n, w) = decode_tag(buf, pos)?;
+        if w == WIRE_EGROUP {
+            if n != number {
+                return Err(ParseError::new("mismatched end-group"));
+            }
+            return Ok(UnknownField::Group { number, fields });
+        }
+        fields
+            .fields
+            .push(capture_unknown_with_depth(buf, pos, n, w, group_depth)?);
     }
 }
 
