@@ -146,9 +146,7 @@ fn opt_in_embeds_one_literal_and_default_single_output_remain_exact() {
     assert_eq!(
         default
             .values()
-            .map(|s| s
-                .matches("pub const FILE_DESCRIPTOR_SET: &[u8] = &[")
-                .count())
+            .map(|s| s.matches("pub const FILE_DESCRIPTOR_SET: &[u8] = ").count())
             .sum::<usize>(),
         2
     );
@@ -156,13 +154,12 @@ fn opt_in_embeds_one_literal_and_default_single_output_remain_exact() {
     assert_eq!(
         shared
             .values()
-            .map(|s| s
-                .matches("pub const FILE_DESCRIPTOR_SET: &[u8] = &[")
-                .count())
+            .map(|s| s.matches("pub const FILE_DESCRIPTOR_SET: &[u8] = ").count())
             .sum::<usize>(),
         1
     );
     assert!(shared.contains_key(HELPER));
+    assert!(shared[HELPER].contains("pub const FILE_DESCRIPTOR_SET: &[u8] = b\""));
     let mut reversed = files.clone();
     reversed.reverse();
     assert_eq!(
