@@ -3676,6 +3676,39 @@ fn edition2024_selected_extensions_deduplicate_and_preserve_default_output() {
 }
 
 #[test]
+fn edition2024_selected_extensions_builder_matches_parameter_and_rejects_injection() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let descriptor = root.join("tests/fixtures/edition2024/fds/extensions.fds");
+    let output = tempfile_dir();
+    pbrs::codegen::Config::new()
+        .out_dir(&output)
+        .emit_rerun_if_changed(false)
+        .typed_extension(".edition2024.extensions.ext_int32")
+        .compile_descriptor_set(&descriptor, &["extensions.proto"], &[] as &[PathBuf])
+        .unwrap();
+    let expected = typed_extension_result(
+        &["extensions.proto"],
+        include_bytes!("fixtures/edition2024/fds/extensions.fds"),
+        "typed_extension=edition2024.extensions.ext_int32",
+    )
+    .unwrap();
+    for (path, source) in expected {
+        assert_eq!(std::fs::read_to_string(output.join(path)).unwrap(), source);
+    }
+    let error = pbrs::codegen::Config::new()
+        .out_dir(output.join("invalid"))
+        .emit_rerun_if_changed(false)
+        .typed_extension("edition2024.extensions.ext_int32,stubs=none")
+        .compile_descriptor_set(&descriptor, &["extensions.proto"], &[] as &[PathBuf])
+        .unwrap_err();
+    assert!(
+        matches!(error, pbrs::codegen::CodegenError::InvalidParameter { key, .. } if key == "typed_extension")
+    );
+    assert!(!output.join("invalid").exists());
+    std::fs::remove_dir_all(output).unwrap();
+}
+
+#[test]
 fn edition2024_selected_int32_extensions_generated_consumer() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let retained = std::env::var_os("PBRS_TYPED_EXTENSION_CONSUMER_DIR");
