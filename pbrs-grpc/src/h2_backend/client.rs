@@ -634,6 +634,15 @@ pub struct SendRequestWhenReady<'a, B: Buf> {
     waiter: Option<std::sync::Arc<atomic_waker::AtomicWaker>>,
 }
 
+impl<B: Buf> SendRequestWhenReady<'_, B> {
+    /// Request headers remain owned here until the stream is admitted.
+    /// Callers may refresh a relative timeout before polling admission; this
+    /// accessor does not acquire the connection's stream lock.
+    pub(crate) fn request_mut(&mut self) -> Option<&mut Request<()>> {
+        self.request.as_mut()
+    }
+}
+
 impl<B: Buf> Future for SendRequestWhenReady<'_, B> {
     type Output = Result<(ResponseFuture, SendStream<B>), crate::h2_backend::Error>;
 

@@ -312,19 +312,48 @@ impl super::SendRequest for SendRequest {
         &mut self,
         request: Request<()>,
         end_of_stream: bool,
-    ) -> impl Future<Output = Result<(ResponseFuture, SendStream), Error>> {
-        let recorder = self.recorder.clone();
-        let future = self.inner.send_request_when_ready(request, end_of_stream);
-        async move {
-            let (response, send) = future.await.map_err(Error)?;
-            Ok((
-                ResponseFuture {
-                    inner: response,
-                    recorder,
-                },
-                SendStream(send),
-            ))
+    ) -> Admission<'_> {
+        Admission {
+            inner: self.inner.send_request_when_ready(request, end_of_stream),
+            recorder: self.recorder.clone(),
         }
+    }
+}
+
+/// Owned request headers awaiting authoritative connection-wide admission.
+pub(crate) struct Admission<'a> {
+    inner: crate::h2_backend::client::SendRequestWhenReady<'a, Bytes>,
+    recorder: bdp::Recorder,
+}
+
+impl Admission<'_> {
+    /// Refresh headers outside the backend stream lock, before each poll.
+    pub(crate) fn request_mut(&mut self) -> Option<&mut Request<()>> {
+        self.inner.request_mut()
+    }
+}
+
+impl fmt::Debug for Admission<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Admission").finish_non_exhaustive()
+    }
+}
+
+impl Future for Admission<'_> {
+    type Output = Result<(ResponseFuture, SendStream), Error>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.get_mut();
+        let (response, send) =
+            std::task::ready!(Pin::new(&mut this.inner).poll(cx)).map_err(Error)?;
+        let recorder = std::mem::replace(&mut this.recorder, bdp::Recorder::disabled());
+        Poll::Ready(Ok((
+            ResponseFuture {
+                inner: response,
+                recorder,
+            },
+            SendStream(send),
+        )))
     }
 }
 
