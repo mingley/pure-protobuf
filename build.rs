@@ -15,13 +15,21 @@ fn main() {
         println!("cargo:rerun-if-changed=build.rs");
         return;
     }
-    println!("cargo:rerun-if-changed=proto/person.proto");
-    println!("cargo:rerun-if-changed=third_party/protobuf");
+    if Path::new("proto/person.proto").exists() {
+        println!("cargo:rerun-if-changed=proto/person.proto");
+    }
+    let root = Path::new("third_party/protobuf");
+    if root.exists() {
+        println!("cargo:rerun-if-changed=third_party/protobuf");
+    } else if Path::new("third_party").exists() {
+        println!("cargo:rerun-if-changed=third_party");
+    }
+    // Missing watched paths make Cargo rerun forever. Packaged builds have no
+    // SDK or parent; installing one there requires a normal rebuild trigger.
     println!("cargo:rerun-if-changed=vendor/google/conformance_fds.bin");
     let out = std::env::var("OUT_DIR").unwrap();
     let fds = Path::new(&out).join("conformance_fds.bin");
     let vendored = Path::new("vendor/google/conformance_fds.bin");
-    let root = Path::new("third_party/protobuf");
     let src = root.join("src");
     if src.exists() && try_protoc(&fds, root, &src) {
         println!("cargo:warning=wrote conformance descriptor set");
@@ -29,7 +37,7 @@ fn main() {
     }
     // Never write an empty FDS: that produced 2090 unexpected JsonOutput failures.
     if vendored.exists() {
-        std::fs::copy(vendored, &fds).unwrap_or_else(|e| {
+        copy_vendored_fds(vendored, &fds).unwrap_or_else(|e| {
             panic!("failed to copy vendor/google/conformance_fds.bin: {e}");
         });
         return;
@@ -38,6 +46,32 @@ fn main() {
         "missing vendor/google/conformance_fds.bin; \
          refusing to write an empty conformance descriptor set"
     );
+}
+
+fn copy_vendored_fds(vendored: &Path, fds: &Path) -> std::io::Result<()> {
+    let mut input = std::fs::File::open(vendored)?;
+    // fs::copy also copies permissions: a read-only vendor file makes OUT_DIR
+    // read-only and breaks subsequent builds. Recreate only our output file,
+    // including outputs left read-only by older build scripts.
+    match std::fs::remove_file(fds) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        #[cfg(windows)]
+        Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => {
+            let metadata = std::fs::symlink_metadata(fds)?;
+            let mut permissions = metadata.permissions();
+            if metadata.file_type().is_symlink() || !permissions.readonly() {
+                return Err(error);
+            }
+            permissions.set_readonly(false);
+            std::fs::set_permissions(fds, permissions)?;
+            std::fs::remove_file(fds)?;
+        }
+        Err(error) => return Err(error),
+    }
+    let mut output = std::fs::File::create(fds)?;
+    std::io::copy(&mut input, &mut output)?;
+    Ok(())
 }
 
 fn try_protoc(fds: &Path, root: &Path, src: &Path) -> bool {
