@@ -1,0 +1,126 @@
+[
+  {
+    "all_reported_package_tuples_bound_to_unchanged_lock": true,
+    "argv": [
+      "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+      "metadata",
+      "--offline",
+      "--locked",
+      "--format-version",
+      "1",
+      "--manifest-path",
+      "/workspace/scratch/work/shared-parent-lock-edges/bench/devloop/Cargo.toml",
+      "--features",
+      "bridge"
+    ],
+    "compilation": false,
+    "cwd": "/workspace/scratch/work/shared-parent-lock-edges",
+    "exit_code": 0,
+    "features": "bridge",
+    "finished_utc": "2026-10-03T03:15:10.943230+00:00",
+    "manifest": "bench/devloop/Cargo.toml",
+    "reported_packages": 154,
+    "started_utc": "2026-10-03T03:15:10.846272+00:00",
+    "stderr": "raw/command-6.stderr",
+    "stdout": "raw/command-6.stdout",
+    "source_base_commit": "ad79b48ee34d4fd67346560da195f69ee6a846c3",
+    "controlled_overlay": "only bench/devloop/Cargo.lock adds seven edges; exact after-lock bytes retained",
+    "lock_input_sha256": {
+      "Cargo.lock": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5",
+      "bench/devloop/Cargo.lock": "61399401c8e57ceb6aa697fb404bee9ac22f6ec48441faa8dfae74daabbf83c4",
+      "bench/devloop/adoption/Cargo.lock": "00aff2739394c6da0794f669d9d802ee29062888307e5258b2e854f2dc90be8b"
+    }
+  },
+  {
+    "all_reported_package_tuples_bound_to_unchanged_lock": true,
+    "argv": [
+      "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+      "metadata",
+      "--offline",
+      "--locked",
+      "--format-version",
+      "1",
+      "--manifest-path",
+      "/workspace/scratch/work/shared-parent-lock-edges/bench/devloop/Cargo.toml"
+    ],
+    "compilation": false,
+    "cwd": "/workspace/scratch/work/shared-parent-lock-edges",
+    "exit_code": 0,
+    "features": "default",
+    "finished_utc": "2026-10-03T03:15:11.048755+00:00",
+    "manifest": "bench/devloop/Cargo.toml",
+    "reported_packages": 153,
+    "started_utc": "2026-10-03T03:15:10.954443+00:00",
+    "stderr": "raw/command-7.stderr",
+    "stdout": "raw/command-7.stdout",
+    "source_base_commit": "ad79b48ee34d4fd67346560da195f69ee6a846c3",
+    "controlled_overlay": "only bench/devloop/Cargo.lock adds seven edges; exact after-lock bytes retained",
+    "lock_input_sha256": {
+      "Cargo.lock": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5",
+      "bench/devloop/Cargo.lock": "61399401c8e57ceb6aa697fb404bee9ac22f6ec48441faa8dfae74daabbf83c4",
+      "bench/devloop/adoption/Cargo.lock": "00aff2739394c6da0794f669d9d802ee29062888307e5258b2e854f2dc90be8b"
+    }
+  },
+  {
+    "all_reported_package_tuples_bound_to_unchanged_lock": true,
+    "argv": [
+      "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+      "metadata",
+      "--offline",
+      "--locked",
+      "--format-version",
+      "1",
+      "--manifest-path",
+      "/workspace/scratch/work/shared-parent-lock-edges/bench/devloop/adoption/Cargo.toml",
+      "--features",
+      "bridge"
+    ],
+    "compilation": false,
+    "cwd": "/workspace/scratch/work/shared-parent-lock-edges",
+    "exit_code": 0,
+    "features": "bridge",
+    "finished_utc": "2026-10-03T03:15:11.144708+00:00",
+    "manifest": "bench/devloop/adoption/Cargo.toml",
+    "reported_packages": 111,
+    "started_utc": "2026-10-03T03:15:11.061208+00:00",
+    "stderr": "raw/command-8.stderr",
+    "stdout": "raw/command-8.stdout",
+    "source_base_commit": "ad79b48ee34d4fd67346560da195f69ee6a846c3",
+    "controlled_overlay": "only bench/devloop/Cargo.lock adds seven edges; exact after-lock bytes retained",
+    "lock_input_sha256": {
+      "Cargo.lock": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5",
+      "bench/devloop/Cargo.lock": "61399401c8e57ceb6aa697fb404bee9ac22f6ec48441faa8dfae74daabbf83c4",
+      "bench/devloop/adoption/Cargo.lock": "00aff2739394c6da0794f669d9d802ee29062888307e5258b2e854f2dc90be8b"
+    }
+  },
+  {
+    "all_reported_package_tuples_bound_to_unchanged_lock": true,
+    "argv": [
+      "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+      "metadata",
+      "--offline",
+      "--locked",
+      "--format-version",
+      "1",
+      "--manifest-path",
+      "/workspace/scratch/work/shared-parent-lock-edges/bench/devloop/adoption/Cargo.toml"
+    ],
+    "compilation": false,
+    "cwd": "/workspace/scratch/work/shared-parent-lock-edges",
+    "exit_code": 0,
+    "features": "default",
+    "finished_utc": "2026-10-03T03:15:11.213075+00:00",
+    "manifest": "bench/devloop/adoption/Cargo.toml",
+    "reported_packages": 49,
+    "started_utc": "2026-10-03T03:15:11.155584+00:00",
+    "stderr": "raw/command-9.stderr",
+    "stdout": "raw/command-9.stdout",
+    "source_base_commit": "ad79b48ee34d4fd67346560da195f69ee6a846c3",
+    "controlled_overlay": "only bench/devloop/Cargo.lock adds seven edges; exact after-lock bytes retained",
+    "lock_input_sha256": {
+      "Cargo.lock": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5",
+      "bench/devloop/Cargo.lock": "61399401c8e57ceb6aa697fb404bee9ac22f6ec48441faa8dfae74daabbf83c4",
+      "bench/devloop/adoption/Cargo.lock": "00aff2739394c6da0794f669d9d802ee29062888307e5258b2e854f2dc90be8b"
+    }
+  }
+]

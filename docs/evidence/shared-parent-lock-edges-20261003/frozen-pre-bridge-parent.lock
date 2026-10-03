@@ -578,7 +578,6 @@ dependencies = [
  "pbrs",
  "prost 0.14.4",
  "prost-build 0.14.4",
- "protobuf-tonic",
  "serde_json",
 ]
 
@@ -586,18 +585,14 @@ dependencies = [
 name = "pbrs-grpc"
 version = "0.1.0-alpha.2"
 dependencies = [
- "atomic-waker",
  "base64",
  "bytes",
  "flate2",
- "fnv",
  "futures-core",
- "futures-sink",
  "h2",
  "http",
  "http-body",
  "http-body-util",
- "indexmap",
  "libc",
  "pbrs",
  "prost 0.14.4",
@@ -605,14 +600,11 @@ dependencies = [
  "rustls-graviola",
  "rustls-pemfile",
  "serde_json",
- "slab",
  "socket2",
  "tokio",
  "tokio-rustls",
- "tokio-util",
  "tonic",
  "tower",
- "tracing",
  "webpki-roots",
 ]
 
@@ -822,20 +814,6 @@ checksum = "fddf7218148e92862511304cfde3ef07ce109e1f03e830601833b9f0cb901a75"
 dependencies = [
  "quote",
  "syn 2.0.119",
-]
-
-[[package]]
-name = "protobuf-tonic"
-version = "0.1.0-alpha.2"
-dependencies = [
- "bytes",
- "http",
- "pbrs",
- "prost 0.14.4",
- "tokio",
- "tokio-stream",
- "tonic",
- "tonic-prost-build",
 ]
 
 [[package]]
@@ -1189,7 +1167,6 @@ dependencies = [
  "axum",
  "base64",
  "bytes",
- "flate2",
  "h2",
  "http",
  "http-body",

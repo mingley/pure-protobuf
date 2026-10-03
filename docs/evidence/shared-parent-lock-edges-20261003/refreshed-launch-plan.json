@@ -1,0 +1,507 @@
+{
+  "schema": "shared-parent-release-plan/1",
+  "state": "prepared_only_not_executed",
+  "source_commit": null,
+  "provisional_inventory_source_commit": "ad79b48ee34d4fd67346560da195f69ee6a846c3",
+  "shipping_source_freeze_requirement": "root merges narrow parent seven-edge lock commit and qualified compression opt-out integration; root pins a clean final source; source_commit stays null until then",
+  "cache": {
+    "path": "/workspace/scratch/work/sb32/target",
+    "current_profile": "absent after authorized verified reclamation",
+    "release_directory_exists_at_inspection": false,
+    "root_exclusive_lease_required": true,
+    "reclamation_performed": true,
+    "before_reclaim": "archive every historical ELF and generated/build output, all full fingerprint bytes, full SHA inventory and verify archived members; retain historical external archives",
+    "build_cache_limit_bytes": "ROOT_FIXED_LIMIT_REQUIRED_BEFORE_LAUNCH",
+    "minimum_capture_free_bytes": 2147483648,
+    "historical_profile_at_first_inspection": "debug historical correctness only",
+    "reclamation_proof_commits": [
+      "0c62da0f7f325a81d70eeb8a49e0c866dd862806",
+      "8865 (root additive original README/manifest preservation)"
+    ],
+    "target_exists_at_refresh": false
+  },
+  "environment": {
+    "source_environment_script": "/workspace/pure-protobuf/work/toolchain/env.sh",
+    "CARGO_HOME": "/workspace/pure-protobuf/work/toolchain/cargo",
+    "RUSTUP_HOME": "/workspace/pure-protobuf/work/toolchain/rustup",
+    "CARGO_TARGET_DIR": "/workspace/scratch/work/sb32/target",
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_INCREMENTAL": "0",
+    "CMAKE_BUILD_PARALLEL_LEVEL": "1",
+    "RUSTC": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc",
+    "PROTOC": "/workspace/pure-protobuf/target/conformance-build/protoc-35.1.0",
+    "PATH": "/workspace/pure-protobuf/target/conformance-build:/workspace/pure-protobuf/work/toolchain/cargo/bin:/workspace/pure-protobuf/work/toolchain/python/cmake/data/bin:/workspace/pure-protobuf/work/toolchain/python/ninja/data/bin:/workspace/pure-protobuf/work/toolchain/deb/usr/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "LC_ALL": "C",
+    "RUSTFLAGS": null,
+    "CARGO_ENCODED_RUSTFLAGS": null,
+    "CARGO_BUILD_TARGET": null,
+    "RUSTC_WRAPPER": null,
+    "RUSTC_WORKSPACE_WRAPPER": null,
+    "CARGO_PROFILE_RELEASE_overrides": {}
+  },
+  "profile": {
+    "name": "release",
+    "lto": "thin",
+    "codegen_units": 1,
+    "opt_level": 3
+  },
+  "tools": {
+    "cargo": {
+      "actual_file_sha256": "e951141cc55a6cd7b9876d187bd30a3720e6086b99413af95e3b8de1cdd72f14",
+      "matches_historical_actual_executable_pin": true,
+      "path": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+      "sha256": "e951141cc55a6cd7b9876d187bd30a3720e6086b99413af95e3b8de1cdd72f14",
+      "version": "cargo 1.99.0 (5f94df478 2026-08-27)",
+      "version_provenance": "historical version output; actual executable byte hash independently rechecked; no version process executed"
+    },
+    "protoc": {
+      "actual_file_sha256": "ba5165ada96fc34d1295b2056ab8ea99756f7896a0ef0449d07f721595702b28",
+      "matches_historical_actual_executable_pin": true,
+      "path": "/workspace/pure-protobuf/target/conformance-build/protoc-35.1.0",
+      "sha256": "ba5165ada96fc34d1295b2056ab8ea99756f7896a0ef0449d07f721595702b28",
+      "version": "libprotoc 35.1",
+      "version_provenance": "historical version output; actual executable byte hash independently rechecked; no version process executed"
+    },
+    "python": {
+      "actual_file_sha256": "fa67443527ed9647f760d807e2a38f26340757123e643c4639cf273ed15d5ea7",
+      "matches_historical_actual_executable_pin": true,
+      "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+      "sha256": "fa67443527ed9647f760d807e2a38f26340757123e643c4639cf273ed15d5ea7",
+      "version": "Python 3.12.14",
+      "version_provenance": "historical version output; actual executable byte hash independently rechecked; no version process executed"
+    },
+    "rustc": {
+      "actual_file_sha256": "f3834d26669b03f6855fa54bd2381443123e860167bc0c7a8dd137e5cf6e5e4f",
+      "matches_historical_actual_executable_pin": true,
+      "path": "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc",
+      "sha256": "f3834d26669b03f6855fa54bd2381443123e860167bc0c7a8dd137e5cf6e5e4f",
+      "version": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.0\nLLVM version: 23.1.1",
+      "version_provenance": "historical version output; actual executable byte hash independently rechecked; no version process executed"
+    }
+  },
+  "final_input_inventory": {
+    "argv": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+      "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/prepare-final-inputs.py",
+      "--source",
+      "FINAL_SOURCE_COMMIT_TO_BE_FIXED",
+      "--out",
+      "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/inputs"
+    ],
+    "not_a_build_record": true
+  },
+  "metadata": [
+    {
+      "cwd": "/workspace/pure-protobuf",
+      "argv": [
+        "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+        "metadata",
+        "--offline",
+        "--locked",
+        "--format-version",
+        "1",
+        "--manifest-path",
+        "/workspace/pure-protobuf/Cargo.toml",
+        "--all-features"
+      ],
+      "evidence": "raw complete metadata plus exact selected-registry tuple subset of existing unchanged lock"
+    },
+    {
+      "cwd": "/workspace/pure-protobuf",
+      "argv": [
+        "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+        "metadata",
+        "--offline",
+        "--locked",
+        "--format-version",
+        "1",
+        "--manifest-path",
+        "/workspace/pure-protobuf/bench/devloop/Cargo.toml"
+      ],
+      "evidence": "raw complete metadata plus exact selected-registry tuple subset of existing unchanged lock"
+    },
+    {
+      "cwd": "/workspace/pure-protobuf",
+      "argv": [
+        "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+        "metadata",
+        "--offline",
+        "--locked",
+        "--format-version",
+        "1",
+        "--manifest-path",
+        "/workspace/pure-protobuf/bench/devloop/Cargo.toml",
+        "--features",
+        "bridge"
+      ],
+      "evidence": "raw complete metadata plus exact selected-registry tuple subset of existing unchanged lock"
+    },
+    {
+      "cwd": "/workspace/pure-protobuf",
+      "argv": [
+        "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+        "metadata",
+        "--offline",
+        "--locked",
+        "--format-version",
+        "1",
+        "--manifest-path",
+        "/workspace/pure-protobuf/bench/devloop/adoption/Cargo.toml"
+      ],
+      "evidence": "raw complete metadata plus exact selected-registry tuple subset of existing unchanged lock"
+    },
+    {
+      "cwd": "/workspace/pure-protobuf",
+      "argv": [
+        "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+        "metadata",
+        "--offline",
+        "--locked",
+        "--format-version",
+        "1",
+        "--manifest-path",
+        "/workspace/pure-protobuf/bench/devloop/adoption/Cargo.toml",
+        "--features",
+        "bridge"
+      ],
+      "evidence": "raw complete metadata plus exact selected-registry tuple subset of existing unchanged lock"
+    }
+  ],
+  "build": {
+    "cwd": "/workspace/pure-protobuf",
+    "argv": [
+      "/workspace/pure-protobuf/work/toolchain/rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+      "build",
+      "--release",
+      "--offline",
+      "--locked",
+      "--manifest-path",
+      "/workspace/pure-protobuf/bench/devloop/Cargo.toml",
+      "--features",
+      "bridge",
+      "--bin",
+      "devloop",
+      "--message-format=json",
+      "-vv"
+    ],
+    "binary_path_expected": "/workspace/scratch/work/sb32/target/release/devloop",
+    "build_record_path": "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/BUILD.json",
+    "capture": "separate full stdout/stderr, exact argv/environment/cwd, UTC start/end, exit, resource guards; parse actual compiler-artifact and preserve all build/fingerprint/generated outputs; record failure rather than relaunch changing scope"
+  },
+  "completed_build_record_required_fields": [
+    "source_commit",
+    "binary_sha256",
+    "profile",
+    "features",
+    "protobuf_source_commit",
+    "source_sha256",
+    "schema_sha256",
+    "build_argv",
+    "tools"
+  ],
+  "additional_evidence": [
+    "clean before/after source and upstream Git state",
+    "all full source input bytes and schema bytes",
+    "actual tool version stdout/stderr/exit and resolved executable hashes",
+    "full final locked metadata and unchanged tuple audits",
+    "resolved profile and environment including absence of overrides/Cargo config",
+    "compiler-artifact JSON and actual executable hash",
+    "full content-bearing fingerprint and build-script files",
+    "all generated Rust/stubs/FDS hashes and bytes; actual conformance FDS origin",
+    "actual C/C++/archiver/linker invocations and pins if invoked by registry protobuf build",
+    "raw build process and resource guard stop proof"
+  ],
+  "tc32": {
+    "captures": [
+      {
+        "cwd": "/workspace/pure-protobuf",
+        "argv": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+          "/workspace/pure-protobuf/scripts/measure-tc32-bridges.py",
+          "--binary",
+          "/workspace/scratch/work/sb32/target/release/devloop",
+          "--build-pin",
+          "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/BUILD.json",
+          "--original-registry",
+          "/workspace/pure-protobuf/docs/evidence/tc32b-collector-20261002/default-registry.txt",
+          "--out",
+          "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/tc32/replay-one",
+          "--iters",
+          "16",
+          "--valgrind",
+          "/workspace/pure-protobuf/work/toolchain/deb/usr/bin/valgrind"
+        ]
+      },
+      {
+        "cwd": "/workspace/pure-protobuf",
+        "argv": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+          "/workspace/pure-protobuf/scripts/measure-tc32-bridges.py",
+          "--binary",
+          "/workspace/scratch/work/sb32/target/release/devloop",
+          "--build-pin",
+          "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/BUILD.json",
+          "--original-registry",
+          "/workspace/pure-protobuf/docs/evidence/tc32b-collector-20261002/default-registry.txt",
+          "--out",
+          "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/tc32/replay-two",
+          "--iters",
+          "16",
+          "--valgrind",
+          "/workspace/pure-protobuf/work/toolchain/deb/usr/bin/valgrind"
+        ]
+      }
+    ],
+    "audits": [
+      {
+        "cwd": "/workspace/pure-protobuf",
+        "argv": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+          "/workspace/pure-protobuf/scripts/audit-tc32-bridges.py",
+          "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/tc32/replay-one"
+        ]
+      },
+      {
+        "cwd": "/workspace/pure-protobuf",
+        "argv": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+          "/workspace/pure-protobuf/scripts/audit-tc32-bridges.py",
+          "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/tc32/replay-two",
+          "--baseline",
+          "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/tc32/replay-one"
+        ]
+      }
+    ],
+    "registered": 336,
+    "eligible": 324,
+    "blocked_maps": 12,
+    "iters": [
+      16,
+      32
+    ],
+    "repeats": 3,
+    "warmup": 100,
+    "prepare_iters": 32,
+    "codec_replay_instruction_limit": 0.01,
+    "allocs_alloc_bytes_replay": "exact equality; unavailable remains unavailable; both directions retained",
+    "full_controls": "separate mandatory campaign, not run by TC32 driver"
+  },
+  "sb32": {
+    "capture": {
+      "cwd": "/workspace/pure-protobuf",
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+        "/workspace/pure-protobuf/bench/devloop/measure-tonic-transport.py",
+        "--binary",
+        "/workspace/scratch/work/sb32/target/release/devloop",
+        "--build-record",
+        "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/BUILD.json",
+        "--inventory",
+        "/workspace/pure-protobuf/docs/evidence/sb-32/preflight-inventory.json",
+        "--out",
+        "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/sb32",
+        "--iters",
+        "16",
+        "--repeats",
+        "3",
+        "--jobs",
+        "1"
+      ]
+    },
+    "audit": {
+      "cwd": "/workspace/pure-protobuf",
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+        "/workspace/pure-protobuf/bench/devloop/check-tonic-transport-evidence.py",
+        "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/sb32",
+        "--out",
+        "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/sb32-audit.json"
+      ]
+    },
+    "registered_new_tonic_codegen_rows": 512,
+    "old_typed_rows_unchanged": 512,
+    "eligible": 488,
+    "blocked_maps": 24,
+    "iters": [
+      16,
+      32
+    ],
+    "repeats": 3,
+    "warmup": 100,
+    "prepare_iters": 32,
+    "preflight": {
+      "iters": 1,
+      "prepare_iters": 32,
+      "warmup": 0
+    },
+    "independent_reference_replays": 2,
+    "reference_reference_rows_each": 122,
+    "matrix_batches": 8,
+    "total_reports": 12,
+    "rpc_replay_limit": 0.02,
+    "instruction_tool": "unchanged perf-first/Callgrind fallback; no hiding available failing tools",
+    "strace": "N16 whole process /16 including preparation/network oracle/warmup/teardown; futex calls include wakes/errors and are not lock acquisitions",
+    "substitution": "low-level native admission profiles cannot replace these unchanged tonic-generated service rows"
+  },
+  "full20_controls": {
+    "contract_input_inventory": "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/canonical-controls-inputs.json",
+    "exact_cells": [
+      "codec.pbrs.fresh_encode",
+      "codec.pbrs.cached_encode",
+      "codec.pbrs.owned_decode",
+      "codec.pbrs.parse_touch",
+      "codec.prost.fresh_encode",
+      "codec.prost.cached_encode",
+      "codec.prost.owned_decode",
+      "codec.prost.parse_touch",
+      "codec.v4.fresh_encode",
+      "codec.v4.cached_encode",
+      "codec.v4.owned_decode",
+      "codec.v4.parse_touch",
+      "rpc.pbrs.unary",
+      "rpc.pbrs.server_stream",
+      "rpc.tonic.unary",
+      "rpc.tonic.server_stream",
+      "rpc.prost.unary",
+      "rpc.prost.server_stream",
+      "rpc.tonic_prost.unary",
+      "rpc.tonic_prost.server_stream"
+    ],
+    "captures": [
+      {
+        "purpose": "same final binary, independent unchanged-binary replay",
+        "cwd": "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/controls",
+        "argv": [
+          "/workspace/scratch/work/sb32/target/release/devloop",
+          "run",
+          "--cells",
+          "codec.pbrs.fresh_encode,codec.pbrs.cached_encode,codec.pbrs.owned_decode,codec.pbrs.parse_touch,codec.prost.fresh_encode,codec.prost.cached_encode,codec.prost.owned_decode,codec.prost.parse_touch,codec.v4.fresh_encode,codec.v4.cached_encode,codec.v4.owned_decode,codec.v4.parse_touch,rpc.pbrs.unary,rpc.pbrs.server_stream,rpc.tonic.unary,rpc.tonic.server_stream,rpc.prost.unary,rpc.prost.server_stream,rpc.tonic_prost.unary,rpc.tonic_prost.server_stream",
+          "--iters",
+          "200",
+          "--repeats",
+          "3",
+          "--out",
+          "work/profiles/callgrind/before.json"
+        ],
+        "env": {
+          "PBRS_REPLAY_VALGRIND": "/workspace/pure-protobuf/work/toolchain/deb/usr/bin/valgrind",
+          "PBRS_REPLAY_RAW": "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/controls/work/profiles/callgrind/before.raw.jsonl",
+          "PBRS_DEVLOOP_COMMIT": "FINAL_SOURCE_COMMIT_TO_BE_FIXED",
+          "PATH": "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/controls/work/bin:/workspace/pure-protobuf/target/conformance-build:/workspace/pure-protobuf/work/toolchain/cargo/bin:/workspace/pure-protobuf/work/toolchain/python/cmake/data/bin:/workspace/pure-protobuf/work/toolchain/python/ninja/data/bin:/workspace/pure-protobuf/work/toolchain/deb/usr/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+        }
+      },
+      {
+        "purpose": "same final binary, independent unchanged-binary replay",
+        "cwd": "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/controls",
+        "argv": [
+          "/workspace/scratch/work/sb32/target/release/devloop",
+          "run",
+          "--cells",
+          "codec.pbrs.fresh_encode,codec.pbrs.cached_encode,codec.pbrs.owned_decode,codec.pbrs.parse_touch,codec.prost.fresh_encode,codec.prost.cached_encode,codec.prost.owned_decode,codec.prost.parse_touch,codec.v4.fresh_encode,codec.v4.cached_encode,codec.v4.owned_decode,codec.v4.parse_touch,rpc.pbrs.unary,rpc.pbrs.server_stream,rpc.tonic.unary,rpc.tonic.server_stream,rpc.prost.unary,rpc.prost.server_stream,rpc.tonic_prost.unary,rpc.tonic_prost.server_stream",
+          "--iters",
+          "200",
+          "--repeats",
+          "3",
+          "--out",
+          "work/profiles/callgrind/after.json"
+        ],
+        "env": {
+          "PBRS_REPLAY_VALGRIND": "/workspace/pure-protobuf/work/toolchain/deb/usr/bin/valgrind",
+          "PBRS_REPLAY_RAW": "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/controls/work/profiles/callgrind/after.raw.jsonl",
+          "PBRS_DEVLOOP_COMMIT": "FINAL_SOURCE_COMMIT_TO_BE_FIXED",
+          "PATH": "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/controls/work/bin:/workspace/pure-protobuf/target/conformance-build:/workspace/pure-protobuf/work/toolchain/cargo/bin:/workspace/pure-protobuf/work/toolchain/python/cmake/data/bin:/workspace/pure-protobuf/work/toolchain/python/ninja/data/bin:/workspace/pure-protobuf/work/toolchain/deb/usr/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+        }
+      }
+    ],
+    "child_settings": {
+      "iters": [
+        200,
+        400
+      ],
+      "repeats": 3,
+      "warmup": 100,
+      "prepare_iters": 400,
+      "raw_callgrind_children_per_revision": 120,
+      "callgrind_argv": [
+        "/workspace/pure-protobuf/work/toolchain/deb/usr/bin/valgrind",
+        "--tool=callgrind",
+        "--cache-sim=no",
+        "--callgrind-out-file=/tmp/devloop-callgrind.%p",
+        "/workspace/scratch/work/sb32/target/release/devloop",
+        "run-cell",
+        "EXACT_CELL",
+        "--iters",
+        "200_OR_400",
+        "--prepare-iters",
+        "400"
+      ]
+    },
+    "validator": {
+      "cwd": "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/controls",
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+        "/workspace/pure-protobuf/docs/evidence/cl-08/validate-callgrind.py"
+      ]
+    },
+    "frozen_full_comparison": {
+      "cwd": "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/controls",
+      "argv": [
+        "/workspace/scratch/work/sb32/target/release/devloop",
+        "compare",
+        "--baseline",
+        "work/profiles/callgrind/before.json",
+        "--current",
+        "work/profiles/callgrind/after.json"
+      ]
+    },
+    "thresholds": {
+      "codec": 0.01,
+      "rpc": 0.02
+    },
+    "child_alias": "rpc.tonic_prost.* intentionally emits rpc.tonic.*",
+    "raw_graphs": "preserve every full graph identified by original stderr PID before /tmp can change; lossless compression may add compressed/uncompressed hashes without changing graph data",
+    "setup": "new nonoverwriting work/profiles/callgrind; canonical smoke JSON and CSV; pins file recording actual final source/tools/profile/binary for both before and after; byte-identical transparent wrapper symlink; snapshot PATH and assert Callgrind selection",
+    "historical_comparison": "failed secondary diagnostics remain failed; this new unchanged-binary replay does not qualify a before/after performance win; separate frozen reference sidecar required for such comparison",
+    "prepared_wrapper": {
+      "source": "/workspace/pure-protobuf/bench/devloop/adoption/capture-callgrind.py",
+      "destination_symlink": "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/campaign/controls/work/bin/valgrind",
+      "source_sha256": "3655030fd4fbf64f6354e97144ea08042f20bf07c6de52dcc3523a7a80c8cd56",
+      "operation": "root creates only new wrapper directory and symlink before capture; not performed here"
+    }
+  },
+  "prepared_path_probe": {
+    "state": "read-only filesystem inspection, no tool process executed; root must repeat at launch",
+    "PATH": "/workspace/pure-protobuf/target/conformance-build:/workspace/pure-protobuf/work/toolchain/cargo/bin:/workspace/pure-protobuf/work/toolchain/python/cmake/data/bin:/workspace/pure-protobuf/work/toolchain/python/ninja/data/bin:/workspace/pure-protobuf/work/toolchain/deb/usr/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "present_executables": {
+      "perf": [],
+      "valgrind": [
+        "/workspace/pure-protobuf/work/toolchain/deb/usr/bin/valgrind"
+      ],
+      "strace": [
+        "/usr/bin/strace",
+        "/bin/strace"
+      ]
+    }
+  },
+  "historical_provisional_inventory_source_commit": "659333e8206eeaae6f9792cbe8cd73039ce28712",
+  "current_main_source_inventory": "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/refresh-ad79b48e/current-main-source-inventory.json",
+  "current_main_schema_inventory": "/workspace/pure-protobuf/work/shared-parent-release-plan-20261003/refresh-ad79b48e/current-main-schema-inventory.json",
+  "parent_lock_edge_overlay": {
+    "base_commit": "ad79b48ee34d4fd67346560da195f69ee6a846c3",
+    "before_sha256": "a5fa1e79eb2b3741513e479c393fda804f2f6a19416b9560929f033fb944398c",
+    "after_sha256": "61399401c8e57ceb6aa697fb404bee9ac22f6ec48441faa8dfae74daabbf83c4",
+    "all154_package_tuples_unchanged": true,
+    "indexmap": "2.14.2",
+    "adoption_byte_unchanged": true,
+    "first_locked_metadata": "rejected, exit101 retained",
+    "four_after_locked_offline_metadata": "passed; no compilation",
+    "worktree": "/workspace/scratch/work/shared-parent-lock-edges",
+    "commit": "pending narrow lock/evidence commit"
+  },
+  "work_only_helper_overlay": {
+    "change": "accept the existing inline-table indexmap version field as well as a string; exact ordinary2.14.0 requirement preserved",
+    "before_sha256": "d3d9044fcf6d48fe041bbac0c57be75b6ea781d15aee9f0d8aedbb251afa05e4",
+    "after_sha256": "3cfb854abd6acb650323851f7db8dc1a5acf338b91c0745ce8eed071e9f2ae4a",
+    "shipping_source_change": false
+  }
+}

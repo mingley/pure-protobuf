@@ -1,0 +1,66 @@
+{
+  "adoption_lock_byte_identical": true,
+  "after_locked_offline_metadata_runs": 4,
+  "compiler_build_capture_invocations": 0,
+  "first_locked_metadata_rejected": true,
+  "frozen_parent154_tuples_retained": true,
+  "frozen_pre_bridge153_tuples_retained": true,
+  "lock_audit": {
+    "Cargo.lock": {
+      "added_edges": [],
+      "after_sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5",
+      "all_name_version_source_checksum_tuples_unchanged": true,
+      "before_sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5",
+      "changed_package_nodes": [],
+      "indexmap_versions": [
+        "2.14.0"
+      ],
+      "packages": 172
+    },
+    "bench/devloop/Cargo.lock": {
+      "added_edges": [
+        "atomic-waker",
+        "fnv",
+        "futures-sink",
+        "indexmap",
+        "slab",
+        "tokio-util",
+        "tracing"
+      ],
+      "after_sha256": "61399401c8e57ceb6aa697fb404bee9ac22f6ec48441faa8dfae74daabbf83c4",
+      "all_name_version_source_checksum_tuples_unchanged": true,
+      "before_sha256": "a5fa1e79eb2b3741513e479c393fda804f2f6a19416b9560929f033fb944398c",
+      "changed_package_nodes": [
+        "pbrs-grpc"
+      ],
+      "indexmap_versions": [
+        "2.14.2"
+      ],
+      "packages": 154
+    },
+    "bench/devloop/adoption/Cargo.lock": {
+      "added_edges": [],
+      "after_sha256": "00aff2739394c6da0794f669d9d802ee29062888307e5258b2e854f2dc90be8b",
+      "all_name_version_source_checksum_tuples_unchanged": true,
+      "before_sha256": "00aff2739394c6da0794f669d9d802ee29062888307e5258b2e854f2dc90be8b",
+      "changed_package_nodes": [],
+      "indexmap_versions": [
+        "2.14.2"
+      ],
+      "packages": 111
+    }
+  },
+  "only_shipping_file_changed": "bench/devloop/Cargo.lock",
+  "pbrs_grpc_indexmap_requirement": {
+    "default-features": false,
+    "features": [
+      "std"
+    ],
+    "version": "2.14.0"
+  },
+  "qualification": "Source/graph preparation only; final opt-out integration and root freeze remain pending. No performance qualification.",
+  "root_lock_byte_identical": true,
+  "schema": "shared-parent-existing-lock-edge-audit/1",
+  "shipping_release_source_commit": null,
+  "source_commit": "ad79b48ee34d4fd67346560da195f69ee6a846c3"
+}

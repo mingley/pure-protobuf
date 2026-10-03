@@ -1,0 +1,15 @@
+{
+  "event": "initial --no-checkout sparse worktree had an empty index until read-tree populated it",
+  "initial_input_read_error": "FileNotFoundError on worktree Cargo.lock",
+  "cargo_metadata_invocations_before_correction": 0,
+  "shipping_checkout_index_mutation": false,
+  "correction_argv": [
+    "git",
+    "-C",
+    "/workspace/scratch/work/shared-parent-lock-edges",
+    "read-tree",
+    "--reset",
+    "-u",
+    "HEAD"
+  ]
+}

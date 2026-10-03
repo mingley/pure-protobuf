@@ -1,0 +1,86 @@
+[
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/workspace/pure-protobuf",
+      "worktree",
+      "add",
+      "--no-checkout",
+      "-b",
+      "mingley/shared-parent-lock-edges",
+      "/workspace/scratch/work/shared-parent-lock-edges",
+      "ad79b48ee34d4fd67346560da195f69ee6a846c3"
+    ],
+    "started_utc": "2026-10-03T03:11:41.363549+00:00",
+    "finished_utc": "2026-10-03T03:11:41.370957+00:00",
+    "exit_code": 0,
+    "stdout": "command-0.stdout",
+    "stderr": "command-0.stderr"
+  },
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/workspace/scratch/work/shared-parent-lock-edges",
+      "sparse-checkout",
+      "set",
+      "--no-cone",
+      "/Cargo.toml",
+      "/Cargo.lock",
+      "/build.rs",
+      "/README.md",
+      "/LICENSE-*",
+      "/clippy.toml",
+      "/rustfmt.toml",
+      "/src/**",
+      "/proto/**",
+      "/pbrs-grpc/**",
+      "/protobuf-tonic/**",
+      "/prost_tat/**",
+      "/v4_tat/**",
+      "/examples/**",
+      "/bench/devloop/**",
+      "/bench/corpora/otlp/protos/**",
+      "/vendor/google/**",
+      "/scripts/**",
+      "/tests/bench/**"
+    ],
+    "started_utc": "2026-10-03T03:11:41.371053+00:00",
+    "finished_utc": "2026-10-03T03:11:41.373128+00:00",
+    "exit_code": 0,
+    "stdout": "command-1.stdout",
+    "stderr": "command-1.stderr"
+  },
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/workspace/scratch/work/shared-parent-lock-edges",
+      "status",
+      "--porcelain",
+      "--untracked-files=normal"
+    ],
+    "started_utc": "2026-10-03T03:11:41.373250+00:00",
+    "finished_utc": "2026-10-03T03:11:41.384011+00:00",
+    "exit_code": 0,
+    "stdout": "command-2.stdout",
+    "stderr": "command-2.stderr"
+  },
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/workspace/scratch/work/shared-parent-lock-edges",
+      "read-tree",
+      "--reset",
+      "-u",
+      "HEAD"
+    ],
+    "started_utc": "2026-10-03T03:13:05.554226+00:00",
+    "finished_utc": "2026-10-03T03:13:05.651482+00:00",
+    "exit_code": 0,
+    "stdout": "command-3.stdout",
+    "stderr": "command-3.stderr"
+  }
+]

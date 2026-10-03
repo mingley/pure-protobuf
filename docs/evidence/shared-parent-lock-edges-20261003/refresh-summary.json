@@ -1,0 +1,19 @@
+{
+  "current_main_provisional_source": "ad79b48ee34d4fd67346560da195f69ee6a846c3",
+  "historical_provisional_source": "659333e8206eeaae6f9792cbe8cd73039ce28712",
+  "final_release_source_commit": null,
+  "tracked_inputs": 477,
+  "mandatory_tc32_paths": 41,
+  "schema_pins": 88,
+  "mandatory_third_party_schemas": 14,
+  "historical_inputs_not_relabelled": true,
+  "cache_currently_absent": true,
+  "launch_workloads_thresholds_iterations_repetitions_profile_tools_unchanged": true,
+  "work_only_helper_inline_table_correction": {
+    "change": "accept the existing inline-table indexmap version field as well as a string; exact ordinary2.14.0 requirement preserved",
+    "before_sha256": "d3d9044fcf6d48fe041bbac0c57be75b6ea781d15aee9f0d8aedbb251afa05e4",
+    "after_sha256": "3cfb854abd6acb650323851f7db8dc1a5acf338b91c0745ce8eed071e9f2ae4a",
+    "shipping_source_change": false
+  },
+  "compiler_build_capture_invocations": 0
+}
