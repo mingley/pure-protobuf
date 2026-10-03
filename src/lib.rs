@@ -42,6 +42,7 @@ pub use crate::dynamic::{
 #[cfg(not(feature = "reflect"))]
 pub const RECURSION_LIMIT: u32 = 100;
 pub use crate::error::{ParseError, SerializeError};
+pub use crate::extension::{Extension, ExtensionHost, ExtensionValue};
 pub use crate::map::{Map, MapIter, MapKey, MapMut, MapValue, MapView};
 pub use crate::message::{
     Clear, ClearAndParse, CopyFrom, Enum, MergeFrom, Message, MessageMut, MessageName, MessageType,
@@ -73,6 +74,7 @@ pub mod copy_counts;
 #[cfg(feature = "reflect")]
 mod dynamic;
 mod error;
+mod extension;
 pub mod gen_support;
 #[cfg(feature = "conformance")]
 pub mod gencode;

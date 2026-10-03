@@ -144,6 +144,16 @@ impl FieldList {
     pub fn clear(&mut self) {
         self.0 = None;
     }
+
+    /// Retain matching records in their existing order, without allocating.
+    pub fn retain(&mut self, mut keep: impl FnMut(&UnknownField) -> bool) {
+        if let Some(fields) = self.0.as_mut() {
+            fields.retain(|field| keep(field));
+            if fields.is_empty() {
+                self.0 = None;
+            }
+        }
+    }
 }
 
 impl<'a> IntoIterator for &'a FieldList {
