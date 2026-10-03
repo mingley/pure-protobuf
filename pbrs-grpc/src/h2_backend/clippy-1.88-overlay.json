@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "kind": "additive_private_import_lint_overlay",
+  "base_topology_source": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a",
+  "original_topology_provenance_sha256": "8a4cd576d90dce8a1c5e168f5d245ad1828d1ba3419200f6a02ee0eb1b827909",
+  "original_mapping_preserved": true,
+  "file": "pbrs-grpc/src/h2_backend/mod.rs",
+  "old_sha256": "d6ed9e8cad1006f2ebadc948a06ff714760012e14010ae4f58df33b3d1051cdf",
+  "new_sha256": "94e31ed77285c7beed435e3a14c507ecfe5ab1e4e1b76fb7640af3c340904f3c",
+  "operation": {
+    "needle": "    clippy::vec_init_then_push,\n",
+    "insert_after": "    clippy::uninlined_format_args,\n",
+    "occurrences": 1
+  },
+  "exact_patch_file": "clippy-1.88-overlay.patch",
+  "exact_patch_sha256": "2b8492d36444681789ab52f67d41bd1f075fea109ea5612c802227b0bfbd202c",
+  "reason": "Clippy1.88 emits twelve inherited uninlined_format_args style diagnostics; preserve pinned upstream runtime/display strings under the existing reasoned private import boundary",
+  "diagnostic_source_commit": "5f4381599e6daf130c2deec25f847bf2452155fe",
+  "diagnostic_log_path": "/workspace/scratch/work/deadline-admission-native/work/native-admission-gates/027-actual188-clippy.stderr.log",
+  "diagnostic_log_sha256": "4e5cacaa727f6d98b18e024855e9c78809d17ddcf333648290639786e7c005cd",
+  "runtime_algorithm_or_strings_changed": false,
+  "other_lints_or_unsafe_policy_changed": false,
+  "new_source_qualification": "actual1.88 final caller Clippy/package/consumer gates are owned by gn13; prior604f gates are not relabeled",
+  "replay_script": "replay-clippy-1.88-overlay.py",
+  "replay_script_sha256": "7cf0baaf1ac22b4c3e4fbb636d60e31ef3ac565091258760317804a52a29f5cc",
+  "read_only_replay_exit": 0,
+  "read_only_replay_stdout_sha256": "96315ebc8732b564757e6e7de050f380d7e3aff3ef34251be7d13322e098789e"
+}

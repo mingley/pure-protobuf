@@ -111,6 +111,7 @@
     clippy::items_after_test_module,
     clippy::bool_assert_comparison,
     clippy::vec_init_then_push,
+    clippy::uninlined_format_args,
     reason = "private pinned upstream h2 import retains original invariant checks, mutexes, integer operations and public source surface; admission changes receive independent component tests and review"
 )]
 // uncomment me to run benchmarks
