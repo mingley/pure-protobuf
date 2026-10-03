@@ -1,0 +1,23 @@
+
+running 18 tests
+test additional::eof_wakes_mixed_legacy_pending_with_connection_error ... ok
+test additional::explicit_cancel_after_admission_sends_headers_then_reset ... ok
+test additional::first_settings_without_max_releases_native_initial_zero ... ok
+test additional::goaway_wakes_mixed_legacy_pending_without_opening_new_headers ... ok
+test additional::last_handle_drop_after_admission_sends_headers_then_reset ... ok
+test additional::later_settings_without_max_preserves_existing_cap ... ok
+test additional::legacy_pending_queue_reservations_bound_additive_admission ... ok
+test additional::mixed_legacy_pending_cancel_releases_only_new_task_and_request ... ok
+test additional::open_response_body_occupies_slot_but_terminal_handles_do_not ... ok
+test additional::response_eof_does_not_release_slot_with_flow_blocked_request_data ... ok
+test additional::upstream_default_can_admit_before_first_peer_settings ... ok
+test canceled_future_releases_task_waker_while_sender_remains_live ... ok
+test connection_death_wakes_even_a_zero_capacity_waiter ... ok
+test expired_pending_request_is_untouched_and_never_allocates_stream ... ok
+test extension_drop_can_reenter_sender_without_deadlocking_stream_lock ... ok
+test initial_settings_zero_and_growth_wake_pending_request ... ok
+test many_waiters_wake_without_oversubscribing_capacity ... ok
+test shrink_below_active_count_does_not_admit_another_request ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

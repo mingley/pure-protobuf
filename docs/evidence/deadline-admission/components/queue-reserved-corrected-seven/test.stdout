@@ -1,0 +1,12 @@
+
+running 7 tests
+test canceled_future_releases_task_waker_while_sender_remains_live ... ok
+test connection_death_wakes_even_a_zero_capacity_waiter ... ok
+test expired_pending_request_is_untouched_and_never_allocates_stream ... ok
+test extension_drop_can_reenter_sender_without_deadlocking_stream_lock ... ok
+test initial_settings_zero_and_growth_wake_pending_request ... ok
+test many_waiters_wake_without_oversubscribing_capacity ... ok
+test shrink_below_active_count_does_not_admit_another_request ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
