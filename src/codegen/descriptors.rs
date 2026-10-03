@@ -229,6 +229,14 @@ pub fn generate_from_code_generator_request(
     // existing crate-root registry. Inspect the per-type facts once rather than
     // repeating descriptor lookups for each requested target.
     let requested_targets: std::collections::BTreeSet<_> = targets.iter().cloned().collect();
+    let typed_extensions = if resolved.typed_extensions.is_empty() {
+        Vec::new()
+    } else {
+        let selected =
+            select_typed_extensions(&pool, &resolved.typed_extensions, &requested_targets)?;
+        validate_raw_typed_extensions(&selected, &proto_files)?;
+        selected
+    };
     let requested_matcher = FileMatcher::for_slice(&targets);
     let share_wkt = targets.len() > 1 && !resolved.no_wkt;
     let facade = format!(
@@ -507,6 +515,16 @@ use pbrs::UnknownFields;\n\n"
         let mut ident_names = emit_names.clone();
         ident_names.extend(emit_enums.iter().cloned());
         IDENTS.with(|c| *c.borrow_mut() = unique_idents(&ident_names, &msg_set));
+        if !typed_extensions.is_empty() {
+            validate_typed_extension_emission(
+                &typed_extensions,
+                &emit_names,
+                &emit_enums,
+                &pool,
+                &norm_target,
+                &direct_pub_files,
+            )?;
+        }
         let root_package = file_packages.get(&norm_target).is_none_or(String::is_empty);
         if share_descriptors && root_package {
             let emitted_messages: std::collections::BTreeSet<&str> =
@@ -588,6 +606,9 @@ use pbrs::UnknownFields;\n\n"
             emit_map_decoders(&mut src, desc, edition2024)?;
         }
         emit_nested_mods(&mut src, &emit_names, &emit_enums);
+        if !typed_extensions.is_empty() {
+            emit_typed_extensions(&mut src, &typed_extensions, &norm_target);
+        }
         let mut services: Vec<Arc<ServiceDescriptor>> = Vec::new();
         {
             let mut scratch = None;

@@ -312,9 +312,32 @@ Google's official `rust_upb` implementation has an empty typed extension test st
 
 In `pure-protobuf`:
 
-- `src/codegen.rs` does not currently emit typed extension constants or extension accessors on generated structs.
+- Native code generation has an opt-in scalar slice: repeatable
+  `typed_extension=fully.qualified.name` plugin parameters (or
+  `Config::typed_extension(name)`) select singular Edition 2024 `int32`
+  identifiers. The extension and its owned host must be declared in the same
+  requested file. Without selections, existing generated output is unchanged.
+- Selected hosts receive `get_extension`, `has_extension`, `set_extension`, and
+  `clear_extension` methods taking `Extension<Host, i32>` constants from a
+  generated `extensions` module. Reads scan the existing unknown bag without
+  mutation; the last matching varint wins, with the descriptor default when
+  absent. Set/clear affect matching varints only, preserving unrelated records
+  and same-number fields of other wire types. Explicit default/zero values are
+  present and serialize. Mutations invalidate the encoded-size cache.
+- Unsupported selected types, cardinalities, editions, cross-file/extern
+  extendees, illegal tags, ambiguous raw declarations, and generated namespace
+  collisions fail before output is returned. Selected owner files sharing a
+  package are rejected when their `extensions` modules would collide. The
+  native bag/message storage layout and ordinary parser are unchanged;
+  canonical unknown values and order are retained, without promising arbitrary
+  noncanonical original byte fidelity.
 - Extension fields parsed on typed messages are retained in the `UnknownFields` bag and can be inspected through dynamic reflection. `CG-14` qualifies this wire-preserving behavior for the approved fixture extensions and every extension kind in the original `rust/test/extensions.proto` schema (see §8).
-- Typed extension accessors, such as `msg.get(&ext_int32)`, are a separate codegen enhancement scoped as `CG-14b` and block a full Edition 2024 claim until delivered.
+- This scalar slice is tracked as `GN-15`. Repeated, enum, message, group,
+  cross-file and view/mut extension access remain unresolved under `CG-14b`;
+  the official upb extension ABI/registry remains separate under `UK-08`.
+  Neither full card is completed by the scalar slice. Source and behavioral
+  qualification for this slice must be read from its evidence record; an API
+  description alone is not a gate result.
 
 ---
 

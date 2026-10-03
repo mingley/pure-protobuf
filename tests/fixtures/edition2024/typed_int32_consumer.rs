@@ -11,6 +11,46 @@ pub mod original {
 }
 
 #[cfg(test)]
+mod allocation_probe {
+    use std::alloc::{GlobalAlloc, Layout, System};
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+
+    static ENABLED: AtomicBool = AtomicBool::new(false);
+    static ALLOCATIONS: AtomicUsize = AtomicUsize::new(0);
+    struct CountedSystem;
+
+    #[expect(
+        unsafe_code,
+        reason = "test-only allocator forwards unchanged layouts and pointers to System"
+    )]
+    unsafe impl GlobalAlloc for CountedSystem {
+        unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+            if ENABLED.load(Ordering::Relaxed) {
+                ALLOCATIONS.fetch_add(1, Ordering::Relaxed);
+            }
+            unsafe { System.alloc(layout) }
+        }
+
+        unsafe fn dealloc(&self, pointer: *mut u8, layout: Layout) {
+            unsafe {
+                System.dealloc(pointer, layout);
+            }
+        }
+    }
+
+    #[global_allocator]
+    static ALLOCATOR: CountedSystem = CountedSystem;
+
+    pub fn during(operation: impl FnOnce()) -> usize {
+        let before = ALLOCATIONS.load(Ordering::Relaxed);
+        ENABLED.store(true, Ordering::Relaxed);
+        operation();
+        ENABLED.store(false, Ordering::Relaxed);
+        ALLOCATIONS.load(Ordering::Relaxed) - before
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::{checked, default_checked, original};
     use checked::extensions::{EXT_INT32, EXT_INT32_WITH_DEFAULT};
@@ -39,8 +79,8 @@ mod tests {
         // tag101=7, unknown tag200=9, tag101 fixed32=1, tag101=11,
         // unselected closed-enum tag105=99, unselected repeated tag103=3.
         let wire = [
-            0xa8, 0x06, 7, 0xc0, 0x0c, 9, 0xad, 0x06, 1, 0, 0, 0, 0xa8, 0x06, 11,
-            0xc8, 0x06, 99, 0xb8, 0x06, 3,
+            0xa8, 0x06, 7, 0xc0, 0x0c, 9, 0xad, 0x06, 1, 0, 0, 0, 0xa8, 0x06, 11, 0xc8, 0x06, 99,
+            0xb8, 0x06, 3,
         ];
         let mut value = checked::ExtendableMessage::parse(&wire).unwrap();
         assert_eq!(value.get_extension(&EXT_INT32), 11);
@@ -49,13 +89,17 @@ mod tests {
         value.set_extension(&EXT_INT32, 4);
         assert_eq!(
             value.serialize().unwrap(),
-            [0xc0, 0x0c, 9, 0xad, 0x06, 1, 0, 0, 0, 0xc8, 0x06, 99, 0xb8, 0x06, 3, 0xa8, 0x06, 4]
+            [
+                0xc0, 0x0c, 9, 0xad, 0x06, 1, 0, 0, 0, 0xc8, 0x06, 99, 0xb8, 0x06, 3, 0xa8, 0x06, 4
+            ]
         );
         value.clear_extension(&EXT_INT32);
         assert!(!value.has_extension(&EXT_INT32));
         assert_eq!(
             value.serialize().unwrap(),
-            [0xc0, 0x0c, 9, 0xad, 0x06, 1, 0, 0, 0, 0xc8, 0x06, 99, 0xb8, 0x06, 3]
+            [
+                0xc0, 0x0c, 9, 0xad, 0x06, 1, 0, 0, 0, 0xc8, 0x06, 99, 0xb8, 0x06, 3
+            ]
         );
     }
 
@@ -66,10 +110,17 @@ mod tests {
         value.merge_from_bytes(&[0xa8, 0x06, 11]).unwrap();
         assert_eq!(value.get_extension(&EXT_INT32), 11);
         value.set_extension(&EXT_INT32, -1);
-        let negative = [0xa8, 0x06, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 1];
+        let negative = [
+            0xa8, 0x06, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 1,
+        ];
         assert_eq!(value.serialize().unwrap(), negative);
         assert_eq!(value.serialized_len(), negative.len());
-        assert_eq!(checked::ExtendableMessage::parse(&negative).unwrap().get_extension(&EXT_INT32), -1);
+        assert_eq!(
+            checked::ExtendableMessage::parse(&negative)
+                .unwrap()
+                .get_extension(&EXT_INT32),
+            -1
+        );
         value.clear_extension(&EXT_INT32);
         assert_eq!(value.serialized_len(), 0);
         assert_eq!(value.serialize().unwrap(), []);
@@ -96,13 +147,35 @@ mod tests {
     }
 
     #[test]
+    fn default_and_absent_access_allocate_nothing() {
+        let allocations = super::allocation_probe::during(|| {
+            let mut value = std::hint::black_box(checked::ExtendableMessage::new());
+            assert_eq!(value.get_extension(&EXT_INT32_WITH_DEFAULT), 42);
+            assert!(!value.has_extension(&EXT_INT32));
+            value.clear_extension(&EXT_INT32);
+            std::hint::black_box(value);
+        });
+        assert_eq!(allocations, 0);
+        let mut value = checked::ExtendableMessage::new();
+        value.set_extension(&EXT_INT32, 7);
+        let allocations = super::allocation_probe::during(|| {
+            value.set_extension(&EXT_INT32, 11);
+            std::hint::black_box(value.get_extension(&EXT_INT32));
+        });
+        assert_eq!(allocations, 0);
+    }
+
+    #[test]
     fn nested_and_original_descriptors() {
         let mut checked = checked::ExtendableMessage::new();
         let nested = &checked::extensions::EXTENDABLE_MESSAGE_NESTED_SCOPED_EXTENSION;
         checked.set_extension(nested, 3);
         assert_eq!(checked.serialize().unwrap(), [0xb0, 0x09, 3]);
         let mut original = original::TestExtensions::new();
-        assert_eq!(original.get_extension(&original::extensions::I32_EXTENSION_WITH_DEFAULT), 100);
+        assert_eq!(
+            original.get_extension(&original::extensions::I32_EXTENSION_WITH_DEFAULT),
+            100
+        );
         original.set_extension(&original::extensions::I32_EXTENSION, 1);
         original.set_extension(&original::extensions::TEST_EXTENSIONS_NESTED_EXTENSION, 2);
         assert_eq!(original.serialize().unwrap(), [0x08, 1, 0xa0, 0x1f, 2]);

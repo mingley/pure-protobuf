@@ -376,6 +376,7 @@ pub(crate) fn stubs_setting() -> StubStyle {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ExplicitOptions {
+    pub(crate) typed_extensions: Vec<String>,
     stubs: Option<StubStyle>,
     emit_deps: Option<bool>,
     no_wkt: Option<bool>,
@@ -407,6 +408,7 @@ pub(crate) struct ExplicitOptions {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ResolvedConfig {
+    pub(crate) typed_extensions: Vec<String>,
     pub(crate) stubs: StubStyle,
     pub(crate) emit_deps: bool,
     pub(crate) no_wkt: bool,
@@ -447,6 +449,26 @@ pub(crate) fn parse_bool_param(key: &str, val: Option<&str>) -> Result<bool, Cod
     }
 }
 
+pub(crate) fn typed_extension_name(value: Option<&str>) -> Result<String, CodegenError> {
+    let name = value.unwrap_or_default().trim();
+    let name = name.strip_prefix('.').unwrap_or(name);
+    if name.is_empty()
+        || !name.split('.').all(|part| {
+            let mut chars = part.chars();
+            chars
+                .next()
+                .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+                && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+        })
+    {
+        return Err(CodegenError::InvalidParameter {
+            key: "typed_extension".into(),
+            detail: "expected a fully qualified protobuf extension name".into(),
+        });
+    }
+    Ok(name.to_string())
+}
+
 pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions, CodegenError> {
     let mut explicit = ExplicitOptions::default();
     for item in parameter.split(',') {
@@ -459,6 +481,9 @@ pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions,
             None => (item, None),
         };
         match key {
+            "typed_extension" => {
+                explicit.typed_extensions.push(typed_extension_name(val)?);
+            }
             "stubs" => {
                 let s = match val {
                     Some("kernel") => StubStyle::Kernel,
@@ -830,6 +855,7 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
         )
     };
     ResolvedConfig {
+        typed_extensions: explicit.typed_extensions.clone(),
         stubs,
         emit_deps,
         no_wkt,
@@ -988,6 +1014,7 @@ pub(crate) fn emit_server_attributes(src: &mut String, fq_path: &str, indent: &s
 /// byte-identical for equivalent inputs.
 #[derive(Clone, Debug, Default)]
 pub struct Config {
+    typed_extensions: Vec<String>,
     protoc_path: Option<PathBuf>,
     out_dir: Option<PathBuf>,
     stubs: Option<StubStyle>,
@@ -1025,6 +1052,16 @@ pub struct Config {
 impl Config {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Select a singular Edition 2024 `int32` extension by its protobuf name.
+    ///
+    /// The extension and its owned host must be declared in the same requested
+    /// file. Repeated calls select additional identifiers. Unsupported selected
+    /// kinds/scopes fail during generation; unselected extensions stay unknown.
+    pub fn typed_extension(&mut self, name: impl Into<String>) -> &mut Self {
+        self.typed_extensions.push(name.into());
+        self
     }
 
     /// Explicitly configure the path to the `protoc` compiler executable.
@@ -1449,6 +1486,9 @@ impl Config {
 
     fn to_parameter_string(&self) -> String {
         let mut opts = Vec::new();
+        for name in &self.typed_extensions {
+            opts.push(format!("typed_extension={name}"));
+        }
         if let Some(stubs) = self.stubs {
             match stubs {
                 StubStyle::Kernel => opts.push("stubs=kernel".to_string()),
@@ -1573,6 +1613,9 @@ impl Config {
         files_to_generate: &[impl AsRef<Path>],
         includes: &[impl AsRef<Path>],
     ) -> Result<(), CodegenError> {
+        for name in &self.typed_extensions {
+            typed_extension_name(Some(name))?;
+        }
         let param = self.to_parameter_string();
         if !param.is_empty() {
             parse_plugin_parameter(&param)?;
@@ -1621,6 +1664,9 @@ impl Config {
         protos: &[impl AsRef<Path>],
         includes: &[impl AsRef<Path>],
     ) -> Result<(), CodegenError> {
+        for name in &self.typed_extensions {
+            typed_extension_name(Some(name))?;
+        }
         let param = self.to_parameter_string();
         if !param.is_empty() {
             parse_plugin_parameter(&param)?;

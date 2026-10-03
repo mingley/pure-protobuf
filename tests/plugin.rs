@@ -3454,6 +3454,331 @@ fn edition2024_selected_int32_extensions_generate_original_identifiers() {
     assert!(!source.contains("pub fn closed_enum_extension("));
 }
 
+fn typed_extension_result(
+    targets: &[&str],
+    fds: &[u8],
+    parameter: &str,
+) -> Result<Vec<(String, String)>, pbrs::codegen::CodegenError> {
+    let mut request = edition2024_plugin_request(targets, fds);
+    pbrs::rt::encode_len_field(&mut request, 2, parameter.as_bytes());
+    pbrs::codegen::generate_from_code_generator_request(&request)
+}
+
+#[test]
+fn edition2024_selected_extensions_reject_unsupported_kinds_and_scope() {
+    let checked = include_bytes!("fixtures/edition2024/fds/extensions.fds");
+    for name in [
+        "ext_string",
+        "ext_repeated_int32",
+        "ext_submessage",
+        "ext_closed_enum",
+    ] {
+        let parameter = format!("typed_extension=edition2024.extensions.{name}");
+        let error = typed_extension_result(&["extensions.proto"], checked, &parameter).unwrap_err();
+        assert!(
+            matches!(&error, pbrs::codegen::CodegenError::InvalidParameter { key, detail }
+            if key == "typed_extension" && detail.contains("only singular int32")),
+            "{error}"
+        );
+    }
+    for parameter in [
+        "typed_extension=missing.extension",
+        "typed_extension=edition2024.extensions.ext_int32,extern_path=edition2024.extensions.ExtendableMessage=crate::Foreign",
+    ] {
+        let error = typed_extension_result(&["extensions.proto"], checked, parameter).unwrap_err();
+        assert!(
+            matches!(error, pbrs::codegen::CodegenError::InvalidParameter { key, .. } if key == "typed_extension")
+        );
+    }
+    for parameter in [
+        "typed_extension",
+        "typed_extension=",
+        "typed_extension=bad..name",
+        "typed_extension=.bad-name",
+    ] {
+        let error = typed_extension_result(&["extensions.proto"], checked, parameter).unwrap_err();
+        assert!(
+            matches!(error, pbrs::codegen::CodegenError::InvalidParameter { key, .. } if key == "typed_extension")
+        );
+    }
+}
+
+fn scalar_extension_test_fds(
+    edition: u64,
+    number: u32,
+    ordinary_field: Option<(&str, u32)>,
+    nested_module: bool,
+) -> Vec<u8> {
+    let mut message = Vec::new();
+    pbrs::rt::encode_len_field(&mut message, 1, b"Host");
+    let mut range = Vec::new();
+    for (tag, value) in [(1, 100), (2, 536_870_912)] {
+        pbrs::rt::encode_tag(&mut range, tag, pbrs::rt::WIRE_VARINT);
+        pbrs::rt::encode_varint(&mut range, value);
+    }
+    pbrs::rt::encode_len_field(&mut message, 5, &range);
+    if let Some((name, number)) = ordinary_field {
+        let mut field = Vec::new();
+        pbrs::rt::encode_len_field(&mut field, 1, name.as_bytes());
+        for (tag, value) in [(3, u64::from(number)), (4, 1), (5, 5)] {
+            pbrs::rt::encode_tag(&mut field, tag, pbrs::rt::WIRE_VARINT);
+            pbrs::rt::encode_varint(&mut field, value);
+        }
+        pbrs::rt::encode_len_field(&mut message, 2, &field);
+    }
+    let mut extension = Vec::new();
+    pbrs::rt::encode_len_field(&mut extension, 1, b"value");
+    pbrs::rt::encode_len_field(&mut extension, 2, b".test.Host");
+    for (tag, value) in [(3, u64::from(number)), (4, 1), (5, 5)] {
+        pbrs::rt::encode_tag(&mut extension, tag, pbrs::rt::WIRE_VARINT);
+        pbrs::rt::encode_varint(&mut extension, value);
+    }
+    let mut file = Vec::new();
+    pbrs::rt::encode_len_field(&mut file, 1, b"scalar.proto");
+    pbrs::rt::encode_len_field(&mut file, 2, b"test");
+    pbrs::rt::encode_len_field(&mut file, 4, &message);
+    pbrs::rt::encode_len_field(&mut file, 7, &extension);
+    if nested_module {
+        let mut outer = Vec::new();
+        let mut inner = Vec::new();
+        pbrs::rt::encode_len_field(&mut outer, 1, b"Extensions");
+        pbrs::rt::encode_len_field(&mut inner, 1, b"Nested");
+        pbrs::rt::encode_len_field(&mut outer, 3, &inner);
+        pbrs::rt::encode_len_field(&mut file, 4, &outer);
+    }
+    if edition == 0 {
+        pbrs::rt::encode_len_field(&mut file, 12, b"proto2");
+    } else {
+        pbrs::rt::encode_len_field(&mut file, 12, b"editions");
+        pbrs::rt::encode_tag(&mut file, 14, pbrs::rt::WIRE_VARINT);
+        pbrs::rt::encode_varint(&mut file, edition);
+    }
+    let mut fds = Vec::new();
+    pbrs::rt::encode_len_field(&mut fds, 1, &file);
+    fds
+}
+
+#[test]
+fn edition2024_selected_extensions_reject_accessor_and_namespace_collisions() {
+    for field in [
+        "extension",
+        "get_extension",
+        "has_extension",
+        "set_extension",
+        "clear_extension",
+    ] {
+        let fds = scalar_extension_test_fds(1001, 101, Some((field, 1)), false);
+        let error = typed_extension_result(&["scalar.proto"], &fds, "typed_extension=test.value")
+            .unwrap_err();
+        assert!(
+            matches!(&error, pbrs::codegen::CodegenError::InvalidParameter { key, detail }
+            if key == "typed_extension" && detail.contains("accessor collides")),
+            "{field}: {error}"
+        );
+    }
+    let fds = scalar_extension_test_fds(1001, 101, None, true);
+    let error =
+        typed_extension_result(&["scalar.proto"], &fds, "typed_extension=test.value").unwrap_err();
+    assert!(
+        matches!(&error, pbrs::codegen::CodegenError::InvalidParameter { key, detail }
+        if key == "typed_extension" && detail.contains("nested module collides")),
+        "{error}"
+    );
+}
+
+fn scalar_fds_with_second_extension(name: &str) -> Vec<u8> {
+    let fds = scalar_extension_test_fds(1001, 101, None, false);
+    let mut pos = 0;
+    assert_eq!(
+        pbrs::rt::decode_tag(&fds, &mut pos).unwrap(),
+        (1, pbrs::rt::WIRE_LEN)
+    );
+    let mut file = pbrs::rt::read_len_bytes(&fds, &mut pos).unwrap().to_vec();
+    let mut extension = Vec::new();
+    pbrs::rt::encode_len_field(&mut extension, 1, name.as_bytes());
+    pbrs::rt::encode_len_field(&mut extension, 2, b".test.Host");
+    for (tag, value) in [(3, 101), (4, 1), (5, 5)] {
+        pbrs::rt::encode_tag(&mut extension, tag, pbrs::rt::WIRE_VARINT);
+        pbrs::rt::encode_varint(&mut extension, value);
+    }
+    pbrs::rt::encode_len_field(&mut file, 7, &extension);
+    let mut result = Vec::new();
+    pbrs::rt::encode_len_field(&mut result, 1, &file);
+    result
+}
+
+#[test]
+fn edition2024_selected_extensions_reject_hidden_descriptor_collisions() {
+    for fds in [
+        scalar_extension_test_fds(1001, 99, None, false),
+        scalar_extension_test_fds(1001, 101, Some(("ordinary", 101)), false),
+        scalar_fds_with_second_extension("other"),
+        scalar_fds_with_second_extension("value"),
+    ] {
+        // Characterize the existing pool's overwrite behavior, without changing
+        // no-option parsing/generation for these malformed synthetic schemas.
+        pbrs::codegen::generate_from_file_descriptor_set(&fds, &["scalar.proto".into()]).unwrap();
+        let error = typed_extension_result(&["scalar.proto"], &fds, "typed_extension=test.value")
+            .unwrap_err();
+        assert!(
+            matches!(error, pbrs::codegen::CodegenError::InvalidParameter { key, .. } if key == "typed_extension")
+        );
+    }
+    let fds = scalar_fds_with_second_extension("other");
+    let error =
+        typed_extension_result(&["scalar.proto"], &fds, "typed_extension=test.other").unwrap_err();
+    assert!(
+        matches!(&error, pbrs::codegen::CodegenError::InvalidParameter { key, detail }
+        if key == "typed_extension" && detail.contains("collides")),
+        "{error}"
+    );
+}
+
+#[test]
+fn edition2024_selected_extensions_reject_illegal_tags_and_other_editions() {
+    for tag in [0, 19_000, 19_999, 536_870_912] {
+        let fds = scalar_extension_test_fds(1001, tag, None, false);
+        assert!(
+            typed_extension_result(&["scalar.proto"], &fds, "typed_extension=test.value").is_err(),
+            "illegal {tag}"
+        );
+    }
+    for edition in [0, 1000] {
+        let fds = scalar_extension_test_fds(edition, 101, None, false);
+        let error = typed_extension_result(&["scalar.proto"], &fds, "typed_extension=test.value")
+            .unwrap_err();
+        assert!(
+            matches!(&error, pbrs::codegen::CodegenError::InvalidParameter { key, detail }
+            if key == "typed_extension" && detail.contains("only Edition 2024")),
+            "{error}"
+        );
+    }
+}
+
+#[test]
+fn edition2024_selected_extensions_deduplicate_and_preserve_default_output() {
+    let fds = include_bytes!("fixtures/edition2024/fds/extensions.fds");
+    let direct =
+        pbrs::codegen::generate_from_file_descriptor_set(fds, &["extensions.proto".into()])
+            .unwrap();
+    assert_eq!(
+        direct,
+        typed_extension_result(&["extensions.proto"], fds, "").unwrap()
+    );
+    let once = typed_extension_result(
+        &["extensions.proto"],
+        fds,
+        "typed_extension=edition2024.extensions.ext_int32",
+    )
+    .unwrap();
+    let twice = typed_extension_result(&["extensions.proto"], fds, "typed_extension=.edition2024.extensions.ext_int32,typed_extension=edition2024.extensions.ext_int32").unwrap();
+    assert_eq!(once, twice);
+}
+
+#[test]
+fn edition2024_selected_int32_extensions_generated_consumer() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let retained = std::env::var_os("PBRS_TYPED_EXTENSION_CONSUMER_DIR");
+    let consumer = retained.as_ref().map_or_else(
+        || {
+            root.join("target")
+                .join(format!("typed-int32-consumer-{}", std::process::id()))
+        },
+        PathBuf::from,
+    );
+    std::fs::create_dir_all(consumer.join("src")).unwrap();
+    let default = edition2024_generated_fixture("extensions");
+    let checked = selected_int32_extension_sources(
+        &["extensions.proto"],
+        include_bytes!("fixtures/edition2024/fds/extensions.fds"),
+        &[
+            "edition2024.extensions.ext_int32",
+            "edition2024.extensions.ext_int32_with_default",
+            "edition2024.extensions.ExtendableMessage.nested_scoped_extension",
+        ],
+    );
+    let original = selected_int32_extension_sources(
+        &["rust/test/extensions.proto"],
+        include_bytes!("fixtures/edition2024/fds/cg14_preview.fds"),
+        &[
+            "third_party_protobuf_rust_test.i32_extension",
+            "third_party_protobuf_rust_test.i32_extension_with_default",
+            "third_party_protobuf_rust_test.TestExtensions.nested_extension",
+        ],
+    );
+    for (file, source) in [
+        ("default_checked.rs", default),
+        (
+            "checked.rs",
+            checked
+                .into_iter()
+                .find(|(path, _)| path == "extensions.rs")
+                .unwrap()
+                .1,
+        ),
+        (
+            "original.rs",
+            original
+                .into_iter()
+                .find(|(path, _)| path == "rust/test/extensions.rs")
+                .unwrap()
+                .1,
+        ),
+    ] {
+        std::fs::write(consumer.join("src").join(file), source).unwrap();
+    }
+    std::fs::write(consumer.join("Cargo.toml"), format!(
+        "[package]\nname=\"typed-int32-consumer\"\nversion=\"0.0.0\"\nedition=\"2024\"\n[workspace]\n[dependencies]\npbrs={{path={:?}}}\n", root.to_str().unwrap()
+    )).unwrap();
+    let source = include_str!("fixtures/edition2024/typed_int32_consumer.rs")
+        .replace("@ROOT@", root.to_str().unwrap());
+    std::fs::write(consumer.join("src/lib.rs"), source).unwrap();
+    let result = run_shared_consumer_cargo(
+        shared_consumer_cargo()
+            .env("CARGO_BUILD_JOBS", "1")
+            .args([
+                "test",
+                "--offline",
+                "--quiet",
+                "--lib",
+                "--",
+                "--test-threads=1",
+            ])
+            .current_dir(&consumer),
+    )
+    .unwrap();
+    assert!(
+        result.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(String::from_utf8_lossy(&result.stdout).contains("7 passed; 0 failed"));
+    std::fs::create_dir_all(consumer.join("src/bin")).unwrap();
+    std::fs::write(consumer.join("src/bin/wrong_host.rs"),
+        "fn main() { let value = typed_int32_consumer::original::TestExtensions::new(); let _ = value.get_extension(&typed_int32_consumer::checked::extensions::EXT_INT32); }\n"
+    ).unwrap();
+    let wrong = run_shared_consumer_cargo(
+        shared_consumer_cargo()
+            .env("CARGO_BUILD_JOBS", "1")
+            .args(["check", "--offline", "--quiet", "--bin", "wrong_host"])
+            .current_dir(&consumer),
+    )
+    .unwrap();
+    assert!(!wrong.status.success(), "wrong-host identifier compiled");
+    let error = String::from_utf8_lossy(&wrong.stderr);
+    assert!(
+        error.contains("E0308")
+            && error.contains("ExtendableMessage")
+            && error.contains("TestExtensions"),
+        "{error}"
+    );
+    std::fs::remove_file(consumer.join("src/bin/wrong_host.rs")).unwrap();
+    if retained.is_none() {
+        std::fs::remove_dir_all(consumer).unwrap();
+    }
+}
+
 #[test]
 fn edition2024_original_shared_extension_suite_is_empty_at_pin() {
     // CG-14 original shared-test evidence. The pinned upstream shared suite
