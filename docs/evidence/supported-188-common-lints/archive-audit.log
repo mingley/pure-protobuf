@@ -1,0 +1,10 @@
+{
+  "shipping_common_source": "f37b68ce0f426bccf025858ac3339481eb46376d",
+  "independent_core_tests_passed": 7,
+  "independent_core_clippy_188": "pass",
+  "independent_core_source_msrv_185": "pass",
+  "broad_grpc_strict_clippy_188": "pass on separately isolated hook source ed9027b7",
+  "retained_prior_strict_reds": 4,
+  "retained_plugin_setup_red": true,
+  "release_performance_adoption": "not qualified or adopted"
+}
