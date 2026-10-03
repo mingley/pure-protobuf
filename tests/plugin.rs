@@ -3745,11 +3745,16 @@ fn scalar_test_invalid_selection(targets: &[&str], fds: &[u8], parameter: &str, 
     );
 }
 
+struct TypedExtensionConsumerLock {
+    bytes: Vec<u8>,
+    accepted: Option<std::path::PathBuf>,
+}
+
 fn typed_extension_consumer_seed_lock(
     root: &std::path::Path,
     consumer: &std::path::Path,
     name: &str,
-) -> Vec<u8> {
+) -> TypedExtensionConsumerLock {
     let root_lock = std::fs::read(root.join("Cargo.lock")).unwrap();
     let mut seed = root_lock.clone();
     seed.extend_from_slice(
@@ -3758,26 +3763,59 @@ fn typed_extension_consumer_seed_lock(
         )
         .as_bytes(),
     );
+    let accepted_key = match name {
+        "typed-int32-consumer" => "PBRS_TYPED_EXTENSION_ACCEPTED_CONSUMER_LOCK",
+        "typed-int32-alias-consumer" => "PBRS_TYPED_EXTENSION_ACCEPTED_ALIAS_LOCK",
+        _ => panic!("unexpected typed-extension consumer name: {name}"),
+    };
+    let accepted = std::env::var_os(accepted_key).map(PathBuf::from);
+    let expected = accepted
+        .as_ref()
+        .map_or_else(|| seed.clone(), |path| std::fs::read(path).unwrap());
     let path = consumer.join("Cargo.lock");
     if path.exists() {
-        // Preserve an explicitly requested retained 1.85 replay lock.
+        // Never replace an existing lock, including a retained 1.85 replay.
         assert_eq!(
             std::fs::read(&path).unwrap(),
-            seed,
-            "requested consumer lock differs from pinned root plus local package"
+            expected,
+            "requested consumer lock differs from the exact accepted handoff or raw seed"
         );
     } else {
-        std::fs::write(&path, &seed).unwrap();
+        use std::io::Write;
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .unwrap();
+        file.write_all(&expected).unwrap();
     }
     std::fs::write(consumer.join("Cargo.lock.root-source"), root_lock).unwrap();
-    std::fs::write(consumer.join("Cargo.lock.before"), &seed).unwrap();
-    seed
+    std::fs::write(consumer.join("Cargo.lock.seed"), seed).unwrap();
+    std::fs::write(consumer.join("Cargo.lock.before"), &expected).unwrap();
+    if accepted.is_some() {
+        std::fs::write(consumer.join("Cargo.lock.accepted"), &expected).unwrap();
+    }
+    TypedExtensionConsumerLock {
+        bytes: expected,
+        accepted,
+    }
 }
 
-fn typed_extension_consumer_assert_lock(consumer: &std::path::Path, expected: &[u8], label: &str) {
+fn typed_extension_consumer_assert_lock(
+    consumer: &std::path::Path,
+    expected: &TypedExtensionConsumerLock,
+    label: &str,
+) {
     let actual = std::fs::read(consumer.join("Cargo.lock")).unwrap();
     std::fs::write(consumer.join(format!("Cargo.lock.after-{label}")), &actual).unwrap();
-    assert_eq!(actual, expected, "consumer lock changed during {label}");
+    assert_eq!(actual, expected.bytes, "consumer lock changed during {label}");
+    if let Some(path) = &expected.accepted {
+        assert_eq!(
+            std::fs::read(path).unwrap(),
+            expected.bytes,
+            "immutable accepted lock changed during {label}"
+        );
+    }
 }
 
 #[test]
