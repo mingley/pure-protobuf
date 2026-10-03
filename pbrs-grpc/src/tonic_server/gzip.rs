@@ -432,12 +432,10 @@ mod tests {
             Poll::Ready(self.0.pop_front())
         }
     }
-    #[expect(clippy::expect_used, reason = "gzip test fixtures must encode")]
     fn wire(payload: &[u8]) -> Bytes {
         let encoded = crate::gzip::encode(payload).expect("gzip");
         frame(encoded)
     }
-    #[expect(clippy::expect_used, reason = "the test frame fits u32")]
     fn frame(encoded: Vec<u8>) -> Bytes {
         let mut wire = vec![1];
         wire.extend_from_slice(
