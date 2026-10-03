@@ -124,7 +124,7 @@ impl BlobCase {
             data: vec![0xAB; n],
         };
         let prost_wire = prost.encode_to_vec();
-        assert_eq!(wire, prost_wire, "pbrs/prost wire mismatch for {:?}", size);
+        assert_eq!(wire, prost_wire, "pbrs/prost wire mismatch for {size:?}");
 
         let mut shared = Vec::with_capacity(4);
         for _ in 0..4 {
