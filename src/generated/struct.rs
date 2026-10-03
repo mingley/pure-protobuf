@@ -614,6 +614,10 @@ mod __gen_google_protobuf_struct_proto {
                 match n {
                     1 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_Struct_fields_1(
                                 &pbrs::rt::Wire::ensure(wire, data).window(s, e),
@@ -674,13 +678,38 @@ mod __gen_google_protobuf_struct_proto {
                 match n {
                     1 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
-                                let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                let (nn, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
+                                match (nn, ww) {
+                                    (2, pbrs::rt::WIRE_LEN) => {
+                                        if entry_depth >= pbrs::RECURSION_LIMIT {
+                                            return Err(ParseError::new(
+                                                "recursion limit exceeded",
+                                            ));
+                                        }
+                                        let (vs, ve) = pbrs::rt::read_len_span(d, &mut ip)?;
+                                        let mut vp = 0;
+                                        PbValue::validate_inner(
+                                            &w.window(vs, ve),
+                                            &mut vp,
+                                            entry_depth + 1,
+                                        )?;
+                                    }
+                                    _ => pbrs::rt::skip_field_with_depth(
+                                        d,
+                                        &mut ip,
+                                        ww,
+                                        entry_depth,
+                                    )?,
+                                }
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
@@ -779,10 +808,12 @@ mod __gen_google_protobuf_struct_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, PbValue), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = pbrs::rt::LazyStr::default();
-        let mut val = PbValue::default();
+        let mut val: Option<PbValue> = None;
         let mut pos = 0;
         while pos < data.len() {
             let (n, w) = pbrs::rt::decode_tag(data, &mut pos)?;
@@ -793,15 +824,25 @@ mod __gen_google_protobuf_struct_proto {
                     key = pbrs::rt::LazyStr::from_span(wire, s, e);
                 }
                 (2, pbrs::rt::WIRE_LEN) => {
+                    if depth >= pbrs::RECURSION_LIMIT {
+                        return Err(ParseError::new("recursion limit exceeded"));
+                    }
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     let mut ip = 0;
                     let mut sw = None;
-                    val.merge_inner(&data[s..e], &mut sw, &mut ip, depth, true, None)?;
+                    val.get_or_insert_with(PbValue::default).merge_inner(
+                        &data[s..e],
+                        &mut sw,
+                        &mut ip,
+                        depth + 1,
+                        true,
+                        None,
+                    )?;
                 }
                 _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
-        Ok((key, val))
+        Ok((key, val.unwrap_or_default()))
     }
     #[derive(Clone, Debug, PartialEq)]
     struct PbValueCold {

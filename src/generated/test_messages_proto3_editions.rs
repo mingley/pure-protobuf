@@ -4302,6 +4302,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                 match n {
                     1 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_Struct_fields_1(
                                 &pbrs::rt::Wire::ensure(wire, data).window(s, e),
@@ -4362,13 +4366,38 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                 match n {
                     1 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
-                                let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                let (nn, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
+                                match (nn, ww) {
+                                    (2, pbrs::rt::WIRE_LEN) => {
+                                        if entry_depth >= pbrs::RECURSION_LIMIT {
+                                            return Err(ParseError::new(
+                                                "recursion limit exceeded",
+                                            ));
+                                        }
+                                        let (vs, ve) = pbrs::rt::read_len_span(d, &mut ip)?;
+                                        let mut vp = 0;
+                                        PbValue::validate_inner(
+                                            &w.window(vs, ve),
+                                            &mut vp,
+                                            entry_depth + 1,
+                                        )?;
+                                    }
+                                    _ => pbrs::rt::skip_field_with_depth(
+                                        d,
+                                        &mut ip,
+                                        ww,
+                                        entry_depth,
+                                    )?,
+                                }
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
@@ -4467,10 +4496,12 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, PbValue), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = pbrs::rt::LazyStr::default();
-        let mut val = PbValue::default();
+        let mut val: Option<PbValue> = None;
         let mut pos = 0;
         while pos < data.len() {
             let (n, w) = pbrs::rt::decode_tag(data, &mut pos)?;
@@ -4481,15 +4512,25 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     key = pbrs::rt::LazyStr::from_span(wire, s, e);
                 }
                 (2, pbrs::rt::WIRE_LEN) => {
+                    if depth >= pbrs::RECURSION_LIMIT {
+                        return Err(ParseError::new("recursion limit exceeded"));
+                    }
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     let mut ip = 0;
                     let mut sw = None;
-                    val.merge_inner(&data[s..e], &mut sw, &mut ip, depth, true, None)?;
+                    val.get_or_insert_with(PbValue::default).merge_inner(
+                        &data[s..e],
+                        &mut sw,
+                        &mut ip,
+                        depth + 1,
+                        true,
+                        None,
+                    )?;
                 }
                 _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
-        Ok((key, val))
+        Ok((key, val.unwrap_or_default()))
     }
     /// A Timestamp represents a point in time independent of any time zone or local
     /// calendar, encoded as a count of seconds and fractions of seconds at
@@ -11770,6 +11811,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     },
                     56 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto3_map_int32_int32_56(
                                 &pbrs::rt::Wire::ensure(wire, data).window(s, e),
@@ -11786,6 +11831,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     },
                     57 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto3_map_int64_int64_57(
                                 &pbrs::rt::Wire::ensure(wire, data).window(s, e),
@@ -11802,6 +11851,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     },
                     58 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_uint32_uint32_58(
@@ -11819,6 +11872,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     },
                     59 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_uint64_uint64_59(
@@ -11836,6 +11893,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     },
                     60 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_sint32_sint32_60(
@@ -11853,6 +11914,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     },
                     61 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_sint64_sint64_61(
@@ -11870,6 +11935,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     },
                     62 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_fixed32_fixed32_62(
@@ -11887,6 +11956,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     },
                     63 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_fixed64_fixed64_63(
@@ -11904,6 +11977,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     },
                     64 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_sfixed32_sfixed32_64(
@@ -11921,6 +11998,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     },
                     65 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_sfixed64_sfixed64_65(
@@ -11938,6 +12019,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     },
                     66 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto3_map_int32_float_66(
                                 &pbrs::rt::Wire::ensure(wire, data).window(s, e),
@@ -11954,6 +12039,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     },
                     67 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto3_map_int32_double_67(
                                 &pbrs::rt::Wire::ensure(wire, data).window(s, e),
@@ -11970,6 +12059,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     },
                     68 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto3_map_bool_bool_68(
                                 &pbrs::rt::Wire::ensure(wire, data).window(s, e),
@@ -11986,6 +12079,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     },
                     69 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_string_string_69(
@@ -12003,6 +12100,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     },
                     70 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto3_map_string_bytes_70(
                                 &pbrs::rt::Wire::ensure(wire, data).window(s, e),
@@ -12020,6 +12121,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     71 => {
                         match w {
                             pbrs::rt::WIRE_LEN => {
+                                if depth >= pbrs::RECURSION_LIMIT {
+                                    return Err(ParseError::new("recursion limit exceeded"));
+                                }
+
                                 let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                                 let (kk, vv) = decode_map_entry_TestAllTypesProto3_map_string_nested_message_71(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
                                 self.map_string_nested_message.push_entry(kk, vv);
@@ -12035,6 +12140,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     72 => {
                         match w {
                             pbrs::rt::WIRE_LEN => {
+                                if depth >= pbrs::RECURSION_LIMIT {
+                                    return Err(ParseError::new("recursion limit exceeded"));
+                                }
+
                                 let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                                 let (kk, vv) = decode_map_entry_TestAllTypesProto3_map_string_foreign_message_72(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
                                 self.map_string_foreign_message.push_entry(kk, vv);
@@ -12049,6 +12158,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     }
                     73 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_string_nested_enum_73(
@@ -12066,6 +12179,10 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     },
                     74 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto3_map_string_foreign_enum_74(
@@ -15495,247 +15612,365 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     },
                     56 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     57 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     58 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     59 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     60 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     61 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     62 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     63 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     64 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     65 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     66 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     67 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     68 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     69 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     70 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     71 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
-                                let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                let (nn, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
+                                match (nn, ww) {
+                                    (2, pbrs::rt::WIRE_LEN) => {
+                                        if entry_depth >= pbrs::RECURSION_LIMIT {
+                                            return Err(ParseError::new(
+                                                "recursion limit exceeded",
+                                            ));
+                                        }
+                                        let (vs, ve) = pbrs::rt::read_len_span(d, &mut ip)?;
+                                        let mut vp = 0;
+                                        NestedMessage::validate_inner(
+                                            &w.window(vs, ve),
+                                            &mut vp,
+                                            entry_depth + 1,
+                                        )?;
+                                    }
+                                    _ => pbrs::rt::skip_field_with_depth(
+                                        d,
+                                        &mut ip,
+                                        ww,
+                                        entry_depth,
+                                    )?,
+                                }
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     72 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
-                                let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                let (nn, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
+                                match (nn, ww) {
+                                    (2, pbrs::rt::WIRE_LEN) => {
+                                        if entry_depth >= pbrs::RECURSION_LIMIT {
+                                            return Err(ParseError::new(
+                                                "recursion limit exceeded",
+                                            ));
+                                        }
+                                        let (vs, ve) = pbrs::rt::read_len_span(d, &mut ip)?;
+                                        let mut vp = 0;
+                                        ForeignMessage::validate_inner(
+                                            &w.window(vs, ve),
+                                            &mut vp,
+                                            entry_depth + 1,
+                                        )?;
+                                    }
+                                    _ => pbrs::rt::skip_field_with_depth(
+                                        d,
+                                        &mut ip,
+                                        ww,
+                                        entry_depth,
+                                    )?,
+                                }
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     73 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
                     },
                     74 => match w {
                         pbrs::rt::WIRE_LEN => {
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            let entry_depth = depth + 1;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
                                 let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?;
+                                pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?;
                             }
                         }
                         _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
@@ -19007,7 +19242,9 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(i32, i32), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = i32::default();
         let mut val = i32::default();
@@ -19026,7 +19263,9 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(i64, i64), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = i64::default();
         let mut val = i64::default();
@@ -19045,7 +19284,9 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(u32, u32), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = u32::default();
         let mut val = u32::default();
@@ -19064,7 +19305,9 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(u64, u64), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = u64::default();
         let mut val = u64::default();
@@ -19083,7 +19326,9 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(i32, i32), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = i32::default();
         let mut val = i32::default();
@@ -19106,7 +19351,9 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(i64, i64), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = i64::default();
         let mut val = i64::default();
@@ -19129,7 +19376,9 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(u32, u32), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = u32::default();
         let mut val = u32::default();
@@ -19148,7 +19397,9 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(u64, u64), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = u64::default();
         let mut val = u64::default();
@@ -19167,7 +19418,9 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(i32, i32), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = i32::default();
         let mut val = i32::default();
@@ -19186,7 +19439,9 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(i64, i64), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = i64::default();
         let mut val = i64::default();
@@ -19205,7 +19460,9 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(i32, f32), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = i32::default();
         let mut val = f32::default();
@@ -19226,7 +19483,9 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(i32, f64), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = i32::default();
         let mut val = f64::default();
@@ -19247,7 +19506,9 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(bool, bool), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = bool::default();
         let mut val = bool::default();
@@ -19266,7 +19527,9 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, pbrs::rt::LazyStr), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = pbrs::rt::LazyStr::default();
         let mut val = pbrs::rt::LazyStr::default();
@@ -19293,7 +19556,9 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, pbrs::rt::LazyBytes), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = pbrs::rt::LazyStr::default();
         let mut val = pbrs::rt::LazyBytes::default();
@@ -19319,10 +19584,12 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, NestedMessage), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = pbrs::rt::LazyStr::default();
-        let mut val = NestedMessage::default();
+        let mut val: Option<NestedMessage> = None;
         let mut pos = 0;
         while pos < data.len() {
             let (n, w) = pbrs::rt::decode_tag(data, &mut pos)?;
@@ -19333,24 +19600,36 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     key = pbrs::rt::LazyStr::from_span(wire, s, e);
                 }
                 (2, pbrs::rt::WIRE_LEN) => {
+                    if depth >= pbrs::RECURSION_LIMIT {
+                        return Err(ParseError::new("recursion limit exceeded"));
+                    }
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     let mut ip = 0;
                     let mut sw = None;
-                    val.merge_inner(&data[s..e], &mut sw, &mut ip, depth, true, None)?;
+                    val.get_or_insert_with(NestedMessage::default).merge_inner(
+                        &data[s..e],
+                        &mut sw,
+                        &mut ip,
+                        depth + 1,
+                        true,
+                        None,
+                    )?;
                 }
                 _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
-        Ok((key, val))
+        Ok((key, val.unwrap_or_default()))
     }
     fn decode_map_entry_TestAllTypesProto3_map_string_foreign_message_72(
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, ForeignMessage), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = pbrs::rt::LazyStr::default();
-        let mut val = ForeignMessage::default();
+        let mut val: Option<ForeignMessage> = None;
         let mut pos = 0;
         while pos < data.len() {
             let (n, w) = pbrs::rt::decode_tag(data, &mut pos)?;
@@ -19361,21 +19640,27 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                     key = pbrs::rt::LazyStr::from_span(wire, s, e);
                 }
                 (2, pbrs::rt::WIRE_LEN) => {
+                    if depth >= pbrs::RECURSION_LIMIT {
+                        return Err(ParseError::new("recursion limit exceeded"));
+                    }
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     let mut ip = 0;
                     let mut sw = None;
-                    val.merge_inner(&data[s..e], &mut sw, &mut ip, depth, true, None)?;
+                    val.get_or_insert_with(ForeignMessage::default)
+                        .merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?;
                 }
                 _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
             }
         }
-        Ok((key, val))
+        Ok((key, val.unwrap_or_default()))
     }
     fn decode_map_entry_TestAllTypesProto3_map_string_nested_enum_73(
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, i32), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = pbrs::rt::LazyStr::default();
         let mut val = i32::default();
@@ -19398,7 +19683,9 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
         wire: &pbrs::rt::Wire,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, i32), ParseError> {
-        let _ = depth;
+        if depth > pbrs::RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
         let data = wire.as_slice();
         let mut key = pbrs::rt::LazyStr::default();
         let mut val = i32::default();

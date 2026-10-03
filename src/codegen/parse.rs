@@ -363,10 +363,28 @@ pub(crate) fn emit_validate_arm(src: &mut String, f: &FieldDescriptor, req_bit: 
         String::new()
     };
     if f.is_map {
+        let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{");
         let _ = writeln!(
             src,
-            "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut ip = 0; let w = wire.window(s, e); let d = w.as_slice(); while ip < d.len() {{ let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?; pbrs::rt::skip_field_with_depth(d, &mut ip, ww, depth + 1)?; }}{mark} }}"
+            "                    if depth >= pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }}"
         );
+        let _ = writeln!(
+            src,
+            "                    let entry_depth = depth + 1; let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut ip = 0; let w = wire.window(s, e); let d = w.as_slice();"
+        );
+        if matches!(map_val_ty(f), FieldType::Message | FieldType::Group) {
+            let (_, value_type) = map_kv(f);
+            let _ = writeln!(
+                src,
+                "                    while ip < d.len() {{ let (nn, ww) = pbrs::rt::decode_tag(d, &mut ip)?; match (nn, ww) {{ (2, pbrs::rt::WIRE_LEN) => {{ if entry_depth >= pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }} let (vs, ve) = pbrs::rt::read_len_span(d, &mut ip)?; let mut vp = 0; {value_type}::validate_inner(&w.window(vs, ve), &mut vp, entry_depth + 1)?; }}, _ => pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?, }} }}{mark}"
+            );
+        } else {
+            let _ = writeln!(
+                src,
+                "                    while ip < d.len() {{ let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?; pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?; }}{mark}"
+            );
+        }
+        let _ = writeln!(src, "                }}");
         return;
     }
     if f.cardinality == Cardinality::Repeated {
@@ -494,6 +512,10 @@ pub(crate) fn emit_merge_arm(
     let num = f.number;
     if f.is_map {
         let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{");
+        let _ = writeln!(
+            src,
+            "                    if depth >= pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }}"
+        );
         let _ = writeln!(
             src,
             "                    let (s, e) = pbrs::rt::read_len_span(data, pos)?;"
@@ -706,26 +728,50 @@ pub(crate) fn emit_map_decoders(
         let (k, v) = map_kv(f);
         let kty = map_key_ty(f);
         let vty = map_val_ty(f);
+        let message_value = matches!(vty, FieldType::Message | FieldType::Group);
         let _ = writeln!(
             src,
             "fn decode_map_entry_{msg}_{id}_{num}(wire: &pbrs::rt::Wire, depth: u32) -> Result<({k}, {v}), ParseError> {{"
         );
         let _ = writeln!(
             src,
-            "    let _ = depth; let data = wire.as_slice(); let mut key = {k}::default(); let mut val = {v}::default(); let mut pos = 0;"
+            "    if depth > pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }}"
         );
+        let _ = writeln!(
+            src,
+            "    let data = wire.as_slice(); let mut key = {k}::default();"
+        );
+        if message_value {
+            // A present value has its own wire frame. Defer construction until
+            // its guard passes; an omitted value still receives the old default.
+            let _ = writeln!(src, "    let mut val: Option<{v}> = None;");
+        } else {
+            let _ = writeln!(src, "    let mut val = {v}::default();");
+        }
+        let _ = writeln!(src, "    let mut pos = 0;");
         let _ = writeln!(
             src,
             "    while pos < data.len() {{ let (n, w) = pbrs::rt::decode_tag(data, &mut pos)?; match (n, w) {{"
         );
         emit_map_scalar_decode(src, 1, "key", kty, key_utf8);
-        emit_map_scalar_decode(src, 2, "val", vty, val_utf8);
+        if message_value {
+            let _ = writeln!(
+                src,
+                "        (2, pbrs::rt::WIRE_LEN) => {{ if depth >= pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }} let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; let mut ip = 0; let mut sw = None; val.get_or_insert_with({v}::default).merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; }},"
+            );
+        } else {
+            emit_map_scalar_decode(src, 2, "val", vty, val_utf8);
+        }
         let _ = writeln!(
             src,
             "        _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,"
         );
         let _ = writeln!(src, "    }} }}");
-        let _ = writeln!(src, "    Ok((key, val))");
+        if message_value {
+            let _ = writeln!(src, "    Ok((key, val.unwrap_or_default()))");
+        } else {
+            let _ = writeln!(src, "    Ok((key, val))");
+        }
         let _ = writeln!(src, "}}");
     }
     Ok(())

@@ -1,0 +1,118 @@
+{
+  "kind": "source textual reconstruction; Cargo/generator/AST/type/regeneration/runtime qualification NOT_RUN",
+  "baseline": "ad04010b166325ec09bb9b403afd47338a38ab1f",
+  "files": [
+    {
+      "path": "src/generated/struct.rs",
+      "original_sha256": "5de03291adc4a06632c1c5ca7c2b518373415eaaad61affa582390303a2b5196",
+      "unformatted_migrated_sha256": "23a0618e16ac4a78a36986064ba03cc12faa2bec172e18f5f67ccc1ffd51e5cd",
+      "map_decoders": 1,
+      "map_callers": 1,
+      "map_validators": 1,
+      "message_value_maps": 1,
+      "candidate_sha256": "d84f4eff6bb7e7276be5503f49dc31d78fc3bb9b1d6931d45becc6321aad5839",
+      "reconstruction": "PASS: exact operation stream plus formatting only"
+    },
+    {
+      "path": "src/generated/test_messages_edition2023.rs",
+      "original_sha256": "24197cc4bcff8e0fed3a45496fd7f68de2fcb9a5349688e95e75025e7b96ca5d",
+      "unformatted_migrated_sha256": "f1366a71e685bcb5f0154fa59ff9c1a1b745e4680d15060f3cc6d571397888c9",
+      "map_decoders": 20,
+      "map_callers": 20,
+      "map_validators": 20,
+      "message_value_maps": 3,
+      "candidate_sha256": "e0de8e06c46d1782db4500591d6ca932cf164b80e0649ff74383d7e448a6167d",
+      "reconstruction": "PASS: exact operation stream plus formatting only"
+    },
+    {
+      "path": "src/generated/test_messages_edition_unstable.rs",
+      "original_sha256": "8a29bfa8dfa93ed29623a6ac178d28e0927a59e6b6dfe5ae13ecae0ee1c327e5",
+      "unformatted_migrated_sha256": "622eac0d230ffc61567fa7d5a8ddac6657a1b3c3cb123c2d01c1b9938945b708",
+      "map_decoders": 6,
+      "map_callers": 6,
+      "map_validators": 6,
+      "message_value_maps": 1,
+      "candidate_sha256": "1c9a5c4d97273f7bd5176934db2fd02d7623b0eb7de1cc1f1325fa6aa1c28e73",
+      "reconstruction": "PASS: exact operation stream plus formatting only"
+    },
+    {
+      "path": "src/generated/test_messages_proto2.rs",
+      "original_sha256": "2b4bff548a847be2dea70c452e7868759cadaab7cfc666825f2050d0989ef465",
+      "unformatted_migrated_sha256": "9ecbf9bb385a404de5d7344f939648ac96ff8ef2418df4229da64bbb2dc0a71b",
+      "map_decoders": 21,
+      "map_callers": 21,
+      "map_validators": 21,
+      "message_value_maps": 3,
+      "candidate_sha256": "c239cb5616be6aa83cde0b6ef13510951f7e26aaaf791cde9dab645642c5a736",
+      "reconstruction": "PASS: exact operation stream plus formatting only"
+    },
+    {
+      "path": "src/generated/test_messages_proto2_editions.rs",
+      "original_sha256": "0d0d10952c829dd770f74c9c8776413a92a0955c9090170017284183361095bf",
+      "unformatted_migrated_sha256": "17f29bed8a3f14d559800f0127b3c0ae225e8ec77ca07c3bb9085c0599464370",
+      "map_decoders": 21,
+      "map_callers": 21,
+      "map_validators": 21,
+      "message_value_maps": 3,
+      "candidate_sha256": "422343f5e2514323ea9ebdfaa61a1a6ca65148f59b9104729f1d2a5aa7728059",
+      "reconstruction": "PASS: exact operation stream plus formatting only"
+    },
+    {
+      "path": "src/generated/test_messages_proto3.rs",
+      "original_sha256": "8b9d697a3bbab15e6455408a3f560c31d69737b88b0868a8d89542971bf5c513",
+      "unformatted_migrated_sha256": "d6b79982d7eae7bb0aada0dffda91fb87f703686843156c5e707b1949bc64f03",
+      "map_decoders": 20,
+      "map_callers": 20,
+      "map_validators": 20,
+      "message_value_maps": 3,
+      "candidate_sha256": "37473e4a20613cd25b7bcf8c10f41cc6cf2204b3952d52f27026505f2fc73de5",
+      "reconstruction": "PASS: exact operation stream plus formatting only"
+    },
+    {
+      "path": "src/generated/test_messages_proto3_editions.rs",
+      "original_sha256": "f7595688581a4185f659eb1f45e75adc681aa4931550ba0e1ba9a4fbbb1f50d3",
+      "unformatted_migrated_sha256": "38f7b4a7f7ef9fad23f448fa3f3cd8c1c72d6fda4fe6100f71965e8b3cf7e8ff",
+      "map_decoders": 20,
+      "map_callers": 20,
+      "map_validators": 20,
+      "message_value_maps": 3,
+      "candidate_sha256": "dae2ba7bbdf7338af9e1085f1b65bf9c0854ade0d0d696cc447024ae4f88f64a",
+      "reconstruction": "PASS: exact operation stream plus formatting only"
+    }
+  ],
+  "operations": 327,
+  "map_entries": 109,
+  "message_value_maps": 17,
+  "scalar_value_maps": 92,
+  "unaffected_generated_byte_identical": [
+    "src/generated/any.rs",
+    "src/generated/duration.rs",
+    "src/generated/empty.rs",
+    "src/generated/field_mask.rs",
+    "src/generated/mod.rs",
+    "src/generated/timestamp.rs",
+    "src/generated/wrappers.rs"
+  ],
+  "unchanged_scope_argv": [
+    "git",
+    "diff",
+    "--exit-code",
+    "ad04010b166325ec09bb9b403afd47338a38ab1f",
+    "--",
+    "Cargo.toml",
+    "Cargo.lock",
+    "src/wire.rs",
+    "src/rt.rs",
+    "src/table.rs",
+    "src/runtime/decode.rs",
+    "src/generated/mod.rs",
+    "scripts/regen-generated.sh",
+    "tests/generated_map_value_depth.rs",
+    "tests/support/generated_map_value_depth.rs",
+    "tests/fixtures/generated_map_value_depth_consumer.rs",
+    "tests/fixtures/generated_map_value_depth.proto"
+  ],
+  "unchanged_scope_exit": 0,
+  "handwritten_generator_sha256": "5957f47c33196dfef76a4c228181dd2f27a701deffec34cdc51f874c8d6b527b",
+  "scope": "one generator file plus seven owned generated files; same15 oracle bytes and matched recorded driver"
+}
