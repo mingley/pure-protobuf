@@ -1,9 +1,9 @@
 # GN03 SB09 shared-descriptor profile and measurement preparation
 
 This record qualifies the benchmark wiring at
-`dea20f7ae6ec5d33fe4d7cb5fe64004cf6263247`. The small corpus now has one
-**unqualified local diagnostic pair**; numeric cold-check and linked-binary
-results for **100 and 1,000 messages are not_run**. Qualified performance
+`dea20f7ae6ec5d33fe4d7cb5fe64004cf6263247`. The small and 100-message corpora
+each have one **unqualified local diagnostic pair**; numeric cold-check and
+linked-binary results for **1,000 messages are not_run**. Qualified performance
 acceptance remains open. The
 [source-sharing record](gn-03-source-sharing.md) proves source-volume reduction
 and functional behavior; it does not prove these remaining GN03 costs.
@@ -156,5 +156,56 @@ smoke output, linked-executable hashes/sizes, and sampled resource bounds:
 python3 -B docs/evidence/gn-03-sb09-small-artifacts/check-pair.py
 ```
 
-The first 100- and 1,000-message pairs and repeat/control qualification remain
-pending separate root capture leases. GN03 remains open.
+The first 1,000-message pair and repeat/control qualification remain pending
+separate root capture leases. GN03 remains open.
+
+## First 100-message diagnostic
+
+At source `aa6fb299ffd9d905714d2b0ce551269a5d9552f1`, the 100-message pair
+reused the exact small campaign's common generator, bootstrap driver lock,
+69 compiled-source pins, schema capsules, and actual tool binary hashes. Its
+order was shared/default. Separate initially nonexistent targets used jobs=1
+and the original release profile, consumer workload, seeded corpus, and paired
+consumer manifest/lock. All seven phases passed for each profile, including the
+unchanged-generation checks and release smoke.
+
+| Observed cost | Default | Shared |
+| --- | ---: | ---: |
+| Generated source bytes | 2,313,461 | 1,947,481 |
+| Cold check seconds | 18.427257 | 18.368341 |
+| Incremental check seconds | 1.320513 | 1.267451 |
+| Release build seconds | 73.367904 | 73.772731 |
+| Linked executable bytes | 1,446,704 | 1,446,704 |
+
+Shared generation reduced source bytes by 15.82%. Its observed cold check was
+0.32% lower, but its release build was **0.55% slower** and its executable had
+**equal size** with a different hash. All raw timing and RSS metrics remain in
+the reports. These observations do not establish a compile-time or binary-size
+improvement. As with the small cell, the frozen consumer does not call
+reflection; a separately designed metadata-retaining consumer would be an
+additional diagnostic rather than a replacement for these controls.
+
+The pair ran from 00:16:14.566103 to 00:19:21.911040 UTC on October 3, 2026.
+Root held other compilers, Miri, captures, and large packaging operations, and
+no quiet-window exception was reported. One run per profile, fixed order, no
+independent reference peer, incomplete corpus coverage, and the nondefault
+shared profile still leave this result explicitly **unqualified**.
+
+Sampled owned-cache use peaked at 1,181,134,848 bytes and sampled global free
+space remained at or above 6,293,164,032 bytes. No resource-limit failure was
+recorded. Each completed target was removed after preserving its linked
+executable and the original coordinator's fingerprint SHA256 inventory. The
+coordinator records fingerprint digests, not the fingerprint file contents.
+
+The [100-message artifacts](gn-03-sb09-100-artifacts/artifact-sha256.json) retain
+168 raw archive members with the same full source/input/tool/report/executable
+scope as the small proof and a separate quiet-window note. The original small
+pair and its overlap note remain byte identical. Verify the 100-message archive
+without running any compiler or archived executable:
+
+```sh
+python3 -B docs/evidence/gn-03-sb09-100-artifacts/check-pair.py
+```
+
+The 1,000-message pair, repeated/control qualification, and any separate
+reflective-consumer diagnostic remain pending. GN03 remains open.
