@@ -3652,6 +3652,514 @@ fn scalar_fds_with_second_extension(name: &str) -> Vec<u8> {
     result
 }
 
+fn scalar_test_file(fds: &[u8]) -> Vec<u8> {
+    let mut pos = 0;
+    assert_eq!(
+        pbrs::rt::decode_tag(fds, &mut pos).unwrap(),
+        (1, pbrs::rt::WIRE_LEN)
+    );
+    let file = pbrs::rt::read_len_bytes(fds, &mut pos).unwrap().to_vec();
+    assert_eq!(pos, fds.len());
+    file
+}
+
+fn scalar_test_descriptor_set(files: &[Vec<u8>]) -> Vec<u8> {
+    let mut fds = Vec::new();
+    for file in files {
+        pbrs::rt::encode_len_field(&mut fds, 1, file);
+    }
+    fds
+}
+
+fn scalar_test_without_tag(bytes: &[u8], removed: u32) -> Vec<u8> {
+    let mut output = Vec::new();
+    let mut pos = 0;
+    while pos < bytes.len() {
+        let start = pos;
+        let (number, wire) = pbrs::rt::decode_tag(bytes, &mut pos).unwrap();
+        pbrs::rt::skip_field(bytes, &mut pos, wire).unwrap();
+        if number != removed {
+            output.extend_from_slice(&bytes[start..pos]);
+        }
+    }
+    output
+}
+
+fn scalar_test_set_len(bytes: &[u8], number: u32, payload: &[u8]) -> Vec<u8> {
+    let mut output = scalar_test_without_tag(bytes, number);
+    pbrs::rt::encode_len_field(&mut output, number, payload);
+    output
+}
+
+fn scalar_test_set_varint(bytes: &[u8], number: u32, value: u64) -> Vec<u8> {
+    let mut output = scalar_test_without_tag(bytes, number);
+    pbrs::rt::encode_tag(&mut output, number, pbrs::rt::WIRE_VARINT);
+    pbrs::rt::encode_varint(&mut output, value);
+    output
+}
+
+fn scalar_test_rewrite_len(
+    bytes: &[u8],
+    rewritten: u32,
+    mut rewrite: impl FnMut(&[u8]) -> Vec<u8>,
+) -> Vec<u8> {
+    let mut output = Vec::new();
+    let mut pos = 0;
+    let mut count = 0;
+    while pos < bytes.len() {
+        let start = pos;
+        let (number, wire) = pbrs::rt::decode_tag(bytes, &mut pos).unwrap();
+        if number == rewritten {
+            assert_eq!(wire, pbrs::rt::WIRE_LEN);
+            let payload = pbrs::rt::read_len_bytes(bytes, &mut pos).unwrap();
+            pbrs::rt::encode_len_field(&mut output, number, &rewrite(payload));
+            count += 1;
+        } else {
+            pbrs::rt::skip_field(bytes, &mut pos, wire).unwrap();
+            output.extend_from_slice(&bytes[start..pos]);
+        }
+    }
+    assert_ne!(count, 0, "synthetic mutation must reach its descriptor");
+    output
+}
+
+fn scalar_test_field(name: &str, extendee: &str, number: u32, ty: u64, label: u64) -> Vec<u8> {
+    let mut field = Vec::new();
+    pbrs::rt::encode_len_field(&mut field, 1, name.as_bytes());
+    if !extendee.is_empty() {
+        pbrs::rt::encode_len_field(&mut field, 2, extendee.as_bytes());
+    }
+    for (tag, value) in [(3, u64::from(number)), (4, label), (5, ty)] {
+        pbrs::rt::encode_tag(&mut field, tag, pbrs::rt::WIRE_VARINT);
+        pbrs::rt::encode_varint(&mut field, value);
+    }
+    field
+}
+
+fn scalar_test_invalid_selection(targets: &[&str], fds: &[u8], parameter: &str, reason: &str) {
+    let error = typed_extension_result(targets, fds, parameter).unwrap_err();
+    assert!(
+        matches!(&error, pbrs::codegen::CodegenError::InvalidParameter { key, detail }
+        if key == "typed_extension" && detail.contains(reason)),
+        "{reason}: {error}"
+    );
+}
+
+#[test]
+fn edition2024_selected_extensions_validate_int32_default_syntax_and_bounds() {
+    let file = scalar_test_file(&scalar_extension_test_fds(1001, 101, None, false));
+    for (text, expected) in [
+        ("0", 0),
+        ("-0", 0),
+        ("+0", 0),
+        ("010", 8),
+        ("-010", -8),
+        ("+0x2a", 42),
+        ("-0X2A", -42),
+        ("2147483647", i32::MAX),
+        ("+2147483647", i32::MAX),
+        ("-2147483648", i32::MIN),
+        ("0x7fffffff", i32::MAX),
+        ("+0X7FFFFFFF", i32::MAX),
+        ("-0x80000000", i32::MIN),
+        ("017777777777", i32::MAX),
+        ("-020000000000", i32::MIN),
+    ] {
+        let changed = scalar_test_rewrite_len(&file, 7, |field| {
+            scalar_test_set_len(field, 7, text.as_bytes())
+        });
+        let fds = scalar_test_descriptor_set(&[changed]);
+        let output =
+            typed_extension_result(&["scalar.proto"], &fds, "typed_extension=test.value").unwrap();
+        let source = &output
+            .iter()
+            .find(|(name, _)| name == "scalar.rs")
+            .unwrap()
+            .1;
+        let compact: String = source.split_whitespace().collect();
+        assert!(
+            compact.contains(&format!("Extension::__new(101,\"test.value\",{expected})")),
+            "{text}: {source}"
+        );
+    }
+    for text in [
+        "",
+        "+",
+        "-",
+        "++1",
+        "+-1",
+        "-+1",
+        "--1",
+        "0x",
+        "0X",
+        "0x+1",
+        "0x-1",
+        "+0x-1",
+        "08",
+        "018",
+        "0b10",
+        "1.0",
+        " 1",
+        "1 ",
+        "2147483648",
+        "-2147483649",
+        "0x80000000",
+        "-0x80000001",
+        "020000000000",
+        "-020000000001",
+        "9223372036854775808",
+        "-9223372036854775809",
+    ] {
+        let changed = scalar_test_rewrite_len(&file, 7, |field| {
+            scalar_test_set_len(field, 7, text.as_bytes())
+        });
+        let fds = scalar_test_descriptor_set(&[changed]);
+        // The existing pool retains the literal. The selected-only guard owns
+        // the numeric rejection; an unrelated descriptor parse error is wrong.
+        let pool = pbrs::DescriptorPool::from_file_descriptor_set(&fds).unwrap();
+        assert_eq!(
+            pool.get_extension("test.value")
+                .unwrap()
+                .1
+                .default
+                .as_deref(),
+            Some(text)
+        );
+        scalar_test_invalid_selection(
+            &["scalar.proto"],
+            &fds,
+            "typed_extension=test.value",
+            "int32 default is invalid",
+        );
+    }
+}
+
+#[test]
+fn edition2024_selected_extensions_reject_cross_file_and_nonrequested_hosts() {
+    let original = scalar_test_file(&scalar_extension_test_fds(1001, 101, None, false));
+    let host = scalar_test_set_len(&scalar_test_without_tag(&original, 7), 1, b"host.proto");
+    let mut declaration =
+        scalar_test_set_len(&scalar_test_without_tag(&original, 4), 1, b"cross.proto");
+    pbrs::rt::encode_len_field(&mut declaration, 3, b"host.proto");
+    let fds = scalar_test_descriptor_set(&[host, declaration]);
+    let pool = pbrs::DescriptorPool::from_file_descriptor_set(&fds).unwrap();
+    let (host, field) = pool.get_extension("test.value").unwrap();
+    assert_eq!(host.file_name, "host.proto");
+    assert_eq!(
+        pool.file_for_extension(&host.full_name, field.number),
+        Some("cross.proto")
+    );
+    scalar_test_invalid_selection(
+        &["host.proto", "cross.proto"],
+        &fds,
+        "typed_extension=test.value",
+        "cross-file extendees are not supported",
+    );
+    typed_extension_result(&["host.proto", "cross.proto"], &fds, "").unwrap();
+
+    let ignored = scalar_test_set_len(
+        &scalar_test_without_tag(&scalar_test_without_tag(&original, 4), 7),
+        1,
+        b"ignored.proto",
+    );
+    let fds = scalar_test_descriptor_set(&[original, ignored]);
+    typed_extension_result(&["ignored.proto"], &fds, "").unwrap();
+    scalar_test_invalid_selection(
+        &["ignored.proto"],
+        &fds,
+        "typed_extension=test.value",
+        "host must be an owned generated target type",
+    );
+    typed_extension_result(&["scalar.proto"], &fds, "typed_extension=test.value").unwrap();
+}
+
+#[test]
+fn edition2024_selected_extensions_reject_required_delimited_messageset_and_maps() {
+    let original = scalar_test_file(&scalar_extension_test_fds(1001, 101, None, false));
+    let required =
+        scalar_test_rewrite_len(&original, 7, |field| scalar_test_set_varint(field, 4, 2));
+    let fds = scalar_test_descriptor_set(&[required]);
+    // LABEL_REQUIRED is already invalid Edition 2024, before opt-in selection.
+    assert!(pbrs::DescriptorPool::from_file_descriptor_set(&fds).is_err());
+    assert!(matches!(
+        typed_extension_result(&["scalar.proto"], &fds, "typed_extension=test.value").unwrap_err(),
+        pbrs::codegen::CodegenError::MalformedDescriptor { .. }
+    ));
+    for (option, reason) in [
+        (1, "MessageSet is not supported"),
+        (7, "host must be an owned generated target type"),
+    ] {
+        let options = scalar_test_set_varint(&[], option, 1);
+        let changed = scalar_test_rewrite_len(&original, 4, |message| {
+            scalar_test_set_len(message, 7, &options)
+        });
+        let fds = scalar_test_descriptor_set(&[changed]);
+        let pool = pbrs::DescriptorPool::from_file_descriptor_set(&fds).unwrap();
+        let host = pool.get_message("test.Host").unwrap();
+        assert_eq!(host.message_set_wire_format, option == 1);
+        assert_eq!(host.is_map_entry, option == 7);
+        scalar_test_invalid_selection(
+            &["scalar.proto"],
+            &fds,
+            "typed_extension=test.value",
+            reason,
+        );
+    }
+    let mut payload = Vec::new();
+    pbrs::rt::encode_len_field(&mut payload, 1, b"Payload");
+    let mut delimited = original.clone();
+    pbrs::rt::encode_len_field(&mut delimited, 4, &payload);
+    let features = scalar_test_set_varint(&[], 5, 2); // DELIMITED message encoding.
+    let options = scalar_test_set_len(&[], 21, &features);
+    let delimited = scalar_test_rewrite_len(&delimited, 7, |field| {
+        let field = scalar_test_set_varint(field, 5, 11);
+        let field = scalar_test_set_len(&field, 6, b".test.Payload");
+        scalar_test_set_len(&field, 8, &options)
+    });
+    let fds = scalar_test_descriptor_set(&[delimited]);
+    let pool = pbrs::DescriptorPool::from_file_descriptor_set(&fds).unwrap();
+    assert!(pool.get_extension("test.value").unwrap().1.delimited);
+    scalar_test_invalid_selection(
+        &["scalar.proto"],
+        &fds,
+        "typed_extension=test.value",
+        "only singular int32",
+    );
+
+    let mut entry = Vec::new();
+    pbrs::rt::encode_len_field(&mut entry, 1, b"Entry");
+    pbrs::rt::encode_len_field(&mut entry, 7, &scalar_test_set_varint(&[], 7, 1));
+    for field in [
+        scalar_test_field("key", "", 1, 9, 1),
+        scalar_test_field("value", "", 2, 5, 1),
+    ] {
+        pbrs::rt::encode_len_field(&mut entry, 2, &field);
+    }
+    let mut map = original;
+    pbrs::rt::encode_len_field(&mut map, 4, &entry);
+    let map = scalar_test_rewrite_len(&map, 7, |field| {
+        let field = scalar_test_set_varint(field, 5, 11);
+        let field = scalar_test_set_varint(&field, 4, 3);
+        scalar_test_set_len(&field, 6, b".test.Entry")
+    });
+    let fds = scalar_test_descriptor_set(&[map]);
+    let pool = pbrs::DescriptorPool::from_file_descriptor_set(&fds).unwrap();
+    assert!(pool.get_extension("test.value").unwrap().1.is_map);
+    scalar_test_invalid_selection(
+        &["scalar.proto"],
+        &fds,
+        "typed_extension=test.value",
+        "only singular int32",
+    );
+}
+
+#[test]
+fn edition2024_selected_extensions_reject_multiple_owners_and_constant_collisions() {
+    let original = scalar_test_file(&scalar_extension_test_fds(1001, 101, None, false));
+    let other = scalar_test_set_len(&original, 1, b"other.proto");
+    let other =
+        scalar_test_rewrite_len(&other, 4, |host| scalar_test_set_len(host, 1, b"OtherHost"));
+    let other = scalar_test_rewrite_len(&other, 7, |field| {
+        let field = scalar_test_set_len(field, 1, b"other_value");
+        scalar_test_set_len(&field, 2, b".test.OtherHost")
+    });
+    let fds = scalar_test_descriptor_set(&[original.clone(), other]);
+    for selection in ["test.value", "test.other_value"] {
+        typed_extension_result(
+            &["scalar.proto", "other.proto"],
+            &fds,
+            &format!("typed_extension={selection}"),
+        )
+        .unwrap();
+    }
+    scalar_test_invalid_selection(
+        &["scalar.proto", "other.proto"],
+        &fds,
+        "typed_extension=test.value,typed_extension=test.other_value",
+        "multiple selected owner files",
+    );
+    let collision = scalar_test_rewrite_len(&original, 7, |field| {
+        scalar_test_set_len(field, 1, b"host_nested_value")
+    });
+    let collision = scalar_test_rewrite_len(&collision, 4, |host| {
+        let mut host = host.to_vec();
+        pbrs::rt::encode_len_field(
+            &mut host,
+            6,
+            &scalar_test_field("nested_value", ".test.Host", 102, 5, 1),
+        );
+        host
+    });
+    let fds = scalar_test_descriptor_set(&[collision]);
+    for selection in ["test.host_nested_value", "test.Host.nested_value"] {
+        let output = typed_extension_result(
+            &["scalar.proto"],
+            &fds,
+            &format!("typed_extension={selection}"),
+        )
+        .unwrap();
+        assert!(
+            output
+                .iter()
+                .any(|(_, source)| source.contains("pub const HOST_NESTED_VALUE:"))
+        );
+    }
+    scalar_test_invalid_selection(
+        &["scalar.proto"],
+        &fds,
+        "typed_extension=test.host_nested_value,typed_extension=test.Host.nested_value",
+        "identifier HOST_NESTED_VALUE collides",
+    );
+}
+
+fn scalar_test_imported_service(public: bool) -> Vec<u8> {
+    let mut owner = scalar_test_file(&scalar_extension_test_fds(1001, 101, None, false));
+    pbrs::rt::encode_len_field(&mut owner, 3, b"imported.proto");
+    if public {
+        owner = scalar_test_set_varint(&owner, 10, 0);
+    }
+    let mut imported = scalar_test_file(&scalar_extension_test_fds(1001, 101, None, false));
+    imported = scalar_test_without_tag(&scalar_test_without_tag(&imported, 4), 7);
+    imported = scalar_test_set_len(&imported, 1, b"imported.proto");
+    imported = scalar_test_set_len(&imported, 2, b"imported");
+    let legacy = scalar_test_set_varint(&[], 9, 2);
+    imported = scalar_test_set_len(&imported, 8, &scalar_test_set_len(&[], 50, &legacy));
+    let service = scalar_test_set_len(&[], 1, b"extensions");
+    pbrs::rt::encode_len_field(&mut imported, 6, &service);
+    scalar_test_descriptor_set(&[owner, imported])
+}
+
+#[test]
+fn edition2024_selected_extensions_reject_only_emitted_imported_service_collisions() {
+    let public = scalar_test_imported_service(true);
+    let private = scalar_test_imported_service(false);
+    for stubs in ["kernel", "tonic", "compat"] {
+        let parameter = format!("typed_extension=test.value,stubs={stubs}");
+        scalar_test_invalid_selection(
+            &["scalar.proto"],
+            &public,
+            &parameter,
+            "service trait collides",
+        );
+        typed_extension_result(&["scalar.proto"], &private, &parameter).unwrap();
+        typed_extension_result(&["scalar.proto"], &public, &format!("stubs={stubs}")).unwrap();
+        for suffix in [
+            ",build_server=false",
+            ",extern_path=imported.extensions=crate::Foreign",
+        ] {
+            typed_extension_result(&["scalar.proto"], &public, &(parameter.clone() + suffix))
+                .unwrap();
+        }
+    }
+    typed_extension_result(
+        &["scalar.proto"],
+        &public,
+        "typed_extension=test.value,stubs=none",
+    )
+    .unwrap();
+}
+
+#[test]
+fn edition2024_selected_extensions_custom_runtime_alias_generated_consumer() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let retained = std::env::var_os("PBRS_TYPED_EXTENSION_CONSUMER_DIR");
+    let consumer = retained.as_ref().map_or_else(
+        || {
+            root.join("target")
+                .join(format!("typed-int32-alias-consumer-{}", std::process::id()))
+        },
+        |directory| PathBuf::from(directory).join("alias"),
+    );
+    std::fs::create_dir_all(consumer.join("src")).unwrap();
+    let fds = scalar_extension_test_fds(1001, 101, None, false);
+    let default =
+        typed_extension_result(&["scalar.proto"], &fds, "typed_extension=test.value").unwrap();
+    let default = &default
+        .iter()
+        .find(|(name, _)| name == "scalar.rs")
+        .unwrap()
+        .1;
+    for (name, alias) in [("relative.rs", "my_pbrs"), ("absolute.rs", "::my_pbrs")] {
+        let parameter = format!("typed_extension=test.value,runtime_crate={alias}");
+        let output = typed_extension_result(&["scalar.proto"], &fds, &parameter).unwrap();
+        let source = &output
+            .iter()
+            .find(|(name, _)| name == "scalar.rs")
+            .unwrap()
+            .1;
+        assert_eq!(source, &default.replace("pbrs::", &format!("{alias}::")));
+        assert!(source.contains(&format!("{alias}::Extension<")));
+        assert!(source.contains(&format!("{alias}::ExtensionHost")));
+        std::fs::write(consumer.join("src").join(name), source).unwrap();
+    }
+    std::fs::write(consumer.join("Cargo.toml"), format!(
+        "[package]\nname=\"typed-int32-alias-consumer\"\nversion=\"0.0.0\"\nedition=\"2024\"\n[workspace]\n[dependencies]\nmy_pbrs={{package=\"pbrs\",path={:?}}}\n", root.to_str().unwrap()
+    )).unwrap();
+    std::fs::write(
+        consumer.join("src/lib.rs"),
+        r#"
+pub mod relative { include!("relative.rs"); }
+pub mod absolute { include!("absolute.rs"); }
+
+#[test]
+fn renamed_runtime_typed_extensions_round_trip() {
+    use my_pbrs::{Parse, Serialize};
+    let mut relative = relative::Host::new();
+    assert_eq!(relative.get_extension(&relative::extensions::VALUE), 0);
+    assert!(!relative.has_extension(&relative::extensions::VALUE));
+    relative.set_extension(&relative::extensions::VALUE, -7);
+    let wire = relative.serialize().unwrap();
+    assert_eq!(relative.serialized_len(), wire.len());
+    let mut absolute = absolute::Host::parse(&wire).unwrap();
+    assert!(absolute.has_extension(&absolute::extensions::VALUE));
+    assert_eq!(absolute.get_extension(&absolute::extensions::VALUE), -7);
+    absolute.clear_extension(&absolute::extensions::VALUE);
+    assert!(!absolute.has_extension(&absolute::extensions::VALUE));
+    assert_eq!(absolute.serialize().unwrap(), []);
+    absolute.set_extension(&absolute::extensions::VALUE, 0);
+    assert!(absolute.has_extension(&absolute::extensions::VALUE));
+    let parsed = relative::Host::parse(&absolute.serialize().unwrap()).unwrap();
+    assert!(parsed.has_extension(&relative::extensions::VALUE));
+    assert_eq!(parsed.get_extension(&relative::extensions::VALUE), 0);
+}
+"#,
+    )
+    .unwrap();
+    let mut command = shared_consumer_cargo();
+    command
+        .env("CARGO_BUILD_JOBS", "1")
+        .args([
+            "test",
+            "--offline",
+            "--quiet",
+            "--lib",
+            "--",
+            "--test-threads=1",
+        ])
+        .current_dir(&consumer);
+    let result = run_shared_consumer_cargo(&mut command).unwrap();
+    if retained.is_some() {
+        std::fs::write(consumer.join("test.command.txt"), format!("{command:?}\n")).unwrap();
+        std::fs::write(consumer.join("test.stdout"), &result.stdout).unwrap();
+        std::fs::write(consumer.join("test.stderr"), &result.stderr).unwrap();
+        std::fs::write(
+            consumer.join("test.exit"),
+            format!("{:?}\n", result.status.code()),
+        )
+        .unwrap();
+    }
+    assert!(
+        result.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(String::from_utf8_lossy(&result.stdout).contains("1 passed; 0 failed"));
+    if retained.is_none() {
+        std::fs::remove_dir_all(consumer).unwrap();
+    }
+}
+
 #[test]
 fn edition2024_selected_extensions_reject_hidden_descriptor_collisions() {
     for fds in [
