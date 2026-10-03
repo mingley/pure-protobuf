@@ -27,7 +27,7 @@ for entry in record['files']:
         lines[start:end] = operation['new'].splitlines(keepends=True)
     replayed = ''.join(lines).encode()
     assert sha(replayed) == entry['new_sha256']
-    assert (HERE / Path(path).name).read_bytes() == replayed
+    assert (ROOT / path).read_bytes() == replayed
     results.append({'file': path, 'old_sha256': entry['old_sha256'], 'new_sha256': entry['new_sha256']})
 print(json.dumps({'status': 'pass', 'files': results, 'runtime_changed': False,
     'new_compilation_run': False, 'original_mapping_preserved': True}, indent=2))

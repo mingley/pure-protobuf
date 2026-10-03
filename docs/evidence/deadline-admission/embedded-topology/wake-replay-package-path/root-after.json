@@ -1,0 +1,35 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "/workspace/scratch/work/h2-embedded/pbrs-grpc/src/h2_backend/replay-wake-guard-1.88-overlay.py"
+  ],
+  "cwd": "/workspace/scratch/work/h2-embedded/work/h2-embedding/wake-replay-package-path",
+  "started_utc": "2026-10-03T02:08:48.841472+00:00",
+  "exit": 0,
+  "stdout_sha256": "c3fb7e6e84030a5345380241014a3e3eadb9fdbdeb6dd1f8760a3d34c977b498",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "input_sha256_before": {
+    "/workspace/scratch/work/h2-embedded/pbrs-grpc/src/h2_backend/replay-wake-guard-1.88-overlay.py": "2c942618954456ee0f252a63bffe7394228efcb3d4bed29f3f0ca7f79549f840",
+    "/workspace/scratch/work/h2-embedded/pbrs-grpc/src/h2_backend/provenance.json": "8a4cd576d90dce8a1c5e168f5d245ad1828d1ba3419200f6a02ee0eb1b827909",
+    "/workspace/scratch/work/h2-embedded/pbrs-grpc/src/h2_backend/wake-guard-1.88-overlay.json": "7b8d4731d4bb3e4e9a6b842a7b9e36f83ea39b218fa817c291486794b039da2f",
+    "/workspace/scratch/work/h2-embedded/pbrs-grpc/src/h2_backend/wake-guard-1.88-overlay.patch": "f7d1a0a74de2e9fb9a287f0072392f0b8c0d32c224afb2653b6a3bb8305b6601",
+    "/workspace/scratch/work/h2-embedded/pbrs-grpc/src/h2_backend/admission_tests.rs": "cae2fb0f4218544934690dc97b9f9f75492d365b8064f3c947a16c02dca30e32",
+    "/workspace/scratch/work/h2-embedded/pbrs-grpc/src/h2_backend/admission_additional_tests.rs": "5801f5d0d493ff693f38c3f95386e910596ac0fb172c9aa7bbea447e8a4f2a2e",
+    "/workspace/scratch/work/h2-embedded/docs/evidence/deadline-admission/embedded-topology/wake-guard-1.88/admission_tests.rs.before": "e70019b3a3cc614b68c3be0b73b5b48266288e0f1beeb6ac2520dc4baf6a8db2",
+    "/workspace/scratch/work/h2-embedded/docs/evidence/deadline-admission/embedded-topology/wake-guard-1.88/admission_additional_tests.rs.before": "af25db414524d1305805991955d7ed9492462121decfe2e69d4b8e4c6b4a305a"
+  },
+  "input_sha256_after": {
+    "/workspace/scratch/work/h2-embedded/pbrs-grpc/src/h2_backend/replay-wake-guard-1.88-overlay.py": "2c942618954456ee0f252a63bffe7394228efcb3d4bed29f3f0ca7f79549f840",
+    "/workspace/scratch/work/h2-embedded/pbrs-grpc/src/h2_backend/provenance.json": "8a4cd576d90dce8a1c5e168f5d245ad1828d1ba3419200f6a02ee0eb1b827909",
+    "/workspace/scratch/work/h2-embedded/pbrs-grpc/src/h2_backend/wake-guard-1.88-overlay.json": "7b8d4731d4bb3e4e9a6b842a7b9e36f83ea39b218fa817c291486794b039da2f",
+    "/workspace/scratch/work/h2-embedded/pbrs-grpc/src/h2_backend/wake-guard-1.88-overlay.patch": "f7d1a0a74de2e9fb9a287f0072392f0b8c0d32c224afb2653b6a3bb8305b6601",
+    "/workspace/scratch/work/h2-embedded/pbrs-grpc/src/h2_backend/admission_tests.rs": "cae2fb0f4218544934690dc97b9f9f75492d365b8064f3c947a16c02dca30e32",
+    "/workspace/scratch/work/h2-embedded/pbrs-grpc/src/h2_backend/admission_additional_tests.rs": "5801f5d0d493ff693f38c3f95386e910596ac0fb172c9aa7bbea447e8a4f2a2e",
+    "/workspace/scratch/work/h2-embedded/docs/evidence/deadline-admission/embedded-topology/wake-guard-1.88/admission_tests.rs.before": "e70019b3a3cc614b68c3be0b73b5b48266288e0f1beeb6ac2520dc4baf6a8db2",
+    "/workspace/scratch/work/h2-embedded/docs/evidence/deadline-admission/embedded-topology/wake-guard-1.88/admission_additional_tests.rs.before": "af25db414524d1305805991955d7ed9492462121decfe2e69d4b8e4c6b4a305a"
+  },
+  "python_path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+  "python_sha256": "fa67443527ed9647f760d807e2a38f26340757123e643c4639cf273ed15d5ea7",
+  "python_version": "Python 3.12.14",
+  "no_cargo_or_compiler_invoked": true
+}
