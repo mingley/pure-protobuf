@@ -149,9 +149,6 @@ impl FieldList {
     pub fn retain(&mut self, mut keep: impl FnMut(&UnknownField) -> bool) {
         if let Some(fields) = self.0.as_mut() {
             fields.retain(|field| keep(field));
-            if fields.is_empty() {
-                self.0 = None;
-            }
         }
     }
 }

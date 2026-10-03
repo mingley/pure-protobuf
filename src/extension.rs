@@ -25,15 +25,16 @@ pub trait ExtensionValue: sealed::Sealed + Copy {
 impl ExtensionValue for i32 {
     fn __read(field: &UnknownField, number: u32) -> Option<Self> {
         match field {
-            UnknownField::Varint { number: tag, value } if *tag == number => {
-                Some(*value as Self)
-            }
+            UnknownField::Varint { number: tag, value } if *tag == number => Some(*value as Self),
             _ => None,
         }
     }
 
     fn __write(self, number: u32) -> UnknownField {
-        UnknownField::Varint { number, value: i64::from(self) as u64 }
+        UnknownField::Varint {
+            number,
+            value: i64::from(self) as u64,
+        }
     }
 }
 
@@ -65,7 +66,12 @@ impl<M, V: ExtensionValue> Extension<M, V> {
         if number == 0 || number > MAX_FIELD_NUMBER || (number >= 19_000 && number <= 19_999) {
             None
         } else {
-            Some(Self { number, full_name, default, host: PhantomData })
+            Some(Self {
+                number,
+                full_name,
+                default,
+                host: PhantomData,
+            })
         }
     }
 
@@ -131,9 +137,10 @@ impl<M: ExtensionHost, V: ExtensionValue> Extension<M, V> {
 
     /// Remove matching scalar records, preserving other wire types and fields.
     pub fn clear(&self, message: &mut M) {
-        message
-            .__extension_fields_mut()
-            .fields
-            .retain(|field| V::__read(field, self.number).is_none());
+        let fields = &mut message.__extension_fields_mut().fields;
+        fields.retain(|field| V::__read(field, self.number).is_none());
+        if fields.is_empty() {
+            fields.clear();
+        }
     }
 }

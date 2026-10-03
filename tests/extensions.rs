@@ -43,7 +43,10 @@ fn identifier_validates_tag_in_const_context() {
 
 #[test]
 fn absence_and_mutation_preserve_one_word_empty_bag() {
-    assert_eq!(std::mem::size_of::<UnknownFields>(), std::mem::size_of::<usize>());
+    assert_eq!(
+        std::mem::size_of::<UnknownFields>(),
+        std::mem::size_of::<usize>()
+    );
     let mut host = Host::default();
     assert_eq!(VALUE.get(&host), 42);
     assert!(!VALUE.has(&host));
@@ -61,16 +64,37 @@ fn absence_and_mutation_preserve_one_word_empty_bag() {
 #[test]
 fn reads_do_not_mutate_and_writes_preserve_wrong_wire_records() {
     let retained = [
-        UnknownField::Fixed32 { number: 101, value: 11 },
-        UnknownField::Varint { number: 200, value: 9 },
-        UnknownField::LengthDelimited { number: 101, value: vec![8] },
-        UnknownField::Fixed64 { number: 101, value: 7 },
-        UnknownField::Group { number: 101, fields: UnknownFields::default() },
+        UnknownField::Fixed32 {
+            number: 101,
+            value: 11,
+        },
+        UnknownField::Varint {
+            number: 200,
+            value: 9,
+        },
+        UnknownField::LengthDelimited {
+            number: 101,
+            value: vec![8],
+        },
+        UnknownField::Fixed64 {
+            number: 101,
+            value: 7,
+        },
+        UnknownField::Group {
+            number: 101,
+            fields: UnknownFields::default(),
+        },
     ];
     let mut host = Host::default();
     host.unknown.fields.extend(retained.clone());
-    host.unknown.fields.push(UnknownField::Varint { number: 101, value: 7 });
-    host.unknown.fields.push(UnknownField::Varint { number: 101, value: 11 });
+    host.unknown.fields.push(UnknownField::Varint {
+        number: 101,
+        value: 7,
+    });
+    host.unknown.fields.push(UnknownField::Varint {
+        number: 101,
+        value: 11,
+    });
     let before = host.unknown.clone();
     assert_eq!(VALUE.get(&host), 11);
     assert!(VALUE.has(&host));
@@ -78,7 +102,10 @@ fn reads_do_not_mutate_and_writes_preserve_wrong_wire_records() {
     VALUE.set(&mut host, -1);
     assert_eq!(VALUE.get(&host), -1);
     let mut expected = retained.to_vec();
-    expected.push(UnknownField::Varint { number: 101, value: u64::MAX });
+    expected.push(UnknownField::Varint {
+        number: 101,
+        value: u64::MAX,
+    });
     assert_eq!(host.unknown.fields.as_slice(), expected);
     VALUE.clear(&mut host);
     assert!(!VALUE.has(&host));
@@ -90,7 +117,10 @@ fn int32_reads_match_existing_wire_cast_semantics() {
     let mut host = Host::default();
     for (wire, expected) in [(u64::MAX, -1), (0x1_0000_0000, 0), (0xffff_ffff, -1)] {
         host.unknown.fields.clear();
-        host.unknown.fields.push(UnknownField::Varint { number: 101, value: wire });
+        host.unknown.fields.push(UnknownField::Varint {
+            number: 101,
+            value: wire,
+        });
         assert_eq!(VALUE.get(&host), expected);
     }
 }
