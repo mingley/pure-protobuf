@@ -1,0 +1,7 @@
+{
+  "status": "pass",
+  "source_commit": "604f4c2e5b1e33050bf859a97dc69fb7ae791f3a",
+  "regular_members": 806,
+  "qualified_gates": 14,
+  "archive_sha256": "8d899c703aabc54ef417a9d08c830f811ca1d15946fe40a2423013dcc8a2c9d6"
+}
