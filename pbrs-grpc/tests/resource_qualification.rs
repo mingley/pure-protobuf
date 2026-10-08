@@ -554,11 +554,25 @@ async fn run_resource_cycles(campaign: bool) {
                     .await
                     .expect("mixed unary");
                 assert_eq!(name_of(response.get_ref()), payload);
+                let bidi_started = Instant::now();
                 let (tx, call) = client.stream_hello(Request::new(()));
                 let mut inbound = call.await.expect("mixed bidi").into_inner();
                 tx.send(req(&payload)).await.expect("mixed bidi send");
                 assert_eq!(
-                    name_of(&inbound.message().await.expect("status").expect("reply")),
+                    name_of(
+                        &inbound
+                            .message()
+                            .await
+                            .unwrap_or_else(|status| {
+                                panic!(
+                                    "mixed bidi cycle {cycle}, payload {size}, TLS {tls_enabled}, gzip {gzip}, elapsed_ms {}: {} ({})",
+                                    bidi_started.elapsed().as_millis(),
+                                    status.code().name(),
+                                    status.message()
+                                )
+                            })
+                            .expect("reply")
+                    ),
                     payload
                 );
                 tx.close();

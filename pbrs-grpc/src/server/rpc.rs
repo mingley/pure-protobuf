@@ -1252,6 +1252,7 @@ impl Rpc {
                     config.accepts_compressed(),
                     request_codec,
                     binlog.as_ref(),
+                    false,
                 )
                 .await?
             };
@@ -1262,6 +1263,7 @@ impl Rpc {
                 config.accepts_compressed(),
                 request_codec,
                 binlog.as_ref(),
+                false,
             )
             .await?;
             if let Some(socket) = channelz_socket {

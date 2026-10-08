@@ -76,6 +76,16 @@ pub(crate) fn status_from(headers: &HeaderMap, trailers: Option<&HeaderMap>) -> 
     }
 }
 
+// An explicit non-OK wire status can terminate an unfinished response.
+// Missing or malformed statuses must not hide a truncated frame.
+fn has_error_status(headers: &HeaderMap) -> bool {
+    headers
+        .get(GRPC_STATUS)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<i32>().ok())
+        .is_some_and(|code| code != 0)
+}
+
 /// Next HTTP/2 DATA chunk. Flow-control capacity is *not* released; the caller
 /// releases it once the chunk has been handed on, which is what turns a slow
 /// reader into peer backpressure.
@@ -205,6 +215,7 @@ pub(crate) async fn read_one_message<T: CodecMessage>(
     accept_gzip: bool,
     codec: CompressionAlgorithm,
     tap: Option<&CallLogger>,
+    response: bool,
 ) -> Result<Framed<T>, Status> {
     let mut reader = FrameReader::new(limits);
     let mut found: Option<Framed<T>> = None;
@@ -222,7 +233,16 @@ pub(crate) async fn read_one_message<T: CodecMessage>(
             found = Some(decode_frame(frame, limits, accept_gzip, codec)?);
         }
     }
-    reader.finish()?;
+    if let Err(framing_error) = reader.finish() {
+        if response {
+            if let Some(trailers) = read_trailers(recv).await? {
+                if has_error_status(&trailers) {
+                    return Err(status_from(&trailers, Some(&trailers)));
+                }
+            }
+        }
+        return Err(framing_error);
+    }
     // A clean unary-request end is the client's half-close. Response reads
     // end in a trailer, logged by the caller.
     if let Some(tap) = tap.filter(|tap| matches!(tap.role(), Logger::Server)) {
@@ -383,8 +403,10 @@ impl<T> WireStream<T> {
                 }
                 Poll::Ready(Ok(None)) => {
                     self.ended = true;
-                    if let Err(e) = self.reader.finish() {
-                        return Poll::Ready(Err(e));
+                    if !self.require_response_status {
+                        if let Err(e) = self.reader.finish() {
+                            return Poll::Ready(Err(e));
+                        }
                     }
                     // A clean request-stream end is the client's half-close.
                     // Response streams end in a trailer instead.
@@ -410,7 +432,11 @@ impl<T> WireStream<T> {
             }
             Poll::Ready(Ok(None)) => {
                 if self.require_response_status {
-                    let status = Status::unknown("missing grpc-status");
+                    let status = self
+                        .reader
+                        .finish()
+                        .err()
+                        .unwrap_or_else(|| Status::unknown("missing grpc-status"));
                     self.log_response_trailer(&status);
                     Poll::Ready(Err(status))
                 } else {
@@ -419,7 +445,14 @@ impl<T> WireStream<T> {
                 }
             }
             Poll::Ready(Ok(Some(map))) => {
-                let status = status_from(&map, Some(&map));
+                let mut status = status_from(&map, Some(&map));
+                if self.require_response_status {
+                    if let Err(framing_error) = self.reader.finish() {
+                        if !has_error_status(&map) {
+                            status = framing_error;
+                        }
+                    }
+                }
                 self.trailers = Metadata::from_owned_headers(map);
                 self.log_response_trailer(&status);
                 if status.code() == Code::Ok {
@@ -518,15 +551,16 @@ pub(crate) async fn finish_unary<Resp: CodecMessage>(
         return Err(status);
     }
     let codec = inbound_codec_from_token(encoding_token);
-    let framed = match read_one_message::<Resp>(&mut body, limits, accept_gzip, codec, tap).await {
-        Ok(framed) => framed,
-        Err(status) => {
-            if let Some(tap) = tap {
-                tap.log_trailer(&Metadata::new(), &status);
+    let framed =
+        match read_one_message::<Resp>(&mut body, limits, accept_gzip, codec, tap, true).await {
+            Ok(framed) => framed,
+            Err(status) => {
+                if let Some(tap) = tap {
+                    tap.log_trailer(&Metadata::new(), &status);
+                }
+                return Err(status);
             }
-            return Err(status);
-        }
-    };
+        };
     let trailers = match read_trailers(&mut body).await {
         Ok(trailers) => trailers,
         Err(status) => {

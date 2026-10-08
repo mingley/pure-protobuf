@@ -67,9 +67,12 @@ owning card. These losses are already recorded:
 | Generated code and build time | B3, B4, B6 | broad losses | | [scoreboard](../../scoreboard.md) | GN-02, GN-03, GN-11 |
 | Gzip unary | instructions | gzip is 49.8% of the cell | | [h2 costs](../../evidence/h2-costs.md) | RX-11 |
 
-Client streaming, pipelined bidirectional, TLS, 64 KiB, 1 MiB and
-many-connection cells have not been measured against tonic yet. SB-27 adds
-them, and any loss it finds goes on the ledger.
+The [2026-10-08 record](../../evidence/grpc-readiness-20261008/README.md)
+includes functional checks for all five shapes, four payload sizes, h2c/TLS,
+identity/gzip, and 1 or 16 calls on one connection. Per-side instruction and
+allocation measurements cover only 1 KiB, h2c, identity, and one call. They
+retain server instruction and byte losses. The other performance cells,
+many-connection loads, read-all corpora, and dedicated-host timings remain open.
 
 ## Where the CPU goes
 

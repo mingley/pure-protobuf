@@ -60,6 +60,8 @@ enum Terminal {
     Missing,
     Ok,
     RichError,
+    DeadlineExceeded,
+    Malformed,
     HeadersOnlyOk,
     HeadersOnlyMissing,
 }
@@ -174,6 +176,11 @@ impl Peer {
                                         trailers.insert("grpc-status", "3".parse().expect("status"));
                                         trailers.insert("grpc-message", "bad%20input".parse().expect("message"));
                                         trailers.insert("grpc-status-details-bin", "CAE=".parse().expect("details"));
+                                    } else if matches!(reply.terminal, Terminal::DeadlineExceeded) {
+                                        trailers.insert("grpc-status", "4".parse().expect("status"));
+                                        trailers.insert("grpc-message", "deadline%20mid-frame".parse().expect("message"));
+                                    } else if matches!(reply.terminal, Terminal::Malformed) {
+                                        trailers.insert("grpc-status", "invalid".parse().expect("status"));
                                     } else {
                                         trailers.insert("grpc-status", "0".parse().expect("status"));
                                     }
@@ -645,4 +652,92 @@ async fn terminal_error_drop_returns_rpc_and_byte_permits_for_recovery() {
     assert_eq!(tracker.allocated(), 0);
     assert_eq!(tracker.active_byte_permit_tokens(), 0);
     peer.finish(2).await;
+}
+
+async fn terminal_for_shape(channel: &Channel, path: &'static str) -> Status {
+    if path == UNARY {
+        return bounded(channel.unary::<HelloRequest, HelloReply>(path, Request::new(request())))
+            .await
+            .expect_err("partial unary response must fail");
+    }
+    if path == CLIENT_STREAM {
+        let (sender, call) =
+            channel.client_streaming::<HelloRequest, HelloReply>(path, Request::new(()));
+        bounded(sender.send(request())).await.expect("send request");
+        sender.close();
+        return bounded(call)
+            .await
+            .expect_err("partial upload response must fail");
+    }
+    let mut stream = if path == SERVER_STREAM {
+        server_stream(channel).await
+    } else {
+        let (sender, call) = channel.bidi::<HelloRequest, HelloReply>(path, Request::new(()));
+        bounded(sender.send(request())).await.expect("send request");
+        sender.close();
+        bounded(call).await.expect("bidi headers").into_inner()
+    };
+    let status = bounded(stream.message())
+        .await
+        .expect_err("partial response must fail");
+    assert!(
+        bounded(stream.message())
+            .await
+            .expect("fused error")
+            .is_none()
+    );
+    status
+}
+
+#[tokio::test]
+async fn partial_response_preserves_explicit_peer_errors_for_all_shapes() {
+    for partial in [b"\0\0".as_slice(), b"\0\0\0\0\x40\n".as_slice()] {
+        for (terminal, code, message) in [
+            (Terminal::RichError, Code::InvalidArgument, "bad input"),
+            (
+                Terminal::DeadlineExceeded,
+                Code::DeadlineExceeded,
+                "deadline mid-frame",
+            ),
+        ] {
+            for path in [UNARY, CLIENT_STREAM, SERVER_STREAM, BIDI] {
+                let reply = Reply {
+                    path,
+                    chunks: vec![Bytes::copy_from_slice(partial)],
+                    terminal,
+                    hold_data: false,
+                };
+                let (channel, peer) = Peer::start(vec![reply]).await;
+                let status = terminal_for_shape(&channel, path).await;
+                assert_eq!(status.code(), code, "path {path}");
+                assert_eq!(status.message(), message);
+                assert_eq!(status.metadata().get("x-terminal"), Some("kept"));
+                if matches!(terminal, Terminal::RichError) {
+                    assert_eq!(status.details(), [8, 1]);
+                }
+                peer.finish(1).await;
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn partial_response_with_ok_missing_or_malformed_status_is_still_invalid() {
+    for partial in [b"\0\0".as_slice(), b"\0\0\0\0\x40\n".as_slice()] {
+        for terminal in [Terminal::Ok, Terminal::Missing, Terminal::Malformed] {
+            for path in [UNARY, CLIENT_STREAM, SERVER_STREAM, BIDI] {
+                let reply = Reply {
+                    path,
+                    chunks: vec![Bytes::copy_from_slice(partial)],
+                    terminal,
+                    hold_data: false,
+                };
+                let (channel, peer) = Peer::start(vec![reply]).await;
+                let status = terminal_for_shape(&channel, path).await;
+                assert_eq!(status.code(), Code::Internal, "path {path}");
+                assert_eq!(status.message(), "truncated gRPC frame");
+                peer.finish(1).await;
+            }
+        }
+    }
 }
