@@ -1,0 +1,1 @@
+{"failures": ["independent samples do not cover the requested duration", "missing RST_STREAM, GOAWAY or TCP reset coverage", "missing or incomplete requested duration", "missing plaintext/TLS and identity/gzip profile coverage", "resource test child failed", "retained smoke has unresolved failures"], "qualified": false}

@@ -1,0 +1,54 @@
+{
+  "state": "finished",
+  "source": "392c6772bf867eb5e0cda7805f8d2431d1905b1a",
+  "finished_unix_seconds": 1791492803.308317,
+  "qualified": false,
+  "commands": [
+    [
+      "python3",
+      "/workspace/pure-protobuf/work/resource-campaign-candidate/scripts/grpc-resource-campaign.py",
+      "--source",
+      "392c6772bf867eb5e0cda7805f8d2431d1905b1a",
+      "--duration",
+      "30",
+      "--output",
+      "/workspace/pure-protobuf/work/campaign-v4-003/preview",
+      "--seed",
+      "20261008"
+    ]
+  ],
+  "outcomes": [
+    {
+      "duration_requested_seconds": 30,
+      "runner_exit_code": 1,
+      "validator_exit_code": 1,
+      "source": {
+        "commit": "392c6772bf867eb5e0cda7805f8d2431d1905b1a",
+        "tree": "0ed2cb580b194cadd8140aee1be13c90517a0f39",
+        "dirty": false,
+        "cargo_lock_sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5"
+      },
+      "duration_actual_seconds": 18.403103144999477,
+      "smoke": {
+        "status": "failed",
+        "failures": [
+          "independent samples do not cover the requested duration",
+          "missing RST_STREAM, GOAWAY or TCP reset coverage",
+          "missing or incomplete requested duration",
+          "missing plaintext/TLS and identity/gzip profile coverage",
+          "resource test child failed"
+        ]
+      },
+      "soak_24h": {
+        "status": "not_run",
+        "reason": "resource campaign duration; overall QG-06 acceptance remains separate"
+      },
+      "validation_command": [
+        "python3",
+        "/workspace/pure-protobuf/work/resource-campaign-candidate/scripts/grpc-resource-campaign.py",
+        "--validate",
+        "/workspace/pure-protobuf/work/campaign-v4-003/preview/report.json"
+      ]
+    }
+  ]
+}
