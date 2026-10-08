@@ -80,8 +80,22 @@ pub(crate) async fn prefer_peer_rejection_with_commitment<T>(
     send_error: Status,
     response_committed: &mut bool,
 ) -> Result<T, Status> {
-    if send_error.is_transport() {
-        match response.await {
+    let response = if send_error.is_transport() {
+        Some(response.await)
+    } else if std::error::Error::source(&send_error)
+        .is_some_and(|cause| cause.is::<TransportError>())
+    {
+        // A peer rejection can retire the send stream before send_data runs.
+        // The resulting InactiveStreamId is a backend user error, without
+        // transport retry evidence. Inspect queued headers, but never wait
+        // for a response after a local send error.
+        tokio::pin!(response);
+        poll_now(response.as_mut())
+    } else {
+        None
+    };
+    if let Some(response) = response {
+        match response {
             Ok(response) => {
                 *response_committed = response_commits(&response);
                 let grpc_code = response
@@ -649,7 +663,8 @@ mod tests {
     use crate::status::{Code, Status, TransportEvidence};
     use crate::transport::h2 as backend;
     use crate::transport::{
-        ClientBuilder, Reason, SendRequest, SendResponse, ServerBuilder, ServerConnection,
+        ClientBuilder, Reason, SendRequest, SendResponse, SendStream, ServerBuilder,
+        ServerConnection,
     };
     use std::time::Duration;
 
@@ -741,5 +756,151 @@ mod tests {
         ManualRuntime::advance(Duration::from_secs(10));
         let outcome = done_rx.await.expect("deadline race must finish");
         assert_eq!(outcome.unwrap_err().code(), Code::DeadlineExceeded);
+    }
+
+    async fn response_after_closed_upload(
+        http_status: http::StatusCode,
+        grpc_status: Option<&str>,
+    ) -> (http::Response<backend::RecvStream>, Status) {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let (headers_tx, headers_rx) = tokio::sync::oneshot::channel();
+        let grpc_status = grpc_status.map(str::to_owned);
+        let peer = tokio::spawn(async move {
+            let (socket, _) = listener.accept().await.expect("accept");
+            let mut connection = backend::ServerBuilder::new()
+                .handshake(socket)
+                .await
+                .expect("handshake");
+            let (request, mut respond) = connection
+                .accept()
+                .await
+                .expect("request")
+                .expect("headers");
+            let mut response = http::Response::builder().status(http_status);
+            if let Some(code) = grpc_status {
+                response = response
+                    .header("grpc-status", code)
+                    .header("grpc-message", "busy");
+            }
+            let send = respond
+                .send_response(response.body(()).expect("response"), true)
+                .expect("send headers");
+            tokio::select! {
+                result = headers_rx => result.expect("client received headers"),
+                request = connection.accept() => panic!("unexpected request while flushing response: {request:?}"),
+            }
+            respond.send_reset(Reason::NO_ERROR);
+            drop(send);
+            drop(request);
+            drop(respond);
+            while let Some(result) = connection.accept().await {
+                result.expect("drive reset");
+            }
+        });
+        let socket = tokio::net::TcpStream::connect(addr).await.expect("connect");
+        let (sender, connection) = backend::ClientBuilder::new()
+            .handshake(socket)
+            .await
+            .expect("handshake");
+        let driver = tokio::spawn(async move { drop(connection.await) });
+        let mut sender = sender.ready().await.expect("ready");
+        let (response, mut send) = sender
+            .send_request(
+                http::Request::builder()
+                    .uri("http://localhost/rejected")
+                    .body(())
+                    .expect("request"),
+                false,
+            )
+            .expect("request headers");
+        let response = response.await.expect("response headers");
+        headers_tx.send(()).expect("release peer");
+        std::future::poll_fn(|cx| send.poll_reset(cx))
+            .await
+            .expect("reset");
+        let error = send
+            .send_data(bytes::Bytes::from_static(b"unfinished"), true)
+            .expect_err("closed send half");
+        let status = Status::from_h2_send(error);
+        assert_eq!(status.code(), Code::Internal);
+        assert!(!status.is_transport());
+        driver.abort();
+        peer.abort();
+        (response, status)
+    }
+
+    #[tokio::test]
+    async fn queued_peer_rejection_overrides_inactive_upload_error() {
+        tokio::time::timeout(Duration::from_secs(3), async {
+            let (response, send_error) =
+                response_after_closed_upload(http::StatusCode::OK, Some("8")).await;
+            let mut committed = false;
+            let status = super::prefer_peer_rejection_with_commitment::<()>(
+                std::future::ready(Ok(response)),
+                send_error,
+                &mut committed,
+            )
+            .await
+            .expect_err("peer rejection");
+            assert_eq!(status.code(), Code::ResourceExhausted);
+            assert_eq!(status.message(), "busy");
+            assert!(
+                !committed,
+                "trailers-only rejection remains policy retry eligible"
+            );
+            assert!(!status.is_transport());
+        })
+        .await
+        .expect("closed upload stalled");
+    }
+
+    #[tokio::test]
+    async fn closed_upload_never_becomes_success_or_waits_for_local_send_error() {
+        tokio::time::timeout(Duration::from_secs(3), async {
+            for (http_status, grpc_status) in [
+                (http::StatusCode::OK, Some("0")),
+                (http::StatusCode::OK, None),
+                (http::StatusCode::OK, Some("bad")),
+                (http::StatusCode::SERVICE_UNAVAILABLE, Some("8")),
+            ] {
+                let (response, send_error) =
+                    response_after_closed_upload(http_status, grpc_status).await;
+                let message = send_error.message().to_owned();
+                let mut committed = false;
+                let status = super::prefer_peer_rejection_with_commitment::<()>(
+                    std::future::ready(Ok(response)),
+                    send_error,
+                    &mut committed,
+                )
+                .await
+                .expect_err("incomplete upload must fail");
+                assert_eq!(status.code(), Code::Internal);
+                assert_eq!(status.message(), message);
+                assert!(std::error::Error::source(&status).is_some());
+            }
+            let (_, send_error) =
+                response_after_closed_upload(http::StatusCode::OK, Some("8")).await;
+            let status = super::prefer_peer_rejection_with_commitment::<()>(
+                std::future::pending(),
+                send_error,
+                &mut false,
+            )
+            .await
+            .expect_err("no queued response");
+            assert_eq!(status.code(), Code::Internal);
+            let status = super::prefer_peer_rejection_with_commitment::<()>(
+                std::future::pending(),
+                Status::internal("local validation"),
+                &mut false,
+            )
+            .await
+            .expect_err("local error must not await response");
+            assert_eq!(status.message(), "local validation");
+        })
+        .await
+        .expect("local send error waited for headers");
     }
 }
