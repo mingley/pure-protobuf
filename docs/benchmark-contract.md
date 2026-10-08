@@ -114,7 +114,7 @@ Tier 3 measures complete application RPC stacks. It compares idiomatic client
 and server implementations across languages and frameworks.
 
 #### A. Reference Implementations
-* `pbrs-grpc`: Pure Rust native client and server
+* `pbrs-grpc`: HTTP/2 client and server
 * `tonic` + `prost`: Standard Rust ecosystem reference
 * `grpc-go`: Official Go reference implementation (`google.golang.org/grpc`)
 * `grpc-core` (C++): Official C++ reference implementation
@@ -133,7 +133,7 @@ To ensure leadership is not an artifact of proprietary client-server optimizatio
 
 ## 3. Scenario Dimensions and Matrix
 
-A claim-grade matrix must cover realistic service operating points: payload
+A qualified matrix must cover realistic service operating points: payload
 size, RPC shape, transport security, compression, holdout traffic, network
 round-trip time (RTT), and core scaling.
 
@@ -391,9 +391,9 @@ To claim performance leadership over reference implementations (Tonic, grpc-go, 
 1. **Efficiency / Throughput Margin**:
    * **$\ge 20\%$ lower CPU per successful RPC** at matched offered load, **OR**
    * **$\ge 20\%$ higher sustainable throughput** (maximum load maintaining error rate $< 0.001\%$ and p99 within SLA).
-2. **Tail Latency Guardrail**:
+2. **Tail latency limits**:
    * **No unexplained $> 5\%$ regression in p99 latency** on any primary workload compared to the reference baseline.
-3. **Memory Guardrail**:
+3. **Memory limits**:
    * Peak and steady-state RSS within $+10\%$ of reference implementation, with zero memory growth over a 1-hour soak test.
 4. **Correctness Pre-requisite**:
    * Zero unhandled transport panics, zero data corruptions, and 100% pass on applicable official gRPC interoperability tests.

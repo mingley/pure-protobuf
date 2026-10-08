@@ -4,7 +4,7 @@ The goal is a Rust protobuf and gRPC stack with leading client and server
 efficiency, predictable resources and a straightforward developer experience.
 The [current queue](../TODO.md) says what to do next. The
 [2026-09-29 audit](audit-2026-09-29.md) explains why, and the
-[performance program](plan/world-class/README.md) sets the measurable route
+[performance plan](plan/world-class/README.md) sets the measurable route
 to leadership.
 
 This page defines product scope and promotion requirements. It does not carry

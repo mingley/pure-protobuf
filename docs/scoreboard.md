@@ -1,6 +1,6 @@
 # Scoreboard
 
-No performance category is a claim-grade win yet. The project has useful
+No performance category has passed qualification yet. The project has useful
 local results and working benchmark tools; it has not completed the controlled
 campaigns needed to establish comparative leadership.
 
@@ -88,15 +88,14 @@ being measured.
 | F4 gRFC coverage | Implementations and tests tracked in GF/CH/XD task lanes | Claim only the implemented subset; check each required card |
 | F5 xDS interop | xDS contracts and implementation work | Independent control-plane coverage for the claimed behavior |
 | F6 fuzz/Miri | QG-01 policy, targeted Miri workflow, QG-02 fuzz campaign tooling | Passing artifacts and sustained campaign coverage for the measured revision |
-| F7 pure-Rust graph | QG-04 feature-resolved audit and CI job | Audit passes for each advertised shipping profile at the measured revision |
+| F7 dependency audit | QG-04 feature-resolved audit and CI job | Audit passes for each advertised shipping profile at the measured revision |
 
 ## benchmarks.md claim mapping
 
 The main comparative statements in [benchmarks.md](benchmarks.md),
 mapped to a category and verdict under the contract. `valid` means
 the statement already carries its caveats and makes no leadership
-claim; `unqualified` means measured but short of claim-grade
-evidence; `invalid` means the measurement cannot support the
+claim; `unqualified` means measured without enough evidence for a performance claim; `invalid` means the measurement cannot support the
 reading and must be rerun.
 
 | Statement (benchmarks.md section) | Categories | Verdict |
@@ -149,7 +148,7 @@ findings behind this order.
   targeted cells; no primary cell regresses >1% (2% RPC cells); F
   gates green. These are local comparison defaults; CI remains advisory until
   SB-20 calibrates the thresholds from observed noise. Never leadership.
-- **Claim-grade** (SB-15/22/16): contract §6–§10 — dedicated x86_64
+- **Qualified** (SB-15/22/16): contract §6–§10 — dedicated x86_64
   and arm64 hosts, 5+ randomized paired runs, 95% intervals,
   §7 margins (≥20% CPU/RPC or throughput, ≤5% p99 regression).
 - **Wording** (§10.2): every claim names cells, peer versions,

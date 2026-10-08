@@ -127,7 +127,7 @@ Each step had to prove itself on measurements before it could merge.
 - **Messages that arrive in pieces.** Revisit only if new measurements (for
   example over a real network, not loopback) show the joining copy above 5% of
   CPU.
-- **Claim-grade numbers.** The numbers above come from one shared laptop.
+- **Qualified measurements.** The numbers above come from one shared laptop.
   Published claims need the separate-host protocol in the
   [benchmark contract](benchmark-contract.md).
 

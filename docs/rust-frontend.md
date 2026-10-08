@@ -2,7 +2,7 @@
 
 Use `Config::compile_descriptor_set` to generate Rust without running
 `protoc`. Compiling new `.proto` source with `compile_protos` still requires
-`protoc`: the reviewed pure-Rust frontend candidates do not cover the full
+`protoc`: the reviewed Rust frontend candidates do not cover the full
 required profile.
 
 **Review date:** 2026-09-23. **Repository source:** `d34334e1`.
