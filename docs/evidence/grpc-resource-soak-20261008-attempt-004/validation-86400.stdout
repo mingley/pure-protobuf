@@ -1,0 +1,1 @@
+{"failures": ["independent samples do not cover the requested duration", "missing or incomplete requested duration", "resource test child failed", "retained smoke has unresolved failures"], "qualified": false}

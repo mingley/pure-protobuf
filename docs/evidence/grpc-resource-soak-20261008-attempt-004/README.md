@@ -1,7 +1,8 @@
-# Resource campaign running
+# Resource campaign outcome
 
-Source `50ac70e5c9818fe870719b37acede99f12710fe9`. The preview passed 8 cycles in 34.50 seconds; independent validation found no failures. It covered plaintext/TLS and identity/gzip with unchanged limits.
+Source `50ac70e5c9818fe870719b37acede99f12710fe9`. The controller attempts a 30-second preview, then an actual 86,400-second campaign only if the preview runner and validator pass. Original reports and failures are retained.
 
-The actual 86,400-second child started at 2026-10-08 22:23:33 UTC. Its earliest requested finish is 2026-10-09 22:23:33 UTC. It was alive when launch.json was captured, with address space 1 GiB, 128 file descriptors, 4,096 same-uid processes/threads, and 86,430 CPU seconds as both soft and hard limits. This is a launch observation, not a completion report.
+- preview: actual 34.49582712100164 seconds; resource checks passed; 24-hour disposition not_run.
+- 24h: actual 705.1768727369999 seconds; resource checks failed; 24-hour disposition failed.
 
-The source checkout and copied executable are frozen. The controller retains failures and is configured to publish the final outcome directly to main. See started.json for command and controller hashes, and launch.json for the preview validation, child hash, effective limits, and observed times. Overall production qualification remains false.
+Overall production qualification remains false. This resource fixture does not close performance, feature, allocator high-water, kernel-memory, or dedicated-host release gates. See outcome.json for runner and validator exit codes, and each capsule manifest for raw hashes. Run the capsule check.py to verify its exact inventory.
