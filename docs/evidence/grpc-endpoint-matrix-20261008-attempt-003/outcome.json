@@ -1,0 +1,108 @@
+{
+  "source": "50ac70e5c9818fe870719b37acede99f12710fe9",
+  "state": "publishing",
+  "qualified": false,
+  "commands": [
+    {
+      "command": [
+        "python3",
+        "/workspace/pure-protobuf/work/matrix-candidate/scripts/build-rpc-bench.py",
+        "--source",
+        "50ac70e5c9818fe870719b37acede99f12710fe9",
+        "--output",
+        "/workspace/pure-protobuf/work/matrix-v2-003/build"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 556.4861645698547
+    },
+    {
+      "command": [
+        "python3",
+        "/workspace/pure-protobuf/work/matrix-candidate/scripts/grpc-load-smoke.py",
+        "--binary",
+        "/workspace/pure-protobuf/work/matrix-v2-003/build/rpc-bench",
+        "--build-record",
+        "/workspace/pure-protobuf/work/matrix-v2-003/build/build.json",
+        "--output",
+        "/workspace/pure-protobuf/work/matrix-v2-003/functional",
+        "--rpc-count",
+        "20",
+        "--duration",
+        "60",
+        "--allocation-counts",
+        "--context-switches",
+        "--load-levels",
+        "1:1,1:16",
+        "--seed",
+        "20261008"
+      ],
+      "exit_code": 1,
+      "elapsed_seconds": 343.970995426178
+    },
+    {
+      "command": [
+        "python3",
+        "/workspace/pure-protobuf/work/matrix-candidate/scripts/dominance-ledger.py",
+        "--small",
+        "/workspace/pure-protobuf/work/matrix-v2-003/native-counters-200",
+        "--large",
+        "/workspace/pure-protobuf/work/matrix-v2-003/native-counters-400",
+        "--output",
+        "/workspace/pure-protobuf/work/matrix-v2-003/native-ledger",
+        "--allow-partial",
+        "--allow-failed-captures"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.13631701469421387
+    },
+    {
+      "command": [
+        "python3",
+        "/workspace/pure-protobuf/work/matrix-candidate/scripts/dominance-ledger.py",
+        "--small",
+        "/workspace/pure-protobuf/work/matrix-v2-003/callgrind-200",
+        "--large",
+        "/workspace/pure-protobuf/work/matrix-v2-003/callgrind-400",
+        "--output",
+        "/workspace/pure-protobuf/work/matrix-v2-003/callgrind-ledger",
+        "--allow-partial",
+        "--allow-failed-captures"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.323458194732666
+    }
+  ],
+  "concurrent_resource_campaign_at_start": {
+    "state": "running_24h",
+    "source": "50ac70e5c9818fe870719b37acede99f12710fe9",
+    "duration_seconds": 86400,
+    "started_unix_seconds": 1791498211.0605342,
+    "qualified": false,
+    "commands": [
+      [
+        "python3",
+        "/workspace/pure-protobuf/work/resource-campaign-candidate/scripts/grpc-resource-campaign.py",
+        "--source",
+        "50ac70e5c9818fe870719b37acede99f12710fe9",
+        "--duration",
+        "30",
+        "--output",
+        "/workspace/pure-protobuf/work/campaign-v4-004/preview",
+        "--seed",
+        "20261008"
+      ],
+      [
+        "python3",
+        "/workspace/pure-protobuf/work/resource-campaign-candidate/scripts/grpc-resource-campaign.py",
+        "--source",
+        "50ac70e5c9818fe870719b37acede99f12710fe9",
+        "--duration",
+        "86400",
+        "--output",
+        "/workspace/pure-protobuf/work/campaign-v4-004/24h",
+        "--seed",
+        "20261008"
+      ]
+    ]
+  }
+}

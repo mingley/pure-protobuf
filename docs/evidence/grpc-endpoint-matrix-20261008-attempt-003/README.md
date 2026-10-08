@@ -1,5 +1,7 @@
-# Endpoint matrix building
+# Endpoint matrix outcome
 
-Source `50ac70e5c9818fe870719b37acede99f12710fe9`. This separate attempt supplies the installed protoc 35.1 on PATH. The previous failed build is retained in [attempt 002](../grpc-endpoint-matrix-20261008-attempt-002/README.md).
+Source `50ac70e5c9818fe870719b37acede99f12710fe9`. The raw capsule retains the source-pinned release build, functional cells, native N/2N endpoint counters, separate Callgrind captures, and all failed cells. Overall qualification remains false.
 
-The unchanged controller builds and freezes the release binary, then runs the requested 2,560 functional cells and separate native/Callgrind N/2N captures. It retains every failure and is configured to publish the outcome directly to main. The controller and release build were running when launch.json was captured. No completed measurement is claimed; qualification remains false.
+The requested functional matrix covers 2,560 cells at 20 RPCs per cell, with a 60-second cutoff. This checks wiring and completion, not saturation. The N/2N captures cover five endpoint pairings, five shapes, one KiB h2c identity, concurrency one, and three repeats. Read-all corpora, cold/idle, higher loads, task wakeups, syscalls, dedicated-host statistics, and measured noise bounds remain open. See outcome.json and archived report/ledger files for actual results; a requested command is not a successful measurement.
+
+Run `python3 check.py` to verify every retained file.
