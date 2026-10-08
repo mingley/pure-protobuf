@@ -338,3 +338,50 @@ The QPS runner saves each run in `target/qps-logs/<timestamp>_<pid>/`:
 
 The worker and driver can run over loopback. Local adapter checks need no
 cloud deployment, BigQuery credentials, or external uploads.
+
+## Matched native and tonic load runs
+
+`load` and `load-server` accept `--transport=native|tonic` and
+`--codec=pbrs|prost`. Native prost uses the public generated stubs and codec,
+with the same prost messages used by tonic. The five shapes are `unary`,
+`server_stream`, `client_stream`, `bidi` (lockstep), and `bidi_pipelined`.
+Both bidi shapes send the requested upload body. Load TLS uses TLS 1.3,
+AES-128-GCM and h2 on both transports, with CA and server-name verification.
+
+`--rpc-count=N` requires exactly N successful RPCs before the duration limit.
+A partial run saves its metrics and exits with failure. Fixed counts let
+instruction and allocation measurements subtract setup using N and 2N runs.
+
+Build with `--features allocation-counts` to print allocation operations and
+requested bytes since entry into `main`. Reallocation counts as an allocation
+of the requested new size. These totals include setup and instrumentation;
+they do not measure retained memory. On Unix, `SIGUSR1` prints a server
+snapshot. The allocator is shared with the decoder benchmark and its Miri test.
+
+The separate-process runner supports repeats, connection/concurrency levels,
+allocator snapshots, and optional Callgrind on both endpoints:
+
+```sh
+cargo build --locked --release --manifest-path rpc-bench/Cargo.toml --features allocation-counts
+python3 scripts/grpc-load-smoke.py --binary target/release/rpc-bench \
+  --output target/load-matrix/run-001 --duration .25 \
+  --load-levels 1:1,1:16 --repeats 3 --allocation-counts
+```
+
+Use `--rpc-count=64 --duration=60 --callgrind=/path/to/valgrind` for an
+instruction capture, then repeat with twice the RPC count in a new output
+directory. Callgrind CPU/RSS includes instrumentation and must not be compared
+with native CPU/RSS. Retain every capture and compare each side against the
+same peer. The runner reports diagnostic results; saturation, cold/idle
+lifecycles, read-all corpora, wakeups, syscalls, and dedicated-host statistics
+still need separate coverage.
+
+`dominance-ledger.py` compares matched N/2N capture directories against the same
+peer for each side. It retains losses with task IDs and marks missing or
+nonpositive differentials unmeasured. Its default exit status is failure while
+full coverage remains incomplete; `--allow-partial` explicitly selects a diagnostic.
+
+```sh
+python3 scripts/dominance-ledger.py --small target/load-N --large target/load-2N \
+  --output target/dominance-diagnostic.json --allow-partial
+```

@@ -363,7 +363,12 @@ fn failed_rpc_validation_exits_nonzero_after_saving_complete_metrics() {
             .expect("start identity-only response server"),
     );
     let port = read_ready_port(&mut server.0);
-    for (transport, codec) in [("native", "pbrs"), ("tonic", "pbrs"), ("tonic", "prost")] {
+    for (transport, codec) in [
+        ("native", "pbrs"),
+        ("native", "prost"),
+        ("tonic", "pbrs"),
+        ("tonic", "prost"),
+    ] {
         let report = std::env::temp_dir().join(format!(
             "pbrs-load-failure-{}-{transport}-{codec}.json",
             std::process::id(),
@@ -398,5 +403,46 @@ fn failed_rpc_validation_exits_nonzero_after_saving_complete_metrics() {
         assert_eq!(metrics["completed_rpcs"], metrics["failed_rpcs"]);
         assert_eq!(metrics["unstarted_rpcs"], 0);
         assert_eq!(metrics["unfinished_rpcs"], 0);
+    }
+}
+
+#[test]
+fn load_native_prost_and_pipelined_cells() {
+    for transport in ["--transport=native", "--transport=tonic"] {
+        for codec in ["--codec=pbrs", "--codec=prost"] {
+            for shape in [
+                "--shape=unary",
+                "--shape=server_stream",
+                "--shape=client_stream",
+                "--shape=bidi",
+                "--shape=bidi_pipelined",
+            ] {
+                assert_clean_cell(&[
+                    transport,
+                    codec,
+                    shape,
+                    "--stream-msgs=16",
+                    "--req-bytes=65536",
+                    "--resp-bytes=65536",
+                    "--max-in-flight=1",
+                ]);
+            }
+        }
+    }
+}
+
+#[test]
+fn fixed_rpc_count_is_exact_and_cannot_pass_on_partial_work() {
+    for transport in ["--transport=native", "--transport=tonic"] {
+        for codec in ["--codec=pbrs", "--codec=prost"] {
+            let (code, text) = run_load(&[transport, codec, "--rpc-count=17", "--duration-secs=5"]);
+            assert_eq!(code, 0, "{text}");
+            assert_eq!(counters(&text), (17, 0, 0, 0));
+        }
+    }
+    let (code, text) = run_load(&["--rpc-count=1000000", "--duration-secs=0.000001"]);
+    assert_eq!(code, 1, "incomplete fixed count must fail: {text}");
+    for value in ["--rpc-count=0", "--rpc-count=-1", "--rpc-count=1000001"] {
+        assert_eq!(run_load(&[value]).0, 2);
     }
 }

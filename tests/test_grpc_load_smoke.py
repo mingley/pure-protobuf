@@ -48,3 +48,30 @@ class AccountingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class CaptureGuards(unittest.TestCase):
+    def test_allocator_snapshot_is_mandatory_and_unambiguous(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "stdout"
+            path.write_text("READY port=1\n")
+            with self.assertRaises(ValueError):
+                SMOKE.allocation_record(path)
+            valid = 'ALLOCATIONS {"scope":"process_since_main","includes_reallocations":true,"allocations":9,"requested_bytes":100}\n'
+            path.write_text(valid)
+            self.assertEqual(SMOKE.allocation_record(path)["allocations"], 9)
+            path.write_text(valid + valid)
+            with self.assertRaises(ValueError):
+                SMOKE.allocation_record(path)
+
+    def test_callgrind_requires_a_single_positive_instruction_summary(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "callgrind"
+            path.write_text("events: Dr Ir\nsummary: 99 120\n")
+            self.assertEqual(SMOKE.callgrind_instructions(path), 120)
+            for bad in ["", "events: Dr\nsummary: 9\n", "events: Ir\nsummary: 0\n",
+                        "events: Ir\nsummary: 4\nsummary: 5\n"]:
+                path.write_text(bad)
+                with self.assertRaises(ValueError):
+                    SMOKE.callgrind_instructions(path)

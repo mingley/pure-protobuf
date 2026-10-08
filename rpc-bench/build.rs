@@ -19,13 +19,19 @@ fn main() {
         .compile_protos(&[&testing], &[&proto_dir])
         .expect("tonic TestService codegen");
 
-    // TC-24: prost messages + tonic client/server stubs for the same
-    // TestService, so `load --transport=tonic --codec=prost` compares the
-    // codec with the transport held fixed. Bench-only (publish=false);
-    // prost must never enter a shipping manifest (QG-04).
+    // Both transports use the same prost messages and descriptor set.
+    let out = PathBuf::from(std::env::var("OUT_DIR").unwrap());
+    let descriptors = out.join("test-descriptors.bin");
     tonic_prost_build::configure()
+        .file_descriptor_set_path(&descriptors)
         .compile_protos(&[&testing], &[&proto_dir])
         .expect("prost TestService codegen");
+    pbrs::codegen::prost_stubs::compile_descriptor_set(
+        &descriptors,
+        &["grpc/testing/test.proto"],
+        &out,
+    )
+    .expect("native prost TestService stubs");
 
     let bench_proto_dir = manifest.join("proto");
     let benchmark = bench_proto_dir.join("grpc/testing/benchmark_service.proto");

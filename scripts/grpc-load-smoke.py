@@ -10,15 +10,14 @@ import os
 from pathlib import Path
 import platform
 import random
+import signal
 import subprocess
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-PAIRS = [("native", "pbrs", "native", "pbrs"),
-         ("native", "pbrs", "tonic", "prost"),
-         ("tonic", "prost", "native", "pbrs"),
-         ("tonic", "prost", "tonic", "prost")]
-SHAPES = ["unary", "server_stream", "client_stream", "bidi"]
+PROFILES = [("native", "pbrs"), ("native", "prost"), ("tonic", "pbrs"), ("tonic", "prost")]
+PAIRS = [(*client, *server) for client, server in itertools.product(PROFILES, repeat=2)]
+SHAPES = ["unary", "server_stream", "client_stream", "bidi", "bidi_pipelined"]
 
 
 def validate_metrics(metrics):
@@ -51,6 +50,33 @@ def cpu_seconds(before, after):
     return delta / os.sysconf("SC_CLK_TCK")
 
 
+def allocation_record(path):
+    records = [json.loads(line[len("ALLOCATIONS "):]) for line in path.read_text().splitlines()
+               if line.startswith("ALLOCATIONS ")]
+    if len(records) != 1:
+        raise ValueError("exactly one allocator snapshot is required per endpoint")
+    record = records[0]
+    if (record.get("scope") != "process_since_main" or record.get("includes_reallocations") is not True
+            or any(type(record.get(key)) is not int or record[key] < 0 for key in ("allocations", "requested_bytes"))):
+        raise ValueError("invalid allocator snapshot")
+    return record
+
+
+def callgrind_instructions(path):
+    events, totals = None, []
+    for line in path.read_text().splitlines():
+        if line.startswith("events:"):
+            events = line.split()[1:]
+        elif line.startswith("summary:"):
+            totals.append([int(value) for value in line.split()[1:]])
+    if events is None or "Ir" not in events or len(totals) != 1 or len(totals[0]) != len(events):
+        raise ValueError("missing or ambiguous Callgrind instruction summary")
+    instructions = totals[0][events.index("Ir")]
+    if instructions <= 0:
+        raise ValueError("nonpositive Callgrind instructions")
+    return instructions
+
+
 def stop(process):
     if process is not None and process.poll() is None:
         process.terminate()
@@ -70,13 +96,20 @@ def run_cell(args, cell, directory):
     client_cmd = [str(args.binary), "load", f"--transport={client_transport}",
                   f"--codec={client_codec}", f"--shape={cell['shape']}",
                   f"--req-bytes={cell['payload_bytes']}", f"--resp-bytes={cell['payload_bytes']}",
-                  "--stream-msgs=4", "--connections=1", "--max-in-flight=1",
+                  "--stream-msgs=4", f"--connections={cell.get('connections', 1)}",
+                  f"--max-in-flight={cell.get('in_flight', 1)}",
                   f"--duration-secs={args.duration}", f"--compression={cell['compression']}",
                   f"--output={directory / 'metrics.json'}"]
     if cell["tls"]:
         data = ROOT / "pbrs-grpc/tests/tls_data"
         server_cmd += [f"--tls-cert={data / 'server.crt'}", f"--tls-key={data / 'server.key'}"]
         client_cmd += [f"--tls-ca={data / 'ca.crt'}", "--tls-server-name=localhost"]
+    if getattr(args, "rpc_count", None) is not None:
+        client_cmd.append(f"--rpc-count={args.rpc_count}")
+    if getattr(args, "callgrind", None) is not None:
+        prefix = [str(args.callgrind), "--tool=callgrind", "--quiet"]
+        server_cmd = [*prefix, f"--callgrind-out-file={directory / 'server.callgrind'}", *server_cmd]
+        client_cmd = [*prefix, f"--callgrind-out-file={directory / 'client.callgrind'}", *client_cmd]
     env = {**os.environ, "TOKIO_WORKER_THREADS": "2"}
     server = client = None
     report = {"cell": cell, "commands": {"server": server_cmd, "client": client_cmd},
@@ -128,6 +161,17 @@ def run_cell(args, cell, directory):
             validate_metrics(metrics)
             if report["client_exit_code"] != 0 or report["server_exit_before_teardown"] is not None:
                 raise RuntimeError("benchmark endpoint failed")
+            if getattr(args, "rpc_count", None) is not None and metrics["successful_rpcs"] != args.rpc_count:
+                raise ValueError("fixed RPC count was not completed")
+            if getattr(args, "allocation_counts", False):
+                os.kill(server.pid, signal.SIGUSR1)
+                deadline = time.monotonic() + 5
+                while "ALLOCATIONS " not in (directory / "server.stdout").read_text():
+                    if server.poll() is not None or time.monotonic() > deadline:
+                        raise TimeoutError("server allocator snapshot missing")
+                    time.sleep(0.01)
+                report["allocation_totals"] = {side: allocation_record(directory / f"{side}.stdout")
+                                               for side in ("client", "server")}
             report["passed"] = True
     except (OSError, ValueError, RuntimeError, TimeoutError, subprocess.TimeoutExpired) as error:
         report["error"] = str(error)
@@ -135,6 +179,12 @@ def run_cell(args, cell, directory):
         stop(client)
         stop(server)
         report["server_teardown_exit_code"] = server.returncode if server else None
+        if getattr(args, "callgrind", None) is not None and report.get("passed"):
+            try:
+                report["instruction_totals"] = {side: callgrind_instructions(directory / f"{side}.callgrind")
+                                                 for side in ("client", "server")}
+            except (OSError, ValueError) as error:
+                report.update(passed=False, error=str(error))
         (directory / "run.json").write_text(json.dumps(report, indent=2) + "\n")
     return report
 
@@ -146,6 +196,11 @@ def main():
     parser.add_argument("--duration", type=float, default=1.0)
     parser.add_argument("--payloads", default="0,1024,65536,1048576")
     parser.add_argument("--seed", type=int, default=11011)
+    parser.add_argument("--load-levels", default="1:1", help="connections:total-in-flight pairs")
+    parser.add_argument("--repeats", type=int, default=1)
+    parser.add_argument("--rpc-count", type=int)
+    parser.add_argument("--allocation-counts", action="store_true", help="requires allocation-counts Cargo feature")
+    parser.add_argument("--callgrind", type=Path, help="Valgrind executable; instruments both endpoints")
     args = parser.parse_args()
     if platform.system() != "Linux" or not math.isfinite(args.duration) or not 0.01 <= args.duration <= 60:
         parser.error("Linux and a finite 0.01..60 second diagnostic duration are required")
@@ -155,30 +210,44 @@ def main():
         parser.error("payloads must be comma-separated integer byte sizes")
     if not payloads or len(set(payloads)) != len(payloads) or any(value < 0 or value > 1048576 for value in payloads):
         parser.error("payloads must be unique body byte sizes in 0..1048576")
+    try:
+        levels = [tuple(int(value) for value in level.split(":")) for level in args.load_levels.split(",")]
+    except ValueError:
+        parser.error("load levels must be connections:in-flight integer pairs")
+    if (not levels or len(set(levels)) != len(levels)
+            or any(len(level) != 2 or not 1 <= level[0] <= 64 or not 1 <= level[1] <= 1024 for level in levels)):
+        parser.error("load levels require 1..64 connections and 1..1024 in-flight RPCs")
+    if not 1 <= args.repeats <= 10 or (args.rpc_count is not None and not 1 <= args.rpc_count <= 1000000):
+        parser.error("repeats must be 1..10 and RPC count 1..1000000")
+    if args.callgrind is not None:
+        args.callgrind = args.callgrind.resolve(strict=True)
     args.binary = args.binary.resolve(strict=True)
     args.output = args.output.resolve()
     args.output.mkdir(parents=True, exist_ok=False)
     digest = hashlib.sha256(args.binary.read_bytes()).hexdigest()
     cells = [{"pair": list(pair), "shape": shape, "payload_bytes": size,
-              "tls": tls, "compression": compression}
-             for pair, shape, size, tls, compression in itertools.product(
-                 PAIRS, SHAPES, payloads, [False, True], ["identity", "gzip"])]
+              "tls": tls, "compression": compression, "connections": level[0], "in_flight": level[1],
+              "repeat": repeat}
+             for pair, shape, size, tls, compression, level, repeat in itertools.product(
+                 PAIRS, SHAPES, payloads, [False, True], ["identity", "gzip"], levels, range(args.repeats))]
     random.Random(args.seed).shuffle(cells)
-    report = {"schema": "pbrs.load-smoke.v1", "binary_sha256": digest,
+    report = {"schema": "pbrs.load-smoke.v2", "binary_sha256": digest,
               "head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
               "dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT)),
               "source_verified": False,
               "host": platform.uname()._asdict(), "clock_ticks_per_second": os.sysconf("SC_CLK_TCK"),
               "cpu_affinity": sorted(os.sched_getaffinity(0)), "seed": args.seed,
               "duration_per_cell_seconds": args.duration, "cells": cells,
+              "rpc_count": args.rpc_count, "allocation_counts": args.allocation_counts,
+              "callgrind": str(args.callgrind) if args.callgrind else None,
               "qualification": {"qualified": False,
                   "limits": ["prebuilt binary digest is pinned; source-to-binary mapping must be checked against build records",
                              "shared host, no verified CPU headroom or quota proof",
-                             "one repeat, one connection, one concurrent RPC",
+                             "repeats and concurrency are explicit; no claim-grade statistics",
                              "client CPU includes startup and handshake; server includes connection setup and cleanup",
-                             "RSS is sampled; instructions, allocations, wakes and syscall costs are not measured",
+                             "RSS is sampled; optional instructions/allocations are process totals, including setup; wakes/syscalls are unmeasured",
                              "zero-filled payload bodies; not a read-all adoption corpus",
-                             "native prost, many connections, sustained load and production soak are not run"]},
+                             "saturation, cold/idle lifecycles, read-all corpora and production soak are not run"]},
               "runs": []}
     (args.output / "source.patch").write_bytes(subprocess.check_output(["git", "diff", "HEAD"], cwd=ROOT))
     (args.output / "manifest.json").write_text(json.dumps(report, indent=2) + "\n")
