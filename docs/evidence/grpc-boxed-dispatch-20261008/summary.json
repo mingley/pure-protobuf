@@ -1,0 +1,96 @@
+{
+  "source": "f8517b53fefaa70866f19ec4896d46254f812b4e",
+  "binary_sha256": "a43c6821c86e2a17422ad0694206364fef5eddf8325e0340d17fde6ea556d440",
+  "qualified": false,
+  "functional": {
+    "cells": 2560,
+    "passed": 2560,
+    "source_unchanged": true,
+    "binary_unchanged": true
+  },
+  "native-counters-200": {
+    "cells": 75,
+    "passed": 75,
+    "source_unchanged": true,
+    "binary_unchanged": true
+  },
+  "native-counters-400": {
+    "cells": 75,
+    "passed": 75,
+    "source_unchanged": true,
+    "binary_unchanged": true
+  },
+  "callgrind-200": {
+    "cells": 75,
+    "passed": 75,
+    "source_unchanged": true,
+    "binary_unchanged": true
+  },
+  "callgrind-400": {
+    "cells": 75,
+    "passed": 74,
+    "source_unchanged": true,
+    "binary_unchanged": true
+  },
+  "native-ledger": {
+    "not_run": 181,
+    "win": 99,
+    "loss": 80
+  },
+  "callgrind-ledger": {
+    "loss": 97,
+    "win": 73,
+    "not_run": 177,
+    "tie": 7,
+    "failed_capture": 6
+  },
+  "routing_and_doc_source": "1f43c24dca8f1ef9123a986b2932659d11e660ad",
+  "routing_and_doc_gates": [
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--all-features",
+        "--test",
+        "boxed_dispatch"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 155.26397013664246
+    },
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "-p",
+        "pbrs",
+        "-p",
+        "pbrs-grpc",
+        "--all-features",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 513.4585437774658
+    },
+    {
+      "command": [
+        "cargo",
+        "doc",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--all-features",
+        "--no-deps"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 138.2521915435791
+    }
+  ],
+  "broader_native_regressions": "running sequentially against the frozen f8517b53 source; no completed-suite claim"
+}
