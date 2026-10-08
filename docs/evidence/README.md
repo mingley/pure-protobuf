@@ -15,6 +15,7 @@ comparative claim. No category currently has a qualified performance win.
 
 | Record | What it contributes | How to read it |
 |---|---|---|
+| [Third resource campaign](grpc-resource-soak-20261008-attempt-003/README.md) | Corrected memory sampling, independent recovery, requested preview and actual-day run | Start record until final reports and validator results are published |
 | [Second resource campaign](grpc-resource-soak-20261008-attempt-002/README.md) | Source-pinned preview followed by a requested 24-hour run, with automatic outcome publication | Start record only until a final report and validator results are present |
 | [gRPC checks and endpoint measurements, 2026-10-08](grpc-readiness-20261008/README.md) | Resource fixes, 2,560 functional cells, N/2N per-side counters, failed soak and fairness controls | Streaming instruction/byte losses remain; counter coverage and production qualification are incomplete |
 | [Codegen matrix (SB-09)](sb09-codegen-matrix.md) | Five-repeat seeded, realistic-schema, and service-stub comparisons | Broad local evidence with many compile-cost losses; later GN changes need a matched rerun |
