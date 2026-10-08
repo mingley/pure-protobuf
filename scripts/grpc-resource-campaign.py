@@ -10,6 +10,7 @@ from pathlib import Path
 import platform
 import re
 import resource
+import shutil
 import subprocess
 import sys
 import time
@@ -256,7 +257,9 @@ def run(args):
     if source_after != source:
         raise ValueError("source changed during build")
     messages = [json.loads(line) for line in (output / "build.stdout.jsonl").read_text().splitlines()]
-    executable = test_executable(messages)
+    build_executable = test_executable(messages)
+    executable = output / "resource-test"
+    shutil.copy2(build_executable, executable)
     test_command = [str(executable), "--exact", "current_h2_resource_campaign", "--ignored", "--nocapture", "--test-threads=1"]
     events_path = output / "events.jsonl"
     env = os.environ.copy()
@@ -302,7 +305,7 @@ def run(args):
               "host": dict(platform.uname()._asdict()), "seed": args.seed,
               "tools": {"rustc": command(["rustc", "-Vv"]), "cargo": command(["cargo", "-V"]),
                         "python": sys.version},
-              "binary": {"path": str(executable), "sha256": launch_sha256},
+              "binary": {"path": str(executable), "build_path": str(build_executable), "sha256": launch_sha256},
               "commands": {"build": build_command, "test": test_command},
               "settings": SETTINGS, "process_limits": effective, "process_limits_requested": limits,
               "duration_requested_seconds": args.duration, "duration_actual_seconds": time.monotonic() - start,
