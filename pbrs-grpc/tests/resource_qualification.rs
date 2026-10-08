@@ -535,11 +535,21 @@ async fn run_resource_cycles(campaign: bool) {
             );
         }
         slow_event.as_object_mut().expect("event object").insert(
-            "producer_progress_after_30_ms".into(),
+            if campaign {
+                "producer_progress_before_hold"
+            } else {
+                "producer_progress_after_30_ms"
+            }
+            .into(),
             json!(first_progress),
         );
         slow_event.as_object_mut().expect("event object").insert(
-            "producer_progress_after_60_ms".into(),
+            if campaign {
+                "producer_progress_after_hold"
+            } else {
+                "producer_progress_after_60_ms"
+            }
+            .into(),
             json!(second_progress),
         );
         record(&slow_event);

@@ -114,7 +114,7 @@ def observe_process(pid, elapsed):
 
 def validate_report(report):
     errors = []
-    if report.get("schema") != "pbrs.resource-campaign.v1":
+    if report.get("schema") != "pbrs.resource-campaign.v2":
         errors.append("unknown evidence schema")
     source = report.get("source", {})
     if not re.fullmatch(r"[0-9a-f]{40}", str(source.get("commit", ""))) or source.get("dirty") is not False:
@@ -193,7 +193,7 @@ def validate_report(report):
         if event.get("phase") == "slow_reader":
             if type(event.get("stall_wait_ms")) is not int or not 30 <= event["stall_wait_ms"] <= 1050:
                 errors.append("missing or out-of-bounds stall observation")
-            first, second = event.get("producer_progress_after_30_ms"), event.get("producer_progress_after_60_ms")
+            first, second = event.get("producer_progress_before_hold"), event.get("producer_progress_after_hold")
             if (type(first) is not int or type(second) is not int or first != second
                     or first <= 0 or second >= SETTINGS["slow_reader_responses"]
                     or event.get("producer_done") is not False):
@@ -303,7 +303,7 @@ def run(args):
                 events.append(json.loads(line))
             except json.JSONDecodeError as error:
                 failures.append(f"invalid raw event: {error}")
-    report = {"schema": "pbrs.resource-campaign.v1", "source": source,
+    report = {"schema": "pbrs.resource-campaign.v2", "source": source,
               "host": dict(platform.uname()._asdict()), "seed": args.seed,
               "tools": {"rustc": command(["rustc", "-Vv"]), "cargo": command(["cargo", "-V"]),
                         "python": sys.version},

@@ -22,13 +22,13 @@ def report():
             elif phase == "fault":
                 event.update(transport="plaintext_tcp", fault=["RstStream(Cancel)", "Goaway", "TcpReset"][(cycle - 1) % 3])
             elif phase == "slow_reader":
-                event.update(stall_wait_ms=30, producer_progress_after_30_ms=12, producer_progress_after_60_ms=12,
+                event.update(stall_wait_ms=30, producer_progress_before_hold=12, producer_progress_after_hold=12,
                              producer_sent_messages=12, producer_done=False)
             elif phase != "warmup":
                 event.update(producer_sent_messages=128, producer_done=True)
             events.append(event)
     limits = {key: {"soft": 1024, "hard": 1024} for key in CAMPAIGN.LIMIT_NAMES}
-    return {"schema": "pbrs.resource-campaign.v1", "source": {"commit": "a" * 40, "tree": "b" * 40,
+    return {"schema": "pbrs.resource-campaign.v2", "source": {"commit": "a" * 40, "tree": "b" * 40,
             "dirty": False, "cargo_lock_sha256": "c" * 64}, "binary": {"sha256": "d" * 64},
             "tools": {"cargo": "cargo", "rustc": "rustc", "python": "python"},
             "commands": {"build": ["build"], "test": ["test"]}, "duration_requested_seconds": 30,
