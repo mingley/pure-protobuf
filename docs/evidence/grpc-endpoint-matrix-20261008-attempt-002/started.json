@@ -1,0 +1,33 @@
+{
+  "source_commit": "50ac70e5c9818fe870719b37acede99f12710fe9",
+  "source_tree": "61e2c7c98088f1af2bcd512cf90f7bf8bfa6c3e7",
+  "controller_sha256": "06391d6fba592a4bccfb02f321b305132a6ba7297aa197c7249a26efe0d7f3c0",
+  "prepared_utc": "2026-10-08T22:19:19.183026+00:00",
+  "qualified": false,
+  "controller_command": [
+    "/workspace/pure-protobuf/work/run-rust",
+    "python3",
+    "/workspace/pure-protobuf/docs/evidence/grpc-endpoint-matrix-20261008-attempt-002/controller.py",
+    "--source",
+    "50ac70e5c9818fe870719b37acede99f12710fe9",
+    "--source-dir",
+    "/workspace/pure-protobuf/work/matrix-candidate",
+    "--root",
+    "/workspace/pure-protobuf",
+    "--output",
+    "/workspace/pure-protobuf/work/matrix-v2-002",
+    "--evidence-path",
+    "docs/evidence/grpc-endpoint-matrix-20261008-attempt-002",
+    "--valgrind",
+    "/workspace/pure-protobuf/work/toolchain/valgrind/usr/bin/valgrind"
+  ],
+  "publication_path": "docs/evidence/grpc-endpoint-matrix-20261008-attempt-002",
+  "requested_functional_cells": 2560,
+  "requested_functional_rpcs_per_cell": 20,
+  "requested_endpoint_counts": [
+    200,
+    400
+  ],
+  "requested_endpoint_repeats": 3,
+  "requested_counter_cells_per_count": 75
+}
