@@ -237,7 +237,7 @@ async fn gzip_small_batches_stop_a_producer_until_the_reader_resumes() {
         .collect();
     // With four producer slots, each gzip batch is below the 16 KiB send threshold.
     assert!(
-        pbrs_grpc::compression::gzip::encode(payload.as_bytes())
+        pbrs_grpc::gzip::encode(payload.as_bytes())
             .expect("gzip")
             .len()
             * 8
