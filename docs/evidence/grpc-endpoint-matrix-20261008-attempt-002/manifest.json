@@ -1,0 +1,40 @@
+{
+  "archive": {
+    "name": "raw.tar.gz",
+    "sha256": "a62182eb1951f05d1ca8c72edc800edd24c5fff513913f60f181cf43de8f4e8a"
+  },
+  "files": [
+    {
+      "path": "build/build.stderr.log",
+      "bytes": 1815,
+      "sha256": "b6067ee741ca9b68d46fe579b5f0c125c382a454ae591b7344746a4e5a2135fc"
+    },
+    {
+      "path": "build/build.stdout.jsonl",
+      "bytes": 138800,
+      "sha256": "98afe69f9577d365de2ed6e9625e6846ba86b5d0a9d4262525d40a4345614c82"
+    },
+    {
+      "path": "build.stderr",
+      "bytes": 427,
+      "sha256": "b80df5a3f1be224f3578815005b0bf10baebd097693c05fb931a387c1d6db41e"
+    },
+    {
+      "path": "build.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "controller-status.json",
+      "bytes": 1488,
+      "sha256": "21b6b9d8e24bc62f79273a8dfa7b9379d82af8a8aebc954f4030dbf65dcb4151"
+    },
+    {
+      "path": "controller.py",
+      "bytes": 11204,
+      "sha256": "06391d6fba592a4bccfb02f321b305132a6ba7297aa197c7249a26efe0d7f3c0"
+    }
+  ],
+  "logical_bytes": 153734,
+  "qualified": false
+}
