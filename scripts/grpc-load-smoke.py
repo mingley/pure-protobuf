@@ -3,6 +3,7 @@
 
 import argparse
 import hashlib
+import importlib.util
 import itertools
 import json
 import math
@@ -18,6 +19,13 @@ ROOT = Path(__file__).resolve().parents[1]
 PROFILES = [("native", "pbrs"), ("native", "prost"), ("tonic", "pbrs"), ("tonic", "prost")]
 PAIRS = [(*client, *server) for client, server in itertools.product(PROFILES, repeat=2)]
 SHAPES = ["unary", "server_stream", "client_stream", "bidi", "bidi_pipelined"]
+
+
+def verified_build(path, binary):
+    spec = importlib.util.spec_from_file_location("rpc_bench_build", ROOT / "scripts/build-rpc-bench.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.validate_record(path, binary)
 
 
 def validate_metrics(metrics):
@@ -201,6 +209,7 @@ def main():
     parser.add_argument("--rpc-count", type=int)
     parser.add_argument("--allocation-counts", action="store_true", help="requires allocation-counts Cargo feature")
     parser.add_argument("--callgrind", type=Path, help="Valgrind executable; instruments both endpoints")
+    parser.add_argument("--build-record", type=Path, help="source-pinned build.json from build-rpc-bench.py")
     args = parser.parse_args()
     if platform.system() != "Linux" or not math.isfinite(args.duration) or not 0.01 <= args.duration <= 60:
         parser.error("Linux and a finite 0.01..60 second diagnostic duration are required")
@@ -222,6 +231,7 @@ def main():
     if args.callgrind is not None:
         args.callgrind = args.callgrind.resolve(strict=True)
     args.binary = args.binary.resolve(strict=True)
+    build = verified_build(args.build_record.resolve(strict=True), args.binary) if args.build_record else None
     args.output = args.output.resolve()
     args.output.mkdir(parents=True, exist_ok=False)
     digest = hashlib.sha256(args.binary.read_bytes()).hexdigest()
@@ -234,7 +244,7 @@ def main():
     report = {"schema": "pbrs.load-smoke.v2", "binary_sha256": digest,
               "head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
               "dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT)),
-              "source_verified": False,
+              "source_verified": build is not None, "build_record": build,
               "host": platform.uname()._asdict(), "clock_ticks_per_second": os.sysconf("SC_CLK_TCK"),
               "cpu_affinity": sorted(os.sched_getaffinity(0)), "seed": args.seed,
               "duration_per_cell_seconds": args.duration, "cells": cells,
@@ -256,7 +266,15 @@ def main():
         report["runs"].append({"path": f"cell-{index:03d}/run.json", "passed": run["passed"]})
         print(f"{index + 1}/{len(cells)}: {'passed' if run['passed'] else run.get('error')}", flush=True)
     report["binary_unchanged"] = digest == hashlib.sha256(args.binary.read_bytes()).hexdigest()
-    report["passed"] = report["binary_unchanged"] and all(run["passed"] for run in report["runs"])
+    report["source_unchanged"] = True
+    if args.build_record:
+        try:
+            verified_build(args.build_record.resolve(strict=True), args.binary)
+        except (OSError, ValueError) as error:
+            report["source_unchanged"] = False
+            report["source_error"] = str(error)
+    report["passed"] = (report["binary_unchanged"] and report["source_unchanged"]
+                        and all(run["passed"] for run in report["runs"]))
     (args.output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
     return 0 if report["passed"] else 1
 

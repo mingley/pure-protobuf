@@ -26,6 +26,19 @@ It implements parts of the
 
 ## Load runs
 
+For a source-pinned release build, run from a clean checkout:
+
+```sh
+python3 scripts/build-rpc-bench.py --source "$(git rev-parse HEAD)" --output work/rpc-build
+python3 scripts/grpc-load-smoke.py --binary work/rpc-build/rpc-bench \
+  --build-record work/rpc-build/build.json --allocation-counts --output work/rpc-matrix
+```
+
+The builder retains Cargo output and tool versions, checks the source and
+lockfiles before and after compilation, and copies the executable out of the
+build cache. The matrix checks that record before and after execution. A
+prebuilt binary without a matching record remains `source_verified=false`.
+
 `load-server` and `load` run separate endpoints. They support all four RPC
 shapes, verified TLS, and identity or gzip compression. Native uses pbrs
 messages; tonic supports pbrs and prost messages. Use the same codec to
