@@ -1,0 +1,78 @@
+{
+  "source": {
+    "base_commit": "aced76eacf5469a9c98a8370524b77fa70ebcabc",
+    "working_tree": true,
+    "files": {
+      "scripts/grpc-resource-campaign.py": "20c7a00cdd37c0ef7b3baa45f6eb9aac3f1eeafe75130772dc8c69c499d1fb49",
+      "tests/test_grpc_resource_campaign.py": "92095e4a48417f593a10f35c571314912e87b8403d5ba827a2742dbc60ad3d0b"
+    }
+  },
+  "archive": {
+    "name": "raw.tar.gz",
+    "sha256": "a062924865e8979cec79b3dae3e1dd8bf3dafa11c4bc8f5b75ce2df7cbbe9154"
+  },
+  "logical_bytes": 18514,
+  "files": [
+    {
+      "path": "source.json",
+      "bytes": 326,
+      "sha256": "b65f02de553e7845380e47f5485d94339115921be61741aea6927b68df095bde"
+    },
+    {
+      "path": "work/readiness/release-campaign-legacy-day.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/readiness/release-campaign-legacy-day.stdout",
+      "bytes": 210,
+      "sha256": "19977722bf9ba8ea6467b0fc0b8a481e1ec8f0f6dd0a92006ee209ccddcc71df"
+    },
+    {
+      "path": "work/readiness/release-campaign-legacy-preview.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/readiness/release-campaign-legacy-preview.stdout",
+      "bytes": 37,
+      "sha256": "998cebe7865614fc6e03dbacf9b274ed37be39083a00067566cb313e97e2fc4f"
+    },
+    {
+      "path": "work/readiness/release-campaign-python-complete.stderr",
+      "bytes": 3069,
+      "sha256": "0132264a8017886099f103d72ab565f9498c7470a4a392eb35b9310c409373ab"
+    },
+    {
+      "path": "work/readiness/release-campaign-python-complete.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/readiness/release-campaign-python-final.stderr",
+      "bytes": 3069,
+      "sha256": "685fec128b76bb0970284058412f6fa2ef33e6c86c1a2924b47fd32ae437bb2f"
+    },
+    {
+      "path": "work/readiness/release-campaign-python-final.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/readiness/release-campaign-python.stderr",
+      "bytes": 3069,
+      "sha256": "ee7d8925d3c57f5e551902c426aa03377662b42095b6dd1b4a692f6d7aeabea3"
+    },
+    {
+      "path": "work/readiness/release-campaign-python.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "working-tree.patch",
+      "bytes": 8734,
+      "sha256": "29820f58cf72419879823e7693b9ea1cbfd87ef6c4e378344fc1b27ac77c22b7"
+    }
+  ],
+  "qualified": false
+}

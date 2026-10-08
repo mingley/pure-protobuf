@@ -41,6 +41,42 @@ def report():
 
 
 class CampaignEvidenceTests(unittest.TestCase):
+    def test_release_profile_requires_matching_command_and_compiled_optimization(self):
+        value = report()
+        value["schema"] = "pbrs.resource-campaign.v5"
+        value["build"] = {"profile": "release", "cargo_profile": {
+            "opt_level": "3", "debug_assertions": False, "test": True}}
+        value["commands"]["build"] = CAMPAIGN.build_command("release")
+        self.assertEqual(CAMPAIGN.validate_report(value), [])
+        for change in [{"opt_level": "0"}, {"debug_assertions": True}, {"test": False}]:
+            invalid = copy.deepcopy(value)
+            invalid["build"]["cargo_profile"].update(change)
+            self.assertIn("missing or inconsistent compiled test profile", CAMPAIGN.validate_report(invalid))
+        value["commands"]["build"] = CAMPAIGN.build_command("debug")
+        self.assertIn("build command differs from declared test profile", CAMPAIGN.validate_report(value))
+
+    def test_debug_and_legacy_reports_remain_distinct_from_release(self):
+        value = report()
+        self.assertEqual(CAMPAIGN.validate_report(value), [])
+        value["schema"] = "pbrs.resource-campaign.v5"
+        self.assertIn("missing or inconsistent compiled test profile", CAMPAIGN.validate_report(value))
+        for invalid in [None, [], "release"]:
+            value["build"] = invalid
+            self.assertIn("missing or inconsistent compiled test profile", CAMPAIGN.validate_report(value))
+        value["build"] = {"profile": "debug", "cargo_profile": {
+            "opt_level": "0", "debug_assertions": True, "test": True}}
+        value["commands"]["build"] = CAMPAIGN.build_command("debug")
+        self.assertEqual(CAMPAIGN.validate_report(value), [])
+
+    def test_cargo_profile_must_name_the_selected_executable(self):
+        artifact = {"reason": "compiler-artifact", "executable": "/frozen/test",
+                    "profile": {"opt_level": "3"}}
+        self.assertEqual(CAMPAIGN.test_profile([artifact], Path("/frozen/test")), artifact["profile"])
+        for messages in [[], [artifact, artifact], [{**artifact, "profile": None}],
+                         [{**artifact, "executable": "/stale/test"}]]:
+            with self.subTest(messages=messages), self.assertRaises(ValueError):
+                CAMPAIGN.test_profile(messages, Path("/frozen/test"))
+
     def test_complete_preview(self):
         self.assertEqual(CAMPAIGN.validate_report(report()), [])
 

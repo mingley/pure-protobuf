@@ -88,6 +88,29 @@ def test_executable(messages):
     return Path(artifacts[0])
 
 
+def build_command(profile):
+    if profile not in ("debug", "release"):
+        raise ValueError("unknown resource build profile")
+    return ["cargo", "test", "--locked", *(["--release"] if profile == "release" else []),
+            "-p", "pbrs-grpc", "--test", "resource_qualification", "--no-run", "--message-format=json"]
+
+
+def test_profile(messages, executable):
+    profiles = [entry.get("profile") for entry in messages
+                if entry.get("reason") == "compiler-artifact"
+                and entry.get("executable") == str(executable)]
+    if len(profiles) != 1 or not isinstance(profiles[0], dict):
+        raise ValueError("missing or duplicate Cargo test profile")
+    return profiles[0]
+
+
+def profile_is_valid(profile, cargo_profile):
+    return (profile in ("debug", "release") and isinstance(cargo_profile, dict)
+            and cargo_profile.get("opt_level") == ("3" if profile == "release" else "0")
+            and cargo_profile.get("debug_assertions") is (profile == "debug")
+            and cargo_profile.get("test") is True)
+
+
 def executable_drift(executable, launch_sha256):
     try:
         actual = hashlib.sha256(executable.read_bytes()).hexdigest()
@@ -123,8 +146,18 @@ def soak_disposition(requested, actual, exit_code, failures=()):
 
 def validate_report(report):
     errors = []
-    if report.get("schema") != "pbrs.resource-campaign.v4":
+    if report.get("schema") not in ("pbrs.resource-campaign.v4", "pbrs.resource-campaign.v5"):
         errors.append("unknown evidence schema")
+    if report.get("schema") == "pbrs.resource-campaign.v5":
+        build = report.get("build", {})
+        if not isinstance(build, dict):
+            build = {}
+        profile = build.get("profile")
+        cargo_profile = build.get("cargo_profile", {})
+        if not profile_is_valid(profile, cargo_profile):
+            errors.append("missing or inconsistent compiled test profile")
+        elif report.get("commands", {}).get("build") != build_command(profile):
+            errors.append("build command differs from declared test profile")
     source = report.get("source", {})
     if not re.fullmatch(r"[0-9a-f]{40}", str(source.get("commit", ""))) or source.get("dirty") is not False:
         errors.append("missing or dirty source pin")
@@ -276,15 +309,17 @@ def run(args):
         raise ValueError("output directory must be new to preserve earlier failures")
     # Artifacts must live outside tracked/untracked source or in an ignored directory.
     output.mkdir(parents=True)
-    build_command = ["cargo", "test", "--locked", "-p", "pbrs-grpc", "--test",
-                     "resource_qualification", "--no-run", "--message-format=json"]
+    build_argv = build_command(args.build_profile)
     with (output / "build.stdout.jsonl").open("w") as stdout, (output / "build.stderr.log").open("w") as stderr:
-        subprocess.run(build_command, cwd=ROOT, stdout=stdout, stderr=stderr, check=True)
+        subprocess.run(build_argv, cwd=ROOT, stdout=stdout, stderr=stderr, check=True)
     source_after = freeze_source(args.source)
     if source_after != source:
         raise ValueError("source changed during build")
     messages = [json.loads(line) for line in (output / "build.stdout.jsonl").read_text().splitlines()]
     build_executable = test_executable(messages)
+    cargo_profile = test_profile(messages, build_executable)
+    if not profile_is_valid(args.build_profile, cargo_profile):
+        raise ValueError("Cargo compiled test profile differs from the requested profile; logs retained")
     executable = output / "resource-test"
     shutil.copy2(build_executable, executable)
     test_command = [str(executable), "--exact", "current_h2_resource_campaign", "--ignored", "--nocapture", "--test-threads=1"]
@@ -328,13 +363,14 @@ def run(args):
                 events.append(json.loads(line))
             except json.JSONDecodeError as error:
                 failures.append(f"invalid raw event: {error}")
-    report = {"schema": "pbrs.resource-campaign.v4", "source": source,
+    report = {"schema": "pbrs.resource-campaign.v5", "source": source,
+              "build": {"profile": args.build_profile, "cargo_profile": cargo_profile},
               "sampled_rss_peak_bytes": sampled_rss_peak(events, samples),
               "host": dict(platform.uname()._asdict()), "seed": args.seed,
               "tools": {"rustc": command(["rustc", "-Vv"]), "cargo": command(["cargo", "-V"]),
                         "python": sys.version},
               "binary": {"path": str(executable), "build_path": str(build_executable), "sha256": launch_sha256},
-              "commands": {"build": build_command, "test": test_command},
+              "commands": {"build": build_argv, "test": test_command},
               "settings": SETTINGS, "process_limits": effective, "process_limits_requested": limits,
               "duration_requested_seconds": args.duration, "duration_actual_seconds": time.monotonic() - start,
               "events": events, "process_samples": samples, "exit_code": exit_code,
@@ -367,6 +403,8 @@ def main():
     parser.add_argument("--source", help="required full clean HEAD pin")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--duration", type=float, default=86400)
+    parser.add_argument("--build-profile", choices=["debug", "release"], default="debug",
+                        help="explicit test build profile; production campaigns use release")
     parser.add_argument("--seed", type=int, default=20261002)
     parser.add_argument("--memory-bytes", type=int, default=1024 * 1024 * 1024)
     parser.add_argument("--max-fds", type=int, default=128)
