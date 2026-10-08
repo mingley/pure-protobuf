@@ -37,7 +37,7 @@ pub(crate) async fn wait_capacity(send: &mut backend::SendStream, n: usize) -> R
 
 /// Queue one gRPC frame in chunks no larger than the HTTP/2 send budget.
 ///
-/// The small-frame fast path avoids a capacity poll. Large frames cannot wait
+/// Small frames with assigned credit avoid a capacity poll. Large frames cannot wait
 /// for full-frame credit when the configured send buffer or peer window is
 /// smaller than the frame, so each chunk waits for only one byte of credit and
 /// uses whatever is available. `Bytes` slices share the original allocation.
@@ -56,16 +56,11 @@ pub(crate) async fn send_bytes(
         return send.send_data(frame, end).map_err(Status::from_h2_send);
     }
     while !frame.is_empty() {
-        if frame.len() <= send_buffer {
-            match send.send_data(frame.clone(), end) {
-                Ok(()) => return Ok(()),
-                Err(e) => {
-                    let status = Status::from_h2_send(e);
-                    if status.is_transport() {
-                        return Err(status);
-                    }
-                }
-            }
+        // h2's send_data accepts data beyond reserved capacity; it does not
+        // reject a full send buffer. A small compressed batch must therefore
+        // check credit too, or a paused reader can accumulate unbounded DATA.
+        if frame.len() <= send_buffer && send.capacity() >= frame.len() {
+            return send.send_data(frame, end).map_err(Status::from_h2_send);
         }
         wait_capacity(send, frame.len().min(send_buffer)).await?;
         let n = frame.len().min(send.capacity()).min(send_buffer);

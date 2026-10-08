@@ -222,6 +222,81 @@ async fn small_send_buffers_admit_larger_messages_without_an_implicit_budget() {
     assert!(serving.await.expect_err("cancel server").is_cancelled());
 }
 
+#[tokio::test]
+async fn gzip_small_batches_stop_a_producer_until_the_reader_resumes() {
+    let sent = Arc::new(AtomicUsize::new(0));
+    let done = Arc::new(AtomicBool::new(false));
+    let mut state = 20261008_u64;
+    let payload: String = (0..2048)
+        .map(|_| {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            char::from(b'0' + u8::try_from(state % 64).expect("ASCII range"))
+        })
+        .collect();
+    // With four producer slots, each gzip batch is below the 16 KiB send threshold.
+    assert!(
+        pbrs_grpc::compression::gzip::encode(payload.as_bytes())
+            .expect("gzip")
+            .len()
+            * 8
+            < SEND_BUFFER
+    );
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let addr = listener.local_addr().expect("address");
+    let server = Server::new(GreeterServer::new(FlowControlledEcho {
+        sent: sent.clone(),
+        done: done.clone(),
+        payload: payload.clone(),
+    }))
+    .max_send_buffer_size(SEND_BUFFER)
+    .send_compressed();
+    let serving = tokio::spawn(async move { server.serve_listener(listener).await });
+    let channel = Channel::connect_with(
+        addr,
+        ChannelConfig::default()
+            .initial_stream_window_size(1024)
+            .initial_connection_window_size(4096),
+    )
+    .await
+    .expect("connect")
+    .send_compressed();
+    let client = GreeterClient::new(channel);
+    let response = client
+        .server_hello(Request::new(req("paused")))
+        .await
+        .expect("headers");
+    assert_eq!(response.encoding(), Some("gzip"));
+    let mut inbound = response.into_inner();
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let before = sent.load(Ordering::SeqCst);
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert!(
+        before > 0 && before < 128,
+        "the paused reader must stop the producer"
+    );
+    assert_eq!(sent.load(Ordering::SeqCst), before);
+    assert!(!done.load(Ordering::SeqCst));
+    tokio::time::timeout(Duration::from_secs(3), async {
+        for _ in 0..128 {
+            assert_eq!(
+                name_of(&inbound.message().await.expect("status").expect("reply")),
+                payload
+            );
+        }
+        assert!(inbound.message().await.expect("final status").is_none());
+    })
+    .await
+    .expect("resumed reader drains every reply");
+    assert_eq!(sent.load(Ordering::SeqCst), 128);
+    assert!(done.load(Ordering::SeqCst));
+    drop(inbound);
+    drop(client);
+    serving.abort();
+    assert!(serving.await.expect_err("cancel server").is_cancelled());
+}
+
 #[derive(Clone, Default)]
 struct Calls {
     active: Arc<AtomicUsize>,
