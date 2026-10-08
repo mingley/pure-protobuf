@@ -12,5 +12,9 @@
     "ignored": 2,
     "strict_clippy": "passed",
     "reporting_tests_passed": 15
+  },
+  "resource_test_log": {
+    "path": "memory-sampling-gates.log.gz",
+    "decoded_sha256": "1cc703cbf8f85b59c533c59d14d534110e3f9113037ec0c7677994ea40861334"
   }
 }
