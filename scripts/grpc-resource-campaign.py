@@ -123,7 +123,7 @@ def soak_disposition(requested, actual, exit_code, failures=()):
 
 def validate_report(report):
     errors = []
-    if report.get("schema") != "pbrs.resource-campaign.v3":
+    if report.get("schema") != "pbrs.resource-campaign.v4":
         errors.append("unknown evidence schema")
     source = report.get("source", {})
     if not re.fullmatch(r"[0-9a-f]{40}", str(source.get("commit", ""))) or source.get("dirty") is not False:
@@ -199,7 +199,10 @@ def validate_report(report):
         if any(type(event.get(key)) is not int or event[key] < 0 for key in GAUGES):
             errors.append("missing or invalid resource gauge")
             continue
-        if not event["rss_bytes"] or event["rss_hwm_bytes"] < event["rss_bytes"]:
+        # Linux documents VmRSS and VmHWM as approximate counters. Preserve
+        # both raw values; their ordering is not an atomic cross-field proof.
+        if (not event["rss_bytes"] or not event["rss_hwm_bytes"]
+                or event.get("rss_sample_source") != "linux_proc_status_single_read"):
             errors.append("invalid process RSS accounting")
         if event["observed_streaming_calls_peak"] > SETTINGS["max_active_rpcs"]:
             errors.append("observed streaming-call peak exceeds frozen limit")
@@ -247,7 +250,16 @@ def validate_report(report):
             or (type(requested) in (int, float) and times[-1] < requested - 2)
             or any(b - a > 3 for a, b in zip(times, times[1:]))):
         errors.append("independent samples do not cover the requested duration")
+    peak = sampled_rss_peak(events, samples)
+    if type(report.get("sampled_rss_peak_bytes")) is not int or report["sampled_rss_peak_bytes"] != peak:
+        errors.append("sampled RSS peak does not match retained observations")
     return sorted(set(errors))
+
+
+def sampled_rss_peak(events, samples):
+    values = [event.get("rss_bytes") for event in events]
+    values += [sample.get("memory_bytes", {}).get("VmRSS") for sample in samples]
+    return max((value for value in values if type(value) is int and value >= 0), default=0)
 
 
 def run(args):
@@ -316,7 +328,8 @@ def run(args):
                 events.append(json.loads(line))
             except json.JSONDecodeError as error:
                 failures.append(f"invalid raw event: {error}")
-    report = {"schema": "pbrs.resource-campaign.v3", "source": source,
+    report = {"schema": "pbrs.resource-campaign.v4", "source": source,
+              "sampled_rss_peak_bytes": sampled_rss_peak(events, samples),
               "host": dict(platform.uname()._asdict()), "seed": args.seed,
               "tools": {"rustc": command(["rustc", "-Vv"]), "cargo": command(["cargo", "-V"]),
                         "python": sys.version},

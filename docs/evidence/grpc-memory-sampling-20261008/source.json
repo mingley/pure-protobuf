@@ -1,0 +1,16 @@
+{
+  "base_commit": "106aa09578078f0f0940e13187a9582a8c442ddd",
+  "execution_source": "working tree, subsequently committed; ordinary tests, not production qualification",
+  "qualified": false,
+  "candidate_files": {
+    "pbrs-grpc/tests/resource_qualification.rs": "829f2904dd29c1466d453f3bfa6234bd80a7d2460d0697fbf73449cc3e53ec9b",
+    "scripts/grpc-resource-campaign.py": "634c8606296674063f802bd17eafafadc840ee77ef99c4e1e0f55996be27e8df",
+    "tests/test_grpc_resource_campaign.py": "c96d6090b28f3c591059ba63c73ac6fb96966d2798623d2ae60c5217c33d3ebe"
+  },
+  "results": {
+    "resource_tests_passed": 5,
+    "ignored": 2,
+    "strict_clippy": "passed",
+    "reporting_tests_passed": 15
+  }
+}

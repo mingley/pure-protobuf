@@ -94,6 +94,13 @@ duration. That original report is retained unchanged as failed evidence.
 Current reporting rejects that label. Historical validator snapshots explain
 the earlier schemas; they cannot qualify an old run under the stronger fixture.
 
+The [second campaign](../grpc-resource-soak-20261008-attempt-002/README.md)
+finished its preview with a successful child, but validation rejected a pair
+of RSS counters read from separate snapshots. It did not start the day run.
+Its failed report is retained. Schema v4 samples both counters in one read,
+keeps the raw Linux values, and reports an exact maximum of observed RSS.
+Resource limits and the 32 MiB post-drain tolerance are unchanged.
+
 The full performance matrix still needs read-all/corpus workloads, saturation,
 cold and idle connections, task wakes, context switches, syscalls, actual tonic
 TLS-session telemetry, and controlled x86_64/arm64 runs. The observed streaming

@@ -1,0 +1,5 @@
+   Compiling pbrs-grpc v0.1.0-alpha.2 (/workspace/pure-protobuf/pbrs-grpc)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 07s
+     Running tests/resource_qualification.rs (work/target/debug/deps/resource_qualification-b53ca28486d87f37)
+    Checking pbrs-grpc v0.1.0-alpha.2 (/workspace/pure-protobuf/pbrs-grpc)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 22s

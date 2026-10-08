@@ -326,17 +326,22 @@ impl LifecycleObserver for Calls {
     }
 }
 
-fn linux_memory(key: &str) -> u64 {
-    std::fs::read_to_string("/proc/self/status")
-        .expect("Linux process status")
-        .lines()
-        .find_map(|line| {
-            line.strip_prefix(key)
-                .and_then(|value| value.split_whitespace().next())
-                .and_then(|value| value.parse::<u64>().ok())
-        })
-        .expect("required memory counter")
-        * 1024
+fn linux_memory_snapshot() -> (u64, u64) {
+    // Read both counters from one status snapshot. Linux documents these as
+    // approximate counters; keep raw values rather than clamping high-water.
+    let status = std::fs::read_to_string("/proc/self/status").expect("Linux process status");
+    let counter = |key: &str| {
+        status
+            .lines()
+            .find_map(|line| {
+                line.strip_prefix(key)
+                    .and_then(|value| value.split_whitespace().next())
+                    .and_then(|value| value.parse::<u64>().ok())
+            })
+            .expect("required memory counter")
+            * 1024
+    };
+    (counter("VmRSS:"), counter("VmHWM:"))
 }
 
 fn entry_count(path: &str) -> usize {
@@ -352,9 +357,11 @@ fn snapshot(
     server: &ByteBudgetTracker,
     client: &ByteBudgetTracker,
 ) -> serde_json::Value {
+    let (rss, high_water) = linux_memory_snapshot();
     json!({
         "phase": phase, "cycle": cycle,
-        "rss_bytes": linux_memory("VmRSS:"), "rss_hwm_bytes": linux_memory("VmHWM:"),
+        "rss_bytes": rss, "rss_hwm_bytes": high_water,
+        "rss_sample_source": "linux_proc_status_single_read",
         "file_descriptors": entry_count("/proc/self/fd"),
         "os_threads": entry_count("/proc/self/task"),
         "tokio_alive_tasks": tokio::runtime::Handle::current().metrics().num_alive_tasks(),

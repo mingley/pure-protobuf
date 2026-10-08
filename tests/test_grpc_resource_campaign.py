@@ -11,7 +11,7 @@ SPEC.loader.exec_module(CAMPAIGN)
 
 def report():
     events = [{**{key: 0 for key in CAMPAIGN.GAUGES}, "phase": "baseline", "cycle": 0,
-               "rss_bytes": 1000, "rss_hwm_bytes": 1000}]
+               "rss_bytes": 1000, "rss_hwm_bytes": 1000, "rss_sample_source": "linux_proc_status_single_read"}]
     for cycle in range(1, 5):
         for phase in CAMPAIGN.PHASES:
             event = {**events[0], "phase": phase, "cycle": cycle}
@@ -29,7 +29,7 @@ def report():
                 event.update(producer_sent_messages=128, producer_done=True)
             events.append(event)
     limits = {key: {"soft": 1024, "hard": 1024} for key in CAMPAIGN.LIMIT_NAMES}
-    return {"schema": "pbrs.resource-campaign.v3", "source": {"commit": "a" * 40, "tree": "b" * 40,
+    return {"schema": "pbrs.resource-campaign.v4", "sampled_rss_peak_bytes": 1000, "source": {"commit": "a" * 40, "tree": "b" * 40,
             "dirty": False, "cargo_lock_sha256": "c" * 64}, "binary": {"sha256": "d" * 64},
             "tools": {"cargo": "cargo", "rustc": "rustc", "python": "python"},
             "commands": {"build": ["build"], "test": ["test"]}, "duration_requested_seconds": 30,
@@ -97,6 +97,25 @@ class CampaignEvidenceTests(unittest.TestCase):
             value = report()
             value["events"][-1][field] = replacement
             self.assertTrue(CAMPAIGN.validate_report(value))
+
+    def test_rss_samples_remain_raw_and_sampled_peak_is_exact(self):
+        value = report()
+        value["events"][0]["rss_hwm_bytes"] = 900
+        self.assertEqual(CAMPAIGN.validate_report(value), [])
+        value["process_samples"][0]["memory_bytes"]["VmRSS"] = 1200
+        self.assertIn("sampled RSS peak does not match retained observations", CAMPAIGN.validate_report(value))
+        value["sampled_rss_peak_bytes"] = 1200
+        self.assertEqual(CAMPAIGN.validate_report(value), [])
+        for replacement in [None, 0, -1, "1200", 1199, 1201]:
+            value["sampled_rss_peak_bytes"] = replacement
+            self.assertIn("sampled RSS peak does not match retained observations", CAMPAIGN.validate_report(value))
+
+    def test_memory_source_and_positive_raw_counters_are_required(self):
+        for field, replacement in [("rss_sample_source", None), ("rss_sample_source", "separate_reads"),
+                                   ("rss_bytes", 0), ("rss_hwm_bytes", 0)]:
+            value = report()
+            value["events"][0][field] = replacement
+            self.assertIn("invalid process RSS accounting", CAMPAIGN.validate_report(value))
 
     def test_sparse_samples_cannot_certify_duration(self):
         value = report()

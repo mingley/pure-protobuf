@@ -1,0 +1,20 @@
+test_claiming_24_hours_after_preview_is_rejected (test_grpc_resource_campaign.CampaignEvidenceTests.test_claiming_24_hours_after_preview_is_rejected) ... ok
+test_complete_preview (test_grpc_resource_campaign.CampaignEvidenceTests.test_complete_preview) ... ok
+test_elapsed_day_with_resource_failure_is_not_completed (test_grpc_resource_campaign.CampaignEvidenceTests.test_elapsed_day_with_resource_failure_is_not_completed) ... ok
+test_failed_24_hour_attempt_cannot_be_marked_completed (test_grpc_resource_campaign.CampaignEvidenceTests.test_failed_24_hour_attempt_cannot_be_marked_completed) ... ok
+test_fault_recovery_requires_a_successful_independent_rpc (test_grpc_resource_campaign.CampaignEvidenceTests.test_fault_recovery_requires_a_successful_independent_rpc) ... ok
+test_incomplete_faults_and_wrong_transport_are_rejected (test_grpc_resource_campaign.CampaignEvidenceTests.test_incomplete_faults_and_wrong_transport_are_rejected) ... ok
+test_memory_source_and_positive_raw_counters_are_required (test_grpc_resource_campaign.CampaignEvidenceTests.test_memory_source_and_positive_raw_counters_are_required) ... ok
+test_missing_phase_and_failed_child_are_rejected (test_grpc_resource_campaign.CampaignEvidenceTests.test_missing_phase_and_failed_child_are_rejected) ... ok
+test_missing_tls_gzip_profile_and_wrong_schedule_are_rejected (test_grpc_resource_campaign.CampaignEvidenceTests.test_missing_tls_gzip_profile_and_wrong_schedule_are_rejected) ... ok
+test_resource_run_never_implies_full_production_qualification (test_grpc_resource_campaign.CampaignEvidenceTests.test_resource_run_never_implies_full_production_qualification) ... ok
+test_rss_samples_remain_raw_and_sampled_peak_is_exact (test_grpc_resource_campaign.CampaignEvidenceTests.test_rss_samples_remain_raw_and_sampled_peak_is_exact) ... ok
+test_short_actual_duration_is_rejected (test_grpc_resource_campaign.CampaignEvidenceTests.test_short_actual_duration_is_rejected) ... ok
+test_source_drift_failure_cannot_be_revalidated (test_grpc_resource_campaign.CampaignEvidenceTests.test_source_drift_failure_cannot_be_revalidated) ... ok
+test_sparse_samples_cannot_certify_duration (test_grpc_resource_campaign.CampaignEvidenceTests.test_sparse_samples_cannot_certify_duration) ... ok
+test_unrecovered_permit_and_resource_growth_are_rejected (test_grpc_resource_campaign.CampaignEvidenceTests.test_unrecovered_permit_and_resource_growth_are_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 0.013s
+
+OK

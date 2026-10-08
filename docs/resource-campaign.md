@@ -39,6 +39,13 @@ Tokio tasks. Independent process samples must cover the requested duration.
 Missing phases, profiles, faults, failed children or unrecovered resources fail
 validation. `progress.json` records the running PID and final disposition.
 
+Schema v4 reads RSS and high-water from one `/proc/self/status` snapshot and
+retains both raw counters. [Linux documents these counters as approximate](https://man7.org/linux/man-pages/man5/proc_pid_status.5.html);
+their relative ordering is not an atomic measurement. `sampled_rss_peak_bytes`
+is the maximum RSS in the retained phase and independent process samples.
+It is a sampled peak, not allocator high-water. The post-drain RSS threshold
+and finite address-space limit are unchanged.
+
 A preview cannot become a completed 24-hour run. An interrupted or failed
 24-hour attempt records `soak_24h.status=failed`. `completed` requires the
 requested duration, a successful child, and passing resource checks. The
