@@ -190,24 +190,19 @@ application-retained data can still occupy memory while the peer sends more.
 Adding one connection window per connection is therefore not a proof of the
 total memory bound.
 
-### Builder ordering and current-h2 diagnostics
+### Independent send buffers and byte budgets
 
-The current `Server` and `Router` builders couple the HTTP/2 send threshold to
-aggregate byte admission in a way that depends on the entry point. A fresh
-builder and `.config(ServerConfig::default())` keep an unlimited tracker.
-Calling `.max_send_buffer_size(1024 * 1024)` explicitly sets a 1 MiB tracker,
-even though the HTTP/2 setting equals the default. A `.config(...)` with a
-nondefault send threshold replaces an attached tracker with a new tracker
-limited to that threshold. The default config preserves an attached tracker.
-These are existing compatibility behaviors, characterized in
-[`resource_qualification.rs`](../pbrs-grpc/tests/resource_qualification.rs);
-they do not imply that a per-stream threshold is a process-memory limit.
+`Server`, `Router`, and `Channel` keep the HTTP/2 send buffer and the aggregate
+byte budget separate. `.config(...)` and `.max_send_buffer_size(...)` preserve
+an attached tracker, including its shared identity and outstanding permits.
+A nondefault send buffer does not create an aggregate budget. Set an aggregate
+limit explicitly with `.byte_budget(...)` or `.with_byte_budget_tracker(...)`.
 
-For an independently chosen aggregate budget, apply the transport config
-first and call `.with_byte_budget_tracker(shared_tracker)` or `.byte_budget(...)`
-last. Preserve the shared tracker when cloning the server or router. Changing
-this historical coupling needs a compatibility review rather than a silent
-default change.
+Earlier versions derived an aggregate budget from a nondefault send buffer and
+could replace an attached tracker. Code relying on that implicit limit must now
+set it explicitly. For example, use `.max_send_buffer_size(4096).byte_budget(131072)`
+to allow whole messages larger than the per-stream send buffer while limiting
+accounted transport bytes. This byte budget is not a process-memory limit.
 
 [`current-h2-soak.py`](../scripts/current-h2-soak.py) freezes a clean commit,
 finite Linux process limits and a bounded workload before executing its test
@@ -505,12 +500,10 @@ let config = ServerConfig::new()
     .max_encoding_message_size(256 * 1024);
 ```
 
-After applying any profile with `Server::config`, set the intended shared
-transport byte budget explicitly with `Server::byte_budget` or
-`with_byte_budget_tracker`. The current builder also derives a tracker from a
-non-default send-buffer value; a small per-stream send threshold may therefore
-need a larger explicit shared budget to admit whole encoded messages.
-Order matters: set the shared byte budget after transport configuration.
+Set the intended aggregate transport byte budget explicitly with
+`Server::byte_budget` or `with_byte_budget_tracker`. Its value can exceed the
+per-stream send threshold so whole encoded messages fit. Transport configuration
+preserves this tracker regardless of builder order.
 
 ---
 

@@ -308,9 +308,6 @@ impl<S: Service> Server<S> {
     /// shape.
     #[must_use]
     pub fn config(mut self, config: ServerConfig) -> Self {
-        if config.send_buffer_size() != crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE {
-            self.byte_budget = ByteBudgetTracker::with_limit(config.send_buffer_size());
-        }
         self.config = config;
         self
     }
@@ -479,6 +476,7 @@ impl<S: Service> Server<S> {
 
     /// Per-connection HTTP/2 send buffer. Applies to every call shape.
     /// See [`ServerConfig::max_send_buffer_size`].
+    /// Preserves the aggregate byte budget; set it separately with [`Self::byte_budget`].
     /// Write backpressure still completes every call shape, including over
     /// TLS, mTLS, Unix, and [`Self::serve_connection`]. Distinct from
     /// [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS
@@ -487,7 +485,6 @@ impl<S: Service> Server<S> {
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
         self.config = self.config.max_send_buffer_size(bytes);
-        self.byte_budget = ByteBudgetTracker::with_limit(bytes);
         self
     }
 

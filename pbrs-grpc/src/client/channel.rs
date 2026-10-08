@@ -1320,6 +1320,7 @@ impl super::Channel {
 
     /// Write-time HTTP/2 send buffer threshold for outbound DATA on this clone.
     /// See [`ChannelConfig::max_send_buffer_size`].
+    /// Preserves the aggregate byte budget; set it separately with [`Self::byte_budget`].
     ///
     /// Applies to every call shape, including over TLS, mTLS, Unix, and
     /// [`Self::from_io`]. Overlay: does not change how a dead slot is
@@ -1330,7 +1331,6 @@ impl super::Channel {
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
         self.config = self.config.max_send_buffer_size(bytes);
-        self.byte_budget = ByteBudgetTracker::with_limit(bytes);
         self
     }
 

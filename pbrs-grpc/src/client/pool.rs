@@ -617,18 +617,13 @@ pub(crate) fn finish_channel(
         spawn_idle_watch(Arc::clone(&inner), i);
         spawn_age_watch(Arc::clone(&inner), i);
     }
-    let budget_limit = if config.send_buffer_size() != crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE {
-        Some(config.send_buffer_size())
-    } else {
-        None
-    };
     Channel {
         inner,
         config,
         interceptors: Arc::from([]),
         response_interceptors: Arc::from([]),
         rpc_slots: rpc_slots_from(config),
-        byte_budget: ByteBudgetTracker::new(budget_limit),
+        byte_budget: ByteBudgetTracker::default(),
         user_agent: crate::wire::PBRS_GRPC_UA,
         https,
         authority,

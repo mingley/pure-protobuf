@@ -1077,15 +1077,15 @@ async fn test_encode_error_releases_budget_to_baseline() {
 }
 
 #[tokio::test]
-async fn test_max_send_buffer_size_sets_budget_limit() {
+async fn test_max_send_buffer_size_preserves_independent_budget() {
     let (addr, server, _guard) = spawn_budgeted_server(1_000_000).await;
     assert_eq!(server.byte_budget_limit(), Some(1_000_000));
 
     let server_custom = Server::new(GreeterServer::new(Echo)).max_send_buffer_size(4096);
-    assert_eq!(server_custom.byte_budget_limit(), Some(4096));
+    assert_eq!(server_custom.byte_budget_limit(), None);
 
     let channel = connect_client(addr).await.max_send_buffer_size(8192);
-    assert_eq!(channel.byte_budget_limit(), Some(8192));
+    assert_eq!(channel.byte_budget_limit(), None);
 }
 
 #[tokio::test]
