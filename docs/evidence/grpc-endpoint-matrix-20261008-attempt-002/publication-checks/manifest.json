@@ -1,0 +1,51 @@
+{
+  "archive": {
+    "name": "raw.tar.gz",
+    "sha256": "eb1936c07f90e87cd2ddd82ca1171be807631fe8efeffa6d624194883abdf352"
+  },
+  "logical_bytes": 6820,
+  "files": [
+    {
+      "path": "work/check-matrix-publication-guards.py",
+      "bytes": 3712,
+      "sha256": "a00c802a3f563431a4b5b796eed45edaf2eb6173bbc35de6fbb47ee3cc3f2723"
+    },
+    {
+      "path": "work/matrix-publication-guards/failed-build/publisher.stderr",
+      "bytes": 287,
+      "sha256": "13f492af2c83c0ae4d28d5d6c4ecbcd793b09f7222d9d0a2327ae750226632dc"
+    },
+    {
+      "path": "work/matrix-publication-guards/failed-build/publisher.stdout",
+      "bytes": 532,
+      "sha256": "ba55e13ea9d412a8cb47090c80f7c0273d1fbc16aea8d8b42d13028ff04d38de"
+    },
+    {
+      "path": "work/matrix-publication-guards/mismatch/publisher.stderr",
+      "bytes": 576,
+      "sha256": "c4a5edd86cb7658dad93e57ef6bd3a218ee90ad44de07004128d21223575a476"
+    },
+    {
+      "path": "work/matrix-publication-guards/mismatch/publisher.stdout",
+      "bytes": 45,
+      "sha256": "d5b7d8069a13954f28cbf6fe15abf6c5a943da84ffc4bc40c9208de3b013c84f"
+    },
+    {
+      "path": "work/matrix-publication-guards/results.json",
+      "bytes": 1595,
+      "sha256": "14725ee6eabf45b79c864c832969ad9c888de97f30700131d97dcdb7cab18f9e"
+    },
+    {
+      "path": "work/readiness/matrix-publication-guards.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/readiness/matrix-publication-guards.stdout",
+      "bytes": 73,
+      "sha256": "c004340a2607891e6cfe8e28fcb963e6631d4d6a927543fe6bc21a743134fa90"
+    }
+  ],
+  "qualified": false,
+  "scope": "synthetic local Git publication controls only"
+}
