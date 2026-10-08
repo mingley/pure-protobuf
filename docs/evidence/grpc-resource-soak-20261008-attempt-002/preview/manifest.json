@@ -1,0 +1,45 @@
+{
+  "schema": "pbrs.resource-soak-capsule.v1",
+  "archive": {
+    "name": "raw.tar.gz",
+    "sha256": "44b9cda8bec41a83947e5d8d81abfeeacf5b2e188d693a8b7f5c8590da4cc72d"
+  },
+  "files": [
+    {
+      "path": "build.stderr.log",
+      "bytes": 182,
+      "sha256": "3db3580e96aa305089fcd504240d6e1a479354c71a60009b4924b0ba67384c10"
+    },
+    {
+      "path": "build.stdout.jsonl",
+      "bytes": 79870,
+      "sha256": "2aa7e39d4661fc26d9ea692ca9287241f23c2f2419ca85df484331e8f935ded0"
+    },
+    {
+      "path": "events.jsonl",
+      "bytes": 29376,
+      "sha256": "6230f3253ec734c18ff14d8d4fd0fd77fea6ecda00ca657bf536865d7c49d47f"
+    },
+    {
+      "path": "progress.json",
+      "bytes": 191,
+      "sha256": "4e13f6e6ecd75da96d391619fc6a9aa875e376877140e1d190a891116146975e"
+    },
+    {
+      "path": "report.json",
+      "bytes": 37330,
+      "sha256": "f9ce0a66f87beb4e2c86bfd7cd45dee855675bb39bda5addca8706bd4a681626"
+    },
+    {
+      "path": "test.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "test.stdout.log",
+      "bytes": 154,
+      "sha256": "360f5634392b21b697aa6fbf4ec73434a04239b5c1e7120b8576e3bd646d2e1c"
+    }
+  ],
+  "logical_bytes": 147103
+}
