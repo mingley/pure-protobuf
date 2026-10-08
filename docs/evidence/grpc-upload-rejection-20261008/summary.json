@@ -1,0 +1,65 @@
+{
+  "runtime_fix": "e2ee3ada",
+  "validated_source": "684847461083d1a7d680031f02b05fabb17ab59b",
+  "unit_tests_passed": 569,
+  "unit_tests_ignored": 1,
+  "integration_tests_passed": 84,
+  "gates": [
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--all-features",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 115.3733705170016
+    },
+    {
+      "command": [
+        "cargo",
+        "doc",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--all-features",
+        "--no-deps"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 28.904001653001615
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--all-features",
+        "--test",
+        "retry_safety",
+        "--test",
+        "policy_retry",
+        "--test",
+        "streaming_final_status",
+        "--test",
+        "deadline_admission"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 203.4730007879989
+    }
+  ],
+  "qualified": false,
+  "known_open": [
+    "early response while upload remains flow-control stalled",
+    "full native regression suite and isolated rustls consumer execution",
+    "24-hour soak",
+    "remaining features and complete dominance matrix"
+  ]
+}
