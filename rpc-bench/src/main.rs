@@ -286,7 +286,9 @@ fn native_channel_config(
     small_window_size: u32,
     small_window_override: bool,
 ) -> pbrs_grpc::ChannelConfig {
-    let config = pbrs_grpc::ChannelConfig::default().connections(connections);
+    let config = pbrs_grpc::ChannelConfig::default()
+        .connections(connections)
+        .gzip_compression_level(6);
     match mode {
         NativeWindowMode::Default => config,
         NativeWindowMode::Small => config
@@ -305,7 +307,7 @@ fn native_server_config(
     small_window_override: bool,
     max_message_size: Option<usize>,
 ) -> pbrs_grpc::ServerConfig {
-    let mut config = pbrs_grpc::ServerConfig::default();
+    let mut config = pbrs_grpc::ServerConfig::default().gzip_compression_level(6);
     if let Some(n) = max_message_size {
         config = config.max_decoding_message_size(n);
     }
@@ -2960,6 +2962,24 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn load_window_modes_keep_the_tonic_gzip_level_on_both_endpoints() {
+        for mode in [
+            NativeWindowMode::Default,
+            NativeWindowMode::Small,
+            NativeWindowMode::Adaptive,
+        ] {
+            assert_eq!(
+                native_channel_config(1, mode, 16_384, false).gzip_level(),
+                6
+            );
+            assert_eq!(
+                native_server_config(mode, 16_384, false, None).gzip_level(),
+                6
+            );
+        }
+    }
 
     #[test]
     fn test_parse_load_cli_args_valid_combinations() {

@@ -249,6 +249,8 @@ def main():
               "cpu_affinity": sorted(os.sched_getaffinity(0)), "seed": args.seed,
               "duration_per_cell_seconds": args.duration, "cells": cells,
               "rpc_count": args.rpc_count, "allocation_counts": args.allocation_counts,
+              "configured_policy": {"gzip_compression_level": 6, "tls_version": "1.3",
+                                    "tls_cipher": "TLS_AES_128_GCM_SHA256", "tls_alpn": "h2"},
               "callgrind": str(args.callgrind) if args.callgrind else None,
               "qualification": {"qualified": False,
                   "limits": ["prebuilt binary digest is pinned; source-to-binary mapping must be checked against build records",

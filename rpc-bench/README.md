@@ -39,9 +39,10 @@ lockfiles before and after compilation, and copies the executable out of the
 build cache. The matrix checks that record before and after execution. A
 prebuilt binary without a matching record remains `source_verified=false`.
 
-`load-server` and `load` run separate endpoints. They support all four RPC
-shapes, verified TLS, and identity or gzip compression. Native uses pbrs
-messages; tonic supports pbrs and prost messages. Use the same codec to
+`load-server` and `load` run separate endpoints. Both native and tonic support
+pbrs and prost messages, all four RPC shapes, pipelined bidi, and identity or
+gzip compression. The benchmark sets gzip level 6 to match tonic. TLS endpoints
+use TLS 1.3 with AES-128-GCM and verify the CA and server name. Use the same codec to
 compare transport costs, and tonic/prost to compare complete implementations.
 
 `load` saves its metrics before returning exit code 1 for failed, timed-out,
