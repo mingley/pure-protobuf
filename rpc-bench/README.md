@@ -47,6 +47,20 @@ and teardown work before the snapshot. Missing or unsupported counters fail
 the capture. These OS events do not measure Tokio task wakeups or syscalls.
 Scheduling affects the counts; a single N/2N pair supplies no noise estimate.
 
+`--strace=/usr/bin/strace` records syscall counts for each endpoint through
+exit, including worker threads that have exited. Error returns are included
+in the call count. The runner checks each summary against its per-syscall
+rows and rejects missing or inconsistent totals. Run strace and Callgrind
+separately. Ptrace changes timing and scheduling, and the tracer's CPU is
+outside the endpoint CPU window; these captures do not measure native latency.
+
+A newer driver can use an existing frozen build with
+`--source-checkout=/path/to/clean/benchmark-checkout` and its `--build-record`.
+The checkout must still match the build's commit, tree, and lockfiles. Reports
+record the benchmark source separately from the driver's commit, dirty state,
+script hash, and saved script. Both the executable and driver are checked for
+changes during the run.
+
 `load-server` and `load` run separate endpoints. Both native and tonic support
 pbrs and prost messages, all four RPC shapes, pipelined bidi, and identity or
 gzip compression. The benchmark sets gzip level 6 to match tonic. TLS endpoints

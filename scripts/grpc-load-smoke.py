@@ -21,8 +21,8 @@ PAIRS = [(*client, *server) for client, server in itertools.product(PROFILES, re
 SHAPES = ["unary", "server_stream", "client_stream", "bidi", "bidi_pipelined"]
 
 
-def verified_build(path, binary):
-    spec = importlib.util.spec_from_file_location("rpc_bench_build", ROOT / "scripts/build-rpc-bench.py")
+def verified_build(path, binary, source_checkout=None):
+    spec = importlib.util.spec_from_file_location("rpc_bench_build", (source_checkout or ROOT) / "scripts/build-rpc-bench.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module.validate_record(path, binary)
@@ -105,6 +105,39 @@ def context_switch_record(path):
     return {**record, "total": counts["voluntary"] + counts["involuntary"]}
 
 
+def strace_syscalls(path):
+    rows = {}
+    total = None
+    for line in path.read_text().splitlines():
+        fields = line.split()
+        if not fields or fields[0] == "%" or set(fields[0]) == {"-"}:
+            continue
+        if len(fields) not in (5, 6):
+            raise ValueError("invalid strace summary row")
+        percent, seconds = map(float, fields[:2])
+        micros, calls = map(int, fields[2:4])
+        errors = int(fields[4]) if len(fields) == 6 else 0
+        name = fields[-1]
+        if (not math.isfinite(percent) or not 0 <= percent <= 100
+                or not math.isfinite(seconds) or seconds < 0 or micros < 0
+                or not 0 <= errors <= calls < 2 ** 64):
+            raise ValueError("invalid strace summary counters")
+        record = {"calls": calls, "errors": errors}
+        if name == "total":
+            if total is not None:
+                raise ValueError("duplicate strace total")
+            total = record
+        elif name in rows:
+            raise ValueError("duplicate strace syscall row")
+        else:
+            rows[name] = record
+    if (not rows or total is None or total["calls"] <= 0
+            or any(sum(row[key] for row in rows.values()) != total[key] for key in ("calls", "errors"))):
+        raise ValueError("missing or inconsistent strace summary")
+    return {"scope": "traced_endpoint_lifetime", "method": "linux_strace_f_count",
+            "includes_exited_threads": True, **total, "syscall_counts": rows}
+
+
 def stop(process):
     if process is not None and process.poll() is None:
         process.terminate()
@@ -129,7 +162,7 @@ def run_cell(args, cell, directory):
                   f"--duration-secs={args.duration}", f"--compression={cell['compression']}",
                   f"--output={directory / 'metrics.json'}"]
     if cell["tls"]:
-        data = ROOT / "pbrs-grpc/tests/tls_data"
+        data = (getattr(args, "source_checkout", None) or ROOT) / "pbrs-grpc/tests/tls_data"
         server_cmd += [f"--tls-cert={data / 'server.crt'}", f"--tls-key={data / 'server.key'}"]
         client_cmd += [f"--tls-ca={data / 'ca.crt'}", "--tls-server-name=localhost"]
     if getattr(args, "rpc_count", None) is not None:
@@ -138,6 +171,12 @@ def run_cell(args, cell, directory):
         prefix = [str(args.callgrind), "--tool=callgrind", "--quiet"]
         server_cmd = [*prefix, f"--callgrind-out-file={directory / 'server.callgrind'}", *server_cmd]
         client_cmd = [*prefix, f"--callgrind-out-file={directory / 'client.callgrind'}", *client_cmd]
+    if getattr(args, "strace", None) is not None:
+        # -D keeps Popen.pid as the actual endpoint, so counters and SIGUSR1
+        # still address it. -f includes worker threads even after they exit.
+        prefix = [str(args.strace), "-D", "-f", "-c", "-o"]
+        server_cmd = [*prefix, str(directory / "server.strace"), *server_cmd]
+        client_cmd = [*prefix, str(directory / "client.strace"), *client_cmd]
     env = {**os.environ, "TOKIO_WORKER_THREADS": "2"}
     server = client = None
     report = {"cell": cell, "commands": {"server": server_cmd, "client": client_cmd},
@@ -218,6 +257,18 @@ def run_cell(args, cell, directory):
                                                  for side in ("client", "server")}
             except (OSError, ValueError) as error:
                 report.update(passed=False, error=str(error))
+        if getattr(args, "strace", None) is not None and report.get("passed"):
+            deadline = time.monotonic() + 3
+            while True:
+                try:
+                    report["syscall_totals"] = {side: strace_syscalls(directory / f"{side}.strace")
+                                                for side in ("client", "server")}
+                    break
+                except (OSError, ValueError) as error:
+                    if time.monotonic() >= deadline:
+                        report.update(passed=False, error=str(error))
+                        break
+                    time.sleep(0.01)
         (directory / "run.json").write_text(json.dumps(report, indent=2) + "\n")
     return report
 
@@ -236,12 +287,19 @@ def main():
     parser.add_argument("--context-switches", action="store_true",
                         help="capture all-thread Linux process totals; requires --allocation-counts")
     parser.add_argument("--callgrind", type=Path, help="Valgrind executable; instruments both endpoints")
+    parser.add_argument("--strace", type=Path, help="strace executable; counts syscalls in both endpoints")
     parser.add_argument("--build-record", type=Path, help="source-pinned build.json from build-rpc-bench.py")
+    parser.add_argument("--source-checkout", type=Path,
+                        help="clean frozen benchmark checkout for --build-record; driver may be newer")
     args = parser.parse_args()
     if platform.system() != "Linux" or not math.isfinite(args.duration) or not 0.01 <= args.duration <= 60:
         parser.error("Linux and a finite 0.01..60 second diagnostic duration are required")
     if args.context_switches and not args.allocation_counts:
         parser.error("context-switch snapshots require --allocation-counts")
+    if args.strace is not None and args.callgrind is not None:
+        parser.error("strace and Callgrind require separate captures")
+    if args.source_checkout is not None and args.build_record is None:
+        parser.error("a frozen source checkout requires its build record")
     try:
         payloads = [int(value) for value in args.payloads.split(",")]
     except ValueError:
@@ -259,8 +317,12 @@ def main():
         parser.error("repeats must be 1..10 and RPC count 1..1000000")
     if args.callgrind is not None:
         args.callgrind = args.callgrind.resolve(strict=True)
+    if args.strace is not None:
+        args.strace = args.strace.resolve(strict=True)
+    if args.source_checkout is not None:
+        args.source_checkout = args.source_checkout.resolve(strict=True)
     args.binary = args.binary.resolve(strict=True)
-    build = verified_build(args.build_record.resolve(strict=True), args.binary) if args.build_record else None
+    build = verified_build(args.build_record.resolve(strict=True), args.binary, args.source_checkout) if args.build_record else None
     args.output = args.output.resolve()
     args.output.mkdir(parents=True, exist_ok=False)
     digest = hashlib.sha256(args.binary.read_bytes()).hexdigest()
@@ -271,8 +333,11 @@ def main():
                  PAIRS, SHAPES, payloads, [False, True], ["identity", "gzip"], levels, range(args.repeats))]
     random.Random(args.seed).shuffle(cells)
     report = {"schema": "pbrs.load-smoke.v2", "binary_sha256": digest,
-              "head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
-              "dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT)),
+              "head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=args.source_checkout or ROOT, text=True).strip(),
+              "dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=args.source_checkout or ROOT)),
+              "harness_script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+              "harness_head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+              "harness_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT)),
               "source_verified": build is not None, "build_record": build,
               "host": platform.uname()._asdict(), "clock_ticks_per_second": os.sysconf("SC_CLK_TCK"),
               "cpu_affinity": sorted(os.sched_getaffinity(0)), "seed": args.seed,
@@ -282,16 +347,20 @@ def main():
               "configured_policy": {"gzip_compression_level": 6, "tls_version": "1.3",
                                     "tls_cipher": "TLS_AES_128_GCM_SHA256", "tls_alpn": "h2"},
               "callgrind": str(args.callgrind) if args.callgrind else None,
+              "strace": str(args.strace) if args.strace else None,
+              "strace_version": subprocess.check_output([str(args.strace), "--version"], text=True).splitlines()[0] if args.strace else None,
               "qualification": {"qualified": False,
                   "limits": ["prebuilt binary digest is pinned; source-to-binary mapping must be checked against build records",
                              "shared host, no verified CPU headroom or quota proof",
                              "repeats and concurrency are explicit; no claim-grade statistics",
                              "client CPU includes startup and handshake; server includes connection setup and cleanup",
-                             "RSS is sampled; optional endpoint counters include setup; context switches are OS scheduling events, not task wakeups; wakes/syscalls are unmeasured",
+                             "RSS is sampled; optional endpoint counters include setup; context switches are OS scheduling events, not task wakeups; task wakeups are unmeasured",
+                             "optional strace includes all endpoint threads until exit; ptrace changes timing and scheduling; tracer CPU is excluded",
                              "zero-filled payload bodies; not a read-all adoption corpus",
                              "saturation, cold/idle lifecycles, read-all corpora and production soak are not run"]},
               "runs": []}
     (args.output / "source.patch").write_bytes(subprocess.check_output(["git", "diff", "HEAD"], cwd=ROOT))
+    (args.output / "harness.py").write_bytes(Path(__file__).read_bytes())
     (args.output / "manifest.json").write_text(json.dumps(report, indent=2) + "\n")
     for index, cell in enumerate(cells):
         run = run_cell(args, cell, args.output / f"cell-{index:03d}")
@@ -301,11 +370,13 @@ def main():
     report["source_unchanged"] = True
     if args.build_record:
         try:
-            verified_build(args.build_record.resolve(strict=True), args.binary)
+            verified_build(args.build_record.resolve(strict=True), args.binary, args.source_checkout)
         except (OSError, ValueError) as error:
             report["source_unchanged"] = False
             report["source_error"] = str(error)
+    report["harness_script_unchanged"] = report["harness_script_sha256"] == hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     report["passed"] = (report["binary_unchanged"] and report["source_unchanged"]
+                        and report["harness_script_unchanged"]
                         and all(run["passed"] for run in report["runs"]))
     (args.output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
     return 0 if report["passed"] else 1

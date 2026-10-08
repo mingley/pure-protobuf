@@ -47,6 +47,29 @@ class AccountingTests(unittest.TestCase):
 
 
 class CaptureGuards(unittest.TestCase):
+    def test_strace_counts_include_error_calls_and_require_balanced_totals(self):
+        import tempfile
+        valid = "% time seconds usecs/call calls errors syscall\n------ ----------- ----------- --------- --------- ----------------\n60.00 0.003000 10 30 2 futex\n40.00 0.002000 10 20 read\n100.00 0.005000 10 50 2 total\n"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "strace"
+            path.write_text(valid)
+            result = SMOKE.strace_syscalls(path)
+            self.assertEqual(result["calls"], 50)
+            self.assertEqual(result["errors"], 2)
+            self.assertTrue(result["includes_exited_threads"])
+            for bad in ["", valid.replace("50 2 total", "51 2 total"),
+                        valid.replace("50 2 total", "50 3 total"),
+                        valid + "100.00 0.005000 10 50 2 total\n",
+                        valid + "60.00 0.003000 10 30 2 futex\n",
+                        valid.replace("30 2 futex", "-30 2 futex"),
+                        valid.replace("30 2 futex", "30 31 futex"),
+                        valid.replace("60.00", "nan"),
+                        valid.replace("0.003000", "inf"),
+                        valid.replace("50 2 total", "0 0 total")]:
+                with self.subTest(summary=bad), self.assertRaises(ValueError):
+                    path.write_text(bad)
+                    SMOKE.strace_syscalls(path)
+
     def test_context_switch_snapshot_requires_all_thread_process_totals(self):
         import json
         import tempfile

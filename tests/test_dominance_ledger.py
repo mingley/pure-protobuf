@@ -11,6 +11,20 @@ SPEC.loader.exec_module(LEDGER)
 
 
 class DifferentialTests(unittest.TestCase):
+    def test_syscalls_require_all_thread_counts_and_consistent_totals(self):
+        def row(count):
+            return {"syscall_totals": {"client": {"scope": "traced_endpoint_lifetime",
+                "method": "linux_strace_f_count", "includes_exited_threads": True,
+                "calls": count, "errors": 1, "syscall_counts": {"futex": {"calls": count, "errors": 1}}}}}
+        self.assertEqual(LEDGER.differential(row(30), row(70), "client", "syscalls", 8), 5)
+        for change in [{"calls": 71}, {"calls": True}, {"errors": 2},
+                       {"scope": "leader_thread"}, {"includes_exited_threads": False},
+                       {"syscall_counts": {}}, {"syscall_counts": {"futex": {"calls": 70, "errors": 71}}}]:
+            invalid = row(70)
+            invalid["syscall_totals"]["client"].update(change)
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                LEDGER.differential(row(30), invalid, "client", "syscalls", 8)
+
     def test_context_switch_totals_preserve_scope_and_reject_bad_sums(self):
         def row(voluntary, involuntary):
             return {"context_switch_totals": {"client": {
@@ -102,6 +116,28 @@ class FailedCaptureTests(unittest.TestCase):
             (path / "report.json").write_text(json.dumps(manifest))
             with self.assertRaises(ValueError):
                 LEDGER.load(path, allow_failed=True)
+
+    def test_matched_counts_reject_different_tracers_or_driver_scripts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            small, large = Path(directory) / "small", Path(directory) / "large"
+            self.capture(small, 8)
+            self.capture(large, 16)
+            original = json.loads((large / "report.json").read_text())
+            for field in ["strace", "strace_version", "harness_script_sha256"]:
+                (large / "report.json").write_text(json.dumps({**original, field: "different"}))
+                with self.subTest(field=field), self.assertRaises(ValueError):
+                    LEDGER.compare(small, large)
+
+    def test_driver_drift_cannot_be_accepted_as_a_partial_failed_cell(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "capture"
+            self.capture(path, 8)
+            original = json.loads((path / "report.json").read_text())
+            for checked in [None, False]:
+                (path / "report.json").write_text(json.dumps({**original,
+                    "harness_script_sha256": "a" * 64, "harness_script_unchanged": checked}))
+                with self.subTest(checked=checked), self.assertRaises(ValueError):
+                    LEDGER.load(path, allow_failed=True)
 
 
 if __name__ == "__main__":

@@ -8,8 +8,9 @@ ROOT = Path(__file__).resolve().parents[1]
 METRICS = {"instructions": ("instruction_totals", None),
            "allocations": ("allocation_totals", "allocations"),
            "requested_bytes": ("allocation_totals", "requested_bytes"),
-           "context_switches": ("context_switch_totals", "total")}
-REQUIRED_METRICS = [*METRICS, "task_wakeups", "syscalls"]
+           "context_switches": ("context_switch_totals", "total"),
+           "syscalls": ("syscall_totals", "calls")}
+REQUIRED_METRICS = [*METRICS, "task_wakeups"]
 SIDES = {"client": [("native", "pbrs", "tonic", "prost"), ("native", "prost", "tonic", "prost")],
          "server": [("tonic", "prost", "native", "pbrs"), ("tonic", "prost", "native", "prost")]}
 REFERENCE = ("tonic", "prost", "tonic", "prost")
@@ -28,6 +29,8 @@ def load(path, allow_failed=False):
         raise ValueError("capture did not preserve a verified clean source and binary")
     if manifest.get("passed") is not True and not allow_failed:
         raise ValueError("capture did not pass all endpoint/accounting checks")
+    if manifest.get("harness_script_sha256") is not None and manifest.get("harness_script_unchanged") is not True:
+        raise ValueError("capture driver changed or lacks a final drift check")
     n = manifest.get("rpc_count")
     if type(n) is not int or n <= 0:
         raise ValueError("a fixed positive RPC count is required")
@@ -65,6 +68,24 @@ def differential(small, large, side, metric, n):
                                for name in ("voluntary", "involuntary"))
                         or record.get("total") != counts["voluntary"] + counts["involuntary"]):
                     raise ValueError("invalid process context-switch counter scope or total")
+        if metric == "syscalls":
+            for record in (before, after):
+                if not isinstance(record, dict):
+                    raise ValueError("invalid endpoint syscall record")
+                rows = record.get("syscall_counts")
+                if (record.get("scope") != "traced_endpoint_lifetime"
+                        or record.get("method") != "linux_strace_f_count"
+                        or record.get("includes_exited_threads") is not True
+                        or not isinstance(rows, dict) or not rows
+                        or any(not isinstance(row, dict)
+                               or any(type(row.get(key)) is not int or not 0 <= row[key] < 2 ** 64
+                                      for key in ("calls", "errors"))
+                               or row["errors"] > row["calls"] for row in rows.values())
+                        or any(type(record.get(key)) is not int
+                               or not 0 <= record[key] < 2 ** 64
+                               or record[key] != sum(row[key] for row in rows.values())
+                               for key in ("calls", "errors"))):
+                    raise ValueError("invalid endpoint syscall scope or totals")
         if field is not None:
             before, after = before[field], after[field]
     except KeyError:
@@ -90,7 +111,8 @@ def compare(small_path, large_path, allow_failed=False):
     if b["rpc_count"] != 2 * a["rpc_count"] or set(small) != set(large):
         raise ValueError("matched N/2N counts and workload/repeat coverage are required")
     for field in ["binary_sha256", "head", "dirty", "callgrind", "allocation_counts",
-                  "context_switches", "host", "cpu_affinity"]:
+                  "context_switches", "strace", "strace_version", "harness_script_sha256",
+                  "host", "cpu_affinity"]:
         if a.get(field) != b.get(field):
             raise ValueError(f"capture pin/settings mismatch: {field}")
     valid_owners = {t["id"] for path in ["docs/plan/tasks.json", "docs/plan/world-class/tasks.json"]

@@ -1,0 +1,1126 @@
+{
+  "source": {
+    "base_commit": "289bc78f814196e98464decaf0931ba633d5d853",
+    "working_tree": true,
+    "files": {
+      "scripts/grpc-load-smoke.py": "804880a6541cf3aee7dbdd15b3adf8ceb32bc4c79c3ffd3e536a006426109d8b",
+      "scripts/dominance-ledger.py": "f55686bc130825f692224080765804893c48abf9875691462f9f019eb11d506c",
+      "tests/test_grpc_load_smoke.py": "5df20545387bf87961e8f1a317ddda4fb51c7e544c595805e686b6821dfb930c",
+      "tests/test_dominance_ledger.py": "9ce738dbfb3944f6467f7b9c0b39637fac0eefa9b6cfd64b34938b6258ed7914",
+      "rpc-bench/README.md": "39916696ad5115b1726c6fb155b82db4579db6c9c08b6eb22d607e5747f728bc"
+    }
+  },
+  "archive": {
+    "name": "raw.tar.gz",
+    "sha256": "5dd92958a538ea560faec2ea2d8cb2258c53e1c8953649adaa6bf961847bb412"
+  },
+  "logical_bytes": 714670,
+  "files": [
+    {
+      "path": "source.json",
+      "bytes": 616,
+      "sha256": "0d33edb4e3b743a3339ff89520ee37b71ad92ecef24d9b905836d28d91554cd4"
+    },
+    {
+      "path": "work/readiness/syscall-before-drift-manifest.json",
+      "bytes": 39168,
+      "sha256": "4169caeff847dd3b55412b7edb36a50c6985e300d4fc94782ec13eebae3ca60d"
+    },
+    {
+      "path": "work/readiness/syscall-before-drift-raw.tar.gz",
+      "bytes": 56702,
+      "sha256": "efda2f0700061aa874d5cb51d91e76eb312f5a754aa64e9cd82e267054f85a63"
+    },
+    {
+      "path": "work/readiness/syscall-build-guards.stderr",
+      "bytes": 666,
+      "sha256": "e3898bf24d62d433267743b216a783cef54faa1679edd87a5bd65cdd0cf5d0f6"
+    },
+    {
+      "path": "work/readiness/syscall-build-guards.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/readiness/syscall-ledger-drift.stderr",
+      "bytes": 1655,
+      "sha256": "3a8a5007307e16c734c22d66c9cfa808da1c5e9de887c007661dce7c91776113"
+    },
+    {
+      "path": "work/readiness/syscall-ledger-drift.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/readiness/syscall-ledger-final.stderr",
+      "bytes": 1480,
+      "sha256": "01bc5b004e76db7d343d49bf31fabae471dca5e1e0e74c39a6c99b2309517fce"
+    },
+    {
+      "path": "work/readiness/syscall-ledger-final.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/readiness/syscall-ledger.stderr",
+      "bytes": 1304,
+      "sha256": "dc172f20cb88d70174841d8c5a8e2c357b08c599ac936962299ff4cfae907067"
+    },
+    {
+      "path": "work/readiness/syscall-ledger.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/readiness/syscall-python.stderr",
+      "bytes": 1575,
+      "sha256": "b08065ed2e5a8d7935e55c6b7dfd524e84b88878f116710c48003fbd322ef13e"
+    },
+    {
+      "path": "work/readiness/syscall-python.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/readiness/syscall-source.json",
+      "bytes": 616,
+      "sha256": "0d24d1576b56be774755d4a9f53495ea27c98b02bc68b43dd13a311d21a3c11b"
+    },
+    {
+      "path": "work/readiness/syscall-wrong-source.json",
+      "bytes": 293,
+      "sha256": "81dfc8f12221c0c603832d563215a7203d7215697fd39aade3c560a5d1205ace"
+    },
+    {
+      "path": "work/strace-pid-probe/record.json",
+      "bytes": 580,
+      "sha256": "bcd162290ac654cafef74fc281bfee5eee00545fcb9aa159ead84ec6bc993abe"
+    },
+    {
+      "path": "work/strace-pid-probe/server.strace",
+      "bytes": 2597,
+      "sha256": "0d7bf546164b8d92eb3222f8d5ced7c54a5ee130335cfe28cd07aba5264e95d5"
+    },
+    {
+      "path": "work/strace-pid-probe/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/strace-pid-probe/stdout",
+      "bytes": 191,
+      "sha256": "6950508a054c527b2309f3c56dd36906ac32376b0eea6e9e113c8ab192e6d897"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-000/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-000/client.stdout",
+      "bytes": 704,
+      "sha256": "2512a5a9e9f9db9971a04d9db6464430fd2b24e754590d71ed398ab37d0bb20b"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-000/client.strace",
+      "bytes": 2778,
+      "sha256": "91f374ac8c0458ed8131706feae37cd1b504a52b5db4eafc3c2f0eff2bf1402a"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-000/metrics.json",
+      "bytes": 1939,
+      "sha256": "2c606441fb395e7d08b2c8592b71b5c11fdb82867baf61eaeef8a238915ea63d"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-000/run.json",
+      "bytes": 14107,
+      "sha256": "c9ffc49ce57fa4575dd46dca86a0eb76147354817f1689b8c1d3b164da29de71"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-000/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-000/server.stdout",
+      "bytes": 192,
+      "sha256": "b9a47d247fa1ace27c1802fb034afd44e5d56de3c66a7cd367af46b13dad1e83"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-000/server.strace",
+      "bytes": 2899,
+      "sha256": "5e5ce70e4d653097fa6b6da8ed50973efeb78809cfdb69802231d85868f9a686"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-001/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-001/client.stdout",
+      "bytes": 712,
+      "sha256": "1b5757ba008971b60e0ca52cd15233b6ccdba7986563557aa25ccaf4da7593c0"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-001/client.strace",
+      "bytes": 2778,
+      "sha256": "90ac83d37aea53b38aa74ff56bff70bd0a0ece0746a86c650adc544ab0380a94"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-001/metrics.json",
+      "bytes": 1694,
+      "sha256": "656c11e9523e1b39c9bafeeb983bd24e0243c0d8df6dc40068c50c916018f36f"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-001/run.json",
+      "bytes": 13858,
+      "sha256": "efdfa719893227397d8ff6680827dd4525415a5cb6b2c598feeda8b795443a89"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-001/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-001/server.stdout",
+      "bytes": 192,
+      "sha256": "a5ca92b21b83f0befb9f3220af072b9dff69e5cf591e8bbb1e783c235597015b"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-001/server.strace",
+      "bytes": 2899,
+      "sha256": "ce06d41b7314edaac454ecc0c8a8e3792e087913648d18ef2e382f224769efc0"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-002/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-002/client.stdout",
+      "bytes": 712,
+      "sha256": "0193bb3697ecfb22e6e03761825bfac11a54a6b1da365afd2f7ca3574f43bd40"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-002/client.strace",
+      "bytes": 2778,
+      "sha256": "e5784c7a74ab00076435c39d9112314d49ce605eb26363c29f1b4bcb4b34c3c2"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-002/metrics.json",
+      "bytes": 1696,
+      "sha256": "630f9a92748851a132ba124ceaca1c37c42c2ae0205715ae1eb031f6c5b1a4ea"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-002/run.json",
+      "bytes": 14256,
+      "sha256": "28c755a2dac8736eb41722cb51433fe3b4cb9f5d3dc5030d08e1c3b3a8a5363d"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-002/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-002/server.stdout",
+      "bytes": 192,
+      "sha256": "34fd9b45ea72f07e06567092e380daccf9fa019ccd2df0c7e8f429cffbeb9902"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-002/server.strace",
+      "bytes": 2899,
+      "sha256": "f0b7a6d5898bab88c9e0e21803a9e35531f64c2f3d4ea57b2f7a5cf5f666087e"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-003/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-003/client.stdout",
+      "bytes": 707,
+      "sha256": "43a0c5513d6d248d10a132026a72635ee5cd49f56cd8547e291392f009fe896f"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-003/client.strace",
+      "bytes": 2838,
+      "sha256": "9a812b82646a5e3d182dffac859fa2d6e6a89bf0cbdde858d80b39cbbd50f03f"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-003/metrics.json",
+      "bytes": 1958,
+      "sha256": "62d807d20e8e0b9712ab9796ca52785cdedea132a27bcab43a542fa52e0065d6"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-003/run.json",
+      "bytes": 16980,
+      "sha256": "35723efeebe64572c16acaee3a0ed5a8743627178e5b303c1083f18dd06bdf94"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-003/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-003/server.stdout",
+      "bytes": 192,
+      "sha256": "b89390ef4ab6b697444f5ededa3003a6c86fb524dda2434da616e37432b4639a"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-003/server.strace",
+      "bytes": 2899,
+      "sha256": "bc6943641b5cefd826867b776eb063d665a59d70acc70f319f693e51963cf3d6"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-004/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-004/client.stdout",
+      "bytes": 717,
+      "sha256": "1a8e9f756abca5725bd19c38121f37fd792b6b70d215c5e3b9177f6312bbab6b"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-004/client.strace",
+      "bytes": 2838,
+      "sha256": "7a8124136472b1a71b67977a0e5e718ebaca0f759b0a3e4d312b6a935be373d6"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-004/metrics.json",
+      "bytes": 1712,
+      "sha256": "bf49701eae8ca2da8e1532ea5ff0662f94bb71acda2b87b8d1f708c8e4a537cf"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-004/run.json",
+      "bytes": 15145,
+      "sha256": "df770b93e2c5e3dd6abd0334acbc08db8e9273150b24097a185d8adf71912ad2"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-004/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-004/server.stdout",
+      "bytes": 192,
+      "sha256": "6e6876ab6edba8cb637467bfdb3adb8b6d4bafd8114ea7f753a9a6062c87a53f"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-004/server.strace",
+      "bytes": 2899,
+      "sha256": "92e9245dfd77bf409d99ddff9806a1e5d66fb7f9bc8e4a1e3d97836a195c68ff"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-005/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-005/client.stdout",
+      "bytes": 707,
+      "sha256": "325846d6000f1364f814b90cdd8157f4259da4f5e176abda09e7d2017bccdb42"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-005/client.strace",
+      "bytes": 2778,
+      "sha256": "aa79e29b87722514721bfca1eea5e8c32d21959690bd10d8939e913e71df3c36"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-005/metrics.json",
+      "bytes": 2192,
+      "sha256": "801c62dddc3946dfb13db56577655874d21c03459bba66a3bd7c7f7ee25183ec"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-005/run.json",
+      "bytes": 15175,
+      "sha256": "41d33d4734e990a435a47e3cdd2a9aeac14bbcbee83b1ffd0f868cf50ef7cf4b"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-005/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-005/server.stdout",
+      "bytes": 192,
+      "sha256": "738de5f1d8beaa3f7be3563d7f7bdec61e26c7a1b1196e62322d520eb5b9765f"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-005/server.strace",
+      "bytes": 2899,
+      "sha256": "42925fcad1963af35a895b34dc033e052b6bfbe6f708738232810a313f065cf7"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-006/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-006/client.stdout",
+      "bytes": 714,
+      "sha256": "1a86eb9831f8bc50e9a0fcf30463b9088c2ea8db53474e57887419325436b469"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-006/client.strace",
+      "bytes": 2838,
+      "sha256": "38f585a36904d9313f3808f5e199ea0ff4da960bad760d01775a0f5f0f4adf7b"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-006/metrics.json",
+      "bytes": 1695,
+      "sha256": "20e3a3c678540515fe577d3f3472cda6bdd6170469e66c17b2c938db2ece410e"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-006/run.json",
+      "bytes": 13939,
+      "sha256": "733f10b283a5d6088fae3d0e25e83023c0a834b2021651a99c2dc0b0bcfa6aa4"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-006/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-006/server.stdout",
+      "bytes": 192,
+      "sha256": "48d7e97c3bfce57a98a83a0c40764a0234f989db091311387b531b373d37827e"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-006/server.strace",
+      "bytes": 2899,
+      "sha256": "f9707f01f954f0311863ff7ee63943d7d5bf85377434b442d11ef17a666034e0"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-007/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-007/client.stdout",
+      "bytes": 714,
+      "sha256": "082f7f64556a689a3e29559f96723c03ea1d98adba11f3ce09339a910467da9b"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-007/client.strace",
+      "bytes": 2778,
+      "sha256": "35f58ee27c593aa1f184bbf7b944d873007ffea312ffbc586f540d7f4a377f3b"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-007/metrics.json",
+      "bytes": 1937,
+      "sha256": "e82bcaf85ed8237676ec0241568c0d5954b521e92e233c01c8702a0176c96ded"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-007/run.json",
+      "bytes": 13726,
+      "sha256": "820caaefcac6ddd7611f6860b282c6bb1302d909cf7a3711966bafc81b2269fa"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-007/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-007/server.stdout",
+      "bytes": 192,
+      "sha256": "cbf4cfae6bfeddd86fdc0f40f9ca8ae5cdf2cecbc6e5cdaeca7bee749fa2dfad"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-007/server.strace",
+      "bytes": 2899,
+      "sha256": "7d9e1f0d3ba3341f7c3c91b2f40983d030a5b3a3e55345f8b9ed7f51a1749a27"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-008/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-008/client.stdout",
+      "bytes": 709,
+      "sha256": "720bee1aa3a06e86c3d0f39e2538665e74822624e7e39046d90fd774a2b20f0a"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-008/client.strace",
+      "bytes": 2838,
+      "sha256": "fb296941386b4f853cd47c7c71cff1cc85b29b84814dc62afeaae90ccbd16833"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-008/metrics.json",
+      "bytes": 1467,
+      "sha256": "e5c0ef2ffdc57ae5b7eb0048d4abb82d20fd4771e73f18909c4114bbd561a1b7"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-008/run.json",
+      "bytes": 16054,
+      "sha256": "b2553456468b6dbf39545bc082b936a0fdc61994cbf46a67c65296f7b4bc72b8"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-008/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-008/server.stdout",
+      "bytes": 192,
+      "sha256": "30d4e6360b3b7563ad457da93f685189dc4782e31ed8755c2f9a31af54a919da"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-008/server.strace",
+      "bytes": 2899,
+      "sha256": "00ad6afc74baa5c45043a0ff26373d65bb6092827a36dfb69bf4716a066a9adc"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-009/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-009/client.stdout",
+      "bytes": 715,
+      "sha256": "6c17a878df8eb9bd1b73f65c18f98cba9c357ac8067e31caf341d52cc0508055"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-009/client.strace",
+      "bytes": 2778,
+      "sha256": "3af4022467dbe1cea7c1832e8e6fb1793ad58a9e479d097d1b5e616234ed9774"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-009/metrics.json",
+      "bytes": 1696,
+      "sha256": "11c23f87fb02e615d03027a227887abb63c8f67878912681346cac41a319c2d9"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-009/run.json",
+      "bytes": 13866,
+      "sha256": "9412d497e72beea25a759e47e7a49bbf0fee0f93348be5d77c23f24afac24434"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-009/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-009/server.stdout",
+      "bytes": 192,
+      "sha256": "9bcf42a7069364e6386dfcb23e310393b96da9a30ace5ec2df33aaac63b7a03d"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-009/server.strace",
+      "bytes": 2899,
+      "sha256": "310dfb1d3e7c50b9930dc3a24ed69ced4e3d0b26987c7fe0892a799166e9f2f4"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-010/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-010/client.stdout",
+      "bytes": 706,
+      "sha256": "08b1bd559228310fddb7c75341735ba1b9a690a1bf1d3347aa60a87382aa32b2"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-010/client.strace",
+      "bytes": 2712,
+      "sha256": "ca957c51c11ff0bffeb28275fd45f2a3da82694479bc06aa041f582bb44d6433"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-010/metrics.json",
+      "bytes": 1948,
+      "sha256": "8e2b4010a5d671fc3834b62eb2c814600435fe60bf76703d60280b44b3ea5905"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-010/run.json",
+      "bytes": 13875,
+      "sha256": "877fb73040f974f313186ddc4c64f29dc14902217ed20dec0957e9a82d573034"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-010/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-010/server.stdout",
+      "bytes": 193,
+      "sha256": "5b43d563aba1c6d48de43bc5639a6ec767824dde317e8bb1901242554b4ee097"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-010/server.strace",
+      "bytes": 2774,
+      "sha256": "e840f540d9c9eda9ad7f0b65d48b6315998bb17dea7d3b5ef3fda33684ed2c5c"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-011/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-011/client.stdout",
+      "bytes": 712,
+      "sha256": "10998882dcd43cfebadbe48dd9db37c7175cf01248844d17255ed4812209b9e9"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-011/client.strace",
+      "bytes": 2712,
+      "sha256": "f0e06a52a179a34305e68bf393b087f98aeaaefb7a8f2d548db252b5184a4a78"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-011/metrics.json",
+      "bytes": 1696,
+      "sha256": "167b519703737c84a20c8d13ac1a9caac45d6e47532e7e6f9d7408da73272fdd"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-011/run.json",
+      "bytes": 13619,
+      "sha256": "183f9120151ae42303ef348a953f85f7ce67d5ed20d58f8699e63eb53d35a460"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-011/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-011/server.stdout",
+      "bytes": 194,
+      "sha256": "903d226bb063587e50c57b370f06934584b979206242642b5900684923603692"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-011/server.strace",
+      "bytes": 2774,
+      "sha256": "c9549df7a1e4efa5df868f5cf0d2bf1c0a3008853e34e262266defd8c4bc3294"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-012/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-012/client.stdout",
+      "bytes": 714,
+      "sha256": "cdc54111aba14bf69962375f5bec0b3b3ed04e27c8415c52646cd0a6a0fb9d8a"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-012/client.strace",
+      "bytes": 2712,
+      "sha256": "76517878d035588ec9ec6e8ae91e1d7b8cd2ebff333741e910ae9df7223f632a"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-012/metrics.json",
+      "bytes": 1948,
+      "sha256": "dbb5b036d19f798588e873138aec494c21e6fe1e253677b5872f8d53e9902908"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-012/run.json",
+      "bytes": 13890,
+      "sha256": "6ce9a408d1aea059298770f0a1b35b3802d48a4f1528b5dec39b5a40c089c824"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-012/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-012/server.stdout",
+      "bytes": 193,
+      "sha256": "f058bbc5b0556d4b5f5e2759bbbfebc09e0755f8b2bf972b30e7c82b10988df9"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-012/server.strace",
+      "bytes": 2774,
+      "sha256": "0ff76219f0939eac87774e0bbba9cc4fc7b7fb77354b17c97e5c269a9a4bb123"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-013/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-013/client.stdout",
+      "bytes": 707,
+      "sha256": "3261077ec0f74b438adffc6338bb08a3bdba9d398e0ae300e861845821350665"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-013/client.strace",
+      "bytes": 2712,
+      "sha256": "0b3ae076c8be1d825545cd6e047d83230a6be5b5b21651407867e9f95eacfa04"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-013/metrics.json",
+      "bytes": 1709,
+      "sha256": "80d62c836a90114bc3bf8c159cdd5c79de5b70cf41e248ca8a90293f25646b56"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-013/run.json",
+      "bytes": 15206,
+      "sha256": "cd008362a1554b66e25cc3858407b412ca8a01b79ef06ae66f21113475b0dbc1"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-013/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-013/server.stdout",
+      "bytes": 194,
+      "sha256": "66f618b7b7ec7c6afea59bc4cbe42dfde4430037c9a25ebdff47e9f8e56e9897"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-013/server.strace",
+      "bytes": 2774,
+      "sha256": "6a5cda5400cf6ca40365b0f621e1b4ccdedbab206f94886329eac5c8a6b18a53"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-014/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-014/client.stdout",
+      "bytes": 713,
+      "sha256": "59cccf8bd279e8eb750cf0546a60f78e179c74808511157e78ac13d20ae15ebf"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-014/client.strace",
+      "bytes": 2712,
+      "sha256": "aec8d79695b24a4e960a3a12a04fb00e0a0e53fd68c117f5239835fa6a11da90"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-014/metrics.json",
+      "bytes": 1450,
+      "sha256": "a9590dc184b94e6b7c1ea97a7066e378eab63dc9273d0dba3d91b4cec485b052"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-014/run.json",
+      "bytes": 13754,
+      "sha256": "8bbc549e7011ef24ef08b6544faab52e932f440156c4523a338f3d61869bb54d"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-014/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-014/server.stdout",
+      "bytes": 194,
+      "sha256": "bedeb960be6240e21bc93a6dd95aca8e55b462cb937f3a178a61c981eca4e0e6"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-014/server.strace",
+      "bytes": 2774,
+      "sha256": "59cf9e7a9ec6a04188f304fce7fd8e82000267f113af4f61fea0c42515b289d1"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-015/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-015/client.stdout",
+      "bytes": 704,
+      "sha256": "baf3d6262822db80548345978f6279341bc9c3298d9ad9598042353bd958197b"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-015/client.strace",
+      "bytes": 2712,
+      "sha256": "0b58286b7155473872221ba36aebc2c61783e601f794c481c21bf76f6a3c5220"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-015/metrics.json",
+      "bytes": 1938,
+      "sha256": "67b5efdebd8c38464fe3fb2388c8c40b7b714aa5f47f004db8bdd82ed41279b8"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-015/run.json",
+      "bytes": 13470,
+      "sha256": "70d569fdf28e780e705453482d63c464debddec3603a80dbb1be6e430987e466"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-015/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-015/server.stdout",
+      "bytes": 193,
+      "sha256": "bc495e8343a0e8dab304aa828adfc8f1fabd63317b25c013f3065cf7397821ab"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-015/server.strace",
+      "bytes": 2774,
+      "sha256": "79c1a684568361bb6795a13958a729f4b818c2bd98ad940c8f4cf05b5942cf68"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-016/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-016/client.stdout",
+      "bytes": 715,
+      "sha256": "32efb3480d0b01619e34cced90fcb6fcbdcc8ebef5a598bd83bf90f7b109e29c"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-016/client.strace",
+      "bytes": 2712,
+      "sha256": "db9efcabf25071e5cf2f0e4b96c7c4da66404f37500b9e0db2ff29e08523170c"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-016/metrics.json",
+      "bytes": 1952,
+      "sha256": "8013fa70eeae4f3876853c215f9c190552f01caa4e63f3e74c3c4bcb12f082e7"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-016/run.json",
+      "bytes": 13896,
+      "sha256": "811cf9979e6e9bc32d6df43a1d781d0c8c2a354c0fc4318fb4c571bd89504067"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-016/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-016/server.stdout",
+      "bytes": 194,
+      "sha256": "0a11395a07b5d9078847dc4716251178f27bf1584d133efc4d5735897d440991"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-016/server.strace",
+      "bytes": 2774,
+      "sha256": "eeb2ac6cc4cc0540662c51ccd0a62c188431f19f541294ba1eba68a7347e50a4"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-017/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-017/client.stdout",
+      "bytes": 713,
+      "sha256": "73545226b086a4188719d26d023740586b0f4f5a926590fa99694902030646c6"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-017/client.strace",
+      "bytes": 2712,
+      "sha256": "e13e3e8211151809224819103ca4fc4a34bd0837f46e82f8fdecf92d01139a18"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-017/metrics.json",
+      "bytes": 1695,
+      "sha256": "d2ff9e1dc1b3eda58ca52228ccae540aaa27a30626c48b3171b9e227d7d6e78b"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-017/run.json",
+      "bytes": 12827,
+      "sha256": "c820c8a3c49023b13c2c0aa0604162b761359c14c58b69b5afab73a8d1f42d7f"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-017/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-017/server.stdout",
+      "bytes": 193,
+      "sha256": "f834da8457a7c98a1228eda719ee0c0207c9ebe7da219d8622f6a39f29641dda"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-017/server.strace",
+      "bytes": 2774,
+      "sha256": "53b7e7f9e4d08d4d8016db6a05519b8ba9bfac61c8700774020e20dc55383833"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-018/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-018/client.stdout",
+      "bytes": 707,
+      "sha256": "b3bf17b511ef39314c5f8ca31317e7cc9145c0986d8c65f6f508492255955abf"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-018/client.strace",
+      "bytes": 2712,
+      "sha256": "d337b51b7060c99a527d183905f4e3b90381f4e5b76fed0109bdf12bb39298c9"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-018/metrics.json",
+      "bytes": 1958,
+      "sha256": "bddf0f4f6a977cc36e6d1cd48db7b097502615183cab1c882e209d81a929b2b1"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-018/run.json",
+      "bytes": 15872,
+      "sha256": "a7ef208ab68de23f3b0ad4584124e439f7b4c3b1f7b658fc6a097184d280ac15"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-018/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-018/server.stdout",
+      "bytes": 194,
+      "sha256": "1a32d83e594bb952826c0f8f57f31a85b15a7b8f71c22588e8fdaf0ba761279e"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-018/server.strace",
+      "bytes": 2774,
+      "sha256": "572573663e213d09d06930bfe6b18dc000547b66e1e5524fcf4088aad56b8204"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-019/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-019/client.stdout",
+      "bytes": 716,
+      "sha256": "c2ba532aef1d0f28671480186bd203f7dddba84b2b5f4b35508d3647abf52c40"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-019/client.strace",
+      "bytes": 2712,
+      "sha256": "f8bc2ae8ba9ea6d32830f47e15c3dffb84db1beb9895b811acb08e02209c8b4f"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-019/metrics.json",
+      "bytes": 2199,
+      "sha256": "755f4ebec2ff5fd2d7fef840a69c19e1fe246ddcb88b3420669cf71b1a77d9ae"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-019/run.json",
+      "bytes": 14962,
+      "sha256": "a4ea726056c9d33aecb37d81eee4e9176ac6ba1500187f3ace8c3b5931a10e43"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-019/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-019/server.stdout",
+      "bytes": 194,
+      "sha256": "f604681f6c3da033ed281225f2af13c0eacde5d8521e29d3ed2f54f44c11aeae"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-019/server.strace",
+      "bytes": 2774,
+      "sha256": "57e1ef6ab1b740db02c2f1909b08182db6b5562a31d45994bc0056914d04532c"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-020/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-020/client.stdout",
+      "bytes": 704,
+      "sha256": "2176f36ffb922316cc7e81ea4cc22b3eff5eb0886952454a26a855da903c4b52"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-020/client.strace",
+      "bytes": 2712,
+      "sha256": "9e3a34dad0fe5e4b0b508bd1624c4a2a7fc104766ae0c117f765ad809357e8fe"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-020/metrics.json",
+      "bytes": 1696,
+      "sha256": "2994dafede803348ca2878eb1346f1ea732a86fa3be680de5fefd0129dfa3eea"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-020/run.json",
+      "bytes": 13759,
+      "sha256": "fb177fb5ed089b32faf21a5db8649de463067fcb6c9ba21974d3756ef9400551"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-020/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-020/server.stdout",
+      "bytes": 192,
+      "sha256": "13f074aae6f0f43698afccf7dc065b1ebd21d7f1f1da1a4df621a59893d66dc7"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-020/server.strace",
+      "bytes": 2899,
+      "sha256": "e7394711631102f995e2a1bdbe601709624ea44e51457f108086c172602bfbb7"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-021/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-021/client.stdout",
+      "bytes": 715,
+      "sha256": "d5f5d5a130b43046b0533375ab5fb0bd8ae66c1d3db5e58feb0d0401d272bbb3"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-021/client.strace",
+      "bytes": 2712,
+      "sha256": "ea7ff450060a91054448fb6736df667b7bf3388a43c84ab32ec817a3d864dc3c"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-021/metrics.json",
+      "bytes": 1950,
+      "sha256": "78f992eaf585f34afcd5d6231e19eb43629401d05d84471462fbda756f720166"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-021/run.json",
+      "bytes": 14842,
+      "sha256": "7b37c7ad5312861f10b9285f64d3dd27c41ba3344cf2f4929343bd858ee71dc8"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-021/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-021/server.stdout",
+      "bytes": 192,
+      "sha256": "b74a9bf8d54a6dfcd038f9984539777589d9e4977298d05aca98effcd74d95f2"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-021/server.strace",
+      "bytes": 2899,
+      "sha256": "1fdf35244e426596581a02eecac444ded6de69c3d4f30e1476c5f6fcb213eac2"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-022/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-022/client.stdout",
+      "bytes": 712,
+      "sha256": "edc36ab6871f5678207521c2fbc0ba2c0522dd44c84b8e442b3eda4c3aa20ccd"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-022/client.strace",
+      "bytes": 2652,
+      "sha256": "cd8f5d78d88162203ec683fffd6bb047bb5aa92eba66139d1cb80244afb68acf"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-022/metrics.json",
+      "bytes": 1694,
+      "sha256": "7ed779cfe1e578ef3dc85bfd897ba8f37fef898704024d92a4acefa9d88548c6"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-022/run.json",
+      "bytes": 12906,
+      "sha256": "399a9b1ff7495ef37c4d3e0485806a3556ba0b5c2989e1cf80fa1de7ffb11359"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-022/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-022/server.stdout",
+      "bytes": 192,
+      "sha256": "244a604221151b3b4d2dd74944638b9b35df95909cb7a93d7e57b4d9a35154b0"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-022/server.strace",
+      "bytes": 2899,
+      "sha256": "bbca05bcd531831757186770e4259af415304d5715426b4bf720bd67ae71a436"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-023/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-023/client.stdout",
+      "bytes": 707,
+      "sha256": "c4f470c02be8e735bcb318edbc5192d4269e310d5a236908d674003c6e9fbbd0"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-023/client.strace",
+      "bytes": 2712,
+      "sha256": "4d58b2bf9b708b581eba9df4f626d960b0654d9191716c1acc0776fff482d27b"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-023/metrics.json",
+      "bytes": 1959,
+      "sha256": "c20493a4abd827fb15af427af99ee7464d15b62f0c2297a43b6e125087c4769f"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-023/run.json",
+      "bytes": 15634,
+      "sha256": "8b6f274350ccb560f2466d386c1cf0ee2044392fa653ce44f7727ee5d93445b3"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-023/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-023/server.stdout",
+      "bytes": 192,
+      "sha256": "ad1ac471ff14883ad99b134ed9fab54464e5452fe32b5f7808671a825ae8790d"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-023/server.strace",
+      "bytes": 2899,
+      "sha256": "032f87f337953e8ba4dc5a4a2cd10ba1cd5cad8d09c49bab40856de9319cd059"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-024/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-024/client.stdout",
+      "bytes": 717,
+      "sha256": "6ca18c1280605d292d36d8c7ebffcc4c3fcadc655744cded38de53d1ae4b2060"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-024/client.strace",
+      "bytes": 2712,
+      "sha256": "52cf1b2090178b838951e8b3e84405ef4845e25c7f0551f89287ba4fe1b477ea"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-024/metrics.json",
+      "bytes": 1956,
+      "sha256": "1b7ae3359a23e3d81c0325cb5a2a332800c1689f43bfb31ce8f37d0220034e30"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-024/run.json",
+      "bytes": 15646,
+      "sha256": "99d7f6c6bb5879a7c95d3ceeb95923db46c3c35a1b9f78fc42b9f58cd4bffc6f"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-024/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-024/server.stdout",
+      "bytes": 192,
+      "sha256": "f741c8214bd4a2c15392f7b36c8c239d1aaa2131c034b74f9904b84be9b19c8f"
+    },
+    {
+      "path": "work/syscall-plumbing/cell-024/server.strace",
+      "bytes": 2899,
+      "sha256": "7534a1f2b5c5a801afa351bc850783209376b59dd21d0468d583e3919d59abf5"
+    },
+    {
+      "path": "work/syscall-plumbing/results.json",
+      "bytes": 9503,
+      "sha256": "517eeac5f980b06808a6f3883064922ffe3cfbbb56cb9a35ecaaa739abb4226d"
+    },
+    {
+      "path": "working-tree.patch",
+      "bytes": 28272,
+      "sha256": "2c3f34cb7f69659cfc5e4c7117c5b7b20c87852d75828dfd92c828976681a08c"
+    }
+  ],
+  "qualified": false
+}

@@ -15,8 +15,10 @@ comparative claim. No category currently has a qualified performance win.
 
 | Record | What it contributes | How to read it |
 |---|---|---|
-| [Resource campaign, fourth attempt](grpc-resource-soak-20261008-attempt-004/README.md) | Passing independently validated preview, frozen executable, and actual-day launch with observed finite limits | Day started 2026-10-08 22:23:33 UTC; completion and final validation remain pending |
-| [Fresh endpoint matrix](grpc-endpoint-matrix-20261008-attempt-002/README.md) | Frozen release build, requested functional and separate native/Callgrind N/2N campaigns, guarded outcome publication | Build launched; no fresh measurement or performance win claimed yet |
+| [Resource campaign, fourth attempt](grpc-resource-soak-20261008-attempt-004/README.md) | Passing preview and an actual-day attempt with observed finite limits | Day failed after 705.18 seconds: 1 MiB TLS bidi exceeded the 3-second server deadline at cycle 159 |
+| [Endpoint syscall checks](grpc-syscall-capture-20261008/README.md) | All-thread tracer capture, source/build separation, 25 historical-binary plumbing cells, and counter guards | Wiring checks only; fresh source-pinned syscall measurements remain pending |
+| [Fresh endpoint matrix, corrected launcher](grpc-endpoint-matrix-20261008-attempt-003/README.md) | Release build with protoc 35.1 supplied, followed by requested functional and native/Callgrind N/2N captures | Build launched; no completed captures or performance win claimed yet |
+| [Previous endpoint build](grpc-endpoint-matrix-20261008-attempt-002/README.md) | Actual failed build and guarded automatic outcome publication | Build failed because protoc was absent from PATH; no captures ran |
 | [Response status and endpoint counter checks](grpc-response-status-20261008/README.md) | Partial-frame status and binary-log regressions, API doc cleanup, all-thread context-switch capture | Correctness and instrumentation checks; fresh measurements and qualification remain separate |
 | [Third resource campaign](grpc-resource-soak-20261008-attempt-003/README.md) | Corrected memory sampling and independent recovery probes | Preview failed on a TLS bidi response after 18.40 seconds; the day did not start |
 | [Second resource campaign](grpc-resource-soak-20261008-attempt-002/README.md) | Source-pinned preview with automatic outcome publication | Preview failed memory validation after 32.88 seconds; the day did not start |
