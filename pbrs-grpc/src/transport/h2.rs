@@ -15,6 +15,58 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite};
 
+#[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    reason = "transport buffer regression tests"
+)]
+mod bounded_send_tests {
+    use bytes::Bytes;
+
+    #[tokio::test]
+    async fn small_writes_fit_the_buffer_without_polling_and_return_unsent_ownership() {
+        let (io, _peer) = tokio::io::duplex(1024);
+        let mut builder = crate::h2_backend::client::Builder::new();
+        builder.max_send_buffer_size(7);
+        let (mut requests, _unpolled_driver) = builder
+            .handshake::<_, Bytes>(io)
+            .await
+            .expect("client preface");
+        let request = http::Request::builder()
+            .uri("http://localhost/bounded")
+            .body(())
+            .expect("headers");
+        let (_response, mut send) = requests.send_request(request, false).expect("stream");
+        assert!(
+            send.try_send_data(Bytes::from_static(b"1234"), false)
+                .unwrap()
+                .is_ok()
+        );
+        let unsent = Bytes::from_static(b"5678");
+        let original = unsent.as_ptr();
+        let returned = send
+            .try_send_data(unsent, false)
+            .expect_err("buffer has only three bytes left");
+        assert_eq!(
+            returned.as_ptr(),
+            original,
+            "full buffer returns the original allocation"
+        );
+        assert_eq!(returned.as_ref(), b"5678");
+        assert!(
+            send.try_send_data(returned.slice(..3), false)
+                .unwrap()
+                .is_ok()
+        );
+        assert!(send.try_send_data(Bytes::from_static(b"8"), false).is_err());
+        // Empty END_STREAM needs no buffer space; a protocol failure remains
+        // distinct from a full buffer on the next write.
+        assert!(send.try_send_data(Bytes::new(), true).unwrap().is_ok());
+        assert!(send.try_send_data(Bytes::new(), false).unwrap().is_err());
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Error
 // ---------------------------------------------------------------------------
@@ -163,6 +215,16 @@ impl super::SendStream for SendStream {
 
     fn send_data(&mut self, data: Bytes, end_of_stream: bool) -> Result<(), Error> {
         self.0.send_data(data, end_of_stream).map_err(Error)
+    }
+
+    fn try_send_data(
+        &mut self,
+        data: Bytes,
+        end_of_stream: bool,
+    ) -> Result<Result<(), Error>, Bytes> {
+        self.0
+            .try_send_data(data, end_of_stream)
+            .map(|result| result.map_err(Error))
     }
 
     fn send_trailers(&mut self, trailers: HeaderMap) -> Result<(), Error> {

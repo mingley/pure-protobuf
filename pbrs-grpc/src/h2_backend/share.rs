@@ -337,6 +337,11 @@ impl<B: Buf> SendStream<B> {
             .map_err(Into::into)
     }
 
+    /// Return `data` if it cannot fit within the configured stream buffer.
+    pub(crate) fn try_send_data(&mut self, data: B, end_of_stream: bool) -> Result<Result<(), crate::h2_backend::Error>, B> {
+        self.inner.try_send_data(data, end_of_stream).map(|result| result.map_err(Into::into))
+    }
+
     /// Sends trailers to the remote peer.
     ///
     /// Sending trailers implicitly closes the send stream. Once the send stream

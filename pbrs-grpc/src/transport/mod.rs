@@ -31,8 +31,15 @@ pub(crate) trait SendStream {
     fn reserve_capacity(&mut self, capacity: usize);
     /// Poll until `capacity` grows or the stream closes.
     fn poll_capacity(&mut self, cx: &mut Context<'_>) -> Poll<Option<Result<usize, Error>>>;
-    /// Queue DATA; errors when the frame exceeds `capacity`.
+    /// Queue DATA, implicitly requesting capacity. This operation is unbounded.
     fn send_data(&mut self, data: Bytes, end_of_stream: bool) -> Result<(), Error>;
+    /// Queue DATA within the configured stream buffer, or return ownership of
+    /// the unsent bytes when it is full. Protocol failures use the inner result.
+    fn try_send_data(
+        &mut self,
+        data: Bytes,
+        end_of_stream: bool,
+    ) -> Result<Result<(), Error>, Bytes>;
     /// Send trailers; the stream must not already be closed.
     fn send_trailers(&mut self, trailers: HeaderMap) -> Result<(), Error>;
     /// Abort the stream with RST_STREAM. Idempotent; never fails.

@@ -1282,6 +1282,27 @@ where
 // ===== impl StreamRef =====
 
 impl<B> StreamRef<B> {
+    /// Queue DATA only if the configured stream buffer can hold it. Returning
+    /// the original buffer lets the caller wait without copying or cloning it.
+    pub(crate) fn try_send_data(&mut self, data: B, end_stream: bool) -> Result<Result<(), UserError>, B>
+    where
+        B: Buf,
+    {
+        let mut me = self.opaque.inner.lock().unwrap();
+        let me = &mut *me;
+        let stream = me.store.resolve(self.opaque.key);
+        let actions = &mut me.actions;
+        if data.remaining() > actions.send.max_buffer_size().saturating_sub(stream.buffered_send_data) {
+            return Err(data);
+        }
+        let mut send_buffer = self.send_buffer.inner.lock().unwrap();
+        Ok(me.counts.transition(stream, |counts, stream| {
+            let mut frame = frame::Data::new(stream.id, data);
+            frame.set_end_stream(end_stream);
+            actions.send.send_data(frame, &mut send_buffer, stream, counts, &mut actions.task)
+        }))
+    }
+
     pub fn send_data(&mut self, data: B, end_stream: bool) -> Result<(), UserError>
     where
         B: Buf,
