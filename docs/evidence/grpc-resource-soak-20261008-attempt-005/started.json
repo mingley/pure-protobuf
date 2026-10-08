@@ -1,0 +1,31 @@
+{
+  "source_commit": "0a357d148286fc9badc7b9fcee26011dd880a6bc",
+  "source_tree": "3fe4a99d02c528e2102c102e8eaf35b52309f6b5",
+  "controller_sha256": "f3f110905fb62642cf5948869708aa1bf3cca2bc58d394b34c7b611ea7c52cac",
+  "prepared_utc": "2026-10-08T22:53:55.585833+00:00",
+  "qualified": false,
+  "controller_command": [
+    "/workspace/pure-protobuf/work/run-rust",
+    "python3",
+    "/workspace/pure-protobuf/docs/evidence/grpc-resource-soak-20261008-attempt-005/controller.py",
+    "--source",
+    "0a357d148286fc9badc7b9fcee26011dd880a6bc",
+    "--source-dir",
+    "/workspace/pure-protobuf/work/resource-campaign-candidate",
+    "--root",
+    "/workspace/pure-protobuf",
+    "--output",
+    "/workspace/pure-protobuf/work/campaign-v5-005",
+    "--evidence-path",
+    "docs/evidence/grpc-resource-soak-20261008-attempt-005",
+    "--build-profile",
+    "release",
+    "--publish-main"
+  ],
+  "publication_path": "docs/evidence/grpc-resource-soak-20261008-attempt-005",
+  "schema": "pbrs.resource-campaign.v5",
+  "requested_preview_seconds": 30,
+  "requested_soak_seconds": 86400,
+  "seed": 20261008,
+  "build_profile": "release"
+}

@@ -1,0 +1,150 @@
+[
+  {
+    "profile": "debug",
+    "command": [
+      "python3",
+      "/workspace/pure-protobuf/docs/evidence/grpc-resource-soak-20261008-attempt-005/controller.py",
+      "--source",
+      "0a357d148286fc9badc7b9fcee26011dd880a6bc",
+      "--source-dir",
+      "/workspace/pure-protobuf/work/tmpz07e3op8/source",
+      "--root",
+      "/workspace/pure-protobuf",
+      "--output",
+      "/workspace/pure-protobuf/work/tmpz07e3op8/capture",
+      "--build-profile",
+      "debug"
+    ],
+    "runner_argv": [
+      "/workspace/pure-protobuf/work/tmpz07e3op8/source/scripts/grpc-resource-campaign.py",
+      "--source",
+      "0a357d148286fc9badc7b9fcee26011dd880a6bc",
+      "--duration",
+      "30",
+      "--output",
+      "/workspace/pure-protobuf/work/tmpz07e3op8/capture/preview",
+      "--seed",
+      "20261008",
+      "--build-profile",
+      "debug"
+    ],
+    "state": {
+      "state": "finished",
+      "source": "0a357d148286fc9badc7b9fcee26011dd880a6bc",
+      "build_profile": "debug",
+      "finished_unix_seconds": 1791500035.808521,
+      "qualified": false,
+      "commands": [
+        [
+          "python3",
+          "/workspace/pure-protobuf/work/tmpz07e3op8/source/scripts/grpc-resource-campaign.py",
+          "--source",
+          "0a357d148286fc9badc7b9fcee26011dd880a6bc",
+          "--duration",
+          "30",
+          "--output",
+          "/workspace/pure-protobuf/work/tmpz07e3op8/capture/preview",
+          "--seed",
+          "20261008",
+          "--build-profile",
+          "debug"
+        ]
+      ],
+      "outcomes": [
+        {
+          "duration_requested_seconds": 30,
+          "runner_exit_code": 1,
+          "validator_exit_code": 1,
+          "source": null,
+          "duration_actual_seconds": null,
+          "smoke": null,
+          "soak_24h": null,
+          "validation_command": [
+            "python3",
+            "/workspace/pure-protobuf/work/tmpz07e3op8/source/scripts/grpc-resource-campaign.py",
+            "--validate",
+            "/workspace/pure-protobuf/work/tmpz07e3op8/capture/preview/report.json"
+          ]
+        }
+      ]
+    },
+    "stdout": "",
+    "stderr": "",
+    "passed": true,
+    "scope": "synthetic local forwarding and failure-gating control; no resource test executed"
+  },
+  {
+    "profile": "release",
+    "command": [
+      "python3",
+      "/workspace/pure-protobuf/docs/evidence/grpc-resource-soak-20261008-attempt-005/controller.py",
+      "--source",
+      "0a357d148286fc9badc7b9fcee26011dd880a6bc",
+      "--source-dir",
+      "/workspace/pure-protobuf/work/tmpjf4692h4/source",
+      "--root",
+      "/workspace/pure-protobuf",
+      "--output",
+      "/workspace/pure-protobuf/work/tmpjf4692h4/capture",
+      "--build-profile",
+      "release"
+    ],
+    "runner_argv": [
+      "/workspace/pure-protobuf/work/tmpjf4692h4/source/scripts/grpc-resource-campaign.py",
+      "--source",
+      "0a357d148286fc9badc7b9fcee26011dd880a6bc",
+      "--duration",
+      "30",
+      "--output",
+      "/workspace/pure-protobuf/work/tmpjf4692h4/capture/preview",
+      "--seed",
+      "20261008",
+      "--build-profile",
+      "release"
+    ],
+    "state": {
+      "state": "finished",
+      "source": "0a357d148286fc9badc7b9fcee26011dd880a6bc",
+      "build_profile": "release",
+      "finished_unix_seconds": 1791500036.8663402,
+      "qualified": false,
+      "commands": [
+        [
+          "python3",
+          "/workspace/pure-protobuf/work/tmpjf4692h4/source/scripts/grpc-resource-campaign.py",
+          "--source",
+          "0a357d148286fc9badc7b9fcee26011dd880a6bc",
+          "--duration",
+          "30",
+          "--output",
+          "/workspace/pure-protobuf/work/tmpjf4692h4/capture/preview",
+          "--seed",
+          "20261008",
+          "--build-profile",
+          "release"
+        ]
+      ],
+      "outcomes": [
+        {
+          "duration_requested_seconds": 30,
+          "runner_exit_code": 1,
+          "validator_exit_code": 1,
+          "source": null,
+          "duration_actual_seconds": null,
+          "smoke": null,
+          "soak_24h": null,
+          "validation_command": [
+            "python3",
+            "/workspace/pure-protobuf/work/tmpjf4692h4/source/scripts/grpc-resource-campaign.py",
+            "--validate",
+            "/workspace/pure-protobuf/work/tmpjf4692h4/capture/preview/report.json"
+          ]
+        }
+      ]
+    },
+    "stdout": "",
+    "stderr": "",
+    "passed": true,
+    "scope": "synthetic local forwarding and failure-gating control; no resource test executed"
+  }
+]
