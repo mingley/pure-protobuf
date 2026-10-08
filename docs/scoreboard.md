@@ -8,6 +8,12 @@ This page was reconciled with the checked-in code and evidence on 2026-09-29.
 It is a manually maintained evidence index until SB-16 supplies the generated
 scoreboard. It does not certify the latest GitHub Actions run.
 
+The [2026-10-08 gRPC record](evidence/grpc-readiness-20261008/README.md) adds
+separate-process functional coverage and per-side N/2N counter measurements.
+It retains streaming instruction/byte losses, a failed counter capture,
+intermittent fairness failures, and a 24-hour attempt that stopped after
+504 seconds. These diagnostics do not change the qualification standings below.
+
 The machine-readable source is
 [bench/scoreboard/categories.json](../bench/scoreboard/categories.json). It
 defines 52 categories, one owner lane per category, metric direction,

@@ -81,9 +81,8 @@
 //! # }
 //! ```
 //!
-//! A complete crate that depends on this kernel from the outside — own proto,
-//! `build.rs`, health, and reflection — lives at `examples/greeter` in the
-//! repository.
+//! `examples/greeter` is a complete external crate with its own proto,
+//! `build.rs`, health, and reflection services.
 //!
 //! See [`docs/grpc.md`] in the repository for the full guide, and
 //! [`docs/benchmarks.md`] for measured numbers.
@@ -91,612 +90,34 @@
 //! [`docs/grpc.md`]: https://github.com/mingley/pure-protobuf/blob/main/docs/grpc.md
 //! [`docs/benchmarks.md`]: https://github.com/mingley/pure-protobuf/blob/main/docs/benchmarks.md
 //!
-//! # Map of the crate
+//! # Main APIs
 //!
-//! | Concern | Types |
+//! | Purpose | Types |
 //! |---|---|
-//! | Serving | [`Service`], [`Rpc`], [`Server`], [`Router`], [`Incoming`], [`IncomingAccept`], [`ConnectionInfo`], [`ServerConfig`], [`PeerCred`] |
-//! | Calling | [`Channel`], [`ChannelConfig`], [`Target`], [`Call`], [`CallHandle`], [`FusedFuture`] |
-//! | TLS | [`Identity`], [`ServerTls`], [`ClientTls`], [`PeerIdentity`] |
-//! | Health | [`health`] |
-//! | Reflection | [`reflection`] |
-//! | Interceptors | [`Interceptor`], [`ResponseInterceptor`], [`Intercepted`], [`ClientInterceptor`], [`Outgoing`], [`Extensions`] |
-//! | Envelopes | [`Request`], [`Parts`], [`Response`], [`ResponseParts`], [`Metadata`], [`Status`], [`Code`], [`Code::from_i32`], [`Code::to_i32`], [`Code::name`], [`Code::description`], [`Code::is_retryable`], [`ParseCodeError`], [`Any`] |
-//! | Rich errors | [`pb`], [`Any::pack`], [`Any::pack_with`], [`Any::is`], [`Any::unpack`], [`ErrorDetails`], [`ErrorDetails::new`], [`ErrorDetails::with_error_info`], [`ErrorDetails::with_retry_info`], [`ErrorDetails::with_debug_info`], [`ErrorDetails::with_quota_failure`], [`ErrorDetails::with_precondition_failure`], [`ErrorDetails::with_bad_request`], [`ErrorDetails::with_request_info`], [`ErrorDetails::with_resource_info`], [`ErrorDetails::with_help`], [`ErrorDetails::with_localized_message`], [`ErrorDetails::with_unknown`], [`ErrorDetails::to_anys`], [`ErrorDetails::from_rpc`], [`Status::new`], [`Status::from_code`], [`Status::code`], [`Status::message`], [`Status::set_code`], [`Status::with_code`], [`Status::set_message`], [`Status::with_message`], [`Status::with_error_details`], [`Status::from_error_details`], [`Status::with_details`], [`pb::Status::with_details`], [`Status::details`], [`Status::rpc`], [`Status::error_details`], [`Status::from_rpc`], [`Status::set_rpc`], [`Status::set_details`], [`Status::set_error_details`], [`Status::set_from_error_details`], [`Status::with_rpc`], [`Status::from_error`], [`Status::with_cause`], [`Status::is_ok`], [`Status::is_retryable`], [`Status::retry_delay`], [`pb::Duration::from_std`], [`pb::Duration::try_to_std`], [`pb::RetryInfo::with_retry_delay`], [`Status::error_info`], [`pb::ErrorInfo::with_reason`], [`pb::ErrorInfo::with_metadata`], [`Status::bad_request`], [`pb::BadRequest::with_field`], [`pb::BadRequest::with_field_entry`], [`pb::FieldViolation::with_field`], [`pb::FieldViolation::with_reason`], [`pb::FieldViolation::with_localized_message`], [`pb::bad_request`], [`Status::quota_failure`], [`pb::QuotaFailure::with_violation`], [`pb::QuotaFailure::with_violation_entry`], [`pb::quota_failure::Violation::with_subject`], [`pb::quota_failure::Violation::with_api_service`], [`pb::quota_failure::Violation::with_quota_metric`], [`pb::quota_failure::Violation::with_quota_id`], [`pb::quota_failure::Violation::with_quota_dimension`], [`pb::quota_failure::Violation::with_quota_value`], [`pb::quota_failure::Violation::with_future_quota_value`], [`pb::quota_failure`], [`Status::precondition_failure`], [`pb::PreconditionFailure::with_violation`], [`pb::PreconditionFailure::with_violation_entry`], [`pb::precondition_failure::Violation::with_type`], [`pb::precondition_failure`], [`Status::help`], [`pb::Help::with_link`], [`pb::Help::with_link_entry`], [`pb::help::Link::with_url`], [`pb::help`], [`Status::localized_message`], [`pb::LocalizedMessage::with_locale`], [`Status::request_info`], [`pb::RequestInfo::with_request_id`], [`Status::resource_info`], [`pb::ResourceInfo::with_resource`], [`pb::ResourceInfo::with_description`], [`Status::debug_info`], [`pb::DebugInfo::with_stack`], [`pb::DebugInfo::with_stack_entry`], [`Status::metadata`], [`Status::metadata_mut`] |
-//! | Streaming | [`Streaming`], [`StreamSender`], [`Framed`], [`Stream`], [`FusedStream`] |
-//! | Limits | [`MessageLimits`] |
-//! | Wire format | [`codec`], [`gzip`], [`timeout`] |
-//!
-//! Generated [`reflection`] aliases `grpc.reflection.v1alpha.ServerReflection` onto the v1 handler so a [`Router`] still answers older grpcurl. That is a path alias, not a second proto. Distinct from [`Server::new`], which already answers that path because it does not look up [`Service::NAME`].
-//!
-//! Unknown types stay in [`ErrorDetails::unknown`] so a custom detail is not dropped on a round-trip.
-//!
-//! [`Outgoing::user_agent_is_set`] is occupancy on this crate-map interceptor path, so a later interceptor can prefix only when unset.
-//!
-//! [`Outgoing::wait_for_ready_is_set`] is occupancy on this crate-map interceptor path, so a later interceptor can fill wait-for-ready only when unset.
-//!
-//! [`Outgoing::compress_is_set`] is occupancy on this crate-map interceptor path, so a later interceptor can fill compress only when unset.
-//!
-//! [`Outgoing::clear_user_agent`] restores the channel user-agent after a crate-map interceptor prefix.
-//!
-//! [`Outgoing::clear_wait_for_ready`] restores the channel wait-for-ready overlay after a crate-map interceptor choice.
-//!
-//! [`Outgoing::clear_compress`] then [`Outgoing::set_compress`] from [`Outgoing::compresses_outbound`] reapplies channel gzip after a crate-map interceptor choice.
-//!
-//! [`Outgoing::clear_timeout`] opts out of the channel timeout after a crate-map interceptor choice.
-//!
-//! [`Outgoing::connected`] is the live-socket snapshot on this crate-map interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map interceptor Err; a local reject never opens a stream.
-//!
-//! Distinct from a crate-map handler Err: that is after the handler ran; this crate-map interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map server intercept Err: that is trailers without reading the body; this crate-map interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map interceptor already ran, so a local Err never consumes that budget.
-//!
-//! Distinct from [`ClientInterceptor`]: that runs on the outbound call before the stream opens; this crate-map [`Interceptor`] runs on the inbound RPC before the handler.
-//!
-//! Distinct from [`Interceptor`]: that runs on the inbound RPC before the handler; this crate-map [`ClientInterceptor`] runs on the outbound call before the stream opens.
-//!
-//! Distinct from [`ResponseInterceptor`]: that runs after the handler returns Ok or after a successful receive; this crate-map [`Interceptor`] runs on the inbound RPC before the handler.
-//!
-//! Distinct from [`Interceptor`]: that runs on the inbound RPC before the handler; this crate-map [`ResponseInterceptor`] runs after the handler returns Ok or after a successful receive.
-//!
-//! Distinct from [`ClientInterceptor`]: that runs on the outbound call before the stream opens; this crate-map [`ResponseInterceptor`] runs after the handler returns Ok or after a successful receive.
-//!
-//! Distinct from [`ResponseInterceptor`]: that runs after the handler returns Ok or after a successful receive; this crate-map [`ClientInterceptor`] runs on the outbound call before the stream opens.
-//!
-//! Distinct from [`Interceptor`]: that is the inbound hook; this crate-map [`Intercepted`] is the wrapper that runs it before the handler.
-//!
-//! Distinct from [`ClientInterceptor`]: that is the outbound hook; this crate-map [`Intercepted`] is the wrapper that runs an inbound [`Interceptor`] before the handler.
-//!
-//! Distinct from [`ResponseInterceptor`]: that is the after-Ok hook; this crate-map [`Intercepted`] runs before the handler and may hold that hook for after Ok.
-//!
-//! Distinct from [`Server::intercept`]: that runs on the inbound RPC before the handler; this crate-map Channel intercept runs on the outbound call before the stream opens.
-//!
-//! Distinct from [`Channel::on_response`]: that runs after a successful receive; this crate-map Channel intercept runs on the outbound call before the stream opens.
-//!
-//! Distinct from [`Channel::intercept`]: that runs on the outbound call before the stream opens; this crate-map server intercept runs on the inbound RPC before the handler.
-//!
-//! Distinct from [`Server::on_response`]: that runs after the handler returns Ok; this crate-map server intercept runs on the inbound RPC before the handler.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map server intercept Err; those trailers reach the client without reading the body.
-//!
-//! Distinct from a crate-map handler Err: that is after the handler ran; this crate-map server intercept Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map server intercept Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map server intercept Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map interceptor Err: that is a local reject never opens a stream; this crate-map server intercept Err is trailers without reading the body.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map Health interceptor Err; those trailers reach the client without reading the body.
-//!
-//! Distinct from a crate-map Health handler Err: that is after the handler ran; this crate-map Health interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map Health interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map Health client interceptor Err: that is a local reject never opens a stream; this crate-map Health interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map Health interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map Health StreamSender fail: that is trailers after any messages already sent; this crate-map Health interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map Health client interceptor: that runs on the outbound call before the stream opens; this crate-map Health interceptor runs on the inbound RPC before the handler.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map Health handler Err; those trailers reach the client.
-//!
-//! Distinct from a crate-map Health interceptor Err: that is trailers without reading the body; this crate-map Health handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map Health client interceptor Err: that is a local reject never opens a stream; this crate-map Health handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map Health handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map Health handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map Health StreamSender fail: that is trailers after any messages already sent; this crate-map Health handler Err is after the handler ran.
-//!
-//! [`Outgoing::connected`] is the live-socket snapshot on this crate-map Health client interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map Health client interceptor Err; a local reject never opens a stream.
-//!
-//! Distinct from a crate-map Health handler Err: that is after the handler ran; this crate-map Health client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map Health client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map Health interceptor Err: that is trailers without reading the body; this crate-map Health client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map Health StreamSender fail: that is trailers after any messages already sent; this crate-map Health client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map Health client interceptor already ran, so a local Err never consumes that budget.
-//!
-//! Distinct from a crate-map Health interceptor: that runs on the inbound RPC before the handler; this crate-map Health client interceptor runs on the outbound call before the stream opens.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map Health StreamSender fail on a server response producer; those trailers ship after any messages already sent.
-//!
-//! Distinct from a crate-map Health handler Err: that is after the handler ran; this crate-map Health StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map Health interceptor Err: that is trailers without reading the body; this crate-map Health StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map Health StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map Health client interceptor Err: that is a local reject never opens a stream; this crate-map Health StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map Health StreamSender fail is trailers after any messages already sent.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map reflection interceptor Err; those trailers reach the client without reading the body.
-//!
-//! Distinct from a crate-map reflection handler Err: that is after the handler ran; this crate-map reflection interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map reflection interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map reflection client interceptor Err: that is a local reject never opens a stream; this crate-map reflection interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map reflection interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map reflection StreamSender fail: that is trailers after any messages already sent; this crate-map reflection interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map reflection client interceptor: that runs on the outbound call before the stream opens; this crate-map reflection interceptor runs on the inbound RPC before the handler.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map reflection handler Err; those trailers reach the client.
-//!
-//! Distinct from a crate-map reflection interceptor Err: that is trailers without reading the body; this crate-map reflection handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map reflection client interceptor Err: that is a local reject never opens a stream; this crate-map reflection handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map reflection handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map reflection handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map reflection StreamSender fail: that is trailers after any messages already sent; this crate-map reflection handler Err is after the handler ran.
-//!
-//! [`Outgoing::connected`] is the live-socket snapshot on this crate-map reflection client interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map reflection client interceptor Err; a local reject never opens a stream.
-//!
-//! Distinct from a crate-map reflection handler Err: that is after the handler ran; this crate-map reflection client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map reflection client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map reflection interceptor Err: that is trailers without reading the body; this crate-map reflection client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map reflection StreamSender fail: that is trailers after any messages already sent; this crate-map reflection client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map reflection client interceptor already ran, so a local Err never consumes that budget.
-//!
-//! Distinct from a crate-map reflection interceptor: that runs on the inbound RPC before the handler; this crate-map reflection client interceptor runs on the outbound call before the stream opens.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map reflection StreamSender fail on a server response producer; those trailers ship after any messages already sent.
-//!
-//! Distinct from a crate-map reflection handler Err: that is after the handler ran; this crate-map reflection StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map reflection interceptor Err: that is trailers without reading the body; this crate-map reflection StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map reflection StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map reflection client interceptor Err: that is a local reject never opens a stream; this crate-map reflection StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map reflection StreamSender fail is trailers after any messages already sent.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map Store interceptor Err; those trailers reach the client without reading the body.
-//!
-//! Distinct from a crate-map Store handler Err: that is after the handler ran; this crate-map Store interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map Store interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map Store client interceptor Err: that is a local reject never opens a stream; this crate-map Store interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map Store interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map Store StreamSender fail: that is trailers after any messages already sent; this crate-map Store interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map Store client interceptor: that runs on the outbound call before the stream opens; this crate-map Store interceptor runs on the inbound RPC before the handler.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map Store handler Err; those trailers reach the client.
-//!
-//! Distinct from a crate-map Store interceptor Err: that is trailers without reading the body; this crate-map Store handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map Store client interceptor Err: that is a local reject never opens a stream; this crate-map Store handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map Store handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map Store handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map Store StreamSender fail: that is trailers after any messages already sent; this crate-map Store handler Err is after the handler ran.
-//!
-//! [`Outgoing::connected`] is the live-socket snapshot on this crate-map Store client interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map Store client interceptor Err; a local reject never opens a stream.
-//!
-//! Distinct from a crate-map Store handler Err: that is after the handler ran; this crate-map Store client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map Store client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map Store interceptor Err: that is trailers without reading the body; this crate-map Store client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map Store StreamSender fail: that is trailers after any messages already sent; this crate-map Store client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map Store client interceptor already ran, so a local Err never consumes that budget.
-//!
-//! Distinct from a crate-map Store interceptor: that runs on the inbound RPC before the handler; this crate-map Store client interceptor runs on the outbound call before the stream opens.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map Store StreamSender fail on a server response producer; those trailers ship after any messages already sent.
-//!
-//! Distinct from a crate-map Store handler Err: that is after the handler ran; this crate-map Store StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map Store interceptor Err: that is trailers without reading the body; this crate-map Store StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map Store StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map Store client interceptor Err: that is a local reject never opens a stream; this crate-map Store StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map Store StreamSender fail is trailers after any messages already sent.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map TestService interceptor Err; those trailers reach the client without reading the body.
-//!
-//! Distinct from a crate-map TestService handler Err: that is after the handler ran; this crate-map TestService interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map TestService interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map TestService client interceptor Err: that is a local reject never opens a stream; this crate-map TestService interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map TestService interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map TestService StreamSender fail: that is trailers after any messages already sent; this crate-map TestService interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map TestService client interceptor: that runs on the outbound call before the stream opens; this crate-map TestService interceptor runs on the inbound RPC before the handler.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map TestService handler Err; those trailers reach the client.
-//!
-//! Distinct from a crate-map TestService interceptor Err: that is trailers without reading the body; this crate-map TestService handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map TestService client interceptor Err: that is a local reject never opens a stream; this crate-map TestService handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map TestService handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map TestService handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map TestService StreamSender fail: that is trailers after any messages already sent; this crate-map TestService handler Err is after the handler ran.
-//!
-//! [`Outgoing::connected`] is the live-socket snapshot on this crate-map TestService client interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map TestService client interceptor Err; a local reject never opens a stream.
-//!
-//! Distinct from a crate-map TestService handler Err: that is after the handler ran; this crate-map TestService client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map TestService client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map TestService interceptor Err: that is trailers without reading the body; this crate-map TestService client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map TestService StreamSender fail: that is trailers after any messages already sent; this crate-map TestService client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map TestService client interceptor already ran, so a local Err never consumes that budget.
-//!
-//! Distinct from a crate-map TestService interceptor: that runs on the inbound RPC before the handler; this crate-map TestService client interceptor runs on the outbound call before the stream opens.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map TestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
-//!
-//! Distinct from a crate-map TestService handler Err: that is after the handler ran; this crate-map TestService StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map TestService interceptor Err: that is trailers without reading the body; this crate-map TestService StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map TestService StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map TestService client interceptor Err: that is a local reject never opens a stream; this crate-map TestService StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map TestService StreamSender fail is trailers after any messages already sent.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map Reverser interceptor Err; those trailers reach the client without reading the body.
-//!
-//! Distinct from a crate-map Reverser handler Err: that is after the handler ran; this crate-map Reverser interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map Reverser interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map Reverser client interceptor Err: that is a local reject never opens a stream; this crate-map Reverser interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map Reverser interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map Reverser StreamSender fail: that is trailers after any messages already sent; this crate-map Reverser interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map Reverser client interceptor: that runs on the outbound call before the stream opens; this crate-map Reverser interceptor runs on the inbound RPC before the handler.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map Reverser handler Err; those trailers reach the client.
-//!
-//! Distinct from a crate-map Reverser interceptor Err: that is trailers without reading the body; this crate-map Reverser handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map Reverser client interceptor Err: that is a local reject never opens a stream; this crate-map Reverser handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map Reverser handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map Reverser handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map Reverser StreamSender fail: that is trailers after any messages already sent; this crate-map Reverser handler Err is after the handler ran.
-//!
-//! [`Outgoing::connected`] is the live-socket snapshot on this crate-map Reverser client interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map Reverser client interceptor Err; a local reject never opens a stream.
-//!
-//! Distinct from a crate-map Reverser handler Err: that is after the handler ran; this crate-map Reverser client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map Reverser client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map Reverser interceptor Err: that is trailers without reading the body; this crate-map Reverser client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map Reverser StreamSender fail: that is trailers after any messages already sent; this crate-map Reverser client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map Reverser client interceptor already ran, so a local Err never consumes that budget.
-//!
-//! Distinct from a crate-map Reverser interceptor: that runs on the inbound RPC before the handler; this crate-map Reverser client interceptor runs on the outbound call before the stream opens.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map Reverser StreamSender fail on a server response producer; those trailers ship after any messages already sent.
-//!
-//! Distinct from a crate-map Reverser handler Err: that is after the handler ran; this crate-map Reverser StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map Reverser interceptor Err: that is trailers without reading the body; this crate-map Reverser StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map Reverser StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map Reverser client interceptor Err: that is a local reject never opens a stream; this crate-map Reverser StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map Reverser StreamSender fail is trailers after any messages already sent.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map hello interceptor Err; those trailers reach the client without reading the body.
-//!
-//! Distinct from a crate-map hello handler Err: that is after the handler ran; this crate-map hello interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map hello interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map hello client interceptor Err: that is a local reject never opens a stream; this crate-map hello interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map hello interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map hello StreamSender fail: that is trailers after any messages already sent; this crate-map hello interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map hello client interceptor: that runs on the outbound call before the stream opens; this crate-map hello interceptor runs on the inbound RPC before the handler.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map hello handler Err; those trailers reach the client.
-//!
-//! Distinct from a crate-map hello interceptor Err: that is trailers without reading the body; this crate-map hello handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map hello client interceptor Err: that is a local reject never opens a stream; this crate-map hello handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map hello handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map hello handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map hello StreamSender fail: that is trailers after any messages already sent; this crate-map hello handler Err is after the handler ran.
-//!
-//! [`Outgoing::connected`] is the live-socket snapshot on this crate-map hello client interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map hello client interceptor Err; a local reject never opens a stream.
-//!
-//! Distinct from a crate-map hello handler Err: that is after the handler ran; this crate-map hello client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map hello client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map hello interceptor Err: that is trailers without reading the body; this crate-map hello client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map hello StreamSender fail: that is trailers after any messages already sent; this crate-map hello client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map hello client interceptor already ran, so a local Err never consumes that budget.
-//!
-//! Distinct from a crate-map hello interceptor: that runs on the inbound RPC before the handler; this crate-map hello client interceptor runs on the outbound call before the stream opens.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map hello StreamSender fail on a server response producer; those trailers ship after any messages already sent.
-//!
-//! Distinct from a crate-map hello handler Err: that is after the handler ran; this crate-map hello StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map hello interceptor Err: that is trailers without reading the body; this crate-map hello StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map hello StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map hello client interceptor Err: that is a local reject never opens a stream; this crate-map hello StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map hello StreamSender fail is trailers after any messages already sent.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map UnimplementedService interceptor Err; those trailers reach the client without reading the body.
-//!
-//! Distinct from a crate-map UnimplementedService handler Err: that is after the handler ran; this crate-map UnimplementedService interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map UnimplementedService interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map UnimplementedService client interceptor Err: that is a local reject never opens a stream; this crate-map UnimplementedService interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map UnimplementedService interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map UnimplementedService client interceptor: that runs on the outbound call before the stream opens; this crate-map UnimplementedService interceptor runs on the inbound RPC before the handler.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map UnimplementedService handler Err; those trailers reach the client.
-//!
-//! Distinct from a crate-map UnimplementedService interceptor Err: that is trailers without reading the body; this crate-map UnimplementedService handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map UnimplementedService client interceptor Err: that is a local reject never opens a stream; this crate-map UnimplementedService handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map UnimplementedService handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map UnimplementedService handler Err is after the handler ran.
-//!
-//! [`Outgoing::connected`] is the live-socket snapshot on this crate-map UnimplementedService client interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map UnimplementedService client interceptor Err; a local reject never opens a stream.
-//!
-//! Distinct from a crate-map UnimplementedService handler Err: that is after the handler ran; this crate-map UnimplementedService client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map UnimplementedService client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map UnimplementedService interceptor Err: that is trailers without reading the body; this crate-map UnimplementedService client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map UnimplementedService client interceptor already ran, so a local Err never consumes that budget.
-//!
-//! Distinct from a crate-map UnimplementedService interceptor: that runs on the inbound RPC before the handler; this crate-map UnimplementedService client interceptor runs on the outbound call before the stream opens.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map InteropTestService interceptor Err; those trailers reach the client without reading the body.
-//!
-//! Distinct from a crate-map InteropTestService handler Err: that is after the handler ran; this crate-map InteropTestService interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map InteropTestService interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map InteropTestService client interceptor Err: that is a local reject never opens a stream; this crate-map InteropTestService interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map InteropTestService interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map InteropTestService StreamSender fail: that is trailers after any messages already sent; this crate-map InteropTestService interceptor Err is trailers without reading the body.
-//!
-//! Distinct from a crate-map InteropTestService client interceptor: that runs on the outbound call before the stream opens; this crate-map InteropTestService interceptor runs on the inbound RPC before the handler.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map InteropTestService handler Err; those trailers reach the client.
-//!
-//! Distinct from a crate-map InteropTestService interceptor Err: that is trailers without reading the body; this crate-map InteropTestService handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map InteropTestService client interceptor Err: that is a local reject never opens a stream; this crate-map InteropTestService handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map InteropTestService handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map InteropTestService handler Err is after the handler ran.
-//!
-//! Distinct from a crate-map InteropTestService StreamSender fail: that is trailers after any messages already sent; this crate-map InteropTestService handler Err is after the handler ran.
-//!
-//! [`Outgoing::connected`] is the live-socket snapshot on this crate-map InteropTestService client interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map InteropTestService client interceptor Err; a local reject never opens a stream.
-//!
-//! Distinct from a crate-map InteropTestService handler Err: that is after the handler ran; this crate-map InteropTestService client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map InteropTestService client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map InteropTestService interceptor Err: that is trailers without reading the body; this crate-map InteropTestService client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from a crate-map InteropTestService StreamSender fail: that is trailers after any messages already sent; this crate-map InteropTestService client interceptor Err is a local reject never opens a stream.
-//!
-//! Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map InteropTestService client interceptor already ran, so a local Err never consumes that budget.
-//!
-//! Distinct from a crate-map InteropTestService interceptor: that runs on the inbound RPC before the handler; this crate-map InteropTestService client interceptor runs on the outbound call before the stream opens.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
-//!
-//! Distinct from a crate-map InteropTestService handler Err: that is after the handler ran; this crate-map InteropTestService StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map InteropTestService interceptor Err: that is trailers without reading the body; this crate-map InteropTestService StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map InteropTestService StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map InteropTestService client interceptor Err: that is a local reject never opens a stream; this crate-map InteropTestService StreamSender fail is trailers after any messages already sent.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map InteropTestService StreamSender fail is trailers after any messages already sent.
-//!
-//! [`ResponseParts::compress_is_set`] is occupancy on this crate-map on_response path, so a later interceptor can fill compress only when unset.
-//!
-//! [`ResponseParts::clear_compress`] restores the server gzip overlay after Server on_response on this crate-map on_response path.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map server on_response Err; a local reject is trailers-only after handler Ok.
-//!
-//! Distinct from a crate-map handler Err: that is after the handler ran; this crate-map server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from a crate-map server intercept Err: that is trailers without reading the body; this crate-map server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from a crate-map Health interceptor Err: that is trailers without reading the body; this crate-map server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from a crate-map Health StreamSender fail: that is trailers after any messages already sent; this crate-map server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from a crate-map reflection interceptor Err: that is trailers without reading the body; this crate-map server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from a crate-map reflection StreamSender fail: that is trailers after any messages already sent; this crate-map server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from a crate-map Store interceptor Err: that is trailers without reading the body; this crate-map server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from a crate-map Store StreamSender fail: that is trailers after any messages already sent; this crate-map server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from a crate-map TestService interceptor Err: that is trailers without reading the body; this crate-map server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from a crate-map TestService StreamSender fail: that is trailers after any messages already sent; this crate-map server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from a crate-map Reverser interceptor Err: that is trailers without reading the body; this crate-map server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from a crate-map Reverser StreamSender fail: that is trailers after any messages already sent; this crate-map server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from a crate-map hello interceptor Err: that is trailers without reading the body; this crate-map server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from a crate-map hello StreamSender fail: that is trailers after any messages already sent; this crate-map server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from a crate-map UnimplementedService interceptor Err: that is trailers without reading the body; this crate-map server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from a crate-map InteropTestService interceptor Err: that is trailers without reading the body; this crate-map server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from a crate-map InteropTestService StreamSender fail: that is trailers after any messages already sent; this crate-map server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from a crate-map interceptor Err: that is a local reject never opens a stream; this crate-map server on_response Err is trailers-only after handler Ok.
-//!
-//! Distinct from [`Server::intercept`]: that runs on the inbound RPC before the handler; this crate-map server on_response runs after the handler returns Ok.
-//!
-//! [`ResponseParts::clear_compress`] drops a compress choice after Channel on_response on this crate-map on_response path; a received reply has no server gzip overlay to restore.
-//!
-//! [`Status::from_error_details`] is the typed bag after this crate-map Channel on_response Err; a local reject fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map handler Err: that is after the handler ran; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map interceptor Err: that is a local reject never opens a stream; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map Health client interceptor Err: that is a local reject never opens a stream; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map Health interceptor Err: that is trailers without reading the body; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map Health StreamSender fail: that is trailers after any messages already sent; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map reflection client interceptor Err: that is a local reject never opens a stream; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map reflection interceptor Err: that is trailers without reading the body; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map reflection StreamSender fail: that is trailers after any messages already sent; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map Store client interceptor Err: that is a local reject never opens a stream; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map Store interceptor Err: that is trailers without reading the body; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map Store StreamSender fail: that is trailers after any messages already sent; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map TestService client interceptor Err: that is a local reject never opens a stream; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map TestService interceptor Err: that is trailers without reading the body; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map TestService StreamSender fail: that is trailers after any messages already sent; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map Reverser client interceptor Err: that is a local reject never opens a stream; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map Reverser interceptor Err: that is trailers without reading the body; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map Reverser StreamSender fail: that is trailers after any messages already sent; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map hello client interceptor Err: that is a local reject never opens a stream; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map hello interceptor Err: that is trailers without reading the body; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map hello StreamSender fail: that is trailers after any messages already sent; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map UnimplementedService client interceptor Err: that is a local reject never opens a stream; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map UnimplementedService interceptor Err: that is trailers without reading the body; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map InteropTestService client interceptor Err: that is a local reject never opens a stream; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map InteropTestService interceptor Err: that is trailers without reading the body; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map InteropTestService StreamSender fail: that is trailers after any messages already sent; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map server intercept Err: that is trailers without reading the body; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map Channel on_response Err fails the Call after a successful receive.
-//!
-//! Distinct from [`Channel::intercept`]: that runs on the outbound call before the stream opens; this crate-map Channel on_response runs after a successful receive.
-//!
-//! Compiling intercept / on_response overlay dumps live on [`hello`] (`GreeterClient` / `GreeterServer`).
-//! Compiling ConnectionInfo peer dumps live on [`Incoming`].
+//! | Servers and routing | [`Server`], [`Router`], [`Service`], [`Rpc`], [`Incoming`] |
+//! | Clients and calls | [`Channel`], [`ChannelConfig`], [`Call`], [`CallHandle`] |
+//! | TLS and peer identity | [`Identity`], [`ServerTls`], [`ClientTls`], [`PeerIdentity`] |
+//! | Request and response data | [`Request`], [`Response`], [`Metadata`], [`Extensions`] |
+//! | Errors | [`Status`], [`Code`], [`ErrorDetails`], [`Any`] |
+//! | Streaming | [`Streaming`], [`StreamSender`], [`Framed`] |
+//! | Interceptors | [`Interceptor`], [`ClientInterceptor`], [`ResponseInterceptor`] |
+//! | Limits | [`ServerConfig`], [`ChannelConfig`], [`MessageLimits`] |
+//! | Built-in services | [`health`], [`reflection`], [`channelz`] |
+//!
+//! Client interceptors run before a stream opens; returning an error sends
+//! nothing. Server interceptors run before the handler. Response interceptors
+//! run after a successful handler result or received response. Attach hooks
+//! with the corresponding `intercept` and `on_response` methods; repeated
+//! attachments run in order.
+//!
+//! Request overrides can change timeout, compression, and wait-for-ready.
+//! The `*_is_set` methods tell an interceptor whether a caller supplied an
+//! override. Configuration getters expose the channel or server defaults.
+//! [`Outgoing::connected`] is a snapshot when the hook runs, not a readiness
+//! guarantee. See each method for its override and clearing rules.
+//!
+//! Rich errors preserve unknown detail types through [`ErrorDetails::unknown`].
+//! Reflection also serves the v1alpha path for older clients.
 //!
 //! # Safety
 //!
@@ -754,116 +175,10 @@
 //! configs are trusted application inputs: custom verifier security and ticket
 //! invalidation belong to the caller. Disabling peer verification is unsupported.
 //!
-//! tonic `Endpoint::tls_config_with_verifier` replaces WebPKI with a custom rustls `ServerCertVerifier`. [`ClientTls::webpki`] always verifies against Mozilla's CA set, and [`ClientTls::ca`] pins a CA. [`ClientTls::from_rustls`] retains a trusted application configuration and its verifier; callers own that policy's security, which this wrapper cannot certify. Disabling verification is unsupported.
-//!
-//! [`ChannelConfig::tcp_keepalive_interval`] is `TCP_KEEPINTVL` after idle [`ChannelConfig::tcp_keepalive`]. Distinct from [`ChannelConfig::keep_alive_interval`], which sends HTTP/2 PINGs. This crate-map interval does not turn `SO_KEEPALIVE` on by itself. Probe retry count is [`ChannelConfig::tcp_keepalive_retries`] (`TCP_KEEPCNT`).
-//!
-//! [`ChannelConfig::tcp_keepalive_retries`] is `TCP_KEEPCNT` after idle [`ChannelConfig::tcp_keepalive`]. Distinct from [`ChannelConfig::tcp_keepalive_interval`] (`TCP_KEEPINTVL` time, not count). This crate-map retry count does not turn `SO_KEEPALIVE` on by itself.
-//!
-//! There is no tonic `Endpoint::rate_limit`: that is tower `RateLimitLayer` (at most N RPCs per duration). This crate-map [`ChannelConfig::max_concurrent_rpcs`] is in-flight slots, not a token bucket. Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
-//!
-//! There is no tonic `Endpoint::concurrency_limit`: that is tower `ConcurrencyLimitLayer` (wait when `poll_ready` is pending). This crate-map [`ChannelConfig::max_concurrent_rpcs`] already refuses extras as `RESOURCE_EXHAUSTED` (`try_acquire`, not wait). Distinct from `Endpoint::rate_limit` (token bucket). Distinct from tonic `Server::concurrency_limit_per_connection` (server per-connection wait layer). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
-//!
-//! There is no tonic `Endpoint::executor`: that is `SharedExec` on tonic's hyper stack. This crate-map [`ChannelConfig::connections`] `h2` driver is `tokio::spawn`ed on the current tokio runtime. Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
-//!
-//! There is no tonic `Server::executor`: that is `SharedExec` on tonic's hyper stack. This crate-map [`ServerConfig::max_concurrent_connections`] handshake task is `tokio::spawn`ed on the current tokio runtime. Distinct from tonic `Endpoint::executor` (client [`ChannelConfig::connections`]). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
-//!
-//! There is no grpc-go `NumStreamWorkers`: that is a worker pool for stream dispatch (0 means a goroutine per stream). This crate-map [`ServerConfig::max_concurrent_rpcs`] is in-flight handler slots, not a worker count. Distinct from tonic `Server::executor` (`SharedExec`, which executor, not a worker pool).
-//!
-//! There is no tonic `Server::concurrency_limit_per_connection`: that is tower `ConcurrencyLimitLayer` on each spawned connection. This crate-map [`ServerConfig::max_concurrent_rpcs`] is process-wide handler slots, not a per-connection tower layer. Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
-//!
-//! There is no grpc-go `UnknownServiceHandler`: that is a catch-all bidi handler for unregistered services. This crate-map [`Router`] answers `UNIMPLEMENTED` for an unmounted service, not a fallback [`Service`]. Distinct from [`Server`], which is one service. Distinct from [`Service::ALIASES`], which is a known path alias.
-//!
-//! There is no grpc-go `WaitForHandlers`: grpc-go `Stop` can return before handlers exit. This crate-map [`Server::serve_with_shutdown`] drain always waits for in-flight RPCs. Distinct from [`ServerConfig::max_connection_age_grace`] (GOAWAY then force-close). Distinct from [`health::HealthReporter::shutdown`] (serving status, not drain).
-//!
-//! There is no grpc-go `WithDisableHealthCheck`: that disables LB channel health checking for all SubConns. This crate-map [`health::HealthReporter`] is `grpc.health.v1` serving status; [`Channel`] does not run LB health probes. Distinct from [`health::HealthReporter::shutdown`] (serving status, not a DialOption). Distinct from [`Server::serve_with_shutdown`] (drain wait, not health probes). Distinct from [`Channel::connect`] (one duplex, no SubConns).
-//!
-//! There is no tonic `Server::load_shed`: that is tower `LoadShedLayer` (fail when `poll_ready` is pending, instead of waiting). This crate-map [`ServerConfig::max_concurrent_rpcs`] already refuses extras as `RESOURCE_EXHAUSTED` (`try_acquire`, not wait). Distinct from tonic `Server::concurrency_limit_per_connection` (per-connection wait layer). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
-//!
-//! There is no grpc-go `SharedWriteBuffer`: that reuses a per-connection transport write buffer after flush. This crate-map [`ServerConfig::max_send_buffer_size`] is HTTP/2 write-byte backpressure per connection; buffers are not pooled across connections. Distinct from grpc-go `WriteBufferSize` / `ReadBufferSize` (socket byte buffers). Distinct from tonic `Endpoint::buffer_size` (tower `Buffer` request slots).
-//!
-//! There is no tonic `Server::timeout` tower layer: that is `TimeoutLayer` wrapping every request handler. This crate-map [`ServerConfig::timeout`] is a gRPC deadline overlay when the client omits `grpc-timeout`. Distinct from [`ChannelConfig::timeout`] (client overlay). Distinct from [`ServerConfig::keep_alive_timeout`] (PING ACK). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
-//!
-//! There is no tonic `Endpoint::timeout` that omits `grpc-timeout`: that times out the client future without informing the server. This crate-map [`ChannelConfig::timeout`] writes `grpc-timeout` when the request omits one. Distinct from [`ServerConfig::timeout`] (server overlay). Distinct from [`ChannelConfig::connect_timeout`] (dial bound). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
-//!
-//! There is no grpc-go `ConnectionTimeout`: that is one deadline from accept through HTTP/2 handshake (default 120 s). This crate-map [`ServerConfig::handshake_timeout`] is 20 s on TLS accept (if any) and 20 s on the HTTP/2 preface, separately. Distinct from [`ChannelConfig::connect_timeout`] (client whole dial). Distinct from [`ServerConfig::timeout`] (RPC deadline overlay). Distinct from [`ServerConfig::keep_alive_timeout`] (PING ACK).
-//!
-//! There is no tonic `Endpoint::connect_with_connector`: that is a tower `Service<Uri>` that still dials. This crate-map [`Channel::from_io`] takes already-connected bytes; there is no connector and no URI. Distinct from [`Channel::connect_unix`] (filesystem path, not a connector). [`ChannelConfig::connect_timeout`] still bounds the HTTP/2 preface. Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
-//!
-//! There is no grpc-go `WithBlock`: that is a DialOption that makes deprecated `Dial` wait until READY. This crate-map [`Channel::connect`] already waits for the TCP dial and HTTP/2 preface; there is no READY state. Distinct from [`Channel::connect_lazy`] (first RPC dials). Distinct from [`Channel::wait_for_ready`] (RPC queue, not Dial). Distinct from [`Channel::connected`] (live-socket snapshot). Distinct from gRPC `GetState` / `WaitForStateChange`. There is no `WithReturnConnectionError`: handshake failure is the returned [`Status`].
-//!
-//! There is no grpc-go `WithDisableRetry`: that disables service-config retries and does not impact transparent retries. This crate-map attaches `retryPolicy`/`hedgingPolicy` with [`Channel::service_config`]; omit the document (or the method's policy) for no policy retries, in which case application retries stay at the call site ([`Code::is_retryable`]). Transparent retry cannot be turned off. Distinct from [`Channel::from_io`] (no transparent retry).
-//!
-//! There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging per call (default 5; values below 2 become 5). This crate-map reads `maxAttempts` from the method's `retryPolicy`/`hedgingPolicy` (values above 5 count as 5); transparent retry is at most once on top and cannot be raised. Distinct from [`Code::is_retryable`] (application retries at the call site, unbounded by this kernel).
-//!
-//! There is no grpc-go `WithAuthority`: that sets `:authority` and the TLS authentication server name. This crate-map [`Channel::origin`] is `:authority` only. Distinct from [`ClientTls`] (SNI / certificate name). Distinct from tonic `Endpoint::origin` (Uri, also `:scheme`). There is no `CallAuthority`: interceptors cannot override `:authority` per call.
-//!
-//! There is no grpc-go `WithConnectParams`: that is exponential reconnect backoff plus `MinConnectTimeout` for creating and maintaining connections. This crate-map [`Channel::connect_with`] redials a dead slot on the next RPC with no channel-level reconnect backoff. There is no `WithBackoffMaxDelay` / `WithBackoffConfig` (deprecated aliases). Distinct from [`Channel::wait_for_ready`] (handshake retries at `[20, 40, 80, 160, 320, 640, 1000]` ms, not channel reconnect). Distinct from [`ChannelConfig::connect_timeout`] (max dial bound, default 20 s; not grpc-go `MinConnectTimeout`, also default 20 s). Distinct from transparent retry (one redial of the same RPC, not connect backoff).
-//!
-//! There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by default; that DialOption disables it. This crate-map consults `HTTPS_PROXY` / `NO_PROXY` on TCP dials and tunnels with HTTP CONNECT when the target is not bypassed; there is no per-channel proxy disable. Resolver-managed `dns:` dials connect to resolved IP literals, so host-suffix `NO_PROXY` rules only match before resolution. Distinct from [`Channel::from_io`] (already-connected bytes, not a proxy bypass). Distinct from [`Channel::connect_unix`] (filesystem path; this dialer is skipped). Distinct from [`ChannelConfig::local_address`] (source bind, not proxy).
-//!
-//! There is no grpc-go `WithInsecure`: modern grpc-go `NewClient` requires credentials (`insecure.NewCredentials()` or TLS). This crate-map [`Channel::connect`] is h2c by default; TLS is [`Channel::connect_tls`]. There is no `WithTransportCredentials` DialOption (TLS is [`Channel::connect_tls`] plus [`ClientTls`]). Distinct from a skip-verify constructor (there is none). Distinct from [`Channel::https_scheme`] (`from_io` label; it does not handshake).
-//!
-//! There is no grpc-go `WithUnaryInterceptor`: that is a DialOption for unary RPCs only. `WithStreamInterceptor` is the stream split. `WithChainUnaryInterceptor` / `WithChainStreamInterceptor` append DialOption lists. This crate-map [`ClientInterceptor`] is one hook for every call shape, attached with [`Channel::intercept`] after connect (not a DialOption). Calling intercept twice stacks; there is no chain DialOption. Distinct from [`Interceptor`] (inbound before the handler). Distinct from [`ResponseInterceptor`] (after Ok or after receive). Distinct from tonic `Interceptor` / `InterceptorLayer` (tower; this kernel has no tower).
-//!
-//! There is no grpc-go `WithDefaultCallOptions`: that is a DialOption bag of per-call options (`WaitForReady`, `MaxCallRecvMsgSize`, compressor, …) applied as channel defaults. This crate-map [`Channel`] clone overlays (`timeout`, `wait_for_ready`, `send_compressed`, message caps) are typed methods, not a `CallOption` list and not a DialOption. Distinct from grpc-go `WithDefaultServiceConfig` (JSON service config, not CallOptions). Distinct from [`ChannelConfig`] (handshake `Copy` fields). Distinct from [`Channel::intercept`] (per-RPC mutation after connect).
-//!
-//! There is no grpc-go `WithCompressor`: that is a DialOption plugging a custom `encoding.Compressor` (deprecated; `encoding.RegisterCompressor` is global). This crate-map [`Channel::send_compressed`] is gzip on or off, not a compressor plugin. There is no `WithDecompressor` (deprecated inbound plugin). Distinct from encodings other than gzip (`UNIMPLEMENTED`, not a plugin). Distinct from [`Channel::gzip_compression_level`] (deflate effort, not a plugin). Distinct from grpc-go `UseCompressor` (a CallOption name, not this overlay).
-//!
-//! There is no grpc-go `WithContextDialer`: that is a DialOption plugging a custom `func(context.Context, string) (net.Conn, error)` that still dials. `WithDialer` is the deprecated context-less form. This crate-map [`Channel::connect_lazy`] still dials TCP `host:port` on the first RPC; there is no replacement hook. Distinct from tonic `Endpoint::connect_with_connector` (tower `Service<Uri>` that still dials). Distinct from [`Channel::from_io`] (already-connected bytes; it does not dial). Distinct from [`Channel::connect_unix`] (filesystem path, not a custom TCP dialer). Distinct from [`ChannelConfig::local_address`] (source bind, still this kernel's TCP dialer). Distinct from grpc-go `WithNoProxy` (proxy bypass, not a dial function). Distinct from grpc-go `WithBlock` (handshake wait, not a dial function).
-//!
-//! There is no grpc-go `WithPerRPCCredentials`: that is a DialOption plugging `credentials.PerRPCCredentials` that add per-RPC metadata. This crate-map [`ClientTls`] is transport TLS, not call credentials. There is no `WithCredentialsBundle` (transport plus per-RPC credentials). Distinct from GCP-auth (a library, not this DialOption). Distinct from grpc-go `WithTransportCredentials` (transport; TLS is [`Channel::connect_tls`] plus [`ClientTls`]). Distinct from [`ClientInterceptor`] (user hook that can add metadata, not a credentials plugin). Distinct from [`Channel::intercept`] (attaches that hook after connect).
-//!
-//! tonic `ServerTlsConfig::client_auth_optional` requests a client certificate but does not require one; the crate-map equivalent is [`ServerTls::optional_mtls`]. [`ServerTls::mtls`] always requires a client certificate issued by that CA. Distinct from [`ServerTls::new`] (clients are not asked). Distinct from a skip-verify constructor (there is none). Distinct from [`ClientTls::ca_mtls`] / [`ClientTls::webpki_mtls`] (client presents; this is the server require).
-//!
-//! There is no tonic `ServerTlsConfig::timeout`: that is a TLS-handshake-only timeout on the tonic acceptor. This crate-map [`ServerTls`] has no timeout setter; the bound is [`ServerConfig::handshake_timeout`] (20 s TLS accept and 20 s HTTP/2 preface, separately). Distinct from grpc-go `ConnectionTimeout` (one 120 s deadline covering both). Distinct from [`ChannelConfig::connect_timeout`] (client whole dial). Distinct from tonic `ClientTlsConfig::timeout` (client TLS handshake). Distinct from [`ServerConfig::timeout`] (RPC deadline overlay).
-//!
-//! tonic `ServerTlsConfig::use_key_log` enables rustls `KeyLogFile` (`SSLKEYLOGFILE`); the crate-map equivalent is [`ServerTls::key_log_file`], and [`ClientTls::key_log_file`] for the client handshake. [`ServerTls::new`] alone does not enable key logging. Distinct from [`ServerTls::mtls`] (client cert require, not key log). Distinct from a skip-verify constructor (there is none).
-//!
-//! There is no tonic `Server::trace_fn`: that intercepts inbound headers and installs a `tracing::Span` on each response future. This crate-map [`Server`] has no span installer. Distinct from [`Interceptor`] (envelope mutation, not a span). Distinct from grpc.stats `Handler` (Begin/End/payload). Distinct from binary logging (`grpc.binarylog.v1`). Distinct from OpenTelemetry. Distinct from tonic `Server::layer` (tower).
-//!
-//! There is no tonic `ClientTlsConfig::assume_http2`: that skips ALPN and still treats the socket as HTTP/2. This crate-map [`ClientTls::ca`] always requires ALPN `h2` after handshake. Distinct from [`Channel::connect`] (h2c, no TLS). Distinct from grpc-web / HTTP/1.1 (not prior-knowledge HTTP/2 on TLS). Distinct from [`ServerTls`] (server ALPN require; this is the client require). Distinct from a skip-verify constructor (there is none).
-//!
-//! There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; JSON service config attaches with [`Channel::service_config`] or arrives from resolver service config on [`Channel::connect_uri`]. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: omit [`Channel::service_config`] or avoid resolver service config instead.
-//!
-//! There is no grpc-go `WithIdleTimeout` idle mode: that shuts down the name resolver and load balancer after channel idle (default 30 min; zero disables). This crate-map [`ChannelConfig::max_connection_idle`] closes the socket when no RPCs are outstanding (unset by default; sub-millisecond values are raised to 1 ms, not disabled). Resolver-managed channels keep their resolver/LB handles until the channel is dropped. Distinct from [`ChannelConfig::max_connection_age`] (age, not idle). Distinct from [`ServerConfig::max_connection_idle`] (server GOAWAY).
-//!
-//! `tests/hostile.rs` drives raw HTTP/2 at the server to check the table above,
-//! including a rapid-reset flood that exceeds
-//! [`ServerConfig::max_pending_accept_reset_streams`]: that connection drops as
-//! `ENHANCE_YOUR_CALM` and the accept loop still serves a well-behaved client.
-//! The flood is h2c-only. A well-behaved client never fills that queue.
-//! Distinct from a protocol-error RST flood: invalid frames force RSTs *we*
-//! send, capped by [`ServerConfig::max_local_error_reset_streams`] (default
-//! [`DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS`]). Exceeding that is also
-//! `ENHANCE_YOUR_CALM`; the accept loop still serves a well-behaved client.
-//! h2's `None` disable is not exposed.
-//! Distinct from locally-reset stream-ID memory
-//! ([`ServerConfig::max_concurrent_reset_streams`], default
-//! [`DEFAULT_MAX_CONCURRENT_RESET_STREAMS`]): exceeding that evicts the
-//! oldest remembered ID; it is not `ENHANCE_YOUR_CALM`. Frames on a
-//! purged ID are a connection `PROTOCOL_ERROR`.
-//! [`ChannelConfig::max_concurrent_reset_streams`] is the client handshake cap.
-//! Distinct from [`ServerConfig::reset_stream_duration`] (default
-//! [`DEFAULT_RESET_STREAM_DURATION`]): that is how long an ID is remembered,
-//! not how many. After that duration the ID is forgotten, not
-//! `ENHANCE_YOUR_CALM`. [`ChannelConfig::reset_stream_duration`] is the
-//! client handshake duration.
-//! A raw peer that sends more CONTINUATION frames than the header-list cap
-//! allows also drops that connection (`ENHANCE_YOUR_CALM`); an unfinished
-//! HEADERS frame (no `END_HEADERS`) does not take the accept loop down.
-//! Distinct from one complete oversize HEADERS frame
-//! (`SETTINGS_MAX_HEADER_LIST_SIZE`). Those floods are h2c-only.
-//! A raw peer that sends too many tiny DATA frames drops that connection
-//! (`ENHANCE_YOUR_CALM` / `too_many_data_frames`); the accept loop still
-//! serves a well-behaved client. Distinct from the connection window
-//! (flow-control bytes). h2 Auto (half the window) is not exposed.
-//! [`ChannelConfig::data_frame_budget`] is the client handshake cap.
-//! [`ChannelConfig::max_pending_accept_reset_streams`] is the client accept
-//! queue, not the server cap. Property tests in the wire module cover what
-//! fixed cases cannot: frames survive arbitrary chunk boundaries, arbitrary
-//! bytes yield a `Status` rather than a panic, and a compressed frame never
-//! inflates past the cap.
+//! Set finite connection, RPC, message, and application queue limits for the
+//! deployment. HTTP/2 stream limits govern each connection;
+//! [`ServerConfig::max_concurrent_rpcs`] limits active handlers across the server
+//! and rejects excess calls with `RESOURCE_EXHAUSTED`.
 //!
 //! ## `unsafe`
 //!
@@ -893,20 +208,17 @@
 //! construction, and that is a `pbrs` property rather than a gRPC transport
 //! one.
 //!
-//! ## Panics
-//!
-//! No public API panics on peer input. `unwrap`, `expect`, `panic!`,
-//! indexing, and lossy numeric casts are denied at the lint level for the
-//! whole workspace, so bad input becomes a [`Status`], not an abort.
+//! Invalid peer input is handled through gRPC status or HTTP/2 protocol errors.
+//! Workspace lints restrict panics, unchecked indexing, and lossy casts in
+//! shipping code. Negative tests and fuzzing exercise these paths.
 //!
 //! # Tuning
 //!
-//! Defaults are chosen for correctness and safety first, then throughput.
-//! Three knobs matter:
+//! Configure connection count, HTTP/2 windows, and stream queues for the
+//! workload:
 //!
 //! 1. **[`ChannelConfig::connections`]** — one connection is one `h2` driver
-//!    task, so concurrent small RPCs serialize behind one core. Pooling is the
-//!    single biggest win for client-side throughput.
+//!    task. A pool can distribute driver work across runtime workers.
 //! 2. **Window sizes** — the 16 MiB default keeps a 4 MiB message from
 //!    stalling on a `WINDOW_UPDATE` round trip. Lower it only under memory
 //!    pressure: [`Server::initial_stream_window_size`] /
@@ -918,144 +230,23 @@
 //!    at the cost of memory. Received streams are decoded inline and have no
 //!    queue to size.
 //!
-//! Compression is not free: [`Request::set_compress`] and
-//! [`ServerConfig::send_compressed`] / [`ChannelConfig::send_compressed`]
-//! trade CPU for bandwidth, and at LAN latencies identity framing usually
-//! wins. A peer that did not advertise gzip is never sent a compressed frame.
-//! [`ServerConfig::gzip_compression_level`] /
-//! [`ChannelConfig::gzip_compression_level`] is deflate effort (default 1).
-//! Distinct from `send_compressed`, which is on or off.
-//! [`Outgoing::gzip_level`] is that overlay in a client interceptor.
-//! Distinct from [`Outgoing::compresses_outbound`].
-//! [`Rpc::gzip_level`] is that overlay in a server interceptor.
-//! Distinct from [`Rpc::compresses_outbound`].
-//! [`Channel::gzip_level`] reads the deflate overlay without colliding with [`Channel::gzip_compression_level`].
-//! Same overlay as [`Outgoing::gzip_level`].
-//! [`Server::gzip_level`] reads the deflate overlay without colliding with [`Server::gzip_compression_level`].
-//! Same overlay as [`Rpc::gzip_level`].
-//! [`Outgoing::compresses_outbound`] is that overlay in a client interceptor.
-//! Distinct from [`Outgoing::compress`].
-//! [`Rpc::compresses_outbound`] is that overlay in a server interceptor.
-//! [`Channel::compresses_outbound`] reads the outbound gzip overlay without colliding with [`Channel::send_compressed`].
-//! Same overlay as [`Outgoing::compresses_outbound`].
-//! [`Server::compresses_outbound`] reads the outbound gzip overlay without colliding with [`Server::send_compressed`].
-//! Same overlay as [`Rpc::compresses_outbound`].
-//! [`Outgoing::accepts_compressed`] is that overlay in a client interceptor.
-//! Distinct from [`Outgoing::gzip_level`].
-//! [`Rpc::accepts_compressed`] is that overlay in a server interceptor.
-//! Distinct from [`Rpc::accepts_gzip`].
-//! [`Channel::accepts_compressed`] reads the inbound gzip overlay without colliding with [`Channel::accept_compressed`].
-//! Same overlay as [`Outgoing::accepts_compressed`].
-//! [`Server::accepts_compressed`] reads the inbound gzip overlay without colliding with [`Server::accept_compressed`].
-//! Same overlay as [`Rpc::accepts_compressed`].
-//! [`Outgoing::concurrent_rpc_limit`] is that overlay in a client interceptor.
-//! Distinct from [`Outgoing::waits_for_ready`].
-//! [`Rpc::concurrent_rpc_limit`] is that overlay in a server interceptor.
-//! [`Channel::concurrent_rpc_limit`] reads the RPC-cap overlay without colliding with [`Channel::max_concurrent_rpcs`].
-//! Same overlay as [`Outgoing::concurrent_rpc_limit`].
-//! [`Server::concurrent_rpc_limit`] reads the RPC-cap overlay without colliding with [`Server::max_concurrent_rpcs`].
-//! Same overlay as [`Rpc::concurrent_rpc_limit`].
-//! [`Outgoing::waits_for_ready`] is that overlay in a client interceptor.
-//! Distinct from [`Outgoing::connected`].
-//! [`Channel::waits_for_ready`] reads the wait-for-ready overlay without colliding with [`Channel::wait_for_ready`].
-//! Same overlay as [`Outgoing::waits_for_ready`].
-//! [`Outgoing::connected`] is the live-socket snapshot in a client interceptor.
-//! Distinct from [`Outgoing::waits_for_ready`].
-//! [`Channel::connected`] is that same snapshot without an interceptor.
-//! [`GreeterClient::connected`] is the live-socket snapshot on a generated client.
-//! Distinct from [`GreeterClient::waits_for_ready`].
-//! Same snapshot as [`Channel::connected`].
-//! [`Outgoing::rpc_timeout`] is that overlay in a client interceptor.
-//! Distinct from [`Outgoing::timeout`].
-//! [`Rpc::rpc_timeout`] is that overlay in a server interceptor.
-//! [`Channel::rpc_timeout`] reads the deadline overlay without colliding with [`Channel::timeout`].
-//! Same overlay as [`Outgoing::rpc_timeout`].
-//! [`Server::rpc_timeout`] reads the deadline overlay without colliding with [`Server::timeout`].
-//! Same overlay as [`Rpc::rpc_timeout`].
-//! [`Outgoing::stream_buffer_size`] is that overlay in a client interceptor.
-//! Distinct from [`Outgoing::limits`].
-//! [`Channel::stream_buffer_size`] reads the stream-queue overlay without colliding with [`Channel::stream_buffer`].
-//! Same overlay as [`Outgoing::stream_buffer_size`].
-//! [`Outgoing::limits`] is that overlay in a client interceptor.
-//! Distinct from [`Outgoing::send_buffer_size`].
-//! [`Rpc::limits`] is that overlay in a server interceptor.
-//! [`Channel::limits`] reads the message-cap overlay without colliding with [`Channel::message_limits`].
-//! Same overlay as [`Outgoing::limits`].
-//! [`Server::limits`] reads the message-cap overlay without colliding with [`Server::message_limits`].
-//! Same overlay as [`Rpc::limits`].
-//! [`Channel::send_buffer_size`] reads the HTTP/2 send buffer overlay without colliding with [`Channel::max_send_buffer_size`].
-//! Same overlay as [`Outgoing::send_buffer_size`].
-//! [`Server::send_buffer_size`] reads the HTTP/2 send buffer overlay without colliding with [`Server::max_send_buffer_size`].
-//! Same overlay as [`Rpc::send_buffer_size`].
-//! [`Outgoing::send_buffer_size`] is that overlay in a client interceptor.
-//! Distinct from [`Outgoing::stream_buffer_size`].
-//! [`Rpc::send_buffer_size`] is that overlay in a server interceptor.
-//! Distinct from [`Outgoing::send_buffer_size`].
-//! [`Response::send_buffer_size`] is that overlay in a response interceptor.
-//! Distinct from [`Request::send_buffer_size`].
-//! Distinct from [`Rpc::send_buffer_size`].
-//! [`Response::path`] is kernel-stamped after `Ok` / after receive.
-//! Distinct from [`Request::path`].
-//! Distinct from [`Outgoing::path`].
-//! [`Response::gzip_level`] is that overlay in a response interceptor.
-//! Distinct from [`Response::compress`].
-//! Distinct from [`Rpc::gzip_level`].
-//! [`Response::compresses_outbound`] is that overlay in a response interceptor.
-//! Distinct from [`Response::compress`], which is the per-RPC flag.
-//! Distinct from [`Rpc::compresses_outbound`].
-//! [`Response::accepts_gzip`] is the peer advertisement in a response interceptor.
-//! Distinct from [`Response::encoding`], which is received `grpc-encoding`.
-//! Distinct from [`Rpc::accepts_gzip`].
-//! [`Response::deadline`] is kernel-stamped after `Ok`, when writing.
-//! Distinct from [`Request::deadline`].
-//! Distinct from [`Rpc::deadline`].
-//! [`Response::timeout`] is the duration stamped at dispatch, in a response interceptor.
-//! Distinct from [`Response::deadline`].
-//! Distinct from [`Rpc::timeout`].
-//! [`Response::limits`] is the encode cap in a response interceptor.
-//! Distinct from [`Request::limits`].
-//! Distinct from [`Rpc::limits`].
-//! [`Response::peer_timeout`] is the client's `grpc-timeout` in a response interceptor.
-//! Distinct from [`Response::timeout`].
-//! Distinct from [`Rpc::peer_timeout`].
-//! [`Response::rpc_timeout`] is the server overlay in a response interceptor.
-//! Distinct from [`Response::peer_timeout`].
-//! Distinct from [`Rpc::rpc_timeout`].
-//! [`Response::accepts_compressed`] is the inbound overlay in a response interceptor.
-//! Distinct from [`Response::accepts_gzip`].
-//! Distinct from [`Rpc::accepts_compressed`].
-//! [`ServerConfig::header_table_size`] / [`ChannelConfig::header_table_size`]
-//! is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
-//! Distinct from `max_header_list_size`, which caps uncompressed header-block
-//! bytes. Handshake-only on the client.
-//! [`ServerConfig::data_frame_budget`] / [`ChannelConfig::data_frame_budget`]
-//! is the small-DATA framing budget (default 25600). Distinct from the
-//! connection window (flow-control bytes). h2 Auto (half the window) is not
-//! exposed.
+//! Compression trades CPU for bandwidth. Enable it with
+//! [`Request::set_compress`], [`ServerConfig::send_compressed`], or
+//! [`ChannelConfig::send_compressed`]. The default gzip effort is 1; configure it
+//! with `gzip_compression_level`. Inbound compression is accepted by default
+//! and can be disabled with `accept_compressed`. [`Response::encoding`] reports
+//! the peer's selected encoding (`None` for identity).
 //!
-//! There is no tonic `Endpoint::http2_adaptive_window`: that enables hyper adaptive flow control and overrides stream and connection windows. This crate-map [`ChannelConfig::initial_stream_window_size`] is a fixed SETTINGS window. Distinct from [`ChannelConfig::initial_connection_window_size`] (connection window, still fixed). Distinct from [`ChannelConfig::data_frame_budget`] (`h2 Auto` tiny-DATA budget, not window adaptation). Distinct from tonic `Server::http2_adaptive_window` (server adaptive override).
-//!
-//! [`ServerConfig::max_concurrent_reset_streams`] /
-//! [`ChannelConfig::max_concurrent_reset_streams`]
-//! is remembered locally-reset stream IDs (default 50). Distinct from
-//! pending-reset and protocol-error RST (those GOAWAY). Handshake-only
-//! on the client. Exceeding this evicts the oldest ID, not
-//! `ENHANCE_YOUR_CALM`.
-//! [`ServerConfig::reset_stream_duration`] /
-//! [`ChannelConfig::reset_stream_duration`]
-//! is how long those IDs are remembered (default 1 s). Distinct from the
-//! count cap. Handshake-only on the client. After that duration the ID is
-//! forgotten, not `ENHANCE_YOUR_CALM`.
-//! Inbound gzip is on by default; [`ServerConfig::accept_compressed`]`(false)`
-//! / [`ChannelConfig::accept_compressed`]`(false)` refuses it.
-//! A received reply surfaces the peer's `grpc-encoding` on [`Response::encoding`]
-//! (`None` for identity).
+//! HTTP/2 windows are fixed unless adaptive flow control is explicitly enabled.
+//! Configure reset-stream retention and flood limits through [`ServerConfig`]
+//! and [`ChannelConfig`]. Client handshake settings take effect at connection
+//! creation; changing a live channel cannot renegotiate HTTP/2 SETTINGS.
 //!
 //! # Relationship to the rest of the workspace
 //!
-//! [`pbrs`] does not depend on this crate, and this crate does not depend on
-//! `tonic` or `protobuf-tonic`. Use `protobuf-tonic` if you need to keep an
-//! existing `tonic` service and only want pbrs message types.
+//! [`pbrs`] does not depend on this crate. The native transport runs without
+//! tonic; the optional `tonic` feature mounts native generated services
+//! in tonic. Use `protobuf-tonic` to keep a tonic service with pbrs messages.
 
 #![deny(unsafe_code)]
 #![deny(unsafe_op_in_unsafe_fn)]

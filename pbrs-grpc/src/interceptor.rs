@@ -662,90 +662,20 @@ pub trait ServiceExt: Service + Sized {
 
 impl<S: Service> ServiceExt for S {}
 
-/// Outbound call hook. Closures with this signature implement it.
+/// Inspect or change an outbound RPC before its stream opens.
 ///
-/// There is no grpc-go `WithUnaryInterceptor`: that is a DialOption for
-/// unary RPCs only. `WithStreamInterceptor` is the stream split.
-/// `WithChainUnaryInterceptor` / `WithChainStreamInterceptor` append
-/// DialOption lists. This trait is one hook for every call shape, attached
-/// with [`crate::Channel::intercept`] after connect (not a DialOption).
-/// Calling intercept twice stacks; there is no chain DialOption. Distinct
-/// from [`Interceptor`] (inbound before the handler). Distinct from
-/// [`ResponseInterceptor`] (after Ok or after receive). Distinct from
-/// tonic `Interceptor` / `InterceptorLayer` (tower; this kernel has no
-/// tower).
+/// Attach with [`crate::Channel::intercept`]. The hook runs once when a call is
+/// created, for every call shape. Repeated attachments run in order. Closures
+/// with the same signature implement this trait.
 ///
-/// Attach one with [`crate::Channel::intercept`] or the generated
-/// `FooClient::intercept`. Calling either twice stacks; the first interceptor
-/// runs first. The interceptor sees the method path, service, method,
-/// `:authority`, `:scheme`, `user-agent`, and message caps, and can set a
-/// timeout / deadline Instant, wait-for-ready, compression, a user-agent
-/// prefix ([`crate::Outgoing::set_user_agent`]), or typed
-/// extensions — not only metadata. [`crate::Request::set_user_agent`] is the
-/// same prefix at the call site; an interceptor
-/// [`crate::Outgoing::set_user_agent`] that runs after wins.
-/// [`crate::Outgoing::user_agent_is_set`] distinguishes that override from the channel value, so a later interceptor can prefix only when unset.
-/// [`crate::Outgoing::wait_for_ready_is_set`] is occupancy on this ClientInterceptor path, so a later interceptor can fill wait-for-ready only when unset.
-/// [`crate::Outgoing::compress_is_set`] is occupancy on this ClientInterceptor path, so a later interceptor can fill compress only when unset.
-/// Channel overlays (`rpc_timeout`, `waits_for_ready`, `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `stream_buffer_size`, `send_buffer_size`, `limits`) stay visible after `clear_*`
-/// opts out of the already-applied default.
-/// [`crate::Outgoing::gzip_level`] is deflate effort. Distinct from
-/// [`crate::Outgoing::compresses_outbound`] (on or off). An interceptor cannot change it.
-/// [`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay
-/// (default on).
-/// [`crate::Outgoing::limits`] is the channel message-cap overlay.
-/// Same overlay as [`crate::Channel::limits`].
-/// [`crate::Outgoing::concurrent_rpc_limit`] is the channel RPC cap overlay.
-/// Distinct from [`crate::Outgoing::waits_for_ready`]: that waits for a connection; this refuses extras.
-/// [`crate::Outgoing::stream_buffer_size`] is the outbound streaming queue overlay.
-/// Distinct from [`crate::Outgoing::limits`]: that is message size, not queue depth.
-/// [`crate::Outgoing::send_buffer_size`] is the outbound HTTP/2 send buffer overlay.
-/// Distinct from [`crate::Outgoing::stream_buffer_size`]: that is queue depth, not this send buffer.
-/// [`crate::Outgoing::connected`] is the live-socket snapshot
-/// ([`crate::Channel::connected`]), taken when this interceptor runs.
-/// Distinct from wait-for-ready: a lazy first RPC sees `false` even when
-/// that overlay is on.
+/// Metadata and typed request extensions are available through
+/// [`crate::Outgoing`]. A hook can set a timeout, user-agent prefix, compression,
+/// or wait-for-ready override. Use `*_is_set` to preserve caller choices.
+/// Configuration getters report channel defaults; `connected` is a snapshot
+/// at hook execution, not a readiness guarantee.
 ///
-/// Typed context the caller put on [`crate::Request::extensions_mut`] is
-/// visible here, so an interceptor can stamp metadata from a trace id or
-/// tenant without the call site knowing the header names. An earlier
-/// interceptor can insert values for a later one the same way.
-/// `Err` fails the [`crate::Call`] on poll for every call shape, including
-/// [`crate::Status::with_error_details`]; nothing is sent. A local
-/// [`crate::Status::with_error_details`] is [`crate::Status::rpc`] /
-/// [`crate::Status::error_details`] on that Call for every call shape.
-/// [`crate::Outgoing::set_timeout`] is that Call's deadline on every call
-/// shape. [`crate::Outgoing::clear_timeout`] opts out of the channel timeout
-/// on every call shape. [`crate::Outgoing::clear_compress`] then
-/// [`crate::Outgoing::set_compress`] from [`crate::Outgoing::compresses_outbound`]
-/// reapplies channel gzip on every call shape. [`crate::Outgoing::set_compress`]
-/// stamps [`crate::StreamSender::compress`] on client-streaming and bidi
-/// request streams. Outgoing getters apply to
-/// every call shape.
-/// [`crate::Outgoing::clear_user_agent`] drops an interceptor prefix so this RPC uses the channel user-agent again.
-/// [`crate::Outgoing::clear_wait_for_ready`] drops an interceptor wait-for-ready choice so this RPC uses the channel overlay again.
-/// [`crate::Outgoing::clear_timeout`] opts out of the channel timeout on this ClientInterceptor path.
-/// [`crate::Outgoing::clear_compress`] then [`crate::Outgoing::set_compress`] from [`crate::Outgoing::compresses_outbound`] reapplies channel gzip on this ClientInterceptor path.
-/// [`crate::Status::from_error_details`] is the typed bag on this ClientInterceptor Err; a local reject never opens a stream.
-/// Distinct from a handler Err: that is after the handler ran; this ClientInterceptor Err is a local reject never opens a stream.
-/// Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this ClientInterceptor Err is a local reject never opens a stream.
-/// Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this ClientInterceptor Err is a local reject never opens a stream.
-/// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this ClientInterceptor Err is a local reject never opens a stream.
-/// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this ClientInterceptor Err is a local reject never opens a stream.
-/// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this ClientInterceptor Err is a local reject never opens a stream.
-/// Distinct from a ServiceExt on_response Err: that is trailers-only after handler Ok; this ClientInterceptor Err is a local reject never opens a stream.
-/// Distinct from an Interceptor Err: that is trailers without reading the body; this ClientInterceptor Err is a local reject never opens a stream.
-/// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this ClientInterceptor Err is a local reject never opens a stream.
-/// Distinct from a Server intercept Err: that is trailers without reading the body; this ClientInterceptor Err is a local reject never opens a stream.
-/// Distinct from a Router intercept Err: that is trailers without reading the body; this ClientInterceptor Err is a local reject never opens a stream.
-/// Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this ClientInterceptor Err is a local reject never opens a stream.
-/// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this ClientInterceptor Err is a local reject never opens a stream.
-/// Distinct from a StreamSender fail: that is trailers after any messages already sent; this ClientInterceptor Err is a local reject never opens a stream.
-/// Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this ClientInterceptor already ran, so a local Err never consumes that budget.
-/// Distinct from [`Interceptor`]: that runs on the inbound RPC before the handler; this runs on the outbound call before the stream opens.
-/// Distinct from [`Interceptor`]: that runs on the inbound RPC before the handler; this ClientInterceptor runs on the outbound call before the stream opens.
-/// Distinct from [`ResponseInterceptor`]: that runs after the handler returns Ok or after a successful receive; this runs on the outbound call before the stream opens.
-/// Distinct from [`ResponseInterceptor`]: that runs after the handler returns Ok or after a successful receive; this ClientInterceptor runs on the outbound call before the stream opens.
+/// Returning an error fails the call when polled, opens no stream, and consumes
+/// no RPC slot. Rich error details remain available through [`Status`].
 ///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};
@@ -811,36 +741,8 @@ impl<S: Service> ServiceExt for S {}
 /// # let _ = stamp;
 /// ```
 pub trait ClientInterceptor: Send + Sync + 'static {
-    /// Inspect and mutate the outbound call. Called once per RPC when the
-    /// call is created, before the stream opens. `Err` fails the
-    /// [`crate::Call`] on poll, including [`crate::Status::with_error_details`];
-    /// nothing is sent. A local [`crate::Status::with_error_details`] is
-    /// [`crate::Status::rpc`] / [`crate::Status::error_details`] on that Call
-    /// for every call shape. [`crate::Outgoing::set_timeout`] is that Call's
-    /// deadline on every call shape. [`crate::Outgoing::clear_timeout`] opts
-    /// out of the channel timeout on every call shape.
-    /// [`crate::Outgoing::clear_compress`] then [`crate::Outgoing::set_compress`] from [`crate::Outgoing::compresses_outbound`] reapplies channel gzip on this method-level intercept.
-    /// [`crate::Outgoing::clear_user_agent`] drops a method-level interceptor prefix so this RPC uses the channel user-agent again.
-    /// [`crate::Outgoing::clear_wait_for_ready`] drops a method-level interceptor wait-for-ready choice so this RPC uses the channel overlay again.
-    /// [`crate::Outgoing::clear_timeout`] opts out of the channel timeout on this method-level intercept.
-    /// [`crate::Outgoing::user_agent_is_set`] is occupancy on this method-level intercept, so a later interceptor can prefix only when unset.
-    /// [`crate::Outgoing::wait_for_ready_is_set`] is occupancy on this method-level intercept, so a later interceptor can fill wait-for-ready only when unset.
-    /// [`crate::Outgoing::compress_is_set`] is occupancy on this method-level intercept, so a later interceptor can fill compress only when unset.
-    /// [`crate::Status::from_error_details`] is the typed bag on this method-level intercept Err; a local reject never opens a stream.
-    /// Distinct from a handler Err: that is after the handler ran; this method-level intercept Err is a local reject never opens a stream.
-    /// Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this method-level intercept Err is a local reject never opens a stream.
-    /// Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this method-level intercept Err is a local reject never opens a stream.
-    /// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this method-level intercept Err is a local reject never opens a stream.
-    /// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this method-level intercept Err is a local reject never opens a stream.
-    /// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this method-level intercept Err is a local reject never opens a stream.
-    /// Distinct from a ServiceExt on_response Err: that is trailers-only after handler Ok; this method-level intercept Err is a local reject never opens a stream.
-    /// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this method-level intercept Err is a local reject never opens a stream.
-    /// Distinct from an Interceptor Err: that is trailers without reading the body; this method-level intercept Err is a local reject never opens a stream.
-    /// Distinct from a Server intercept Err: that is trailers without reading the body; this method-level intercept Err is a local reject never opens a stream.
-    /// Distinct from a Router intercept Err: that is trailers without reading the body; this method-level intercept Err is a local reject never opens a stream.
-    /// Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this method-level intercept Err is a local reject never opens a stream.
-    /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this method-level intercept Err is a local reject never opens a stream.
-    /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this method-level intercept Err is a local reject never opens a stream.
+    /// Run once per RPC before opening a stream. An error fails the call without
+    /// sending data. Changes to [`crate::Outgoing`] apply to this call.
     fn intercept(&self, call: &mut crate::Outgoing<'_>) -> Result<(), Status>;
 }
 

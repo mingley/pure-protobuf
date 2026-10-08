@@ -8963,7 +8963,7 @@
    "priority": "P0",
    "executor": "operator",
    "size": "M",
-   "status": "pending",
+   "status": "in_progress",
    "depends_on": [
     "QG-05",
     "RT-07",
@@ -9000,7 +9000,11 @@
     "D7",
     "F2",
     "F3"
-   ]
+   ],
+   "evidence": [
+    "docs/evidence/grpc-readiness-20261008/README.md"
+   ],
+   "notes": "2026-10-08: explicit byte budgets and bounded compressed DATA writes are fixed. The original 24-hour attempt failed after 503.99 seconds; its false completed label is retained and rejected by current reporting. Stronger independent recovery probes and a corrected actual-day run are in progress. Intermittent mixed-load fairness failures and wider resource/feature qualification remain open."
   },
   {
    "id": "H2-16",
@@ -10134,7 +10138,11 @@
     "SB-24",
     "RX-09"
    ],
-   "notes": "Phase 0 of the dominance program. SB-28 adds wall-time rows from dedicated hosts; SB-29 turns won cells into gates."
+   "notes": "Phase 0 of the dominance program. SB-28 adds wall-time rows from dedicated hosts; SB-29 turns won cells into gates. 2026-10-08: source-pinned separate endpoint captures cover 2,560 functional cells (2,557 passed; all three failed cells also have ten successful fixed-count replays). Matched N=200/400 per-side Callgrind and allocator captures retain one failed repeat and instruction/byte losses. The partial ledger has 92 losses, 82 wins, 3 ties, 177 missing and 6 failed rows. Read-all/corpus, saturation, cold/idle, wakes/context-switch/syscall and dedicated-host coverage remain open; no dominance qualification.",
+   "status": "in_progress",
+   "evidence": [
+    "docs/evidence/grpc-readiness-20261008/README.md"
+   ]
   },
   {
    "id": "SB-28",

@@ -15,6 +15,7 @@ comparative claim. No category currently has a qualified performance win.
 
 | Record | What it contributes | How to read it |
 |---|---|---|
+| [gRPC checks and endpoint measurements, 2026-10-08](grpc-readiness-20261008/README.md) | Resource fixes, 2,560 functional cells, N/2N per-side counters, failed soak and fairness controls | Streaming instruction/byte losses remain; counter coverage and production qualification are incomplete |
 | [Codegen matrix (SB-09)](sb09-codegen-matrix.md) | Five-repeat seeded, realistic-schema, and service-stub comparisons | Broad local evidence with many compile-cost losses; later GN changes need a matched rerun |
 | [Official worker scenarios (SB-10)](qps-sb10.md) | Native/Go/C++ async worker runs | Compatibility/QPS diagnostics; SB-21 identifies a per-slot versus aggregate arrival-rate mismatch, not a reconstruction of the old measurement window |
 | [Cross-stack matrix (SB-11)](stack-matrix-sb11.md) | Separate-process open-loop client/server harness | Smoke proves wiring, not the server ceiling or claim readiness |
