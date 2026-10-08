@@ -142,14 +142,36 @@ pub async fn run(
                     let template = template.clone();
                     async move {
                         let (tx, call) = client.full_duplex_call(pbrs_grpc::Request::new(()));
+                        let tx = if stream_msgs == 0 {
+                            tx.close();
+                            None
+                        } else {
+                            tx.send(template.clone()).await.map_err(|e| {
+                                load::RpcCallError::Other(format!("bidi first request: {e}"))
+                            })?;
+                            Some(tx)
+                        };
                         let mut inbound = call
                             .await
                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
                             .verify_load_compression(gzip)?
                             .into_inner();
+                        let Some(tx) = tx else {
+                            if inbound
+                                .message()
+                                .await
+                                .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                                .is_some()
+                            {
+                                return Err(load::RpcCallError::Other(
+                                    "empty bidi received a message".into(),
+                                ));
+                            }
+                            return Ok(());
+                        };
                         if shape == LoadShape::BidiPipelined {
                             let send = async move {
-                                for i in 0..stream_msgs {
+                                for i in 1..stream_msgs {
                                     tx.send(template.clone()).await.map_err(|e| {
                                         load::RpcCallError::Other(format!("pipeline send {i}: {e}"))
                                     })?;
@@ -184,9 +206,11 @@ pub async fn run(
                             return Ok(());
                         }
                         for i in 0..stream_msgs {
-                            tx.send(template.clone()).await.map_err(|e| {
-                                load::RpcCallError::Other(format!("bidi send pair {i}: {e}"))
-                            })?;
+                            if i != 0 {
+                                tx.send(template.clone()).await.map_err(|e| {
+                                    load::RpcCallError::Other(format!("bidi send pair {i}: {e}"))
+                                })?;
+                            }
                             let reply = inbound
                                 .message()
                                 .await

@@ -1054,14 +1054,36 @@ async fn run_load_native(
                     let template = template.clone();
                     async move {
                         let (tx, call) = client.full_duplex_call(pbrs_grpc::Request::new(()));
+                        let tx = if stream_msgs == 0 {
+                            tx.close();
+                            None
+                        } else {
+                            tx.send(template.clone()).await.map_err(|e| {
+                                load::RpcCallError::Other(format!("bidi first request: {e}"))
+                            })?;
+                            Some(tx)
+                        };
                         let mut inbound = call
                             .await
                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
                             .verify_load_compression(gzip)?
                             .into_inner();
+                        let Some(tx) = tx else {
+                            if inbound
+                                .message()
+                                .await
+                                .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                                .is_some()
+                            {
+                                return Err(load::RpcCallError::Other(
+                                    "empty bidi received a message".into(),
+                                ));
+                            }
+                            return Ok(());
+                        };
                         if shape == LoadShape::BidiPipelined {
                             let send = async move {
-                                for i in 0..stream_msgs {
+                                for i in 1..stream_msgs {
                                     tx.send(template.clone()).await.map_err(|e| {
                                         load::RpcCallError::Other(format!("pipeline send {i}: {e}"))
                                     })?;
@@ -1096,9 +1118,11 @@ async fn run_load_native(
                             return Ok(());
                         }
                         for i in 0..stream_msgs {
-                            tx.send(template.clone()).await.map_err(|e| {
-                                load::RpcCallError::Other(format!("bidi send pair {i}: {e}"))
-                            })?;
+                            if i != 0 {
+                                tx.send(template.clone()).await.map_err(|e| {
+                                    load::RpcCallError::Other(format!("bidi send pair {i}: {e}"))
+                                })?;
+                            }
                             let reply = inbound
                                 .message()
                                 .await
@@ -1725,6 +1749,15 @@ async fn run_load_tonic(
                     async move {
                         let mut client = client;
                         let (tx, rx) = tokio::sync::mpsc::channel(1);
+                        let tx = if stream_msgs == 0 {
+                            drop(tx);
+                            None
+                        } else {
+                            tx.send(template.clone()).await.map_err(|e| {
+                                load::RpcCallError::Other(format!("bidi first request: {e}"))
+                            })?;
+                            Some(tx)
+                        };
                         let mut inbound = client
                             .full_duplex_call(tonic::Request::new(
                                 tokio_stream::wrappers::ReceiverStream::new(rx),
@@ -1733,9 +1766,22 @@ async fn run_load_tonic(
                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
                             .verify_load_compression(gzip)?
                             .into_inner();
+                        let Some(tx) = tx else {
+                            if inbound
+                                .message()
+                                .await
+                                .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                                .is_some()
+                            {
+                                return Err(load::RpcCallError::Other(
+                                    "empty bidi received a message".into(),
+                                ));
+                            }
+                            return Ok(());
+                        };
                         if shape == LoadShape::BidiPipelined {
                             let send = async move {
-                                for i in 0..stream_msgs {
+                                for i in 1..stream_msgs {
                                     tx.send(template.clone()).await.map_err(|e| {
                                         load::RpcCallError::Other(format!("pipeline send {i}: {e}"))
                                     })?;
@@ -1770,9 +1816,11 @@ async fn run_load_tonic(
                             return Ok(());
                         }
                         for i in 0..stream_msgs {
-                            tx.send(template.clone()).await.map_err(|e| {
-                                load::RpcCallError::Other(format!("bidi send pair {i}: {e}"))
-                            })?;
+                            if i != 0 {
+                                tx.send(template.clone()).await.map_err(|e| {
+                                    load::RpcCallError::Other(format!("bidi send pair {i}: {e}"))
+                                })?;
+                            }
                             let reply = inbound
                                 .message()
                                 .await
@@ -1964,6 +2012,15 @@ async fn run_load_prost(
                     async move {
                         let mut client = client;
                         let (tx, rx) = tokio::sync::mpsc::channel(1);
+                        let tx = if stream_msgs == 0 {
+                            drop(tx);
+                            None
+                        } else {
+                            tx.send(template.clone()).await.map_err(|e| {
+                                load::RpcCallError::Other(format!("bidi first request: {e}"))
+                            })?;
+                            Some(tx)
+                        };
                         let mut inbound = client
                             .full_duplex_call(tonic::Request::new(
                                 tokio_stream::wrappers::ReceiverStream::new(rx),
@@ -1972,9 +2029,22 @@ async fn run_load_prost(
                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
                             .verify_load_compression(gzip)?
                             .into_inner();
+                        let Some(tx) = tx else {
+                            if inbound
+                                .message()
+                                .await
+                                .map_err(|e| load::RpcCallError::Other(e.to_string()))?
+                                .is_some()
+                            {
+                                return Err(load::RpcCallError::Other(
+                                    "empty bidi received a message".into(),
+                                ));
+                            }
+                            return Ok(());
+                        };
                         if shape == LoadShape::BidiPipelined {
                             let send = async move {
-                                for i in 0..stream_msgs {
+                                for i in 1..stream_msgs {
                                     tx.send(template.clone()).await.map_err(|e| {
                                         load::RpcCallError::Other(format!("pipeline send {i}: {e}"))
                                     })?;
@@ -2009,9 +2079,11 @@ async fn run_load_prost(
                             return Ok(());
                         }
                         for i in 0..stream_msgs {
-                            tx.send(template.clone()).await.map_err(|e| {
-                                load::RpcCallError::Other(format!("bidi send pair {i}: {e}"))
-                            })?;
+                            if i != 0 {
+                                tx.send(template.clone()).await.map_err(|e| {
+                                    load::RpcCallError::Other(format!("bidi send pair {i}: {e}"))
+                                })?;
+                            }
                             let reply = inbound
                                 .message()
                                 .await
@@ -2962,6 +3034,125 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct WaitForRequest;
+
+    impl native_prost_gen::TestService for WaitForRequest {
+        async fn full_duplex_call(
+            &self,
+            request: pbrs_grpc::Request<
+                pbrs_grpc::codec::prost::Streaming<prost_gen::StreamingOutputCallRequest>,
+            >,
+        ) -> Result<
+            pbrs_grpc::Response<
+                pbrs_grpc::codec::prost::Streaming<prost_gen::StreamingOutputCallResponse>,
+            >,
+            pbrs_grpc::Status,
+        > {
+            let mut inbound = request.into_inner();
+            // A valid server may read the request before sending response headers.
+            let first = inbound.message().await?;
+            let (tx, responses) = pbrs_grpc::codec::prost::Streaming::channel(1);
+            tokio::spawn(async move {
+                let mut pending = first;
+                loop {
+                    let message = match pending.take() {
+                        Some(message) => message,
+                        None => match inbound.message().await {
+                            Ok(Some(message)) => message,
+                            Ok(None) => return,
+                            Err(status) => {
+                                tx.fail(status).await;
+                                return;
+                            }
+                        },
+                    };
+                    for parameter in message.response_parameters {
+                        let reply = prost_gen::StreamingOutputCallResponse {
+                            payload: Some(prost_gen::Payload {
+                                body: vec![0; usize::try_from(parameter.size).unwrap()],
+                                ..Default::default()
+                            }),
+                            ..Default::default()
+                        };
+                        if tx.send(reply).await.is_err() {
+                            return;
+                        }
+                    }
+                }
+            });
+            Ok(pbrs_grpc::Response::new(responses))
+        }
+    }
+
+    #[tokio::test]
+    async fn bidi_load_sends_before_waiting_for_response_headers() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            pbrs_grpc::Server::new(native_prost_gen::TestServiceServer::new(WaitForRequest))
+                .serve_listener(listener)
+                .await
+                .unwrap();
+        });
+        for shape in [LoadShape::Bidi, LoadShape::BidiPipelined] {
+            for messages in [1, 4, 0] {
+                for profile in 0..4 {
+                    let mut config = load::LoadConfig::closed(1, Duration::from_secs(3));
+                    config.timeout = Some(Duration::from_secs(1));
+                    config.max_calls = Some(1);
+                    let generator = load::LoadGenerator::new(config);
+                    let options = ReferenceLoadOptions {
+                        shape,
+                        req_bytes: 1024,
+                        resp_bytes: 1024,
+                        stream_msgs: messages,
+                        max_message_size: None,
+                        connections: 1,
+                        gzip: false,
+                        tls_ca: None,
+                        tls_name: None,
+                    };
+                    let record = match profile {
+                        0 | 1 => {
+                            run_load_native(
+                                &generator,
+                                addr,
+                                None,
+                                None,
+                                shape,
+                                1024,
+                                1024,
+                                messages,
+                                false,
+                                None,
+                                1,
+                                NativeWindowMode::Default,
+                                16384,
+                                false,
+                                false,
+                                if profile == 0 {
+                                    LoadCodec::Pbrs
+                                } else {
+                                    LoadCodec::Prost
+                                },
+                            )
+                            .await
+                        }
+                        2 => run_load_tonic(&generator, addr, options).await,
+                        _ => run_load_prost(&generator, addr, options).await,
+                    }
+                    .unwrap();
+                    assert_eq!(
+                        record.successful_calls, 1,
+                        "profile={profile} shape={shape} messages={messages}: {record:?}"
+                    );
+                    assert_eq!(record.failed_calls, 0);
+                }
+            }
+        }
+        server.abort();
+    }
 
     #[test]
     fn load_window_modes_keep_the_tonic_gzip_level_on_both_endpoints() {

@@ -399,3 +399,7 @@ full coverage remains incomplete; `--allow-partial` explicitly selects a diagnos
 python3 scripts/dominance-ledger.py --small target/load-N --large target/load-2N \
   --output target/dominance-diagnostic.json --allow-partial
 ```
+
+Bidi clients send their first request before waiting for response headers.
+This supports servers that read a request before returning a response stream.
+A zero-message bidi call closes its request stream before waiting for headers.
