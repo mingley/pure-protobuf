@@ -1,110 +1,12 @@
-//! Official `grpc.testing` services and a conformant [`TestService`].
+//! Generated `grpc.testing` types and interoperability handlers.
 //!
-//! The messages, `TestService` / `UnimplementedService` traits, servers, and
-//! clients are all generated from `proto/grpc/testing/test.proto`. Only
-//! [`InteropTestService`] is written by hand: it is the behaviour the
-//! cross-language interop suite checks, so the kernel is verified against Go,
-//! Java, and C++ peers rather than only against itself. A [`TestServiceClient`]
-//! `message_limits` is `RESOURCE_EXHAUSTED` on UnaryCall /
-//! StreamingOutputCall / StreamingInputCall / FullDuplexCall, including over
-//! TLS, mTLS, Unix, and [`crate::Channel::from_io`]. Distinct from wrapping
-//! `max_encoding_message_size` / `max_decoding_message_size`.
-//! [`TestServiceClient::connect_tls_with`] /
-//! [`TestServiceClient::connect_unix_with`] /
-//! [`TestServiceClient::from_io_with`] with
-//! [`crate::ChannelConfig::message_limits`] refuse the same oversize, distinct
-//! from wrapping a live client. [`TestServiceServer::max_header_list_size`]
-//! refuses oversize metadata on EmptyCall / StreamingOutputCall /
-//! StreamingInputCall / FullDuplexCall, including over TLS, mTLS, Unix, and
-//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
-//! server. [`TestServiceServer::max_frame_size`] still serves EmptyCall /
-//! StreamingOutputCall / StreamingInputCall / FullDuplexCall at the HTTP/2
-//! 16 KiB SETTINGS minimum, including over TLS, mTLS, Unix, and
-//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
-//! server. [`TestServiceServer::max_pending_accept_reset_streams`] still serves
-//! EmptyCall / StreamingOutputCall / StreamingInputCall / FullDuplexCall at a
-//! pending-reset cap of 1, including over TLS, mTLS, Unix, and
-//! [`crate::Server::serve_connection`]. A well-behaved client never fills that
-//! queue. Distinct from wrapping only a Greeter server.
-//! [`TestServiceServer::max_send_buffer_size`] still serves EmptyCall /
-//! StreamingOutputCall / StreamingInputCall / FullDuplexCall at a 16 KiB send
-//! buffer, including over TLS, mTLS, Unix, and
-//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
-//! server.
-//! [`TestServiceServer::initial_stream_window_size`] /
-//! [`TestServiceServer::initial_connection_window_size`] still serve EmptyCall /
-//! StreamingOutputCall / StreamingInputCall / FullDuplexCall at a 64 KiB stream
-//! / 128 KiB connection window, including over TLS, mTLS, Unix, and
-//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
-//! server.
-//! A [`TestServiceClient`] pool larger than
-//! [`TestServiceServer::max_concurrent_connections`] fails the whole dial as
-//! `UNAVAILABLE` on TLS, mTLS, and Unix. [`TestServiceClient::from_io_with`]
-//! cannot pool.
-//! [`crate::Status::from_error_details`] is the typed bag after this testing interceptor Err; those trailers reach the client without reading the body.
-//! Distinct from a testing handler Err: that is after the handler ran; this testing interceptor Err is trailers without reading the body.
-//! Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this testing interceptor Err is trailers without reading the body.
-//! Distinct from a testing client interceptor Err: that is a local reject never opens a stream; this testing interceptor Err is trailers without reading the body.
-//! Distinct from a testing Channel on_response Err: that fails the Call after a successful receive; this testing interceptor Err is trailers without reading the body.
-//! Distinct from a testing StreamSender fail: that is trailers after any messages already sent; this testing interceptor Err is trailers without reading the body.
-//! Distinct from a testing client interceptor: that runs on the outbound call before the stream opens; this testing interceptor runs on the inbound RPC before the handler.
-//! [`crate::Status::from_error_details`] is the typed bag after this testing handler Err; those trailers reach the client.
-//! Distinct from a testing interceptor Err: that is trailers without reading the body; this testing handler Err is after the handler ran.
-//! Distinct from a testing client interceptor Err: that is a local reject never opens a stream; this testing handler Err is after the handler ran.
-//! Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this testing handler Err is after the handler ran.
-//! Distinct from a testing Channel on_response Err: that fails the Call after a successful receive; this testing handler Err is after the handler ran.
-//! Distinct from a testing StreamSender fail: that is trailers after any messages already sent; this testing handler Err is after the handler ran.
-//! [`crate::Outgoing::connected`] is the live-socket snapshot on this testing client interceptor path ([`crate::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
-//! [`crate::Status::from_error_details`] is the typed bag after this testing client interceptor Err; a local reject never opens a stream.
-//! Distinct from a testing handler Err: that is after the handler ran; this testing client interceptor Err is a local reject never opens a stream.
-//! Distinct from a testing Channel on_response Err: that fails the Call after a successful receive; this testing client interceptor Err is a local reject never opens a stream.
-//! Distinct from a testing interceptor Err: that is trailers without reading the body; this testing client interceptor Err is a local reject never opens a stream.
-//! Distinct from a testing StreamSender fail: that is trailers after any messages already sent; this testing client interceptor Err is a local reject never opens a stream.
-//! Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this testing client interceptor already ran, so a local Err never consumes that budget.
-//! Distinct from a testing interceptor: that runs on the inbound RPC before the handler; this testing client interceptor runs on the outbound call before the stream opens.
-//! [`crate::Status::from_error_details`] is the typed bag after this testing StreamSender fail on a server response producer; those trailers ship after any messages already sent.
-//! Distinct from a testing handler Err: that is after the handler ran; this testing StreamSender fail is trailers after any messages already sent.
-//! Distinct from a testing interceptor Err: that is trailers without reading the body; this testing StreamSender fail is trailers after any messages already sent.
-//! Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this testing StreamSender fail is trailers after any messages already sent.
-//! Distinct from a testing client interceptor Err: that is a local reject never opens a stream; this testing StreamSender fail is trailers after any messages already sent.
-//! Distinct from a testing Channel on_response Err: that fails the Call after a successful receive; this testing StreamSender fail is trailers after any messages already sent.
-//! [`crate::Status::from_error_details`] is the typed bag after this testing server on_response Err; a local reject is trailers-only after handler Ok.
-//! Distinct from a testing handler Err: that is after the handler ran; this testing server on_response Err is trailers-only after handler Ok.
-//! Distinct from a testing interceptor Err: that is trailers without reading the body; this testing server on_response Err is trailers-only after handler Ok.
-//! Distinct from an UnimplementedService interceptor Err: that is trailers without reading the body; this testing server on_response Err is trailers-only after handler Ok.
-//! Distinct from a testing StreamSender fail: that is trailers after any messages already sent; this testing server on_response Err is trailers-only after handler Ok.
-//! Distinct from an InteropTestService interceptor Err: that is trailers without reading the body; this testing server on_response Err is trailers-only after handler Ok.
-//! Distinct from an InteropTestService StreamSender fail: that is trailers after any messages already sent; this testing server on_response Err is trailers-only after handler Ok.
-//! Distinct from a testing Channel on_response Err: that fails the Call after a successful receive; this testing server on_response Err is trailers-only after handler Ok.
-//! [`crate::Status::from_error_details`] is the typed bag after this testing Channel on_response Err; a local reject fails the Call after a successful receive.
-//! Distinct from a testing handler Err: that is after the handler ran; this testing Channel on_response Err fails the Call after a successful receive.
-//! Distinct from a testing interceptor Err: that is trailers without reading the body; this testing Channel on_response Err fails the Call after a successful receive.
-//! Distinct from a testing client interceptor Err: that is a local reject never opens a stream; this testing Channel on_response Err fails the Call after a successful receive.
-//! Distinct from an UnimplementedService client interceptor Err: that is a local reject never opens a stream; this testing Channel on_response Err fails the Call after a successful receive.
-//! Distinct from an UnimplementedService interceptor Err: that is trailers without reading the body; this testing Channel on_response Err fails the Call after a successful receive.
-//! Distinct from a testing StreamSender fail: that is trailers after any messages already sent; this testing Channel on_response Err fails the Call after a successful receive.
-//! Distinct from an InteropTestService client interceptor Err: that is a local reject never opens a stream; this testing Channel on_response Err fails the Call after a successful receive.
-//! Distinct from an InteropTestService interceptor Err: that is trailers without reading the body; this testing Channel on_response Err fails the Call after a successful receive.
-//! Distinct from an InteropTestService StreamSender fail: that is trailers after any messages already sent; this testing Channel on_response Err fails the Call after a successful receive.
-//! Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this testing Channel on_response Err fails the Call after a successful receive.
-//! [`crate::Status::from_error_details`] is the typed bag after this UnimplementedService interceptor Err; those trailers reach the client without reading the body.
-//! Distinct from an UnimplementedService handler Err: that is after the handler ran; this UnimplementedService interceptor Err is trailers without reading the body.
-//! Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this UnimplementedService interceptor Err is trailers without reading the body.
-//! Distinct from an UnimplementedService client interceptor Err: that is a local reject never opens a stream; this UnimplementedService interceptor Err is trailers without reading the body.
-//! Distinct from a testing Channel on_response Err: that fails the Call after a successful receive; this UnimplementedService interceptor Err is trailers without reading the body.
-//! Distinct from an UnimplementedService client interceptor: that runs on the outbound call before the stream opens; this UnimplementedService interceptor runs on the inbound RPC before the handler.
-//! [`crate::Status::from_error_details`] is the typed bag after this UnimplementedService handler Err; those trailers reach the client.
-//! Distinct from an UnimplementedService interceptor Err: that is trailers without reading the body; this UnimplementedService handler Err is after the handler ran.
-//! Distinct from an UnimplementedService client interceptor Err: that is a local reject never opens a stream; this UnimplementedService handler Err is after the handler ran.
-//! Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this UnimplementedService handler Err is after the handler ran.
-//! Distinct from a testing Channel on_response Err: that fails the Call after a successful receive; this UnimplementedService handler Err is after the handler ran.
-//! [`crate::Outgoing::connected`] is the live-socket snapshot on this UnimplementedService client interceptor path ([`crate::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
-//! [`crate::Status::from_error_details`] is the typed bag after this UnimplementedService client interceptor Err; a local reject never opens a stream.
-//! Distinct from an UnimplementedService handler Err: that is after the handler ran; this UnimplementedService client interceptor Err is a local reject never opens a stream.
-//! Distinct from a testing Channel on_response Err: that fails the Call after a successful receive; this UnimplementedService client interceptor Err is a local reject never opens a stream.
-//! Distinct from an UnimplementedService interceptor Err: that is trailers without reading the body; this UnimplementedService client interceptor Err is a local reject never opens a stream.
-//! Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this UnimplementedService client interceptor already ran, so a local Err never consumes that budget.
-//! Distinct from an UnimplementedService interceptor: that runs on the inbound RPC before the handler; this UnimplementedService client interceptor runs on the outbound call before the stream opens.
+//! [`TestServiceClient`] and [`TestServiceServer`] provide the official test
+//! service's RPC shapes. [`InteropTestService`] implements its payload,
+//! streaming, metadata, compression, and error cases.
+//!
+//! These stubs use the same channel, server, interceptor, and status APIs as
+//! application services. See [`crate::Outgoing`], [`crate::ResponseParts`],
+//! and [`crate::Status`] for their contracts.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 

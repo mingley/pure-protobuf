@@ -164,26 +164,6 @@ pub(crate) fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &Servic
             src,
             "    /// [`{G}::Status::from_error_details`] is the typed bag after a generated handler Err; those trailers reach the client."
         );
-        let _ = writeln!(
-            src,
-            "    /// Distinct from a generated server intercept Err: that is trailers without reading the body; this generated handler Err is after the handler ran."
-        );
-        let _ = writeln!(
-            src,
-            "    /// Distinct from a generated intercept Err: that is a local reject never opens a stream; this generated handler Err is after the handler ran."
-        );
-        let _ = writeln!(
-            src,
-            "    /// Distinct from a generated server on_response Err: that is trailers-only after handler Ok; this generated handler Err is after the handler ran."
-        );
-        let _ = writeln!(
-            src,
-            "    /// Distinct from a generated client on_response Err: that fails the Call after a successful receive; this generated handler Err is after the handler ran."
-        );
-        let _ = writeln!(
-            src,
-            "    /// Distinct from a generated StreamSender fail: that is trailers after any messages already sent; this generated handler Err is after the handler ran."
-        );
         if m.server_streaming {
             let _ = writeln!(
                 src,
@@ -196,26 +176,6 @@ pub(crate) fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &Servic
             let _ = writeln!(
                 src,
                 "    /// [`{G}::Status::from_error_details`] is the typed bag after a generated StreamSender fail on a server response producer; those trailers ship after any messages already sent."
-            );
-            let _ = writeln!(
-                src,
-                "    /// Distinct from a generated handler Err: that is after the handler ran; this generated StreamSender fail is trailers after any messages already sent."
-            );
-            let _ = writeln!(
-                src,
-                "    /// Distinct from a generated server intercept Err: that is trailers without reading the body; this generated StreamSender fail is trailers after any messages already sent."
-            );
-            let _ = writeln!(
-                src,
-                "    /// Distinct from a generated server on_response Err: that is trailers-only after handler Ok; this generated StreamSender fail is trailers after any messages already sent."
-            );
-            let _ = writeln!(
-                src,
-                "    /// Distinct from a generated intercept Err: that is a local reject never opens a stream; this generated StreamSender fail is trailers after any messages already sent."
-            );
-            let _ = writeln!(
-                src,
-                "    /// Distinct from a generated client on_response Err: that fails the Call after a successful receive; this generated StreamSender fail is trailers after any messages already sent."
             );
         }
         if m.client_streaming && !m.server_streaming {
@@ -370,10 +330,6 @@ pub(crate) fn emit_kernel_server(
         src,
         "    pub fn config(mut self, config: {G}::ServerConfig) -> Self {{ self.config = config; self }}"
     );
-    let _ = writeln!(
-        src,
-        "    /// The configuration in effect. Distinct from [`Self::config`], which replaces it. See [`{G}::Server::server_config`]."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
@@ -401,18 +357,10 @@ pub(crate) fn emit_kernel_server(
         src,
         "    /// Replace both message caps at once. Applies to every call shape. See [`{G}::ServerConfig::message_limits`]."
     );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from [`Self::max_decoding_message_size`] / [`Self::max_encoding_message_size`]. Oversize inbound or outbound is `RESOURCE_EXHAUSTED` on every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn message_limits(mut self, limits: {G}::MessageLimits) -> Self {{ self.config = self.config.message_limits(limits); self }}"
-    );
-    let _ = writeln!(
-        src,
-        "    /// Configured message caps. Distinct from [`Self::message_limits`], which sets them. Distinct from [`Self::send_buffer_size`]: that is the HTTP/2 send buffer, not uncompressed protobuf bytes. See [`{G}::Server::limits`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -427,10 +375,6 @@ pub(crate) fn emit_kernel_server(
     let _ = writeln!(
         src,
         "    pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {{ self.config = self.config.max_concurrent_rpcs(n); self }}"
-    );
-    let _ = writeln!(
-        src,
-        "    /// Configured process-wide RPC cap, if any. Distinct from [`Self::max_concurrent_rpcs`], which sets it. See [`{G}::Server::concurrent_rpc_limit`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -450,10 +394,6 @@ pub(crate) fn emit_kernel_server(
         src,
         "    /// Concurrent RPCs allowed per HTTP/2 connection. Applies to every call shape. See [`{G}::ServerConfig::max_concurrent_streams`]."
     );
-    let _ = writeln!(
-        src,
-        "    /// HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`. Distinct from [`Self::max_concurrent_rpcs`], which refuses extras as `RESOURCE_EXHAUSTED`. A well-behaved client waits; both RPCs still complete, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
@@ -462,10 +402,6 @@ pub(crate) fn emit_kernel_server(
     let _ = writeln!(
         src,
         "    /// HTTP/2 per-stream receive window. Applies to every call shape. See [`{G}::ServerConfig::initial_stream_window_size`]."
-    );
-    let _ = writeln!(
-        src,
-        "    /// A well-behaved client still completes every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. Distinct from [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS minimum, and from [`Self::max_concurrent_streams`], which serializes extra RPCs."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -476,10 +412,6 @@ pub(crate) fn emit_kernel_server(
         src,
         "    /// HTTP/2 per-connection receive window. Applies to every call shape. See [`{G}::ServerConfig::initial_connection_window_size`]."
     );
-    let _ = writeln!(
-        src,
-        "    /// A well-behaved client still completes every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. Distinct from [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS minimum, and from [`Self::max_concurrent_streams`], which serializes extra RPCs."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
@@ -488,10 +420,6 @@ pub(crate) fn emit_kernel_server(
     let _ = writeln!(
         src,
         "    /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. Applies to every call shape. See [`{G}::ServerConfig::max_frame_size`]."
-    );
-    let _ = writeln!(
-        src,
-        "    /// A well-behaved client splits DATA; every call shape still completes, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. Distinct from [`Self::max_header_list_size`], which refuses oversize metadata, and from [`Self::max_concurrent_streams`], which serializes extra RPCs."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -502,27 +430,15 @@ pub(crate) fn emit_kernel_server(
         src,
         "    /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. Applies to every call shape. See [`{G}::ServerConfig::max_header_list_size`]."
     );
-    let _ = writeln!(
-        src,
-        "    /// Oversize metadata is refused, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. Distinct from a raw HTTP/2 peer."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn max_header_list_size(mut self, bytes: u32) -> Self {{ self.config = self.config.max_header_list_size(bytes); self }}"
     );
-    let _ = writeln!(
-        src,
-        "    /// HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table). Default 4096. Applies to every call shape. Distinct from [`Self::max_header_list_size`], which caps uncompressed header-block bytes (`SETTINGS_MAX_HEADER_LIST_SIZE`). A well-behaved client still completes every call shape at this table size, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. See [`{G}::ServerConfig::header_table_size`]."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn header_table_size(mut self, bytes: u32) -> Self {{ self.config = self.config.header_table_size(bytes); self }}"
-    );
-    let _ = writeln!(
-        src,
-        "    /// HTTP/2 small-DATA framing budget. Default 25600. Applies to every call shape. Caps extra memory from tiny DATA frames. Exceeding this is `ENHANCE_YOUR_CALM` (`too_many_data_frames`). Distinct from [`Self::initial_connection_window_size`], which is flow-control bytes, and from [`Self::max_frame_size`], which caps one DATA payload. h2 Auto (half the connection window) is not exposed. A well-behaved client still completes every call shape at this framing budget, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. See [`{G}::ServerConfig::data_frame_budget`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -533,18 +449,10 @@ pub(crate) fn emit_kernel_server(
         src,
         "    /// Per-connection HTTP/2 send buffer. Applies to every call shape. See [`{G}::ServerConfig::max_send_buffer_size`]."
     );
-    let _ = writeln!(
-        src,
-        "    /// Write backpressure still completes every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. Distinct from [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS minimum, and from [`Self::initial_stream_window_size`], which still serves at a small receive window."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {{ self.config = self.config.max_send_buffer_size(bytes); self }}"
-    );
-    let _ = writeln!(
-        src,
-        "    /// Configured write-time HTTP/2 send buffer. Distinct from [`Self::max_send_buffer_size`], which sets it. Distinct from [`Self::message_limits`]: that is uncompressed protobuf bytes, not this send buffer. See [`{G}::Server::send_buffer_size`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -555,36 +463,20 @@ pub(crate) fn emit_kernel_server(
         src,
         "    /// Cap remotely-reset HTTP/2 streams waiting in the accept queue. Applies to every call shape. See [`{G}::ServerConfig::max_pending_accept_reset_streams`]."
     );
-    let _ = writeln!(
-        src,
-        "    /// A well-behaved client never fills that queue; every call shape still completes, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. Distinct from a raw HTTP/2 peer."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn max_pending_accept_reset_streams(mut self, n: usize) -> Self {{ self.config = self.config.max_pending_accept_reset_streams(n); self }}"
-    );
-    let _ = writeln!(
-        src,
-        "    /// Cap locally-reset HTTP/2 streams caused by a peer protocol error. Default 1024. Exceeding this is `ENHANCE_YOUR_CALM`. Distinct from [`Self::max_pending_accept_reset_streams`], which caps remotely-reset streams (rapid reset). This caps RSTs we send after an invalid frame. A well-behaved client never triggers one; every call shape still completes, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. See [`{G}::ServerConfig::max_local_error_reset_streams`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn max_local_error_reset_streams(mut self, n: usize) -> Self {{ self.config = self.config.max_local_error_reset_streams(n); self }}"
     );
-    let _ = writeln!(
-        src,
-        "    /// Cap remembered locally-reset HTTP/2 stream IDs. Default 50. When the cap is reached, the oldest ID is purged from memory, not `ENHANCE_YOUR_CALM`. Frames on a purged ID are a connection `PROTOCOL_ERROR`. Distinct from [`Self::max_pending_accept_reset_streams`] (rapid-reset GOAWAY) and [`Self::max_local_error_reset_streams`] (protocol-error RST GOAWAY). A well-behaved client still completes every call shape at this memory cap, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. See [`{G}::ServerConfig::max_concurrent_reset_streams`]."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn max_concurrent_reset_streams(mut self, n: usize) -> Self {{ self.config = self.config.max_concurrent_reset_streams(n); self }}"
-    );
-    let _ = writeln!(
-        src,
-        "    /// How long locally-reset HTTP/2 stream IDs are remembered. Default 1 s. After this duration the ID is forgotten, not `ENHANCE_YOUR_CALM`. Frames on a forgotten ID are a connection `PROTOCOL_ERROR`. Distinct from [`Self::max_concurrent_reset_streams`], which is how many IDs are remembered (count). This is how long (time). A well-behaved client still completes every call shape at this reset duration, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. See [`{G}::ServerConfig::reset_stream_duration`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -609,54 +501,30 @@ pub(crate) fn emit_kernel_server(
         src,
         "    pub fn send_compressed(mut self) -> Self {{ self.config = self.config.send_compressed(true); self }}"
     );
-    let _ = writeln!(
-        src,
-        "    /// Deflate effort for outbound gzip. Default 1 (`flate2` fast). Applies to every call shape. Distinct from [`Self::send_compressed`], which is on or off. 0 stores; 9 is best. A well-behaved client still completes every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. See [`{G}::ServerConfig::gzip_compression_level`]."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn gzip_compression_level(mut self, level: u32) -> Self {{ self.config = self.config.gzip_compression_level(level); self }}"
-    );
-    let _ = writeln!(
-        src,
-        "    /// Inflate inbound gzip. Default `true`. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. Passing `false` refuses `grpc-encoding: gzip` as `UNIMPLEMENTED` before the handler. Distinct from [`Self::send_compressed`], which is outbound. See [`{G}::ServerConfig::accept_compressed`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn accept_compressed(mut self, accept: bool) -> Self {{ self.config = self.config.accept_compressed(accept); self }}"
     );
-    let _ = writeln!(
-        src,
-        "    /// Cap every RPC even when the client omits `grpc-timeout`. Distinct from [`Self::timeout`], which sets it. Interceptors and handlers read the same overlay on [`{G}::Rpc::rpc_timeout`] / [`{G}::Request::rpc_timeout`]. See [`{G}::Server::rpc_timeout`]."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn rpc_timeout(&self) -> ::core::option::Option<::std::time::Duration> {{ self.config.rpc_timeout() }}"
-    );
-    let _ = writeln!(
-        src,
-        "    /// Whether responses are gzipped when the client accepts gzip. Distinct from [`Self::send_compressed`], which enables it. See [`{G}::Server::compresses_outbound`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn compresses_outbound(&self) -> bool {{ self.config.compresses_outbound() }}"
     );
-    let _ = writeln!(
-        src,
-        "    /// Configured outbound gzip deflate level. Distinct from [`Self::gzip_compression_level`], which sets it. See [`{G}::Server::gzip_level`]."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn gzip_level(&self) -> u32 {{ self.config.gzip_level() }}"
-    );
-    let _ = writeln!(
-        src,
-        "    /// Whether inbound gzip is inflated. Default `true`. Distinct from [`Self::accept_compressed`], which sets it. Distinct from [`{G}::Rpc::accepts_gzip`], which is the peer's `grpc-accept-encoding`. See [`{G}::Server::accepts_compressed`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -690,18 +558,10 @@ pub(crate) fn emit_kernel_server(
         src,
         "    pub fn tcp_keepalive(mut self, time: ::std::time::Duration) -> Self {{ self.config = self.config.tcp_keepalive(time); self }}"
     );
-    let _ = writeln!(
-        src,
-        "    /// TCP `TCP_KEEPINTVL` probe interval. Applies only when [`Self::tcp_keepalive`] is set; this does not turn `SO_KEEPALIVE` on by itself. Distinct from [`Self::keep_alive_interval`] (HTTP/2 PING). See [`{G}::ServerConfig::tcp_keepalive_interval`]."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn tcp_keepalive_interval(mut self, interval: ::std::time::Duration) -> Self {{ self.config = self.config.tcp_keepalive_interval(interval); self }}"
-    );
-    let _ = writeln!(
-        src,
-        "    /// TCP `TCP_KEEPCNT` probe count. Applies only when [`Self::tcp_keepalive`] is set; this does not turn `SO_KEEPALIVE` on by itself. Distinct from [`Self::tcp_keepalive_interval`] (`TCP_KEEPINTVL` time, not count). See [`{G}::ServerConfig::tcp_keepalive_retries`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -754,34 +614,6 @@ pub(crate) fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Distinct from a generated handler Err: that is after the handler ran; this generated server intercept Err is trailers without reading the body."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from a generated server on_response Err: that is trailers-only after handler Ok; this generated server intercept Err is trailers without reading the body."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from a generated intercept Err: that is a local reject never opens a stream; this generated server intercept Err is trailers without reading the body."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from a generated client on_response Err: that fails the Call after a successful receive; this generated server intercept Err is trailers without reading the body."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from a generated StreamSender fail: that is trailers after any messages already sent; this generated server intercept Err is trailers without reading the body."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from [`{G}::Channel::intercept`]: that runs on the outbound call before the stream opens; this generated server intercept runs on the inbound RPC before the handler."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from [`Self::on_response`]: that runs after the handler returns Ok; this generated server intercept runs on the inbound RPC before the handler."
-    );
-    let _ = writeln!(
-        src,
         "    /// Compiling overlay dumps live on [`{G}::hello`] (`GreeterServer::new(Svc).intercept`)."
     );
     let _ = writeln!(src, "    #[must_use]");
@@ -796,10 +628,6 @@ pub(crate) fn emit_kernel_server(
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// Run `interceptor` after `{trait_name}` methods return `Ok`. It may mutate headers, trailers, compress, and local extensions (`Response::extensions` is not on the wire; stamp metadata here to send it). Calling this twice stacks: the first interceptor runs first. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. `Err` after the handler already ran; that status is sent trailers-only instead of the response, including [`{G}::Status::with_error_details`]. A handler `Err` skips this hook. [`{G}::ResponseParts::path`] is kernel-stamped. Distinct from [`{G}::Request::path`]. [`{G}::ResponseParts::gzip_level`] is the server encode overlay. Distinct from [`{G}::ResponseParts::compress`]. [`{G}::ResponseParts::compresses_outbound`] is the server encode overlay. Distinct from [`{G}::ResponseParts::compress`], which is the per-RPC Compressed-Flag. [`{G}::ResponseParts::accepts_gzip`] is the peer `grpc-accept-encoding` advertisement. Distinct from [`{G}::ResponseParts::encoding`]. [`{G}::ResponseParts::deadline`] is kernel-stamped when writing. Distinct from [`{G}::Request::deadline`]. Distinct from [`{G}::Rpc::deadline`]. [`{G}::ResponseParts::timeout`] is the duration stamped at dispatch. Distinct from [`{G}::ResponseParts::deadline`]. [`{G}::ResponseParts::limits`] is the encode cap when writing. Distinct from [`{G}::Request::limits`]. Distinct from [`{G}::Rpc::limits`]. [`{G}::ResponseParts::peer_timeout`] is the client's `grpc-timeout`. Distinct from [`{G}::ResponseParts::timeout`]. [`{G}::ResponseParts::rpc_timeout`] is the server overlay. Distinct from [`{G}::ResponseParts::timeout`]. Distinct from [`{G}::ResponseParts::peer_timeout`]. [`{G}::ResponseParts::accepts_compressed`] is the inbound gzip overlay. Distinct from [`{G}::ResponseParts::accepts_gzip`]. [`{G}::ResponseParts::send_buffer_size`] is the write-time HTTP/2 send buffer overlay. Distinct from [`{G}::ResponseParts::limits`]."
-    );
-    let _ = writeln!(
-        src,
         "    /// [`{G}::ResponseParts::compress_is_set`] is occupancy after a generated server on_response, so a later interceptor can fill compress only when unset."
     );
     let _ = writeln!(
@@ -809,26 +637,6 @@ pub(crate) fn emit_kernel_server(
     let _ = writeln!(
         src,
         "    /// [`{G}::Status::from_error_details`] is the typed bag after a generated server on_response Err; a local reject is trailers-only after handler Ok."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from a generated handler Err: that is after the handler ran; this generated server on_response Err is trailers-only after handler Ok."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from a generated server intercept Err: that is trailers without reading the body; this generated server on_response Err is trailers-only after handler Ok."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from a generated client on_response Err: that fails the Call after a successful receive; this generated server on_response Err is trailers-only after handler Ok."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from a generated StreamSender fail: that is trailers after any messages already sent; this generated server on_response Err is trailers-only after handler Ok."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this generated server on_response runs after the handler returns Ok."
     );
     let _ = writeln!(
         src,
@@ -872,10 +680,6 @@ pub(crate) fn emit_kernel_server(
         "        {G}::Server::new((self, service)).config(config)"
     );
     let _ = writeln!(src, "    }}");
-    let _ = writeln!(
-        src,
-        "    /// Mount `service` when `Some`. `None` is a no-op. Distinct from [`Self::add_service`], which always mounts. `None` does not replace a service already there. Services that stay mounted still complete every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
@@ -1405,27 +1209,15 @@ pub(crate) fn emit_kernel_client_dialers(src: &mut String) {
         src,
         "    pub fn config(&self) -> {G}::ChannelConfig {{ self.channel.config() }}"
     );
-    let _ = writeln!(
-        src,
-        "    /// Whether any pool slot currently holds a live HTTP/2 connection. Distinct from gRPC `GetState`. See [`{G}::Channel::connected`]. Applies to every call shape. Client interceptors see the same snapshot as [`{G}::Outgoing::connected`]. Distinct from [`Self::wait_for_ready`]: that overlay queues; this getter is a live snapshot."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn connected(&self) -> bool {{ self.channel.connected() }}"
     );
-    let _ = writeln!(
-        src,
-        "    /// Default per-RPC deadline when the request omits one. Distinct from [`Self::timeout`], which sets it. See [`{G}::Channel::rpc_timeout`]. Applies to every call shape."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn rpc_timeout(&self) -> ::core::option::Option<::std::time::Duration> {{ self.channel.rpc_timeout() }}"
-    );
-    let _ = writeln!(
-        src,
-        "    /// Whether this client waits for a connection instead of failing fast. See [`{G}::Channel::waits_for_ready`]. Applies to every call shape. Distinct from [`Self::connected`]: that getter is a live snapshot, not this overlay."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -1441,54 +1233,30 @@ pub(crate) fn emit_kernel_client_dialers(src: &mut String) {
         src,
         "    pub fn compresses_outbound(&self) -> bool {{ self.channel.compresses_outbound() }}"
     );
-    let _ = writeln!(
-        src,
-        "    /// Configured outbound gzip deflate level. Distinct from [`Self::gzip_compression_level`], which sets it. See [`{G}::Channel::gzip_level`]. Applies to every call shape."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn gzip_level(&self) -> u32 {{ self.channel.gzip_level() }}"
-    );
-    let _ = writeln!(
-        src,
-        "    /// Whether inbound gzip is inflated. Default `true`. Distinct from [`Self::accept_compressed`], which sets it. Distinct from [`{G}::Rpc::accepts_gzip`], which is the peer's `grpc-accept-encoding`. See [`{G}::Channel::accepts_compressed`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn accepts_compressed(&self) -> bool {{ self.channel.accepts_compressed() }}"
     );
-    let _ = writeln!(
-        src,
-        "    /// Configured channel-wide RPC cap, if any. Distinct from [`Self::max_concurrent_rpcs`], which sets it. See [`{G}::Channel::concurrent_rpc_limit`]. Applies to every call shape."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn concurrent_rpc_limit(&self) -> ::core::option::Option<usize> {{ self.channel.concurrent_rpc_limit() }}"
-    );
-    let _ = writeln!(
-        src,
-        "    /// Configured outbound streaming queue depth. Distinct from [`Self::stream_buffer`], which sets it. Distinct from [`Self::message_limits`]: that is message size, not queue depth. See [`{G}::Channel::stream_buffer_size`]. Applies to client-streaming and bidi request streams."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn stream_buffer_size(&self) -> usize {{ self.channel.stream_buffer_size() }}"
     );
-    let _ = writeln!(
-        src,
-        "    /// Configured write-time HTTP/2 send buffer. Distinct from [`Self::max_send_buffer_size`], which sets it. Distinct from [`Self::stream_buffer_size`]: that is queue depth, not this send buffer. See [`{G}::Channel::send_buffer_size`]. Applies to every call shape."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn send_buffer_size(&self) -> usize {{ self.channel.send_buffer_size() }}"
-    );
-    let _ = writeln!(
-        src,
-        "    /// Configured message caps. Distinct from [`Self::message_limits`], which sets them. Distinct from [`Self::stream_buffer_size`]: that is queue depth, not uncompressed protobuf bytes. Distinct from [`Self::send_buffer_size`]: that is the HTTP/2 send buffer, not these caps. See [`{G}::Channel::limits`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -1525,10 +1293,6 @@ pub(crate) fn emit_kernel_client(
     let _ = writeln!(
         src,
         "/// [`Self::authority`], [`Self::scheme`], and [`Self::grpc_user_agent`] read the same values interceptors see on [`{G}::Outgoing`]. [`Self::config`] is the channel overlay those values come from. [`Self::rpc_timeout`], [`Self::waits_for_ready`], [`Self::compresses_outbound`], [`Self::gzip_level`], [`Self::accepts_compressed`], [`Self::concurrent_rpc_limit`], [`Self::stream_buffer_size`], [`Self::send_buffer_size`], and [`Self::limits`] read that overlay without colliding with the setters."
-    );
-    let _ = writeln!(
-        src,
-        "/// [`Self::connected`] is the live-socket snapshot. Distinct from [`Self::waits_for_ready`]. Same snapshot as [`{G}::Channel::connected`]."
     );
     if svc.deprecated {
         let _ = writeln!(src, "///");
@@ -1589,10 +1353,6 @@ pub(crate) fn emit_kernel_client(
         src,
         "    /// Replace both message caps at once. Applies to every call shape. See [`{G}::Channel::message_limits`]."
     );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from [`Self::max_encoding_message_size`] / [`Self::max_decoding_message_size`]. Oversize is `RESOURCE_EXHAUSTED` on every call shape, including over TLS, mTLS, Unix, and [`{G}::Channel::from_io`]."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
@@ -1605,10 +1365,6 @@ pub(crate) fn emit_kernel_client(
     let _ = writeln!(
         src,
         "    /// The interceptor sees a [`{G}::Outgoing`]: path, service, method, `:authority`, `:scheme`,"
-    );
-    let _ = writeln!(
-        src,
-        "    /// `user-agent` (`user_agent_is_set`), message caps, metadata, timeout / deadline Instant, wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`), channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size` / `limits`; `clear_*` opts out of the already-applied default), extensions, `connected` (same snapshot as [`{G}::Channel::connected`]). [`{G}::Outgoing::set_user_agent`] prefixes this RPC. [`{G}::Request::set_user_agent`] is the same prefix at the call site. [`{G}::Outgoing::connected`] is the live-socket snapshot. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on. [`{G}::Outgoing::gzip_level`] is deflate effort. Distinct from [`{G}::Outgoing::compresses_outbound`] (on or off). An interceptor cannot change it. [`{G}::Outgoing::accepts_compressed`] is the inbound gzip overlay (default on). [`{G}::Outgoing::limits`] is the channel message-cap overlay. Same overlay as [`{G}::Channel::limits`]. [`{G}::Outgoing::concurrent_rpc_limit`] is the channel RPC cap overlay. Distinct from [`{G}::Outgoing::waits_for_ready`]: that waits for a connection; this refuses extras. [`{G}::Outgoing::stream_buffer_size`] is the outbound streaming queue overlay. Distinct from [`{G}::Outgoing::limits`]: that is message size, not queue depth. [`{G}::Outgoing::send_buffer_size`] is the outbound HTTP/2 send buffer overlay. Distinct from [`{G}::Outgoing::stream_buffer_size`]: that is queue depth, not this send buffer."
     );
     let _ = writeln!(
         src,
@@ -1640,39 +1396,7 @@ pub(crate) fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// [`{G}::Outgoing::connected`] is the live-socket snapshot on this generated intercept path ([`{G}::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
-    );
-    let _ = writeln!(
-        src,
         "    /// [`{G}::Status::from_error_details`] is the typed bag after a generated intercept Err; a local reject never opens a stream."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from a generated handler Err: that is after the handler ran; this generated intercept Err is a local reject never opens a stream."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from a generated client on_response Err: that fails the Call after a successful receive; this generated intercept Err is a local reject never opens a stream."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from a generated server intercept Err: that is trailers without reading the body; this generated intercept Err is a local reject never opens a stream."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from a generated StreamSender fail: that is trailers after any messages already sent; this generated intercept Err is a local reject never opens a stream."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from [`{G}::Channel::max_concurrent_rpcs`]: that takes a slot when the [`{G}::Call`] is polled; a generated intercept already ran, so a local Err never consumes that budget."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from [`{G}::Server::intercept`]: that runs on the inbound RPC before the handler; this generated intercept runs on the outbound call before the stream opens."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from [`Self::on_response`]: that runs after a successful receive; this generated intercept runs on the outbound call before the stream opens."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(src, "    pub fn intercept<I>(self, interceptor: I) -> Self");
@@ -1686,10 +1410,6 @@ pub(crate) fn emit_kernel_client(
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// Run `interceptor` after a successful receive, before the [`{G}::Call`] is Ready. Closures implement [`{G}::ResponseInterceptor`]. A received reply starts empty; this is how a client inserts typed context after the peer cannot. Distinct from [`Self::intercept`], which runs before the stream opens. Calling this twice stacks: the first interceptor runs first. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Channel::from_io`]. `Err` fails that Call (the peer already sent OK), including [`{G}::Status::with_error_details`]. A non-OK peer status skips this hook. On server-streaming and bidi, trailers on this envelope do not replace [`{G}::Streaming::trailers`]. See [`{G}::Channel::on_response`]. [`{G}::ResponseParts::path`] is kernel-stamped. Distinct from [`{G}::Outgoing::path`]. [`{G}::Response::gzip_level`] on a received reply is not the peer's deflate effort. Distinct from [`{G}::Response::encoding`]. [`{G}::Response::compresses_outbound`] on a received reply is `false` (the overlay is not on the wire). [`{G}::Response::accepts_gzip`] on a received reply is `false` (the advertisement is not on the reply wire). [`{G}::Response::deadline`] on a received reply is `None` (the peer deadline is not on the wire). [`{G}::Response::timeout`] on a received reply is `None` (the peer timeout is not on the reply wire). [`{G}::Response::limits`] on a received reply is `None` (the peer encode cap is not on the wire). [`{G}::Response::peer_timeout`] on a received reply is `None` (the client's `grpc-timeout` is not on the reply wire). [`{G}::Response::rpc_timeout`] on a received reply is `None` (the server overlay is not on the reply wire). [`{G}::Response::accepts_compressed`] on a received reply is `false` (this overlay is not a received-reply field). [`{G}::Response::send_buffer_size`] on a received reply is `None` (the peer send buffer is not on the reply wire)."
-    );
-    let _ = writeln!(
-        src,
         "    /// [`{G}::ResponseParts::compress_is_set`] is occupancy after a generated client on_response, so a later interceptor can fill compress only when unset."
     );
     let _ = writeln!(
@@ -1699,30 +1419,6 @@ pub(crate) fn emit_kernel_client(
     let _ = writeln!(
         src,
         "    /// [`{G}::Status::from_error_details`] is the typed bag after a generated client on_response Err; a local reject fails the Call after a successful receive."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from a generated handler Err: that is after the handler ran; this generated client on_response Err fails the Call after a successful receive."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from a generated server intercept Err: that is trailers without reading the body; this generated client on_response Err fails the Call after a successful receive."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from a generated intercept Err: that is a local reject never opens a stream; this generated client on_response Err fails the Call after a successful receive."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from a generated server on_response Err: that is trailers-only after handler Ok; this generated client on_response Err fails the Call after a successful receive."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from a generated StreamSender fail: that is trailers after any messages already sent; this generated client on_response Err fails the Call after a successful receive."
-    );
-    let _ = writeln!(
-        src,
-        "    /// Distinct from [`Self::intercept`]: that runs on the outbound call before the stream opens; this generated client on_response runs after a successful receive."
     );
     let _ = writeln!(
         src,
@@ -1763,18 +1459,10 @@ pub(crate) fn emit_kernel_client(
         src,
         "    pub fn send_compressed(mut self) -> Self {{ self.channel = self.channel.send_compressed(); self }}"
     );
-    let _ = writeln!(
-        src,
-        "    /// Deflate effort for outbound gzip. Default 1 (`flate2` fast). Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Channel::from_io`]. Distinct from [`Self::send_compressed`], which is on or off. 0 stores; 9 is best. See [`{G}::Channel::gzip_compression_level`]."
-    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
         "    pub fn gzip_compression_level(mut self, level: u32) -> Self {{ self.channel = self.channel.gzip_compression_level(level); self }}"
-    );
-    let _ = writeln!(
-        src,
-        "    /// Inflate inbound gzip. Default `true`. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Channel::from_io`]. Passing `false` omits gzip from `grpc-accept-encoding` and refuses a gzip reply as `UNIMPLEMENTED`. Distinct from [`Self::send_compressed`], which is outbound. See [`{G}::Channel::accept_compressed`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -1820,10 +1508,6 @@ pub(crate) fn emit_kernel_client(
     let _ = writeln!(
         src,
         "    pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {{ self.channel = self.channel.max_send_buffer_size(bytes); self }}"
-    );
-    let _ = writeln!(
-        src,
-        "    /// Cap how many RPCs this channel will run at once. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Channel::from_io`]. Extra RPCs are `RESOURCE_EXHAUSTED` before the stream opens. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`, which waits. Distinct from [`{G}::Server::max_concurrent_rpcs`], which refuses inbound. Clones share the budget. See [`{G}::Channel::max_concurrent_rpcs`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
