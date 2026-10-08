@@ -1,13 +1,11 @@
-//! `grpc.reflection.v1.ServerReflection`: the standard reflection service.
+//! The standard gRPC reflection service for descriptor lookup.
 //!
-//! Register each service's generated `FILE_DESCRIPTOR_SET`, mount the result
-//! next to your handlers, and `grpcurl` can list and describe them.
-//! [`Builder::build_v1alpha`] and [`v1alpha_service`] mount
-//! `grpc.reflection.v1alpha.ServerReflection` as a distinct service, using the
-//! same wire-compatible message layout as v1. Mount v1 first and then v1alpha
-//! so the explicit v1alpha service replaces the legacy generated v1 alias in
-//! [`crate::Router`]. `list_services` still reports registered descriptor
-//! services, not either reflection service.
+//! Register generated `FILE_DESCRIPTOR_SET` values with [`Builder`] so tools
+//! such as `grpcurl` can list services and inspect their message types.
+//! [`Builder::build_v1alpha`] provides the wire-compatible v1alpha service.
+//! When mounting both versions, add v1 first and v1alpha second to replace the
+//! generated v1alpha alias with the explicit service. The service list comes
+//! from registered descriptors.
 //!
 //! ```no_run
 //! # async fn example() -> Result<(), pbrs_grpc::Status> {
@@ -21,108 +19,6 @@
 //! # Ok(())
 //! # }
 //! ```
-//!
-//! [`service`] is the same registration as a one-liner. An inbound message
-//! over the decoding cap fails the stream as `RESOURCE_EXHAUSTED` trailers
-//! (`StreamSender::fail`), not a quiet OK end, including over TLS, mTLS, Unix,
-//! and [`crate::Channel::from_io`]. A [`ServerReflectionClient`]
-//! `max_encoding_message_size` / `max_decoding_message_size` is
-//! `RESOURCE_EXHAUSTED` on the one bidi method on those transports, distinct
-//! from the server decoding cap. [`ServerReflectionClient::message_limits`]
-//! refuses the same oversize, distinct from those single-cap wrappers.
-//! `Router::message_limits` /
-//! [`ServerReflectionServer::message_limits`] refuse the same oversize as
-//! `RESOURCE_EXHAUSTED` trailers on that method, distinct from
-//! [`crate::Router::max_decoding_message_size`].
-//! [`ServerReflectionClient::connect_tls_with`] /
-//! [`ServerReflectionClient::connect_unix_with`] /
-//! [`ServerReflectionClient::from_io_with`] with
-//! [`crate::ChannelConfig::message_limits`] refuse the same oversize, distinct
-//! from wrapping a live client. [`ServerReflectionServer::max_header_list_size`]
-//! refuses oversize metadata on the one bidi method, including over TLS, mTLS,
-//! Unix, and [`crate::Server::serve_connection`]. Distinct from wrapping only a
-//! Greeter server. [`ServerReflectionServer::max_frame_size`] still serves the
-//! one bidi method at the HTTP/2 16 KiB SETTINGS minimum, including over TLS,
-//! mTLS, Unix, and [`crate::Server::serve_connection`]. Distinct from wrapping
-//! only a Greeter server. [`ServerReflectionServer::max_pending_accept_reset_streams`]
-//! still serves the one bidi method at a pending-reset cap of 1, including over
-//! TLS, mTLS, Unix, and [`crate::Server::serve_connection`]. A well-behaved
-//! client never fills that queue. Distinct from wrapping only a Greeter server.
-//! [`ServerReflectionServer::max_send_buffer_size`] still serves the one bidi
-//! method at a 16 KiB send buffer, including over TLS, mTLS, Unix, and
-//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
-//! server.
-//! [`ServerReflectionServer::initial_stream_window_size`] /
-//! [`ServerReflectionServer::initial_connection_window_size`] still serve the
-//! one bidi method at a 64 KiB stream / 128 KiB connection window, including
-//! over TLS, mTLS, Unix, and [`crate::Server::serve_connection`]. Distinct from
-//! wrapping only a Greeter server.
-//! A [`ServerReflectionClient`] pool larger than
-//! [`ServerReflectionServer::max_concurrent_connections`] fails the whole dial
-//! as `UNAVAILABLE` on TLS, mTLS, and Unix.
-//! [`ServerReflectionClient::from_io_with`] cannot pool. An interceptor `Err` may carry
-//! [`crate::Status::with_error_details`]; those trailers reach the client.
-//! [`crate::Status::from_error_details`] is the typed bag after this reflection interceptor Err; those trailers reach the client without reading the body.
-//! Distinct from a reflection handler Err: that is after the handler ran; this reflection interceptor Err is trailers without reading the body.
-//! Distinct from a reflection server on_response Err: that is trailers-only after handler Ok; this reflection interceptor Err is trailers without reading the body.
-//! Distinct from a reflection client interceptor Err: that is a local reject never opens a stream; this reflection interceptor Err is trailers without reading the body.
-//! Distinct from a reflection client on_response Err: that fails the Call after a successful receive; this reflection interceptor Err is trailers without reading the body.
-//! Distinct from a reflection StreamSender fail: that is trailers after any messages already sent; this reflection interceptor Err is trailers without reading the body.
-//! Distinct from a reflection client interceptor: that runs on the outbound call before the stream opens; this reflection interceptor runs on the inbound RPC before the handler.
-//! A handler `Err` may carry the same packed status; those trailers reach
-//! the client.
-//! [`crate::Status::from_error_details`] is the typed bag after this reflection handler Err; those trailers reach the client.
-//! Distinct from a reflection interceptor Err: that is trailers without reading the body; this reflection handler Err is after the handler ran.
-//! Distinct from a reflection client interceptor Err: that is a local reject never opens a stream; this reflection handler Err is after the handler ran.
-//! Distinct from a reflection server on_response Err: that is trailers-only after handler Ok; this reflection handler Err is after the handler ran.
-//! Distinct from a reflection client on_response Err: that fails the Call after a successful receive; this reflection handler Err is after the handler ran.
-//! Distinct from a reflection StreamSender fail: that is trailers after any messages already sent; this reflection handler Err is after the handler ran.
-//! [`crate::StreamSender::fail`] after a streamed DATA frame on
-//! `ServerReflectionInfo` ships those trailers the same way.
-//! [`crate::Status::from_error_details`] is the typed bag after this reflection StreamSender fail on a server response producer; those trailers ship after any messages already sent.
-//! Distinct from a reflection handler Err: that is after the handler ran; this reflection StreamSender fail is trailers after any messages already sent.
-//! Distinct from a reflection interceptor Err: that is trailers without reading the body; this reflection StreamSender fail is trailers after any messages already sent.
-//! Distinct from a reflection server on_response Err: that is trailers-only after handler Ok; this reflection StreamSender fail is trailers after any messages already sent.
-//! Distinct from a reflection client interceptor Err: that is a local reject never opens a stream; this reflection StreamSender fail is trailers after any messages already sent.
-//! Distinct from a reflection client on_response Err: that fails the Call after a successful receive; this reflection StreamSender fail is trailers after any messages already sent.
-//! [`crate::Status::from_error_details`] is the typed bag after this reflection server on_response Err; a local reject is trailers-only after handler Ok.
-//! Distinct from a reflection handler Err: that is after the handler ran; this reflection server on_response Err is trailers-only after handler Ok.
-//! Distinct from a reflection interceptor Err: that is trailers without reading the body; this reflection server on_response Err is trailers-only after handler Ok.
-//! Distinct from a reflection client on_response Err: that fails the Call after a successful receive; this reflection server on_response Err is trailers-only after handler Ok.
-//! Distinct from a reflection StreamSender fail: that is trailers after any messages already sent; this reflection server on_response Err is trailers-only after handler Ok.
-//! [`crate::Status::from_error_details`] is the typed bag after this reflection client on_response Err; a local reject fails the Call after a successful receive.
-//! Distinct from a reflection handler Err: that is after the handler ran; this reflection client on_response Err fails the Call after a successful receive.
-//! Distinct from a reflection interceptor Err: that is trailers without reading the body; this reflection client on_response Err fails the Call after a successful receive.
-//! Distinct from a reflection client interceptor Err: that is a local reject never opens a stream; this reflection client on_response Err fails the Call after a successful receive.
-//! Distinct from a reflection server on_response Err: that is trailers-only after handler Ok; this reflection client on_response Err fails the Call after a successful receive.
-//! Distinct from a reflection StreamSender fail: that is trailers after any messages already sent; this reflection client on_response Err fails the Call after a successful receive.
-//! Unix (`serve_unix` /
-//! `connect_unix`), TLS (`serve_tls` /
-//! `connect_tls`),
-//! and [`crate::Server::serve_connection`] / [`crate::Channel::from_io`] serve
-//! the bidi method. `file_containing_symbol` and `file_by_filename` return the
-//! registered `FileDescriptorProto` on that method, including over TLS, mTLS,
-//! Unix, and [`crate::Channel::from_io`]. A missing symbol is `NOT_FOUND` on
-//! the stream. `file_containing_extension` and `all_extension_numbers_of_type`
-//! answer from the same method on those transports; a missing extension is
-//! `NOT_FOUND` on the stream. [`ServerReflectionServer::send_compressed`] gzips that
-//! method when the client advertises gzip. [`ServerReflectionClient::connect_lazy`],
-//! [`ServerReflectionClient::connect_tls_lazy`] (including mTLS), and
-//! [`ServerReflectionClient::connect_unix_lazy`] retry that method until listen
-//! when wait-for-ready is set on the request, the client, or a client interceptor.
-//! `Request::set_wait_for_ready(false)` and a client interceptor
-//! `set_wait_for_ready(false)` opt out of a client default. A waiting Call's
-//! deadline applies on those dialers. A client interceptor sees
-//! [`crate::Outgoing`] path / service / method / `:authority` / `:scheme` on
-//! that method.
-//! [`crate::Outgoing::connected`] is the live-socket snapshot on this reflection client interceptor path ([`crate::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
-//! [`crate::Status::from_error_details`] is the typed bag after this reflection client interceptor Err; a local reject never opens a stream.
-//! Distinct from a reflection handler Err: that is after the handler ran; this reflection client interceptor Err is a local reject never opens a stream.
-//! Distinct from a reflection client on_response Err: that fails the Call after a successful receive; this reflection client interceptor Err is a local reject never opens a stream.
-//! Distinct from a reflection interceptor Err: that is trailers without reading the body; this reflection client interceptor Err is a local reject never opens a stream.
-//! Distinct from a reflection StreamSender fail: that is trailers after any messages already sent; this reflection client interceptor Err is a local reject never opens a stream.
-//! Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this reflection client interceptor already ran, so a local Err never consumes that budget.
-//! Distinct from a reflection interceptor: that runs on the inbound RPC before the handler; this reflection client interceptor runs on the outbound call before the stream opens.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 
