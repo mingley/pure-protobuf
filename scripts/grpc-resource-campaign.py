@@ -123,7 +123,7 @@ def soak_disposition(requested, actual, exit_code, failures=()):
 
 def validate_report(report):
     errors = []
-    if report.get("schema") != "pbrs.resource-campaign.v2":
+    if report.get("schema") != "pbrs.resource-campaign.v3":
         errors.append("unknown evidence schema")
     source = report.get("source", {})
     if not re.fullmatch(r"[0-9a-f]{40}", str(source.get("commit", ""))) or source.get("dirty") is not False:
@@ -169,6 +169,9 @@ def validate_report(report):
     if {(p.get("tls"), p.get("gzip")) for p in profiles} != {(False, False), (False, True), (True, False), (True, True)}:
         errors.append("missing plaintext/TLS and identity/gzip profile coverage")
     faults = [event for event in events if event.get("phase") == "fault"]
+    if any(event.get("recovery_probe") != "warmed_independent_connection"
+           or event.get("recovery_code") != "OK" or event.get("probe_timeout_ms") != 300 for event in faults):
+        errors.append("missing successful independent fault recovery probe")
     if {e.get("fault") for e in faults} != {"RstStream(Cancel)", "Goaway", "TcpReset"}:
         errors.append("missing RST_STREAM, GOAWAY or TCP reset coverage")
     if not events or events[0].get("phase") != "baseline" or events[0].get("cycle") != 0:
@@ -313,7 +316,7 @@ def run(args):
                 events.append(json.loads(line))
             except json.JSONDecodeError as error:
                 failures.append(f"invalid raw event: {error}")
-    report = {"schema": "pbrs.resource-campaign.v2", "source": source,
+    report = {"schema": "pbrs.resource-campaign.v3", "source": source,
               "host": dict(platform.uname()._asdict()), "seed": args.seed,
               "tools": {"rustc": command(["rustc", "-Vv"]), "cargo": command(["cargo", "-V"]),
                         "python": sys.version},

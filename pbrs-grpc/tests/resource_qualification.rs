@@ -764,7 +764,8 @@ async fn run_resource_cycles(campaign: bool) {
             LifecycleRunner::run_scenario(scenario).await;
             record(
                 &json!({"phase": "fault", "cycle": cycle, "fault": format!("{fault:?}"),
-                "transport": "plaintext_tcp"}),
+                "transport": "plaintext_tcp", "recovery_probe": "warmed_independent_connection",
+                "recovery_code": "OK", "probe_timeout_ms": 300}),
             );
             tokio::time::sleep(Duration::from_millis(30)).await;
         }

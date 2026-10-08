@@ -5,6 +5,8 @@ Every cycle checks exact unary and bidi payloads at 0, 1 KiB, 64 KiB and 1 MiB;
 a paused reader of 128 responses; RPC overload; cancellation; deadlines;
 recovery; and shutdown. A separate lifecycle fixture injects plaintext
 RST_STREAM, GOAWAY and TCP resets on a rotating schedule, then checks recovery.
+A warmed connection to the same server bypasses the faulted proxy. Its probe must return the expected reply within 300 ms; an
+error response cannot prove that the server released its single RPC slot.
 Compressed slow-reader responses use deterministic varied bytes so compression
 cannot make the entire response fit into initial HTTP/2 credit. The fixture
 allows up to one second for production to reach a stall, then checks unchanged

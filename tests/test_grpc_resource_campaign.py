@@ -20,7 +20,8 @@ def report():
                              mixed_payload_bytes=[0, 1024, 65536, 1048576], byte_budget=8388608,
                              message_limit=2097152, server_deadline_ms=3000)
             elif phase == "fault":
-                event.update(transport="plaintext_tcp", fault=["RstStream(Cancel)", "Goaway", "TcpReset"][(cycle - 1) % 3])
+                event.update(transport="plaintext_tcp", recovery_probe="warmed_independent_connection",
+                             recovery_code="OK", probe_timeout_ms=300, fault=["RstStream(Cancel)", "Goaway", "TcpReset"][(cycle - 1) % 3])
             elif phase == "slow_reader":
                 event.update(stall_wait_ms=30, producer_progress_before_hold=12, producer_progress_after_hold=12,
                              producer_sent_messages=12, producer_done=False)
@@ -28,7 +29,7 @@ def report():
                 event.update(producer_sent_messages=128, producer_done=True)
             events.append(event)
     limits = {key: {"soft": 1024, "hard": 1024} for key in CAMPAIGN.LIMIT_NAMES}
-    return {"schema": "pbrs.resource-campaign.v2", "source": {"commit": "a" * 40, "tree": "b" * 40,
+    return {"schema": "pbrs.resource-campaign.v3", "source": {"commit": "a" * 40, "tree": "b" * 40,
             "dirty": False, "cargo_lock_sha256": "c" * 64}, "binary": {"sha256": "d" * 64},
             "tools": {"cargo": "cargo", "rustc": "rustc", "python": "python"},
             "commands": {"build": ["build"], "test": ["test"]}, "duration_requested_seconds": 30,
@@ -80,6 +81,15 @@ class CampaignEvidenceTests(unittest.TestCase):
                 if event["phase"] == "fault":
                     event[field] = replacement
             self.assertTrue(CAMPAIGN.validate_report(value))
+
+    def test_fault_recovery_requires_a_successful_independent_rpc(self):
+        for field, replacement in [("recovery_probe", "faulted_channel"), ("recovery_code", "UNAVAILABLE"),
+                                   ("probe_timeout_ms", 3000)]:
+            value = report()
+            for event in value["events"]:
+                if event["phase"] == "fault":
+                    event[field] = replacement
+            self.assertIn("missing successful independent fault recovery probe", CAMPAIGN.validate_report(value))
 
     def test_unrecovered_permit_and_resource_growth_are_rejected(self):
         for field, replacement in [("server_byte_tokens", 1), ("file_descriptors", 1000),

@@ -919,3 +919,63 @@ async fn test_lifecycle_unending_stream_deadline_and_graceful_drain() {
     );
     assert!(server.is_byte_budget_quiescent());
 }
+
+#[tokio::test]
+async fn tcp_faults_recover_the_single_server_slot_repeatedly() {
+    let faults = [
+        FaultKind::RstStream(RstReason::Cancel),
+        FaultKind::Goaway,
+        FaultKind::TcpReset,
+    ];
+    let shapes = [
+        CallShape::Unary,
+        CallShape::ClientStreaming,
+        CallShape::ServerStreaming,
+        CallShape::Bidi,
+    ];
+    for repeat in 0..10 {
+        for shape in shapes {
+            for fault in faults {
+                LifecycleRunner::run_scenario(LifecycleScenario {
+                    shape,
+                    transport: TransportKind::Tcp,
+                    boundary: LifecycleBoundary::BodyStarted,
+                    fault,
+                    seed: 20261091 + repeat,
+                })
+                .await;
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn tls_fault_recovery_replays_recorded_timeout_scenarios() {
+    for _ in 0..20 {
+        for transport in [TransportKind::Tls, TransportKind::Mtls] {
+            for (shape, boundary, fault, seed) in [
+                (
+                    CallShape::ServerStreaming,
+                    LifecycleBoundary::ResponseHeadersReceived,
+                    FaultKind::FutureDropServer,
+                    0x29e5_69c7_50a9_2202,
+                ),
+                (
+                    CallShape::ClientStreaming,
+                    LifecycleBoundary::HeadersSent,
+                    FaultKind::RstStream(RstReason::InternalError),
+                    0x14c7_307b_3f60_720d,
+                ),
+            ] {
+                LifecycleRunner::run_scenario(LifecycleScenario {
+                    shape,
+                    transport,
+                    boundary,
+                    fault,
+                    seed,
+                })
+                .await;
+            }
+        }
+    }
+}

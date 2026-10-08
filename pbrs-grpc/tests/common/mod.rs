@@ -1167,7 +1167,11 @@ pub mod lifecycle {
             assert_eq!(s, 0, "Leaked server tasks: {s}");
         }
 
-        pub async fn assert_permit_release(&self, probe_client: &GreeterClient) {
+        pub async fn assert_permit_release(
+            &self,
+            probe_client: &GreeterClient,
+            must_succeed: bool,
+        ) {
             // The handler guard can drop before the outer dispatch task drops
             // its semaphore permit. A persistent rejection still fails.
             let deadline = tokio::time::Instant::now() + Duration::from_millis(300);
@@ -1175,19 +1179,30 @@ pub mod lifecycle {
             while tokio::time::Instant::now() < deadline {
                 let probe = tokio::time::timeout_at(
                     deadline,
-                    probe_client.say_hello(Request::new(req("probe"))),
+                    probe_client.say_hello(Request::new(req("permit-probe"))),
                 )
                 .await;
                 match probe {
                     Ok(Err(status)) if status.code() == Code::ResourceExhausted => {
                         last_rejection = Some(status);
                     }
-                    Ok(_) => return,
+                    Ok(Ok(response)) => {
+                        assert_eq!(name_of(response.get_ref()), "permit-recovered");
+                        return;
+                    }
+                    Ok(Err(_)) if !must_succeed => {
+                        // Preserve the original terminal-channel check for IO
+                        // that cannot be redialed. This does not prove admission.
+                        return;
+                    }
+                    Ok(Err(status)) => panic!("Recovery probe failed: {status:?}"),
                     Err(_) => break,
                 }
                 tokio::time::sleep(Duration::from_millis(1)).await;
             }
-            panic!("Permit leak detected after 300ms: {last_rejection:?}");
+            panic!(
+                "Recovery probe did not complete after 300ms; last admission rejection: {last_rejection:?}"
+            );
         }
     }
 
@@ -1207,6 +1222,9 @@ pub mod lifecycle {
             request: Request<HelloRequest>,
         ) -> Result<Response<HelloReply>, Status> {
             let _guard = TaskGuard::new(&self.coordinator.server_active_tasks);
+            if name_of_request(request.get_ref()) == "permit-probe" {
+                return Ok(Response::new(reply("permit-recovered")));
+            }
             self.coordinator.reach(LifecycleBoundary::HeadersSent).await;
             let name = name_of_request(request.get_ref());
             self.coordinator.record_server_received(&name);
@@ -1446,7 +1464,7 @@ pub mod lifecycle {
                     .expect("channel from_io");
                     let client = GreeterClient::new(channel);
 
-                    Self::execute_and_verify(client, coord.clone(), scenario).await;
+                    Self::execute_and_verify(client, None, coord.clone(), scenario).await;
                     server_task.abort();
                 }
                 TransportKind::Tcp => {
@@ -1468,8 +1486,13 @@ pub mod lifecycle {
                         spawn_tcp_byte_proxy(proxy_listener, server_addr, proxy_state.clone());
 
                     let client = greeter_client(proxy_addr).await.max_concurrent_rpcs(1);
+                    // This connection shares the server's single RPC slot and
+                    // bypasses the proxy that has just injected a fault.
+                    let probe_client = greeter_client(server_addr).await.max_concurrent_rpcs(1);
+                    Self::warm_probe(&probe_client).await;
 
-                    Self::execute_and_verify(client, coord.clone(), scenario).await;
+                    Self::execute_and_verify(client, Some(probe_client), coord.clone(), scenario)
+                        .await;
                     proxy_task.abort();
                     server_task.abort();
                 }
@@ -1488,7 +1511,7 @@ pub mod lifecycle {
 
                     let server = GreeterServer::new(LifecycleGreeter::new(coord.clone()))
                         .config(ServerConfig::new().max_concurrent_rpcs(1));
-                    let server_task = tokio::spawn(async move {
+                    let mut server_task = tokio::spawn(async move {
                         server
                             .serve_tls_with_shutdown(
                                 listener,
@@ -1526,7 +1549,19 @@ pub mod lifecycle {
                     let client = client_opt
                         .unwrap_or_else(|| panic!("could not connect tls to {proxy_addr}: {last}"));
 
-                    Self::execute_and_verify(client, coord.clone(), scenario).await;
+                    let probe_client = GreeterClient::connect_tls(server_addr, client_tls)
+                        .await
+                        .expect("independent TLS probe")
+                        .max_concurrent_rpcs(1);
+                    Self::warm_probe(&probe_client).await;
+                    Self::execute_and_verify(client, Some(probe_client), coord.clone(), scenario)
+                        .await;
+                    if Self::shutdown_expected(&coord, scenario) {
+                        tokio::time::timeout(Duration::from_millis(300), &mut server_task)
+                            .await
+                            .expect("TLS server did not finish shutdown within 300ms")
+                            .expect("TLS server task panicked");
+                    }
                     proxy_task.abort();
                     server_task.abort();
                 }
@@ -1546,7 +1581,7 @@ pub mod lifecycle {
 
                     let server = GreeterServer::new(LifecycleGreeter::new(coord.clone()))
                         .config(ServerConfig::new().max_concurrent_rpcs(1));
-                    let server_task = tokio::spawn(async move {
+                    let mut server_task = tokio::spawn(async move {
                         server
                             .serve_tls_with_shutdown(
                                 listener,
@@ -1588,7 +1623,19 @@ pub mod lifecycle {
                         panic!("could not connect mtls to {proxy_addr}: {last}")
                     });
 
-                    Self::execute_and_verify(client, coord.clone(), scenario).await;
+                    let probe_client = GreeterClient::connect_tls(server_addr, client_tls)
+                        .await
+                        .expect("independent TLS probe")
+                        .max_concurrent_rpcs(1);
+                    Self::warm_probe(&probe_client).await;
+                    Self::execute_and_verify(client, Some(probe_client), coord.clone(), scenario)
+                        .await;
+                    if Self::shutdown_expected(&coord, scenario) {
+                        tokio::time::timeout(Duration::from_millis(300), &mut server_task)
+                            .await
+                            .expect("TLS server did not finish shutdown within 300ms")
+                            .expect("TLS server task panicked");
+                    }
                     proxy_task.abort();
                     server_task.abort();
                 }
@@ -1654,7 +1701,13 @@ pub mod lifecycle {
                         panic!("could not connect uds to {}: {last}", proxy_path.display())
                     });
 
-                    Self::execute_and_verify(client, coord.clone(), scenario).await;
+                    let probe_client = GreeterClient::connect_unix(&server_path)
+                        .await
+                        .expect("independent Unix probe")
+                        .max_concurrent_rpcs(1);
+                    Self::warm_probe(&probe_client).await;
+                    Self::execute_and_verify(client, Some(probe_client), coord.clone(), scenario)
+                        .await;
                     proxy_task.abort();
                     server_task.abort();
                     let _ = std::fs::remove_file(&server_path);
@@ -1663,8 +1716,26 @@ pub mod lifecycle {
             }
         }
 
+        async fn warm_probe(client: &GreeterClient) {
+            let response = tokio::time::timeout(
+                Duration::from_millis(300),
+                client.say_hello(Request::new(req("permit-probe"))),
+            )
+            .await
+            .expect("independent probe warmup timed out")
+            .expect("independent probe warmup failed");
+            assert_eq!(name_of(response.get_ref()), "permit-recovered");
+        }
+
+        fn shutdown_expected(coord: &LifecycleCoordinator, scenario: LifecycleScenario) -> bool {
+            matches!(scenario.transport, TransportKind::Tls | TransportKind::Mtls)
+                && scenario.fault == FaultKind::Goaway
+                && coord.has_faulted.load(Ordering::SeqCst)
+        }
+
         async fn execute_and_verify(
             client: GreeterClient,
+            independent_probe: Option<GreeterClient>,
             coord: Arc<LifecycleCoordinator>,
             scenario: LifecycleScenario,
         ) {
@@ -1680,7 +1751,8 @@ pub mod lifecycle {
                 Ok(())
             });
 
-            let probe_client = client.clone();
+            let must_succeed = independent_probe.is_some();
+            let probe_client = independent_probe.unwrap_or_else(|| client.clone());
 
             let call_res = match scenario.shape {
                 CallShape::Unary => Self::run_unary(&client, &coord, drop_rx).await,
@@ -1696,7 +1768,14 @@ pub mod lifecycle {
             coord.assert_message_ordering();
             coord.assert_status(&call_res);
             coord.assert_quiescent().await;
-            coord.assert_permit_release(&probe_client).await;
+            // TLS GOAWAY is injected by shutting down the whole server.
+            // The runner checks server termination, rather than admission
+            // to a server that has deliberately stopped accepting RPCs.
+            if !Self::shutdown_expected(&coord, scenario) {
+                coord
+                    .assert_permit_release(&probe_client, must_succeed)
+                    .await;
+            }
         }
 
         async fn run_unary(
