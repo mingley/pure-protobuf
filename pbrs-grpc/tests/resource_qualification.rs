@@ -497,10 +497,30 @@ async fn run_resource_cycles(campaign: bool) {
             .await
             .expect("slow reader")
             .into_inner();
-        tokio::time::sleep(Duration::from_millis(30)).await;
-        let first_progress = calls.producer_sent.load(Ordering::SeqCst);
-        tokio::time::sleep(Duration::from_millis(30)).await;
-        let second_progress = calls.producer_sent.load(Ordering::SeqCst);
+        let stall_started = Instant::now();
+        let (first_progress, second_progress) = if campaign {
+            tokio::time::timeout(Duration::from_secs(1), async {
+                loop {
+                    let before = calls.producer_sent.load(Ordering::SeqCst);
+                    tokio::time::sleep(Duration::from_millis(30)).await;
+                    let after = calls.producer_sent.load(Ordering::SeqCst);
+                    if before > 0
+                        && before == after
+                        && after < 128
+                        && !calls.producer_done.load(Ordering::SeqCst)
+                    {
+                        break (before, after);
+                    }
+                }
+            })
+            .await
+            .expect("bounded slow-reader stall")
+        } else {
+            tokio::time::sleep(Duration::from_millis(30)).await;
+            let first = calls.producer_sent.load(Ordering::SeqCst);
+            tokio::time::sleep(Duration::from_millis(30)).await;
+            (first, calls.producer_sent.load(Ordering::SeqCst))
+        };
         let mut slow_event = snapshot(
             "slow_reader",
             cycle,
@@ -508,6 +528,12 @@ async fn run_resource_cycles(campaign: bool) {
             &server_tracker,
             &client_tracker,
         );
+        if campaign {
+            slow_event.as_object_mut().expect("event object").insert(
+                "stall_wait_ms".into(),
+                json!(stall_started.elapsed().as_millis()),
+            );
+        }
         slow_event.as_object_mut().expect("event object").insert(
             "producer_progress_after_30_ms".into(),
             json!(first_progress),

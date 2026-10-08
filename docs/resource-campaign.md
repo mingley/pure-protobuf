@@ -6,7 +6,9 @@ a paused reader of 128 responses; RPC overload; cancellation; deadlines;
 recovery; and shutdown. A separate lifecycle fixture injects plaintext
 RST_STREAM, GOAWAY and TCP resets on a rotating schedule, then checks recovery.
 Compressed slow-reader responses use deterministic varied bytes so compression
-cannot make the entire response fit into initial HTTP/2 credit.
+cannot make the entire response fit into initial HTTP/2 credit. The fixture
+allows up to one second for production to reach a stall, then checks unchanged
+progress over a 30 ms observation.
 
 Run from a clean, committed checkout on Linux:
 
@@ -27,7 +29,7 @@ The four profiles share a two-worker process. Each side has an explicit 8 MiB
 byte tracker; message caps are 2 MiB, send buffers 16 KiB, and deadlines 3 seconds.
 These settings differ from the older plaintext diagnostic.
 
-Raw events include bytes/tokens, observed streaming calls, tasks, descriptors,
+Raw events include bytes/tokens, observed `ClientHello`/`ServerHello` lifecycle calls, tasks, descriptors,
 RSS and process RSS high-water. After faults and drain, accounted bytes, tokens
 and observed calls must return to zero. Starts must equal ends. Every drain
 must stay within its initial baseline plus 32 MiB RSS, one descriptor and two

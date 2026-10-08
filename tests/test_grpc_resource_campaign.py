@@ -22,7 +22,7 @@ def report():
             elif phase == "fault":
                 event.update(transport="plaintext_tcp", fault=["RstStream(Cancel)", "Goaway", "TcpReset"][(cycle - 1) % 3])
             elif phase == "slow_reader":
-                event.update(producer_progress_after_30_ms=12, producer_progress_after_60_ms=12,
+                event.update(stall_wait_ms=30, producer_progress_after_30_ms=12, producer_progress_after_60_ms=12,
                              producer_sent_messages=12, producer_done=False)
             elif phase != "warmup":
                 event.update(producer_sent_messages=128, producer_done=True)

@@ -32,7 +32,7 @@ SETTINGS = {"transport": "tcp_loopback_plaintext_and_tls", "compression": "ident
             "client_stream_receive_window_bytes": 1024, "client_connection_receive_window_bytes": 4096,
             "client_outbound_stream_queue_messages": 1, "server_response_queue_messages": 4,
             "server_deadline_ms": 3000, "drain_grace_ms": 150,
-            "slow_reader_hold_ms": 60, "slow_reader_responses": 128,
+            "slow_reader_stabilization_limit_ms": 1000, "slow_reader_observation_ms": 30, "slow_reader_responses": 128,
             "slow_reader_response_bytes": 2048,
             "recovery_rss_tolerance_bytes": 32 * 1024 * 1024,
             "recovery_fd_tolerance": 1, "recovery_tokio_task_tolerance": 2}
@@ -191,6 +191,8 @@ def validate_report(report):
         if event["observed_streaming_calls_peak"] > SETTINGS["max_active_rpcs"]:
             errors.append("observed streaming-call peak exceeds frozen limit")
         if event.get("phase") == "slow_reader":
+            if type(event.get("stall_wait_ms")) is not int or not 30 <= event["stall_wait_ms"] <= 1050:
+                errors.append("missing or out-of-bounds stall observation")
             first, second = event.get("producer_progress_after_30_ms"), event.get("producer_progress_after_60_ms")
             if (type(first) is not int or type(second) is not int or first != second
                     or first <= 0 or second >= SETTINGS["slow_reader_responses"]
