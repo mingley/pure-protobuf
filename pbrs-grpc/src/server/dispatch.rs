@@ -71,6 +71,14 @@ pub trait Service: Send + Sync + 'static {
     /// Match on [`Rpc::method`] and consume the [`Rpc`] with the call shape
     /// the method declares. Returning without consuming it resets the stream.
     fn call(&self, rpc: Rpc) -> impl Future<Output = ()> + Send;
+
+    /// Dispatch with a boxed future for a heterogeneous router.
+    ///
+    /// The default boxes [`Self::call`]. Generated services select the method
+    /// before boxing, so unrelated methods do not enlarge each RPC's future.
+    fn call_boxed(&self, rpc: Rpc) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(self.call(rpc))
+    }
 }
 
 /// Object-safe [`Service`], so [`Router`] can hold a heterogeneous map.
@@ -80,7 +88,7 @@ pub(crate) trait DynService: Send + Sync + 'static {
 
 impl<S: Service> DynService for S {
     fn dispatch<'a>(&'a self, rpc: Rpc) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
-        Box::pin(self.call(rpc))
+        self.call_boxed(rpc)
     }
 }
 

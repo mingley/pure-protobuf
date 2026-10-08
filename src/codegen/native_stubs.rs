@@ -1054,44 +1054,64 @@ pub(crate) fn emit_kernel_server(
             "    const ALIASES: &'static [&'static str] = &[\"grpc.reflection.v1alpha.ServerReflection\"];"
         );
     }
-    let _ = writeln!(
-        src,
-        "    fn call(&self, rpc: {G}::Rpc) -> impl ::core::future::Future<Output = ()> + Send {{"
-    );
-    let _ = writeln!(
-        src,
-        "        let inner = ::std::sync::Arc::clone(&self.inner);"
-    );
-    let _ = writeln!(src, "        async move {{");
-    let _ = writeln!(src, "            match rpc.path() {{");
-    for m in &svc.methods {
-        let shape = shape_of(m);
-        let fn_name = to_snake(&m.name);
-        let _ = writeln!(src, "                \"/{full_name}/{}\" => {{", m.name);
+    for boxed in [false, true] {
+        if boxed {
+            let _ = writeln!(
+                src,
+                "    fn call_boxed(&self, rpc: {G}::Rpc) -> ::core::pin::Pin<::std::boxed::Box<dyn ::core::future::Future<Output = ()> + Send + '_>> {{"
+            );
+        } else {
+            let _ = writeln!(
+                src,
+                "    fn call(&self, rpc: {G}::Rpc) -> impl ::core::future::Future<Output = ()> + Send {{"
+            );
+        }
         let _ = writeln!(
             src,
-            "                    rpc.{}(move |request| async move {{ inner.{fn_name}(request).await }}).await;",
-            shape.dispatch
+            "        let inner = ::std::sync::Arc::clone(&self.inner);"
         );
-        let _ = writeln!(src, "                }}");
-        if full_name == "grpc.reflection.v1.ServerReflection" {
-            let _ = writeln!(
-                src,
-                "                \"/grpc.reflection.v1alpha.ServerReflection/{}\" => {{",
-                m.name
-            );
-            let _ = writeln!(
-                src,
-                "                    rpc.{}(move |request| async move {{ inner.{fn_name}(request).await }}).await;",
-                shape.dispatch
-            );
-            let _ = writeln!(src, "                }}");
+        if !boxed {
+            let _ = writeln!(src, "        async move {{");
         }
+        let _ = writeln!(src, "            match rpc.path() {{");
+        for m in &svc.methods {
+            let shape = shape_of(m);
+            let fn_name = to_snake(&m.name);
+            let mut paths = vec![format!("/{full_name}/{}", m.name)];
+            if full_name == "grpc.reflection.v1.ServerReflection" {
+                paths.push(format!(
+                    "/grpc.reflection.v1alpha.ServerReflection/{}",
+                    m.name
+                ));
+            }
+            for path in paths {
+                let _ = writeln!(src, "                \"{path}\" => {{");
+                let future = format!(
+                    "rpc.{}(move |request| async move {{ inner.{fn_name}(request).await }})",
+                    shape.dispatch
+                );
+                if boxed {
+                    let _ = writeln!(src, "                    ::std::boxed::Box::pin({future})");
+                } else {
+                    let _ = writeln!(src, "                    {future}.await;");
+                }
+                let _ = writeln!(src, "                }}");
+            }
+        }
+        if boxed {
+            let _ = writeln!(
+                src,
+                "                _ => ::std::boxed::Box::pin(async move {{ rpc.unimplemented() }}),"
+            );
+        } else {
+            let _ = writeln!(src, "                _ => rpc.unimplemented(),");
+        }
+        let _ = writeln!(src, "            }}");
+        if !boxed {
+            let _ = writeln!(src, "        }}");
+        }
+        let _ = writeln!(src, "    }}");
     }
-    let _ = writeln!(src, "                _ => rpc.unimplemented(),");
-    let _ = writeln!(src, "            }}");
-    let _ = writeln!(src, "        }}");
-    let _ = writeln!(src, "    }}");
     let _ = writeln!(src, "}}");
 }
 
