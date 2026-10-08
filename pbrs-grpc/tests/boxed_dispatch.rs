@@ -73,22 +73,20 @@ async fn check_dispatch(router: bool) {
     let channel = Channel::connect(address).await.unwrap();
     let mut request = HelloRequest::new();
     request.set_name("selected method");
+    let mut request = Request::new(request);
+    request.set_timeout(Duration::from_secs(2));
     let response = channel
-        .unary::<_, HelloReply>(
-            "/helloworld.Greeter/SayHello",
-            Request::new(request).with_timeout(Duration::from_secs(2)),
-        )
+        .unary::<_, HelloReply>("/helloworld.Greeter/SayHello", request)
         .await
         .unwrap();
     assert_eq!(
         response.get_ref().message().to_str().unwrap(),
         "selected method"
     );
+    let mut request = Request::new(HelloRequest::new());
+    request.set_timeout(Duration::from_secs(2));
     let status = channel
-        .unary::<_, HelloReply>(
-            "/helloworld.Greeter/Unknown",
-            Request::new(HelloRequest::new()).with_timeout(Duration::from_secs(2)),
-        )
+        .unary::<_, HelloReply>("/helloworld.Greeter/Unknown", request)
         .await
         .unwrap_err();
     assert_eq!(status.code(), Code::Unimplemented);
