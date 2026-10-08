@@ -1,4 +1,4 @@
-# Pure-Rust `.proto` frontend route (GN-05)
+# `.proto` frontend route (GN-05)
 
 Decision: contribute the missing full-profile surface to `protox`
 upstream as bounded slices, and do not build an in-repo `.proto`

@@ -42,7 +42,7 @@ Miri, AddressSanitizer (ASan), and LeakSanitizer (LSan) are scheduled qualificat
 
 ## 2. MiniTable & Runtime Invariants (`src/runtime/`)
 
-`src/runtime.rs` re-exports the `src/runtime/` modules (`arena`, `array`, `decode`, `encode`, `extension`, `layout`, `map`, `mini_table`, `reflect`), which implement the Google protobuf `__internal::runtime` upb kernel ABI in pure Rust. This lets generated code from `protoc --rust_out`, such as `rust_out_person`, link against `pbrs` without C or C++ dependencies.
+`src/runtime.rs` re-exports the `src/runtime/` modules (`arena`, `array`, `decode`, `encode`, `extension`, `layout`, `map`, `mini_table`, `reflect`), which implement the Google protobuf `__internal::runtime` upb kernel ABI. This lets generated code from `protoc --rust_out`, such as `rust_out_person`, link against `pbrs`.
 
 ### 2.1 Struct Representations (`#[repr(C)]`)
 
@@ -714,3 +714,21 @@ Its unit test checks 64-byte alignment, zeroing, contents after reallocation,
 and deallocation with the final layout. Run that source as an isolated Miri
 library as described in the [benchmark README](../bench/devloop/compression/README.md).
 The allocator is used only in the diagnostic executable.
+
+## 13. Benchmark context-switch counters
+
+`rpc-bench/src/resources.rs::context_switches` calls `getrusage(RUSAGE_SELF)`
+on 64-bit Linux. It uses the benchmark's existing `#[repr(C)]` `Rusage` and
+`Timeval` definitions: Linux `long` and `time_t` are 64-bit on the supported
+targets. Every field permits zero initialization. The stack buffer is valid
+for the complete call, its pointer does not escape, and fields are read only
+after the call returns success. Negative counters fail capture instead of
+being cast to large unsigned values. Other targets report unsupported.
+
+The native exited-thread test checks process-wide accounting. The
+[response-status evidence](evidence/grpc-response-status-20261008/README.md)
+also records the host C ABI layout check and isolated Miri caller checks.
+Miri cannot execute Linux `getrusage`; its direct-call failure is retained.
+The mock checks cover the Rust buffer and counter conversion, not the foreign
+implementation. This instrumentation is confined to benchmark executables;
+it does not add an unsafe operation to the shipping codec or RPC libraries.

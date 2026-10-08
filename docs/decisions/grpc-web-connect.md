@@ -36,7 +36,7 @@ The first version should be **HTTP/2-only**:
   full tonic-web parity for h2c/browser HTTP/1.1 needs a separate HTTP/1.1
   accept layer. That should not be hidden inside the first gRPC-Web card.
 
-The first implementation is still useful: it lets pure-Rust services serve
+The first implementation lets services serve
 native gRPC and gRPC-Web over the same HTTP/2 transport, covers TLS browser
 paths, and keeps the dependency graph small. It should document that
 HTTP/1.1-only clients need an edge proxy until a future HTTP/1.1 card lands.

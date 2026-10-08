@@ -59,8 +59,6 @@ fn type_url_str(any: &Any) -> &str {
 impl Any {
     /// Pack `msg` as `type.googleapis.com/<FULL_NAME>`.
     ///
-    /// Distinct from [`crate::Status::with_error_details`]: that packs `Any` values onto a status; this packs one message into an `Any`.
-    ///
     /// ```
     /// use pbrs_grpc::pb::{Any, ErrorInfo};
     ///
@@ -80,7 +78,6 @@ impl Any {
     /// Use this when talking to a peer that does not use the
     /// `type.googleapis.com/` prefix. [`Self::unpack`] still matches on the
     /// type name after the last `/`.
-    /// Distinct from [`Self::pack`]: that uses `type.googleapis.com/<FULL_NAME>`; this takes an explicit type URL.
     ///
     /// ```
     /// use pbrs_grpc::pb::{Any, ErrorInfo};
@@ -110,7 +107,6 @@ impl Any {
     /// Compares the protobuf full name, so
     /// `type.googleapis.com/google.rpc.ErrorInfo` and
     /// `example.com/google.rpc.ErrorInfo` both match [`ErrorInfo`].
-    /// Distinct from [`Self::unpack`]: that decodes the payload; this is a type-URL check.
     ///
     /// ```
     /// use pbrs_grpc::pb::{Any, ErrorInfo, RetryInfo};
@@ -130,7 +126,6 @@ impl Any {
     ///
     /// [`crate::Code::InvalidArgument`] if the type URL names a different
     /// message; [`crate::Code::Internal`] if the bytes are not a valid `M`.
-    /// Distinct from [`Self::is`]: that is a type-URL check; this decodes the payload.
     ///
     /// ```
     /// use pbrs_grpc::pb::{Any, ErrorInfo, RetryInfo};
@@ -172,7 +167,6 @@ impl Duration {
     /// `google.protobuf.Duration` for a non-negative `std` duration.
     ///
     /// Seconds saturate at [`i64::MAX`]. Nanos always fit the protobuf range.
-    /// Distinct from [`Self::try_to_std`]: that converts this protobuf to `std`; this builds the protobuf from `std`.
     ///
     /// ```
     /// use pbrs_grpc::pb::Duration;
@@ -204,7 +198,6 @@ impl Duration {
     /// Negative seconds or nanos, or nanos ≥ 1s, are
     /// [`crate::Code::InvalidArgument`]. An overflow of `std`'s range is the
     /// same code rather than a panic.
-    /// Distinct from [`Self::from_std`]: that builds the protobuf from `std`; this converts this protobuf to `std`.
     ///
     /// ```
     /// use pbrs_grpc::pb::Duration;
@@ -266,7 +259,6 @@ impl ErrorInfo {
     /// Distinct from [`crate::Status::retry_delay`]: that is a wait hint, not a cause.
     /// Distinct from [`crate::Status::bad_request`]: that is a field path, not reason and domain.
     /// Distinct from [`crate::Status::failed_precondition`], which is the ASCII code with no packed reason.
-    /// Distinct from [`Self::with_metadata`]: that is a metadata pair, not reason and domain.
     ///
     /// ```
     /// use pbrs_grpc::pb::{ErrorDetails, ErrorInfo};
@@ -292,7 +284,6 @@ impl ErrorInfo {
     ///
     /// Chain after [`Self::with_reason`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::error_info`].
-    /// Distinct from [`Self::with_reason`]: that is reason and domain, not a metadata pair.
     /// Distinct from [`crate::Status::request_info`]: that is a typed request_id, not this metadata map.
     ///
     /// ```
@@ -367,8 +358,6 @@ impl FieldViolation {
     ///
     /// Chain after [`Self::with_field`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::bad_request`].
-    /// Distinct from [`Self::with_field`]: that is a request field path, not the field-violation reason.
-    /// Distinct from [`crate::pb::ErrorInfo::with_reason`]: that is reason and domain, not a field-violation reason.
     /// Distinct from [`crate::Status::invalid_argument`]: that is the ASCII code with no packed fields.
     ///
     /// ```
@@ -403,9 +392,6 @@ impl FieldViolation {
     ///
     /// Chain after [`Self::with_field`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::bad_request`].
-    /// Distinct from [`Self::with_field`]: that is a request field path, not a field-violation localized message.
-    /// Distinct from [`Self::with_reason`]: that is the field-violation reason, not a field-violation localized message.
-    /// Distinct from [`LocalizedMessage::with_locale`]: that builds the locale payload; this attaches it to a field violation.
     ///
     /// ```
     /// use pbrs_grpc::pb::{BadRequest, ErrorDetails, FieldViolation, LocalizedMessage};
@@ -465,8 +451,6 @@ impl BadRequest {
     ///
     /// Chain after [`Self::with_field`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::bad_request`].
-    /// Distinct from [`Self::with_field`]: that is the first field path, not an extra field violation.
-    /// Distinct from [`FieldViolation::with_field`]: that builds one nested violation; this appends another onto BadRequest.
     /// Distinct from [`crate::Status::error_info`]: that is reason and domain, not an extra field violation.
     ///
     /// ```
@@ -512,7 +496,6 @@ impl quota_failure::Violation {
     ///
     /// Chain after [`Self::with_subject`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::quota_failure`].
-    /// Distinct from [`Self::with_subject`]: that is subject and description, not the API service name.
     /// Distinct from [`crate::Status::error_info`]: that is reason and domain, not a quota API service.
     /// Distinct from [`FieldViolation::with_field`]: that is a request field path, not a quota API service.
     ///
@@ -548,8 +531,6 @@ impl quota_failure::Violation {
     ///
     /// Chain after [`Self::with_subject`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::quota_failure`].
-    /// Distinct from [`Self::with_subject`]: that is subject and description, not the quota metric name.
-    /// Distinct from [`Self::with_api_service`]: that is the API service name, not the quota metric name.
     /// Distinct from [`crate::Status::error_info`]: that is reason and domain, not a quota metric.
     ///
     /// ```
@@ -584,8 +565,6 @@ impl quota_failure::Violation {
     ///
     /// Chain after [`Self::with_subject`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::quota_failure`].
-    /// Distinct from [`Self::with_subject`]: that is subject and description, not the quota id.
-    /// Distinct from [`Self::with_quota_metric`]: that is the quota metric name, not the quota id.
     /// Distinct from [`crate::Status::error_info`]: that is reason and domain, not a quota id.
     ///
     /// ```
@@ -620,9 +599,6 @@ impl quota_failure::Violation {
     ///
     /// Chain after [`Self::with_subject`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::quota_failure`].
-    /// Distinct from [`Self::with_subject`]: that is subject and description, not a quota dimension pair.
-    /// Distinct from [`Self::with_quota_id`]: that is the quota id, not a quota dimension pair.
-    /// Distinct from [`crate::pb::ErrorInfo::with_metadata`]: that is ErrorInfo metadata, not quota dimensions.
     ///
     /// ```
     /// use pbrs_grpc::pb::{quota_failure, ErrorDetails, QuotaFailure};
@@ -656,8 +632,6 @@ impl quota_failure::Violation {
     ///
     /// Chain after [`Self::with_subject`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::quota_failure`].
-    /// Distinct from [`Self::with_subject`]: that is subject and description, not the quota value.
-    /// Distinct from [`Self::with_quota_dimension`]: that is a quota dimension pair, not the quota value.
     /// Distinct from [`crate::Status::retry_delay`]: that is a wait hint, not the quota value.
     ///
     /// ```
@@ -684,8 +658,6 @@ impl quota_failure::Violation {
     ///
     /// Chain after [`Self::with_subject`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::quota_failure`].
-    /// Distinct from [`Self::with_subject`]: that is subject and description, not the future quota value.
-    /// Distinct from [`Self::with_quota_value`]: that is the current quota value, not the future quota value.
     /// Distinct from [`crate::Status::retry_delay`]: that is a wait hint, not the future quota value.
     ///
     /// ```
@@ -749,8 +721,6 @@ impl QuotaFailure {
     ///
     /// Chain after [`Self::with_violation`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::quota_failure`].
-    /// Distinct from [`Self::with_violation`]: that is the first quota subject, not an extra quota violation.
-    /// Distinct from [`quota_failure::Violation::with_subject`]: that builds one nested violation; this appends another onto QuotaFailure.
     /// Distinct from [`crate::Status::bad_request`]: that is a field path, not an extra quota violation.
     ///
     /// ```
@@ -848,8 +818,6 @@ impl PreconditionFailure {
     ///
     /// Chain after [`Self::with_violation`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::precondition_failure`].
-    /// Distinct from [`Self::with_violation`]: that is the first precondition type, not an extra precondition violation.
-    /// Distinct from [`precondition_failure::Violation::with_type`]: that builds one nested violation; this appends another onto PreconditionFailure.
     /// Distinct from [`crate::Status::quota_failure`]: that is a quota subject, not an extra precondition violation.
     ///
     /// ```
@@ -940,8 +908,6 @@ impl Help {
     ///
     /// Chain after [`Self::with_link`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::help`].
-    /// Distinct from [`Self::with_link`]: that is the first docs URL, not an extra help link.
-    /// Distinct from [`help::Link::with_url`]: that builds one nested link; this appends another onto Help.
     /// Distinct from [`crate::Status::localized_message`]: that is a locale, not an extra help link.
     ///
     /// ```
@@ -1076,7 +1042,6 @@ impl ResourceInfo {
     ///
     /// Chain after [`Self::with_resource`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::resource_info`].
-    /// Distinct from [`Self::with_resource`]: that is type, name, and owner, not a resource description.
     /// Distinct from [`crate::Status::message`]: that is the ASCII `grpc-message`, not a resource description.
     /// Distinct from [`crate::Status::debug_info`]: that is an operator stack, not a resource description.
     ///
@@ -1138,7 +1103,6 @@ impl DebugInfo {
     ///
     /// Chain after [`Self::with_stack`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::debug_info`].
-    /// Distinct from [`Self::with_stack`]: that is the first frame and detail, not an extra stack frame.
     /// Distinct from [`crate::Status::localized_message`]: that is a locale, not an extra stack frame.
     /// Distinct from [`crate::Status::help`]: that is a docs URL, not an extra stack frame.
     ///
@@ -1171,8 +1135,6 @@ impl DebugInfo {
 
 impl Status {
     /// A `google.rpc.Status` with `code`, `message`, and packed `details`.
-    ///
-    /// Distinct from [`crate::Status::with_details`]: that ships raw trailer bytes; this builds a packed `google.rpc.Status`.
     ///
     /// ```
     /// use pbrs_grpc::pb::{Any, ErrorInfo, Status};
@@ -1251,7 +1213,6 @@ pub struct ErrorDetails {
 
 impl ErrorDetails {
     /// No detail messages.
-    /// Distinct from [`Self::from_rpc`]: that unpacks the `Any` list on a packed `google.rpc.Status`; this is an empty bag.
     ///
     /// ```
     /// use pbrs_grpc::pb::ErrorDetails;
@@ -1274,9 +1235,6 @@ impl ErrorDetails {
     ///
     /// Chain after [`Self::new`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::error_info`].
-    /// Distinct from [`ErrorInfo::with_reason`]: that is reason and domain, not planting ErrorInfo on the bag.
-    /// Distinct from [`crate::Status::error_info`]: that unpacks packed ErrorInfo; this plants it on the bag.
-    /// Distinct from [`Self::from_rpc`]: that unpacks the Any list; this plants one typed ErrorInfo.
     ///
     /// ```
     /// use pbrs_grpc::pb::{ErrorDetails, ErrorInfo};
@@ -1300,8 +1258,6 @@ impl ErrorDetails {
     /// Chain after [`Self::new`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::retry_delay`].
     /// Distinct from [`RetryInfo::with_retry_delay`]: that is a wait hint, not planting RetryInfo on the bag.
-    /// Distinct from [`crate::Status::retry_delay`]: that unpacks the wait hint; this plants RetryInfo on the bag.
-    /// Distinct from [`Self::with_error_info`]: that plants ErrorInfo, not RetryInfo.
     ///
     /// ```
     /// use pbrs_grpc::pb::{ErrorDetails, RetryInfo};
@@ -1328,8 +1284,6 @@ impl ErrorDetails {
     /// Chain after [`Self::new`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::debug_info`].
     /// Distinct from [`DebugInfo::with_stack`]: that is the first frame and detail, not planting DebugInfo on the bag.
-    /// Distinct from [`crate::Status::debug_info`]: that unpacks packed DebugInfo; this plants it on the bag.
-    /// Distinct from [`Self::with_retry_info`]: that plants RetryInfo, not DebugInfo.
     ///
     /// ```
     /// use pbrs_grpc::pb::{DebugInfo, ErrorDetails};
@@ -1353,8 +1307,6 @@ impl ErrorDetails {
     /// Chain after [`Self::new`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::quota_failure`].
     /// Distinct from [`QuotaFailure::with_violation`]: that is the first quota subject, not planting QuotaFailure on the bag.
-    /// Distinct from [`crate::Status::quota_failure`]: that unpacks packed QuotaFailure; this plants it on the bag.
-    /// Distinct from [`Self::with_debug_info`]: that plants DebugInfo, not QuotaFailure.
     ///
     /// ```
     /// use pbrs_grpc::pb::{ErrorDetails, QuotaFailure};
@@ -1379,8 +1331,6 @@ impl ErrorDetails {
     /// Chain after [`Self::new`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::precondition_failure`].
     /// Distinct from [`PreconditionFailure::with_violation`]: that is the first precondition type, not planting PreconditionFailure on the bag.
-    /// Distinct from [`crate::Status::precondition_failure`]: that unpacks packed PreconditionFailure; this plants it on the bag.
-    /// Distinct from [`Self::with_quota_failure`]: that plants QuotaFailure, not PreconditionFailure.
     ///
     /// ```
     /// use pbrs_grpc::pb::{ErrorDetails, PreconditionFailure};
@@ -1406,8 +1356,6 @@ impl ErrorDetails {
     /// Chain after [`Self::new`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::bad_request`].
     /// Distinct from [`BadRequest::with_field`]: that is the first field path, not planting BadRequest on the bag.
-    /// Distinct from [`crate::Status::bad_request`]: that unpacks packed BadRequest; this plants it on the bag.
-    /// Distinct from [`Self::with_precondition_failure`]: that plants PreconditionFailure, not BadRequest.
     ///
     /// ```
     /// use pbrs_grpc::pb::{BadRequest, ErrorDetails};
@@ -1432,8 +1380,6 @@ impl ErrorDetails {
     /// Chain after [`Self::new`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::request_info`].
     /// Distinct from [`RequestInfo::with_request_id`]: that is request_id and serving_data, not planting RequestInfo on the bag.
-    /// Distinct from [`crate::Status::request_info`]: that unpacks packed RequestInfo; this plants it on the bag.
-    /// Distinct from [`Self::with_bad_request`]: that plants BadRequest, not RequestInfo.
     ///
     /// ```
     /// use pbrs_grpc::pb::{ErrorDetails, RequestInfo};
@@ -1457,8 +1403,6 @@ impl ErrorDetails {
     /// Chain after [`Self::new`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::resource_info`].
     /// Distinct from [`ResourceInfo::with_resource`]: that is type, name, and owner, not planting ResourceInfo on the bag.
-    /// Distinct from [`crate::Status::resource_info`]: that unpacks packed ResourceInfo; this plants it on the bag.
-    /// Distinct from [`Self::with_request_info`]: that plants RequestInfo, not ResourceInfo.
     ///
     /// ```
     /// use pbrs_grpc::pb::{ErrorDetails, ResourceInfo};
@@ -1488,8 +1432,6 @@ impl ErrorDetails {
     /// Chain after [`Self::new`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::help`].
     /// Distinct from [`Help::with_link`]: that is the first docs URL, not planting Help on the bag.
-    /// Distinct from [`crate::Status::help`]: that unpacks packed Help; this plants it on the bag.
-    /// Distinct from [`Self::with_resource_info`]: that plants ResourceInfo, not Help.
     ///
     /// ```
     /// use pbrs_grpc::pb::{ErrorDetails, Help};
@@ -1518,8 +1460,6 @@ impl ErrorDetails {
     /// Chain after [`Self::new`]. Packed onto a status with
     /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::localized_message`].
     /// Distinct from [`LocalizedMessage::with_locale`]: that is locale and message, not planting LocalizedMessage on the bag.
-    /// Distinct from [`crate::Status::localized_message`]: that unpacks packed LocalizedMessage; this plants it on the bag.
-    /// Distinct from [`Self::with_help`]: that plants Help, not LocalizedMessage.
     ///
     /// ```
     /// use pbrs_grpc::pb::{ErrorDetails, LocalizedMessage};
@@ -1545,8 +1485,6 @@ impl ErrorDetails {
     /// [`crate::Status::error_details`] `.unknown`. Standard types belong on
     /// the typed fields; a first packed ErrorInfo still re-homes there on decode.
     /// Distinct from [`Any::pack`]: that packs one message into an Any, not planting it on the bag.
-    /// Distinct from [`crate::Status::error_details`]: that unpacks the bag; this plants one unknown Any.
-    /// Distinct from [`Self::with_localized_message`]: that plants LocalizedMessage, not an unknown Any.
     ///
     /// ```
     /// use pbrs_grpc::pb::{Any, ErrorDetails};
@@ -1569,8 +1507,6 @@ impl ErrorDetails {
 
     /// Encode every populated field as `google.protobuf.Any`, standard
     /// types first, then [`Self::unknown`].
-    ///
-    /// Distinct from [`crate::Status::from_error_details`]: that encodes the bag as a trailer; this returns the `Any` list.
     ///
     /// ```
     /// use pbrs_grpc::pb::{ErrorDetails, ErrorInfo};
@@ -1612,8 +1548,6 @@ impl ErrorDetails {
     /// Decode a `google.rpc.Status` details list. The first value of each
     /// standard type fills the matching field; anything else, including a
     /// second value of a known type, goes to [`Self::unknown`].
-    /// Distinct from [`crate::Status::from_rpc`]: that encodes a packed protobuf as the trailer; this unpacks the typed bag.
-    /// Distinct from [`crate::Status::error_details`]: that unpacks `grpc-status-details-bin` on a kernel Status; this unpacks the `Any` list on a packed `google.rpc.Status`.
     ///
     /// ```
     /// use pbrs_grpc::pb::{Any, ErrorDetails, ErrorInfo, Status};

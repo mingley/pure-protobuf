@@ -156,32 +156,10 @@ impl Echo {
 /// requesting the full body cap may need a higher inbound message limit.
 /// This is a sample-service allocation policy, not an upstream interop limit.
 /// [`crate::Status::from_error_details`] is the typed bag after this InteropTestService interceptor Err; those trailers reach the client without reading the body.
-/// Distinct from an InteropTestService handler Err: that is after the handler ran; this InteropTestService interceptor Err is trailers without reading the body.
-/// Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this InteropTestService interceptor Err is trailers without reading the body.
-/// Distinct from an InteropTestService client interceptor Err: that is a local reject never opens a stream; this InteropTestService interceptor Err is trailers without reading the body.
-/// Distinct from a testing Channel on_response Err: that fails the Call after a successful receive; this InteropTestService interceptor Err is trailers without reading the body.
-/// Distinct from an InteropTestService StreamSender fail: that is trailers after any messages already sent; this InteropTestService interceptor Err is trailers without reading the body.
-/// Distinct from an InteropTestService client interceptor: that runs on the outbound call before the stream opens; this InteropTestService interceptor runs on the inbound RPC before the handler.
 /// [`crate::Status::from_error_details`] is the typed bag after this InteropTestService handler Err; those trailers reach the client.
-/// Distinct from an InteropTestService interceptor Err: that is trailers without reading the body; this InteropTestService handler Err is after the handler ran.
-/// Distinct from an InteropTestService client interceptor Err: that is a local reject never opens a stream; this InteropTestService handler Err is after the handler ran.
-/// Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this InteropTestService handler Err is after the handler ran.
-/// Distinct from a testing Channel on_response Err: that fails the Call after a successful receive; this InteropTestService handler Err is after the handler ran.
-/// Distinct from an InteropTestService StreamSender fail: that is trailers after any messages already sent; this InteropTestService handler Err is after the handler ran.
 /// [`crate::Outgoing::connected`] is the live-socket snapshot on this InteropTestService client interceptor path ([`crate::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 /// [`crate::Status::from_error_details`] is the typed bag after this InteropTestService client interceptor Err; a local reject never opens a stream.
-/// Distinct from an InteropTestService handler Err: that is after the handler ran; this InteropTestService client interceptor Err is a local reject never opens a stream.
-/// Distinct from a testing Channel on_response Err: that fails the Call after a successful receive; this InteropTestService client interceptor Err is a local reject never opens a stream.
-/// Distinct from an InteropTestService interceptor Err: that is trailers without reading the body; this InteropTestService client interceptor Err is a local reject never opens a stream.
-/// Distinct from an InteropTestService StreamSender fail: that is trailers after any messages already sent; this InteropTestService client interceptor Err is a local reject never opens a stream.
-/// Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this InteropTestService client interceptor already ran, so a local Err never consumes that budget.
-/// Distinct from an InteropTestService interceptor: that runs on the inbound RPC before the handler; this InteropTestService client interceptor runs on the outbound call before the stream opens.
 /// [`crate::Status::from_error_details`] is the typed bag after this InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
-/// Distinct from an InteropTestService handler Err: that is after the handler ran; this InteropTestService StreamSender fail is trailers after any messages already sent.
-/// Distinct from an InteropTestService interceptor Err: that is trailers without reading the body; this InteropTestService StreamSender fail is trailers after any messages already sent.
-/// Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this InteropTestService StreamSender fail is trailers after any messages already sent.
-/// Distinct from an InteropTestService client interceptor Err: that is a local reject never opens a stream; this InteropTestService StreamSender fail is trailers after any messages already sent.
-/// Distinct from a testing Channel on_response Err: that fails the Call after a successful receive; this InteropTestService StreamSender fail is trailers after any messages already sent.
 #[derive(Default)]
 pub struct InteropTestService;
 

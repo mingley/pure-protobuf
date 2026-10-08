@@ -56,7 +56,6 @@ pub enum Code {
 impl Code {
     /// Interpret a wire value. Unrecognised codes become [`Code::Unknown`],
     /// as the specification requires.
-    /// Distinct from [`Self::to_i32`]: that emits the wire i32; this interprets a wire i32.
     #[must_use]
     pub fn from_i32(n: i32) -> Self {
         match n {
@@ -81,7 +80,6 @@ impl Code {
     }
 
     /// The value used on the wire.
-    /// Distinct from [`Self::from_i32`]: that interprets a wire i32; this emits the wire i32.
     #[must_use]
     pub fn to_i32(self) -> i32 {
         self as i32
@@ -89,7 +87,6 @@ impl Code {
 
     /// The canonical `SCREAMING_SNAKE_CASE` spelling used across gRPC
     /// implementations and tooling.
-    /// Distinct from [`Self::description`]: that is the one-line google.rpc.Code text; this is the canonical name.
     #[must_use]
     pub fn name(self) -> &'static str {
         match self {
@@ -114,7 +111,6 @@ impl Code {
     }
 
     /// One-line description from `google.rpc.Code`.
-    /// Distinct from [`Self::name`]: that is the canonical name; this is the one-line google.rpc.Code text.
     #[must_use]
     pub fn description(self) -> &'static str {
         match self {
@@ -150,7 +146,6 @@ impl Code {
     /// [`Self::ResourceExhausted`] is not retryable: a
     /// [`crate::Channel::max_concurrent_rpcs`] refusal would loop, and a
     /// quota trailer should wait [`Status::retry_delay`] instead.
-    /// Distinct from [`crate::Status::is_retryable`]: that is the same A6 set on a Status; this is the Code.
     #[must_use]
     pub fn is_retryable(self) -> bool {
         matches!(self, Self::Unavailable)
@@ -164,7 +159,6 @@ impl fmt::Display for Code {
 }
 
 /// The string was not a canonical gRPC code name or a code in `0..=16`.
-/// Distinct from [`Code::from_i32`]: that maps an unrecognised wire i32 to [`Code::Unknown`]; this rejects the string.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ParseCodeError;
 
@@ -380,7 +374,6 @@ fn empty_metadata() -> &'static Metadata {
 
 impl Status {
     /// A status with `code` and `message`, and no trailing metadata.
-    /// Distinct from [`Self::from_code`]: that is code-only; this takes a code and message.
     #[must_use]
     pub fn new(code: Code, message: impl Into<String>) -> Self {
         let message = message.into();
@@ -396,7 +389,6 @@ impl Status {
     }
 
     /// A status with just a code.
-    /// Distinct from [`Self::new`]: that takes a code and message; this is code-only.
     #[must_use]
     pub fn from_code(code: Code) -> Self {
         Self { code, detail: None }
@@ -409,18 +401,12 @@ impl Status {
     }
 
     /// The status code.
-    /// Distinct from [`Self::message`]: that is the ASCII `grpc-message`; this is the ASCII `grpc-status` code.
-    /// Distinct from [`Self::rpc`]: that is the packed protobuf; this is the ASCII `grpc-status` code.
-    /// Distinct from [`Self::details`]: that returns raw trailer bytes; this is the ASCII `grpc-status` code.
     #[must_use]
     pub fn code(&self) -> Code {
         self.code
     }
 
     /// The `grpc-message` text, or `""`.
-    /// Distinct from [`Self::code`]: that is the ASCII `grpc-status` code; this is the ASCII `grpc-message`.
-    /// Distinct from [`Self::rpc`]: that is the packed protobuf; this is the ASCII `grpc-message`.
-    /// Distinct from [`Self::details`]: that returns raw trailer bytes; this is the ASCII `grpc-message`.
     #[must_use]
     pub fn message(&self) -> &str {
         self.detail.as_ref().map_or("", |d| d.message.as_str())
@@ -445,7 +431,6 @@ impl Status {
     /// matches this status, that protobuf is rewritten so the ASCII
     /// `grpc-status` and the packed code stay the same. Opaque detail
     /// bytes that are not a matching `google.rpc.Status` are left alone.
-    /// Distinct from [`Self::with_code`]: that is the builder; this mutates in place.
     pub fn set_code(&mut self, code: Code) {
         if !self.details().is_empty() {
             if let Ok(mut rpc) = <crate::pb::Status as pbrs::Parse>::parse(self.details()) {
@@ -461,7 +446,6 @@ impl Status {
     }
 
     /// [`Self::set_code`] as a builder.
-    /// Distinct from [`Self::set_code`]: that mutates in place; this is the builder.
     #[must_use]
     pub fn with_code(mut self, code: Code) -> Self {
         self.set_code(code);
@@ -473,7 +457,6 @@ impl Status {
     /// whose message matches this status, that protobuf is rewritten so the
     /// ASCII trailer and the packed message stay the same. Opaque detail
     /// bytes that are not a matching `google.rpc.Status` are left alone.
-    /// Distinct from [`Self::with_message`]: that is the builder; this mutates in place.
     pub fn set_message(&mut self, message: impl Into<String>) {
         let message = message.into();
         if !self.details().is_empty() {
@@ -497,7 +480,6 @@ impl Status {
     }
 
     /// [`Self::set_message`] as a builder.
-    /// Distinct from [`Self::set_message`]: that mutates in place; this is the builder.
     #[must_use]
     pub fn with_message(mut self, message: impl Into<String>) -> Self {
         self.set_message(message);
@@ -505,7 +487,6 @@ impl Status {
     }
 
     /// Trailing metadata carried with this status.
-    /// Distinct from [`Self::metadata_mut`]: that mutates this status trailers map; this borrows it.
     #[must_use]
     pub fn metadata(&self) -> &Metadata {
         match &self.detail {
@@ -515,7 +496,6 @@ impl Status {
     }
 
     /// Trailing metadata, allocating the detail block on first use.
-    /// Distinct from [`Self::metadata`]: that borrows this status trailers map; this mutates it.
     pub fn metadata_mut(&mut self) -> &mut Metadata {
         &mut self.detail.get_or_insert_with(Box::default).metadata
     }
@@ -530,9 +510,6 @@ impl Status {
     /// Raw bytes still round-trip on every call shape, including over TLS,
     /// mTLS, Unix, and [`crate::Channel::from_io`]. They do not appear as a
     /// `grpc-status-details-bin` metadata key.
-    /// Distinct from [`Self::rpc`]: that parses a packed `google.rpc.Status`; this returns raw trailer bytes.
-    /// Distinct from [`Self::code`]: that is the ASCII `grpc-status` code; this returns raw trailer bytes.
-    /// Distinct from [`Self::message`]: that is the ASCII `grpc-message`; this returns raw trailer bytes.
     ///
     /// ```
     /// use pbrs_grpc::{Code, Status};
@@ -559,7 +536,6 @@ impl Status {
     /// call shape, including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
     /// [`Self::details`] returns those bytes; they do not appear as a metadata
     /// key.
-    /// Distinct from [`Self::set_error_details`]: that packs `Any` values into a `google.rpc.Status`; this ships raw trailer bytes on an existing status.
     ///
     /// ```
     /// use pbrs_grpc::{Code, Status};
@@ -586,8 +562,6 @@ impl Status {
 
     /// [`Self::new`] plus [`Self::set_details`].
     ///
-    /// Distinct from [`Self::with_error_details`]: that packs `Any` values into a `google.rpc.Status`; this ships raw trailer bytes a proxy can forward without parsing.
-    ///
     /// ```
     /// use pbrs_grpc::{Code, Status};
     ///
@@ -606,7 +580,6 @@ impl Status {
 
     /// Encode `rpc` as `grpc-status-details-bin`.
     ///
-    /// Distinct from [`Self::rpc`]: that parses the trailer; this encodes it.
     /// The kernel [`Status`] code and message come from `rpc`. The same
     /// protobuf is the trailer payload, which is what grpc-go, grpc-java,
     /// and tonic-types expect to find there. This mints a fresh status:
@@ -649,7 +622,6 @@ impl Status {
     ///
     /// Prefer this over [`Self::from_rpc`] when the status already carries
     /// trailers such as `x-retry-after`.
-    /// Distinct from [`Self::set_error_details`]: that packs `Any` values; this encodes a packed `google.rpc.Status`.
     ///
     /// ```
     /// use pbrs_grpc::pb::{Any, ErrorInfo, Status as RpcStatus};
@@ -696,8 +668,6 @@ impl Status {
 
     /// [`Self::set_rpc`] as a builder.
     ///
-    /// Distinct from [`Self::from_rpc`]: that mints a fresh status with empty trailers; this keeps existing trailers.
-    ///
     /// ```
     /// use pbrs_grpc::pb::{Any, ErrorInfo, Status as RpcStatus};
     /// use pbrs_grpc::{Code, Status};
@@ -742,11 +712,6 @@ impl Status {
     /// present. A peer can send a protobuf whose code or message disagrees
     /// with the ASCII half. [`Self::set_code`] / [`Self::set_message`] only
     /// rewrite the protobuf when it still matches.
-    /// Distinct from [`Self::error_details`]: that is the typed bag, not this packed `google.rpc.Status`.
-    /// Distinct from [`Self::from_rpc`]: that encodes the trailer; this parses it.
-    /// Distinct from [`Self::details`]: that returns raw trailer bytes; this parses a packed `google.rpc.Status`.
-    /// Distinct from [`Self::code`]: that is the ASCII `grpc-status` code; this is the packed protobuf.
-    /// Distinct from [`Self::message`]: that is the ASCII `grpc-message`; this is the packed protobuf.
     ///
     /// A handler or interceptor [`Err`] built with [`Self::with_error_details`]
     /// is this protobuf on the client for every call shape, including a
@@ -777,8 +742,6 @@ impl Status {
 
     /// Pack `details` into a `google.rpc.Status` and attach it as
     /// `grpc-status-details-bin`.
-    ///
-    /// Distinct from [`Self::from_error_details`]: that takes the typed bag, not packed `Any` values.
     ///
     /// ```
     /// use pbrs_grpc::pb::{Any, ErrorInfo};
@@ -813,7 +776,6 @@ impl Status {
 
     /// [`Self::with_error_details`] in place. Trailing metadata is left
     /// alone; [`Self::with_error_details`] mints a fresh status.
-    /// Distinct from [`Self::set_from_error_details`]: that takes the typed bag, not packed `Any` values.
     ///
     /// ```
     /// use pbrs_grpc::pb::{Any, ErrorInfo};
@@ -843,9 +805,6 @@ impl Status {
     /// Encode a typed [`crate::pb::ErrorDetails`] bag as
     /// `grpc-status-details-bin`.
     ///
-    /// Distinct from [`Self::with_error_details`]: that packs `Any` values; this takes the typed bag.
-    /// Distinct from [`Self::from_rpc`]: that encodes a packed `google.rpc.Status`; this encodes the typed bag.
-    ///
     /// ```
     /// use pbrs_grpc::pb::{ErrorDetails, ErrorInfo};
     /// use pbrs_grpc::{Code, Status};
@@ -867,7 +826,6 @@ impl Status {
 
     /// [`Self::from_error_details`] in place. Trailing metadata is left
     /// alone.
-    /// Distinct from [`Self::set_error_details`]: that packs `Any` values; this takes the typed bag.
     ///
     /// ```
     /// use pbrs_grpc::pb::{ErrorDetails, ErrorInfo};
@@ -902,7 +860,6 @@ impl Status {
 
     /// Decode [`crate::pb::ErrorDetails`] from this status.
     ///
-    /// Distinct from [`Self::rpc`]: that is the packed `google.rpc.Status`, not this typed bag.
     /// Absent or empty `grpc-status-details-bin` yields an empty bag, not an
     /// error. Corrupt bytes are [`Code::Internal`].
     ///
@@ -921,7 +878,6 @@ impl Status {
     }
 
     /// Whether this status represents success.
-    /// Distinct from [`Self::is_retryable`]: that is UNAVAILABLE only; this is Code::Ok.
     ///
     /// ```
     /// use pbrs_grpc::{Code, Status};
@@ -963,13 +919,11 @@ impl Status {
     }
 
     /// Set A6 server pushback, allocating the detail block on first use.
-    /// Distinct from [`Self::with_retry_pushback`]: that is the builder form; this mutates.
     pub fn set_retry_pushback(&mut self, pushback: Pushback) {
         self.detail.get_or_insert_with(Box::default).retry_pushback = Some(pushback);
     }
 
     /// Builder form of [`Self::set_retry_pushback`].
-    /// Distinct from [`Self::set_retry_pushback`]: that mutates; this is the builder form.
     #[must_use]
     pub fn with_retry_pushback(mut self, pushback: Pushback) -> Self {
         self.set_retry_pushback(pushback);
@@ -982,7 +936,6 @@ impl Status {
     /// permission to retry. [`Code::ResourceExhausted`] from
     /// [`crate::Channel::max_concurrent_rpcs`] is this process, not a peer,
     /// and is not retryable.
-    /// Distinct from [`Code::is_retryable`]: that is the same A6 set on a Code; this is the Status.
     #[must_use]
     pub fn is_retryable(&self) -> bool {
         self.code.is_retryable()
@@ -1086,7 +1039,6 @@ impl Status {
     /// Distinct from [`Self::is_retryable`]: [`Code::ResourceExhausted`] is never
     /// A6-retryable.
     /// Distinct from [`Self::retry_delay`]: a wait hint can sit next to quota.
-    /// Distinct from [`Self::bad_request`]: that is a field path, not a quota subject.
     /// Distinct from [`Self::resource_exhausted`], which is the ASCII code with no packed quota.
     /// Distinct from [`Self::error_details`]: this is one typed message, not the bag.
     /// Corrupt bytes are `None`. Build the payload with
@@ -1123,8 +1075,6 @@ impl Status {
     /// Distinct from [`Self::is_retryable`]: [`Code::FailedPrecondition`] is never
     /// A6-retryable.
     /// Distinct from [`Self::retry_delay`]: a wait hint can sit next to a precondition.
-    /// Distinct from [`Self::quota_failure`]: that is a quota subject, not a precondition type.
-    /// Distinct from [`Self::bad_request`]: that is a field path, not a precondition type.
     /// Distinct from [`Self::failed_precondition`], which is the ASCII code with no packed violations.
     /// Distinct from [`Self::error_details`]: this is one typed message, not the bag.
     /// Corrupt bytes are `None`. Build the payload with
@@ -1160,10 +1110,6 @@ impl Status {
     /// Packed `google.rpc.Help`, if this status carries one.
     ///
     /// Distinct from [`Self::is_retryable`]: documentation links can sit next to a retryable [`Code::Unavailable`].
-    /// Distinct from [`Self::precondition_failure`]: that is a type and subject, not a docs URL.
-    /// Distinct from [`Self::quota_failure`]: that is a quota subject, not a docs URL.
-    /// Distinct from [`Self::bad_request`]: that is a field path, not a docs URL.
-    /// Distinct from [`Self::error_info`]: that is reason and domain, not a documentation link.
     /// Distinct from [`Self::error_details`]: this is one typed message, not the bag.
     /// Corrupt bytes are `None`. Build the payload with
     /// [`crate::pb::Help::with_link`].
@@ -1196,8 +1142,6 @@ impl Status {
 
     /// Packed `google.rpc.LocalizedMessage`, if this status carries one.
     ///
-    /// Distinct from [`Self::message`]: that is the ASCII `grpc-message`, not a locale.
-    /// Distinct from [`Self::help`]: that is a docs URL, not a locale.
     /// Distinct from [`Self::error_details`]: this is one typed message, not the bag.
     /// Corrupt bytes are `None`. Build the payload with
     /// [`crate::pb::LocalizedMessage::with_locale`].
@@ -1223,9 +1167,6 @@ impl Status {
 
     /// Packed `google.rpc.RequestInfo`, if this status carries one.
     ///
-    /// Distinct from [`Self::error_info`]: that is a metadata map, not a typed request_id.
-    /// Distinct from [`Self::help`]: that is a docs URL, not a request_id.
-    /// Distinct from [`Self::localized_message`]: that is a locale, not a request_id.
     /// Distinct from [`Self::error_details`]: this is one typed message, not the bag.
     /// Corrupt bytes are `None`. Build the payload with
     /// [`crate::pb::RequestInfo::with_request_id`].
@@ -1250,9 +1191,6 @@ impl Status {
 
     /// Packed `google.rpc.ResourceInfo`, if this status carries one.
     ///
-    /// Distinct from [`Self::quota_failure`]: that is a quota subject, not a resource identity.
-    /// Distinct from [`Self::request_info`]: that is a request_id, not a resource.
-    /// Distinct from [`Self::error_info`]: that is reason and domain, not a resource type and name.
     /// Distinct from [`Self::error_details`]: this is one typed message, not the bag.
     /// Corrupt bytes are `None`. Build the payload with
     /// [`crate::pb::ResourceInfo::with_resource`].
@@ -1282,8 +1220,6 @@ impl Status {
 
     /// Packed `google.rpc.DebugInfo`, if this status carries one.
     ///
-    /// Distinct from [`Self::localized_message`]: that is a locale, not an operator stack.
-    /// Distinct from [`Self::help`]: that is a docs URL, not an operator stack.
     /// Distinct from [`Self::error_details`]: this is one typed message, not the bag.
     /// Corrupt bytes are `None`. Build the payload with
     /// [`crate::pb::DebugInfo::with_stack`].

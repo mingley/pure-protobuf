@@ -31,13 +31,21 @@ For a source-pinned release build, run from a clean checkout:
 ```sh
 python3 scripts/build-rpc-bench.py --source "$(git rev-parse HEAD)" --output work/rpc-build
 python3 scripts/grpc-load-smoke.py --binary work/rpc-build/rpc-bench \
-  --build-record work/rpc-build/build.json --allocation-counts --output work/rpc-matrix
+  --build-record work/rpc-build/build.json --allocation-counts \
+  --context-switches --rpc-count=20 --duration=60 --output work/rpc-matrix
 ```
 
 The builder retains Cargo output and tool versions, checks the source and
 lockfiles before and after compilation, and copies the executable out of the
 build cache. The matrix checks that record before and after execution. A
 prebuilt binary without a matching record remains `source_verified=false`.
+
+On 64-bit Linux, `--context-switches` records voluntary and involuntary
+switches with `getrusage(RUSAGE_SELF)` for each endpoint. Counts include all
+threads, including exited threads, over the process lifetime. They include setup
+and teardown work before the snapshot. Missing or unsupported counters fail
+the capture. These OS events do not measure Tokio task wakeups or syscalls.
+Scheduling affects the counts; a single N/2N pair supplies no noise estimate.
 
 `load-server` and `load` run separate endpoints. Both native and tonic support
 pbrs and prost messages, all four RPC shapes, pipelined bidi, and identity or
@@ -53,15 +61,9 @@ unfinished calls are included in failures but have not completed. Queue
 rejections are included in unstarted calls. Invalid timing values fail
 parsing instead of panicking.
 
-A Linux diagnostic covers native pairs, tonic/prost pairs, and both mixed
-directions across all call shapes, four payload sizes, plaintext/TLS, and
-identity/gzip:
-
-```sh
-cargo build --manifest-path rpc-bench/Cargo.toml --locked --release
-python3 scripts/grpc-load-smoke.py --binary target/release/rpc-bench \
-  --output target/grpc-load-smoke
-```
+The Linux matrix covers all native/tonic and pbrs/prost endpoint pairs,
+five call shapes, four payload sizes, plaintext/TLS, and identity/gzip.
+Use `--load-levels=1:1,1:16` to check both single-call and multiplexed loads.
 
 The output contains endpoint logs, terminal accounting, CPU counters, sampled
 RSS, commands, order seed, and a binary digest. It tests workload completion;

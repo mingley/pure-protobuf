@@ -827,6 +827,49 @@ mod linux_ffi {
     }
 }
 
+/// Cumulative context switches across all threads, including exited threads.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct ContextSwitches {
+    pub voluntary: u64,
+    pub involuntary: u64,
+}
+
+/// Read Linux process-lifetime totals, without substituting missing counters.
+#[cfg(all(target_os = "linux", target_pointer_width = "64"))]
+pub fn context_switches() -> std::io::Result<ContextSwitches> {
+    use linux_ffi::{RUSAGE_SELF, Rusage, getrusage};
+    // SAFETY: Rusage has the Linux 64-bit C layout, the output pointer is
+    // valid, and the initialized buffer remains local to this call.
+    let usage = unsafe {
+        let mut usage: Rusage = std::mem::zeroed();
+        if getrusage(RUSAGE_SELF, &mut usage) != 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        usage
+    };
+    let count = |value| {
+        u64::try_from(value).map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "negative process context-switch counter",
+            )
+        })
+    };
+    Ok(ContextSwitches {
+        voluntary: count(usage.ru_nvcsw)?,
+        involuntary: count(usage.ru_nivcsw)?,
+    })
+}
+
+/// Context-switch capture is currently available on 64-bit Linux only.
+#[cfg(not(all(target_os = "linux", target_pointer_width = "64")))]
+pub fn context_switches() -> std::io::Result<ContextSwitches> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "process context-switch capture requires 64-bit Linux",
+    ))
+}
+
 #[cfg(target_os = "linux")]
 fn parse_linux_status_rss(status: &str) -> std::io::Result<(u64, Option<u64>, u32)> {
     let mut current_rss_bytes = None;
@@ -913,6 +956,26 @@ fn capture_platform() -> std::io::Result<ResourceSnapshot> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(all(target_os = "linux", target_pointer_width = "64"))]
+    #[test]
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "worker deliberately blocks its own OS thread to verify exited-thread accounting; no executor is involved"
+    )]
+    fn context_switches_include_exited_worker_threads() {
+        let before = context_switches().expect("process counters");
+        std::thread::spawn(|| {
+            for _ in 0..64 {
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+        })
+        .join()
+        .expect("worker exited");
+        let after = context_switches().expect("process counters after worker exit");
+        assert!(after.voluntary - before.voluntary >= 64);
+        assert!(after.involuntary >= before.involuntary);
+    }
 
     #[test]
     fn test_resource_snapshot_capture_live() {

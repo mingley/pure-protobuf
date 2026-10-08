@@ -352,7 +352,6 @@ impl<S: Service> Server<S> {
     /// Configured message caps. See [`Self::message_limits`].
     /// Applies to every call shape.
     /// Distinct from [`Self::message_limits`], which sets them.
-    /// Distinct from [`Self::send_buffer_size`]: that is the HTTP/2 send buffer, not uncompressed protobuf bytes.
     /// Same overlay as [`crate::Rpc::limits`].
     #[must_use]
     pub fn limits(&self) -> MessageLimits {
@@ -491,7 +490,6 @@ impl<S: Service> Server<S> {
     /// Configured write-time HTTP/2 send buffer. See [`Self::max_send_buffer_size`].
     /// Applies to every call shape.
     /// Distinct from [`Self::max_send_buffer_size`], which sets it.
-    /// Distinct from [`Self::message_limits`]: that is uncompressed protobuf bytes, not this send buffer.
     #[must_use]
     pub fn send_buffer_size(&self) -> usize {
         self.config.send_buffer_size()
@@ -743,23 +741,6 @@ impl<S: Service> Server<S> {
     /// On a [`Router`], call [`Router::intercept`] to cover every mounted
     /// service, or wrap one service with [`crate::Intercepted`].
     /// [`Status::from_error_details`] is the typed bag after this Server intercept Err; those trailers reach the client without reading the body.
-    /// Distinct from a handler Err: that is after the handler ran; this Server intercept Err is trailers without reading the body.
-    /// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this Server intercept Err is trailers without reading the body.
-    /// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this Server intercept Err is trailers without reading the body.
-    /// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this Server intercept Err is trailers without reading the body.
-    /// Distinct from a ServiceExt on_response Err: that is trailers-only after handler Ok; this Server intercept Err is trailers without reading the body.
-    /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this Server intercept Err is trailers without reading the body.
-    /// Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Server intercept Err is trailers without reading the body.
-    /// Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Server intercept Err is trailers without reading the body.
-    /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this Server intercept Err is trailers without reading the body.
-    /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this Server intercept Err is trailers without reading the body.
-    /// Distinct from a method-level intercept Err: that is a local reject never opens a stream; this Server intercept Err is trailers without reading the body.
-    /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this Server intercept Err is trailers without reading the body.
-    /// Distinct from [`crate::Channel::intercept`]: that runs on the outbound call before the stream opens; this runs on the inbound RPC before the handler.
-    /// Distinct from [`crate::Channel::intercept`]: that runs on the outbound call before the stream opens; this Server intercept runs on the inbound RPC before the handler.
-    /// Distinct from [`Self::on_response`]: that runs after the handler returns Ok; this runs on the inbound RPC before the handler.
-    /// Distinct from [`Self::on_response`]: that runs after the handler returns Ok; this Server intercept runs on the inbound RPC before the handler.
-    /// Distinct from [`Router::intercept`]: that runs on the inbound RPC before every mounted service on that Router; this Server intercept runs on the inbound RPC before the Server's Service.
     ///
     /// ```
     /// # fn demo<S: pbrs_grpc::Service>(server: pbrs_grpc::Server<S>) -> pbrs_grpc::Server<S> {
@@ -855,22 +836,6 @@ impl<S: Service> Server<S> {
     /// [`crate::ResponseParts::compress_is_set`] is occupancy after this Server on_response, so a later interceptor can fill compress only when unset.
     /// [`crate::ResponseParts::clear_compress`] restores the server gzip overlay after this Server on_response.
     /// [`Status::from_error_details`] is the typed bag after this Server on_response Err; a local reject is trailers-only after handler Ok.
-    /// Distinct from a handler Err: that is after the handler ran; this Server on_response Err is trailers-only after handler Ok.
-    /// Distinct from a Server intercept Err: that is trailers without reading the body; this Server on_response Err is trailers-only after handler Ok.
-    /// Distinct from an Interceptor Err: that is trailers without reading the body; this Server on_response Err is trailers-only after handler Ok.
-    /// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this Server on_response Err is trailers-only after handler Ok.
-    /// Distinct from a Router intercept Err: that is trailers without reading the body; this Server on_response Err is trailers-only after handler Ok.
-    /// Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this Server on_response Err is trailers-only after handler Ok.
-    /// Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Server on_response Err is trailers-only after handler Ok.
-    /// Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Server on_response Err is trailers-only after handler Ok.
-    /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this Server on_response Err is trailers-only after handler Ok.
-    /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this Server on_response Err is trailers-only after handler Ok.
-    /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this Server on_response Err is trailers-only after handler Ok.
-    /// Distinct from a method-level intercept Err: that is a local reject never opens a stream; this Server on_response Err is trailers-only after handler Ok.
-    /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this Server on_response Err is trailers-only after handler Ok.
-    /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this runs after the handler returns Ok.
-    /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this Server on_response runs after the handler returns Ok.
-    /// Distinct from [`Router::on_response`]: that runs after the handler returns Ok on every mounted service on that Router; this Server on_response runs after the handler returns Ok on the Server's Service.
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).on_response(stamp).serve(addr)`.
     /// On a [`Router`], call [`Router::on_response`] to cover every mounted

@@ -7,8 +7,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 METRICS = {"instructions": ("instruction_totals", None),
            "allocations": ("allocation_totals", "allocations"),
-           "requested_bytes": ("allocation_totals", "requested_bytes")}
-REQUIRED_METRICS = [*METRICS, "task_wakeups", "context_switches", "syscalls"]
+           "requested_bytes": ("allocation_totals", "requested_bytes"),
+           "context_switches": ("context_switch_totals", "total")}
+REQUIRED_METRICS = [*METRICS, "task_wakeups", "syscalls"]
 SIDES = {"client": [("native", "pbrs", "tonic", "prost"), ("native", "prost", "tonic", "prost")],
          "server": [("tonic", "prost", "native", "pbrs"), ("tonic", "prost", "native", "prost")]}
 REFERENCE = ("tonic", "prost", "tonic", "prost")
@@ -51,6 +52,19 @@ def differential(small, large, side, metric, n):
     section, field = METRICS[metric]
     try:
         before, after = small[section][side], large[section][side]
+        if metric == "context_switches":
+            for record in (before, after):
+                if not isinstance(record, dict):
+                    raise ValueError("invalid process context-switch record")
+                counts = record.get("counts")
+                if (record.get("scope") != "process_lifetime"
+                        or record.get("method") != "linux_getrusage_self"
+                        or record.get("includes_exited_threads") is not True
+                        or not isinstance(counts, dict)
+                        or any(type(counts.get(name)) is not int or not 0 <= counts[name] < 2 ** 64
+                               for name in ("voluntary", "involuntary"))
+                        or record.get("total") != counts["voluntary"] + counts["involuntary"]):
+                    raise ValueError("invalid process context-switch counter scope or total")
         if field is not None:
             before, after = before[field], after[field]
     except KeyError:
@@ -75,7 +89,8 @@ def compare(small_path, large_path, allow_failed=False):
     b, large = load(large_path, allow_failed)
     if b["rpc_count"] != 2 * a["rpc_count"] or set(small) != set(large):
         raise ValueError("matched N/2N counts and workload/repeat coverage are required")
-    for field in ["binary_sha256", "head", "dirty", "callgrind", "allocation_counts", "host", "cpu_affinity"]:
+    for field in ["binary_sha256", "head", "dirty", "callgrind", "allocation_counts",
+                  "context_switches", "host", "cpu_affinity"]:
         if a.get(field) != b.get(field):
             raise ValueError(f"capture pin/settings mismatch: {field}")
     valid_owners = {t["id"] for path in ["docs/plan/tasks.json", "docs/plan/world-class/tasks.json"]
@@ -116,6 +131,7 @@ def compare(small_path, large_path, allow_failed=False):
             "qualified": False, "rows": rows, "missing_metrics": missing,
             "remaining": ["complete read-all corpus, saturation and cold/idle coverage",
                           "dedicated x86_64/arm64 statistics and headroom proof",
+                          "context-switch differences depend on scheduling; no measured noise band",
                           "full original primary/control regression qualification"]}
 
 

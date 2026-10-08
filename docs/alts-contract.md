@@ -1,7 +1,7 @@
 # ALTS provider decision and proof boundary (EX-18)
 
 Application Layer Transport Security (ALTS) is not supported. The project has
-no reviewed pure-Rust ALTS record layer or handshaker client, and the pinned
+no reviewed ALTS record layer or handshaker client, and the pinned
 official runner has no Rust ALTS procedure. Existing TLS/mTLS and
 application-supplied tokens are separate authentication paths; they do not
 qualify as ALTS. The `alts_credentials` gate stays `unsupported`, and EX-19
@@ -43,7 +43,7 @@ presented as an ALTS-compatible option.
 
 No Rust ALTS record layer or handshake implementation is reviewed or
 approved. A 2026-09-29 crates.io search surfaced no maintained
-pure-Rust ALTS provider (top matches are unrelated name collisions);
+Rust ALTS provider (top matches are unrelated name collisions);
 the reference remains the C++ TSI implementation
 (`src/core/tsi/alts/` in grpc/grpc) plus the ALTS whitepaper. Any
 future provider — reused crate or new implementation — needs a full

@@ -31,8 +31,7 @@ code generation, client and server.
   codec trait whose default keeps existing generated code compiling.
 - `pbrs-grpc` stays on the `0.1.0-alpha.N` line; `pbrs` gains options in a
   minor release.
-- Optional features must pass the pure-Rust dependency audit (`dep-audit`).
-  `tower`, `http`, `http-body` and `prost` are pure Rust.
+- Optional features must pass the dependency audit (`dep-audit`).
 
 ## Migration story
 

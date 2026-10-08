@@ -1080,7 +1080,6 @@ impl super::Channel {
     }
 
     /// The attached service-config document, if any.
-    /// Distinct from [`Self::config`]: that is typed handshake fields; this is the parsed JSON document.
     #[must_use]
     pub fn service_config_doc(&self) -> Option<ServiceConfig> {
         self.service_config.get().map(|state| state.config.clone())
@@ -1116,7 +1115,6 @@ impl super::Channel {
     /// [`ChannelConfig::max_connection_age`], this is `false` until the next
     /// RPC redials. [`Self::from_io`] stays `false` after that close.
     /// Applies to every call shape, including over TLS, mTLS, and Unix.
-    /// Distinct from [`Self::wait_for_ready`]: that overlay queues; this is a live snapshot.
     /// Client interceptors see the same snapshot as [`crate::Outgoing::connected`].
     #[must_use]
     pub fn connected(&self) -> bool {
@@ -1169,8 +1167,6 @@ impl super::Channel {
     /// Configured message caps. See [`Self::message_limits`].
     /// Applies to every call shape.
     /// Distinct from [`Self::message_limits`], which sets them.
-    /// Distinct from [`Self::stream_buffer_size`]: that is queue depth, not uncompressed protobuf bytes.
-    /// Distinct from [`Self::send_buffer_size`]: that is the HTTP/2 send buffer, not these caps.
     /// Same overlay as [`crate::Outgoing::limits`].
     #[must_use]
     pub fn limits(&self) -> crate::MessageLimits {
@@ -1247,7 +1243,6 @@ impl super::Channel {
     /// A request that already called [`crate::Request::set_wait_for_ready`]
     /// is left alone. Interceptors run after this fill and can still set
     /// or clear it.
-    /// Distinct from [`Self::connected`]: that is a live snapshot; this fill still queues when a slot is empty.
     #[must_use]
     pub fn wait_for_ready(mut self) -> Self {
         self.config = self.config.wait_for_ready(true);
@@ -1264,7 +1259,6 @@ impl super::Channel {
     /// Whether this clone waits for a connection instead of failing fast.
     /// See [`Self::wait_for_ready`]. Applies to every call shape.
     /// Distinct from [`Self::wait_for_ready`], which sets it.
-    /// Distinct from [`Self::connected`]: that is a live snapshot, not this overlay.
     #[must_use]
     pub fn waits_for_ready(&self) -> bool {
         self.config.waits_for_ready()
@@ -1312,7 +1306,6 @@ impl super::Channel {
     /// Configured outbound streaming queue depth. See [`Self::stream_buffer`].
     /// Applies to client-streaming and bidi request streams.
     /// Distinct from [`Self::stream_buffer`], which sets it.
-    /// Distinct from [`Self::message_limits`]: that is message size, not queue depth.
     #[must_use]
     pub fn stream_buffer_size(&self) -> usize {
         self.config.stream_buffer_size()
@@ -1325,8 +1318,6 @@ impl super::Channel {
     /// Applies to every call shape, including over TLS, mTLS, Unix, and
     /// [`Self::from_io`]. Overlay: does not change how a dead slot is
     /// redialed; the handshake h2 send buffer stays the dial-time value.
-    /// Distinct from [`Self::stream_buffer`]: that is decoded-message queue depth, not this send buffer.
-    /// Distinct from [`Self::message_limits`]: that is uncompressed protobuf bytes, not this send buffer.
     /// Distinct from [`crate::Server::max_send_buffer_size`]: that is the server write buffer, not this client overlay.
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
@@ -1375,8 +1366,6 @@ impl super::Channel {
     /// Configured write-time HTTP/2 send buffer. See [`Self::max_send_buffer_size`].
     /// Applies to every call shape.
     /// Distinct from [`Self::max_send_buffer_size`], which sets it.
-    /// Distinct from [`Self::stream_buffer_size`]: that is queue depth, not this send buffer.
-    /// Distinct from [`Self::message_limits`]: that is message size, not this send buffer.
     #[must_use]
     pub fn send_buffer_size(&self) -> usize {
         self.config.send_buffer_size()
@@ -1464,7 +1453,6 @@ impl super::Channel {
     /// [`crate::Outgoing::limits`] is the channel message-cap overlay.
     /// Same overlay as [`crate::Channel::limits`].
     /// [`crate::Outgoing::concurrent_rpc_limit`] is the channel RPC cap overlay.
-    /// Distinct from [`crate::Outgoing::waits_for_ready`]: that waits for a connection; this refuses extras.
     /// [`crate::Outgoing::stream_buffer_size`] is the outbound streaming queue overlay.
     /// Distinct from [`crate::Outgoing::limits`]: that is message size, not queue depth.
     /// [`crate::Outgoing::send_buffer_size`] is the outbound HTTP/2 send buffer overlay.
@@ -1497,26 +1485,6 @@ impl super::Channel {
     /// [`crate::Outgoing::clear_timeout`] opts out of the channel timeout after this Channel intercept choice.
     /// [`crate::Outgoing::clear_compress`] then [`crate::Outgoing::set_compress`] from [`Self::compresses_outbound`] reapplies channel gzip after this Channel intercept choice.
     /// [`crate::Status::from_error_details`] is the typed bag after this Channel intercept Err; a local reject never opens a stream.
-    /// Distinct from a handler Err: that is after the handler ran; this Channel intercept Err is a local reject never opens a stream.
-    /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this Channel intercept Err is a local reject never opens a stream.
-    /// Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Channel intercept Err is a local reject never opens a stream.
-    /// Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Channel intercept Err is a local reject never opens a stream.
-    /// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this Channel intercept Err is a local reject never opens a stream.
-    /// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this Channel intercept Err is a local reject never opens a stream.
-    /// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this Channel intercept Err is a local reject never opens a stream.
-    /// Distinct from a ServiceExt on_response Err: that is trailers-only after handler Ok; this Channel intercept Err is a local reject never opens a stream.
-    /// Distinct from a Server intercept Err: that is trailers without reading the body; this Channel intercept Err is a local reject never opens a stream.
-    /// Distinct from a Router intercept Err: that is trailers without reading the body; this Channel intercept Err is a local reject never opens a stream.
-    /// Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this Channel intercept Err is a local reject never opens a stream.
-    /// Distinct from an Interceptor Err: that is trailers without reading the body; this Channel intercept Err is a local reject never opens a stream.
-    /// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this Channel intercept Err is a local reject never opens a stream.
-    /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this Channel intercept Err is a local reject never opens a stream.
-    /// Distinct from [`Self::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this interceptor already ran, so a local Err never consumes that budget.
-    /// Distinct from [`crate::Server::intercept`]: that runs on the inbound RPC before the handler; this runs on the outbound call before the stream opens.
-    /// Distinct from [`crate::Server::intercept`]: that runs on the inbound RPC before the handler; this Channel intercept runs on the outbound call before the stream opens.
-    /// Distinct from [`crate::Router::intercept`]: that runs on the inbound RPC before the handler; this Channel intercept runs on the outbound call before the stream opens.
-    /// Distinct from [`Self::on_response`]: that runs after a successful receive; this runs on the outbound call before the stream opens.
-    /// Distinct from [`Self::on_response`]: that runs after a successful receive; this Channel intercept runs on the outbound call before the stream opens.
     ///
     /// ```
     /// # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::Channel {
@@ -1595,23 +1563,6 @@ impl super::Channel {
     /// [`crate::ResponseParts::compress_is_set`] is occupancy after this Channel on_response, so a later interceptor can fill compress only when unset.
     /// [`crate::ResponseParts::clear_compress`] drops a compress choice after this Channel on_response; a received reply has no server gzip overlay to restore.
     /// [`crate::Status::from_error_details`] is the typed bag after this Channel on_response Err; a local reject fails the Call after a successful receive.
-    /// Distinct from a handler Err: that is after the handler ran; this Channel on_response Err fails the Call after a successful receive.
-    /// Distinct from an Interceptor Err: that is trailers without reading the body; this Channel on_response Err fails the Call after a successful receive.
-    /// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this Channel on_response Err fails the Call after a successful receive.
-    /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this Channel on_response Err fails the Call after a successful receive.
-    /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this Channel on_response Err fails the Call after a successful receive.
-    /// Distinct from a method-level intercept Err: that is a local reject never opens a stream; this Channel on_response Err fails the Call after a successful receive.
-    /// Distinct from a Server intercept Err: that is trailers without reading the body; this Channel on_response Err fails the Call after a successful receive.
-    /// Distinct from a Router intercept Err: that is trailers without reading the body; this Channel on_response Err fails the Call after a successful receive.
-    /// Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this Channel on_response Err fails the Call after a successful receive.
-    /// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this Channel on_response Err fails the Call after a successful receive.
-    /// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this Channel on_response Err fails the Call after a successful receive.
-    /// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this Channel on_response Err fails the Call after a successful receive.
-    /// Distinct from a ServiceExt on_response Err: that is trailers-only after handler Ok; this Channel on_response Err fails the Call after a successful receive.
-    /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this Channel on_response Err fails the Call after a successful receive.
-    /// Distinct from [`Self::intercept`]: that runs on the outbound call before the stream opens; this Channel on_response runs after a successful receive.
-    /// Distinct from [`crate::Server::on_response`]: that runs after the handler returns Ok; this Channel on_response runs after a successful receive.
-    /// Distinct from [`crate::Router::on_response`]: that runs after the handler returns Ok; this Channel on_response runs after a successful receive.
     ///
     /// ```
     /// # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::Channel {

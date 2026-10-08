@@ -46,10 +46,38 @@ class AccountingTests(unittest.TestCase):
             SMOKE.validate_metrics({**self.metrics, "status_errors": {"UNAVAILABLE": 1}})
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 class CaptureGuards(unittest.TestCase):
+    def test_context_switch_snapshot_requires_all_thread_process_totals(self):
+        import json
+        import tempfile
+        valid = {"scope": "process_lifetime", "method": "linux_getrusage_self",
+                 "includes_exited_threads": True, "counts": {"voluntary": 20, "involuntary": 3}}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "stdout"
+            def write(record):
+                path.write_text("CONTEXT_SWITCHES " + json.dumps(record) + "\n")
+            write(valid)
+            self.assertEqual(SMOKE.context_switch_record(path)["total"], 23)
+            for change in [{"scope": "leader_thread"}, {"scope": "process_since_exec"}, {"method": "proc_status"},
+                           {"includes_exited_threads": False}, {"counts": None},
+                           {"counts": {"voluntary": -1, "involuntary": 3}},
+                           {"counts": {"voluntary": True, "involuntary": 3}},
+                           {"counts": {"voluntary": 2 ** 64, "involuntary": 3}}]:
+                with self.subTest(change=change), self.assertRaises(ValueError):
+                    write({**valid, **change})
+                    SMOKE.context_switch_record(path)
+            write(valid)
+            path.write_text(path.read_text() * 2)
+            with self.assertRaises(ValueError):
+                SMOKE.context_switch_record(path)
+            for invalid in [None, [], 0, "invalid"]:
+                with self.subTest(record=invalid), self.assertRaises(ValueError):
+                    write(invalid)
+                    SMOKE.context_switch_record(path)
+            path.write_text("")
+            with self.assertRaises(ValueError):
+                SMOKE.context_switch_record(path)
+
     def test_allocator_snapshot_is_mandatory_and_unambiguous(self):
         import tempfile
         with tempfile.TemporaryDirectory() as directory:
@@ -75,3 +103,7 @@ class CaptureGuards(unittest.TestCase):
                 path.write_text(bad)
                 with self.assertRaises(ValueError):
                     SMOKE.callgrind_instructions(path)
+
+
+if __name__ == "__main__":
+    unittest.main()

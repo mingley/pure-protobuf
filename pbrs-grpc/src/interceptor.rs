@@ -7,53 +7,13 @@ use crate::status::Status;
 use std::fmt;
 use std::sync::Arc;
 
-/// Inspect an inbound RPC before the handler runs.
+/// Inspect an inbound RPC before the handler reads its body.
 ///
-/// Return `Err` to reject without reading the body on every call shape;
-/// `Ok` to proceed.
-/// Closures with this signature implement the trait, so most interceptors
-/// are one function. Mutate inbound metadata with [`Rpc::metadata_mut`]
-/// (strip with [`crate::Metadata::remove`] or [`crate::Metadata::retain`],
-/// overwrite a hop with [`crate::Metadata::set`] / [`crate::Metadata::set_bin`];
-/// those mutations reach the
-/// handler on h2c, TLS including mTLS, Unix, and [`crate::Channel::from_io`]),
-/// cap the deadline with
-/// [`Rpc::set_timeout`], read the client's `grpc-timeout` with [`Rpc::peer_timeout`],
-/// the server overlay with [`Rpc::rpc_timeout`],
-/// or the effective remaining budget with [`Rpc::effective_timeout`] /
-/// [`Rpc::deadline`], read the path with
-/// [`Rpc::path`] / [`Rpc::service`] / [`Rpc::method`], read `:authority` with
-/// [`Rpc::authority`] and `:scheme` with [`Rpc::scheme`], read the mTLS
-/// client certificate with [`Rpc::peer_identity`], Unix credentials with
-/// [`Rpc::peer_cred`] (including values [`crate::Incoming::peer`] stamped),
-/// message caps with [`Rpc::limits`], `accepts_gzip` / encoding with
-/// [`Rpc::accepts_gzip`] / [`Rpc::encoding`] / [`Rpc::compresses_outbound`]
-/// / [`Rpc::gzip_level`] / [`Rpc::accepts_compressed`] / [`Rpc::concurrent_rpc_limit`] / [`Rpc::send_buffer_size`] (`encoding` is `None` for identity).
-/// Distinct from [`Rpc::compresses_outbound`]: that is on or off; [`Rpc::gzip_level`] is deflate effort.
-/// Distinct from [`Rpc::accepts_gzip`]: that is the peer's `grpc-accept-encoding`; [`Rpc::accepts_compressed`] is this overlay.
-/// Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`, which waits; [`Rpc::concurrent_rpc_limit`] is this overlay.
-/// Distinct from HTTP/2 `SETTINGS_MAX_FRAME_SIZE` and stream/connection windows, which are handshake; [`Rpc::send_buffer_size`] is this write-time overlay.
-/// Read the TCP interface with
-/// [`Rpc::local_addr`] / [`Rpc::remote_addr`], or insert typed values with
-/// [`Rpc::extensions_mut`] for the handler to read from
-/// [`crate::Request::extensions`] / [`crate::Parts::extensions`] (including
-/// over TLS, mTLS, Unix, and [`crate::Channel::from_io`]). Generated handlers see the same path,
-/// service, method, client timeout, server timeout overlay, gzip facts, response-gzip overlay, deflate effort, inbound-gzip overlay, process RPC cap, write-time send buffer, peer, and caps on
-/// [`crate::Request`]. `Err` may
-/// carry [`crate::Status::with_error_details`]; those trailers reach the client.
-/// [`crate::Status::from_error_details`] is the typed bag on this Interceptor Err; those trailers reach the client without reading the body.
-/// Distinct from a handler Err: that is after the handler ran; this Interceptor Err is trailers without reading the body.
-/// Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Interceptor Err is trailers without reading the body.
-/// Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Interceptor Err is trailers without reading the body.
-/// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this Interceptor Err is trailers without reading the body.
-/// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this Interceptor Err is trailers without reading the body.
-/// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this Interceptor Err is trailers without reading the body.
-/// Distinct from a ServiceExt on_response Err: that is trailers-only after handler Ok; this Interceptor Err is trailers without reading the body.
-/// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this Interceptor Err is trailers without reading the body.
-/// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this Interceptor Err is trailers without reading the body.
-/// Distinct from a method-level intercept Err: that is a local reject never opens a stream; this Interceptor Err is trailers without reading the body.
-/// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this Interceptor Err is trailers without reading the body.
-/// Distinct from a StreamSender fail: that is trailers after any messages already sent; this Interceptor Err is trailers without reading the body.
+/// Return `Err` to reject the call with that status, or `Ok` to continue.
+/// A closure with this signature implements the trait. The hook can change
+/// metadata, shorten the deadline, inspect peer identity and message limits,
+/// or attach typed values for the handler through [`Rpc::extensions_mut`].
+/// These changes reach the handler on every call shape and transport.
 ///
 /// ```
 /// use pbrs_grpc::{Rpc, Service, ServiceExt, Status};
@@ -64,69 +24,20 @@ use std::sync::Arc;
 ///     }
 ///     rpc.metadata_mut().remove("authorization");
 ///     rpc.metadata_mut().set("x-actor", "gateway")?;
-///     let _ = (
-///         rpc.path(),
-///         rpc.service(),
-///         rpc.method(),
-///         rpc.metadata(),
-///         rpc.timeout(),
-///         rpc.peer_timeout(),
-///         rpc.rpc_timeout(),
-///         rpc.effective_timeout(),
-///         rpc.deadline(),
-///         rpc.accepts_gzip(),
-///         rpc.encoding(),
-///         rpc.compresses_outbound(),
-///         rpc.gzip_level(),
-///         rpc.accepts_compressed(),
-///         rpc.concurrent_rpc_limit(),
-///         rpc.send_buffer_size(),
-///         rpc.limits(),
-///         rpc.local_addr(),
-///         rpc.remote_addr(),
-///         rpc.peer_identity(),
-///         rpc.peer_cred(),
-///         rpc.authority(),
-///         rpc.scheme(),
-///         rpc.extensions(),
-///     );
 ///     Ok(())
 /// }
 ///
-/// fn _mount<S: Service>(inner: S) -> pbrs_grpc::Intercepted<S, fn(&mut Rpc) -> Result<(), Status>> {
+/// fn mount<S: Service>(inner: S) -> pbrs_grpc::Intercepted<S, fn(&mut Rpc) -> Result<(), Status>> {
 ///     inner.intercept(require_token)
 /// }
 /// ```
 ///
-/// Generated servers expose the same method, so
-/// `GreeterServer::new(svc).intercept(require_token).serve(addr)` is the
-/// one-service form; calling `.intercept` twice stacks (first interceptor
-/// first). Wrapping a hand-written [`Service`] with [`ServiceExt::intercept`]
-/// stacks the same way: [`Intercepted::intercept`] is inherent, so
-/// `svc.intercept(a).intercept(b)` runs `a` then `b`. A single interceptor
-/// still rejects before the handler on every call shape, including over TLS,
-/// mTLS, Unix, and [`crate::Channel::from_io`]. On a [`crate::Router`],
-/// call [`crate::Router::intercept`] or wrap one service with [`Intercepted`].
-/// Applies to every call shape.
-/// Distinct from [`ClientInterceptor`]: that runs on the outbound call before the stream opens; this runs on the inbound RPC before the handler.
-/// Distinct from [`ClientInterceptor`]: that runs on the outbound call before the stream opens; this Interceptor runs on the inbound RPC before the handler.
-/// Distinct from [`ResponseInterceptor`]: that runs after the handler returns Ok or after a successful receive; this runs on the inbound RPC before the handler.
-/// Distinct from [`ResponseInterceptor`]: that runs after the handler returns Ok or after a successful receive; this Interceptor runs on the inbound RPC before the handler.
+/// Generated servers, [`crate::Server`], and [`crate::Router`] also expose
+/// `.intercept()`. Repeated registrations run in order. Use [`Intercepted`]
+/// to apply a hook to one service in a router.
 pub trait Interceptor: Send + Sync + 'static {
     /// Inspect `rpc`. The body has not been read yet.
     /// [`crate::Status::from_error_details`] is the typed bag on this method-level Interceptor Err; those trailers reach the client without reading the body.
-    /// Distinct from a handler Err: that is after the handler ran; this method-level Interceptor Err is trailers without reading the body.
-    /// Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this method-level Interceptor Err is trailers without reading the body.
-    /// Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this method-level Interceptor Err is trailers without reading the body.
-    /// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this method-level Interceptor Err is trailers without reading the body.
-    /// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this method-level Interceptor Err is trailers without reading the body.
-    /// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this method-level Interceptor Err is trailers without reading the body.
-    /// Distinct from a ServiceExt on_response Err: that is trailers-only after handler Ok; this method-level Interceptor Err is trailers without reading the body.
-    /// Distinct from a method-level intercept Err: that is a local reject never opens a stream; this method-level Interceptor Err is trailers without reading the body.
-    /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this method-level Interceptor Err is trailers without reading the body.
-    /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this method-level Interceptor Err is trailers without reading the body.
-    /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this method-level Interceptor Err is trailers without reading the body.
-    /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this method-level Interceptor Err is trailers without reading the body.
     fn intercept(&self, rpc: &mut Rpc) -> Result<(), Status>;
 }
 
@@ -139,81 +50,25 @@ where
     }
 }
 
-/// Inspect an outbound or received [`crate::ResponseParts`].
+/// Inspect or change a successful response envelope.
 ///
-/// Closures with this signature implement the trait, so most hooks are one
-/// function. Typed values on [`crate::Response::extensions`] are visible
-/// here — they are not headers and they are not on the wire. Stamp
-/// [`crate::ResponseParts::metadata_mut`] to send a header, or
-/// [`crate::ResponseParts::trailers_mut`] for trailing metadata that ships
-/// with `grpc-status`. Distinct from [`Interceptor`] / [`ClientInterceptor`],
-/// which run before the handler or before the stream opens.
-/// Distinct from [`Interceptor`]: that runs on the inbound RPC before the handler; this ResponseInterceptor runs after the handler returns Ok or after a successful receive.
-/// Distinct from [`ClientInterceptor`]: that runs on the outbound call before the stream opens; this ResponseInterceptor runs after the handler returns Ok or after a successful receive.
-/// [`crate::ResponseParts::path`] is kernel-stamped.
-/// Distinct from [`crate::Request::path`]: that is the inbound request.
-/// Distinct from [`crate::Outgoing::path`]: that is a client interceptor before send.
-/// [`crate::ResponseParts::gzip_level`] is the server encode overlay.
-/// Distinct from [`crate::ResponseParts::compress`]: that is on or off.
-/// [`crate::ResponseParts::compresses_outbound`] is the server encode overlay.
-/// Distinct from [`crate::ResponseParts::compress`]: that is the per-RPC Compressed-Flag.
-/// [`crate::ResponseParts::accepts_gzip`] is the peer `grpc-accept-encoding` advertisement.
-/// Distinct from [`crate::ResponseParts::encoding`]: that is received `grpc-encoding`.
-/// [`crate::ResponseParts::deadline`] is kernel-stamped when writing.
-/// Distinct from [`crate::Request::deadline`]: that is the inbound request.
-/// Distinct from [`crate::Rpc::deadline`]: that is computed when that getter runs.
-/// [`crate::ResponseParts::timeout`] is the duration stamped at dispatch.
-/// Distinct from [`crate::ResponseParts::deadline`]: that is the Instant.
-/// [`crate::ResponseParts::limits`] is the encode cap when writing.
-/// Distinct from [`crate::Request::limits`]: that is the inbound request.
-/// Distinct from [`crate::Rpc::limits`]: that is a server interceptor before the handler.
-/// [`crate::ResponseParts::peer_timeout`] is the client's `grpc-timeout`.
-/// Distinct from [`crate::ResponseParts::timeout`]: that is the effective cap.
-/// [`crate::ResponseParts::rpc_timeout`] is the server overlay.
-/// Distinct from [`crate::ResponseParts::timeout`]: that is soonest-of-three, not the overlay.
-/// Distinct from [`crate::ResponseParts::peer_timeout`]: that is the client's `grpc-timeout`.
-/// [`crate::ResponseParts::accepts_compressed`] is the inbound gzip overlay.
-/// Distinct from [`crate::ResponseParts::accepts_gzip`]: that is the peer advertisement.
-/// [`crate::ResponseParts::send_buffer_size`] is the write-time HTTP/2 send buffer overlay.
-/// Distinct from [`crate::ResponseParts::limits`]: that is the encode cap, not this send buffer.
-/// [`crate::ResponseParts::compress_is_set`] is occupancy on this ResponseInterceptor path, so a later interceptor can fill compress only when unset.
-/// [`crate::ResponseParts::clear_compress`] restores the server gzip overlay on this ResponseInterceptor path.
+/// On the server, this runs after the handler returns `Ok`, before any
+/// response headers or messages are sent. Returning `Err` replaces the
+/// response with a Trailers-Only error. A handler error skips the hook.
+/// Register it with [`crate::Server::on_response`],
+/// [`crate::Router::on_response`], or a generated server's `.on_response()`.
 ///
-/// On the server, [`crate::Server::on_response`] /
-/// [`crate::Router::on_response`] / generated `FooServer::on_response`
-/// run this after the handler returns `Ok`, before headers go out.
-/// `Err` after the handler already ran; that status is sent trailers-only
-/// instead of the response, including [`crate::Status::with_error_details`].
-/// A handler `Err` skips this hook. On a stream, headers have not gone
-/// out yet, so a rejected envelope never ships DATA. Applies to every
-/// call shape, including over TLS, mTLS, Unix, and
-/// [`crate::Server::serve_connection`].
+/// On the client, [`crate::Channel::on_response`] runs after receiving a
+/// successful response envelope, before its [`crate::Call`] completes.
+/// Returning `Err` fails that call locally. A non-OK peer status skips the
+/// hook. For server-streaming and bidi calls, the envelope contains initial
+/// headers; final status and trailers still arrive through [`crate::Streaming`].
 ///
-/// On the client, [`crate::Channel::on_response`] / generated
-/// `FooClient::on_response` run this after a successful receive, before
-/// the [`crate::Call`] is Ready. `Err` fails that Call (the peer already sent OK),
-/// including [`crate::Status::with_error_details`].
-/// A non-OK peer status skips this hook. On server-streaming and bidi, this
-/// envelope holds initial headers; [`crate::Streaming::trailers`] still come
-/// from the wire after end-of-stream. Applies to every call shape, including
-/// over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
-/// [`crate::Status::from_error_details`] is the typed bag on this ResponseInterceptor Err; a local reject is trailers-only after handler Ok, or fails the Call after a successful receive.
-/// Distinct from a handler Err: that is after the handler ran; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-/// Distinct from an Interceptor Err: that is trailers without reading the body; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-/// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-/// Distinct from a Server intercept Err: that is trailers without reading the body; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-/// Distinct from a Router intercept Err: that is trailers without reading the body; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-/// Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-/// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-/// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-/// Distinct from a method-level intercept Err: that is a local reject never opens a stream; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-/// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-/// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-/// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-/// Distinct from a ServiceExt on_response Err: that is trailers-only after handler Ok; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-/// Distinct from a StreamSender fail: that is trailers after any messages already sent; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-///
-/// Calling either attach point twice stacks (first interceptor first).
+/// [`crate::ResponseParts`] exposes metadata, compression settings, deadlines,
+/// limits, and typed extensions. Server header and trailer mutations go on
+/// the wire; typed extensions stay local. Hooks run in registration order
+/// for every RPC shape and transport. Error statuses can carry
+/// [`crate::Status::with_error_details`].
 ///
 /// ```
 /// use pbrs_grpc::{ResponseParts, Status};
@@ -222,27 +77,6 @@ where
 ///     if let Some(n) = parts.extensions().get::<u8>().copied() {
 ///         parts.metadata_mut().insert("x-trace", n.to_string())?;
 ///     }
-///     let _ = (
-///         parts.path(),
-///         parts.service(),
-///         parts.method(),
-///         parts.metadata(),
-///         parts.trailers(),
-///         parts.compress(),
-///         parts.compress_is_set(),
-///         parts.encoding(),
-///         parts.gzip_level(),
-///         parts.compresses_outbound(),
-///         parts.accepts_gzip(),
-///         parts.deadline(),
-///         parts.timeout(),
-///         parts.limits(),
-///         parts.peer_timeout(),
-///         parts.rpc_timeout(),
-///         parts.accepts_compressed(),
-///         parts.send_buffer_size(),
-///         parts.extensions(),
-///     );
 ///     Ok(())
 /// }
 /// # let _ = stamp_trace;
@@ -252,20 +86,6 @@ pub trait ResponseInterceptor: Send + Sync + 'static {
     /// [`crate::ResponseParts::compress_is_set`] is occupancy on this method-level on_response, so a later interceptor can fill compress only when unset.
     /// [`crate::ResponseParts::clear_compress`] restores the server gzip overlay on this method-level on_response.
     /// [`crate::Status::from_error_details`] is the typed bag on this method-level on_response Err; a local reject is trailers-only after handler Ok, or fails the Call after a successful receive.
-    /// Distinct from a handler Err: that is after the handler ran; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-    /// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-    /// Distinct from an Interceptor Err: that is trailers without reading the body; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-    /// Distinct from a Server intercept Err: that is trailers without reading the body; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-    /// Distinct from a Router intercept Err: that is trailers without reading the body; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-    /// Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-    /// Distinct from a method-level intercept Err: that is a local reject never opens a stream; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-    /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-    /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-    /// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-    /// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-    /// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-    /// Distinct from a ServiceExt on_response Err: that is trailers-only after handler Ok; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
-    /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
     fn intercept(&self, parts: &mut crate::ResponseParts) -> Result<(), Status>;
 }
 
@@ -315,12 +135,9 @@ pub(crate) fn intercept_response_all<T>(
 /// or [`crate::Server::intercept`]. Calling [`Intercepted::intercept`] stacks
 /// another interceptor after this one (first registered runs first).
 /// [`Intercepted::on_response`] is the same stack for the response hook.
-/// A per-service response hook does not cover other mounts; Distinct from
-/// [`crate::Server::on_response`] / [`crate::Router::on_response`].
+/// A per-service response hook applies only to this service. Server and
+/// Router hooks apply to all their mounted services.
 /// Cloning is cheap when `I: Clone`: the inner service is shared.
-/// Distinct from [`Interceptor`]: that is the inbound hook; this wrapper runs it before the handler.
-/// Distinct from [`ClientInterceptor`]: that is the outbound hook; this wrapper runs an inbound [`Interceptor`] before the handler.
-/// Distinct from [`ResponseInterceptor`]: that is the after-Ok hook; this wrapper runs before the handler and may hold that hook for after Ok.
 pub struct Intercepted<S, I> {
     inner: Arc<S>,
     interceptor: I,
@@ -350,24 +167,7 @@ impl<S, I> Intercepted<S, I> {
     /// [`crate::ResponseParts::compress_is_set`] is occupancy after this Intercepted on_response, so a later interceptor can fill compress only when unset.
     /// [`crate::ResponseParts::clear_compress`] restores the server gzip overlay after this Intercepted on_response.
     /// [`crate::Status::from_error_details`] is the typed bag after this Intercepted on_response Err; a local reject is trailers-only after handler Ok.
-    /// Distinct from a handler Err: that is after the handler ran; this Intercepted on_response Err is trailers-only after handler Ok.
-    /// Distinct from an Interceptor Err: that is trailers without reading the body; this Intercepted on_response Err is trailers-only after handler Ok.
-    /// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this Intercepted on_response Err is trailers-only after handler Ok.
-    /// Distinct from a Server intercept Err: that is trailers without reading the body; this Intercepted on_response Err is trailers-only after handler Ok.
-    /// Distinct from a Router intercept Err: that is trailers without reading the body; this Intercepted on_response Err is trailers-only after handler Ok.
-    /// Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this Intercepted on_response Err is trailers-only after handler Ok.
-    /// Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Intercepted on_response Err is trailers-only after handler Ok.
-    /// Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Intercepted on_response Err is trailers-only after handler Ok.
-    /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this Intercepted on_response Err is trailers-only after handler Ok.
-    /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this Intercepted on_response Err is trailers-only after handler Ok.
-    /// Distinct from a method-level intercept Err: that is a local reject never opens a stream; this Intercepted on_response Err is trailers-only after handler Ok.
-    /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this Intercepted on_response Err is trailers-only after handler Ok.
-    /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this Intercepted on_response Err is trailers-only after handler Ok.
-    /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this Intercepted on_response runs after the handler returns Ok.
-    /// Distinct from [`crate::Server::on_response`]: that runs after the handler returns Ok on the Server's Service; this Intercepted on_response runs after the handler returns Ok on one wrapped service.
-    /// Distinct from [`crate::Router::on_response`]: that runs after the handler returns Ok on every mounted service on that Router; this Intercepted on_response runs after the handler returns Ok on one wrapped service.
     /// [`crate::ResponseParts::path`] is kernel-stamped.
-    /// Distinct from [`crate::Request::path`]: that is the inbound request.
     /// `Err` after the handler already ran; that status is sent trailers-only instead of the response,
     /// including [`crate::Status::with_error_details`]. A handler `Err` skips
     /// this hook. Applies to every call shape, including over TLS, mTLS, Unix,
@@ -376,27 +176,7 @@ impl<S, I> Intercepted<S, I> {
     /// ```
     /// # fn demo<S, I>(wrapped: pbrs_grpc::Intercepted<S, I>) -> pbrs_grpc::Intercepted<S, I> {
     /// wrapped.on_response(|parts: &mut pbrs_grpc::ResponseParts| {
-    ///     let _ = (
-    ///         parts.path(),
-    ///         parts.service(),
-    ///         parts.method(),
-    ///         parts.metadata(),
-    ///         parts.trailers(),
-    ///         parts.compress(),
-    ///         parts.compress_is_set(),
-    ///         parts.encoding(),
-    ///         parts.gzip_level(),
-    ///         parts.compresses_outbound(),
-    ///         parts.accepts_gzip(),
-    ///         parts.deadline(),
-    ///         parts.timeout(),
-    ///         parts.limits(),
-    ///         parts.peer_timeout(),
-    ///         parts.rpc_timeout(),
-    ///         parts.accepts_compressed(),
-    ///         parts.send_buffer_size(),
-    ///         parts.extensions(),
-    ///     );
+    ///     let _ = parts.path();
     ///     Ok(())
     /// })
     /// # }
@@ -430,10 +210,6 @@ impl<S: Send + Sync + 'static, I: Interceptor> Intercepted<S, I> {
     /// [`Intercepted`], so `svc.intercept(a).intercept(b)` does not wrap
     /// onion-style (which would run `b` first). A response hook already
     /// attached with [`Self::on_response`] stays.
-    /// Distinct from [`crate::Channel::intercept`]: that runs on the outbound call before the stream opens; this Intercepted intercept stacks another inbound hook before the handler.
-    /// Distinct from [`Self::on_response`]: that runs after the handler returns Ok; this Intercepted intercept stacks another inbound hook before the handler.
-    /// Distinct from [`crate::Server::intercept`]: that runs on the inbound RPC before the Server's Service; this Intercepted intercept stacks another inbound hook before one wrapped service.
-    /// Distinct from [`crate::Router::intercept`]: that runs on the inbound RPC before every mounted service on that Router; this Intercepted intercept stacks another inbound hook before one wrapped service.
     ///
     /// ```
     /// # fn demo<S, I>(wrapped: pbrs_grpc::Intercepted<S, I>) -> pbrs_grpc::Intercepted<S, impl pbrs_grpc::Interceptor>
@@ -442,32 +218,7 @@ impl<S: Send + Sync + 'static, I: Interceptor> Intercepted<S, I> {
     /// #     I: pbrs_grpc::Interceptor,
     /// # {
     /// wrapped.intercept(|rpc: &mut pbrs_grpc::Rpc| {
-    ///     let _ = (
-    ///         rpc.path(),
-    ///         rpc.service(),
-    ///         rpc.method(),
-    ///         rpc.metadata(),
-    ///         rpc.timeout(),
-    ///         rpc.peer_timeout(),
-    ///         rpc.rpc_timeout(),
-    ///         rpc.effective_timeout(),
-    ///         rpc.deadline(),
-    ///         rpc.accepts_gzip(),
-    ///         rpc.encoding(),
-    ///         rpc.compresses_outbound(),
-    ///         rpc.gzip_level(),
-    ///         rpc.accepts_compressed(),
-    ///         rpc.concurrent_rpc_limit(),
-    ///         rpc.send_buffer_size(),
-    ///         rpc.limits(),
-    ///         rpc.local_addr(),
-    ///         rpc.remote_addr(),
-    ///         rpc.peer_identity(),
-    ///         rpc.peer_cred(),
-    ///         rpc.authority(),
-    ///         rpc.scheme(),
-    ///         rpc.extensions(),
-    ///     );
+    ///     let _ = rpc.path();
     ///     Ok(())
     /// })
     /// # }
@@ -529,53 +280,12 @@ pub trait ServiceExt: Service + Sized {
     /// still rejects before the handler on every call shape, including over
     /// TLS, mTLS, Unix, and [`crate::Channel::from_io`].
     /// [`crate::Status::from_error_details`] is the typed bag after this ServiceExt intercept Err; those trailers reach the client without reading the body.
-    /// Distinct from a handler Err: that is after the handler ran; this ServiceExt intercept Err is trailers without reading the body.
-    /// Distinct from a ServiceExt on_response Err: that is trailers-only after handler Ok; this ServiceExt intercept Err is trailers without reading the body.
-    /// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this ServiceExt intercept Err is trailers without reading the body.
-    /// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this ServiceExt intercept Err is trailers without reading the body.
-    /// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this ServiceExt intercept Err is trailers without reading the body.
-    /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this ServiceExt intercept Err is trailers without reading the body.
-    /// Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this ServiceExt intercept Err is trailers without reading the body.
-    /// Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this ServiceExt intercept Err is trailers without reading the body.
-    /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this ServiceExt intercept Err is trailers without reading the body.
-    /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this ServiceExt intercept Err is trailers without reading the body.
-    /// Distinct from a method-level intercept Err: that is a local reject never opens a stream; this ServiceExt intercept Err is trailers without reading the body.
-    /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this ServiceExt intercept Err is trailers without reading the body.
-    /// Distinct from [`crate::Channel::intercept`]: that runs on the outbound call before the stream opens; this ServiceExt intercept runs on the inbound RPC before the handler.
-    /// Distinct from [`Self::on_response`]: that runs after the handler returns Ok; this ServiceExt intercept runs on the inbound RPC before the handler.
-    /// Distinct from [`crate::Server::intercept`]: that runs on the inbound RPC before the Server's Service; this ServiceExt intercept wraps one service with an inbound hook.
-    /// Distinct from [`crate::Router::intercept`]: that runs on the inbound RPC before every mounted service on that Router; this ServiceExt intercept wraps one service with an inbound hook.
     ///
     /// ```
     /// use pbrs_grpc::ServiceExt;
     /// # fn demo<S: pbrs_grpc::Service>(svc: S) -> pbrs_grpc::Intercepted<S, impl pbrs_grpc::Interceptor> {
     /// svc.intercept(|rpc: &mut pbrs_grpc::Rpc| {
-    ///     let _ = (
-    ///         rpc.path(),
-    ///         rpc.service(),
-    ///         rpc.method(),
-    ///         rpc.metadata(),
-    ///         rpc.timeout(),
-    ///         rpc.peer_timeout(),
-    ///         rpc.rpc_timeout(),
-    ///         rpc.effective_timeout(),
-    ///         rpc.deadline(),
-    ///         rpc.accepts_gzip(),
-    ///         rpc.encoding(),
-    ///         rpc.compresses_outbound(),
-    ///         rpc.gzip_level(),
-    ///         rpc.accepts_compressed(),
-    ///         rpc.concurrent_rpc_limit(),
-    ///         rpc.send_buffer_size(),
-    ///         rpc.limits(),
-    ///         rpc.local_addr(),
-    ///         rpc.remote_addr(),
-    ///         rpc.peer_identity(),
-    ///         rpc.peer_cred(),
-    ///         rpc.authority(),
-    ///         rpc.scheme(),
-    ///         rpc.extensions(),
-    ///     );
+    ///     let _ = rpc.path();
     ///     Ok(())
     /// })
     /// # }
@@ -598,24 +308,7 @@ pub trait ServiceExt: Service + Sized {
     /// [`crate::ResponseParts::compress_is_set`] is occupancy after this ServiceExt on_response, so a later interceptor can fill compress only when unset.
     /// [`crate::ResponseParts::clear_compress`] restores the server gzip overlay after this ServiceExt on_response.
     /// [`crate::Status::from_error_details`] is the typed bag after this ServiceExt on_response Err; a local reject is trailers-only after handler Ok.
-    /// Distinct from a handler Err: that is after the handler ran; this ServiceExt on_response Err is trailers-only after handler Ok.
-    /// Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this ServiceExt on_response Err is trailers-only after handler Ok.
-    /// Distinct from an Interceptor Err: that is trailers without reading the body; this ServiceExt on_response Err is trailers-only after handler Ok.
-    /// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this ServiceExt on_response Err is trailers-only after handler Ok.
-    /// Distinct from a Server intercept Err: that is trailers without reading the body; this ServiceExt on_response Err is trailers-only after handler Ok.
-    /// Distinct from a Router intercept Err: that is trailers without reading the body; this ServiceExt on_response Err is trailers-only after handler Ok.
-    /// Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this ServiceExt on_response Err is trailers-only after handler Ok.
-    /// Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this ServiceExt on_response Err is trailers-only after handler Ok.
-    /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this ServiceExt on_response Err is trailers-only after handler Ok.
-    /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this ServiceExt on_response Err is trailers-only after handler Ok.
-    /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this ServiceExt on_response Err is trailers-only after handler Ok.
-    /// Distinct from a method-level intercept Err: that is a local reject never opens a stream; this ServiceExt on_response Err is trailers-only after handler Ok.
-    /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this ServiceExt on_response Err is trailers-only after handler Ok.
-    /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this ServiceExt on_response runs after the handler returns Ok.
-    /// Distinct from [`crate::Server::on_response`]: that runs after the handler returns Ok on the Server's Service; this ServiceExt on_response wraps one service with an after-Ok hook.
-    /// Distinct from [`crate::Router::on_response`]: that runs after the handler returns Ok on every mounted service on that Router; this ServiceExt on_response wraps one service with an after-Ok hook.
     /// [`crate::ResponseParts::path`] is kernel-stamped.
-    /// Distinct from [`crate::Request::path`]: that is the inbound request.
     /// `Err` after the handler already ran; that status is sent
     /// trailers-only instead of the response, including
     /// [`crate::Status::with_error_details`]. A handler `Err` skips this
@@ -626,27 +319,7 @@ pub trait ServiceExt: Service + Sized {
     /// use pbrs_grpc::ServiceExt;
     /// # fn demo<S: pbrs_grpc::Service>(svc: S) -> pbrs_grpc::Intercepted<S, impl pbrs_grpc::Interceptor> {
     /// svc.on_response(|parts: &mut pbrs_grpc::ResponseParts| {
-    ///     let _ = (
-    ///         parts.path(),
-    ///         parts.service(),
-    ///         parts.method(),
-    ///         parts.metadata(),
-    ///         parts.trailers(),
-    ///         parts.compress(),
-    ///         parts.compress_is_set(),
-    ///         parts.encoding(),
-    ///         parts.gzip_level(),
-    ///         parts.compresses_outbound(),
-    ///         parts.accepts_gzip(),
-    ///         parts.deadline(),
-    ///         parts.timeout(),
-    ///         parts.limits(),
-    ///         parts.peer_timeout(),
-    ///         parts.rpc_timeout(),
-    ///         parts.accepts_compressed(),
-    ///         parts.send_buffer_size(),
-    ///         parts.extensions(),
-    ///     );
+    ///     let _ = parts.path();
     ///     Ok(())
     /// })
     /// # }
@@ -709,33 +382,7 @@ impl<S: Service> ServiceExt for S {}
 ///     if !call.compress_is_set() {
 ///         call.set_compress(true);
 ///     }
-///     let _ = (
-///         call.path(),
-///         call.service(),
-///         call.method(),
-///         call.authority(),
-///         call.scheme(),
-///         call.user_agent(),
-///         call.user_agent_is_set(),
-///         call.metadata(),
-///         call.timeout(),
-///         call.deadline(),
-///         call.rpc_timeout(),
-///         call.wait_for_ready(),
-///         call.wait_for_ready_is_set(),
-///         call.waits_for_ready(),
-///         call.compress(),
-///         call.compress_is_set(),
-///         call.compresses_outbound(),
-///         call.accepts_compressed(),
-///         call.gzip_level(),
-///         call.concurrent_rpc_limit(),
-///         call.stream_buffer_size(),
-///         call.send_buffer_size(),
-///         call.limits(),
-///         call.connected(),
-///         call.extensions(),
-///     );
+///     let _ = rpc.path();
 ///     Ok(())
 /// }
 /// # let _ = stamp;

@@ -369,7 +369,6 @@ impl<T> Request<T> {
 
     /// Request headers, as gRPC metadata.
     ///
-    /// Distinct from [`Self::metadata_mut`]: that mutates this envelope; this borrows it.
     #[must_use]
     pub fn metadata(&self) -> &Metadata {
         &self.metadata
@@ -377,7 +376,6 @@ impl<T> Request<T> {
 
     /// Mutable request headers.
     ///
-    /// Distinct from [`Self::metadata`]: that borrows this envelope; this mutates it.
     pub fn metadata_mut(&mut self) -> &mut Metadata {
         &mut self.metadata
     }
@@ -442,8 +440,6 @@ impl<T> Request<T> {
 
     /// Set the relative timeout. Outbound this becomes `grpc-timeout`.
     ///
-    /// Distinct from [`Self::timeout`]: that reads the relative timeout this envelope carries; this writes it.
-    ///
     /// Inbound, the kernel stamps the effective remaining duration at
     /// dispatch (client, server cap, interceptor). That value does not
     /// shrink as the handler runs; see [`Self::deadline`] for the absolute
@@ -454,7 +450,6 @@ impl<T> Request<T> {
 
     /// Clear a timeout previously set on this request.
     ///
-    /// Distinct from [`Self::set_timeout`]: that writes the relative timeout this envelope carries; this opts out.
     pub fn clear_timeout(&mut self) {
         self.timeout = None;
     }
@@ -483,8 +478,6 @@ impl<T> Request<T> {
     /// Queue this RPC until the channel is connected instead of failing
     /// immediately with [`crate::Code::Unavailable`].
     ///
-    /// Distinct from [`Self::wait_for_ready`]: that reads the wait-for-ready choice this envelope carries; this writes it.
-    ///
     /// Pair this with a deadline. Without one, a lazy channel whose
     /// peer never comes up waits until cancellation. The usual source
     /// of a not-yet-connected channel is [`crate::Channel::connect_lazy`].
@@ -498,7 +491,6 @@ impl<T> Request<T> {
     /// Drop a wait-for-ready choice so a later [`crate::Channel::wait_for_ready`]
     /// or interceptor can fill it in. See [`Self::clear_timeout`].
     ///
-    /// Distinct from [`Self::set_wait_for_ready`]: that writes the wait-for-ready choice this envelope carries; this opts out.
     pub fn clear_wait_for_ready(&mut self) {
         self.wait_for_ready = None;
     }
@@ -523,7 +515,6 @@ impl<T> Request<T> {
 
     /// Typed values an interceptor attached to this RPC.
     ///
-    /// Distinct from [`Self::extensions_mut`]: that inserts typed values this envelope carries; this borrows them.
     /// Empty on a request you built yourself until something inserts into
     /// [`Self::extensions_mut`]. On the server, this is the map an
     /// [`crate::Interceptor`] filled on the [`crate::Rpc`] before the
@@ -536,14 +527,11 @@ impl<T> Request<T> {
 
     /// Insert typed values for later handlers or interceptors.
     ///
-    /// Distinct from [`Self::extensions`]: that borrows them; this inserts typed values this envelope carries.
     pub fn extensions_mut(&mut self) -> &mut http::Extensions {
         &mut self.extensions
     }
 
     /// gzip this request's payload and set the Compressed-Flag.
-    ///
-    /// Distinct from [`Self::compress`]: that reads outbound payload gzip on this envelope; this writes it.
     ///
     /// Passing `false` opts out of a later [`crate::Channel::send_compressed`]
     /// overlay on every call shape, including over TLS, mTLS, Unix, and
@@ -556,7 +544,6 @@ impl<T> Request<T> {
     /// Drop a compression choice so a later [`crate::Channel::send_compressed`]
     /// or interceptor can fill it in. See [`Self::clear_wait_for_ready`].
     ///
-    /// Distinct from [`Self::set_compress`]: that writes outbound payload gzip on this envelope; this opts out.
     pub fn clear_compress(&mut self) {
         self.compress = None;
     }
@@ -595,14 +582,11 @@ impl<T> Request<T> {
 
     /// Prefix the kernel `user-agent` on this RPC.
     ///
-    /// Distinct from [`Self::user_agent`]: that is the override this envelope carries; this prefixes it.
-    ///
     /// Same construction as [`crate::Channel::user_agent`] /
     /// [`crate::Outgoing::set_user_agent`]: `prefix pbrs-grpc/<version>`.
     /// Empty prefix is the kernel identity alone. Invalid HTTP is
     /// [`crate::Code::InvalidArgument`]. Distinct from inserting `user-agent`
     /// into metadata, which the kernel overwrites.
-    /// Distinct from [`crate::Outgoing::user_agent`]: that is the effective value after interceptors; this prefixes the override this envelope carries.
     /// An interceptor [`crate::Outgoing::set_user_agent`] that runs after the call site wins.
     /// [`Self::clear_user_agent`] restores the channel value. Applies to
     /// every call shape.
@@ -622,7 +606,6 @@ impl<T> Request<T> {
     /// Drop a [`Self::set_user_agent`] override so this RPC uses the channel
     /// [`crate::Channel::grpc_user_agent`] again. Applies to every call shape.
     ///
-    /// Distinct from [`Self::set_user_agent`]: that prefixes this envelope; this restores the channel value.
     pub fn clear_user_agent(&mut self) {
         self.user_agent = None;
     }
@@ -712,7 +695,6 @@ impl<T> Request<T> {
 
     /// Whether the peer advertised gzip in `grpc-accept-encoding`.
     ///
-    /// Distinct from [`Self::accepts_compressed`]: that is the inbound overlay, not the peer advertisement.
     /// `true` after inbound dispatch when the client listed gzip. Kernel
     /// clients always advertise gzip, so a handler talking to
     /// [`crate::Channel`] sees `true` even when the request body itself is
@@ -743,7 +725,6 @@ impl<T> Request<T> {
     /// Server [`crate::Server::gzip_compression_level`] overlay, when the kernel dispatched this call.
     ///
     /// Same overlay as [`crate::Rpc::gzip_level`] / [`crate::Server::gzip_level`].
-    /// Distinct from [`Self::compresses_outbound`]: that is on or off; this is deflate effort.
     /// Distinct from [`crate::Outgoing::gzip_level`]: that is a client interceptor overlay.
     /// [`crate::DEFAULT_GZIP_COMPRESSION_LEVEL`] on a request you built to send.
     /// An interceptor cannot change this; the kernel applies it when encoding.
@@ -760,7 +741,6 @@ impl<T> Request<T> {
     /// Server [`crate::Server::accept_compressed`] overlay, when the kernel dispatched this call.
     ///
     /// Same overlay as [`crate::Rpc::accepts_compressed`] / [`crate::Server::accepts_compressed`].
-    /// Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this overlay.
     /// Distinct from [`crate::Outgoing::accepts_compressed`]: that is a client interceptor overlay.
     /// Default `true` on a request you built to send.
     /// An interceptor cannot change this; the kernel applies it when decoding.
@@ -779,7 +759,6 @@ impl<T> Request<T> {
     ///
     /// Same overlay as [`crate::Rpc::concurrent_rpc_limit`] / [`crate::Server::concurrent_rpc_limit`].
     /// Distinct from [`crate::Outgoing::concurrent_rpc_limit`]: that is a client interceptor overlay.
-    /// Distinct from [`Self::limits`]: that is message size, not how many RPCs.
     /// `None` on a request you built to send, and `None` when the server omitted a cap.
     /// An interceptor cannot change this; extras are [`crate::Code::ResourceExhausted`] before the handler runs.
     ///
@@ -796,7 +775,6 @@ impl<T> Request<T> {
     ///
     /// Same overlay as [`crate::Rpc::send_buffer_size`] / [`crate::Server::send_buffer_size`].
     /// Distinct from [`crate::Outgoing::send_buffer_size`]: that is a client interceptor overlay.
-    /// Distinct from [`Self::limits`]: that is message size, not this HTTP/2 send buffer.
     /// Distinct from HTTP/2 `SETTINGS_MAX_FRAME_SIZE` and stream/connection windows: those are handshake SETTINGS, not this write-time threshold.
     /// Default [`crate::DEFAULT_MAX_SEND_BUFFER_SIZE`] on a request you built to send.
     /// An interceptor cannot change this; the kernel still applies this buffer when writing DATA.
@@ -812,7 +790,6 @@ impl<T> Request<T> {
 
     /// The `grpc-encoding` token the peer used on this call, if any.
     ///
-    /// Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this inbound `grpc-encoding`.
     /// `Some("gzip")` when the request body (unary) or stream (client/bidi)
     /// is gzip-compressed. `None` means identity — header absent, empty, or
     /// an explicit `identity` token — or a request you built to send. Distinct
@@ -1206,7 +1183,6 @@ impl<'a> Outgoing<'a> {
     /// The HTTP/2 `:authority` this channel sends, e.g. `127.0.0.1:50051`
     /// or `localhost` on a Unix socket.
     ///
-    /// Distinct from [`crate::Rpc::authority`]: that is the inbound `:authority`; this is the `:authority` this channel sends.
     /// TLS uses the channel [`crate::Target`], not SNI, unless
     /// [`crate::Channel::origin`] overrode it on this clone. Applies to every call
     /// shape.
@@ -1217,7 +1193,6 @@ impl<'a> Outgoing<'a> {
 
     /// HTTP/2 `:scheme` this channel sends.
     ///
-    /// Distinct from [`crate::Rpc::scheme`]: that is the inbound `:scheme`; this is the `:scheme` this channel sends.
     /// Same string as [`crate::Channel::scheme`]: `https` when the channel was
     /// built with [`crate::ClientTls`], or when a [`crate::Channel::from_io`]
     /// clone called [`crate::Channel::https_scheme`]. Otherwise `http`
@@ -1230,7 +1205,6 @@ impl<'a> Outgoing<'a> {
 
     /// The `user-agent` this RPC will send, including the kernel suffix.
     ///
-    /// Distinct from [`crate::Request::user_agent`]: that is the override only; this is the effective header this RPC will send.
     /// Same value as [`crate::Channel::grpc_user_agent`] until
     /// [`Self::set_user_agent`]. A prefix set with [`crate::Channel::user_agent`]
     /// is visible here. Inserting `user-agent` into metadata succeeds — that
@@ -1253,7 +1227,6 @@ impl<'a> Outgoing<'a> {
 
     /// Prefix the kernel `user-agent` on this RPC.
     ///
-    /// Distinct from [`Self::user_agent`]: that is the effective header this RPC will send; this prefixes it.
     /// Same construction as [`crate::Channel::user_agent`]:
     /// `prefix pbrs-grpc/<version>`. Empty prefix is the kernel identity
     /// alone. Invalid HTTP is [`crate::Code::InvalidArgument`]. Distinct from
@@ -1270,8 +1243,6 @@ impl<'a> Outgoing<'a> {
     /// Whether [`Self::set_user_agent`] has already overridden the channel
     /// value. Applies to every call shape.
     ///
-    /// Distinct from [`Self::user_agent`]: that is the effective header this RPC will send; this is occupancy.
-    /// Distinct from [`crate::Request::user_agent_is_set`]: that is the call-site occupancy; this is the same flag after interceptors run.
     #[must_use]
     pub fn user_agent_is_set(&self) -> bool {
         self.user_agent.is_some()
@@ -1280,7 +1251,6 @@ impl<'a> Outgoing<'a> {
     /// Drop a [`Self::set_user_agent`] override so this RPC uses the channel
     /// [`crate::Channel::grpc_user_agent`] again. Applies to every call shape.
     ///
-    /// Distinct from [`Self::set_user_agent`]: that prefixes this RPC; this restores the channel value.
     pub fn clear_user_agent(&mut self) {
         *self.user_agent = None;
     }
@@ -1348,8 +1318,6 @@ impl<'a> Outgoing<'a> {
 
     /// Channel [`crate::Channel::gzip_compression_level`] overlay.
     ///
-    /// Distinct from [`Self::compresses_outbound`]: that is on or off; this is deflate effort.
-    /// Distinct from [`Self::compress`]: that is the per-RPC Compressed-Flag after overlay and interceptor mutation.
     /// An interceptor cannot change this; the kernel applies it when encoding.
     /// Same value as [`crate::Channel::gzip_level`]. Applies to every call shape.
     #[must_use]
@@ -1359,7 +1327,6 @@ impl<'a> Outgoing<'a> {
 
     /// Channel [`crate::Channel::max_concurrent_rpcs`] overlay.
     ///
-    /// Distinct from [`Self::waits_for_ready`]: that waits for a connection; this refuses extras.
     /// Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`, which waits.
     /// `None` when unset. An interceptor cannot change this; the kernel refuses extras with [`crate::Code::ResourceExhausted`] before the stream opens.
     /// Same value as [`crate::Channel::concurrent_rpc_limit`]. Applies to every call shape.
@@ -1370,7 +1337,6 @@ impl<'a> Outgoing<'a> {
 
     /// Channel [`crate::Channel::stream_buffer`] overlay.
     ///
-    /// Distinct from [`Self::limits`]: that is message size, not how many messages sit in the outbound queue.
     /// Distinct from received streams: those are decoded inline and have no queue.
     /// Applies to client-streaming and bidi request streams. Unary and server-streaming have no request stream to queue.
     /// An interceptor cannot change this; the kernel applies it when opening the request stream.
@@ -1382,8 +1348,6 @@ impl<'a> Outgoing<'a> {
 
     /// Channel [`crate::Channel::max_send_buffer_size`] overlay.
     ///
-    /// Distinct from [`Self::limits`]: that is uncompressed protobuf bytes, not this HTTP/2 send buffer.
-    /// Distinct from [`Self::stream_buffer_size`]: that is decoded-message queue depth, not this send buffer.
     /// Distinct from HTTP/2 `SETTINGS_MAX_FRAME_SIZE` and stream/connection windows: those are handshake flow control.
     /// An interceptor cannot change this; the kernel applies it when sending DATA.
     /// Same value as [`crate::Channel::send_buffer_size`]. Default [`crate::DEFAULT_MAX_SEND_BUFFER_SIZE`].
@@ -1396,7 +1360,6 @@ impl<'a> Outgoing<'a> {
     /// The full gRPC path, `/<package>.<Service>/<Method>`. Visible on every
     /// call shape.
     ///
-    /// Distinct from [`crate::Rpc::path`]: that is a server interceptor; this is a client interceptor before send.
     #[must_use]
     pub fn path(&self) -> &'static str {
         self.path
@@ -1404,7 +1367,6 @@ impl<'a> Outgoing<'a> {
 
     /// Service half of the path, e.g. `helloworld.Greeter`.
     ///
-    /// Distinct from [`crate::Rpc::service`]: that is a server interceptor; this is a client interceptor before send.
     /// Same split as [`crate::Rpc::service`]. Unparseable paths yield `""`.
     /// Bind it before [`Self::metadata_mut`]: `let svc = call.service();`.
     /// Applies to every call shape.
@@ -1415,7 +1377,6 @@ impl<'a> Outgoing<'a> {
 
     /// Method half of the path, e.g. `SayHello`.
     ///
-    /// Distinct from [`crate::Rpc::method`]: that is a server interceptor; this is a client interceptor before send.
     /// Same split as [`crate::Rpc::method`]. Unparseable paths yield `""`.
     /// Bind it before [`Self::metadata_mut`]: `let method = call.method();`.
     /// Applies to every call shape.
@@ -1425,7 +1386,6 @@ impl<'a> Outgoing<'a> {
     }
 
     /// Request headers, as gRPC metadata. Applies to every call shape.
-    /// Distinct from [`Self::metadata_mut`]: that mutates the outbound map; this borrows it.
     #[must_use]
     pub fn metadata(&self) -> &Metadata {
         self.metadata
@@ -1433,14 +1393,12 @@ impl<'a> Outgoing<'a> {
 
     /// Mutable request headers. Applies to every call shape.
     ///
-    /// Distinct from [`Self::metadata`]: that borrows the outbound map; this mutates it.
     pub fn metadata_mut(&mut self) -> &mut Metadata {
         self.metadata
     }
 
     /// Relative timeout that becomes `grpc-timeout` on the wire.
     ///
-    /// Distinct from [`Self::rpc_timeout`]: that is the channel overlay; this is the Call `grpc-timeout`.
     /// `None` when neither the request nor a channel overlay set one. Fill
     /// that case with [`Self::set_timeout`]. The matching Instant is
     /// [`Self::deadline`]. Applies to every call shape.
@@ -1451,8 +1409,6 @@ impl<'a> Outgoing<'a> {
 
     /// Absolute Instant matching [`Self::timeout`].
     ///
-    /// Distinct from [`Self::timeout`]: that is the duration; this Instant is computed when the getter runs.
-    /// Distinct from [`Self::rpc_timeout`]: that is the duration overlay; this Instant is computed when the getter runs.
     /// Computed when you call this, so an interceptor that just set
     /// [`Self::set_timeout`] sees the new Instant. Same contract as
     /// [`crate::Rpc::deadline`]. Visible on every call shape.
@@ -1463,7 +1419,6 @@ impl<'a> Outgoing<'a> {
 
     /// Set the relative timeout. Becomes `grpc-timeout` on the wire.
     ///
-    /// Distinct from [`Self::timeout`]: that reads the Call `grpc-timeout`; this writes it.
     /// This is the [`crate::Call`]'s deadline on every call shape.
     pub fn set_timeout(&mut self, timeout: Duration) {
         *self.timeout = Some(timeout);
@@ -1472,7 +1427,6 @@ impl<'a> Outgoing<'a> {
     /// Clear a timeout previously set on the request, by the channel overlay,
     /// or by an earlier interceptor.
     ///
-    /// Distinct from [`Self::set_timeout`]: that writes the Call `grpc-timeout`; this opts out.
     /// The channel overlay has already run; clearing here opts out of that
     /// default too. [`Self::rpc_timeout`] still reports the channel policy so
     /// a later interceptor can re-apply it. Applies to every call shape.
@@ -1482,7 +1436,6 @@ impl<'a> Outgoing<'a> {
 
     /// Whether this RPC waits for a connection instead of failing fast.
     ///
-    /// Distinct from [`Self::waits_for_ready`]: that is the channel overlay; this is the per-RPC choice.
     /// `false` when unset. Use [`Self::wait_for_ready_is_set`] to tell
     /// `None` from an explicit `false`. Applies to every call shape.
     #[must_use]
@@ -1503,15 +1456,12 @@ impl<'a> Outgoing<'a> {
 
     /// Queue this RPC until the channel is connected. Applies to every call
     /// shape.
-    /// Distinct from [`Self::connected`]: that is a live snapshot; this still queues when a slot is empty.
-    /// Distinct from [`Self::wait_for_ready`]: that reads the per-RPC choice; this writes it.
     pub fn set_wait_for_ready(&mut self, wait: bool) {
         *self.wait_for_ready = Some(wait);
     }
 
     /// Drop a wait-for-ready choice so a later interceptor can fill it in.
     ///
-    /// Distinct from [`Self::set_wait_for_ready`]: that queues this RPC; this opts out.
     /// The channel overlay has already run; clearing here opts out of that
     /// default too, the same as [`Self::clear_timeout`]. [`Self::waits_for_ready`]
     /// still reports the channel policy so a later interceptor can re-apply it.
@@ -1538,7 +1488,6 @@ impl<'a> Outgoing<'a> {
 
     /// Whether the request payload will be gzipped.
     ///
-    /// Distinct from [`Self::compresses_outbound`]: that is the channel overlay; this is the per-RPC choice.
     /// `false` when unset. Use [`Self::compress_is_set`] to tell `None`
     /// from an explicit `false`. Applies to every call shape.
     #[must_use]
@@ -1559,7 +1508,6 @@ impl<'a> Outgoing<'a> {
 
     /// gzip this request's payload and set the Compressed-Flag.
     ///
-    /// Distinct from [`Self::compress`]: that reads the per-RPC Compressed-Flag; this writes it.
     /// Passing `false` opts out of a channel [`crate::Channel::send_compressed`]
     /// overlay. Applies to every call shape.
     pub fn set_compress(&mut self, compress: bool) {
@@ -1568,7 +1516,6 @@ impl<'a> Outgoing<'a> {
 
     /// Drop a compression choice so a later interceptor can fill it in.
     ///
-    /// Distinct from [`Self::set_compress`]: that writes the per-RPC Compressed-Flag; this opts out.
     /// The channel overlay has already run; clearing here opts out of that
     /// default too, the same as [`Self::clear_timeout`].
     /// [`Self::compresses_outbound`] still reports the channel policy so a
@@ -1579,7 +1526,6 @@ impl<'a> Outgoing<'a> {
 
     /// Typed values earlier interceptors or the caller attached to this RPC.
     ///
-    /// Distinct from [`Self::extensions_mut`]: that inserts typed values; this borrows the map.
     /// The caller inserts on [`crate::Request::extensions_mut`] before the
     /// call; stacked interceptors share the same map. These values are not
     /// sent on the wire. Visible on every call shape.
@@ -1590,7 +1536,6 @@ impl<'a> Outgoing<'a> {
 
     /// Insert typed values for later interceptors.
     ///
-    /// Distinct from [`Self::extensions`]: that borrows the map; this inserts typed values.
     /// Use this to pass a parsed identity or span into the next interceptor
     /// without a metadata round-trip. Applies to every call shape.
     pub fn extensions_mut(&mut self) -> &mut http::Extensions {
@@ -1794,7 +1739,6 @@ pub struct Parts {
 impl Parts {
     /// Request headers.
     ///
-    /// Distinct from [`Self::metadata_mut`]: that mutates this split envelope; this borrows it.
     #[must_use]
     pub fn metadata(&self) -> &Metadata {
         &self.metadata
@@ -1802,7 +1746,6 @@ impl Parts {
 
     /// Mutable request headers.
     ///
-    /// Distinct from [`Self::metadata`]: that borrows this split envelope; this mutates it.
     pub fn metadata_mut(&mut self) -> &mut Metadata {
         &mut self.metadata
     }
@@ -1851,8 +1794,6 @@ impl Parts {
 
     /// Set the relative timeout. Outbound this becomes `grpc-timeout`.
     ///
-    /// Distinct from [`Self::timeout`]: that reads the relative timeout this split envelope carries; this writes it.
-    ///
     /// Same as [`Request::set_timeout`]. A proxy that split the envelope
     /// with [`Request::into_message_and_parts`] can tighten the deadline
     /// here without rebuilding a [`Request`] first.
@@ -1863,14 +1804,12 @@ impl Parts {
     /// Clear a timeout previously set on this envelope.
     /// See [`Request::clear_timeout`].
     ///
-    /// Distinct from [`Self::set_timeout`]: that writes the relative timeout this split envelope carries; this opts out.
     pub fn clear_timeout(&mut self) {
         self.timeout = None;
     }
 
     /// Absolute deadline the server is enforcing, if any. See [`Request::deadline`].
     ///
-    /// Distinct from [`timeout`](Self::timeout): that is the duration stamped at dispatch on this split envelope; this Instant does not shrink.
     #[must_use]
     pub fn deadline(&self) -> Option<tokio::time::Instant> {
         self.deadline
@@ -1879,7 +1818,6 @@ impl Parts {
     /// Whether the payload will be gzipped. Outbound only.
     /// See [`Request::compress`].
     ///
-    /// Distinct from [`Self::compressed`]: that is the inbound unary Compressed-Flag on this split envelope; this is outbound gzip intent.
     #[must_use]
     pub fn compress(&self) -> bool {
         self.compress.unwrap_or(false)
@@ -1897,7 +1835,6 @@ impl Parts {
     /// gzip this request's payload and set the Compressed-Flag.
     /// See [`Request::set_compress`].
     ///
-    /// Distinct from [`Self::compress`]: that reads outbound payload gzip on this split envelope; this writes it.
     pub fn set_compress(&mut self, compress: bool) {
         self.compress = Some(compress);
     }
@@ -1905,7 +1842,6 @@ impl Parts {
     /// Drop a compression choice so a later channel default can fill it in.
     /// See [`Request::clear_compress`].
     ///
-    /// Distinct from [`Self::set_compress`]: that writes outbound payload gzip on this split envelope; this opts out.
     pub fn clear_compress(&mut self) {
         self.compress = None;
     }
@@ -1936,7 +1872,6 @@ impl Parts {
     /// Queue this RPC until the channel is connected.
     /// See [`Request::set_wait_for_ready`].
     ///
-    /// Distinct from [`Self::wait_for_ready`]: that reads the wait-for-ready choice this split envelope carries; this writes it.
     pub fn set_wait_for_ready(&mut self, wait: bool) {
         self.wait_for_ready = Some(wait);
     }
@@ -1944,7 +1879,6 @@ impl Parts {
     /// Drop a wait-for-ready choice so a later channel default can fill it in.
     /// See [`Request::clear_wait_for_ready`].
     ///
-    /// Distinct from [`Self::set_wait_for_ready`]: that writes the wait-for-ready choice this split envelope carries; this opts out.
     pub fn clear_wait_for_ready(&mut self) {
         self.wait_for_ready = None;
     }
@@ -1952,7 +1886,6 @@ impl Parts {
     /// The `user-agent` prefix override on this envelope, if any.
     /// See [`Request::user_agent`]. The override only, like [`Self::timeout`].
     ///
-    /// Distinct from [`crate::Outgoing::user_agent`]: that is the effective header; this split envelope is the override only.
     #[must_use]
     pub fn user_agent(&self) -> Option<&str> {
         self.user_agent
@@ -1963,7 +1896,6 @@ impl Parts {
     /// Prefix the kernel `user-agent` on this envelope.
     /// See [`Request::set_user_agent`].
     ///
-    /// Distinct from [`Self::user_agent`]: that is the override this split envelope carries; this prefixes it.
     pub fn set_user_agent(&mut self, prefix: impl AsRef<str>) -> Result<(), Status> {
         self.user_agent = Some(crate::wire::user_agent_value(prefix.as_ref())?);
         Ok(())
@@ -1981,14 +1913,12 @@ impl Parts {
     /// Drop a [`Self::set_user_agent`] override so this RPC uses the channel
     /// value again. See [`Request::clear_user_agent`].
     ///
-    /// Distinct from [`Self::set_user_agent`]: that prefixes this split envelope; this restores the channel value.
     pub fn clear_user_agent(&mut self) {
         self.user_agent = None;
     }
 
     /// Typed values an interceptor attached to this RPC. See [`Request::extensions`].
     ///
-    /// Distinct from [`Self::extensions_mut`]: that inserts typed values this split envelope carries; this borrows them.
     #[must_use]
     pub fn extensions(&self) -> &http::Extensions {
         &self.extensions
@@ -1996,7 +1926,6 @@ impl Parts {
 
     /// Insert typed values for later handlers or interceptors.
     ///
-    /// Distinct from [`Self::extensions`]: that borrows them; this inserts typed values this split envelope carries.
     pub fn extensions_mut(&mut self) -> &mut http::Extensions {
         &mut self.extensions
     }
@@ -2031,7 +1960,6 @@ impl Parts {
     /// The client's own `grpc-timeout`, when the kernel dispatched this call.
     /// See [`Request::peer_timeout`].
     ///
-    /// Distinct from [`timeout`](Self::timeout): that is the effective cap on this split envelope; this is the client's original header.
     #[must_use]
     pub fn peer_timeout(&self) -> Option<Duration> {
         self.peer_timeout
@@ -2040,7 +1968,6 @@ impl Parts {
     /// Server [`crate::Server::timeout`] overlay, when the kernel dispatched
     /// this call. See [`Request::rpc_timeout`].
     ///
-    /// Distinct from [`timeout`](Self::timeout): that is the effective cap on this split envelope; this is the server overlay.
     #[must_use]
     pub fn rpc_timeout(&self) -> Option<Duration> {
         self.rpc_timeout
@@ -2049,7 +1976,6 @@ impl Parts {
     /// Whether the peer advertised gzip in `grpc-accept-encoding`.
     /// See [`Request::accepts_gzip`].
     ///
-    /// Distinct from [`Self::accepts_compressed`]: that is the inbound overlay on this split envelope, not the peer advertisement.
     #[must_use]
     pub fn accepts_gzip(&self) -> bool {
         self.accepts_gzip
@@ -2058,7 +1984,6 @@ impl Parts {
     /// Whether this server gzips responses when the peer advertised gzip.
     /// See [`Request::compresses_outbound`].
     ///
-    /// Distinct from [`Self::compress`]: that is outbound request-payload gzip on this split envelope; this is the server encode overlay.
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
         self.compresses_outbound
@@ -2066,7 +1991,6 @@ impl Parts {
 
     /// Server gzip deflate overlay. See [`Request::gzip_level`].
     ///
-    /// Distinct from [`Self::compresses_outbound`]: that is on or off on this split envelope; this is deflate effort.
     /// Distinct from [`crate::Outgoing::gzip_level`]: that is a client interceptor overlay, not this split envelope's server overlay.
     #[must_use]
     pub fn gzip_level(&self) -> u32 {
@@ -2075,7 +1999,6 @@ impl Parts {
 
     /// Server inbound gzip overlay. See [`Request::accepts_compressed`].
     ///
-    /// Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this split envelope's inbound overlay.
     /// Distinct from [`crate::Outgoing::accepts_compressed`]: that is a client interceptor overlay, not this split envelope's server overlay.
     #[must_use]
     pub fn accepts_compressed(&self) -> bool {
@@ -2085,7 +2008,6 @@ impl Parts {
     /// Server process RPC cap overlay. See [`Request::concurrent_rpc_limit`].
     ///
     /// Distinct from [`crate::Outgoing::concurrent_rpc_limit`]: that is a client interceptor overlay, not this split envelope's server overlay.
-    /// Distinct from [`Self::limits`]: that is message size on this split envelope, not how many RPCs.
     #[must_use]
     pub fn concurrent_rpc_limit(&self) -> Option<usize> {
         self.concurrent_rpc_limit
@@ -2094,7 +2016,6 @@ impl Parts {
     /// Server write-time send buffer overlay. See [`Request::send_buffer_size`].
     ///
     /// Distinct from [`crate::Outgoing::send_buffer_size`]: that is a client interceptor overlay, not this split envelope's server overlay.
-    /// Distinct from [`Self::limits`]: that is message size on this split envelope, not this HTTP/2 send buffer.
     /// Distinct from HTTP/2 `SETTINGS_MAX_FRAME_SIZE` and stream/connection windows: those are handshake SETTINGS, not this split envelope's write-time threshold.
     #[must_use]
     pub fn send_buffer_size(&self) -> usize {
@@ -2104,8 +2025,6 @@ impl Parts {
     /// The `grpc-encoding` token the peer used on this call, if any.
     /// See [`Request::encoding`].
     ///
-    /// Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this split envelope's inbound `grpc-encoding`.
-    /// Distinct from [`compressed`](Self::compressed): that is the per-message Compressed-Flag on this split envelope; this is the HTTP header.
     #[must_use]
     pub fn encoding(&self) -> Option<&str> {
         self.encoding.as_deref()
@@ -2411,7 +2330,6 @@ impl<T> Response<T> {
     /// shape: a streaming [`crate::Call`] exposes these on the [`Response`]
     /// before [`crate::Streaming`] messages.
     ///
-    /// Distinct from [`Self::metadata_mut`]: that mutates this reply envelope; this borrows it.
     #[must_use]
     pub fn metadata(&self) -> &Metadata {
         &self.metadata
@@ -2419,14 +2337,11 @@ impl<T> Response<T> {
 
     /// Mutable initial headers.
     ///
-    /// Distinct from [`Self::metadata`]: that borrows this reply envelope; this mutates it.
     pub fn metadata_mut(&mut self) -> &mut Metadata {
         &mut self.metadata
     }
 
     /// Trailing metadata, sent alongside `grpc-status`.
-    ///
-    /// Distinct from [`Self::trailers_mut`]: that mutates this reply envelope; this borrows it.
     ///
     /// On unary and client-streaming [`crate::Call`] results this is the
     /// OK-path custom trailer map. Server-streaming and bidi clients read
@@ -2440,7 +2355,6 @@ impl<T> Response<T> {
 
     /// Mutable trailing metadata.
     ///
-    /// Distinct from [`Self::trailers`]: that borrows this reply envelope; this mutates it.
     pub fn trailers_mut(&mut self) -> &mut Metadata {
         &mut self.trailers
     }
@@ -2489,8 +2403,6 @@ impl<T> Response<T> {
     /// Typed values on this envelope. They are not headers and they are not
     /// on the wire. Distinct from [`Self::metadata`].
     ///
-    /// Distinct from [`Self::extensions_mut`]: that inserts typed values this reply envelope carries; this borrows them.
-    ///
     /// Empty on a reply you built until something inserts into
     /// [`Self::extensions_mut`]. A received reply starts empty: the peer
     /// cannot insert here. Same map on [`ResponseParts::extensions`] after
@@ -2506,14 +2418,11 @@ impl<T> Response<T> {
     /// Insert typed values that stay on this envelope and on
     /// [`ResponseParts`] after a message swap. Not sent to the peer.
     ///
-    /// Distinct from [`Self::extensions`]: that borrows them; this inserts typed values this reply envelope carries.
     pub fn extensions_mut(&mut self) -> &mut http::Extensions {
         &mut self.extensions
     }
 
     /// gzip this payload and set the Compressed-Flag.
-    ///
-    /// Distinct from [`Self::compress`]: that reads outbound payload gzip on this reply envelope; this writes it.
     ///
     /// Passing `false` opts out of a later [`crate::Server::send_compressed`]
     /// overlay on every call shape, including over TLS, mTLS, Unix, and
@@ -2528,7 +2437,6 @@ impl<T> Response<T> {
 
     /// Drop a compression choice so a later server overlay can fill it in.
     ///
-    /// Distinct from [`Self::set_compress`]: that writes outbound payload gzip on this reply envelope; this opts out.
     pub fn clear_compress(&mut self) {
         self.compress = None;
     }
@@ -2631,11 +2539,9 @@ impl<T> Response<T> {
     /// Server [`crate::Server::gzip_compression_level`] overlay, when the kernel is encoding this reply.
     ///
     /// Same overlay as [`crate::Rpc::gzip_level`] / [`crate::Request::gzip_level`].
-    /// Distinct from [`Self::compress`]: that is on or off; this is deflate effort.
     /// Distinct from [`crate::Outgoing::gzip_level`]: that is a client interceptor overlay.
     /// Distinct from [`crate::Rpc::gzip_level`]: that is a server interceptor before the handler.
     /// [`crate::DEFAULT_GZIP_COMPRESSION_LEVEL`] on a response you built or a received reply (deflate effort is not on the wire).
-    /// Distinct from [`Self::encoding`]: that is the received `grpc-encoding` token.
     /// An interceptor cannot change this; the kernel applies it when encoding.
     ///
     /// ```
@@ -2655,10 +2561,8 @@ impl<T> Response<T> {
     /// Server [`crate::Server::send_compressed`] overlay, when the kernel is encoding this reply.
     ///
     /// Same overlay as [`crate::Rpc::compresses_outbound`] / [`crate::Request::compresses_outbound`].
-    /// Distinct from [`Self::compress`]: that is the per-RPC choice after overlay and interceptor mutation.
     /// Distinct from [`crate::Outgoing::compresses_outbound`]: that is a client interceptor overlay.
     /// Distinct from [`crate::Rpc::compresses_outbound`]: that is a server interceptor before the handler.
-    /// Distinct from [`Self::gzip_level`]: that is deflate effort, not on or off.
     /// `false` on a response you built or a received reply (the overlay is not on the wire).
     /// An interceptor cannot change this; unset [`Self::compress`] follows this default when the peer advertised gzip.
     ///
@@ -2679,10 +2583,8 @@ impl<T> Response<T> {
     /// Peer `grpc-accept-encoding` gzip advertisement, when the kernel is encoding this reply.
     ///
     /// Same value as [`crate::Rpc::accepts_gzip`] / [`crate::Request::accepts_gzip`].
-    /// Distinct from [`Self::encoding`]: that is received `grpc-encoding`, not `grpc-accept-encoding`.
     /// Distinct from [`crate::Rpc::accepts_gzip`]: that is a server interceptor before the handler.
     /// Distinct from [`crate::Request::accepts_gzip`]: that is the inbound request.
-    /// Distinct from [`Self::compresses_outbound`]: that is the server encode overlay, not the peer advertisement.
     /// Distinct from [`crate::Outgoing::accepts_compressed`]: that is a client interceptor overlay.
     /// `false` on a response you built or a received reply (the advertisement is not on the reply wire).
     /// An interceptor cannot change this; gzip only goes out when this is true.
@@ -2704,11 +2606,8 @@ impl<T> Response<T> {
     /// Server [`crate::Server::accept_compressed`] overlay, when the kernel is writing this reply.
     ///
     /// Same overlay as [`crate::Rpc::accepts_compressed`] / [`crate::Request::accepts_compressed`].
-    /// Distinct from [`Self::accepts_gzip`]: that is the peer advertisement, not this overlay.
     /// Distinct from [`crate::Rpc::accepts_compressed`]: that is a server interceptor before the handler.
     /// Distinct from [`crate::Outgoing::accepts_compressed`]: that is a client interceptor overlay, not this server stamp.
-    /// Distinct from [`Self::compresses_outbound`]: that is whether this reply is gzipped.
-    /// Distinct from [`Self::encoding`]: that is received `grpc-encoding`, not this advertisement.
     /// `false` on a response you built or a received reply (this overlay is not a received-reply field).
     /// An interceptor cannot change this; the kernel still advertises `grpc-accept-encoding` from this.
     ///
@@ -2754,7 +2653,6 @@ impl<T> Response<T> {
     ///
     /// Same duration as [`crate::Request::timeout`] after dispatch. This duration does not shrink.
     /// Distinct from [`crate::Request::timeout`]: that is the inbound request.
-    /// Distinct from [`Self::deadline`]: that is the Instant; this duration does not shrink.
     /// Distinct from [`crate::Rpc::timeout`]: that is the interceptor cap, not the effective duration.
     /// Distinct from [`crate::Rpc::effective_timeout`]: that is computed when that getter runs.
     /// Distinct from [`crate::Rpc::rpc_timeout`]: that is the server overlay, not the effective cap.
@@ -2781,12 +2679,10 @@ impl<T> Response<T> {
     ///
     /// Same duration as [`crate::Request::peer_timeout`] after dispatch.
     /// Distinct from [`crate::Request::peer_timeout`]: that is the inbound request.
-    /// Distinct from [`Self::timeout`]: that is the effective cap; this is the client's original header.
     /// Distinct from [`crate::Rpc::timeout`]: that is the interceptor cap, not the client header.
     /// Distinct from [`crate::Rpc::rpc_timeout`]: that is the server overlay, not the client header.
     /// Distinct from [`crate::Rpc::peer_timeout`]: that is a server interceptor before the handler.
     /// Distinct from [`crate::Rpc::effective_timeout`]: that is the soonest of the three caps.
-    /// Distinct from [`Self::deadline`]: that is the Instant, not the client header.
     /// `None` on a response you built or a received reply (the client's `grpc-timeout` is not on the reply wire).
     /// An interceptor cannot change this; the kernel already combined it into [`Self::timeout`].
     ///
@@ -2808,12 +2704,9 @@ impl<T> Response<T> {
     ///
     /// Same duration as [`crate::Request::rpc_timeout`] after dispatch.
     /// Distinct from [`crate::Request::rpc_timeout`]: that is the inbound request.
-    /// Distinct from [`Self::timeout`]: that is the effective cap; this is the server overlay.
-    /// Distinct from [`Self::peer_timeout`]: that is the client's `grpc-timeout`, not the server overlay.
     /// Distinct from [`crate::Rpc::rpc_timeout`]: that is a server interceptor before the handler.
     /// Distinct from [`crate::Rpc::timeout`]: that is the interceptor cap, not the server overlay.
     /// Distinct from [`crate::Outgoing::rpc_timeout`]: that is a client interceptor overlay.
-    /// Distinct from [`Self::deadline`]: that is the Instant, not the server overlay.
     /// `None` on a response you built or a received reply (the server overlay is not on the reply wire).
     /// An interceptor cannot change this; an interceptor cap only tightens [`Self::timeout`].
     ///
@@ -2837,7 +2730,6 @@ impl<T> Response<T> {
     /// Distinct from [`crate::Request::limits`]: that is the inbound request.
     /// Distinct from [`crate::Rpc::limits`]: that is a server interceptor before the handler.
     /// Distinct from [`crate::Outgoing::limits`]: that is a client interceptor overlay.
-    /// Distinct from [`Self::timeout`]: that is a duration, not a size cap.
     /// Distinct from [`crate::Outgoing::stream_buffer_size`]: that is queue depth, not message size.
     /// `None` on a response you built or a received reply (the peer encode cap is not on the wire).
     /// An interceptor cannot raise them; the kernel still checks these caps when encoding.
@@ -2862,7 +2754,6 @@ impl<T> Response<T> {
     /// Distinct from [`crate::Request::send_buffer_size`]: that is the inbound request.
     /// Distinct from [`crate::Rpc::send_buffer_size`]: that is a server interceptor before the handler.
     /// Distinct from [`crate::Outgoing::send_buffer_size`]: that is a client interceptor overlay, not this server stamp.
-    /// Distinct from [`Self::limits`]: that is the encode cap, not this HTTP/2 send buffer.
     /// Distinct from [`crate::Outgoing::stream_buffer_size`]: that is decoded-message queue depth, not this send buffer.
     /// `None` on a response you built or a received reply (the peer send buffer is not on the reply wire).
     /// An interceptor cannot change this; the kernel still applies this buffer when writing DATA.
@@ -3001,7 +2892,6 @@ impl fmt::Debug for ResponseParts {
 impl ResponseParts {
     /// Initial headers, sent before the first message.
     ///
-    /// Distinct from [`Self::metadata_mut`]: that mutates this split reply envelope; this borrows it.
     #[must_use]
     pub fn metadata(&self) -> &Metadata {
         &self.metadata
@@ -3009,14 +2899,12 @@ impl ResponseParts {
 
     /// Mutable initial headers.
     ///
-    /// Distinct from [`Self::metadata`]: that borrows this split reply envelope; this mutates it.
     pub fn metadata_mut(&mut self) -> &mut Metadata {
         &mut self.metadata
     }
 
     /// Trailing metadata, sent alongside `grpc-status`.
     ///
-    /// Distinct from [`Self::trailers_mut`]: that mutates this split reply envelope; this borrows it.
     #[must_use]
     pub fn trailers(&self) -> &Metadata {
         &self.trailers
@@ -3024,7 +2912,6 @@ impl ResponseParts {
 
     /// Mutable trailing metadata.
     ///
-    /// Distinct from [`Self::trailers`]: that borrows this split reply envelope; this mutates it.
     pub fn trailers_mut(&mut self) -> &mut Metadata {
         &mut self.trailers
     }
@@ -3054,7 +2941,6 @@ impl ResponseParts {
     /// gzip this payload and set the Compressed-Flag.
     /// See [`Response::set_compress`].
     ///
-    /// Distinct from [`Self::compress`]: that reads outbound payload gzip on this split reply envelope; this writes it.
     pub fn set_compress(&mut self, compress: bool) {
         self.compress = Some(compress);
     }
@@ -3062,7 +2948,6 @@ impl ResponseParts {
     /// Drop a compression choice so a later server overlay can fill it in.
     /// See [`Response::clear_compress`].
     ///
-    /// Distinct from [`Self::set_compress`]: that writes outbound payload gzip on this split reply envelope; this opts out.
     pub fn clear_compress(&mut self) {
         self.compress = None;
     }
@@ -3091,7 +2976,6 @@ impl ResponseParts {
     /// The `grpc-encoding` token on a received reply, if any.
     /// See [`Response::encoding`].
     ///
-    /// Distinct from [`Self::compressed`]: that is the unary Compressed-Flag (and outbound intent) on this split reply envelope; this is the HTTP header.
     #[must_use]
     pub fn encoding(&self) -> Option<&str> {
         self.encoding.as_deref()
@@ -3120,10 +3004,8 @@ impl ResponseParts {
 
     /// Server encode overlay. See [`Response::gzip_level`].
     ///
-    /// Distinct from [`Self::compress`]: that is on or off on this split reply envelope; this is deflate effort.
     /// Distinct from [`crate::Outgoing::gzip_level`]: that is a client interceptor overlay, not this split reply envelope's server overlay.
     /// Distinct from [`crate::Rpc::gzip_level`]: that is a server interceptor before the handler, not this split reply envelope.
-    /// Distinct from [`Self::encoding`]: that is the received `grpc-encoding` token on this split reply envelope.
     #[must_use]
     pub fn gzip_level(&self) -> u32 {
         self.gzip_level
@@ -3131,10 +3013,8 @@ impl ResponseParts {
 
     /// Server encode overlay. See [`Response::compresses_outbound`].
     ///
-    /// Distinct from [`Self::compress`]: that is the per-RPC choice after overlay and interceptor mutation on this split reply envelope.
     /// Distinct from [`crate::Outgoing::compresses_outbound`]: that is a client interceptor overlay, not this split reply envelope's server overlay.
     /// Distinct from [`crate::Rpc::compresses_outbound`]: that is a server interceptor before the handler, not this split reply envelope.
-    /// Distinct from [`Self::gzip_level`]: that is deflate effort on this split reply envelope, not on or off.
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
         self.compresses_outbound
@@ -3142,10 +3022,8 @@ impl ResponseParts {
 
     /// Peer gzip advertisement. See [`Response::accepts_gzip`].
     ///
-    /// Distinct from [`Self::encoding`]: that is received `grpc-encoding`, not `grpc-accept-encoding` on this split reply envelope.
     /// Distinct from [`crate::Rpc::accepts_gzip`]: that is a server interceptor before the handler, not this split reply envelope.
     /// Distinct from [`crate::Request::accepts_gzip`]: that is the inbound request, not this split reply envelope.
-    /// Distinct from [`Self::compresses_outbound`]: that is the server encode overlay on this split reply envelope, not the peer advertisement.
     /// Distinct from [`crate::Outgoing::accepts_compressed`]: that is a client interceptor overlay, not this split reply envelope's server overlay.
     #[must_use]
     pub fn accepts_gzip(&self) -> bool {
@@ -3154,11 +3032,8 @@ impl ResponseParts {
 
     /// Inbound gzip overlay. See [`Response::accepts_compressed`].
     ///
-    /// Distinct from [`Self::accepts_gzip`]: that is the peer advertisement on this split reply envelope, not this overlay.
     /// Distinct from [`crate::Rpc::accepts_compressed`]: that is a server interceptor before the handler, not this split reply envelope.
     /// Distinct from [`crate::Outgoing::accepts_compressed`]: that is a client interceptor overlay, not this split reply envelope's inbound overlay.
-    /// Distinct from [`Self::compresses_outbound`]: that is whether this reply is gzipped on this split reply envelope.
-    /// Distinct from [`Self::encoding`]: that is received `grpc-encoding`, not this advertisement on this split reply envelope.
     #[must_use]
     pub fn accepts_compressed(&self) -> bool {
         self.accepts_compressed
@@ -3178,7 +3053,6 @@ impl ResponseParts {
     /// Duration stamped at dispatch. See [`Response::timeout`].
     ///
     /// Distinct from [`crate::Request::timeout`]: that is the inbound request, not this split reply envelope.
-    /// Distinct from [`Self::deadline`]: that is the Instant on this split reply envelope; this duration does not shrink.
     /// Distinct from [`crate::Rpc::timeout`]: that is the interceptor cap, not the effective duration on this split reply envelope.
     /// Distinct from [`crate::Rpc::effective_timeout`]: that is computed when that getter runs, not this split reply envelope.
     /// Distinct from [`crate::Rpc::rpc_timeout`]: that is the server overlay, not the effective cap on this split reply envelope.
@@ -3192,12 +3066,10 @@ impl ResponseParts {
     /// Client `grpc-timeout`. See [`Response::peer_timeout`].
     ///
     /// Distinct from [`crate::Request::peer_timeout`]: that is the inbound request, not this split reply envelope.
-    /// Distinct from [`Self::timeout`]: that is the effective cap on this split reply envelope; this is the client's original header.
     /// Distinct from [`crate::Rpc::timeout`]: that is the interceptor cap, not the client header on this split reply envelope.
     /// Distinct from [`crate::Rpc::rpc_timeout`]: that is the server overlay, not the client header on this split reply envelope.
     /// Distinct from [`crate::Rpc::peer_timeout`]: that is a server interceptor before the handler, not this split reply envelope.
     /// Distinct from [`crate::Rpc::effective_timeout`]: that is the soonest of the three caps on this split reply envelope.
-    /// Distinct from [`Self::deadline`]: that is the Instant on this split reply envelope, not the client header.
     #[must_use]
     pub fn peer_timeout(&self) -> Option<Duration> {
         self.peer_timeout
@@ -3206,12 +3078,9 @@ impl ResponseParts {
     /// Server timeout overlay. See [`Response::rpc_timeout`].
     ///
     /// Distinct from [`crate::Request::rpc_timeout`]: that is the inbound request, not this split reply envelope.
-    /// Distinct from [`Self::timeout`]: that is the effective cap on this split reply envelope; this is the server overlay.
-    /// Distinct from [`Self::peer_timeout`]: that is the client's `grpc-timeout` on this split reply envelope, not the server overlay.
     /// Distinct from [`crate::Rpc::rpc_timeout`]: that is a server interceptor before the handler, not this split reply envelope.
     /// Distinct from [`crate::Rpc::timeout`]: that is the interceptor cap, not the server overlay on this split reply envelope.
     /// Distinct from [`crate::Outgoing::rpc_timeout`]: that is a client interceptor overlay, not this split reply envelope.
-    /// Distinct from [`Self::deadline`]: that is the Instant on this split reply envelope, not the server overlay.
     #[must_use]
     pub fn rpc_timeout(&self) -> Option<Duration> {
         self.rpc_timeout
@@ -3222,7 +3091,6 @@ impl ResponseParts {
     /// Distinct from [`crate::Request::limits`]: that is the inbound request, not this split reply envelope.
     /// Distinct from [`crate::Rpc::limits`]: that is a server interceptor before the handler, not this split reply envelope.
     /// Distinct from [`crate::Outgoing::limits`]: that is a client interceptor overlay, not this split reply envelope.
-    /// Distinct from [`Self::timeout`]: that is a duration on this split reply envelope, not a size cap.
     /// Distinct from [`crate::Outgoing::stream_buffer_size`]: that is queue depth, not message size on this split reply envelope.
     #[must_use]
     pub fn limits(&self) -> Option<MessageLimits> {
@@ -3234,7 +3102,6 @@ impl ResponseParts {
     /// Distinct from [`crate::Request::send_buffer_size`]: that is the inbound request, not this split reply envelope.
     /// Distinct from [`crate::Rpc::send_buffer_size`]: that is a server interceptor before the handler, not this split reply envelope.
     /// Distinct from [`crate::Outgoing::send_buffer_size`]: that is a client interceptor overlay, not this split reply envelope's server overlay.
-    /// Distinct from [`Self::limits`]: that is the encode cap on this split reply envelope, not this HTTP/2 send buffer.
     /// Distinct from [`crate::Outgoing::stream_buffer_size`]: that is decoded-message queue depth, not this send buffer on this split reply envelope.
     #[must_use]
     pub fn send_buffer_size(&self) -> Option<usize> {
@@ -3243,8 +3110,6 @@ impl ResponseParts {
 
     /// Typed values on this envelope. See [`Response::extensions`].
     ///
-    /// Distinct from [`Self::extensions_mut`]: that inserts typed values this split reply envelope carries; this borrows them.
-    /// Distinct from [`Self::metadata`]: that is headers on this split reply envelope; this is typed local state, not on the wire.
     #[must_use]
     pub fn extensions(&self) -> &http::Extensions {
         &self.extensions
@@ -3252,7 +3117,6 @@ impl ResponseParts {
 
     /// Insert typed values that stay on this envelope. See [`Response::extensions_mut`].
     ///
-    /// Distinct from [`Self::extensions`]: that borrows them; this inserts typed values this split reply envelope carries.
     pub fn extensions_mut(&mut self) -> &mut http::Extensions {
         &mut self.extensions
     }

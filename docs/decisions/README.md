@@ -11,7 +11,7 @@ and the [status page](../status.md) for qualification limits.
 | Parser | [Table-driven parse](table-driven-parse.md) | Keep small messages inline; generate tables for wider messages after PK-07 validation. |
 | Owned-message allocation | [Owned arena](owned-arena.md) | Per-request arenas were rejected for the current owned API. |
 | Borrowed messages | [Borrowed views](borrowed-views.md) | Proposed separate view roots; approval and implementation remain distinct. |
-| Google-generated messages | [upb kernel](upb-kernel.md) | Proposed pure-Rust replacement behind the official generated-code interface. |
+| Google-generated messages | [upb kernel](upb-kernel.md) | Proposed replacement behind the official generated-code interface. |
 | Source compilation | [Rust frontend route](rust-frontend-route.md) | Proposed upstream-first route; checked descriptors remain the Rust-only generation path. |
 | Transport engine | [H2 decision](h2-engine.md), [contingent design](pbrs-h2.md) | Keep `h2`; a replacement needs evidence that reopens the no-go decision. |
 | Server scheduling | [Server dispatch](server-dispatch.md) | Keep per-RPC task spawning until profiling justifies a change. |

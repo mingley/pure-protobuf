@@ -109,7 +109,7 @@ Negotiation notes:
   `GRPC_COMPRESS_NONE`); our `interop_cases` server-compressed
   assertions were relaxed from hard-coded `gzip` to match.
 
-## zstd: optional pure-Rust feature (TC-20)
+## zstd: optional feature (TC-20)
 
 Shipped as the opt-in `pbrs-grpc/zstd` feature. The default dependency graph
 is unchanged and still builds with Rust 1.85.

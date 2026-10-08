@@ -30,7 +30,7 @@ Hard constraints inherited from the program:
   without H2-15 qualification and the H2-14 default decision.
 - **Fallback.** The h2 backend stays available for at least two releases after
   any default switch (program risk table).
-- **Pure Rust, no new deps without review.** The engine core must be sans-IO
+- **Dependencies require review.** The engine core must be sans-IO
   with zero mandatory async/TLS dependencies (F7); Tokio support is an
   adapter module. Every new `unsafe` needs a `SAFETY` comment, an
   [unsafe-invariants](../unsafe-invariants.md) entry, and Miri coverage (QG-01).

@@ -11,6 +11,24 @@ SPEC.loader.exec_module(LEDGER)
 
 
 class DifferentialTests(unittest.TestCase):
+    def test_context_switch_totals_preserve_scope_and_reject_bad_sums(self):
+        def row(voluntary, involuntary):
+            return {"context_switch_totals": {"client": {
+                "scope": "process_lifetime", "method": "linux_getrusage_self",
+                "includes_exited_threads": True,
+                "counts": {"voluntary": voluntary, "involuntary": involuntary},
+                "total": voluntary + involuntary}}}
+        first, second = row(30, 5), row(60, 7)
+        self.assertEqual(LEDGER.differential(first, second, "client", "context_switches", 8), 4)
+        second["context_switch_totals"]["client"]["total"] = 1
+        with self.assertRaises(ValueError):
+            LEDGER.differential(first, second, "client", "context_switches", 8)
+        for change in [{"scope": "leader_thread"}, {"includes_exited_threads": False}]:
+            second = row(60, 7)
+            second["context_switch_totals"]["client"].update(change)
+            with self.assertRaises(ValueError):
+                LEDGER.differential(first, second, "client", "context_switches", 8)
+
     def test_positive_endpoint_differential(self):
         before = {"allocation_totals": {"server": {"allocations": 100}}}
         after = {"allocation_totals": {"server": {"allocations": 180}}}

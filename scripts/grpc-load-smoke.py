@@ -85,6 +85,26 @@ def callgrind_instructions(path):
     return instructions
 
 
+def context_switch_record(path):
+    records = [json.loads(line[len("CONTEXT_SWITCHES "):])
+               for line in path.read_text().splitlines()
+               if line.startswith("CONTEXT_SWITCHES ")]
+    if len(records) != 1:
+        raise ValueError("exactly one context-switch snapshot is required per endpoint")
+    record = records[0]
+    if not isinstance(record, dict):
+        raise ValueError("invalid process context-switch snapshot")
+    counts = record.get("counts")
+    if (record.get("scope") != "process_lifetime"
+            or record.get("method") != "linux_getrusage_self"
+            or record.get("includes_exited_threads") is not True
+            or not isinstance(counts, dict)
+            or any(type(counts.get(name)) is not int or not 0 <= counts[name] < 2 ** 64
+                   for name in ("voluntary", "involuntary"))):
+        raise ValueError("invalid or unsupported process context-switch snapshot")
+    return {**record, "total": counts["voluntary"] + counts["involuntary"]}
+
+
 def stop(process):
     if process is not None and process.poll() is None:
         process.terminate()
@@ -174,12 +194,17 @@ def run_cell(args, cell, directory):
             if getattr(args, "allocation_counts", False):
                 os.kill(server.pid, signal.SIGUSR1)
                 deadline = time.monotonic() + 5
-                while "ALLOCATIONS " not in (directory / "server.stdout").read_text():
+                marker = "CONTEXT_SWITCHES " if getattr(args, "context_switches", False) else "ALLOCATIONS "
+                while marker not in (directory / "server.stdout").read_text():
                     if server.poll() is not None or time.monotonic() > deadline:
                         raise TimeoutError("server allocator snapshot missing")
                     time.sleep(0.01)
                 report["allocation_totals"] = {side: allocation_record(directory / f"{side}.stdout")
                                                for side in ("client", "server")}
+            if getattr(args, "context_switches", False):
+                report["context_switch_totals"] = {
+                    side: context_switch_record(directory / f"{side}.stdout")
+                    for side in ("client", "server")}
             report["passed"] = True
     except (OSError, ValueError, RuntimeError, TimeoutError, subprocess.TimeoutExpired) as error:
         report["error"] = str(error)
@@ -208,11 +233,15 @@ def main():
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--rpc-count", type=int)
     parser.add_argument("--allocation-counts", action="store_true", help="requires allocation-counts Cargo feature")
+    parser.add_argument("--context-switches", action="store_true",
+                        help="capture all-thread Linux process totals; requires --allocation-counts")
     parser.add_argument("--callgrind", type=Path, help="Valgrind executable; instruments both endpoints")
     parser.add_argument("--build-record", type=Path, help="source-pinned build.json from build-rpc-bench.py")
     args = parser.parse_args()
     if platform.system() != "Linux" or not math.isfinite(args.duration) or not 0.01 <= args.duration <= 60:
         parser.error("Linux and a finite 0.01..60 second diagnostic duration are required")
+    if args.context_switches and not args.allocation_counts:
+        parser.error("context-switch snapshots require --allocation-counts")
     try:
         payloads = [int(value) for value in args.payloads.split(",")]
     except ValueError:
@@ -249,6 +278,7 @@ def main():
               "cpu_affinity": sorted(os.sched_getaffinity(0)), "seed": args.seed,
               "duration_per_cell_seconds": args.duration, "cells": cells,
               "rpc_count": args.rpc_count, "allocation_counts": args.allocation_counts,
+              "context_switches": args.context_switches,
               "configured_policy": {"gzip_compression_level": 6, "tls_version": "1.3",
                                     "tls_cipher": "TLS_AES_128_GCM_SHA256", "tls_alpn": "h2"},
               "callgrind": str(args.callgrind) if args.callgrind else None,
@@ -257,7 +287,7 @@ def main():
                              "shared host, no verified CPU headroom or quota proof",
                              "repeats and concurrency are explicit; no claim-grade statistics",
                              "client CPU includes startup and handshake; server includes connection setup and cleanup",
-                             "RSS is sampled; optional instructions/allocations are process totals, including setup; wakes/syscalls are unmeasured",
+                             "RSS is sampled; optional endpoint counters include setup; context switches are OS scheduling events, not task wakeups; wakes/syscalls are unmeasured",
                              "zero-filled payload bodies; not a read-all adoption corpus",
                              "saturation, cold/idle lifecycles, read-all corpora and production soak are not run"]},
               "runs": []}

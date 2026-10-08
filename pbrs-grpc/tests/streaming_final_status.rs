@@ -11,6 +11,7 @@
 
 use bytes::Bytes;
 use http::{HeaderMap, Method, Response as HttpResponse};
+use pbrs_grpc::binlog::{BinaryLogFilter, BinaryLogger, EventType, Payload, VecSink};
 use pbrs_grpc::hello::{Greeter, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{Channel, Code, Request, Response, Server, Status, Streaming};
 use std::future::Future;
@@ -708,6 +709,11 @@ async fn partial_response_preserves_explicit_peer_errors_for_all_shapes() {
                     hold_data: false,
                 };
                 let (channel, peer) = Peer::start(vec![reply]).await;
+                let sink = Arc::new(VecSink::new());
+                let channel = channel.binary_logger(BinaryLogger::new(
+                    BinaryLogFilter::parse("*").expect("log filter"),
+                    sink.clone(),
+                ));
                 let status = terminal_for_shape(&channel, path).await;
                 assert_eq!(status.code(), code, "path {path}");
                 assert_eq!(status.message(), message);
@@ -715,6 +721,29 @@ async fn partial_response_preserves_explicit_peer_errors_for_all_shapes() {
                 if matches!(terminal, Terminal::RichError) {
                     assert_eq!(status.details(), [8, 1]);
                 }
+                let records = sink.records();
+                let trailers: Vec<_> = records
+                    .iter()
+                    .filter(|record| record.entry.event == EventType::ServerTrailer)
+                    .collect();
+                assert_eq!(trailers.len(), 1, "one terminal log for {path}");
+                let trailer = trailers.first().expect("terminal log");
+                let Some(Payload::Trailer(trailer)) = &trailer.entry.payload else {
+                    panic!("terminal trailer payload");
+                };
+                assert_eq!(
+                    trailer.status_code,
+                    u32::try_from(status.code().to_i32()).expect("nonnegative status code")
+                );
+                assert_eq!(trailer.status_message, message);
+                assert_eq!(trailer.status_details.as_slice(), status.details());
+                assert!(
+                    trailer
+                        .metadata
+                        .iter()
+                        .any(|(key, value)| key == "x-terminal" && value.as_slice() == b"kept"),
+                    "terminal metadata logged for {path}"
+                );
                 peer.finish(1).await;
             }
         }

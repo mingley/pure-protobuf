@@ -556,7 +556,7 @@ pub(crate) async fn finish_unary<Resp: CodecMessage>(
             Ok(framed) => framed,
             Err(status) => {
                 if let Some(tap) = tap {
-                    tap.log_trailer(&Metadata::new(), &status);
+                    tap.log_trailer(status.metadata(), &status);
                 }
                 return Err(status);
             }

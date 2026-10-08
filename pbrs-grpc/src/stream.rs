@@ -32,7 +32,6 @@ pub struct Framed<T> {
 impl<T> Framed<T> {
     /// A frame with the Compressed-Flag clear.
     ///
-    /// Distinct from [`Self::compressed`]: that sets the Compressed-Flag; this clears it.
     #[must_use]
     pub fn new(message: T) -> Self {
         Self {
@@ -43,7 +42,6 @@ impl<T> Framed<T> {
 
     /// A frame with the Compressed-Flag set.
     ///
-    /// Distinct from [`Self::new`]: that clears the Compressed-Flag; this sets it.
     #[must_use]
     pub fn compressed(message: T) -> Self {
         Self {
@@ -54,7 +52,6 @@ impl<T> Framed<T> {
 
     /// Discard the flag.
     ///
-    /// Distinct from keeping this frame: that still carries the Compressed-Flag; this returns the payload and drops the flag.
     #[must_use]
     pub fn into_inner(self) -> T {
         self.message
@@ -159,8 +156,6 @@ impl<T> Streaming<T> {
     /// A connected [`StreamSender`] / [`Streaming`] pair holding `buffer`
     /// messages in flight.
     ///
-    /// Distinct from [`Self::empty`]: that is already finished; this is a live sender/receiver pair.
-    ///
     /// This is how a server-streaming handler produces its response: keep the
     /// sender in a spawned task and return the receiver. A producer that waits
     /// on a timer or a status map, rather than on [`StreamSender::send`],
@@ -211,7 +206,6 @@ impl<T> Streaming<T> {
 
     /// An already-finished stream. Reading it yields `Ok(None)` at once.
     ///
-    /// Distinct from [`Self::channel`]: that is a live sender/receiver pair; this is already finished.
     #[must_use]
     pub fn empty() -> Self {
         let (_, stream) = Self::channel(1);
@@ -320,15 +314,12 @@ impl<T> Streaming<T> {
 
     /// The next message, `Ok(None)` at end of stream, `Err` on status.
     ///
-    /// Distinct from [`Self::next_framed`]: that keeps the Compressed-Flag; this discards it.
-    /// Distinct from [`Stream::poll_next`]: that is `Poll<Option<Result<T, Status>>>`; this awaits `Result<Option<T>, Status>`. Both use the same poll.
     pub async fn message(&mut self) -> Result<Option<T>, Status> {
         Ok(self.next_framed().await?.map(Framed::into_inner))
     }
 
     /// [`Self::message`] keeping the Compressed-Flag.
     ///
-    /// Distinct from [`Self::message`]: that discards the Compressed-Flag; this keeps it.
     pub async fn next_framed(&mut self) -> Result<Option<Framed<T>>, Status> {
         poll_fn(|cx| self.poll_framed(cx)).await
     }
@@ -369,7 +360,6 @@ impl<T> Streaming<T> {
 
     /// Collect the whole stream. Fails on the first error status.
     ///
-    /// Distinct from [`Self::message`]: that yields one message; this drains the stream.
     pub async fn collect(&mut self) -> Result<Vec<T>, Status> {
         let mut out = Vec::new();
         while let Some(msg) = self.message().await? {
@@ -379,8 +369,6 @@ impl<T> Streaming<T> {
     }
 
     /// Trailing metadata, after the stream has ended.
-    ///
-    /// Distinct from [`Self::message`]: that yields payloads; this waits for trailing metadata.
     ///
     /// On a received stream this waits for end-of-stream, discarding any
     /// unread messages, then returns the trailers that followed the last
@@ -488,7 +476,6 @@ impl<T> Drop for Streaming<T> {
 impl<T> Stream for Streaming<T> {
     type Item = Result<T, Status>;
 
-    /// Distinct from [`Streaming::message`]: that awaits `Result<Option<T>, Status>`; this is `Poll<Option<Result<T, Status>>>`. Both use the same poll.
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match self.get_mut().poll_framed(cx) {
             Poll::Pending => Poll::Pending,
@@ -500,7 +487,6 @@ impl<T> Stream for Streaming<T> {
 }
 
 impl<T> FusedStream for Streaming<T> {
-    /// Distinct from [`Streaming::message`]: that awaits the next payload; this reports whether the stream already fused.
     fn is_terminated(&self) -> bool {
         self.terminated
     }
@@ -556,9 +542,6 @@ impl<T> StreamSender<T> {
 
     /// gzip subsequent [`Self::send`] payloads.
     ///
-    /// Distinct from [`Self::compress`]: that reads whether subsequent send payloads gzip; this writes it.
-    /// Distinct from [`Self::send_compressed`]: that gzips one message regardless of this flag; this sets the default for later send.
-    ///
     /// Does not change already-queued messages. [`Self::send_compressed`]
     /// still gzips a single message regardless of this flag.
     pub fn set_compress(&mut self, compress: bool) {
@@ -566,9 +549,6 @@ impl<T> StreamSender<T> {
     }
 
     /// Queue one message, waiting if the buffer is full.
-    ///
-    /// Distinct from [`Self::send_compressed`]: that gzips one message regardless of the default; this follows [`Self::compress`].
-    /// Distinct from [`Self::send_framed`]: that takes an explicit Compressed-Flag; this follows [`Self::compress`].
     ///
     /// Uncompressed unless this sender was built with channel-wide gzip
     /// ([`crate::ChannelConfig::send_compressed`]), the request called
@@ -589,8 +569,6 @@ impl<T> StreamSender<T> {
 
     /// Queue one gzip-compressed message (Compressed-Flag 1).
     ///
-    /// Distinct from [`Self::set_compress`]: that sets the default for later send; this gzips one message regardless of that flag.
-    /// Distinct from [`Self::send`]: that follows [`Self::compress`]; this gzips one message regardless of that flag.
     pub async fn send_compressed(&self, message: T) -> Result<(), Status>
     where
         T: CodecMessage,
@@ -599,9 +577,6 @@ impl<T> StreamSender<T> {
     }
 
     /// Queue a message with an explicit Compressed-Flag.
-    ///
-    /// Distinct from [`Self::send`]: that follows [`Self::compress`]; this takes an explicit Compressed-Flag.
-    /// Distinct from [`Self::send_compressed`]: that always sets Compressed-Flag 1; this takes an explicit Compressed-Flag.
     ///
     /// An oversize message fails this send with [`crate::Code::ResourceExhausted`]
     /// and, on a server response producer, ends the stream with that status
@@ -626,29 +601,11 @@ impl<T> StreamSender<T> {
 
     /// End the stream with an error status instead of a clean half-close.
     ///
-    /// Distinct from [`Self::close`]: that half-closes; this ends with an error status.
-    ///
     /// On a **server response** producer, trailing metadata and
     /// `grpc-status-details-bin` (see [`crate::Status::with_error_details`])
     /// both ship after any messages already sent, the same as a handler
     /// `Err`.
     /// [`crate::Status::from_error_details`] is the typed bag after this StreamSender fail on a server response producer; those trailers ship after any messages already sent.
-    /// Distinct from a handler Err: that is after the handler ran; this StreamSender fail is trailers after any messages already sent.
-    /// Distinct from an Interceptor Err: that is trailers without reading the body; this StreamSender fail is trailers after any messages already sent.
-    /// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this StreamSender fail is trailers after any messages already sent.
-    /// Distinct from a Server intercept Err: that is trailers without reading the body; this StreamSender fail is trailers after any messages already sent.
-    /// Distinct from a Router intercept Err: that is trailers without reading the body; this StreamSender fail is trailers after any messages already sent.
-    /// Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this StreamSender fail is trailers after any messages already sent.
-    /// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this StreamSender fail is trailers after any messages already sent.
-    /// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this StreamSender fail is trailers after any messages already sent.
-    /// Distinct from a ServiceExt on_response Err: that is trailers-only after handler Ok; this StreamSender fail is trailers after any messages already sent.
-    /// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this StreamSender fail is trailers after any messages already sent.
-    /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this StreamSender fail is trailers after any messages already sent.
-    /// Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this StreamSender fail is trailers after any messages already sent.
-    /// Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this StreamSender fail is trailers after any messages already sent.
-    /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this StreamSender fail is trailers after any messages already sent.
-    /// Distinct from a method-level intercept Err: that is a local reject never opens a stream; this StreamSender fail is trailers after any messages already sent.
-    /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this StreamSender fail is trailers after any messages already sent.
     ///
     /// On a **client request** sender (client-streaming or bidi), gRPC has no
     /// request-side `grpc-status`. This resets the HTTP/2 stream with CANCEL,
@@ -663,8 +620,6 @@ impl<T> StreamSender<T> {
 
     /// Half-close this handle. Equivalent to dropping it.
     ///
-    /// Distinct from [`Self::fail`]: that ends with an error status; this half-closes.
-    ///
     /// The peer sees end-of-stream and may answer `OK` (an empty
     /// client-stream is a successful empty aggregate) once every clone is
     /// gone. If this sender was cloned, other clones keep the stream open.
@@ -675,15 +630,12 @@ impl<T> StreamSender<T> {
 
     /// Whether the reader has gone away, so further sends would fail.
     ///
-    /// Distinct from [`Self::closed`]: that waits until the reader is gone; this is a snapshot.
     #[must_use]
     pub fn is_closed(&self) -> bool {
         self.tx.is_closed()
     }
 
     /// Resolves when the reader has gone away.
-    ///
-    /// Distinct from [`Self::is_closed`]: that is a snapshot; this waits until the reader is gone.
     ///
     /// Same condition as [`Self::is_closed`], as a future. A producer that
     /// waits on something else (a status map, a timer) should select on this

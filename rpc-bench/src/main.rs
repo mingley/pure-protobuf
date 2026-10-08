@@ -35,6 +35,16 @@ fn allocation_snapshot() {
             serde_json::json!({"allocations": allocations, "requested_bytes": bytes,
             "scope": "process_since_main", "includes_reallocations": true})
         );
+        println!(
+            "CONTEXT_SWITCHES {}",
+            serde_json::json!({"counts": resources::context_switches().ok(),
+            "scope": "process_lifetime", "includes_exited_threads": true,
+            "method": if cfg!(all(target_os = "linux", target_pointer_width = "64")) {
+                "linux_getrusage_self"
+            } else {
+                "unsupported"
+            }})
+        );
     }
 }
 

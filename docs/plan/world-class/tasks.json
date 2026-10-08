@@ -9004,7 +9004,7 @@
    "evidence": [
     "docs/evidence/grpc-readiness-20261008/README.md"
    ],
-   "notes": "2026-10-08: explicit byte budgets and bounded compressed DATA writes are fixed. The original 24-hour attempt failed after 503.99 seconds; its false completed label is retained and rejected by current reporting. Stronger independent recovery probes and a corrected actual-day run are in progress. Intermittent mixed-load fairness failures and wider resource/feature qualification remain open."
+   "notes": "2026-10-08: explicit byte budgets and bounded compressed DATA writes are fixed. The original 24-hour attempt failed after 503.99 seconds; its false completed label is retained and rejected by current reporting. Later previews failed memory validation and TLS bidi reception; neither started the day. Five unchanged-limit diagnostic replays passed, without establishing the TLS failure's cause. Partial-response peer status and binary-log metadata regressions are fixed. A new source-pinned preview/day is being prepared with unchanged limits. Intermittent mixed-load fairness failures and wider resource/feature qualification remain open."
   },
   {
    "id": "H2-16",
@@ -10138,7 +10138,7 @@
     "SB-24",
     "RX-09"
    ],
-   "notes": "Phase 0 of the dominance program. SB-28 adds wall-time rows from dedicated hosts; SB-29 turns won cells into gates. 2026-10-08: source-pinned separate endpoint captures cover 2,560 functional cells (2,557 passed; all three failed cells also have ten successful fixed-count replays). Matched N=200/400 per-side Callgrind and allocator captures retain one failed repeat and instruction/byte losses. The partial ledger has 92 losses, 82 wins, 3 ties, 177 missing and 6 failed rows. Read-all/corpus, saturation, cold/idle, wakes/context-switch/syscall and dedicated-host coverage remain open; no dominance qualification.",
+   "notes": "Phase 0 of the dominance program. SB-28 adds wall-time rows from dedicated hosts; SB-29 turns won cells into gates. 2026-10-08: source-pinned separate endpoint captures cover 2,560 functional cells (2,557 passed; all three failed cells also have ten successful fixed-count replays). Matched N=200/400 per-side Callgrind and allocator captures retain one failed repeat and instruction/byte losses. The partial ledger has 92 losses, 82 wins, 3 ties, 177 missing and 6 failed rows. Optional Linux all-thread process-lifetime context-switch counters are implemented; no fresh counter measurements or noise qualification yet. Read-all/corpus, saturation, cold/idle, wakes/syscalls and dedicated-host coverage remain open; no dominance qualification.",
    "status": "in_progress",
    "evidence": [
     "docs/evidence/grpc-readiness-20261008/README.md"

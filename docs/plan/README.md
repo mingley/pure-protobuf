@@ -87,12 +87,12 @@ The open release PR is not evidence of qualification or permission to publish.
 
 ## Define the goals before claiming them
 
-### Pure Rust
+### Build dependencies
 
 The shipping codec, generator, RPC transport, TLS and compression algorithms
 should be Rust implementations. OS interfaces through Rust's standard library
-or platform bindings remain allowed; "pure Rust" does not mean no syscalls,
-no assembler, or no reviewed `unsafe`. A runtime FFI call for number conversion
+or platform bindings, assembler, and reviewed `unsafe` remain allowed.
+A runtime FFI call for number conversion
 is different from an OS socket operation and is tracked for replacement.
 
 The desired **Rust-only generation profile** must compile `.proto` inputs and

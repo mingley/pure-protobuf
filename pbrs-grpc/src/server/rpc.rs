@@ -252,7 +252,6 @@ impl Rpc {
 
     /// Request metadata the handler will see.
     ///
-    /// Distinct from [`Self::metadata_mut`]: that mutates the inbound map; this borrows it.
     /// Same map as [`Request::metadata`] after an interceptor returns `Ok`.
     /// Bind it if you need more than one lookup: `let md = rpc.metadata()`.
     #[must_use]
@@ -262,7 +261,6 @@ impl Rpc {
 
     /// Mutate inbound metadata the handler will see.
     ///
-    /// Distinct from [`Self::metadata`]: that borrows the inbound map; this mutates it.
     /// Insert, or strip with [`Metadata::remove`] / [`Metadata::remove_bin`].
     /// Reserved keys (`grpc-*`, `content-type`, hop-by-hop headers, ...)
     /// stay on the HTTP request for the kernel; they cannot be inserted or
@@ -286,7 +284,6 @@ impl Rpc {
     /// value. Values below 1 ms are raised to 1 ms. This is the handler's
     /// deadline on every call shape.
     ///
-    /// Distinct from [`Self::timeout`]: that reads the interceptor cap; this tightens it.
     pub fn set_timeout(&mut self, timeout: Duration) {
         let timeout = timeout.max(Duration::from_millis(1));
         self.timeout = Some(match self.timeout {
@@ -297,7 +294,6 @@ impl Rpc {
 
     /// Deadline cap an interceptor set with [`Self::set_timeout`], if any.
     ///
-    /// Distinct from [`Self::rpc_timeout`]: that is the server overlay; this is the interceptor cap.
     /// This is not the effective deadline: that also includes the client's
     /// `grpc-timeout` and [`ServerConfig::timeout`]. See
     /// [`Self::effective_timeout`]. The server overlay itself is
@@ -347,7 +343,6 @@ impl Rpc {
 
     /// Absolute Instant matching [`Self::effective_timeout`].
     ///
-    /// Distinct from [`Self::timeout`]: that is the interceptor duration cap; this Instant is computed when the getter runs.
     /// Computed when you call this, so an interceptor that just tightened
     /// [`Self::set_timeout`] sees the new Instant. The handler's
     /// [`Request::deadline`] is stamped once when dispatch starts. Visible
@@ -380,7 +375,6 @@ impl Rpc {
     /// calls [`crate::Response::set_compress`] still only gzips when this is
     /// true: the kernel will not compress a peer that did not ask.
     /// Response interceptors see the same value on [`crate::Response::accepts_gzip`].
-    /// Distinct from [`Self::accepts_compressed`]: that is this server overlay, not the peer advertisement.
     #[must_use]
     pub fn accepts_gzip(&self) -> bool {
         crate::wire::accepts_gzip(self.request.headers())
@@ -402,7 +396,6 @@ impl Rpc {
     ///
     /// Same overlay as [`crate::Server::gzip_level`].
     /// Generated handlers see the same value on [`Request::gzip_level`].
-    /// Distinct from [`Self::compresses_outbound`]: that is on or off; this is deflate effort.
     /// Distinct from [`crate::Outgoing::gzip_level`]: that is a client interceptor overlay.
     /// Response interceptors see the same value on [`crate::Response::gzip_level`].
     /// An interceptor cannot change this; the kernel applies it when encoding.
@@ -416,7 +409,6 @@ impl Rpc {
     ///
     /// Same overlay as [`crate::Server::accepts_compressed`].
     /// Generated handlers see the same value on [`Request::accepts_compressed`].
-    /// Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this overlay.
     /// Distinct from [`crate::Outgoing::accepts_compressed`]: that is a client interceptor overlay.
     /// Response interceptors see the same value on [`crate::Response::accepts_compressed`].
     /// An interceptor cannot change this; the kernel applies it when decoding.
@@ -444,7 +436,6 @@ impl Rpc {
     /// Same overlay as [`crate::Server::send_buffer_size`].
     /// Generated handlers see the same value on [`Request::send_buffer_size`].
     /// Distinct from [`crate::Outgoing::send_buffer_size`]: that is a client interceptor overlay.
-    /// Distinct from [`Self::limits`]: that is uncompressed protobuf bytes, not this HTTP/2 send buffer.
     /// Distinct from HTTP/2 `SETTINGS_MAX_FRAME_SIZE` and stream/connection windows: those are handshake SETTINGS, not this write-time threshold.
     /// Response interceptors see the same value on [`crate::Response::send_buffer_size`].
     /// An interceptor cannot change this; the kernel applies it when sending DATA.
@@ -473,7 +464,6 @@ impl Rpc {
     /// handlers see the same value on [`Request::encoding`]. `grpc-*` keys
     /// are not in [`Self::metadata`]. Bind it before [`Self::metadata_mut`]:
     /// `let enc = rpc.encoding();`.
-    /// Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this received `grpc-encoding`.
     #[must_use]
     pub fn encoding(&self) -> Option<&str> {
         crate::wire::grpc_encoding(self.request.headers())
@@ -481,7 +471,6 @@ impl Rpc {
 
     /// Typed values an interceptor may attach for the handler.
     ///
-    /// Distinct from [`Self::extensions_mut`]: that inserts typed values the handler will see; this borrows the map.
     /// Starts with tonic-style transport connect info when the server has it,
     /// then any [`crate::Interceptor`] (or wrapping [`Service`]) may insert
     /// more values through [`Self::extensions_mut`]. Survives onto the
@@ -493,7 +482,6 @@ impl Rpc {
 
     /// Insert typed values the handler will see on [`Request::extensions`].
     ///
-    /// Distinct from [`Self::extensions`]: that borrows the map; this inserts typed values the handler will see.
     pub fn extensions_mut(&mut self) -> &mut http::Extensions {
         &mut self.extensions
     }
