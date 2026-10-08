@@ -220,6 +220,70 @@ impl CompressionAlgorithm {
 #[cfg(test)]
 mod tests {
     use super::CompressionAlgorithm;
+    use crate::{Code, MessageLimits};
+    use std::io::Read;
+
+    // The pre-RX-11 input-buffering path is an independent wrapper oracle.
+    // Preserve the production output reservation and cap/error precedence.
+    fn buffered_decode(
+        codec: CompressionAlgorithm,
+        payload: &[u8],
+        limits: MessageLimits,
+    ) -> Result<Vec<u8>, Code> {
+        let budget = limits.inflate_budget();
+        let read_cap = u64::try_from(budget.saturating_add(1)).unwrap_or(u64::MAX);
+        let mut out =
+            Vec::with_capacity(payload.len().saturating_mul(4).min(256 * 1024).min(budget));
+        let result = match codec {
+            CompressionAlgorithm::Gzip => flate2::read::GzDecoder::new(payload)
+                .take(read_cap)
+                .read_to_end(&mut out),
+            CompressionAlgorithm::Deflate => flate2::read::ZlibDecoder::new(payload)
+                .take(read_cap)
+                .read_to_end(&mut out),
+            #[cfg(feature = "zstd")]
+            CompressionAlgorithm::Zstd => return Err(Code::Unimplemented),
+        };
+        result.map_err(|_| Code::Internal)?;
+        if out.len() > budget {
+            return Err(Code::ResourceExhausted);
+        }
+        Ok(out)
+    }
+
+    #[test]
+    fn slice_decoding_matches_buffered_input_on_malformed_data_and_limits() {
+        for codec in [CompressionAlgorithm::Gzip, CompressionAlgorithm::Deflate] {
+            let payload = b"protobuf compression wrapper compatibility".repeat(100);
+            let compressed = codec.encode(&payload).expect("encode");
+            let mut inputs = vec![compressed.clone(), Vec::new(), vec![0xff; 32]];
+            // Every truncation, and a bit mutation in every header/body/trailer byte.
+            for end in 0..compressed.len() {
+                inputs.push(compressed[..end].to_vec());
+                let mut changed = compressed.clone();
+                changed[end] ^= 0x80;
+                inputs.push(changed);
+            }
+            // Both wrappers decode the first member and ignore an encoded tail.
+            let mut members = compressed.clone();
+            members.extend_from_slice(&codec.encode(b"second member").expect("encode"));
+            inputs.push(members);
+            let mut garbage_tail = compressed;
+            garbage_tail.extend_from_slice(b"unrelated tail");
+            inputs.push(garbage_tail);
+            for input in inputs {
+                for budget in [0, 1, payload.len() - 1, payload.len(), payload.len() + 1] {
+                    let limits = MessageLimits::unlimited().with_max_decoding(budget);
+                    let actual = codec.decode_limited(&input, limits).map_err(|e| e.code());
+                    assert_eq!(
+                        actual,
+                        buffered_decode(codec, &input, limits),
+                        "codec {codec:?}, input {input:?}, budget {budget}"
+                    );
+                }
+            }
+        }
+    }
 
     fn codecs() -> Vec<CompressionAlgorithm> {
         #[cfg(feature = "zstd")]

@@ -25,6 +25,8 @@ comparative claim. No category currently has a qualified performance win.
 | [Transport matrix (SB-24)](sb24-matrix.md) | 144 TLS/compression wiring cells passed, with actual native handshake observations | Not throughput evidence: native/native uses AES-256, native/tonic uses AES-128, and tonic/tonic lacks actual session telemetry; no core cipher-policy API changed |
 | [Performance CI (SB-23)](sb23-perf-ci.md) | Two corrected-parser CI pairs have 88 cells per revision; failed-build evidence is retained and rejected | SB-23 done; instructions excluded; Intel/AMD are separate cohorts, each still short of 30 compatible noise-study pairs |
 | [RPC instruction study (RX-09)](rx-09.md) | 48 retained before/after captures; native instructions and allocated bytes fell in both shapes | Within-stack diagnostic improvement; cross-stack workloads differ and separate-process qualification remains open |
+| [Compressed-frame decoding (RX-11)](rx-11-slice-decoding.md) | Slice decoders remove one allocation and 32 KiB per decode in 16 paired cells | Isolated decoder measurements; client/server RPC comparisons remain open |
+| [Load accounting and endpoint diagnostics (SB-27a)](grpc-load-terminal-accounting.md) | Failed load runs exit nonzero; 256 RPC cells and 64 finite-limit recovery cycles passed | Short completion/recovery diagnostics; per-side performance floors and the production soak remain open |
 
 The [plan](../plan/world-class/README.md) tracks completion. SB-21 remains in
 progress pending reference-peer arrival/accounting equivalence. SB-23's real

@@ -4,8 +4,7 @@ The workspace separates protobuf messages from gRPC transport. Use `pbrs`
 for messages, `protobuf-tonic` to keep a Tonic service, or `pbrs-grpc` for the
 native transport. Each transport uses the same protobuf runtime.
 
-`pbrs` is a protobuf kernel for parse, serialize, reflection, JSON, text, and
-plugin codegen. It does not use upb, libprotobuf, or C.
+`pbrs` handles parsing, serialization, reflection, JSON, text, and code generation.
 
 ## Crates
 
@@ -13,7 +12,7 @@ plugin codegen. It does not use upb, libprotobuf, or C.
 |---|---|
 | `pbrs` | Protobuf kernel, `protoc-gen-pbrs`, and conformance child. |
 | `protobuf-tonic` | Tonic 0.14 `Codec` plus generated `FooClient` / `FooServer`. |
-| `pbrs-grpc` | HTTP/2 gRPC kernel over pbrs; it is not Tonic. |
+| `pbrs-grpc` | HTTP/2 gRPC client and server with optional Prost, Tower, and Tonic adapters. |
 
 The core runtime requires Rust 1.85; the Tonic adapter requires Rust 1.88.
 `pbrs` keeps codegen, reflection, JSON, text, and conformance helpers enabled
@@ -21,10 +20,10 @@ by default for compatibility. Runtime consumers can reduce their feature
 set; see the [feature split](decisions/runtime-build-split.md) for supported
 profiles. The native transport has optional Prost and Tower adapters.
 
-Dependency boundaries are intentional:
+Dependencies:
 
 - The protobuf kernel has no Tonic, h2, or Hyper dependency.
-- `pbrs-grpc` has no Tonic dependency.
+- `pbrs-grpc` uses Tonic only when its optional `tonic` feature is enabled.
 - `protobuf-tonic` has no `pbrs-grpc` dependency.
 - A consumer can use pbrs alone, pbrs with the Tonic adapter, or pbrs with the native gRPC kernel.
 
@@ -33,12 +32,10 @@ The Cargo package and the library are both named `pbrs`
 
 ## gRPC kernel
 
-`pbrs-grpc` speaks gRPC over prior-knowledge HTTP/2. Protocol-facing modules
-forbid `unsafe`; two Linux OS helpers have scoped syscall exceptions.
-Generated messages use audited pbrs `unsafe` for zeroed construction.
-The shipping transport graph needs no C compiler: TLS uses rustls +
-Graviola, and gzip uses `miniz_oxide`. Reference-peer tests and source
-compilation with `protoc` have separate toolchain requirements.
+`pbrs-grpc` speaks gRPC over prior-knowledge HTTP/2 using an embedded `h2`
+backend and Tokio. TLS uses rustls with Graviola by default; gzip and
+deflate use `miniz_oxide`. The [unsafe reference](unsafe-invariants.md)
+describes parser, backend, and OS-helper safety requirements.
 
 ### Accept
 
@@ -148,7 +145,6 @@ settings, and metadata.
 | Client and server overhead | `pbrs-grpc/src/client/`, `pbrs-grpc/src/server/`, `pbrs-grpc/src/transport/` | Endpoint CPU at matched load, tail latency, connection and stream limits. |
 | Official Google-generated messages | `src/runtime/`, [compatibility scope](codegen-compatibility.md) | Original shared consumers and kernel-specific correctness evidence. |
 
-The [execution plan](plan/world-class/README.md) orders this work. The
-[comparison guide](guides/comparison.md) covers application-facing transport
-choices. Neither architecture alone nor a codec benchmark establishes gRPC
-performance leadership; that requires the [benchmark contract](benchmark-contract.md).
+The [performance plan](plan/world-class/README.md) orders this work.
+Use the [comparison guide](guides/comparison.md) to choose a transport and
+the [benchmark contract](benchmark-contract.md) to plan measurements.

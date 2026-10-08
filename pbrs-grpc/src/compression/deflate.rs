@@ -14,7 +14,7 @@
 use crate::limits::MessageLimits;
 use crate::status::Status;
 use flate2::Compression;
-use flate2::read::ZlibDecoder;
+use flate2::bufread::ZlibDecoder;
 use flate2::write::ZlibEncoder;
 use std::io::{Read, Write};
 
@@ -72,6 +72,8 @@ pub(super) fn decode_limited(payload: &[u8], limits: MessageLimits) -> Result<Ve
         .min(INFLATE_GUESS_CAP)
         .min(budget);
     let mut out = Vec::with_capacity(guess);
+    // The complete frame is already buffered; the slice decoder avoids
+    // read::ZlibDecoder's additional 32 KiB input allocation and copy.
     ZlibDecoder::new(payload)
         .take(read_cap)
         .read_to_end(&mut out)

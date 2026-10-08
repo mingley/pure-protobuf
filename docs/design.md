@@ -91,10 +91,9 @@ construction and spread syntax. The exact tested surface and exclusions are
 in [codegen compatibility](codegen-compatibility.md).
 
 Google `protoc --rust_out kernel=upb` output uses `src/runtime/` instead of
-the field-wise structs above. That experimental path supplies a pure-Rust
+the field-wise structs above. That experimental path supplies a
 MiniTable/Arena stand-in behind the expected generated-code interface. It
-still has semantic gaps, including enum conversion, generic unknown-field
-retention, equality, debug output, and extensions. Passing the plugin's
-conformance suite does not qualify this second runtime. The
-[upb comparison](upb.md) and [kernel design](decisions/upb-kernel.md) explain
+has separate compatibility tests for enum conversion, unknown fields,
+equality, debug output, and extensions. The
+[upb comparison](upb.md) and [kernel design](decisions/upb-kernel.md) describe
 the remaining work.

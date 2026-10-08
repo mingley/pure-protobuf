@@ -1,17 +1,13 @@
 # Benchmarks
 
-This page explains the local benchmark records for `pbrs`, `pbrs-grpc`, and
-the tonic adapter. It is for Rust developers who want to understand where the
-project is fast, where it loses, and which numbers are only diagnostic.
-
-The recorded runs show workload-specific wins and important losses. They do
-not prove universal performance leadership or production readiness.
+Local measurements for `pbrs`, `pbrs-grpc`, and the tonic adapter. Results
+apply to their recorded workloads, versions, and hosts.
 
 ## Start here
 
-For current evidence status, read the [scoreboard](scoreboard.md). To run a
-specific measurement, choose a harness below. The detailed tables later on
-this page preserve historical captures; they are not a fresh run of HEAD.
+The [scoreboard](scoreboard.md) tracks current measurements. Choose a
+harness below to run a comparison. The tables later on this page retain
+older captures.
 
 | Question | Tool and starting point | What a successful run proves |
 |---|---|---|
@@ -50,21 +46,17 @@ tasks.
 
 ## How to read this page
 
-- **Read the caveats first.** These are historical local measurements. They do
-  not include complete dated source revisions and per-run raw artifacts for
-  every table.
-- **Check the unit in each header.** Lower is better for time, latency,
+- **Source and artifacts:** some older tables lack dated source revisions and
+  raw captures.
+- **Units:** lower is better for time, latency,
   memory, resident set size (RSS), and binary size. Higher is better for
   throughput, queries per second (QPS), messages per second, and ratios.
-- **Do not compare owned decoders to borrowed views as equals.** Owned decoders
+- **Ownership:** owned decoders
   produce messages independent of the input buffer. Borrowed views can retain
   slices of the input wire bytes.
-- **Treat gates as smoke checks.** A process gate means the local harness exits
-  non-zero for that loss. It is not the same as claim-grade comparative
-  evidence.
-- **Use the contract for stronger claims.** The
-  [benchmark contract](benchmark-contract.md) defines the evidence required
-  before promoting a comparative performance claim.
+- **Local checks:** a process gate makes the harness exit non-zero for a loss.
+- **Published comparisons:** the [benchmark contract](benchmark-contract.md)
+  sets the host, repetition, and statistical requirements.
 
 ## Summary
 
@@ -78,13 +70,9 @@ tasks.
 
 ## Provenance and scope
 
-The numeric tables below are historical local measurements, not a current
-performance-leadership claim. Rerun commands alone cannot recreate their host
-conditions or supply uncertainty intervals.
-
-The page keeps every recorded caveat visible: missing raw artifacts, diagnostic
-versus claim-grade status, local host sensitivity, owned-versus-view
-differences, and known losses.
+Each table records its available source and host details. Some older runs
+lack raw artifacts or uncertainty intervals. Follow the benchmark contract
+for a new comparison, including ownership costs and losing workloads.
 
 ## Core codec method
 

@@ -4,25 +4,24 @@
 [![Documentation](https://docs.rs/pbrs-grpc/badge.svg)](https://docs.rs/pbrs-grpc)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](../LICENSE-MIT)
 
-`pbrs-grpc` is a pure-Rust gRPC client and server built directly on HTTP/2.
+`pbrs-grpc` is a gRPC client and server built on HTTP/2.
 It supports all four RPC shapes, generated [`pbrs`](../README.md) messages,
-TLS, and optional Prost and Tower integration. The default transport uses
-`h2`, Tokio, rustls, and Graviola without a C/C++ build toolchain.
+TLS, and optional Prost and Tower integration. The transport uses an embedded
+`h2` backend and Tokio; the default TLS provider is rustls with Graviola.
 
-Version `0.1.0-alpha.2` is preview software. Production qualification and
-comparative performance work are still underway; see the [project status](../docs/status.md)
-and [scoreboard](../docs/scoreboard.md). Configure connection, RPC, message,
-and byte limits for your workload before deployment.
+Version `0.1.0-alpha.2` is a preview. See the [project status](../docs/status.md)
+for tested features and the [scoreboard](../docs/scoreboard.md) for measurements.
+Configure connection, RPC, message, and byte limits for your workload.
 
 For a runnable introduction, start with [the greeter example](../examples/greeter/README.md).
 The [gRPC guide](../docs/grpc.md) links the longer tutorials and contracts.
 
 ## What it provides
 
-- **Pure Rust**: the default shipping graph requires no C or C++ compiler. Applications that select another TLS provider own its build prerequisites.
-- **Mostly safe Rust kernel**: gRPC framing, dispatch, transport, TLS, codec, resolver, load-balancer, authz, binlog, and service-config modules forbid unsafe. Two Linux-only OS helpers use scoped `SAFETY`-documented unsafe for `TCP_USER_TIMEOUT` and per-core CPU pinning. The private imported HTTP/2 backend retains one scoped, validated UTF-8 view for immutable HPACK header bytes.
-- **Independent transport**: runs directly on prior-knowledge HTTP/2 (`h2`), `rustls`, and Graviola.
-- **Native pbrs messages**: generated stubs use the `pbrs` `Parse` and `Serialize` traits.
+- Unary, client-streaming, server-streaming, and bidirectional calls.
+- Generated stubs using the `pbrs` `Parse` and `Serialize` traits.
+- TLS, compression, routing, and configurable resource limits.
+- Optional adapters for existing Prost messages and Tower services.
 
 ## Optional features
 
@@ -190,7 +189,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | Errors | Packed `google.rpc.Status` error details on `grpc-status-details-bin`. |
 | Large payloads | `bytes` fields of 4 KiB or more are parsed without copying; fields of 32 KiB or more set from `bytes::Bytes` are sent without copying. See [large payloads / zero-copy](../docs/zero-copy.md). |
 
-## Design invariants and comparisons
+## Configuration and behavior
 
 `pbrs-grpc` provides explicit resource limits and fail-fast admission controls.
 Connection and RPC counts are uncapped by default; configured transport limits

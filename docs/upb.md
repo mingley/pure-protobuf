@@ -1,13 +1,13 @@
 # Relative to upb
 
-`pbrs` offers a pure-Rust implementation of the Google protobuf application
-model. Its normal path uses `protoc-gen-pbrs` and Rust message structs. The
+`pbrs` implements the Google protobuf application API with
+`protoc-gen-pbrs` and Rust message structs. The
 separate path for Google's unmodified `--rust_out` output is experimental
 and incomplete; neither path is a drop-in implementation of the upb C ABI.
 
 The comparison below uses the repository's pinned protobuf 4.x/upb baseline.
-See [compatibility status](codegen-compatibility.md) for the current shared
-consumer failure and [the UK plan](decisions/upb-kernel.md) for the proposed
+See [compatibility status](codegen-compatibility.md) for tested shared
+consumers and [the UK plan](decisions/upb-kernel.md) for the proposed
 kernel replacement.
 
 crates.io `protobuf` 4.x is Google's Rust API over upb (C) (`links=upb`,
@@ -16,8 +16,7 @@ Cargo downloads.
 
 `pbrs` implements the application traits of that Rust API: `Parse`,
 `Serialize`, `Clear`, `proto!`, `ProtoStr`, `RepeatedView`, and
-`DynamicMessage`. It does this in pure Rust. It does not implement the upb
-kernel.
+`DynamicMessage`. Its storage and generated code differ from upb.
 
 ## Same job, different object
 

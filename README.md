@@ -4,32 +4,27 @@
 [![Documentation](https://docs.rs/pbrs/badge.svg)](https://docs.rs/pbrs)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
 
-`pbrs` is a pure-Rust Protocol Buffers runtime and code generator for Rust
-developers who want the Google protobuf v4 application API without a C or C++
-runtime. This workspace also contains `pbrs-grpc` for native gRPC over HTTP/2
-and `protobuf-tonic` for tonic 0.14+ users.
+`pbrs` is a Protocol Buffers runtime and code generator with the Google
+protobuf v4 application API. The workspace also includes `pbrs-grpc` for
+gRPC over HTTP/2 and `protobuf-tonic` for using pbrs messages with tonic 0.14+.
 
-**Current status:** published versions are available for evaluation, with
-recorded conformance through Protocol Buffers Edition 2023. Current source
-also has scoped Edition 2024 generation support; see its
-[remaining boundaries](docs/edition-2024.md). Production qualification and
-stronger performance claims still require the [roadmap](docs/ROADMAP.md).
+**Status:** conformance is tested through Protocol Buffers Edition 2023.
+Edition 2024 generation supports a [defined subset](docs/edition-2024.md).
+The gRPC crates are previews; see the [support policy](docs/support-policy.md)
+for supported versions and deployment guidance.
 For contributors, start with [what to work on next](TODO.md) and the
 [2026-09-29 repository audit](docs/audit-2026-09-29.md).
 
-## Why use pbrs?
+<a id="why-use-pbrs"></a>
+## Features
 
-- **Pure Rust build:** `pbrs` compiles with `rustc`. It does not wrap Google's
-  `upb` C library through foreign function interface (FFI).
-- **Google protobuf v4-shaped API:** generated types use the application-level
-  traits and shapes such as `Parse`, `Serialize`, `Clear`, `proto!`,
+- **Google protobuf v4 API:** generated types use `Parse`, `Serialize`, `Clear`, `proto!`,
   `ProtoStr`, `RepeatedView`, and `DynamicMessage`.
 - **Recorded conformance:** Google's `conformance_test_runner` v35.1 passes
   5,631 binary + JSON cases and 909 text cases with no unexpected results.
-- **Broad protobuf surface:** proto2, proto3, Edition 2023 behavior,
-  well-known types (WKT), dynamic reflection, JSON formatting, and text
-  formatting are in scope.
-- **Performance-oriented storage:** small-string optimization, zero-allocation
+- **Formats and reflection:** proto2, proto3, Edition 2023, well-known types
+  (WKT), dynamic reflection, JSON, and text format.
+- **Storage:** small-string optimization, zero-allocation
   empty collections, lazy materialization after wire validation, and specialized
   packed-scalar handling are built into the runtime.
 
@@ -109,21 +104,14 @@ stubs by default. tonic users must opt in with
 
 ## Which crate do I need?
 
-| Need | Use | Notes |
-|---|---|---|
-| Protocol Buffers messages, parsing, serialization, reflection, JSON/text, or code generation | [`pbrs`](.) | Core crate and `protoc-gen-pbrs` plugin |
-| Native Rust gRPC without tonic | [`pbrs-grpc`](pbrs-grpc) | HTTP/2 gRPC client/server kernel built on `h2`, `rustls`, and Graviola |
-| tonic 0.14+ services that use `pbrs` messages | [`protobuf-tonic`](protobuf-tonic) | Codec adapter; not a `prost::Message` drop-in |
-| End-to-end reference service | [`examples/greeter`](examples/greeter) | Generated stubs, health checks, and server reflection |
+<a id="workspace-crates"></a>
 
-## Workspace Crates
-
-| Crate | What it contains | crates.io Status |
+| Need | Use | Version |
 |---|---|---|
-| [`pbrs`](.) | Core Protocol Buffers runtime: parser, serializer, code generator (`protoc-gen-pbrs`), dynamic messages, well-known types, JSON format, and text format. | `0.2.0` (Published; qualification in progress) |
-| [`pbrs-grpc`](pbrs-grpc) | Standalone pure-Rust HTTP/2 gRPC client and server kernel. It does not depend on C or tonic. | `0.1.0-alpha.2` (Pre-release / Preview) |
-| [`protobuf-tonic`](protobuf-tonic) | tonic 0.14+ `Codec` adapter for clients and servers that use regenerated `pbrs` message types. | `0.1.0-alpha.2` (Pre-release / Preview) |
-| [`examples/greeter`](examples/greeter) | Complete example with generated stubs, gRPC health checking (`grpc.health.v1`), and server reflection (`grpc.reflection.v1`). | Example only (`publish = false`) |
+| Protocol Buffers messages, reflection, JSON/text, or code generation | [`pbrs`](.) | `0.2.0` |
+| Native gRPC client and server | [`pbrs-grpc`](pbrs-grpc) | `0.1.0-alpha.2` (Preview) |
+| tonic 0.14+ with `pbrs` messages | [`protobuf-tonic`](protobuf-tonic) | `0.1.0-alpha.2` (Preview) |
+| Runnable service with health and reflection | [`examples/greeter`](examples/greeter) | Example |
 
 ## Code generation options
 
@@ -212,7 +200,7 @@ Or use the helper script:
 
 | Stack | Choose it when | Read more |
 |---|---|---|
-| `pbrs-grpc` native kernel | You want a pure-Rust gRPC client/server stack independent of tonic. | [gRPC guide](docs/grpc.md), [`pbrs-grpc/README.md`](pbrs-grpc/README.md) |
+| `pbrs-grpc` native kernel | You want the native gRPC client and server. | [gRPC guide](docs/grpc.md), [`pbrs-grpc/README.md`](pbrs-grpc/README.md) |
 | `protobuf-tonic` adapter | You already use tonic 0.14+ and can use regenerated `pbrs` stubs instead of `prost` messages. Middleware must accept those message traits. | [`protobuf-tonic/README.md`](protobuf-tonic/README.md) |
 
 For a complete service with generated stubs, health checking, and server
@@ -220,11 +208,9 @@ reflection, see [`examples/greeter`](examples/greeter).
 
 ## Support matrix
 
-Recorded against this repository on stable `rustc` 1.98. Declared
-`rust-version` is the continuous integration (CI) minimum supported Rust
-version (MSRV) job, not this host's toolchain. Releases follow the
-[release guide](docs/RELEASE.md): tag/dispatch only; `main` pushes do not
-publish.
+The minimum supported Rust versions (MSRV) below are checked in CI.
+The tested column includes earlier runs with Rust 1.98. Releases follow
+the [release guide](docs/RELEASE.md); pushes to `main` do not publish crates.
 
 The maintained crates and tools use **Rust language Edition 2024**, available
 from rustc 1.85. Frozen reference/comparator and discarded-experiment
@@ -248,12 +234,10 @@ of **Protocol Buffers Edition 2024**.
 
 ## Performance and stack selection
 
-Use the [benchmark report](docs/benchmarks.md) for versioned,
-workload-specific comparisons with prost, the Google Rust/upb wrapper, buffa,
-tonic, and grpc-go. Those results include wins, losses, and caveats; they do
-not establish universal feature parity or superiority. The
-[roadmap scorecard](docs/ROADMAP.md#scorecard) defines the evidence needed for
-stronger claims.
+The [benchmark report](docs/benchmarks.md) compares workloads with prost,
+the Google Rust/upb wrapper, buffa, tonic, and grpc-go. Each result lists its
+versions, workload, and measurement limits. The
+[roadmap scorecard](docs/ROADMAP.md#scorecard) tracks the remaining comparisons.
 
 For large payloads and copy behavior, also see
 [Large payloads / zero-copy](docs/zero-copy.md).
@@ -269,9 +253,9 @@ For large payloads and copy behavior, also see
 | Recommended tests (`--enforce_recommended`) | Passed with 0 unexpected failures | Does not imply every upstream suite |
 
 The separate [`rust/test/shared` coverage](docs/status.md#skipped-rusttestshared-files)
-has documented exclusions. The audited source revision also has an open
-[enum-map regression](docs/audit-2026-09-29.md#correctness-and-ci); historical
-passes do not establish that the current compatibility suite is green.
+lists its exclusions. The [enum-map repair](docs/evidence/shared-map-recovery.md)
+and [closed-enum tests](docs/evidence/closed-enum-recovery.md) record the later
+compatibility runs.
 
 Run the conformance suite locally:
 
@@ -292,7 +276,7 @@ run `cargo doc --workspace --no-deps --open`.
 | Architecture and crate boundaries | [Architecture overview](docs/architecture.md) |
 | Runtime design and storage choices | [Design and internals](docs/design.md) |
 | API and representation differences from Google's C-based upb kernel | [Relative to upb](docs/upb.md) |
-| Performance numbers, caveats, and losses | [Benchmarks and performance](docs/benchmarks.md) |
+| Measurements and known losses | [Benchmarks](docs/benchmarks.md) |
 | Large payloads and copy behavior | [Large payloads / zero-copy](docs/zero-copy.md) |
 | Supported features and conformance breakdown | [Implementation status](docs/status.md) |
 | Native `pbrs-grpc` services | [Native gRPC kernel guide](docs/grpc.md) |
@@ -300,9 +284,9 @@ run `cargo doc --workspace --no-deps --open`.
 | tonic 0.14+ integration | [Tonic adapter guide](protobuf-tonic/README.md) |
 | Toolchain and `protoc` requirements | [Support matrix](#support-matrix) |
 | Publishing policy | [Release policy](docs/RELEASE.md) |
-| Roadmap and stronger-claim evidence | [Implementation plan and scorecard](docs/ROADMAP.md) |
+| Roadmap and remaining work | [Implementation plan and scorecard](docs/ROADMAP.md) |
 | Next contribution and audit findings | [Execution queue](TODO.md), [repository audit](docs/audit-2026-09-29.md), [task contracts](docs/plan/README.md) |
-| gRPC performance program | [World-class gRPC program](docs/plan/world-class/README.md) and [worker cards](docs/plan/world-class/tasks.json) |
+| gRPC performance work | [Performance plan](docs/plan/world-class/README.md) and [task cards](docs/plan/world-class/tasks.json) |
 | Adopting pbrs in existing prost/tonic systems | [Adoption program](docs/plan/adoption/README.md) |
 | Every-cell comparison against tonic and prost | [Dominance program](docs/plan/dominance/README.md) |
 

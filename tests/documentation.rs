@@ -118,7 +118,12 @@ pub const CRITICAL_CAVEATS: &[CaveatRequirement] = &[
         category: "security_tls",
         title: "alpn_h2_required",
         doc_path: "docs/grpc.md",
-        required_all: &["ALPN", "h2", "Certificate verification is not optional"],
+        required_all: &[
+            "ALPN",
+            "h2",
+            "built-in constructors",
+            "WebPKI certificate verification",
+        ],
         description: "gRPC TLS documentation must mandate ALPN h2 and state that certificate verification is not optional.",
     },
     CaveatRequirement {
@@ -126,10 +131,11 @@ pub const CRITICAL_CAVEATS: &[CaveatRequirement] = &[
         title: "caller_rustls_trust_boundary",
         doc_path: "docs/grpc.md",
         required_all: &[
-            "Certificate verification is not optional for built-in constructors",
-            "trusted application-owned",
-            "Callers own custom verifier security",
-            "an opaque custom verifier cannot be certified by this wrapper",
+            "built-in constructors",
+            "WebPKI certificate verification",
+            "application-owned configs",
+            "Callers manage verification",
+            "custom configs",
             "Disabling verification is unsupported",
         ],
         description: "Caller rustls configs require the application to own verifier security; the wrapper's built-in verification guarantee must remain scoped and disabling verification unsupported.",
@@ -218,7 +224,7 @@ pub const CRITICAL_CAVEATS: &[CaveatRequirement] = &[
         category: "claim_provenance",
         title: "benchmark_provenance_framing",
         doc_path: "docs/benchmarks.md",
-        required_all: &["dated source", "raw artifact", "benchmark-contract.md"],
+        required_all: &["dated source", "raw captures", "benchmark-contract.md"],
         description: "Benchmarks must state that tables lack complete dated source and raw artifacts, and link the benchmark contract for stronger claims.",
     },
     CaveatRequirement {
@@ -496,6 +502,7 @@ fn discover_markdown_files_in(root: &Path) -> Result<Vec<PathBuf>, Vec<String>> 
             if path.is_dir() {
                 let file_name = path.file_name().unwrap_or_default().to_string_lossy();
                 if file_name != "target"
+                    && file_name != "work"
                     && file_name != ".git"
                     && file_name != "third_party"
                     && file_name != "vendor"

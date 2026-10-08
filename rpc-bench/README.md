@@ -24,6 +24,38 @@ It implements parts of the
   `grpc.testing` protobuf structures over gRPC. It does not hide unsupported
   fields behind adapters.
 
+## Load runs
+
+`load-server` and `load` run separate endpoints. They support all four RPC
+shapes, verified TLS, and identity or gzip compression. Native uses pbrs
+messages; tonic supports pbrs and prost messages. Use the same codec to
+compare transport costs, and tonic/prost to compare complete implementations.
+
+`load` saves its metrics before returning exit code 1 for failed, timed-out,
+rejected, unfinished, or empty runs. Exit code 2 means invalid CLI options.
+Reports include offered, dispatched, completed, successful, failed,
+unstarted, and unfinished counts. Timeouts are a subset of failures;
+unfinished calls are included in failures but have not completed. Queue
+rejections are included in unstarted calls. Invalid timing values fail
+parsing instead of panicking.
+
+A Linux diagnostic covers native pairs, tonic/prost pairs, and both mixed
+directions across all call shapes, four payload sizes, plaintext/TLS, and
+identity/gzip:
+
+```sh
+cargo build --manifest-path rpc-bench/Cargo.toml --locked --release
+python3 scripts/grpc-load-smoke.py --binary target/release/rpc-bench \
+  --output target/grpc-load-smoke
+```
+
+The output contains endpoint logs, terminal accounting, CPU counters, sampled
+RSS, commands, order seed, and a binary digest. It tests workload completion;
+it leaves performance qualification false. CPU windows include connection
+setup, and the client counter includes process startup. Per-side steady-state
+instructions and allocations, higher concurrency, dedicated-host timing,
+and the production soak remain separate checks.
+
 ## What is ready, and what is still missing
 
 The [SB-10 records](../docs/evidence/qps-sb10.md) show official async scenarios
@@ -272,7 +304,7 @@ reference peers, dedicated hosts and randomized paired runs remain open.
 
 ## 6. Artifacts and Local Proof
 
-Every benchmark run produces verifiable, immutable evidence in `target/qps-logs/<timestamp>_<pid>/`:
+The QPS runner saves each run in `target/qps-logs/<timestamp>_<pid>/`:
 
 1. **`summary.json`**: Tabular benchmark execution results containing scenario name,
    peer direction, status and the metrics the selected driver actually exports.
@@ -304,8 +336,5 @@ Every benchmark run produces verifiable, immutable evidence in `target/qps-logs/
    The proof always leaves `claim_eligible` false: accounting alone does not
    establish a benchmark-contract performance claim.
 
-### No Cloud Deployment Required
-In accordance with task BM-11 acceptance criteria:
-- All driver control RPCs and data-plane benchmarks execute locally over loopback.
-- Native worker stats are consumed without modification or schema trimming.
-- No Google Cloud deployment, BigQuery project credentials, or external uploads are required to prove local adapter qualification.
+The worker and driver can run over loopback. Local adapter checks need no
+cloud deployment, BigQuery credentials, or external uploads.

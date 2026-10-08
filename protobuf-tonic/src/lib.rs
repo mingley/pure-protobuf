@@ -1,7 +1,7 @@
-//! tonic `Codec` over **pbrs** (`Parse` / `Serialize`).
+//! A tonic `Codec` for pbrs messages using `Parse` and `Serialize`.
 //!
-//! Not `tonic-prost`. These types cannot implement `prost::Message`.
-//! The kernel crate does not depend on tonic.
+//! Keeps tonic transport and middleware while using pbrs-generated messages.
+//! Code that requires `prost::Message` needs an adapter.
 
 extern crate self as protobuf_tonic;
 

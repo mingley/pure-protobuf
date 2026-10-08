@@ -24,7 +24,6 @@ also distinct Rust traits from those exported by Google's crate.
 | **Field Presence** | `Option<T>` for optional / message | Accessors: `has_foo()`, `foo()`, `clear_foo()` |
 | **Repeated Fields** | `Vec<T>` | `RepeatedView<T>` / `Vec<T>` |
 | **String Fields** | Standard `String` | Small-string optimized (SSO <= 23 bytes) |
-| **C/C++ Dependencies** | None (pure Rust) | None (pure Rust) |
 
 ### Code Migration Example
 
@@ -337,16 +336,15 @@ Use `pbrs_grpc::Endpoint` when porting code that already builds tonic
 
 ## 3. Migrating from Google upb (`protobuf` 4.x crate)
 
-Google's official `protobuf` 4.x crate wraps the C-based `upb` kernel through
-foreign function interface (FFI). `pbrs` keeps the runtime in Rust.
+Google's `protobuf` 4.x crate uses the upb kernel. `pbrs` uses its own runtime.
 
-- **Build complexity**: `protobuf` 4.x requires a C/C++ compiler toolchain.
-  `pbrs` is 100% pure Rust and builds with standard `cargo build`.
-- **Memory management**: `upb` allocates messages in arenas (`upb_Arena`).
+- **Build tools**: `protobuf` 4.x requires a C/C++ compiler. Build `pbrs` with
+  Cargo; compiling application `.proto` files also needs `protoc`.
+- **Storage**: `upb` allocates messages in arenas (`upb_Arena`).
   `pbrs` uses Rust heap allocation with small-string optimizations and
   zero-allocation empty collections.
-- **Safety**: `pbrs` removes the C FFI boundary, memory leaks, and
-  segmentation faults from unsafe arena lifetimes.
+- **Compatibility**: the [compatibility guide](../codegen-compatibility.md)
+  lists the supported Google-generated consumers and runtime differences.
 
 ---
 

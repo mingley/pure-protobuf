@@ -1,0 +1,15 @@
+[package]
+name = "compression-devloop"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+pbrs-grpc = { path = "../../../pbrs-grpc" }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+debug = 1

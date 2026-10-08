@@ -1,9 +1,8 @@
-# World-class gRPC program
+# gRPC performance plan
 
-Our goal is to make pbrs the fastest gRPC implementation across useful client
-and server workloads, while preserving protocol correctness and predictable
-resource use. That is an engineering goal, not a current product claim.
-Published results must name the workload and competitors and show losses.
+Improve pbrs codec, client, and server performance. Measure CPU, allocations,
+and latency on comparable workloads, and preserve protocol behavior and
+resource limits. Publish the workload, competitors, and results, including losses.
 
 **Current audit:** [2026-09-29](../../audit-2026-09-29.md), source
 [`37683917`](https://github.com/mingley/pure-protobuf/tree/37683917c65fd06082a392f07e4d71bd587b18b9).

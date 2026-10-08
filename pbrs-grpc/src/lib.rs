@@ -1,21 +1,14 @@
-//! A pure-Rust gRPC kernel over [`pbrs`].
+//! An HTTP/2 gRPC client and server for [`pbrs`] and optional Prost messages.
 //!
-//! `pbrs-grpc` speaks gRPC over HTTP/2 without `tonic`. It is a *kernel*: the
-//! protocol, the framing, the dispatch, and the safety limits, with nothing
-//! layered on top that you did not ask for. The gRPC framing, dispatch,
-//! transport, TLS, and codec modules forbid `unsafe`; two Linux-only OS helper
-//! paths use scoped, documented `unsafe` for syscalls.
+//! Supports unary and streaming calls, generated service stubs, TLS,
+//! compression, and configurable connection, RPC, and message limits.
+//! Optional features add Tower and tonic integration.
 //!
-//! No C or C++ is compiled into the shipping build. Nothing in its dependency graph
-//! pulls in `cc`, `bindgen`, `pkg-config`, `aws-lc-rs`, `ring`, or a vendored
-//! zlib. gzip goes through `miniz_oxide`. TLS goes through rustls with the
-//! [Graviola](https://crates.io/crates/graviola) provider, which builds with
-//! `rustc` only. The FFI crates present are `libc` and `socket2` (a safe
-//! wrapper around socket syscalls). Tokio already used both; this crate takes
-//! a direct `socket2` dependency so TCP keepalive can be set. Neither compiles
-//! C. Applications may supply their own rustls configurations and crypto
-//! providers through [`ServerTls::from_rustls`] / [`ClientTls::from_rustls`];
-//! those providers belong to the application graph and may require C.
+//! Uses Tokio and an embedded `h2` backend. gzip and deflate use
+//! `miniz_oxide`; TLS uses rustls with
+//! [Graviola](https://crates.io/crates/graviola) by default.
+//! Supply application-owned TLS configs through [`ServerTls::from_rustls`]
+//! and [`ClientTls::from_rustls`].
 //!
 //! # Quickstart
 //!

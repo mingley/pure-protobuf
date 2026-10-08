@@ -265,6 +265,15 @@ pub struct RpcMetrics {
     /// Total number of RPC calls actually dispatched into the transport pipeline.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dispatched_rpcs: Option<u64>,
+    /// Dispatched calls whose response or timeout was observed before drain ended.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completed_rpcs: Option<u64>,
+    /// Offered calls never dispatched, including queue rejections.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unstarted_rpcs: Option<u64>,
+    /// Dispatched calls still active at the end of drain. Included in failed_rpcs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unfinished_rpcs: Option<u64>,
     /// Count of offered calls dropped/rejected due to bounded in-flight queue overflow.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub queue_overflows: Option<u64>,
@@ -314,6 +323,9 @@ impl RpcMetrics {
             scheduling_lag_nanos: None,
             offered_rpcs: None,
             dispatched_rpcs: None,
+            completed_rpcs: None,
+            unstarted_rpcs: None,
+            unfinished_rpcs: None,
             queue_overflows: None,
             client_resources: None,
             server_resources: None,

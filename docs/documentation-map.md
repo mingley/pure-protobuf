@@ -54,7 +54,7 @@ and [security policy](../SECURITY.md) cover maintenance and publishing.
 | How does this differ from upb? | [API and kernel comparison](upb.md) |
 | Why was a design chosen? | [Decision index](decisions/README.md) |
 | What should I work on next? | [Current queue](../TODO.md), [repository audit](audit-2026-09-29.md) |
-| What is the performance strategy? | [World-class gRPC program](plan/world-class/README.md) |
+| What is the performance strategy? | [gRPC performance plan](plan/world-class/README.md) |
 | What must change for existing prost/tonic systems to adopt pbrs? | [Adoption program](plan/adoption/README.md) |
 | Which workload cells still lose to tonic and prost, and who owns each? | [Dominance program](plan/dominance/README.md) |
 | What are the task and review rules? | [Foundation execution contract](plan/README.md#small-executor-contract) |
@@ -72,9 +72,8 @@ Start with the [benchmark guide](benchmarks.md), then use the
 The [benchmark contract](benchmark-contract.md) defines valid comparisons.
 The [profiling guide](profiling.md) explains how to identify a limiting path.
 
-A dated evidence note describes its recorded revision and host. It is not an
-automatic claim about current source. Closed-loop smoke tests, contended-host
-wall time and partial peer matrices must keep their limitations visible.
+A measurement note applies to its recorded revision, host, and workloads.
+Check those details before using a result to compare implementations.
 
 For protocol evidence, the executable entry points are
 [conformance](../scripts/conformance.sh) and

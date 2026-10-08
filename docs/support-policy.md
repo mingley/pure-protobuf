@@ -117,8 +117,8 @@ is required before any confirmed upload.
 - Licenses are limited to the `deny.toml` allowlist (Apache-2.0, MIT,
   BSD-3-Clause, ISC, Unicode-3.0, Zlib, plus the recorded
   `webpki-roots` exception). The `dep-audit` CI job plus
-  [scripts/pure-rust-audit.sh](../scripts/pure-rust-audit.sh) prove
-  each shipping profile stays pure-Rust with approved licenses.
+  [dependency audit](../scripts/pure-rust-audit.sh) check build dependencies
+  and licenses for each shipping profile.
 - The publisher packs from a disposable checkout of the committed
   SHA, probes `https://crates.io/api/v1/crates/<name>/<version>`
   before uploading, and records all published versions on the same

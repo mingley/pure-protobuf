@@ -697,3 +697,20 @@ is involved.
 - The 32-bit/big-endian lanes compile the scalar fallback: same
   classification code, same differentials; execution proof stays with the
   scheduled `target-matrix` CI job (§9 exclusions apply).
+
+---
+
+## 12. Compression benchmark allocator
+
+`bench/devloop/compression/src/allocator.rs` forwards allocation,
+reallocation, and deallocation to `std::alloc::System`. Each call preserves
+the original pointer, layout, and requested size. Counters use atomics,
+do not allocate, and never access the returned memory. Failed allocations
+are not counted. The diagnostic runs on one thread; its enabled window
+counts requested allocation bytes, including reallocations, rather than RSS
+or live heap usage.
+
+Its unit test checks 64-byte alignment, zeroing, contents after reallocation,
+and deallocation with the final layout. Run that source as an isolated Miri
+library as described in the [benchmark README](../bench/devloop/compression/README.md).
+The allocator is used only in the diagnostic executable.

@@ -10,7 +10,7 @@
 use crate::limits::MessageLimits;
 use crate::status::Status;
 use flate2::Compression;
-use flate2::read::GzDecoder;
+use flate2::bufread::GzDecoder;
 use flate2::write::GzEncoder;
 use std::io::{Read, Write};
 
@@ -75,6 +75,8 @@ pub fn decode_limited(payload: &[u8], limits: MessageLimits) -> Result<Vec<u8>, 
         .min(INFLATE_GUESS_CAP)
         .min(budget);
     let mut out = Vec::with_capacity(guess);
+    // The frame payload already implements BufRead as a byte slice. Avoid
+    // read::GzDecoder's extra 32 KiB input buffer and compressed-byte copy.
     GzDecoder::new(payload)
         .take(read_cap)
         .read_to_end(&mut out)

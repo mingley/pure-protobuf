@@ -13,10 +13,11 @@ cargo test -p pbrs-grpc-example-greeter
 
 Run these from the repository root with `protoc` installed. The
 [greeter example](../examples/greeter/README.md) exercises all four RPC shapes.
-`pbrs-grpc` is preview software; the [status page](status.md) distinguishes
-implemented features from completed production qualification.
+`pbrs-grpc` is a preview; the [status page](status.md) lists tested features
+and remaining work.
 
-`pbrs-grpc` is a standalone, pure-Rust gRPC client and server kernel built over [`pbrs`](../README.md). It has no C compiler requirement and runs directly on prior-knowledge HTTP/2. The gRPC framing, dispatch, transport, TLS, and codec modules forbid unsafe; two Linux-only OS helpers use scoped, documented unsafe for socket/user-timeout and CPU-affinity syscalls.
+`pbrs-grpc` runs on prior-knowledge HTTP/2 with generated [`pbrs`](../README.md)
+messages. See [architecture](architecture.md) for transport and runtime details.
 
 <a id="quickstart"></a>
 ## Quickstart
@@ -241,7 +242,14 @@ The sections below summarize what ships and point to the detailed guides.
 <a id="in-process-connections"></a>
 ### 1. Transport security and topologies
 
-- **TLS and mutual TLS (mTLS)**: built-in constructors use `rustls` + Graviola and verifying WebPKI policies. Certificate verification is not optional for built-in constructors. `ServerTls::from_rustls` and `ClientTls::from_rustls` accept trusted application-owned `Arc<rustls::ServerConfig>` / `Arc<rustls::ClientConfig>` values, retaining their provider, verifier, certificate resolver and session policy. Configs must advertise ALPN `h2`, and the negotiated protocol must be `h2`. Callers own custom verifier security and rotation/ticket policy; an opaque custom verifier cannot be certified by this wrapper. Disabling verification is unsupported. See the [caller-config contract](decisions/caller-rustls-config.md). Inspect peer certificates through `Rpc::peer_identity`.
+- **TLS and mutual TLS (mTLS)**: built-in constructors use rustls, Graviola,
+  and WebPKI certificate verification. `ServerTls::from_rustls` and
+  `ClientTls::from_rustls` accept application-owned configs, including their
+  provider, verifier, certificate resolver, and session policy. Callers manage
+  verification, certificate rotation, and session policy in custom configs.
+  ALPN `h2` is required. Disabling verification is unsupported.
+  Inspect peer certificates through `Rpc::peer_identity`.
+  See the [caller-config reference](decisions/caller-rustls-config.md).
 - **Unix Domain Sockets (UDS)**: low-latency local inter-process communication (IPC) with `serve_unix_unlink` and peer credentials through `Rpc::peer_cred`.
 - **In-process channels (`from_io`)**: in-memory channels using `tokio::io::duplex`. In-process `from_io` connections have no transparent retry.
 - **HTTP CONNECT proxy**: TCP dials consult `HTTPS_PROXY` / `NO_PROXY` and tunnel with CONNECT when the target is not bypassed. TLS still runs end-to-end above the tunnel.

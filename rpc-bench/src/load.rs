@@ -317,6 +317,9 @@ impl LoadRecord {
         );
         m.offered_rpcs = Some(self.offered_calls);
         m.dispatched_rpcs = Some(self.dispatched_calls);
+        m.completed_rpcs = Some(self.completed_calls);
+        m.unstarted_rpcs = Some(self.unstarted_calls);
+        m.unfinished_rpcs = Some(self.unfinished_calls);
         m.queue_overflows = Some(self.rejected_calls);
         m.timeouts = Some(self.timed_out_calls);
         m.status_errors = self.status_errors.clone();
@@ -324,6 +327,36 @@ impl LoadRecord {
         m.e2e_latency_nanos = self.e2e_latency_distribution();
         m.service_latency_nanos = self.service_latency_distribution();
         m
+    }
+
+    /// Require a nonempty run in which every offered call completed successfully.
+    /// Failed runs still have useful diagnostics; callers should save them first.
+    pub fn require_success(&self) -> Result<(), String> {
+        if self.successful_calls > 0
+            && self.offered_calls == self.dispatched_calls
+            && self.dispatched_calls == self.completed_calls
+            && self.completed_calls == self.successful_calls
+            && self.failed_calls == 0
+            && self.timed_out_calls == 0
+            && self.rejected_calls == 0
+            && self.unstarted_calls == 0
+            && self.unfinished_calls == 0
+            && self.status_errors.is_empty()
+        {
+            return Ok(());
+        }
+        Err(format!(
+            "load run failed: offered={} dispatched={} completed={} successful={} failed={} timed_out={} rejected={} unstarted={} unfinished={}",
+            self.offered_calls,
+            self.dispatched_calls,
+            self.completed_calls,
+            self.successful_calls,
+            self.failed_calls,
+            self.timed_out_calls,
+            self.rejected_calls,
+            self.unstarted_calls,
+            self.unfinished_calls,
+        ))
     }
 
     /// Compute statistical summary of scheduling lag.
@@ -968,6 +1001,9 @@ mod tests {
         assert_eq!(record.unstarted_calls, 0);
         assert_eq!(record.successful_calls, record.completed_calls);
         assert_eq!(record.failed_calls, 0);
+        record
+            .require_success()
+            .expect("all offered calls succeeded");
 
         // In closed-loop, scheduling lag is 0
         let lag_summary = record.scheduling_lag_summary().unwrap();
@@ -1092,6 +1128,10 @@ mod tests {
         assert_eq!(observed.load(Ordering::SeqCst), 0);
         assert_eq!(record.completed_calls, 0);
         assert_eq!(record.unfinished_calls, record.dispatched_calls);
+        assert!(record.require_success().is_err());
+        let metrics = record.to_rpc_metrics();
+        assert_eq!(metrics.completed_rpcs, Some(0));
+        assert_eq!(metrics.unfinished_rpcs, Some(record.dispatched_calls));
         assert_eq!(
             record.status_errors.get("UNFINISHED"),
             Some(&record.unfinished_calls)
@@ -1203,9 +1243,11 @@ mod tests {
         );
         assert!(record.dispatched_calls <= cap as u64 + 10);
         assert!(record.status_errors.contains_key("QUEUE_OVERFLOW"));
+        assert!(record.require_success().is_err());
 
         let metrics = record.to_rpc_metrics();
         assert_eq!(metrics.queue_overflows, Some(record.rejected_calls));
+        assert_eq!(metrics.unstarted_rpcs, Some(record.unstarted_calls));
     }
 
     #[tokio::test]
@@ -1297,6 +1339,7 @@ mod tests {
             .await;
 
         assert!(record.timed_out_calls > 0);
+        assert!(record.require_success().is_err());
         assert_eq!(record.timed_out_calls, record.failed_calls);
         assert_eq!(record.successful_calls, 0);
         assert!(record.status_errors.contains_key("DEADLINE_EXCEEDED"));
@@ -1328,6 +1371,7 @@ mod tests {
             .await;
 
         assert_eq!(record.failed_calls, record.completed_calls);
+        assert!(record.require_success().is_err());
         assert_eq!(record.successful_calls, 0);
         assert_eq!(
             record
@@ -1398,6 +1442,20 @@ mod tests {
         assert_eq!(metrics.failed_rpcs, record.failed_calls);
         assert_eq!(metrics.offered_rpcs, Some(record.offered_calls));
         assert_eq!(metrics.dispatched_rpcs, Some(record.dispatched_calls));
+        assert_eq!(metrics.completed_rpcs, Some(record.completed_calls));
+        assert_eq!(metrics.unstarted_rpcs, Some(record.unstarted_calls));
+        assert_eq!(metrics.unfinished_rpcs, Some(record.unfinished_calls));
         assert!(metrics.scheduling_lag_nanos.is_some());
+        record.require_success().expect("all four calls completed");
+
+        let empty =
+            LoadGenerator::new(LoadConfig::closed(1, Duration::from_millis(1)).with_max_calls(0))
+                .run(|| async { Ok(()) })
+                .await;
+        assert_eq!(empty.offered_calls, 0);
+        assert!(
+            empty.require_success().is_err(),
+            "no calls cannot qualify a run"
+        );
     }
 }

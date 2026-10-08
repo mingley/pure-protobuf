@@ -1,10 +1,8 @@
-# Dominance program: better than tonic and prost in every cell
+# Client and server comparison plan
 
-pbrs-grpc should be the better choice in every case, not just on average. For
-every workload cell, it should use less CPU, fewer allocations and less wall
-time than tonic with prost. That must hold for clients and servers
-separately, and with both prost messages and pbrs messages. This is a program
-target, not a current claim.
+Compare pbrs-grpc with tonic and prost on each workload. The target is lower
+CPU, allocation count, and wall time for clients and servers separately,
+using both prost and pbrs messages. Track each loss until a rerun shows improvement.
 
 **Coordinator:** Michael Ingley.
 **Relationship to other programs:** the
@@ -75,13 +73,16 @@ them, and any loss it finds goes on the ledger.
 
 ## Where the CPU goes
 
-Same-process attribution in [h2 costs](../../evidence/h2-costs.md) puts
-Tokio scheduling at 54–59% of self instructions on unary and server-streaming
-cells, and HTTP/2 framing at about 1%. The server-streaming wakeup proxy was
-14.8 involuntary context switches per RPC. [RX-08](../../evidence/rx-08.md)
-found only sub-2% local fixes. So the margin will come from structural cuts
-to task hops, spawns and wakeups on both sides (RX-10, SV-08, CL-08, CL-09),
-not from a new HTTP/2 engine. H2-04 stays blocked unless H2-16 finds a
+The [SV-09 profile](../../evidence/sv-09.md) identifies large future construction
+and copies as current candidates. Earlier scheduler percentages in
+[h2 costs](../../evidence/h2-costs.md) are not current per-side attribution;
+inclusive instruction shares also include transport and application work.
+RX-10a counts library task spawns. Wakeups, channel handoffs, and per-side
+instruction attribution remain open under RX-10.
+
+Measure structural changes to futures, task hops, and buffer ownership
+against the existing controls before adopting them. [RX-08](../../evidence/rx-08.md)
+found only sub-2% local fixes. H2-04 stays blocked unless H2-16 finds a
 modeled gain of at least 15%. Owned arenas stay rejected
 ([decision](../../decisions/owned-arena.md)).
 

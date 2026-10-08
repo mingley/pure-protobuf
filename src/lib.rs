@@ -1,7 +1,7 @@
-//! Pure-Rust protobuf kernel. Application API matches Google protobuf v4.
+//! Protocol Buffers runtime and code generator with the Google protobuf v4 API.
 //!
-//! Not crates.io `protobuf` 4.x (upb/C). Not prost.
-//! Official `protoc --rust_out` links against `__internal::runtime`.
+//! Generate messages with `protoc-gen-pbrs` or `pbrs::codegen`.
+//! Google's `protoc --rust_out` output uses the separate compatibility runtime.
 //!
 //! ```ignore
 //! pbrs = { git = "https://github.com/mingley/pure-protobuf" }

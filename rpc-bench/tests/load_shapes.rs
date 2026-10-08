@@ -321,3 +321,82 @@ fn load_rejects_invalid_flag_mixes() {
     assert_eq!(code, 1, "tls loopback: {text}");
     assert!(text.contains("plaintext-only"), "tls loopback: {text}");
 }
+
+#[test]
+fn load_rejects_nonfinite_and_unrepresentable_timing_without_panicking() {
+    for flag in ["--rate", "--duration-secs", "--latency-rtt-ms"] {
+        for value in ["NaN", "inf", "-inf", "1e300"] {
+            let arg = format!("{flag}={value}");
+            let (code, text) = run_load(&[&arg]);
+            assert_eq!(code, 2, "{arg}: {text}");
+            assert!(!text.contains("panicked"), "{arg}: {text}");
+        }
+    }
+    for arg in ["--rate=1e-300", "--duration-secs=1e-300"] {
+        let (code, text) = run_load(&[arg]);
+        assert_eq!(code, 2, "{arg}: {text}");
+    }
+}
+
+struct StopServer(std::process::Child);
+
+impl Drop for StopServer {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "synchronous CLI test reads its saved report outside an async runtime"
+)]
+fn failed_rpc_validation_exits_nonzero_after_saving_complete_metrics() {
+    let binary = env!("CARGO_BIN_EXE_rpc-bench");
+    let mut server = StopServer(
+        Command::new(binary)
+            .args(["load-server", "--transport=native", "--port=0"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("start identity-only response server"),
+    );
+    let port = read_ready_port(&mut server.0);
+    for (transport, codec) in [("native", "pbrs"), ("tonic", "pbrs"), ("tonic", "prost")] {
+        let report = std::env::temp_dir().join(format!(
+            "pbrs-load-failure-{}-{transport}-{codec}.json",
+            std::process::id(),
+        ));
+        let out = Command::new(binary)
+            .args([
+                "load",
+                "--duration-secs=0.05",
+                "--max-in-flight=1",
+                "--compression=gzip",
+            ])
+            .arg(format!("--transport={transport}"))
+            .arg(format!("--codec={codec}"))
+            .arg(format!("--server_addr=127.0.0.1:{port}"))
+            .arg(format!("--output={}", report.display()))
+            .output()
+            .expect("run mismatched response encoding");
+        let saved = std::fs::read(&report).expect("failed run must save its report");
+        std::fs::remove_file(report).expect("remove test report");
+        let metrics: serde_json::Value = serde_json::from_slice(&saved).expect("parse report");
+        let text = format!(
+            "{}{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert_eq!(out.status.code(), Some(1), "{transport}/{codec}: {text}");
+        assert!(text.contains("load run failed"), "{text}");
+        assert!(metrics["failed_rpcs"].as_u64().unwrap() > 0, "{metrics}");
+        assert_eq!(metrics["successful_rpcs"], 0);
+        assert_eq!(metrics["offered_rpcs"], metrics["dispatched_rpcs"]);
+        assert_eq!(metrics["dispatched_rpcs"], metrics["completed_rpcs"]);
+        assert_eq!(metrics["completed_rpcs"], metrics["failed_rpcs"]);
+        assert_eq!(metrics["unstarted_rpcs"], 0);
+        assert_eq!(metrics["unfinished_rpcs"], 0);
+    }
+}
