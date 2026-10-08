@@ -48,6 +48,17 @@ class CampaignEvidenceTests(unittest.TestCase):
         value["qualification"]["soak_24h"]["status"] = "completed"
         self.assertTrue(CAMPAIGN.validate_report(value))
 
+    def test_failed_24_hour_attempt_cannot_be_marked_completed(self):
+        value = report()
+        value.update(duration_requested_seconds=86400, duration_actual_seconds=503, exit_code=101)
+        value["qualification"]["soak_24h"]["status"] = "completed"
+        self.assertIn("24-hour disposition does not match elapsed duration and execution outcome", CAMPAIGN.validate_report(value))
+        self.assertEqual(CAMPAIGN.soak_disposition(86400, 503, 101), "failed")
+
+    def test_elapsed_day_with_resource_failure_is_not_completed(self):
+        self.assertEqual(CAMPAIGN.soak_disposition(86400, 86401, 0, ["unrecovered permit"]), "failed")
+        self.assertEqual(CAMPAIGN.soak_disposition(86400, 86401, 0), "completed")
+
     def test_short_actual_duration_is_rejected(self):
         value = report()
         value["duration_requested_seconds"] = 86400

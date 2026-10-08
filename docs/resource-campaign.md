@@ -37,9 +37,10 @@ Tokio tasks. Independent process samples must cover the requested duration.
 Missing phases, profiles, faults, failed children or unrecovered resources fail
 validation. `progress.json` records the running PID and final disposition.
 
-A preview cannot become a completed 24-hour run. `soak_24h.status=completed`
-records elapsed duration; the independent validator and `smoke.status` must
-also pass. Overall `qualified` remains false: this campaign does not measure
+A preview cannot become a completed 24-hour run. An interrupted or failed
+24-hour attempt records `soak_24h.status=failed`. `completed` requires the
+requested duration, a successful child, and passing resource checks. The
+independent validator and `smoke.status` must also pass. Overall `qualified` remains false: this campaign does not measure
 allocator high-water or kernel socket memory, separate endpoint resources,
 encrypted HTTP/2 fault injection, or dedicated-host latency/goodput. It does
 not replace feature, conformance and release gates. The environment must remain

@@ -112,6 +112,15 @@ def observe_process(pid, elapsed):
             "file_descriptors": len(list((Path("/proc") / str(pid) / "fd").iterdir()))}
 
 
+def soak_disposition(requested, actual, exit_code, failures=()):
+    if type(requested) not in (int, float) or not math.isfinite(requested) or requested < 86400:
+        return "not_run"
+    if (type(actual) not in (int, float) or not math.isfinite(actual)
+            or actual < requested or exit_code != 0 or failures):
+        return "failed"
+    return "completed"
+
+
 def validate_report(report):
     errors = []
     if report.get("schema") != "pbrs.resource-campaign.v2":
@@ -147,9 +156,10 @@ def validate_report(report):
     if report.get("qualification", {}).get("qualified") is not False:
         errors.append("a short diagnostic cannot be accepted as production qualification")
     soak_status = report.get("qualification", {}).get("soak_24h", {}).get("status")
-    expected = "completed" if isinstance(requested, (int, float)) and requested >= 86400 else "not_run"
+    expected = soak_disposition(requested, actual, report.get("exit_code"),
+                                report.get("smoke", {}).get("failures", []))
     if soak_status != expected:
-        errors.append("24-hour disposition does not match requested duration")
+        errors.append("24-hour disposition does not match elapsed duration and execution outcome")
     if report.get("exit_code") != 0:
         errors.append("resource test child failed")
     if report.get("smoke", {}).get("status") == "failed" or report.get("smoke", {}).get("failures"):
@@ -313,7 +323,7 @@ def run(args):
               "duration_requested_seconds": args.duration, "duration_actual_seconds": time.monotonic() - start,
               "events": events, "process_samples": samples, "exit_code": exit_code,
               "qualification": {"qualified": False, "tier": "shared-host-resource-campaign",
-                  "soak_24h": {"status": "completed" if args.duration >= 86400 else "not_run",
+                  "soak_24h": {"status": soak_disposition(args.duration, time.monotonic() - start, exit_code, failures),
                                "reason": "resource campaign duration; overall QG-06 acceptance remains separate"},
                   "not_run": ["independent-process resource attribution", "allocator high-water", "kernel socket memory",
                               "TLS RST_STREAM/GOAWAY frame injection", "dedicated-host latency/goodput qualification",
@@ -325,6 +335,8 @@ def run(args):
             errors.append("source changed during execution")
     except ValueError as error:
         errors.append(str(error))
+    report["qualification"]["soak_24h"]["status"] = soak_disposition(
+        args.duration, report["duration_actual_seconds"], exit_code, errors)
     report["smoke"] = {"status": "failed" if errors else "passed", "failures": sorted(set(errors))}
     (output / "report.json").write_text(json.dumps(report, separators=(",", ":")) + "\n")
     (output / "progress.json").write_text(json.dumps({"state": report["smoke"]["status"],

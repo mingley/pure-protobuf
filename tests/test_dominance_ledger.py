@@ -1,5 +1,7 @@
 """Counter validity and N/2N workload matching for the diagnostic ledger."""
 import importlib.util
+import json
+import tempfile
 from pathlib import Path
 import unittest
 
@@ -31,6 +33,57 @@ class DifferentialTests(unittest.TestCase):
                 "tls": True, "compression": "gzip", "connections": 1, "in_flight": 16, "repeat": 0}
         for update in [{"repeat": 1}, {"connections": 64}, {"shape": "bidi"}, {"tls": False}]:
             self.assertNotEqual(LEDGER.key(cell), LEDGER.key({**cell, **update}))
+
+
+class FailedCaptureTests(unittest.TestCase):
+    def capture(self, path, count, failed=False):
+        path.mkdir()
+        cells = [{"pair": list(pair), "shape": "bidi", "payload_bytes": 1024,
+                  "tls": False, "compression": "identity", "connections": 1,
+                  "in_flight": 1, "repeat": 0}
+                 for pair in [LEDGER.SIDES["client"][1], LEDGER.REFERENCE]]
+        runs = []
+        for index, cell in enumerate(cells):
+            invalid = failed and index == 0
+            row = {"cell": cell, "passed": not invalid,
+                   "metrics": {"successful_rpcs": count - int(invalid)},
+                   "instruction_totals": {"client": 1000 + count * (10 if index == 0 else 20)}}
+            if invalid:
+                row["error"] = "one RPC timed out"
+            name = f"run-{index}.json"
+            (path / name).write_text(json.dumps(row))
+            runs.append({"path": name, "passed": not invalid})
+        (path / "report.json").write_text(json.dumps({
+            "schema": "pbrs.load-smoke.v2", "passed": not failed, "binary_unchanged": True,
+            "source_unchanged": True, "source_verified": True, "dirty": False,
+            "binary_sha256": "a" * 64, "head": "b" * 40, "rpc_count": count,
+            "callgrind": "valgrind", "allocation_counts": True, "host": {},
+            "cpu_affinity": [0], "cells": cells, "runs": runs}))
+
+    def test_invalid_pair_cannot_turn_into_a_win_in_partial_mode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            small, large = Path(directory) / "small", Path(directory) / "large"
+            self.capture(small, 8)
+            self.capture(large, 16, failed=True)
+            with self.assertRaises(ValueError):
+                LEDGER.compare(small, large)
+            result = LEDGER.compare(small, large, allow_failed=True)
+            self.assertFalse(result["qualified"])
+            self.assertEqual(len(result["rows"]), len(LEDGER.REQUIRED_METRICS))
+            for row in result["rows"]:
+                self.assertEqual(row["disposition"], "failed_capture")
+                self.assertIsNone(row["ratio"])
+                self.assertEqual(len(row["failed_captures"]), 1)
+
+    def test_partial_mode_still_rejects_source_drift(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "capture"
+            self.capture(path, 8, failed=True)
+            manifest = json.loads((path / "report.json").read_text())
+            manifest["source_unchanged"] = False
+            (path / "report.json").write_text(json.dumps(manifest))
+            with self.assertRaises(ValueError):
+                LEDGER.load(path, allow_failed=True)
 
 
 if __name__ == "__main__":
