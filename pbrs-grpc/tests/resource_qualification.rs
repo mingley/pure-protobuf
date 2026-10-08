@@ -500,7 +500,13 @@ async fn run_resource_cycles(campaign: bool) {
                 server.serve_with_shutdown(listener, shutdown).await
             }
         });
-        let config = ChannelConfig::default()
+        // A live write overlay does not change the dial-time HTTP/2 buffer.
+        let config = if campaign {
+            ChannelConfig::default().max_send_buffer_size(SEND_BUFFER)
+        } else {
+            ChannelConfig::default()
+        };
+        let config = config
             .stream_buffer(1)
             .initial_stream_window_size(1024)
             .initial_connection_window_size(4096);

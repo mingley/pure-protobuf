@@ -1193,11 +1193,15 @@ async fn test_competing_small_rpcs_progress_under_bulk_stream_load() {
     let payload = parts.join(",");
     let bulk_progress = Arc::new(AtomicUsize::new(0));
     let mut bulk_handles = Vec::new();
+    // Headers can arrive well before the first large response. Start the
+    // competing workload with every bulk reader ready to consume DATA.
+    let bulk_ready = Arc::new(tokio::sync::Barrier::new(4));
     for _ in 0..3 {
         let client = bulk_client.clone();
         let parts = parts.clone();
         let payload = payload.clone();
         let progress = bulk_progress.clone();
+        let ready = bulk_ready.clone();
         bulk_handles.push(tokio::spawn(async move {
             let mut stream = tokio::time::timeout(
                 PROBE_TIMEOUT,
@@ -1215,6 +1219,9 @@ async fn test_competing_small_rpcs_progress_under_bulk_stream_load() {
                     .expect("bulk stream truncated");
                 assert_eq!(name_of(&message), *expected, "bulk stream item {i}");
                 progress.fetch_add(1, Ordering::SeqCst);
+                if i == 0 {
+                    ready.wait().await;
+                }
                 tokio::time::sleep(Duration::from_millis(8)).await;
             }
             assert!(
@@ -1229,6 +1236,9 @@ async fn test_competing_small_rpcs_progress_under_bulk_stream_load() {
     permit.wait_for_active(3).await;
     assert_eq!(permit.active(), 3, "bulk streams must overlap");
 
+    tokio::time::timeout(PROBE_TIMEOUT, bulk_ready.wait())
+        .await
+        .expect("all bulk streams must deliver a response before measurement");
     let before = bulk_progress.load(Ordering::SeqCst);
     let server_queue_baseline = permit.server_queue_count();
     let record = run_small_calls(&client, &server, "small", 32).await;
@@ -1774,11 +1784,15 @@ async fn test_mixed_bulk_slow_idle_reset_fairness() {
     let payload = parts.join(",");
     let bulk_progress = Arc::new(AtomicUsize::new(0));
     let mut bulk_handles = Vec::new();
+    // Headers can arrive well before the first large response. Start the
+    // competing workload with every bulk reader ready to consume DATA.
+    let bulk_ready = Arc::new(tokio::sync::Barrier::new(3));
     for _ in 0..2 {
         let client = bulk_client.clone();
         let parts = parts.clone();
         let payload = payload.clone();
         let progress = bulk_progress.clone();
+        let ready = bulk_ready.clone();
         bulk_handles.push(tokio::spawn(async move {
             let mut stream = tokio::time::timeout(
                 PROBE_TIMEOUT,
@@ -1796,6 +1810,9 @@ async fn test_mixed_bulk_slow_idle_reset_fairness() {
                     .expect("bulk stream truncated");
                 assert_eq!(name_of(&message), *expected, "bulk stream item {i}");
                 progress.fetch_add(1, Ordering::SeqCst);
+                if i == 0 {
+                    ready.wait().await;
+                }
                 tokio::time::sleep(Duration::from_millis(8)).await;
             }
             assert!(
@@ -1917,6 +1934,9 @@ async fn test_mixed_bulk_slow_idle_reset_fairness() {
 
     let queue = QueueProbe::default();
     let client = GreeterClient::new(connect_client(addr).await.observer(queue.clone()));
+    tokio::time::timeout(PROBE_TIMEOUT, bulk_ready.wait())
+        .await
+        .expect("all bulk streams must deliver a response before measurement");
     let before_bulk = bulk_progress.load(Ordering::SeqCst);
     let before_resets = sent.load(Ordering::SeqCst);
     let server_queue_baseline = permit.server_queue_count();
