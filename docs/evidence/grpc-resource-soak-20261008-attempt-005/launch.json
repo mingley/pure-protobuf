@@ -1,0 +1,30 @@
+{
+  "observed_utc": "2026-10-08T22:58:08.667868+00:00",
+  "controller_pid": 99809,
+  "state": {
+    "state": "running_preview",
+    "source": "0a357d148286fc9badc7b9fcee26011dd880a6bc",
+    "build_profile": "release",
+    "duration_seconds": 30,
+    "started_unix_seconds": 1791500051.6886458,
+    "qualified": false,
+    "commands": [
+      [
+        "python3",
+        "/workspace/pure-protobuf/work/resource-campaign-candidate/scripts/grpc-resource-campaign.py",
+        "--source",
+        "0a357d148286fc9badc7b9fcee26011dd880a6bc",
+        "--duration",
+        "30",
+        "--output",
+        "/workspace/pure-protobuf/work/campaign-v5-005/preview",
+        "--seed",
+        "20261008",
+        "--build-profile",
+        "release"
+      ]
+    ]
+  },
+  "qualified": false,
+  "status": "release test build running; actual 24-hour child not yet started"
+}
