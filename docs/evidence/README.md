@@ -15,6 +15,8 @@ comparative claim. No category currently has a qualified performance win.
 
 | Record | What it contributes | How to read it |
 |---|---|---|
+| [Resource campaign, fourth attempt](grpc-resource-soak-20261008-attempt-004/README.md) | Passing independently validated preview, frozen executable, and actual-day launch with observed finite limits | Day started 2026-10-08 22:23:33 UTC; completion and final validation remain pending |
+| [Fresh endpoint matrix](grpc-endpoint-matrix-20261008-attempt-002/README.md) | Frozen release build, requested functional and separate native/Callgrind N/2N campaigns, guarded outcome publication | Build launched; no fresh measurement or performance win claimed yet |
 | [Response status and endpoint counter checks](grpc-response-status-20261008/README.md) | Partial-frame status and binary-log regressions, API doc cleanup, all-thread context-switch capture | Correctness and instrumentation checks; fresh measurements and qualification remain separate |
 | [Third resource campaign](grpc-resource-soak-20261008-attempt-003/README.md) | Corrected memory sampling and independent recovery probes | Preview failed on a TLS bidi response after 18.40 seconds; the day did not start |
 | [Second resource campaign](grpc-resource-soak-20261008-attempt-002/README.md) | Source-pinned preview with automatic outcome publication | Preview failed memory validation after 32.88 seconds; the day did not start |

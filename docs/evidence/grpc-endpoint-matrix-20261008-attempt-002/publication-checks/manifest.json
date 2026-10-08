@@ -47,5 +47,6 @@
     }
   ],
   "qualified": false,
-  "scope": "synthetic local Git publication controls only"
+  "scope": "synthetic local Git publication controls only",
+  "controller_sha256": "06391d6fba592a4bccfb02f321b305132a6ba7297aa197c7249a26efe0d7f3c0"
 }

@@ -1,0 +1,93 @@
+{
+  "observed_utc": "2026-10-08T22:24:28.056854+00:00",
+  "controller": {
+    "state": "running_24h",
+    "source": "50ac70e5c9818fe870719b37acede99f12710fe9",
+    "duration_seconds": 86400,
+    "started_unix_seconds": 1791498211.0605342,
+    "qualified": false,
+    "commands": [
+      [
+        "python3",
+        "/workspace/pure-protobuf/work/resource-campaign-candidate/scripts/grpc-resource-campaign.py",
+        "--source",
+        "50ac70e5c9818fe870719b37acede99f12710fe9",
+        "--duration",
+        "30",
+        "--output",
+        "/workspace/pure-protobuf/work/campaign-v4-004/preview",
+        "--seed",
+        "20261008"
+      ],
+      [
+        "python3",
+        "/workspace/pure-protobuf/work/resource-campaign-candidate/scripts/grpc-resource-campaign.py",
+        "--source",
+        "50ac70e5c9818fe870719b37acede99f12710fe9",
+        "--duration",
+        "86400",
+        "--output",
+        "/workspace/pure-protobuf/work/campaign-v4-004/24h",
+        "--seed",
+        "20261008"
+      ]
+    ]
+  },
+  "child": {
+    "state": "running",
+    "pid": 80789,
+    "source": {
+      "commit": "50ac70e5c9818fe870719b37acede99f12710fe9",
+      "tree": "61e2c7c98088f1af2bcd512cf90f7bf8bfa6c3e7",
+      "dirty": false,
+      "cargo_lock_sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5"
+    },
+    "started_unix_seconds": 1791498213.1962507,
+    "duration_requested_seconds": 86400.0,
+    "binary_sha256": "5dcc8c2a55d06b775ec7ffd7ea6b3619fb12f590b21f6fc064f36472e16b24d7",
+    "qualified": false
+  },
+  "observed_effective_process_limits": {
+    "address_space": [
+      1073741824,
+      1073741824
+    ],
+    "file_descriptors": [
+      128,
+      128
+    ],
+    "same_uid_processes": [
+      4096,
+      4096
+    ],
+    "cpu_seconds": [
+      86430,
+      86430
+    ],
+    "core_bytes": [
+      0,
+      0
+    ]
+  },
+  "preview": {
+    "source": {
+      "commit": "50ac70e5c9818fe870719b37acede99f12710fe9",
+      "tree": "61e2c7c98088f1af2bcd512cf90f7bf8bfa6c3e7",
+      "dirty": false,
+      "cargo_lock_sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5"
+    },
+    "duration_actual_seconds": 34.49582712100164,
+    "cycles": 8,
+    "runner_smoke": {
+      "status": "passed",
+      "failures": []
+    },
+    "independent_validation": {
+      "failures": [],
+      "qualified": false
+    }
+  },
+  "earliest_requested_finish_utc": "2026-10-09T22:23:33.196251+00:00",
+  "qualified": false,
+  "status": "running; no 24-hour completion claimed"
+}

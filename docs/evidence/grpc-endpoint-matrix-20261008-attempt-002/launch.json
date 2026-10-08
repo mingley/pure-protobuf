@@ -1,0 +1,45 @@
+{
+  "observed_utc": "2026-10-08T22:25:49.430939+00:00",
+  "controller_pid": 80819,
+  "controller": {
+    "source": "50ac70e5c9818fe870719b37acede99f12710fe9",
+    "state": "build",
+    "qualified": false,
+    "commands": [],
+    "concurrent_resource_campaign_at_start": {
+      "state": "running_24h",
+      "source": "50ac70e5c9818fe870719b37acede99f12710fe9",
+      "duration_seconds": 86400,
+      "started_unix_seconds": 1791498211.0605342,
+      "qualified": false,
+      "commands": [
+        [
+          "python3",
+          "/workspace/pure-protobuf/work/resource-campaign-candidate/scripts/grpc-resource-campaign.py",
+          "--source",
+          "50ac70e5c9818fe870719b37acede99f12710fe9",
+          "--duration",
+          "30",
+          "--output",
+          "/workspace/pure-protobuf/work/campaign-v4-004/preview",
+          "--seed",
+          "20261008"
+        ],
+        [
+          "python3",
+          "/workspace/pure-protobuf/work/resource-campaign-candidate/scripts/grpc-resource-campaign.py",
+          "--source",
+          "50ac70e5c9818fe870719b37acede99f12710fe9",
+          "--duration",
+          "86400",
+          "--output",
+          "/workspace/pure-protobuf/work/campaign-v4-004/24h",
+          "--seed",
+          "20261008"
+        ]
+      ]
+    }
+  },
+  "qualified": false,
+  "status": "release build running; no completed captures claimed"
+}
