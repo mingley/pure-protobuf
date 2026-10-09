@@ -1,0 +1,1230 @@
+{
+  "schema": "pbrs.counter-capsule.v1",
+  "archive": {
+    "name": "raw.tar.gz",
+    "sha256": "f9f7ea2b48e6485c1aad20f42eac641f3f1694c7f9cecbf14d8ff1b6cd96c381"
+  },
+  "files": [
+    {
+      "path": "group-030/n-1024/cell-069/run.json",
+      "bytes": 833645,
+      "sha256": "0768ac0c6ae6b5fe4572699b6162c7779a8eca2e301bdb1dc7868f9f8c0b1c24"
+    },
+    {
+      "path": "group-030/n-1024/cell-069/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-1024/cell-069/server.stdout",
+      "bytes": 351,
+      "sha256": "65e8e89593d5f65abf3c680855eb045e26ceac5580e092662ca8d19731e43a6d"
+    },
+    {
+      "path": "group-030/n-1024/cell-070/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-1024/cell-070/client.stdout",
+      "bytes": 922,
+      "sha256": "534042264ebb324fa2743b54746b52245f61b72ec36883d7639318b6669e6636"
+    },
+    {
+      "path": "group-030/n-1024/cell-070/metrics.json",
+      "bytes": 2776,
+      "sha256": "038621aad37d66d512e9b2b610ece7f83c1e0e928562151600610d1b306b0aa5"
+    },
+    {
+      "path": "group-030/n-1024/cell-070/run.json",
+      "bytes": 546483,
+      "sha256": "d58b9b97c0622a9581e8bc571edbff9a8d2de5d79cdb36d9802d9c8246de20a6"
+    },
+    {
+      "path": "group-030/n-1024/cell-070/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-1024/cell-070/server.stdout",
+      "bytes": 348,
+      "sha256": "3d00f3eafecc829b82d353138b2a685d3f37e923d24e2c8dbe16e447785b51ac"
+    },
+    {
+      "path": "group-030/n-1024/cell-071/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-1024/cell-071/client.stdout",
+      "bytes": 922,
+      "sha256": "bc691598834af94d34e61cdc82b86ab219852c1949a0d2ff74e95805386ea294"
+    },
+    {
+      "path": "group-030/n-1024/cell-071/metrics.json",
+      "bytes": 2269,
+      "sha256": "d5d9eff859025304dc239c9a5a3d8b7f788b53b09b2da71cfe83a0f2fb25011f"
+    },
+    {
+      "path": "group-030/n-1024/cell-071/run.json",
+      "bytes": 389082,
+      "sha256": "93c0327ef4858e6066bb0fead821d98aa6a9535598712fc7095cfe5ea7f5476b"
+    },
+    {
+      "path": "group-030/n-1024/cell-071/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-1024/cell-071/server.stdout",
+      "bytes": 349,
+      "sha256": "c77a594a7b83ab6d73b9f713b330c6db3be125352f8b68881eb1d195945bd6a3"
+    },
+    {
+      "path": "group-030/n-1024/cell-072/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-1024/cell-072/client.stdout",
+      "bytes": 916,
+      "sha256": "2f056c23cc48850dc2f85be67af4c78ae21f878616e70b7168839b9e565bde6c"
+    },
+    {
+      "path": "group-030/n-1024/cell-072/metrics.json",
+      "bytes": 2281,
+      "sha256": "adf03e8ed24c56287a9ef6d6e298c4cb85e256acfcebdc9c1ce8e81c6d8a6e17"
+    },
+    {
+      "path": "group-030/n-1024/cell-072/run.json",
+      "bytes": 1162780,
+      "sha256": "f7c816fab8fbe800cfd97ae4cf675f9c027d05c6cc1778e3ec2c856e17955b21"
+    },
+    {
+      "path": "group-030/n-1024/cell-072/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-1024/cell-072/server.stdout",
+      "bytes": 350,
+      "sha256": "95d35cbe55b1c286dacccf1d6f61a236f93c6c998e91d018f38a4a76dfff13d2"
+    },
+    {
+      "path": "group-030/n-1024/cell-073/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-1024/cell-073/client.stdout",
+      "bytes": 925,
+      "sha256": "ee24ce6e4fa8f67a87e79aca2be0a4b1306fd211ce88287f9fe77077b8ef54ad"
+    },
+    {
+      "path": "group-030/n-1024/cell-073/metrics.json",
+      "bytes": 2531,
+      "sha256": "547f54b07e99859b7c80d7a9c345f73a64c40ffd9d27a80d06bc43de8400f246"
+    },
+    {
+      "path": "group-030/n-1024/cell-073/run.json",
+      "bytes": 831520,
+      "sha256": "984a6d7277547408ce7707a7cced2240d5d8954127872002589b29f39f68ae51"
+    },
+    {
+      "path": "group-030/n-1024/cell-073/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-1024/cell-073/server.stdout",
+      "bytes": 351,
+      "sha256": "0423c57bc7976fb43ca2f6d602d40d6fb849fceaba64dd0b8044e0e8beb94c98"
+    },
+    {
+      "path": "group-030/n-1024/cell-074/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-1024/cell-074/client.stdout",
+      "bytes": 922,
+      "sha256": "f4d50687876fa3ed4fe7de80bb3355ee3a6cc2b1e43fcf38fce0cbfa56d169a7"
+    },
+    {
+      "path": "group-030/n-1024/cell-074/metrics.json",
+      "bytes": 2271,
+      "sha256": "af2d0ebe5c5c37424107710d429de542635c42d3a31073755e937728215f2506"
+    },
+    {
+      "path": "group-030/n-1024/cell-074/run.json",
+      "bytes": 409895,
+      "sha256": "837d3e8fcae73526568981ff5d72c7c7adbb3aaca44be99515817663ab42bcf8"
+    },
+    {
+      "path": "group-030/n-1024/cell-074/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-1024/cell-074/server.stdout",
+      "bytes": 348,
+      "sha256": "9a98db5545f9c8ac99b9adf1b628248703a1552a50a6abc15c24b499e88ab2d0"
+    },
+    {
+      "path": "group-030/n-1024/harness.py",
+      "bytes": 22437,
+      "sha256": "804880a6541cf3aee7dbdd15b3adf8ceb32bc4c79c3ffd3e536a006426109d8b"
+    },
+    {
+      "path": "group-030/n-1024/manifest.json",
+      "bytes": 23450,
+      "sha256": "f034f22271055d98fd0b2626580d129f22d3563e088d3ecca2e231e853e5d232"
+    },
+    {
+      "path": "group-030/n-1024/partial-report.json",
+      "bytes": 28629,
+      "sha256": "fba7756ba28fe7f748464d43b57ee763bb2c6e96dee2286a178b22674de325f4"
+    },
+    {
+      "path": "group-030/n-1024/report.json",
+      "bytes": 28781,
+      "sha256": "869cdb0c7714ce0406f4ac0947cebe9e3b032d3eeb68d6a13690ec6d786ecbf2"
+    },
+    {
+      "path": "group-030/n-2048/cell-000/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-000/client.stdout",
+      "bytes": 924,
+      "sha256": "01f56631e4ed008cb9cf08c4e07b3713020d97772cab4ba4adfeeb636db842b0"
+    },
+    {
+      "path": "group-030/n-2048/cell-000/metrics.json",
+      "bytes": 2524,
+      "sha256": "9fa89933610e7d48dbd15a3f9cae7345f5553b2b7997bdbde49b88b7c85c3299"
+    },
+    {
+      "path": "group-030/n-2048/cell-000/run.json",
+      "bytes": 714203,
+      "sha256": "f65d8f99b90535604feb5b75151334916afc1ea53ac5ae67d29ebfb4aeb3d694"
+    },
+    {
+      "path": "group-030/n-2048/cell-000/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-000/server.stdout",
+      "bytes": 349,
+      "sha256": "1378a9c31637f623a567faad574a8e36fda3f80054d83d55123dc8c8dbaa99ba"
+    },
+    {
+      "path": "group-030/n-2048/cell-001/client.stderr",
+      "bytes": 157,
+      "sha256": "5c62d3b34b9c4ce2a33a7186fd5f8b64448e345a2296c8a2040fc2e1ce70263b"
+    },
+    {
+      "path": "group-030/n-2048/cell-001/client.stdout",
+      "bytes": 917,
+      "sha256": "3696b7fac3405fcc12fd75c0dc1e5b3f038fe0d6bd5417ca41712c7fb3682e0b"
+    },
+    {
+      "path": "group-030/n-2048/cell-001/metrics.json",
+      "bytes": 3364,
+      "sha256": "462ac612211aa8a67b11cce1eb0488c8c6da3a3ec8e35662de090288106886b7"
+    },
+    {
+      "path": "group-030/n-2048/cell-001/run.json",
+      "bytes": 1523551,
+      "sha256": "783fbfab7846d9ac2408a7cdf7dda1b2959e929730873891174cb5a1d6488b71"
+    },
+    {
+      "path": "group-030/n-2048/cell-001/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-001/server.stdout",
+      "bytes": 71,
+      "sha256": "65c604d7cf9096b97f33d7ad803595dbd2fda684b387438eeb060a68f9a02623"
+    },
+    {
+      "path": "group-030/n-2048/cell-002/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-002/client.stdout",
+      "bytes": 924,
+      "sha256": "f7e44d5b65dc478a2fd48dedaa45208faa7aaf91ca584677129c43c3c206c2d7"
+    },
+    {
+      "path": "group-030/n-2048/cell-002/metrics.json",
+      "bytes": 2282,
+      "sha256": "c46f4b03fb6970d896c0ba87e0508ab69ed7d6cc197b996e9e90fff10563a111"
+    },
+    {
+      "path": "group-030/n-2048/cell-002/run.json",
+      "bytes": 1245231,
+      "sha256": "c92b560dbb8ed27ea00f6108ae76c7752f77000c1e71426ccb166bfe29aad427"
+    },
+    {
+      "path": "group-030/n-2048/cell-002/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-002/server.stdout",
+      "bytes": 350,
+      "sha256": "f10ff910ea24e1c22990dfcbb30333fff66c9cb8c8d0f946e445ec9b8de6679c"
+    },
+    {
+      "path": "group-030/n-2048/cell-003/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-003/client.stdout",
+      "bytes": 914,
+      "sha256": "dd4264fed27a78e8e3cd075d667fb5f408f45a5325d120ece19349948636b239"
+    },
+    {
+      "path": "group-030/n-2048/cell-003/metrics.json",
+      "bytes": 2512,
+      "sha256": "ccc178c45edae1eafc51bf0a07aa26e68073e6213d2ee4f9c6b5ca11b700e80f"
+    },
+    {
+      "path": "group-030/n-2048/cell-003/run.json",
+      "bytes": 315268,
+      "sha256": "35da350a348d5da4ef0d9d4449087fa1c145924ef8eb3a246104cc30e90a0e5a"
+    },
+    {
+      "path": "group-030/n-2048/cell-003/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-003/server.stdout",
+      "bytes": 350,
+      "sha256": "dd6a8c36d2d53e138abdd6653c03c4b9a6eedee05a87ce0fe42b882022dd63c3"
+    },
+    {
+      "path": "group-030/n-2048/cell-004/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-004/client.stdout",
+      "bytes": 914,
+      "sha256": "27279494156c9a9dd2eb81fdef178b66448491f246a9f5b90dbda45d7361f060"
+    },
+    {
+      "path": "group-030/n-2048/cell-004/metrics.json",
+      "bytes": 2261,
+      "sha256": "d68bcbc12405c8fc9f027777147af8b9a32d4eb2781b968b8e1864c62f730741"
+    },
+    {
+      "path": "group-030/n-2048/cell-004/run.json",
+      "bytes": 382221,
+      "sha256": "8ed9234980fbb5136d09a140b37816d5b5c17a64029d454e95337bb2f7d0612c"
+    },
+    {
+      "path": "group-030/n-2048/cell-004/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-004/server.stdout",
+      "bytes": 349,
+      "sha256": "01844e8ba87abc0bb05126abd93032ec5e3ea7e6614ab5d7289f8f60ad297070"
+    },
+    {
+      "path": "group-030/n-2048/cell-005/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-005/client.stdout",
+      "bytes": 915,
+      "sha256": "f28e026a5693720fa62e5ef36cc25fbfd09d6a4dc651dfb8c67d8f0370c95b83"
+    },
+    {
+      "path": "group-030/n-2048/cell-005/metrics.json",
+      "bytes": 2516,
+      "sha256": "1ab072dfae448136edae46d48a398c6d4ead62ca17524fd6bafd729c785f28d0"
+    },
+    {
+      "path": "group-030/n-2048/cell-005/run.json",
+      "bytes": 358129,
+      "sha256": "f6740b3e1ad0ff8ea85bf309829b3269c568645213e6de0db00844a314bc2e5d"
+    },
+    {
+      "path": "group-030/n-2048/cell-005/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-005/server.stdout",
+      "bytes": 350,
+      "sha256": "ce900b6cbe6bad5a0bab614208c0b7388bd035bd669a2e3f9283120aa34cdbc9"
+    },
+    {
+      "path": "group-030/n-2048/cell-006/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-006/client.stdout",
+      "bytes": 916,
+      "sha256": "44777f7e386021f4e324df79b7c04c59b5c0f6eac5556bc1b0ca75a3cbf74d36"
+    },
+    {
+      "path": "group-030/n-2048/cell-006/metrics.json",
+      "bytes": 2794,
+      "sha256": "f3d696a8663cc7911ac1a16027bfa26a4be765f99ca13cb6f98ff01f1707a9bb"
+    },
+    {
+      "path": "group-030/n-2048/cell-006/run.json",
+      "bytes": 1232153,
+      "sha256": "4750a49aad6d0366033f1f86634f73f95d273d38cbfe9ee3ae8d3c3314ca3118"
+    },
+    {
+      "path": "group-030/n-2048/cell-006/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-006/server.stdout",
+      "bytes": 351,
+      "sha256": "fb2bc40c066f42cca659b84ac9ab4ce58ed4fe81b8b3d0745ef41c41e6b23434"
+    },
+    {
+      "path": "group-030/n-2048/cell-007/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-007/client.stdout",
+      "bytes": 923,
+      "sha256": "6d050e1f1c8c6cd1a9d4c44d453b1a73dd4f1936ab4236e0ed97f4cd94d6586f"
+    },
+    {
+      "path": "group-030/n-2048/cell-007/metrics.json",
+      "bytes": 2268,
+      "sha256": "c621e503243bcc83cf95c2d76d5da109217db71c50de37c131d35364b698757d"
+    },
+    {
+      "path": "group-030/n-2048/cell-007/run.json",
+      "bytes": 671712,
+      "sha256": "4f66a26f9549c6713943f5aa292b85c03491439a050313158a1f382c1670ece0"
+    },
+    {
+      "path": "group-030/n-2048/cell-007/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-007/server.stdout",
+      "bytes": 349,
+      "sha256": "52189b8682911297d48dd9d34a56fb39ff8a0f48f2a0783772e72049f794eb06"
+    },
+    {
+      "path": "group-030/n-2048/cell-008/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-008/client.stdout",
+      "bytes": 914,
+      "sha256": "43787b96e9a3778583a8d693c439f46cd2379ce79fc12daa8477b4c999105b7a"
+    },
+    {
+      "path": "group-030/n-2048/cell-008/metrics.json",
+      "bytes": 2529,
+      "sha256": "cf3d54e013436404b5f2bd6e6cb6be951e30145a71c42eb574497629d1289d77"
+    },
+    {
+      "path": "group-030/n-2048/cell-008/run.json",
+      "bytes": 1151817,
+      "sha256": "dbede8475605ce8d7cede61b8c46917b448956d465c5e2ae9ee53c79d213ad3c"
+    },
+    {
+      "path": "group-030/n-2048/cell-008/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-008/server.stdout",
+      "bytes": 351,
+      "sha256": "179337f276b7e6f29c39293388c9b338c399dc9f43dac7a679785e4bf2ef6a66"
+    },
+    {
+      "path": "group-030/n-2048/cell-009/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-009/client.stdout",
+      "bytes": 925,
+      "sha256": "dee808e1a9ce936754a7988233bdb41f951d387c727a10995da092ed472bc4ec"
+    },
+    {
+      "path": "group-030/n-2048/cell-009/metrics.json",
+      "bytes": 2536,
+      "sha256": "f5b48ed06d204ac116e9fbfd65b35630d207139527bef55361534d20080aab63"
+    },
+    {
+      "path": "group-030/n-2048/cell-009/run.json",
+      "bytes": 1455559,
+      "sha256": "85893dac532cb894c82fd4e84cbae4ee253b29452c4250420d31741d496fb33c"
+    },
+    {
+      "path": "group-030/n-2048/cell-009/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-009/server.stdout",
+      "bytes": 352,
+      "sha256": "5db1359dabe65b099f6c615a65facf3daa5c103198c763c2890ab919a9271de4"
+    },
+    {
+      "path": "group-030/n-2048/cell-010/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-010/client.stdout",
+      "bytes": 925,
+      "sha256": "618d9d4113757daf0e4738db793c09bbb17deeff174580fd17f5b1e0eab153ce"
+    },
+    {
+      "path": "group-030/n-2048/cell-010/metrics.json",
+      "bytes": 2523,
+      "sha256": "01184c4cb05170e51b1ad6464de1b0e67fea2bfe563d0fbef3ff48ced8589686"
+    },
+    {
+      "path": "group-030/n-2048/cell-010/run.json",
+      "bytes": 1011839,
+      "sha256": "a508b8f293cd0a0766c4ee8b6ab8de375752fa803dbbd144eade9d236044d5a5"
+    },
+    {
+      "path": "group-030/n-2048/cell-010/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-010/server.stdout",
+      "bytes": 351,
+      "sha256": "1942ea89fb1e10a66c2073bac30afe027240bd1ee8a47fdb07eec979700acfd3"
+    },
+    {
+      "path": "group-030/n-2048/cell-011/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-011/client.stdout",
+      "bytes": 914,
+      "sha256": "15b79165c3407b53302f57970788212f0051f86c117329e3905206454f17a1dc"
+    },
+    {
+      "path": "group-030/n-2048/cell-011/metrics.json",
+      "bytes": 2518,
+      "sha256": "d81be132fe546e0a9944936767322983d3dc9b534618318bf9f1632974ff352a"
+    },
+    {
+      "path": "group-030/n-2048/cell-011/run.json",
+      "bytes": 246680,
+      "sha256": "370cae327346710e2e06f55b0fdfd39a58a62b7fb94e821afa3e23292768ffd7"
+    },
+    {
+      "path": "group-030/n-2048/cell-011/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-011/server.stdout",
+      "bytes": 350,
+      "sha256": "c956eef5164446cc9b4bb83e45b1217cdd8b1bc6fc77d115d45d5a4599942946"
+    },
+    {
+      "path": "group-030/n-2048/cell-012/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-012/client.stdout",
+      "bytes": 914,
+      "sha256": "e8f340275a36ab1d18bfc81ca4300e53d301ce0e670e9269b4746ceda71c67ed"
+    },
+    {
+      "path": "group-030/n-2048/cell-012/metrics.json",
+      "bytes": 2253,
+      "sha256": "4779350a85bf4686ec6793681c9fc654acbcbe9ee5c5dfae442bbfdc2106ed4d"
+    },
+    {
+      "path": "group-030/n-2048/cell-012/run.json",
+      "bytes": 229728,
+      "sha256": "ceb35c3a3c43e876f53979613c4c8a1584d213a651ce9c9e39dc60e3fa97750a"
+    },
+    {
+      "path": "group-030/n-2048/cell-012/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-012/server.stdout",
+      "bytes": 349,
+      "sha256": "772045cae52787d79eefaa29f8a1decca298607c2e333ff8a9e45f8f3ea61eea"
+    },
+    {
+      "path": "group-030/n-2048/cell-013/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-013/client.stdout",
+      "bytes": 923,
+      "sha256": "8b3810d1b6a5c3563241f83077e1a2f041bfad31ed933483f672995fac897247"
+    },
+    {
+      "path": "group-030/n-2048/cell-013/metrics.json",
+      "bytes": 2273,
+      "sha256": "18abe785333863115e872e8d4f06108e57e1090ad5b1698d5570ffe9ed166911"
+    },
+    {
+      "path": "group-030/n-2048/cell-013/run.json",
+      "bytes": 1159880,
+      "sha256": "4bf91c359b8fcd7877550876ac36d8cf7a8cdfe97afd14093b087ad829825b11"
+    },
+    {
+      "path": "group-030/n-2048/cell-013/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-013/server.stdout",
+      "bytes": 350,
+      "sha256": "ecebd8eaa189e6159c9b900ece75f0315030865a4417750ac831107222fd60c7"
+    },
+    {
+      "path": "group-030/n-2048/cell-014/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-014/client.stdout",
+      "bytes": 915,
+      "sha256": "3d3db7229971fb77b62ac659f684e8e93455b06b9c4040540f5b811970b1e4de"
+    },
+    {
+      "path": "group-030/n-2048/cell-014/metrics.json",
+      "bytes": 2514,
+      "sha256": "b6b4603c6d97fbd9a2230eeaf981ac8e4e5ea4344492d9611e5d0d82f9a7bffa"
+    },
+    {
+      "path": "group-030/n-2048/cell-014/run.json",
+      "bytes": 398983,
+      "sha256": "343efbde23699b50e26665813ad6cbd75fb8d3be86764c1886291c5d1b0ab1b7"
+    },
+    {
+      "path": "group-030/n-2048/cell-014/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-014/server.stdout",
+      "bytes": 350,
+      "sha256": "a47d915f385bd2e9c5f27c57a8e75d6e34191fbe147b4f3ab2da92ed6def9154"
+    },
+    {
+      "path": "group-030/n-2048/cell-015/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-015/client.stdout",
+      "bytes": 917,
+      "sha256": "d78caddd516fac2325bc42bf771be12b57c31778389989fcdbbd02082382e9db"
+    },
+    {
+      "path": "group-030/n-2048/cell-015/metrics.json",
+      "bytes": 2795,
+      "sha256": "17513f4a0034b461b65a301bc98d8a298cde56128017479f657924c209d7b42b"
+    },
+    {
+      "path": "group-030/n-2048/cell-015/run.json",
+      "bytes": 1273148,
+      "sha256": "ab63c44cdf8614cb23f32c43222be2cc8da96892666c798af358bd9c4f2be96c"
+    },
+    {
+      "path": "group-030/n-2048/cell-015/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-015/server.stdout",
+      "bytes": 350,
+      "sha256": "09bb62e54c4eeab1aa5456d21a9d88287631312c0a421800491638c6cdd06c84"
+    },
+    {
+      "path": "group-030/n-2048/cell-016/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-016/client.stdout",
+      "bytes": 914,
+      "sha256": "b9e964c523433df9a240ac244610b491cef71badedf6625ab50bda974af6c1bb"
+    },
+    {
+      "path": "group-030/n-2048/cell-016/metrics.json",
+      "bytes": 2531,
+      "sha256": "184bd86a3596258cb18caa89561d3822d0de01db7f5711acd047cfbbc8157f7e"
+    },
+    {
+      "path": "group-030/n-2048/cell-016/run.json",
+      "bytes": 1138703,
+      "sha256": "7db9c1cea28a3d3e8c08c70e7e93b6c06be0520a3a149bbecae504a0b8d0e02d"
+    },
+    {
+      "path": "group-030/n-2048/cell-016/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-016/server.stdout",
+      "bytes": 351,
+      "sha256": "399aadce0d10a4c286894c0747d271066337f370e54c99f23cbe1d69071ca6ed"
+    },
+    {
+      "path": "group-030/n-2048/cell-017/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-017/client.stdout",
+      "bytes": 924,
+      "sha256": "8f84de90fb218e9c50e3afa28e117c99b3b10737d0326d698284ef3dac532b98"
+    },
+    {
+      "path": "group-030/n-2048/cell-017/metrics.json",
+      "bytes": 2023,
+      "sha256": "69350632d42ac98878406a013a0b53fbb35ed736a6142b8fad561a57b4bdcd9f"
+    },
+    {
+      "path": "group-030/n-2048/cell-017/run.json",
+      "bytes": 985034,
+      "sha256": "6ac680a5fde959111d902606138fdbf60dadf3fa95f325b88fa401ef73f94e36"
+    },
+    {
+      "path": "group-030/n-2048/cell-017/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-017/server.stdout",
+      "bytes": 350,
+      "sha256": "1a990f1846887349823b921671fcab8d88123a09af977fb57218c3b5489f08a4"
+    },
+    {
+      "path": "group-030/n-2048/cell-018/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-018/client.stdout",
+      "bytes": 915,
+      "sha256": "161cde98725c50fc5360856ce7a41986bcaa4a4622df444c9aaf44dff3b192b9"
+    },
+    {
+      "path": "group-030/n-2048/cell-018/metrics.json",
+      "bytes": 2516,
+      "sha256": "798125498cc20fe94903688085ec73613b0efd1db5fd69387d37763afcdde676"
+    },
+    {
+      "path": "group-030/n-2048/cell-018/run.json",
+      "bytes": 383683,
+      "sha256": "f54c263b89ebd36c355a0d1116f81351f1c1e14dab4c59aed2fe3a3aa6318707"
+    },
+    {
+      "path": "group-030/n-2048/cell-018/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-018/server.stdout",
+      "bytes": 350,
+      "sha256": "4ee1bf598eca78dfb5821bd95d145c3d70d0e7617a5e2b6f2d40f8bb299f261f"
+    },
+    {
+      "path": "group-030/n-2048/cell-019/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-019/client.stdout",
+      "bytes": 924,
+      "sha256": "a41860bf80ee46492ae9bacd0943a1070ee412cb9689f422ef41b049f6ea2553"
+    },
+    {
+      "path": "group-030/n-2048/cell-019/metrics.json",
+      "bytes": 2779,
+      "sha256": "ca14f34d1d9f4ce6c3ffa58cc73a6fd71e2dc4fb8798d91457ed9d0988006a1f"
+    },
+    {
+      "path": "group-030/n-2048/cell-019/run.json",
+      "bytes": 835394,
+      "sha256": "0ab51e1a041918fd5c69549c494ce88a1a8a6b2f26d8d2fdea418cc5286975b8"
+    },
+    {
+      "path": "group-030/n-2048/cell-019/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-019/server.stdout",
+      "bytes": 349,
+      "sha256": "07961410479a706f406e57b55c4b83a9b151f4596c962274b98e5fc78119e34b"
+    },
+    {
+      "path": "group-030/n-2048/cell-020/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-020/client.stdout",
+      "bytes": 915,
+      "sha256": "d38d364428fbd4ebda4f57c91e4f3900ed2ebf0af3dabd93aef605f0ed8b225c"
+    },
+    {
+      "path": "group-030/n-2048/cell-020/metrics.json",
+      "bytes": 2519,
+      "sha256": "4485a5edcf261cf49684b5766aeb5cf0dc248548660b15612a6d70a6b0ea7ba4"
+    },
+    {
+      "path": "group-030/n-2048/cell-020/run.json",
+      "bytes": 317363,
+      "sha256": "5396f6d013f8fe53e8d431daa4b1025567535b3b72c8d2018b2ad9220bb2df7f"
+    },
+    {
+      "path": "group-030/n-2048/cell-020/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-020/server.stdout",
+      "bytes": 349,
+      "sha256": "628199be1bddf0ae7f186e83f7e30a4bd20d803a929104494658f328a68ca18a"
+    },
+    {
+      "path": "group-030/n-2048/cell-021/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-021/client.stdout",
+      "bytes": 928,
+      "sha256": "3624d90fcc3ec63bda7b3aa0325029b6143e46ff3a5f624fd1277bfb2d136387"
+    },
+    {
+      "path": "group-030/n-2048/cell-021/metrics.json",
+      "bytes": 3059,
+      "sha256": "56e2079ec1faeebc61f9096bbd6cc94556d349937b7b65730ef275e20e9ac2c3"
+    },
+    {
+      "path": "group-030/n-2048/cell-021/run.json",
+      "bytes": 1341494,
+      "sha256": "bc474328ce3ca96e19fb33cab5cb7e418b396191a9d7ed6a31a1ed5db90b00b0"
+    },
+    {
+      "path": "group-030/n-2048/cell-021/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-021/server.stdout",
+      "bytes": 351,
+      "sha256": "0269d823e63f263279fa7d5e2109e718ca945c758bbd1a460db21a1a4409eea9"
+    },
+    {
+      "path": "group-030/n-2048/cell-022/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-022/client.stdout",
+      "bytes": 925,
+      "sha256": "48ef24c620df70397e8b7bc5ddee69d3c629f29c0da1a3c38dd079894e066e92"
+    },
+    {
+      "path": "group-030/n-2048/cell-022/metrics.json",
+      "bytes": 2277,
+      "sha256": "2cd869ba2967c168a09af19fb0f3a3dc8b9fe1be6654600994bf8721925ecf18"
+    },
+    {
+      "path": "group-030/n-2048/cell-022/run.json",
+      "bytes": 1024332,
+      "sha256": "0417c4e36d18dff947281d2baa4c08a5dabb7bb3e9834e8ae6892b569535ff64"
+    },
+    {
+      "path": "group-030/n-2048/cell-022/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-022/server.stdout",
+      "bytes": 350,
+      "sha256": "cdc849fa41eca31676820e28418620a8df7df08c458a5031b2333964cf3a3303"
+    },
+    {
+      "path": "group-030/n-2048/cell-023/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-023/client.stdout",
+      "bytes": 915,
+      "sha256": "2ae9bfa43a512d84e0584220d46b4767c6970cc591866476d8a8f0dd94b262af"
+    },
+    {
+      "path": "group-030/n-2048/cell-023/metrics.json",
+      "bytes": 2518,
+      "sha256": "598e792b53215032289ca6e69f3e958e494ab37dc4d728094dc8b1d5d5cec8c2"
+    },
+    {
+      "path": "group-030/n-2048/cell-023/run.json",
+      "bytes": 480150,
+      "sha256": "2ef0c15aa1e8da3865a17d7438c8628a957b8dffa929ee5183c6fbf03f865077"
+    },
+    {
+      "path": "group-030/n-2048/cell-023/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-023/server.stdout",
+      "bytes": 350,
+      "sha256": "b689dd27d60bc22fb0f1503262d84cd1c740a05acc7a9179cca113a63376b2ad"
+    },
+    {
+      "path": "group-030/n-2048/cell-024/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-024/client.stdout",
+      "bytes": 923,
+      "sha256": "4242d56d4be30f66e96fe648ccd108bfd2b278f207af39da0afd6a42d8296920"
+    },
+    {
+      "path": "group-030/n-2048/cell-024/metrics.json",
+      "bytes": 2274,
+      "sha256": "6add3a14d94f2a43563e3d9bbb8a5d858f4af4fb4e36782db5b0aaccc9455e0f"
+    },
+    {
+      "path": "group-030/n-2048/cell-024/run.json",
+      "bytes": 503731,
+      "sha256": "5b7794a4f2bed1c74f645886f934d3679581414cd7528e7d30eb9b44a81fdb93"
+    },
+    {
+      "path": "group-030/n-2048/cell-024/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-024/server.stdout",
+      "bytes": 350,
+      "sha256": "29ba0358db22ec0be643683d9bdd81b30cc9669ffba5a311bea631044a8016a2"
+    },
+    {
+      "path": "group-030/n-2048/cell-025/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-025/client.stdout",
+      "bytes": 916,
+      "sha256": "6f2ce179ac76b446b4fad9278882bc953e7537022fb5ff39aaf6012be757d2aa"
+    },
+    {
+      "path": "group-030/n-2048/cell-025/metrics.json",
+      "bytes": 2023,
+      "sha256": "258ed61942edfed7106a226f4b87064bec35a2794806da1ddfac1c5c875fd620"
+    },
+    {
+      "path": "group-030/n-2048/cell-025/run.json",
+      "bytes": 1278977,
+      "sha256": "f4b27fc9603e9371be35ab545243adf673ecaa66ca014eb4d4f5a66dabfb475b"
+    },
+    {
+      "path": "group-030/n-2048/cell-025/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-025/server.stdout",
+      "bytes": 350,
+      "sha256": "100680d829ae8d40ee98b6284c05a2d6de8db377485a63a64e90f9dc6155b39f"
+    },
+    {
+      "path": "group-030/n-2048/cell-026/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-026/client.stdout",
+      "bytes": 922,
+      "sha256": "1f78066198f0f24a89058ed1c3a3e388f2a388dc7fe409c517b660a9e462d832"
+    },
+    {
+      "path": "group-030/n-2048/cell-026/metrics.json",
+      "bytes": 2782,
+      "sha256": "e7ca0689d9257c6a954f8a5cd60cf8cc17905c3d9bc108cef869adf98914a9a3"
+    },
+    {
+      "path": "group-030/n-2048/cell-026/run.json",
+      "bytes": 639254,
+      "sha256": "71e95d8fe4112ab8cb47555bbc1b9a77f80b093b5df12c1ba00d6bca0184cd42"
+    },
+    {
+      "path": "group-030/n-2048/cell-026/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-026/server.stdout",
+      "bytes": 350,
+      "sha256": "590935c79f955c53b3eb1bf477759080d7b7333beeb4cb55330ff1cf3dfb3561"
+    },
+    {
+      "path": "group-030/n-2048/cell-027/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-027/client.stdout",
+      "bytes": 926,
+      "sha256": "4a309bdea28bc2863aee35d68a2ba81164db99bfdd20bd4c018a206cd79c9680"
+    },
+    {
+      "path": "group-030/n-2048/cell-027/metrics.json",
+      "bytes": 2797,
+      "sha256": "e3acfe88540c17a40fc954442067cd5c26397a45558203a89e4da5d53b01cb65"
+    },
+    {
+      "path": "group-030/n-2048/cell-027/run.json",
+      "bytes": 1370089,
+      "sha256": "0d8386f2c53435c320d1cfcc543d8dfc2e723a38960991f4aa9c9b9441a3cf37"
+    },
+    {
+      "path": "group-030/n-2048/cell-027/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-027/server.stdout",
+      "bytes": 351,
+      "sha256": "12afad92df5a33b1faab32f7912626378df6958caf6cb0438702aed39a6550ed"
+    },
+    {
+      "path": "group-030/n-2048/cell-028/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-028/client.stdout",
+      "bytes": 916,
+      "sha256": "4dc99d3a79e445c017850d0023bf6011bc7d14a2e397b899fdc370d1219111c2"
+    },
+    {
+      "path": "group-030/n-2048/cell-028/metrics.json",
+      "bytes": 2281,
+      "sha256": "6bd5607664b15514ed3c7fa438030948babd6d91308cb467a27f07f62f59d4a7"
+    },
+    {
+      "path": "group-030/n-2048/cell-028/run.json",
+      "bytes": 1373476,
+      "sha256": "86e201b049cfa8e4211da47b66eb6cace794c31c0df574b950d39e10c9fd5244"
+    },
+    {
+      "path": "group-030/n-2048/cell-028/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-028/server.stdout",
+      "bytes": 350,
+      "sha256": "990a5b82e4d492a72f5f993c3928a1244c5977c2aae1b5ab0b02a7513cab509c"
+    },
+    {
+      "path": "group-030/n-2048/cell-029/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-029/client.stdout",
+      "bytes": 915,
+      "sha256": "097f57b9ad2cabcf23b180364aab2af7b6de7929ac41f386da891cbc33a611eb"
+    },
+    {
+      "path": "group-030/n-2048/cell-029/metrics.json",
+      "bytes": 2517,
+      "sha256": "d35e64bd68a8fc746c4c6c831a52d112824e64b4343640ce0018e87a3efedd08"
+    },
+    {
+      "path": "group-030/n-2048/cell-029/run.json",
+      "bytes": 412939,
+      "sha256": "c894a9d657efbebd432bd28e4cdde64fcb1d356c1f769b6101683426ce9bb2da"
+    },
+    {
+      "path": "group-030/n-2048/cell-029/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-029/server.stdout",
+      "bytes": 350,
+      "sha256": "05f85bbb4c964d7ef0985e538289e47621c5e53f282e1a1e278968ec85ef4965"
+    },
+    {
+      "path": "group-030/n-2048/cell-030/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-030/client.stdout",
+      "bytes": 924,
+      "sha256": "798151dc9102c6858022141ca90dc154d4460d8943315be76720a61b268da6f5"
+    },
+    {
+      "path": "group-030/n-2048/cell-030/metrics.json",
+      "bytes": 2274,
+      "sha256": "370bec85101cbbec64fda2f88f47ee62b9e2c9bb86e3fb3c38beea196cf2f4f5"
+    },
+    {
+      "path": "group-030/n-2048/cell-030/run.json",
+      "bytes": 729985,
+      "sha256": "d8b51fddb261c807ff61495ac40f0fe8c453d4543ff2415785e585029c6df746"
+    },
+    {
+      "path": "group-030/n-2048/cell-030/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-030/server.stdout",
+      "bytes": 350,
+      "sha256": "fefbc1770757b7d1b05f49d053f7ac32540edda2185b93c8180c92024286b7cc"
+    },
+    {
+      "path": "group-030/n-2048/cell-031/client.stderr",
+      "bytes": 157,
+      "sha256": "b4048d7eaf26f9edea196e812a649b4483f976fef3475d7959ca9bf2666431a6"
+    },
+    {
+      "path": "group-030/n-2048/cell-031/client.stdout",
+      "bytes": 916,
+      "sha256": "aa541d881ef705120ce0d22ed94a1cf7b9461a2958fc30df3e56efd7ce04e49f"
+    },
+    {
+      "path": "group-030/n-2048/cell-031/metrics.json",
+      "bytes": 3360,
+      "sha256": "7703062c727ea512b7c770497afda7053ffa13f7c75ba03e845247c72092e7db"
+    },
+    {
+      "path": "group-030/n-2048/cell-031/run.json",
+      "bytes": 1256060,
+      "sha256": "d5e7962be5c828d75b149d184451c5cf00024773ddafe863222426240589a5dd"
+    },
+    {
+      "path": "group-030/n-2048/cell-031/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-031/server.stdout",
+      "bytes": 71,
+      "sha256": "89142be7e8acb4278468f48bdd0ad9487159dbd2cbc9d1b7f9089ebc28cb351d"
+    },
+    {
+      "path": "group-030/n-2048/cell-032/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-032/client.stdout",
+      "bytes": 914,
+      "sha256": "661c3194e16321903a3c26369e2ed4e3364a054579e010df70b5b569d7efee04"
+    },
+    {
+      "path": "group-030/n-2048/cell-032/metrics.json",
+      "bytes": 2023,
+      "sha256": "08c7563f468e40c894b52b48c70b9b389e20dab5a1ed42384159a5688f8c6ac3"
+    },
+    {
+      "path": "group-030/n-2048/cell-032/run.json",
+      "bytes": 1116336,
+      "sha256": "4839307cf76fc20e245a1379d45e64d24871cfaac1708d1170b5b6d3f5f3ede2"
+    },
+    {
+      "path": "group-030/n-2048/cell-032/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-032/server.stdout",
+      "bytes": 350,
+      "sha256": "fef0d02be6f5c35f3dd15b475bfc83bd2bb5dc150879460d4a2117ee2bd0b7a0"
+    },
+    {
+      "path": "group-030/n-2048/cell-033/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-033/client.stdout",
+      "bytes": 913,
+      "sha256": "7dd26b16b435540495dce859eb734d9846ac3d67b805e16b868dd83849b722cd"
+    },
+    {
+      "path": "group-030/n-2048/cell-033/metrics.json",
+      "bytes": 2513,
+      "sha256": "445ae1ac3d8b46688127d572cdabab2507c80a4bf4b78ce00ca6b00e84ce9e7a"
+    },
+    {
+      "path": "group-030/n-2048/cell-033/run.json",
+      "bytes": 213825,
+      "sha256": "d410162b0f613892ebb5b88e7bbff083710c4f215c58b5bed9d81463825427bc"
+    },
+    {
+      "path": "group-030/n-2048/cell-033/server.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-033/server.stdout",
+      "bytes": 349,
+      "sha256": "afd9506c1d2801aca5ecd5edea7ed00563b6e14bdf3ccdbaf015b56e48528ef9"
+    },
+    {
+      "path": "group-030/n-2048/cell-034/client.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "group-030/n-2048/cell-034/client.stdout",
+      "bytes": 923,
+      "sha256": "f28fdae06f12cb261b769b04921aa350d869537e590b4a5ea3a66938ee2297f6"
+    },
+    {
+      "path": "group-030/n-2048/cell-034/metrics.json",
+      "bytes": 2277,
+      "sha256": "9ac19cd2dbc7c5d38470395be5c195860dd8808a6c4adc43e59e0df0fe19be5c"
+    }
+  ],
+  "logical_bytes": 33198085
+}

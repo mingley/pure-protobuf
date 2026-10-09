@@ -1,0 +1,1466 @@
+{
+  "source": "abeb7bcf2ee653bff899ba14f505ced9b373f963",
+  "qualified": false,
+  "campaign": {
+    "schema": "pbrs.counter-campaign.v1",
+    "source": "abeb7bcf2ee653bff899ba14f505ced9b373f963",
+    "binary_sha256": "3cae0090660b7a3b9833bb7c00c9052325dab96f0d4e449f51c8183897467db2",
+    "controller_sha256": "ac9c7672139e5c1810bf628da85031cc5d44c257e71f447987adeb69f424b7f2",
+    "phase": "native",
+    "qualified": false,
+    "state": "finished",
+    "passed": false,
+    "groups": [
+      {
+        "path": "group-000",
+        "payload_bytes": 1048576,
+        "tls": false,
+        "compression": "identity",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-001",
+        "payload_bytes": 0,
+        "tls": false,
+        "compression": "gzip",
+        "connections": 1,
+        "in_flight": 16,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-002",
+        "payload_bytes": 0,
+        "tls": false,
+        "compression": "identity",
+        "connections": 64,
+        "in_flight": 1024,
+        "rpc_counts": [
+          1024,
+          2048
+        ],
+        "captures": [
+          {
+            "path": "n-1024",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-2048",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-003",
+        "payload_bytes": 0,
+        "tls": true,
+        "compression": "gzip",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-004",
+        "payload_bytes": 65536,
+        "tls": false,
+        "compression": "gzip",
+        "connections": 1,
+        "in_flight": 16,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": false,
+            "total": 75,
+            "passed_cells": 74
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-005",
+        "payload_bytes": 0,
+        "tls": false,
+        "compression": "identity",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": false,
+            "total": 75,
+            "passed_cells": 74
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-006",
+        "payload_bytes": 65536,
+        "tls": true,
+        "compression": "gzip",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-007",
+        "payload_bytes": 65536,
+        "tls": true,
+        "compression": "identity",
+        "connections": 64,
+        "in_flight": 1024,
+        "rpc_counts": [
+          1024,
+          2048
+        ],
+        "captures": [
+          {
+            "path": "n-1024",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-2048",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-008",
+        "payload_bytes": 1024,
+        "tls": true,
+        "compression": "gzip",
+        "connections": 64,
+        "in_flight": 1024,
+        "rpc_counts": [
+          1024,
+          2048
+        ],
+        "captures": [
+          {
+            "path": "n-1024",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-2048",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-009",
+        "payload_bytes": 0,
+        "tls": false,
+        "compression": "gzip",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": false,
+            "total": 75,
+            "passed_cells": 74
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-010",
+        "payload_bytes": 0,
+        "tls": true,
+        "compression": "gzip",
+        "connections": 64,
+        "in_flight": 1024,
+        "rpc_counts": [
+          1024,
+          2048
+        ],
+        "captures": [
+          {
+            "path": "n-1024",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-2048",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-011",
+        "payload_bytes": 1048576,
+        "tls": true,
+        "compression": "gzip",
+        "connections": 64,
+        "in_flight": 1024,
+        "rpc_counts": [
+          1024,
+          2048
+        ],
+        "captures": [
+          {
+            "path": "n-1024",
+            "passed": false,
+            "total": 75,
+            "passed_cells": 74
+          },
+          {
+            "path": "n-2048",
+            "passed": false,
+            "total": 75,
+            "passed_cells": 72
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-012",
+        "payload_bytes": 0,
+        "tls": true,
+        "compression": "identity",
+        "connections": 1,
+        "in_flight": 16,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-013",
+        "payload_bytes": 1024,
+        "tls": false,
+        "compression": "gzip",
+        "connections": 64,
+        "in_flight": 1024,
+        "rpc_counts": [
+          1024,
+          2048
+        ],
+        "captures": [
+          {
+            "path": "n-1024",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-2048",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-014",
+        "payload_bytes": 65536,
+        "tls": false,
+        "compression": "gzip",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-015",
+        "payload_bytes": 0,
+        "tls": true,
+        "compression": "gzip",
+        "connections": 1,
+        "in_flight": 16,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-016",
+        "payload_bytes": 1048576,
+        "tls": true,
+        "compression": "identity",
+        "connections": 64,
+        "in_flight": 1024,
+        "rpc_counts": [
+          1024,
+          2048
+        ],
+        "captures": [
+          {
+            "path": "n-1024",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-2048",
+            "passed": false,
+            "total": 75,
+            "passed_cells": 74
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-017",
+        "payload_bytes": 65536,
+        "tls": false,
+        "compression": "identity",
+        "connections": 1,
+        "in_flight": 16,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-018",
+        "payload_bytes": 1024,
+        "tls": true,
+        "compression": "identity",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-019",
+        "payload_bytes": 1024,
+        "tls": true,
+        "compression": "gzip",
+        "connections": 1,
+        "in_flight": 16,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": false,
+            "total": 75,
+            "passed_cells": 74
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-020",
+        "payload_bytes": 1024,
+        "tls": false,
+        "compression": "identity",
+        "connections": 1,
+        "in_flight": 16,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": false,
+            "total": 75,
+            "passed_cells": 74
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-021",
+        "payload_bytes": 65536,
+        "tls": true,
+        "compression": "identity",
+        "connections": 1,
+        "in_flight": 16,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-022",
+        "payload_bytes": 1048576,
+        "tls": false,
+        "compression": "identity",
+        "connections": 1,
+        "in_flight": 16,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": false,
+            "total": 75,
+            "passed_cells": 73
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-023",
+        "payload_bytes": 65536,
+        "tls": true,
+        "compression": "identity",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-024",
+        "payload_bytes": 1048576,
+        "tls": false,
+        "compression": "identity",
+        "connections": 64,
+        "in_flight": 1024,
+        "rpc_counts": [
+          1024,
+          2048
+        ],
+        "captures": [
+          {
+            "path": "n-1024",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-2048",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-025",
+        "payload_bytes": 1048576,
+        "tls": false,
+        "compression": "gzip",
+        "connections": 1,
+        "in_flight": 16,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-026",
+        "payload_bytes": 0,
+        "tls": false,
+        "compression": "identity",
+        "connections": 1,
+        "in_flight": 16,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-027",
+        "payload_bytes": 1024,
+        "tls": true,
+        "compression": "identity",
+        "connections": 64,
+        "in_flight": 1024,
+        "rpc_counts": [
+          1024,
+          2048
+        ],
+        "captures": [
+          {
+            "path": "n-1024",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-2048",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-028",
+        "payload_bytes": 65536,
+        "tls": false,
+        "compression": "identity",
+        "connections": 64,
+        "in_flight": 1024,
+        "rpc_counts": [
+          1024,
+          2048
+        ],
+        "captures": [
+          {
+            "path": "n-1024",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-2048",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-029",
+        "payload_bytes": 1024,
+        "tls": false,
+        "compression": "gzip",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-030",
+        "payload_bytes": 1048576,
+        "tls": false,
+        "compression": "gzip",
+        "connections": 64,
+        "in_flight": 1024,
+        "rpc_counts": [
+          1024,
+          2048
+        ],
+        "captures": [
+          {
+            "path": "n-1024",
+            "passed": false,
+            "total": 75,
+            "passed_cells": 73
+          },
+          {
+            "path": "n-2048",
+            "passed": false,
+            "total": 75,
+            "passed_cells": 73
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-031",
+        "payload_bytes": 65536,
+        "tls": false,
+        "compression": "identity",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-032",
+        "payload_bytes": 1024,
+        "tls": true,
+        "compression": "identity",
+        "connections": 1,
+        "in_flight": 16,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-033",
+        "payload_bytes": 1048576,
+        "tls": true,
+        "compression": "identity",
+        "connections": 1,
+        "in_flight": 16,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-034",
+        "payload_bytes": 65536,
+        "tls": true,
+        "compression": "gzip",
+        "connections": 64,
+        "in_flight": 1024,
+        "rpc_counts": [
+          1024,
+          2048
+        ],
+        "captures": [
+          {
+            "path": "n-1024",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-2048",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-035",
+        "payload_bytes": 1024,
+        "tls": false,
+        "compression": "gzip",
+        "connections": 1,
+        "in_flight": 16,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-036",
+        "payload_bytes": 1048576,
+        "tls": false,
+        "compression": "gzip",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-037",
+        "payload_bytes": 0,
+        "tls": true,
+        "compression": "identity",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-038",
+        "payload_bytes": 1024,
+        "tls": false,
+        "compression": "identity",
+        "connections": 64,
+        "in_flight": 1024,
+        "rpc_counts": [
+          1024,
+          2048
+        ],
+        "captures": [
+          {
+            "path": "n-1024",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-2048",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-039",
+        "payload_bytes": 1048576,
+        "tls": true,
+        "compression": "gzip",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-040",
+        "payload_bytes": 65536,
+        "tls": true,
+        "compression": "gzip",
+        "connections": 1,
+        "in_flight": 16,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-041",
+        "payload_bytes": 1048576,
+        "tls": true,
+        "compression": "gzip",
+        "connections": 1,
+        "in_flight": 16,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": false,
+            "total": 75,
+            "passed_cells": 74
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-042",
+        "payload_bytes": 0,
+        "tls": false,
+        "compression": "gzip",
+        "connections": 64,
+        "in_flight": 1024,
+        "rpc_counts": [
+          1024,
+          2048
+        ],
+        "captures": [
+          {
+            "path": "n-1024",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-2048",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-043",
+        "payload_bytes": 1024,
+        "tls": true,
+        "compression": "gzip",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-044",
+        "payload_bytes": 0,
+        "tls": true,
+        "compression": "identity",
+        "connections": 64,
+        "in_flight": 1024,
+        "rpc_counts": [
+          1024,
+          2048
+        ],
+        "captures": [
+          {
+            "path": "n-1024",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-2048",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-045",
+        "payload_bytes": 65536,
+        "tls": false,
+        "compression": "gzip",
+        "connections": 64,
+        "in_flight": 1024,
+        "rpc_counts": [
+          1024,
+          2048
+        ],
+        "captures": [
+          {
+            "path": "n-1024",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-2048",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-046",
+        "payload_bytes": 1024,
+        "tls": false,
+        "compression": "identity",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-047",
+        "payload_bytes": 1048576,
+        "tls": true,
+        "compression": "identity",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": false,
+            "total": 75,
+            "passed_cells": 74
+          }
+        ],
+        "ledger_rows": 360
+      }
+    ],
+    "seed": 20261009,
+    "payloads": [
+      0,
+      1024,
+      65536,
+      1048576
+    ],
+    "load_levels": [
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        16
+      ],
+      [
+        64,
+        1024
+      ]
+    ],
+    "repeats": 3,
+    "expected_groups": 48,
+    "expected_captures": 7200,
+    "limits": [
+      "shared-host diagnostics; wall time is not qualified",
+      "basic synthetic payloads; read-all corpora and lifecycle cells remain separate",
+      "no task wake counters or measured scheduling noise",
+      "per-RPC deadlines remain the benchmark defaults"
+    ]
+  },
+  "parts": [
+    {
+      "path": "part-0000",
+      "files": 6238,
+      "logical_bytes": 33523697,
+      "manifest_sha256": "9685982c3fafec7943b112fc27484220200d2ce14f9e21ab6353ebf8e0266a5e"
+    },
+    {
+      "path": "part-0001",
+      "files": 3708,
+      "logical_bytes": 33494513,
+      "manifest_sha256": "3a1bb912d833c7798dd578f8a8a7717e5240a8d27716053ff2dff996acca2bbb"
+    },
+    {
+      "path": "part-0002",
+      "files": 513,
+      "logical_bytes": 32539784,
+      "manifest_sha256": "d6b60e11204da6819f8dde25d2f64b69f2fb1a6decd46bfe51773a5f8c2d4e75"
+    },
+    {
+      "path": "part-0003",
+      "files": 228,
+      "logical_bytes": 32272941,
+      "manifest_sha256": "aa25c289a5a467144fdf9a361f937e8e600b21ecc4b42cf3b851b87705713eba"
+    },
+    {
+      "path": "part-0004",
+      "files": 216,
+      "logical_bytes": 31468283,
+      "manifest_sha256": "12dd90ac5c51ffde5e2858706417e3610fa03601c8dda7e95f3ae3f2ed85b24e"
+    },
+    {
+      "path": "part-0005",
+      "files": 3821,
+      "logical_bytes": 33359969,
+      "manifest_sha256": "234f52989faf198d3696a5beb32224d8e06494be0c0c08e0edb4c30f4c69dbc0"
+    },
+    {
+      "path": "part-0006",
+      "files": 400,
+      "logical_bytes": 33350582,
+      "manifest_sha256": "3b8d837c351f139631b81b56e1276877b370d0d49ea3310891f94b85e3ce859f"
+    },
+    {
+      "path": "part-0007",
+      "files": 258,
+      "logical_bytes": 32263937,
+      "manifest_sha256": "745d5a3fdd417412f1dcddd91cbc87bea9c6dbfe64e1c1a4f6abbd3d486dabee"
+    },
+    {
+      "path": "part-0008",
+      "files": 5303,
+      "logical_bytes": 33553778,
+      "manifest_sha256": "1c83223521915ae9c80a0ac63c83997a093ec63163c8d54d60dfb411039c8761"
+    },
+    {
+      "path": "part-0009",
+      "files": 1813,
+      "logical_bytes": 33552915,
+      "manifest_sha256": "0bbb23caebfc717f49ae4ac69cc9120dc97e233ad5e49bb297fc31f93d9680f8"
+    },
+    {
+      "path": "part-0010",
+      "files": 999,
+      "logical_bytes": 33461995,
+      "manifest_sha256": "e6008831c3bc83167169d7fb9d753fac40840dfdbd55cd4c6ae5a9b0d90a628a"
+    },
+    {
+      "path": "part-0011",
+      "files": 3893,
+      "logical_bytes": 33295398,
+      "manifest_sha256": "94cf6ef09287b0dde460d8991e2a806d77ccf3be6e4ce67078830fe8d9aa1baa"
+    },
+    {
+      "path": "part-0012",
+      "files": 300,
+      "logical_bytes": 32805440,
+      "manifest_sha256": "c84646a9d2c68e4ab7e66d04060c425df4150c3d6b695f34e65a7fc3e33a5f70"
+    },
+    {
+      "path": "part-0013",
+      "files": 244,
+      "logical_bytes": 33198085,
+      "manifest_sha256": "2ee0abf206bf801d8cff8dd0c918221e52077919d7c982bcc237a5ea0efb713c"
+    },
+    {
+      "path": "part-0014",
+      "files": 204,
+      "logical_bytes": 33456603,
+      "manifest_sha256": "b687a9300a5c5e27402f3e14c825d415ee006be46d6bbc807d44966319ec97f6"
+    },
+    {
+      "path": "part-0015",
+      "files": 3122,
+      "logical_bytes": 33554207,
+      "manifest_sha256": "ede14535c0889b4b5dcce0e6db6641fe04acd505309f531e9b2a0da21fd46966"
+    },
+    {
+      "path": "part-0016",
+      "files": 2260,
+      "logical_bytes": 33526194,
+      "manifest_sha256": "3a0571daa35fb4703847197548112de2720bf94c4dd8c8f991b507dc4a18fb37"
+    },
+    {
+      "path": "part-0017",
+      "files": 3372,
+      "logical_bytes": 33553753,
+      "manifest_sha256": "21afe33f5c2ef36fe0f59400099d7254703edf7075150b41825550975764baf5"
+    },
+    {
+      "path": "part-0018",
+      "files": 3324,
+      "logical_bytes": 33554108,
+      "manifest_sha256": "cbfbc167df70f745923cee2f2ffbedfd8b8f1d6f8c8acfb29605e77d0feb5be0"
+    },
+    {
+      "path": "part-0019",
+      "files": 3418,
+      "logical_bytes": 31288365,
+      "manifest_sha256": "9bbf404097f2707b9260126dbab95b580efd8100557816f2bb435565a833f4da"
+    }
+  ],
+  "files": 43634,
+  "logical_bytes": 661074547
+}
