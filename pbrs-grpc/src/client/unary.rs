@@ -153,7 +153,7 @@ where
     if let Some(tap) = tap {
         tap.log_client_header(md, path, authority.as_str(), timeout);
     }
-    let (resp_fut, mut send_stream) = match open(
+    let (mut resp_fut, mut send_stream) = match open(
         send_req,
         authority,
         path,
@@ -179,12 +179,15 @@ where
     }
     commitment = AttemptCommitment::BodyStarted;
     let log_frame = tap.is_some().then(|| frame.clone());
+    let mut received = None;
     let sent = send_request_frame(
         &mut send_stream,
         frame,
         wire.send_buffer,
         cancel_rx.clone(),
         deadline,
+        &mut resp_fut,
+        &mut received,
     )
     .await;
     drop(permit);
@@ -206,7 +209,7 @@ where
         // response headers arrived. Observe queued headers before another
         // cancellation/deadline race can discard that commitment evidence.
         let mut response = std::pin::pin!(resp_fut);
-        let ready = poll_now(response.as_mut());
+        let ready = received.or_else(|| poll_now(response.as_mut()));
         if let Some(Ok(response)) = &ready {
             response_committed = response_commits(response);
         }
@@ -240,7 +243,11 @@ where
     let mut response_committed = false;
     race(
         async {
-            let response = resp_fut.await.map_err(|e| commitment.classify_h2(e))?;
+            let response = match received {
+                Some(head) => head,
+                None => resp_fut.await,
+            }
+            .map_err(|e| commitment.classify_h2(e))?;
             // A valid trailers-only application failure remains eligible.
             // Headers followed by a body or trailers commit the response,
             // including a subsequent transport reset or attempt timeout.

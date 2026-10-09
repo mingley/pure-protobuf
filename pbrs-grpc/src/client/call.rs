@@ -11,7 +11,7 @@ use crate::transport::{
 use crate::wire::{SegFrame, grpc_request, send_frame, status_from};
 use http::HeaderValue;
 use http::uri::Authority;
-use std::future::poll_fn;
+use std::future::{Future, poll_fn};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
@@ -55,7 +55,7 @@ impl AttemptCommitment {
 }
 
 pub(crate) async fn prefer_peer_rejection_after_send<T>(
-    response: backend::ResponseFuture,
+    response: impl std::future::Future<Output = ResponseHead>,
     send_error: Status,
 ) -> Result<T, Status> {
     prefer_peer_rejection_with_commitment(response, send_error, &mut false).await
@@ -123,14 +123,26 @@ pub(crate) async fn prefer_peer_rejection_with_commitment<T>(
     Err(send_error)
 }
 
+pub(crate) type ResponseHead = Result<http::Response<backend::RecvStream>, TransportError>;
+
 pub(crate) fn send_request_frame(
     send: &mut backend::SendStream,
     frame: SegFrame,
     send_buffer: usize,
     cancel_rx: watch::Receiver<bool>,
     deadline: Option<tokio::time::Instant>,
+    response: &mut backend::ResponseFuture,
+    received: &mut Option<ResponseHead>,
 ) -> impl std::future::Future<Output = Result<(), Status>> {
-    send_request_frame_in::<TokioRuntime>(send, frame, send_buffer, cancel_rx, deadline)
+    send_request_frame_in::<TokioRuntime>(
+        send,
+        frame,
+        send_buffer,
+        cancel_rx,
+        deadline,
+        response,
+        received,
+    )
 }
 
 /// [`send_request_frame`] on runtime `R`; production callers use Tokio.
@@ -152,6 +164,8 @@ pub(crate) async fn send_request_frame_in<R: Runtime>(
     send_buffer: usize,
     cancel_rx: watch::Receiver<bool>,
     deadline: Option<tokio::time::Instant>,
+    response: &mut backend::ResponseFuture,
+    received: &mut Option<ResponseHead>,
 ) -> Result<(), Status> {
     // Optimistic: a send with capacity completes without arming the race.
     // The pre-checks mirror `first_of_in`'s biased order (cancel, then
@@ -169,7 +183,33 @@ pub(crate) async fn send_request_frame_in<R: Runtime>(
         tokio::pin!(send_fut);
         match poll_now(send_fut.as_mut()) {
             Some(result) => result,
-            None => first_of_in::<R, _>(send_fut, cancel_rx, deadline).await,
+            None => {
+                let upload = poll_fn(|cx| {
+                    if let Poll::Ready(sent) = send_fut.as_mut().poll(cx) {
+                        return Poll::Ready(sent);
+                    }
+                    if received.is_none()
+                        && let Poll::Ready(head) = Pin::new(&mut *response).poll(cx)
+                    {
+                        // A server can reject without granting upload credit
+                        // or resetting the request half. Only a valid error
+                        // ends an incomplete upload; ordinary response
+                        // headers are saved while the send keeps waiting.
+                        let rejection = match &head {
+                            Ok(head) if !response_commits(head) => {
+                                Some(status_from(head.headers(), None))
+                            }
+                            _ => None,
+                        };
+                        *received = Some(head);
+                        if let Some(status) = rejection {
+                            return Poll::Ready(Err(status));
+                        }
+                    }
+                    Poll::Pending
+                });
+                first_of_in::<R, _>(upload, cancel_rx, deadline).await
+            }
         }
     };
     let result = prefer_deadline_in::<R, _>(raced, deadline);
