@@ -1,0 +1,53 @@
+{
+  "observed_utc": "2026-10-09T00:06:19.730563+00:00",
+  "actual_24h_started_utc": "2026-10-09T00:05:26.550776+00:00",
+  "earliest_duration_end_utc": "2026-10-10T00:05:26.550776+00:00",
+  "day_progress": {
+    "state": "running",
+    "pid": 146106,
+    "source": {
+      "commit": "684847461083d1a7d680031f02b05fabb17ab59b",
+      "tree": "93e2f002c36b7582532ff99dd881d610f07b50bd",
+      "dirty": false,
+      "cargo_lock_sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5"
+    },
+    "started_unix_seconds": 1791504326.5507765,
+    "duration_requested_seconds": 86400.0,
+    "binary_sha256": "944e5bb7f413d5456b06336771e0027f8c7b53ac7f9fe1be08903d311ac12a79",
+    "qualified": false
+  },
+  "process_state": "S",
+  "observed_proc_limits": "Limit                     Soft Limit           Hard Limit           Units     \nMax cpu time              86430                86430                seconds   \nMax file size             unlimited            unlimited            bytes     \nMax data size             unlimited            unlimited            bytes     \nMax stack size            8388608              unlimited            bytes     \nMax core file size        0                    0                    bytes     \nMax resident set          unlimited            unlimited            bytes     \nMax processes             4096                 4096                 processes \nMax open files            128                  128                  files     \nMax locked memory         8388608              8388608              bytes     \nMax address space         1073741824           1073741824           bytes     \nMax file locks            unlimited            unlimited            locks     \nMax pending signals       72144                72144                signals   \nMax msgqueue size         819200               819200               bytes     \nMax nice priority         0                    0                    \nMax realtime priority     0                    0                    \nMax realtime timeout      unlimited            unlimited            us        \n",
+  "observed_proc_status": "Name:\tresource-test\nUmask:\t0077\nState:\tS (sleeping)\nTgid:\t146106\nNgid:\t0\nPid:\t146106\nPPid:\t146079\nTracerPid:\t0\nUid:\t1000\t1000\t1000\t1000\nGid:\t1000\t1000\t1000\t1000\nFDSize:\t64\nGroups:\t \nNStgid:\t146106\nNSpid:\t146106\nNSpgid:\t144418\nNSsid:\t144418\nKthread:\t0\nVmPeak:\t  220872 kB\nVmSize:\t  216764 kB\nVmLck:\t       0 kB\nVmPin:\t       0 kB\nVmHWM:\t   24136 kB\nVmRSS:\t   20752 kB\nRssAnon:\t   12564 kB\nRssFile:\t    8188 kB\nRssShmem:\t       0 kB\nVmData:\t   27428 kB\nVmStk:\t     132 kB\nVmExe:\t    7728 kB\nVmLib:\t    2228 kB\nVmPTE:\t     128 kB\nVmSwap:\t       0 kB\nHugetlbPages:\t       0 kB\nCoreDumping:\t0\nTHP_enabled:\t1\nuntag_mask:\t0xffffffffffffffff\nThreads:\t4\nSigQ:\t6/72144\nSigPnd:\t0000000000000000\nShdPnd:\t0000000000000000\nSigBlk:\t0000000000000000\nSigIgn:\t0000000000001000\nSigCgt:\t0000000100000440\nCapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapBnd:\t000001ffffffffff\nCapAmb:\t0000000000000000\nNoNewPrivs:\t0\nSeccomp:\t0\nSeccomp_filters:\t0\nSpeculation_Store_Bypass:\tvulnerable\nSpeculationIndirectBranch:\talways enabled\nCpus_allowed:\t1f\nCpus_allowed_list:\t0-4\nMems_allowed:\t00000000,00000001\nMems_allowed_list:\t0\nvoluntary_ctxt_switches:\t1\nnonvoluntary_ctxt_switches:\t0\n",
+  "preview": {
+    "duration_actual_seconds": 31.3500749800005,
+    "smoke": {
+      "status": "passed",
+      "failures": []
+    },
+    "source": {
+      "commit": "684847461083d1a7d680031f02b05fabb17ab59b",
+      "tree": "93e2f002c36b7582532ff99dd881d610f07b50bd",
+      "dirty": false,
+      "cargo_lock_sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5"
+    },
+    "build": {
+      "profile": "release",
+      "cargo_profile": {
+        "opt_level": "3",
+        "debuginfo": 0,
+        "debug_assertions": false,
+        "overflow_checks": false,
+        "test": true
+      }
+    },
+    "binary": {
+      "path": "/workspace/pure-protobuf/work/campaign-v5-006/preview/resource-test",
+      "build_path": "/workspace/pure-protobuf/work/target/release/deps/resource_qualification-6ab2c878613870a9",
+      "sha256": "944e5bb7f413d5456b06336771e0027f8c7b53ac7f9fe1be08903d311ac12a79"
+    }
+  },
+  "preview_validation_stdout": "{\"failures\": [], \"qualified\": false}\n",
+  "preview_validation_stderr": "",
+  "qualified": false
+}
