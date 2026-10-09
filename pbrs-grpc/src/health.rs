@@ -6,6 +6,12 @@
 //! Dropping Watch releases its subscription. The generated client and server
 //! expose the usual channel, message-limit, compression, and interceptor APIs.
 //!
+//! Check returns [`crate::Code::NotFound`] for an unknown service; Watch emits
+//! [`ServingStatus::ServiceUnknown`]. Use [`HealthReporter::shutdown`] and
+//! [`HealthReporter::resume`] to update all known services.
+//! [`crate::Request::set_wait_for_ready`] and
+//! [`crate::Outgoing::set_wait_for_ready`] override the client default.
+//!
 //! ```no_run
 //! # async fn example() -> Result<(), pbrs_grpc::Status> {
 //! let (health, reporter) = pbrs_grpc::health::service();

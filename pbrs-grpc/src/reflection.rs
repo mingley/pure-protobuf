@@ -2,7 +2,8 @@
 //!
 //! Register generated `FILE_DESCRIPTOR_SET` values with [`Builder`] so tools
 //! such as `grpcurl` can list services and inspect their message types.
-//! [`Builder::build_v1alpha`] provides the wire-compatible v1alpha service.
+//! [`Builder::build_v1alpha`] and [`v1alpha_service`] provide the wire-compatible
+//! v1alpha service.
 //! When mounting both versions, add v1 first and v1alpha second to replace the
 //! generated v1alpha alias with the explicit service. The service list comes
 //! from registered descriptors.
