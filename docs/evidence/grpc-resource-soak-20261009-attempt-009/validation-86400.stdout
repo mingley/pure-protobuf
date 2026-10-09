@@ -1,0 +1,1 @@
+{"failures": ["independent samples do not cover the requested duration", "missing or incomplete requested duration", "post-drain Tokio tasks exceed predeclared tolerance", "post-drain descriptors exceed predeclared tolerance", "resource test child failed", "retained smoke has unresolved failures"], "qualified": false}
