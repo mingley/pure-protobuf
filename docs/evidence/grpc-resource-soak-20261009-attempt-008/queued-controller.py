@@ -14,7 +14,7 @@ OUT.mkdir(exist_ok=False)
 CONTROLLER = ROOT / 'work/campaign-v5-007/controller.py'
 CONTROLLER_SHA = 'f3f110905fb62642cf5948869708aa1bf3cca2bc58d394b34c7b611ea7c52cac'
 REPORTS = ['native-sequential-gates-2c66', 'native-sequential-gates-2c66-continuation',
-           'native-sequential-gates-05f5', 'native-sequential-gates-07e4', 'native-sequential-gates-a9fe']
+           'native-sequential-gates-05f5', 'native-sequential-gates-07e4', 'native-sequential-gates-a9fe', 'native-sequential-gates-a9fe-continuation']
 state = dict(source=PIN, state='waiting_for_regressions', qualified=False, passed=False,
              actual_24h_started=False, actual_24h_completed=False, steps=[])
 (OUT / 'controller.py').write_bytes(Path(__file__).read_bytes())
@@ -64,8 +64,11 @@ try:
         record = json.loads((ROOT / 'work' / directory / 'results.json').read_text())
         for row in record['results']:
             if row['exit_code'] == 0 and 'artifact_error' not in row:
-                name = 'lib' if '--lib' in row['command'] else row['command'][-2]
+                name = 'lib' if '--lib' in row['command'] else row['command'][row['command'].index('--test')+1]
                 successful[name] = dict(source=record['source'], report=directory)
+    serial=json.loads((ROOT/'work/server-full-serial-a9fe/results.json').read_text())
+    if serial.get('passed') and serial.get('source_unchanged') and serial.get('binary_unchanged'):
+        successful['serving']=dict(source=serial['source'],report='server-full-serial-a9fe',executable_sha256=serial['executable_sha256'])
     missing = sorted(set(full['targets']) - successful.keys())
     if missing:
         raise RuntimeError(f'unexecuted native targets: {missing}')

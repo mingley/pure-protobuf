@@ -1,0 +1,670 @@
+{
+  "schema": "pbrs.compatibility-capsule.v1",
+  "archive": {
+    "name": "raw.tar.gz",
+    "sha256": "9d5a719e0df273953f87cc66f434a2ffba1132a84f30d4ef7b3cc5ef99c9ae44"
+  },
+  "files": [
+    {
+      "path": "final-doc-gates-07e4/clippy/stderr",
+      "bytes": 202,
+      "sha256": "14e3ec26a2d26a9f2dc40f056b188c380ec3364fac6c2098700df9c9f2a1742a"
+    },
+    {
+      "path": "final-doc-gates-07e4/clippy/stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "final-doc-gates-07e4/controller.py",
+      "bytes": 1942,
+      "sha256": "1a3c39065e6ae8a7e7727c01e43289b0512a0b3fc155fee80b7e2c8f8f443ccc"
+    },
+    {
+      "path": "final-doc-gates-07e4/format/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "final-doc-gates-07e4/format/stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "final-doc-gates-07e4/results.json",
+      "bytes": 1437,
+      "sha256": "ef753621e5d45423f1b049ac55fa9003b0fb5232c4a56bf82e8cbbdda503e591"
+    },
+    {
+      "path": "final-doc-gates-07e4/rustdoc/stderr",
+      "bytes": 469,
+      "sha256": "4fa03103fa403269d4eed10703a433d8ba46a6b7ed984dd07dd168ba4480a8d1"
+    },
+    {
+      "path": "final-doc-gates-07e4/rustdoc/stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "final-doc-gates-a9fe/clippy/stderr",
+      "bytes": 252,
+      "sha256": "bf407e63f2476f6afc4114c92cc508974ccd079a956cdb6a4f5cf38c43e1fca5"
+    },
+    {
+      "path": "final-doc-gates-a9fe/clippy/stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "final-doc-gates-a9fe/controller.py",
+      "bytes": 2032,
+      "sha256": "ca926fe22991b443cc0a24b7acfb6ca1549f293d0e5cf4b2600ee8bc6a3aaec6"
+    },
+    {
+      "path": "final-doc-gates-a9fe/format/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "final-doc-gates-a9fe/format/stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "final-doc-gates-a9fe/results.json",
+      "bytes": 940,
+      "sha256": "5db100e2b26924e22c9b5783318f08985c55e8bdf79fae4077fa5814fdde8d02"
+    },
+    {
+      "path": "native-sequential-gates-05f5/controller.py",
+      "bytes": 4092,
+      "sha256": "ff8afae018a8a2a780f6c48a87629d92a87aa13982f54173942119c4c0661516"
+    },
+    {
+      "path": "native-sequential-gates-05f5/health/stderr",
+      "bytes": 356,
+      "sha256": "213aef22067e00500361c572d8653044d7dcb818d3ea8d418a53aa1be8c38eaa"
+    },
+    {
+      "path": "native-sequential-gates-05f5/health/stdout",
+      "bytes": 129058,
+      "sha256": "b99d44bb17a9f2ad1b0c187c62046d487af8b5df9032a82d5c6e02339c774c83"
+    },
+    {
+      "path": "native-sequential-gates-05f5/reflection/stderr",
+      "bytes": 340,
+      "sha256": "eec11545c054d89c27ad795bfb39f49bd5369db979629f003913890a5850b8fd"
+    },
+    {
+      "path": "native-sequential-gates-05f5/reflection/stdout",
+      "bytes": 129876,
+      "sha256": "a4668f668d7b00e2f4637a58f208c89d40fbf145fdd347a9547c7ea14b2d2177"
+    },
+    {
+      "path": "native-sequential-gates-05f5/results.json",
+      "bytes": 7549,
+      "sha256": "12feb81d26baa6174b3a4c3c5019ba7ff4b1e3f482337a27d69899955846acb7"
+    },
+    {
+      "path": "native-sequential-gates-05f5/serving/stderr",
+      "bytes": 398,
+      "sha256": "699bf619f98081aa75fc15ac22cae1009fc2ece1685107672205811267b2b64e"
+    },
+    {
+      "path": "native-sequential-gates-05f5/serving/stdout",
+      "bytes": 190795,
+      "sha256": "fdc0104f9590570a6eb97a1a34a16eefa3bf33ade1648637f534c2517aac4546"
+    },
+    {
+      "path": "native-sequential-gates-07e4/controller.py",
+      "bytes": 4630,
+      "sha256": "b1995f59efacec50b7773fb3fa1c472dd42f327081293bf220afe1adf4181ed4"
+    },
+    {
+      "path": "native-sequential-gates-07e4/results.json",
+      "bytes": 3429,
+      "sha256": "4318c5289e8991d65b125f7966fc2591661ba5ef61634b7ff5e0f3b8b17e3bd7"
+    },
+    {
+      "path": "native-sequential-gates-07e4/serving/stderr",
+      "bytes": 345,
+      "sha256": "05bac3de23e08e5ca247d36b463265db3f80d6732f2d4b8f06d27746357eae47"
+    },
+    {
+      "path": "native-sequential-gates-07e4/serving/stdout",
+      "bytes": 190332,
+      "sha256": "3002bad161dc2e3bec402f2cd52314d106f0cbce927e1cb9ecd8331764b851cd"
+    },
+    {
+      "path": "native-sequential-gates-a9fe/controller.py",
+      "bytes": 4951,
+      "sha256": "b790d0a833cefd38a5acc727f098ad61e44defe53792c0a3f006f2b69ce4994a"
+    },
+    {
+      "path": "native-sequential-gates-a9fe/results.json",
+      "bytes": 3393,
+      "sha256": "acf31656581eb12332d62d043fa882636f84991710878b900a886ed59c3d3469"
+    },
+    {
+      "path": "native-sequential-gates-a9fe/serving/stderr",
+      "bytes": 344,
+      "sha256": "93d0f3b49d7ba02dcac5335cf3157b1a44904bdb2fcfc8ebef7e124550087b8c"
+    },
+    {
+      "path": "native-sequential-gates-a9fe/serving/stdout",
+      "bytes": 190170,
+      "sha256": "1c213065016fb23d30001637dfc99e85639c2134b907fe2e1f7e8190746e11da"
+    },
+    {
+      "path": "notes/behavioral-tests-preserved-a9fe.json",
+      "bytes": 1486,
+      "sha256": "f552138327771bfab57bd639c68afda6ebb810e45222755fa977f9e6526595f5"
+    },
+    {
+      "path": "notes/doc-contract-migration.json",
+      "bytes": 1197,
+      "sha256": "d3445d58075f101f1b475fbd07be7fda3ca6091348f00823697e3f191709592e"
+    },
+    {
+      "path": "notes/module-doc-source-equivalence-05f5.json",
+      "bytes": 494,
+      "sha256": "98ecdfb2c314bdcbca2521f5219aacde1bdd6a7f3b46ada0094146c044b13bd6"
+    },
+    {
+      "path": "notes/original-channel_call_apis_document_hand_written_services.rs",
+      "bytes": 274211,
+      "sha256": "5af67d437844d271b89f8593cc4f0efd6e20e0fceae3839482cbaceb7aac06fb"
+    },
+    {
+      "path": "notes/original-channel_config_connect_timeout_documents_every_call_shape.rs",
+      "bytes": 324284,
+      "sha256": "5021899bed06590198bb1439836b7d1814f1d8695b3f21c52a94027e1078342c"
+    },
+    {
+      "path": "notes/original-channel_config_documents_with_default_service_config.rs",
+      "bytes": 962,
+      "sha256": "4d01a1785beef49c4a34ed89c3affd2157303f8190a9f37eb8e471da4569b900"
+    },
+    {
+      "path": "notes/original-channel_config_max_connection_idle_documents_with_idle_timeout.rs",
+      "bytes": 1018,
+      "sha256": "9224abc62714635953d91b9632868fd666734136a7595fc3b0d2729be2d1b6dc"
+    },
+    {
+      "path": "notes/original-client_interceptor_documents_with_unary_interceptor.rs",
+      "bytes": 1166,
+      "sha256": "9ee1226e8cadcf4d5843c5b4e47b20b72325ebdda191d90666bde4fe839a3f59"
+    },
+    {
+      "path": "notes/original-client_tls_documents_with_per_rpc_credentials.rs",
+      "bytes": 1131,
+      "sha256": "36e22e59b5da85c10a3c47447bc43c8868ba42d7b47edb83e0049ade9b792ef1"
+    },
+    {
+      "path": "notes/original-generated-doc-assertions.rs",
+      "bytes": 68208,
+      "sha256": "f90b27c8966415835c51fb1cc62fb3a06901e8fdf3446f5a9cc216e9c53c9bc6"
+    },
+    {
+      "path": "notes/original-health_crate_docs_name_interceptor_wait_for_ready.rs",
+      "bytes": 20340,
+      "sha256": "e5de7aff9730cf98c6c2223645078bc5b21b3828fed2b6f1734da5cefbb66756"
+    },
+    {
+      "path": "notes/original-official_interop_rustdoc_names_every_transport.rs",
+      "bytes": 40181,
+      "sha256": "395499b4be883b60c2a17b36f07c4d9b1d2be1f16d725126475bddd193dc37b1"
+    },
+    {
+      "path": "notes/original-reflection_crate_docs_name_interceptor_wait_for_ready.rs",
+      "bytes": 21126,
+      "sha256": "17f5716c63578074ff9a9561946dbf63e606f4435f673e322461d6f035ee028a"
+    },
+    {
+      "path": "notes/original-server_and_router_config_document_every_call_shape.rs",
+      "bytes": 74220,
+      "sha256": "c1061aad74b12b90a77c2c4a14688d75d6001ebd823745f8c083c6030dde4ec3"
+    },
+    {
+      "path": "notes/remaining-doc-contract-migration.json",
+      "bytes": 547,
+      "sha256": "2cfdf51dba419212d45e5eeb849d53468f8bbd1a853a8042c6eac1b88e078ebd"
+    },
+    {
+      "path": "notes/service-doc-contract-migration.json",
+      "bytes": 364,
+      "sha256": "f9c64ce6aa925c77f19298ace4861bf1182ea83aa95fbd0f542c6abb6c27994d"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/00-a_from_io_server_timeout_expires_when_the_client_sends_none/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/00-a_from_io_server_timeout_expires_when_the_client_sends_none/stdout",
+      "bytes": 187,
+      "sha256": "e735fbef8320c20737fee8e5e4a04a6f9f46de4ab379c35a74cde824aa50f1cf"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/00-mtls_spawned_work_stops_when_the_client_cancels/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/00-mtls_spawned_work_stops_when_the_client_cancels/stdout",
+      "bytes": 175,
+      "sha256": "d6b7f31b4d0edb01afd31824f784ee65b06246d4a6686f2568464d8e9628cfe1"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/00-mtls_wait_for_ready_completes_once_the_server_listens/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/00-mtls_wait_for_ready_completes_once_the_server_listens/stdout",
+      "bytes": 181,
+      "sha256": "5998844c9a02e1d19ca8e6fb5e673a0e4521e189982f34835b011870fb1c36b4"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/00-mtls_wait_for_ready_times_out_when_nothing_is_listening/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/00-mtls_wait_for_ready_times_out_when_nothing_is_listening/stdout",
+      "bytes": 183,
+      "sha256": "ee64bf6a3a6fdfa6bb1d01e8f2311b1b252d87ade26d30c4157617de5a9b3a52"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/01-a_from_io_server_timeout_expires_when_the_client_sends_none/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/01-a_from_io_server_timeout_expires_when_the_client_sends_none/stdout",
+      "bytes": 187,
+      "sha256": "6a2094407ed8555ab620c14aab00766eab1b88c8c82dd032056b11b4a6b029c8"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/01-mtls_spawned_work_stops_when_the_client_cancels/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/01-mtls_spawned_work_stops_when_the_client_cancels/stdout",
+      "bytes": 175,
+      "sha256": "d6b7f31b4d0edb01afd31824f784ee65b06246d4a6686f2568464d8e9628cfe1"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/01-mtls_wait_for_ready_completes_once_the_server_listens/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/01-mtls_wait_for_ready_completes_once_the_server_listens/stdout",
+      "bytes": 181,
+      "sha256": "3f804c3fb29451ceba4e5045dfe18e18dfe34a661d2ea6ba897d39289cd4e86f"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/01-mtls_wait_for_ready_times_out_when_nothing_is_listening/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/01-mtls_wait_for_ready_times_out_when_nothing_is_listening/stdout",
+      "bytes": 183,
+      "sha256": "0a305926255bae5a66c0554558a4a43ed7d850b3be4319fdb9debdf9c7935ab8"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/02-a_from_io_server_timeout_expires_when_the_client_sends_none/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/02-a_from_io_server_timeout_expires_when_the_client_sends_none/stdout",
+      "bytes": 187,
+      "sha256": "e5f44c1a55ae3f8fd59d5c9784915f3334bde48c4c83ae91b0ac0ce7cd60a330"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/02-mtls_spawned_work_stops_when_the_client_cancels/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/02-mtls_spawned_work_stops_when_the_client_cancels/stdout",
+      "bytes": 175,
+      "sha256": "8e37297c01bd5ea3c8a0d84c87cbfd132d2682ae30cbf92b953cb175e7ccd181"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/02-mtls_wait_for_ready_completes_once_the_server_listens/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/02-mtls_wait_for_ready_completes_once_the_server_listens/stdout",
+      "bytes": 181,
+      "sha256": "daddf47d450d8dfa46930129d001cc9ebca4379b058f7edb4d1e33a612e44470"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/02-mtls_wait_for_ready_times_out_when_nothing_is_listening/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/02-mtls_wait_for_ready_times_out_when_nothing_is_listening/stdout",
+      "bytes": 183,
+      "sha256": "ee64bf6a3a6fdfa6bb1d01e8f2311b1b252d87ade26d30c4157617de5a9b3a52"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/03-a_from_io_server_timeout_expires_when_the_client_sends_none/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/03-a_from_io_server_timeout_expires_when_the_client_sends_none/stdout",
+      "bytes": 187,
+      "sha256": "6a2094407ed8555ab620c14aab00766eab1b88c8c82dd032056b11b4a6b029c8"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/03-mtls_spawned_work_stops_when_the_client_cancels/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/03-mtls_spawned_work_stops_when_the_client_cancels/stdout",
+      "bytes": 175,
+      "sha256": "d6b7f31b4d0edb01afd31824f784ee65b06246d4a6686f2568464d8e9628cfe1"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/03-mtls_wait_for_ready_completes_once_the_server_listens/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/03-mtls_wait_for_ready_completes_once_the_server_listens/stdout",
+      "bytes": 181,
+      "sha256": "3f804c3fb29451ceba4e5045dfe18e18dfe34a661d2ea6ba897d39289cd4e86f"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/03-mtls_wait_for_ready_times_out_when_nothing_is_listening/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/03-mtls_wait_for_ready_times_out_when_nothing_is_listening/stdout",
+      "bytes": 183,
+      "sha256": "0a305926255bae5a66c0554558a4a43ed7d850b3be4319fdb9debdf9c7935ab8"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/04-a_from_io_server_timeout_expires_when_the_client_sends_none/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/04-a_from_io_server_timeout_expires_when_the_client_sends_none/stdout",
+      "bytes": 187,
+      "sha256": "e5f44c1a55ae3f8fd59d5c9784915f3334bde48c4c83ae91b0ac0ce7cd60a330"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/04-mtls_spawned_work_stops_when_the_client_cancels/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/04-mtls_spawned_work_stops_when_the_client_cancels/stdout",
+      "bytes": 175,
+      "sha256": "397008d9ab17703e8397baffd296ce5c56a07b5c48893c7b2668ac82f2227f91"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/04-mtls_wait_for_ready_completes_once_the_server_listens/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/04-mtls_wait_for_ready_completes_once_the_server_listens/stdout",
+      "bytes": 181,
+      "sha256": "df25cb665c8d403bd5eda80babeb1f2c8ec7ad7a55e5951db2f6545d77564a29"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/04-mtls_wait_for_ready_times_out_when_nothing_is_listening/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/04-mtls_wait_for_ready_times_out_when_nothing_is_listening/stdout",
+      "bytes": 183,
+      "sha256": "ee64bf6a3a6fdfa6bb1d01e8f2311b1b252d87ade26d30c4157617de5a9b3a52"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/05-a_from_io_server_timeout_expires_when_the_client_sends_none/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/05-a_from_io_server_timeout_expires_when_the_client_sends_none/stdout",
+      "bytes": 187,
+      "sha256": "6a2094407ed8555ab620c14aab00766eab1b88c8c82dd032056b11b4a6b029c8"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/05-mtls_spawned_work_stops_when_the_client_cancels/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/05-mtls_spawned_work_stops_when_the_client_cancels/stdout",
+      "bytes": 175,
+      "sha256": "397008d9ab17703e8397baffd296ce5c56a07b5c48893c7b2668ac82f2227f91"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/05-mtls_wait_for_ready_completes_once_the_server_listens/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/05-mtls_wait_for_ready_completes_once_the_server_listens/stdout",
+      "bytes": 181,
+      "sha256": "3f804c3fb29451ceba4e5045dfe18e18dfe34a661d2ea6ba897d39289cd4e86f"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/05-mtls_wait_for_ready_times_out_when_nothing_is_listening/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/05-mtls_wait_for_ready_times_out_when_nothing_is_listening/stdout",
+      "bytes": 183,
+      "sha256": "e843a8ecce641b3d9f9cc193b5307fc776a62dbc7ad6fc790283a4a07ef0869a"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/06-a_from_io_server_timeout_expires_when_the_client_sends_none/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/06-a_from_io_server_timeout_expires_when_the_client_sends_none/stdout",
+      "bytes": 187,
+      "sha256": "879269c6f70f33feec8f03c3a6857b9a5361cc5a0349520e56c103f82cdade94"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/06-mtls_spawned_work_stops_when_the_client_cancels/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/06-mtls_spawned_work_stops_when_the_client_cancels/stdout",
+      "bytes": 175,
+      "sha256": "8e37297c01bd5ea3c8a0d84c87cbfd132d2682ae30cbf92b953cb175e7ccd181"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/06-mtls_wait_for_ready_completes_once_the_server_listens/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/06-mtls_wait_for_ready_completes_once_the_server_listens/stdout",
+      "bytes": 181,
+      "sha256": "5998844c9a02e1d19ca8e6fb5e673a0e4521e189982f34835b011870fb1c36b4"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/06-mtls_wait_for_ready_times_out_when_nothing_is_listening/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/06-mtls_wait_for_ready_times_out_when_nothing_is_listening/stdout",
+      "bytes": 183,
+      "sha256": "ee64bf6a3a6fdfa6bb1d01e8f2311b1b252d87ade26d30c4157617de5a9b3a52"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/07-a_from_io_server_timeout_expires_when_the_client_sends_none/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/07-a_from_io_server_timeout_expires_when_the_client_sends_none/stdout",
+      "bytes": 187,
+      "sha256": "6a2094407ed8555ab620c14aab00766eab1b88c8c82dd032056b11b4a6b029c8"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/07-mtls_spawned_work_stops_when_the_client_cancels/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/07-mtls_spawned_work_stops_when_the_client_cancels/stdout",
+      "bytes": 175,
+      "sha256": "d6b7f31b4d0edb01afd31824f784ee65b06246d4a6686f2568464d8e9628cfe1"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/07-mtls_wait_for_ready_completes_once_the_server_listens/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/07-mtls_wait_for_ready_completes_once_the_server_listens/stdout",
+      "bytes": 181,
+      "sha256": "3f804c3fb29451ceba4e5045dfe18e18dfe34a661d2ea6ba897d39289cd4e86f"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/07-mtls_wait_for_ready_times_out_when_nothing_is_listening/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/07-mtls_wait_for_ready_times_out_when_nothing_is_listening/stdout",
+      "bytes": 183,
+      "sha256": "e843a8ecce641b3d9f9cc193b5307fc776a62dbc7ad6fc790283a4a07ef0869a"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/08-a_from_io_server_timeout_expires_when_the_client_sends_none/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/08-a_from_io_server_timeout_expires_when_the_client_sends_none/stdout",
+      "bytes": 187,
+      "sha256": "879269c6f70f33feec8f03c3a6857b9a5361cc5a0349520e56c103f82cdade94"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/08-mtls_spawned_work_stops_when_the_client_cancels/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/08-mtls_spawned_work_stops_when_the_client_cancels/stdout",
+      "bytes": 175,
+      "sha256": "8e37297c01bd5ea3c8a0d84c87cbfd132d2682ae30cbf92b953cb175e7ccd181"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/08-mtls_wait_for_ready_completes_once_the_server_listens/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/08-mtls_wait_for_ready_completes_once_the_server_listens/stdout",
+      "bytes": 181,
+      "sha256": "daddf47d450d8dfa46930129d001cc9ebca4379b058f7edb4d1e33a612e44470"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/08-mtls_wait_for_ready_times_out_when_nothing_is_listening/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/08-mtls_wait_for_ready_times_out_when_nothing_is_listening/stdout",
+      "bytes": 183,
+      "sha256": "ee64bf6a3a6fdfa6bb1d01e8f2311b1b252d87ade26d30c4157617de5a9b3a52"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/09-a_from_io_server_timeout_expires_when_the_client_sends_none/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/09-a_from_io_server_timeout_expires_when_the_client_sends_none/stdout",
+      "bytes": 187,
+      "sha256": "6a2094407ed8555ab620c14aab00766eab1b88c8c82dd032056b11b4a6b029c8"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/09-mtls_spawned_work_stops_when_the_client_cancels/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/09-mtls_spawned_work_stops_when_the_client_cancels/stdout",
+      "bytes": 175,
+      "sha256": "d6b7f31b4d0edb01afd31824f784ee65b06246d4a6686f2568464d8e9628cfe1"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/09-mtls_wait_for_ready_completes_once_the_server_listens/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/09-mtls_wait_for_ready_completes_once_the_server_listens/stdout",
+      "bytes": 181,
+      "sha256": "3f804c3fb29451ceba4e5045dfe18e18dfe34a661d2ea6ba897d39289cd4e86f"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/09-mtls_wait_for_ready_times_out_when_nothing_is_listening/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/09-mtls_wait_for_ready_times_out_when_nothing_is_listening/stdout",
+      "bytes": 183,
+      "sha256": "44d9f197a38d53f97a41594627e8dd0f2da0f3c2060e9150495d81d7c8f6985e"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/controller.py",
+      "bytes": 1707,
+      "sha256": "c005066f60c6793f845b78f27da1ec494967f2cdc6ee8fc6d26a2d334691aae7"
+    },
+    {
+      "path": "server-failure-isolation-a9fe/results.json",
+      "bytes": 13436,
+      "sha256": "f7f3ab18a4c9560983cff0071abb0c99832b7953f31057bc91640bbe585ccbbf"
+    },
+    {
+      "path": "server-full-serial-a9fe/controller.py",
+      "bytes": 1757,
+      "sha256": "2b60e1e63826800b8e23c0536574d47280cf0f4f8c96c4b2f7d4da714a8f39d2"
+    },
+    {
+      "path": "server-full-serial-a9fe/results.json",
+      "bytes": 1699,
+      "sha256": "395cad7b20d719154bbd4e8991c28f550693a2763e871a99c3f609034308f17c"
+    },
+    {
+      "path": "server-full-serial-a9fe/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server-full-serial-a9fe/stdout",
+      "bytes": 72157,
+      "sha256": "98fb90005c6ad92b6bb92a663aa55adcb35416041343b72bd05c692dc8248f01"
+    }
+  ],
+  "logical_bytes": 1796283
+}

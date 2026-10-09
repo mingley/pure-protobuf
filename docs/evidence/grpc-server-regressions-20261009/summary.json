@@ -1,0 +1,67 @@
+{
+  "source": "a9fe4c2d336710cea6f997b00277e6410eee672a",
+  "qualified": false,
+  "server_serial": {
+    "source": "a9fe4c2d336710cea6f997b00277e6410eee672a",
+    "state": "finished",
+    "passed": true,
+    "qualified": false,
+    "command": [
+      "/workspace/pure-protobuf/work/native-sequential-gates-a9fe/serving/failed-test",
+      "--test-threads=1"
+    ],
+    "compiler_selected_artifact": {
+      "reason": "compiler-artifact",
+      "package_id": "path+file:///workspace/pure-protobuf/work/gates-candidate-05f5/pbrs-grpc#0.1.0-alpha.2",
+      "manifest_path": "/workspace/pure-protobuf/work/gates-candidate-05f5/pbrs-grpc/Cargo.toml",
+      "target": {
+        "kind": [
+          "test"
+        ],
+        "crate_types": [
+          "bin"
+        ],
+        "name": "serving",
+        "src_path": "/workspace/pure-protobuf/work/gates-candidate-05f5/pbrs-grpc/tests/serving.rs",
+        "edition": "2024",
+        "doc": false,
+        "doctest": false,
+        "test": true
+      },
+      "profile": {
+        "opt_level": "0",
+        "debuginfo": 2,
+        "debug_assertions": true,
+        "overflow_checks": true,
+        "test": true
+      },
+      "features": [
+        "copy-counts",
+        "grpc-web",
+        "native-roots",
+        "otel",
+        "prost",
+        "tonic",
+        "tower",
+        "zstd"
+      ],
+      "filenames": [
+        "/workspace/pure-protobuf/work/target/debug/deps/serving-1722ebc67f18aa4e"
+      ],
+      "executable": "/workspace/pure-protobuf/work/target/debug/deps/serving-1722ebc67f18aa4e",
+      "fresh": false
+    },
+    "executable_sha256": "36c3cabf31777179796a69b3856140bfdb1f0b79fe6c75d399d2082be6de98e6",
+    "limits": "all original server tests, original deadlines and assertions; one independent test case at a time",
+    "exit_code": 0,
+    "elapsed_seconds": 108.85841655699915,
+    "source_unchanged": true,
+    "binary_unchanged": true
+  },
+  "server_serial_passed": 1100,
+  "isolated_repeated_behavioral_tests_passed": 40,
+  "health_passed": 180,
+  "reflection_passed": 188,
+  "parallel_failures": "retained; serial success does not erase failures or establish their cause",
+  "remaining_native_targets": "separate continuation in progress"
+}
