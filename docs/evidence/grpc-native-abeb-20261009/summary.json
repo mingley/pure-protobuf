@@ -1,0 +1,133 @@
+{
+  "source": "abeb7bcf2ee653bff899ba14f505ced9b373f963",
+  "qualified": false,
+  "passed": false,
+  "state": "finished",
+  "target_count": 58,
+  "completed_targets": 58,
+  "failures": [
+    {
+      "name": "resource_bounds",
+      "exit_code": 101,
+      "artifact_error": null
+    },
+    {
+      "name": "tonic_service_transport",
+      "exit_code": 101,
+      "artifact_error": null
+    }
+  ],
+  "msrv": [
+    {
+      "name": "msrv_unit",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--lib",
+        "--target-dir",
+        "/workspace/pure-protobuf/work/target-msrv-abeb",
+        "--message-format=json",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 241.21961909999663,
+      "artifact": {
+        "reason": "compiler-artifact",
+        "package_id": "path+file:///workspace/pure-protobuf/pbrs-grpc#0.1.0-alpha.2",
+        "manifest_path": "/workspace/pure-protobuf/pbrs-grpc/Cargo.toml",
+        "target": {
+          "kind": [
+            "lib"
+          ],
+          "crate_types": [
+            "lib"
+          ],
+          "name": "pbrs_grpc",
+          "src_path": "/workspace/pure-protobuf/pbrs-grpc/src/lib.rs",
+          "edition": "2024",
+          "doc": true,
+          "doctest": true,
+          "test": true
+        },
+        "profile": {
+          "opt_level": "0",
+          "debuginfo": 2,
+          "debug_assertions": true,
+          "overflow_checks": true,
+          "test": true
+        },
+        "features": [],
+        "filenames": [
+          "/workspace/pure-protobuf/work/target-msrv-abeb/debug/deps/pbrs_grpc-8a24c87a8f3ee6fe"
+        ],
+        "executable": "/workspace/pure-protobuf/work/target-msrv-abeb/debug/deps/pbrs_grpc-8a24c87a8f3ee6fe",
+        "fresh": false
+      },
+      "executable_sha256": "084f24eef1b0783b027be856f7da297d69fe493fd8217643a2ca46b5889d3424",
+      "executable_bytes": 192793256,
+      "inactive_executable_cache_removed": true,
+      "source_unchanged": true
+    },
+    {
+      "name": "msrv_upload",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--test",
+        "early_upload_response",
+        "--target-dir",
+        "/workspace/pure-protobuf/work/target-msrv-abeb",
+        "--message-format=json",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 107.39744090900058,
+      "artifact": {
+        "reason": "compiler-artifact",
+        "package_id": "path+file:///workspace/pure-protobuf/pbrs-grpc#0.1.0-alpha.2",
+        "manifest_path": "/workspace/pure-protobuf/pbrs-grpc/Cargo.toml",
+        "target": {
+          "kind": [
+            "test"
+          ],
+          "crate_types": [
+            "bin"
+          ],
+          "name": "early_upload_response",
+          "src_path": "/workspace/pure-protobuf/pbrs-grpc/tests/early_upload_response.rs",
+          "edition": "2024",
+          "doc": false,
+          "doctest": false,
+          "test": true
+        },
+        "profile": {
+          "opt_level": "0",
+          "debuginfo": 2,
+          "debug_assertions": true,
+          "overflow_checks": true,
+          "test": true
+        },
+        "features": [],
+        "filenames": [
+          "/workspace/pure-protobuf/work/target-msrv-abeb/debug/deps/early_upload_response-d6208cffee913be6"
+        ],
+        "executable": "/workspace/pure-protobuf/work/target-msrv-abeb/debug/deps/early_upload_response-d6208cffee913be6",
+        "fresh": false
+      },
+      "executable_sha256": "e627e28f8f88f2734db8b21ac099396e86c88c161ed79a5896672126f30b14e5",
+      "executable_bytes": 166380592,
+      "inactive_executable_cache_removed": true,
+      "source_unchanged": true
+    }
+  ]
+}

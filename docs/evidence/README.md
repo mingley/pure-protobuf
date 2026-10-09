@@ -15,6 +15,7 @@ comparative claim. No category currently has a qualified performance win.
 
 | Record | What it contributes | How to read it |
 |---|---|---|
+| [Complete current native inventory](grpc-native-abeb-20261009/README.md) | All requested native targets attempted on the reset-fix source, plus actual Rust 1.85 checks | Failures remain in the capsule; feature, resource and performance qualification stay separate |
 | [Queued-reset admission](grpc-reset-admission-20261009/README.md) | Confirmed queued-reset slot bug, deterministic positive/negative control and broad candidate checks | Timing and mixed-progress failures retained; complete clean-source checks are running |
 | [Resource attempt 009](grpc-resource-soak-20261009-attempt-009/README.md) | Current reset fix, complete native/MSRV checks, diagnostic preview/day queue | The actual day has not started at this snapshot; terminal resource output is published automatically |
 | [Current endpoint counter queue](grpc-counter-matrix-20261009-abeb/README.md) | 7,200 planned captures each for native, syscall and instruction counters | No captures yet; diagnostics follow the resource outcome and retain failures |
