@@ -1,0 +1,25 @@
+{
+  "schema": "pbrs.compatibility-capsule.v1",
+  "archive": {
+    "name": "raw.tar.gz",
+    "sha256": "97612f4680afdb4b0351103b7b7f2f6b6d974b7ca6976d04d9931a4debc1ac2a"
+  },
+  "files": [
+    {
+      "path": "build.json",
+      "bytes": 1091,
+      "sha256": "a4f4fff94143fb2d903b961a7d8e3cebd6b2580142b4ec085dd34d9c9d99c7db"
+    },
+    {
+      "path": "build.stdout.jsonl",
+      "bytes": 140667,
+      "sha256": "8b012aba64b1ede3b3025162bd2aac877a615043300a48610250598d7795bfe9"
+    },
+    {
+      "path": "build.stderr.log",
+      "bytes": 347,
+      "sha256": "f7e773d46856030872f0c7f450a1bfe8b6080bc79a9c77d249f72cda4fa2dbb5"
+    }
+  ],
+  "logical_bytes": 142105
+}
