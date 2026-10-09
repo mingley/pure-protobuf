@@ -22,6 +22,7 @@ try:
   if native.get('state') in ['finished','failed']:break
   time.sleep(3)
  state['native_checks_passed']=native.get('passed') is True;save()
+ run('publish_native',['python3',str(ROOT/'work/publish-native-abeb.py')])
  os.environ['PROTOC']=str(ROOT/'work/toolchain/protoc/bin/protoc');os.environ['PATH']=str(ROOT/'work/toolchain/protoc/bin')+os.pathsep+os.environ['PATH']
  checks=[]
  for name,args in [('format',['cargo','fmt','--all','--','--check']),('clippy',['cargo','clippy','--locked','-p','pbrs','-p','pbrs-grpc','--all-targets','--all-features','--','-D','warnings']),('python_contracts',['python3','-B','-m','unittest','-q','tests.test_grpc_load_smoke','tests.test_dominance_ledger','tests.test_grpc_resource_campaign','tests.test_counter_campaign','tests.test_counter_capsule'])]:
