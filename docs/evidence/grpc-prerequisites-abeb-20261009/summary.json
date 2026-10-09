@@ -1,0 +1,148 @@
+{
+  "source": "abeb7bcf2ee653bff899ba14f505ced9b373f963",
+  "qualified": false,
+  "strict_checks_passed": true,
+  "caller_rustls_tests_passed": 8,
+  "consumer_artifacts": [
+    {
+      "artifact": {
+        "reason": "compiler-artifact",
+        "package_id": "path+file:///workspace/pure-protobuf/pbrs-grpc/tests/caller-rustls#pbrs-caller-rustls-tests@0.0.0",
+        "manifest_path": "/workspace/pure-protobuf/pbrs-grpc/tests/caller-rustls/Cargo.toml",
+        "target": {
+          "kind": [
+            "test"
+          ],
+          "crate_types": [
+            "bin"
+          ],
+          "name": "matrix",
+          "src_path": "/workspace/pure-protobuf/pbrs-grpc/tests/caller-rustls/tests/matrix.rs",
+          "edition": "2024",
+          "doc": false,
+          "doctest": false,
+          "test": true
+        },
+        "profile": {
+          "opt_level": "0",
+          "debuginfo": 2,
+          "debug_assertions": true,
+          "overflow_checks": true,
+          "test": true
+        },
+        "features": [],
+        "filenames": [
+          "/workspace/pure-protobuf/work/target/caller-rustls/debug/deps/matrix-dbd34df4371a1a36"
+        ],
+        "executable": "/workspace/pure-protobuf/work/target/caller-rustls/debug/deps/matrix-dbd34df4371a1a36",
+        "fresh": false
+      },
+      "executable_sha256": "f392325232c38a0dbfa6146342d50b9c12ac2c26d9aecac536101cc61682ead2",
+      "executable_bytes": 210721288
+    }
+  ],
+  "checks": [
+    {
+      "name": "format",
+      "command": [
+        "/workspace/pure-protobuf/work/run-rust",
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 5.680186450998008
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "/workspace/pure-protobuf/work/run-rust",
+        "cargo",
+        "clippy",
+        "--locked",
+        "-p",
+        "pbrs",
+        "-p",
+        "pbrs-grpc",
+        "--all-targets",
+        "--all-features",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 76.57283299600385
+    },
+    {
+      "name": "python_contracts",
+      "command": [
+        "/workspace/pure-protobuf/work/run-rust",
+        "python3",
+        "-B",
+        "-m",
+        "unittest",
+        "-q",
+        "tests.test_grpc_load_smoke",
+        "tests.test_dominance_ledger",
+        "tests.test_grpc_resource_campaign",
+        "tests.test_counter_campaign",
+        "tests.test_counter_capsule"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.5035596469970187
+    },
+    {
+      "name": "rustdoc",
+      "command": [
+        "/workspace/pure-protobuf/work/run-rust",
+        "cargo",
+        "doc",
+        "--locked",
+        "--no-deps",
+        "--all-features",
+        "-p",
+        "pbrs",
+        "-p",
+        "pbrs-grpc"
+      ],
+      "exit_code": 101,
+      "elapsed_seconds": 35.793592041998636
+    },
+    {
+      "name": "rustdoc_retry",
+      "command": [
+        "/workspace/pure-protobuf/work/run-rust",
+        "cargo",
+        "doc",
+        "--locked",
+        "--no-deps",
+        "--all-features",
+        "-p",
+        "pbrs",
+        "-p",
+        "pbrs-grpc"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 170.5981488010002
+    },
+    {
+      "name": "caller_rustls_raw",
+      "command": [
+        "/workspace/pure-protobuf/work/run-rust",
+        "cargo",
+        "test",
+        "--locked",
+        "--manifest-path",
+        "pbrs-grpc/tests/caller-rustls/Cargo.toml",
+        "--target-dir",
+        "/workspace/pure-protobuf/work/target/caller-rustls",
+        "--message-format=json"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 135.0643021979995
+    }
+  ],
+  "native_checks_passed": false
+}

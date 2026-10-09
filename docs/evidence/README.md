@@ -15,6 +15,7 @@ comparative claim. No category currently has a qualified performance win.
 
 | Record | What it contributes | How to read it |
 |---|---|---|
+| [Current-source prerequisites](grpc-prerequisites-abeb-20261009/README.md) | Strict lint, formatting, campaign contracts, documentation retry and eight caller-rustls tests passed | Native admission stress, features, resource duration and performance remain open |
 | [Adapter send-buffer checks](grpc-adapter-buffer-20261009/README.md) | Corrected adapter expectation, real small-buffer forwarding and retained disk failure | Admission fairness, resource duration and performance gates remain open |
 | [Complete current native inventory](grpc-native-abeb-20261009/README.md) | All requested native targets attempted on the reset-fix source, plus actual Rust 1.85 checks | Failures remain in the capsule; feature, resource and performance qualification stay separate |
 | [Queued-reset admission](grpc-reset-admission-20261009/README.md) | Confirmed queued-reset slot bug, deterministic positive/negative control and broad candidate checks | Timing and mixed-progress failures retained; complete clean-source checks are running |

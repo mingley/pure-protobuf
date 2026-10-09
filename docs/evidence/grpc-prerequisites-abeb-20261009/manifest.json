@@ -1,0 +1,90 @@
+{
+  "schema": "pbrs.compatibility-capsule.v1",
+  "archive": {
+    "name": "raw.tar.gz",
+    "sha256": "32eebc1ebe558eed1e3b5072d11a5152eb37d551fca81128720aa51294f7b3bf"
+  },
+  "files": [
+    {
+      "path": "caller_rustls_raw/stderr",
+      "bytes": 618,
+      "sha256": "e630ca8a72b3167afec386833f8975d6405fc8b60637077051838b446de5e9ad"
+    },
+    {
+      "path": "caller_rustls_raw/stdout",
+      "bytes": 136197,
+      "sha256": "131b508d54556e7cc9a59eea6ba06c68b879e59faf7044c18acf966c2c29317c"
+    },
+    {
+      "path": "clippy/stderr",
+      "bytes": 200,
+      "sha256": "4fc1fd6000b5db1d0423f6502978df32008b80cf45baf08c092d9972d7326b83"
+    },
+    {
+      "path": "clippy/stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "controller-before-disk-recovery.py",
+      "bytes": 5332,
+      "sha256": "cb38a99cedc0b9e4c21f49b6a8fc023ea5395e08c7a0d7e3fe5171fc7896947f"
+    },
+    {
+      "path": "controller.py",
+      "bytes": 6716,
+      "sha256": "a77ddeead324cec5bad31db9a4f8d5c3ba2d66ee370a67c0f2ddfa17a5ec1194"
+    },
+    {
+      "path": "format/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "format/stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "infrastructure-failure.json",
+      "bytes": 2136,
+      "sha256": "af33f2d1b11325fcf8ef254b0165f555092097bb07d33b0424008426023ad2f1"
+    },
+    {
+      "path": "python_contracts/stderr",
+      "bytes": 98,
+      "sha256": "215ff4b461d6d92ed53d829dd382afe1a6274a575bdbfee58315ab2ad35f29b2"
+    },
+    {
+      "path": "python_contracts/stdout",
+      "bytes": 114,
+      "sha256": "b7cda9b654780a1924f27d28960cf02de786438fe7d11b3de207635c1de35145"
+    },
+    {
+      "path": "rustdoc/stderr",
+      "bytes": 643,
+      "sha256": "c43c2f0358416b99e21728d110938408b07fc54cc181dd326c16dc16224c05b8"
+    },
+    {
+      "path": "rustdoc/stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rustdoc_retry/stderr",
+      "bytes": 3297,
+      "sha256": "72d2bd0db5d4124bcf6a7be677c19e44ea7472785a0c7fa8b9ef8a04f0774914"
+    },
+    {
+      "path": "rustdoc_retry/stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "status-at-publication.json",
+      "bytes": 2917,
+      "sha256": "c708d822cf5e503cdbb47eec2c6f0f5d33641e145285320eebe60dfc6ee5f025"
+    }
+  ],
+  "logical_bytes": 158268
+}
