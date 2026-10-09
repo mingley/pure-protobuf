@@ -1,0 +1,49 @@
+{
+  "actual_24h_started": true,
+  "actual_24h_completed": false,
+  "qualified": false,
+  "source": {
+    "commit": "abeb7bcf2ee653bff899ba14f505ced9b373f963",
+    "tree": "bf0b13da65d5281875647ec1e1132699b9190256",
+    "dirty": false,
+    "cargo_lock_sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5"
+  },
+  "build_profile": "release",
+  "launch": {
+    "state": "running",
+    "pid": 238772,
+    "source": {
+      "commit": "abeb7bcf2ee653bff899ba14f505ced9b373f963",
+      "tree": "bf0b13da65d5281875647ec1e1132699b9190256",
+      "dirty": false,
+      "cargo_lock_sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5"
+    },
+    "started_unix_seconds": 1791519845.9539447,
+    "duration_requested_seconds": 86400.0,
+    "binary_sha256": "59b564be6b37659be2056b0a4da6a98029680b9bb7f6ffbcadd76f81c000ea4a",
+    "qualified": false
+  },
+  "actual_process_limits": {
+    "address_space": {
+      "soft": 1073741824,
+      "hard": 1073741824
+    },
+    "file_descriptors": {
+      "soft": 128,
+      "hard": 128
+    },
+    "same_uid_processes": {
+      "soft": 4096,
+      "hard": 4096
+    },
+    "cpu_seconds": {
+      "soft": 86430,
+      "hard": 86430
+    }
+  },
+  "snapshot_unix_seconds": 1791519848.307824,
+  "preview_duration_actual_seconds": 31.25390351099486,
+  "preview_passed": true,
+  "preview_validator_passed": true,
+  "limits": "known admission stress failure, feature gaps and performance losses remain open"
+}
