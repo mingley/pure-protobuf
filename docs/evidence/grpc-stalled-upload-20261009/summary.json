@@ -1,0 +1,56 @@
+{
+  "source": "930b3e17b585542d151b3b2054116c11dd3b3bf7",
+  "tree": "c9e3ebfc8a4e9ea34d2e0ad1ad4d2fbf2542f1a2",
+  "source_files_sha256": {
+    "pbrs-grpc/src/client/call.rs": "3e68092617bd4f430fa2203e2dc479df92680b8b717121a04f1a26772187a15e",
+    "pbrs-grpc/src/client/unary.rs": "54f9eab2f0a6209e0d59dff6e2d8cae28c922b8faabdfccfdd01dcc4c57085f5",
+    "pbrs-grpc/src/client/streaming.rs": "da9181332bce358a812d3f2a4670e6cb8b94e5c67bbc274d0e8806d3ee7df5e1",
+    "pbrs-grpc/tests/early_upload_response.rs": "5e64ce918cbc5675eb41b03294296bf7f63583f99f7e8f6381c0d47233c8df07"
+  },
+  "unit_tests_passed": 569,
+  "unit_tests_ignored": 1,
+  "integration_tests_passed": 89,
+  "gates": [
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--all-features",
+        "--lib",
+        "--test",
+        "early_upload_response",
+        "--test",
+        "retry_safety",
+        "--test",
+        "policy_retry",
+        "--test",
+        "streaming_final_status",
+        "--test",
+        "deadline_admission"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 165.02494837199993
+    },
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "-p",
+        "pbrs-grpc",
+        "--all-features",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 103.15893361299823
+    }
+  ],
+  "baseline_scope": "unchanged old diagnostic ELF; the two retained reruns used a ten-second watchdog, without finite RLIMITs; not a clean-source or resource qualification",
+  "qualified": false
+}

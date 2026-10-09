@@ -15,7 +15,8 @@ comparative claim. No category currently has a qualified performance win.
 
 | Record | What it contributes | How to read it |
 |---|---|---|
-| [Queued upload rejection](grpc-upload-rejection-20261008/README.md) | Reproduced inactive-stream overload failure and bounded response-header fix | 569 unit and 84 integration tests pass; stalled-upload response race and broader qualification remain open |
+| [Stalled upload response](grpc-stalled-upload-20261009/README.md) | Reads early rejection while upload waits for credit and preserves ordinary headers | 658 unit/integration tests and strict Clippy pass; earlier-source day does not qualify this runtime change |
+| [Queued upload rejection](grpc-upload-rejection-20261008/README.md) | Reproduced inactive-stream overload failure and bounded response-header fix | 569 unit and 84 integration tests pass; the separate stalled-upload race is fixed in the record above; broader qualification remains open |
 | [Corrected overload campaign](grpc-resource-soak-20261008-attempt-006/README.md) | Source-pinned optimized preview and actual-day controller | Optimized preview passed; actual day started 2026-10-09 00:05:26 UTC on source 68484746; completion remains pending |
 | [Boxed service dispatch](grpc-boxed-dispatch-20261008/README.md) | Smaller generated Router futures; 2,560 functional cells and per-side N/2N captures | Generated server instruction counts fell roughly 1–5% in five measured shapes, but still lose to tonic; one instruction capture failed |
 | [Optimized resource campaign, fifth attempt](grpc-resource-soak-20261008-attempt-005/README.md) | Release-profile build, finite limits, and preview gating | Preview failed with Internal instead of ResourceExhausted on overload; the day did not start |
