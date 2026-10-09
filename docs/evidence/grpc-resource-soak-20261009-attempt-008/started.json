@@ -1,0 +1,13 @@
+{
+  "source_commit": "07e409aed328c9716718eb70ff05c15848fbb664",
+  "build_profile": "release",
+  "controller_sha256": "f3f110905fb62642cf5948869708aa1bf3cca2bc58d394b34c7b611ea7c52cac",
+  "queue_controller_sha256": "620c708ef1829554f9a64887c1fc04aa043014e07981bef402639c9ab4bb67ea",
+  "snapshot_unix_seconds": 1791509055.0401165,
+  "state": "queued_for_regressions",
+  "actual_24h_started": false,
+  "qualified": false,
+  "queue_status": "work/resource-008-prerequisites/status.json",
+  "resource_status": "work/campaign-v5-008/controller-status.json",
+  "limits": "unchanged original resource campaign limits and deadlines"
+}
