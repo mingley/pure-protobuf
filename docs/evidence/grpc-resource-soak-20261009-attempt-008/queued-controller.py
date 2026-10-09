@@ -15,7 +15,7 @@ CONTROLLER = ROOT / 'work/campaign-v5-007/controller.py'
 CONTROLLER_SHA = 'f3f110905fb62642cf5948869708aa1bf3cca2bc58d394b34c7b611ea7c52cac'
 REPORTS = ['native-sequential-gates-2c66', 'native-sequential-gates-2c66-continuation',
            'native-sequential-gates-05f5', 'native-sequential-gates-07e4']
-state = dict(source=PIN, state='waiting_for_regressions', qualified=False,
+state = dict(source=PIN, state='waiting_for_regressions', qualified=False, passed=False,
              actual_24h_started=False, actual_24h_completed=False, steps=[])
 (OUT / 'controller.py').write_bytes(Path(__file__).read_bytes())
 
@@ -89,6 +89,10 @@ try:
                             '--output', str(ROOT / 'work/benchmark-07e4')])
     state['state'] = 'resource_controller'
     save()
+    state['actual_24h_started'] = None
+    state['actual_24h_completed'] = None
+    state['live_resource_status'] = 'work/campaign-v5-008/controller-status.json'
+    save()
     run('preview_and_day', [str(ROOT / 'work/run-rust'), 'python3', str(CONTROLLER),
                             '--source', PIN, '--source-dir', str(SOURCE), '--root', str(ROOT),
                             '--output', str(ROOT / 'work/campaign-v5-008'),
@@ -97,7 +101,8 @@ try:
     outcome = json.loads((ROOT / 'work/campaign-v5-008/controller-status.json').read_text())
     days = [row for row in outcome['outcomes'] if row['duration_requested_seconds'] == 86400]
     state['actual_24h_started'] = bool(days)
-    state['actual_24h_completed'] = bool(days and days[0].get('soak_24h', {}).get('status') == 'completed')
+    state['actual_24h_completed'] = bool(days and (days[0].get('soak_24h') or {}).get('status') == 'completed')
+    state['passed'] = state['actual_24h_completed'] and all(row['runner_exit_code'] == 0 and row['validator_exit_code'] == 0 for row in outcome['outcomes'])
     state['resource_outcome'] = outcome
     state['state'] = 'finished'
     # Even a completed day does not qualify features, performance or the full
