@@ -1,0 +1,96 @@
+{
+  "state": "finished",
+  "source": "684847461083d1a7d680031f02b05fabb17ab59b",
+  "build_profile": "release",
+  "finished_unix_seconds": 1791506197.1026356,
+  "qualified": false,
+  "commands": [
+    [
+      "python3",
+      "/workspace/pure-protobuf/work/resource-candidate-006/scripts/grpc-resource-campaign.py",
+      "--source",
+      "684847461083d1a7d680031f02b05fabb17ab59b",
+      "--duration",
+      "30",
+      "--output",
+      "/workspace/pure-protobuf/work/campaign-v5-006/preview",
+      "--seed",
+      "20261008",
+      "--build-profile",
+      "release"
+    ],
+    [
+      "python3",
+      "/workspace/pure-protobuf/work/resource-candidate-006/scripts/grpc-resource-campaign.py",
+      "--source",
+      "684847461083d1a7d680031f02b05fabb17ab59b",
+      "--duration",
+      "86400",
+      "--output",
+      "/workspace/pure-protobuf/work/campaign-v5-006/24h",
+      "--seed",
+      "20261008",
+      "--build-profile",
+      "release"
+    ]
+  ],
+  "outcomes": [
+    {
+      "duration_requested_seconds": 30,
+      "runner_exit_code": 0,
+      "validator_exit_code": 0,
+      "source": {
+        "commit": "684847461083d1a7d680031f02b05fabb17ab59b",
+        "tree": "93e2f002c36b7582532ff99dd881d610f07b50bd",
+        "dirty": false,
+        "cargo_lock_sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5"
+      },
+      "duration_actual_seconds": 31.3500749800005,
+      "smoke": {
+        "status": "passed",
+        "failures": []
+      },
+      "soak_24h": {
+        "status": "not_run",
+        "reason": "resource campaign duration; overall QG-06 acceptance remains separate"
+      },
+      "validation_command": [
+        "python3",
+        "/workspace/pure-protobuf/work/resource-candidate-006/scripts/grpc-resource-campaign.py",
+        "--validate",
+        "/workspace/pure-protobuf/work/campaign-v5-006/preview/report.json"
+      ]
+    },
+    {
+      "duration_requested_seconds": 86400,
+      "runner_exit_code": 1,
+      "validator_exit_code": 1,
+      "source": {
+        "commit": "684847461083d1a7d680031f02b05fabb17ab59b",
+        "tree": "93e2f002c36b7582532ff99dd881d610f07b50bd",
+        "dirty": false,
+        "cargo_lock_sha256": "1f3f8fa2f28546a2d5c90f186736522e18bc1ddc9cdd0686f5dbc63cc84594d5"
+      },
+      "duration_actual_seconds": 1869.507058942003,
+      "smoke": {
+        "status": "failed",
+        "failures": [
+          "incomplete, duplicated or reordered cycle phases",
+          "independent samples do not cover the requested duration",
+          "missing or incomplete requested duration",
+          "resource test child failed"
+        ]
+      },
+      "soak_24h": {
+        "status": "failed",
+        "reason": "resource campaign duration; overall QG-06 acceptance remains separate"
+      },
+      "validation_command": [
+        "python3",
+        "/workspace/pure-protobuf/work/resource-candidate-006/scripts/grpc-resource-campaign.py",
+        "--validate",
+        "/workspace/pure-protobuf/work/campaign-v5-006/24h/report.json"
+      ]
+    }
+  ]
+}

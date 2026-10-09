@@ -1,0 +1,1 @@
+{"report": "/workspace/pure-protobuf/work/campaign-v5-007/preview/report.json", "smoke": {"status": "failed", "failures": ["incomplete, duplicated or reordered cycle phases", "independent samples do not cover the requested duration", "resource test child failed"]}, "qualified": false}
