@@ -1,0 +1,40 @@
+{
+  "schema": "pbrs.compatibility-capsule.v1",
+  "archive": {
+    "name": "raw.tar.gz",
+    "sha256": "0c7593d0184b619502babbc7c39351b87fc77ab3be18e5527db29b419140ff77"
+  },
+  "files": [
+    {
+      "path": "msrv_unit/stderr",
+      "bytes": 2399,
+      "sha256": "82744e8ef1bfe0a69c8d444598246a3361aef6226684e3bb06a41ae03742f7c9"
+    },
+    {
+      "path": "msrv_unit/stdout",
+      "bytes": 114733,
+      "sha256": "775ceb0268639cc73be587670df2c141120e66b7d0395f325f513e0022e73bf5"
+    },
+    {
+      "path": "msrv_upload/stderr",
+      "bytes": 267,
+      "sha256": "abc44e89ce07a0ec462d90c5163de0fab1a3d35272dfbcf59d34112a0fed202f"
+    },
+    {
+      "path": "msrv_upload/stdout",
+      "bytes": 81141,
+      "sha256": "53ebfac0ec089c0274cc6099a0b5a21ceeb1778a6c3cd0f2f2814a07a71d99a2"
+    },
+    {
+      "path": "results.json",
+      "bytes": 3526,
+      "sha256": "5a77cdd511228ab770839bfe0220e3a9edccce56ba0c93466f7853b9b883e0ff"
+    },
+    {
+      "path": "rustc-version.txt",
+      "bytes": 196,
+      "sha256": "be9e105cd61ce407c0e06d80a25240f93cc48de72942117e1886f09aa08f9a2a"
+    }
+  ],
+  "logical_bytes": 202262
+}

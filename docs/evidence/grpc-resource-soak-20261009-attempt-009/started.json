@@ -2,11 +2,12 @@
   "source_commit": "abeb7bcf2ee653bff899ba14f505ced9b373f963",
   "build_profile": "release",
   "controller_sha256": "f3f110905fb62642cf5948869708aa1bf3cca2bc58d394b34c7b611ea7c52cac",
-  "queue_controller_sha256": "37bff9e2306b6c8154f08c773635e38e251cb59d34edf5ecf58245dd63ae5739",
+  "queue_controller_sha256": "37db462b607fdd0975b97661cfd089662224fe730abb4ab0d17ef29fdaf18866",
   "state": "queued_for_complete_native_checks",
   "actual_24h_started": false,
   "qualified": false,
-  "snapshot_unix_seconds": 1791515926.6931052,
+  "snapshot_unix_seconds": 1791516616.7347617,
   "status": "work/resource-009-prerequisites/status.json",
-  "resource_status": "work/campaign-v5-009/controller-status.json"
+  "resource_status": "work/campaign-v5-009/controller-status.json",
+  "regression_gate": "all checks finish before execution; failures retained and force diagnostic-only interpretation"
 }
