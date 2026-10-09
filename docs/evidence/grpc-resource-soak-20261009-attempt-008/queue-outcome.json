@@ -1,0 +1,13 @@
+{
+  "source": "a9fe4c2d336710cea6f997b00277e6410eee672a",
+  "state": "failed",
+  "qualified": false,
+  "passed": false,
+  "actual_24h_started": false,
+  "actual_24h_completed": false,
+  "steps": [],
+  "error": {
+    "type": "RuntimeError",
+    "message": "regression or strict documentation prerequisite failed"
+  }
+}

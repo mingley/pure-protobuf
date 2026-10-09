@@ -1,0 +1,17 @@
+{
+  "source": "a9fe4c2d336710cea6f997b00277e6410eee672a",
+  "state": "failed",
+  "qualified": false,
+  "expected_captures_per_phase": 7200,
+  "phases": [],
+  "publisher_sha256": "725cb156c0937f8aabab25f02953677d63f840f58f4351c31e050c74b2444b31",
+  "limits": [
+    "synthetic steady-state counter coverage only",
+    "read-all corpora, saturation, cold/idle, wakeups and dedicated-host timing remain open"
+  ],
+  "passed": false,
+  "error": {
+    "type": "RuntimeError",
+    "message": "resource prerequisites ended before the resource campaign finished"
+  }
+}

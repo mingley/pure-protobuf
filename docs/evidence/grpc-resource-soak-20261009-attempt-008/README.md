@@ -7,3 +7,5 @@ The queue requires every native test target and strict documentation checks to p
 The controller publishes the final raw reports and outcome directly to main, including failures. `started.json` records this initial queue snapshot; the later `outcome.json` records the terminal result. The previous failed attempts remain [006](../grpc-resource-soak-20261008-attempt-006/README.md) and [007](../grpc-resource-soak-20261009-attempt-007/README.md).
 
 Production qualification remains false. Features, the complete performance matrix, known tonic losses, allocator high-water and kernel-memory checks, and dedicated-host comparisons remain open.
+
+The queue has now stopped at a failed native regression prerequisite. No campaign captures started. See [the failure record](../grpc-resource-admission-20261009/README.md) and `queue-outcome.json`.

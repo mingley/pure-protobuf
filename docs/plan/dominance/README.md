@@ -110,6 +110,18 @@ Read-all corpora, saturation, cold/idle lifecycles, task wakeups, observed
 cipher matching, measured noise, and dedicated-host timing still need their
 own captures. Run these campaigns and resource soaks separately.
 
+Use [`grpc-counter-capsule.py`](../../../scripts/grpc-counter-capsule.py) to
+archive a terminal phase, including failed or partial captures:
+
+```sh
+python3 scripts/grpc-counter-capsule.py --source work/counter-native \
+  --output work/counter-capsule --expected-source "$revision"
+python3 work/counter-capsule/check.py --check work/counter-capsule
+```
+
+The helper rejects active campaigns and source mismatches. It splits archives
+into parts, inventories every file and checks the hashes before publication.
+
 ## Where the CPU goes
 
 The [SV-09 profile](../../evidence/sv-09.md) identifies large future construction
