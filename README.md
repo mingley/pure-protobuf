@@ -208,21 +208,21 @@ reflection, see [`examples/greeter`](examples/greeter).
 
 ## Support matrix
 
-The minimum supported Rust versions (MSRV) below are checked in CI.
-The tested column includes earlier runs with Rust 1.98. Releases follow
-the [release guide](docs/RELEASE.md); pushes to `main` do not publish crates.
+The table lists minimum Rust versions and configured CI checks. Actual
+compiler versions and results are recorded in the [evidence guide](docs/evidence/README.md).
+Releases follow the [release guide](docs/RELEASE.md); pushes to `main` do not publish crates.
 
 The maintained crates and tools use **Rust language Edition 2024**, available
 from rustc 1.85. Frozen reference/comparator and discarded-experiment
 manifests keep their original edition for reproducibility. This is independent
 of **Protocol Buffers Edition 2024**.
 
-| Crate | Declared MSRV | Tested | `protoc` | Stub default |
+| Crate | Declared MSRV | CI checks | `protoc` | Stub default |
 |---|---|---|---|---|
-| [`pbrs`](.) | 1.85 | rustc 1.98 (this host); CI `msrv-core` 1.85 `--lib`, stable Linux + macOS | Not required to **build** the crate (bundled FileDescriptorSet). Required for `compile_protos` / `protoc-gen-pbrs`. | Messages; `.proto` `service` blocks emit native `pbrs-grpc` stubs |
-| [`pbrs-grpc`](pbrs-grpc) | 1.85 | rustc 1.98 (this host); CI `msrv-core` 1.85 `--lib` (incl. `tcp::tests`), stable Linux + macOS | **Current source:** no compiler needed to build from checked FileDescriptorSets; required to regenerate descriptors or compile application `.proto`. **Older `0.1.0-alpha.1`:** still requires `protoc`. | Native kernel (`compile_protos` default) |
-| [`protobuf-tonic`](protobuf-tonic) | 1.88 | rustc 1.98 (this host); CI `msrv-tonic` 1.88 | **Current source:** no compiler needed to build from the checked FileDescriptorSet. **Older `0.1.0-alpha.1`:** still requires `protoc`. Direct `.proto` compilation needs it in either version. | Must call [`Config::emit_tonic_stubs(true)`](protobuf-tonic/README.md); not a `prost::Message` drop-in |
-| [`examples/greeter`](examples/greeter) | 1.85 | rustc 1.98 (this host); CI stable Linux (`--workspace`) + macOS onboarding | Required | Native kernel default |
+| [`pbrs`](.) | 1.85 | `msrv-core` 1.85 `--lib`, stable Linux + macOS | Not required to build the crate (bundled FileDescriptorSet). Required for `compile_protos` / `protoc-gen-pbrs`. | Messages; `.proto` `service` blocks emit native `pbrs-grpc` stubs |
+| [`pbrs-grpc`](pbrs-grpc) | 1.85 | `msrv-core` 1.85 `--lib` and stalled-upload checks, stable Linux + macOS | Current source builds from checked FileDescriptorSets. Regenerating descriptors or compiling application `.proto` requires `protoc`; `0.1.0-alpha.1` also requires it to build. | Native kernel (`compile_protos` default) |
+| [`protobuf-tonic`](protobuf-tonic) | 1.88 | `msrv-tonic` 1.88 | Current source builds from the checked FileDescriptorSet. Direct `.proto` compilation requires `protoc`; `0.1.0-alpha.1` also requires it to build. | Call [`Config::emit_tonic_stubs(true)`](protobuf-tonic/README.md); not a `prost::Message` drop-in |
+| [`examples/greeter`](examples/greeter) | 1.85 | Stable Linux (`--workspace`) + macOS onboarding | Required | Native kernel default |
 
 **Untested / unsupported** (not a support commitment):
 

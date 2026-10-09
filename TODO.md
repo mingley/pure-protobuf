@@ -29,14 +29,15 @@ of eligible work, not an instruction to start every lane at once.
 
 ## Current priorities
 
-The latest [readiness records](docs/evidence/README.md) include the queued
-peer-rejection fix, the stalled-upload fix, and separate client/server
-comparisons. Resource attempts 006 and 007 failed and retain their raw logs.
-Attempt 008 stopped at a native fairness prerequisite. The [queued-reset
-admission fix](docs/evidence/grpc-reset-admission-20261009/README.md) passes its
-deterministic regression, while timing and bulk-progress failures remain.
-Attempt 009 is queued behind complete clean-source checks. The 24-hour gate is
-still open.
+The latest [readiness records](docs/evidence/README.md) include fixes for
+queued peer rejections, stalled uploads and already-reset requests consuming
+bounded RPC slots. All 58 native test targets have recorded results. The
+mixed-load admission test still misses its bulk-progress threshold; the
+adapter's stale send-buffer expectation was corrected and its 19 tests pass.
+Resource attempts 006 and 007 failed, and 008 stopped at its native prerequisite.
+Attempt 009 is queued after disk recovery, with counter sweeps scheduled
+after its resource outcome. The 24-hour gate and client/server performance
+comparisons remain open.
 
 | Work | Next result | Completion criterion |
 |---|---|---|
