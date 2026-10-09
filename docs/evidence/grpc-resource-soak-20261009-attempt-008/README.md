@@ -1,6 +1,6 @@
 # Resource attempt 008
 
-Source `07e409aed328c9716718eb70ff05c15848fbb664`, release profile. At this snapshot the campaign is queued behind the remaining native regression tests. The actual 24-hour run has not started.
+Source `a9fe4c2d336710cea6f997b00277e6410eee672a`, release profile. At this snapshot the campaign is queued behind the remaining native regression tests. The actual 24-hour run has not started.
 
 The queue requires every native test target and strict documentation checks to pass, retains the exact source used for each target, and records the isolated caller-rustls consumer output. It then builds the source-pinned RPC benchmark before launching the resource controller. The controller attempts a 30-second preview and runs the actual 86,400-second campaign only if the preview and its validator pass. Resource limits, the three-second server deadline and the 300 ms probe warmup are unchanged.
 

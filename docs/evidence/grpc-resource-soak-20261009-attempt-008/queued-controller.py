@@ -8,13 +8,13 @@ import time
 
 ROOT = Path('/workspace/pure-protobuf')
 SOURCE = ROOT / 'work/gates-candidate-05f5'
-PIN = '07e409aed328c9716718eb70ff05c15848fbb664'
+PIN = 'a9fe4c2d336710cea6f997b00277e6410eee672a'
 OUT = ROOT / 'work/resource-008-prerequisites'
 OUT.mkdir(exist_ok=False)
 CONTROLLER = ROOT / 'work/campaign-v5-007/controller.py'
 CONTROLLER_SHA = 'f3f110905fb62642cf5948869708aa1bf3cca2bc58d394b34c7b611ea7c52cac'
 REPORTS = ['native-sequential-gates-2c66', 'native-sequential-gates-2c66-continuation',
-           'native-sequential-gates-05f5', 'native-sequential-gates-07e4']
+           'native-sequential-gates-05f5', 'native-sequential-gates-07e4', 'native-sequential-gates-a9fe']
 state = dict(source=PIN, state='waiting_for_regressions', qualified=False, passed=False,
              actual_24h_started=False, actual_24h_completed=False, steps=[])
 (OUT / 'controller.py').write_bytes(Path(__file__).read_bytes())
@@ -55,7 +55,7 @@ def run(name, args):
 save()
 try:
     latest = wait_report(REPORTS[-1])
-    docs = wait_report('final-doc-gates-07e4')
+    docs = wait_report('final-doc-gates-a9fe')
     if not latest.get('passed') or not docs.get('passed'):
         raise RuntimeError('regression or strict documentation prerequisite failed')
     full = json.loads((ROOT / 'work' / REPORTS[0] / 'results.json').read_text())
@@ -86,7 +86,7 @@ try:
     # compilation while the actual day is running.
     run('benchmark_build', [str(ROOT / 'work/run-rust'), 'python3',
                             str(SOURCE / 'scripts/build-rpc-bench.py'), '--source', PIN,
-                            '--output', str(ROOT / 'work/benchmark-07e4')])
+                            '--output', str(ROOT / 'work/benchmark-a9fe')])
     state['state'] = 'resource_controller'
     save()
     state['actual_24h_started'] = None
