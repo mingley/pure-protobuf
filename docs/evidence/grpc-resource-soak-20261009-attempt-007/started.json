@@ -1,0 +1,31 @@
+{
+  "schema": "pbrs.resource-campaign.v5",
+  "source_commit": "930b3e17b585542d151b3b2054116c11dd3b3bf7",
+  "source_tree": "c9e3ebfc8a4e9ea34d2e0ad1ad4d2fbf2542f1a2",
+  "controller_sha256": "f3f110905fb62642cf5948869708aa1bf3cca2bc58d394b34c7b611ea7c52cac",
+  "prepared_utc": "2026-10-09T00:26:15.277558+00:00",
+  "requested_preview_seconds": 30,
+  "requested_soak_seconds": 86400,
+  "seed": 20261008,
+  "build_profile": "release",
+  "publication_path": "docs/evidence/grpc-resource-soak-20261009-attempt-007",
+  "controller_command": [
+    "/workspace/pure-protobuf/work/run-rust",
+    "python3",
+    "/workspace/pure-protobuf/docs/evidence/grpc-resource-soak-20261009-attempt-007/controller.py",
+    "--source",
+    "930b3e17b585542d151b3b2054116c11dd3b3bf7",
+    "--source-dir",
+    "/workspace/pure-protobuf/work/resource-candidate-007",
+    "--root",
+    "/workspace/pure-protobuf",
+    "--output",
+    "/workspace/pure-protobuf/work/campaign-v5-007",
+    "--evidence-path",
+    "docs/evidence/grpc-resource-soak-20261009-attempt-007",
+    "--build-profile",
+    "release",
+    "--publish-main"
+  ],
+  "qualified": false
+}
