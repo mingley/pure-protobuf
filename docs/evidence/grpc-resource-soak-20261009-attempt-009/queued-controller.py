@@ -1,9 +1,17 @@
 """Finish checks, freeze the benchmark, then gate the unchanged resource run."""
 import hashlib,json,os,shutil,subprocess,sys,time
 from pathlib import Path
-ROOT=Path('/workspace/pure-protobuf');PIN=sys.argv[1];OUT=ROOT/'work/resource-009-prerequisites';OUT.mkdir(exist_ok=False)
+ROOT=Path('/workspace/pure-protobuf');PIN=sys.argv[1];OUT=ROOT/'work/resource-009-prerequisites';OUT.mkdir(exist_ok=True)
 CONTROLLER=ROOT/'work/campaign-v5-007/controller.py';SHA='f3f110905fb62642cf5948869708aa1bf3cca2bc58d394b34c7b611ea7c52cac'
 state=dict(source=PIN,state='waiting_for_native_checks',qualified=False,passed=False,actual_24h_started=False,actual_24h_completed=False,steps=[])
+if (OUT/'status.json').exists():
+ previous=json.loads((OUT/'status.json').read_text())
+ assert previous['source']==PIN and previous['state']=='failed' and not previous.get('actual_24h_started')
+ assert previous.get('error',{}).get('type')=='OSError' and 'No space left on device' in previous['error']['message']
+ assert not (ROOT/'work/campaign-v5-009').exists()
+ shutil.copy2(OUT/'status.json',OUT/'infrastructure-failure.json')
+ shutil.copy2(OUT/'controller.py',OUT/'controller-before-disk-recovery.py')
+ state['steps']=previous['steps'];state['resumed_after_disk_exhaustion']=True
 (OUT/'controller.py').write_bytes(Path(__file__).read_bytes())
 def save():
  p=OUT/'status.json.tmp';p.write_text(json.dumps(state,indent=2)+'\n');p.replace(OUT/'status.json')
@@ -22,13 +30,25 @@ try:
   if native.get('state') in ['finished','failed']:break
   time.sleep(3)
  state['native_checks_passed']=native.get('passed') is True;save()
- run('publish_native',['python3',str(ROOT/'work/publish-native-abeb.py')])
+ if not state['steps']:run('publish_native',['python3',str(ROOT/'work/publish-native-abeb.py')])
  os.environ['PROTOC']=str(ROOT/'work/toolchain/protoc/bin/protoc');os.environ['PATH']=str(ROOT/'work/toolchain/protoc/bin')+os.pathsep+os.environ['PATH']
  checks=[]
  for name,args in [('format',['cargo','fmt','--all','--','--check']),('clippy',['cargo','clippy','--locked','-p','pbrs','-p','pbrs-grpc','--all-targets','--all-features','--','-D','warnings']),('python_contracts',['python3','-B','-m','unittest','-q','tests.test_grpc_load_smoke','tests.test_dominance_ledger','tests.test_grpc_resource_campaign','tests.test_counter_campaign','tests.test_counter_capsule'])]:
-  checks.append(run(name,[str(ROOT/'work/run-rust'),*args]))
+  previous=[row for row in state['steps'] if row['name']==name]
+  checks.append(previous[-1]['exit_code'] if previous else run(name,[str(ROOT/'work/run-rust'),*args]))
+ # Every compile/test from the native run and adapter correction has ended.
+ # Remove only the inactive debug cache before retrying documentation so
+ # disk exhaustion cannot block the later cleanup. Keep all raw failures.
+ for proc in Path('/proc').iterdir():
+  if proc.name.isdigit():
+   try:args=(proc/'cmdline').read_bytes().split(b'\0')
+   except OSError:continue
+   if b'--crate-name' in args:raise RuntimeError('unexpected active compiler before disk recovery')
+ cache=ROOT/'work/target/debug'
+ if cache.exists():
+  state['disk_recovery_removed_inactive_debug_bytes']=sum(p.stat().st_size for p in cache.rglob('*') if p.is_file());shutil.rmtree(cache);save()
  os.environ['RUSTDOCFLAGS']='-D warnings'
- checks.append(run('rustdoc',[str(ROOT/'work/run-rust'),'cargo','doc','--locked','--no-deps','--all-features','-p','pbrs','-p','pbrs-grpc']))
+ checks.append(run('rustdoc_retry',[str(ROOT/'work/run-rust'),'cargo','doc','--locked','--no-deps','--all-features','-p','pbrs','-p','pbrs-grpc']))
  state['strict_checks_passed']=all(code==0 for code in checks);save()
  # Preserve the isolated consumer's real output, even if another target
  # failed. Its outer test intentionally prints this output only on failure.

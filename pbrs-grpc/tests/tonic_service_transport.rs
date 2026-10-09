@@ -594,13 +594,44 @@ async fn ordinary_tower_layer_retains_generated_service_routing_name() {
 }
 
 #[tokio::test]
+async fn small_send_buffer_forwards_data_metadata_and_terminal_trailers() {
+    let mut wire = BytesMut::new();
+    wire.extend_from_slice(&[0, 0, 0, 4, 0]);
+    wire.extend_from_slice(&[b'x'; 1024]);
+    let wire = wire.freeze();
+    for accepts_compressed in [true, false] {
+        let (server, state) = server(Mode::Echo);
+        let config = ServerConfig::default()
+            .max_send_buffer_size(8)
+            .accept_compressed(accepts_compressed);
+        let (mut client, _guard) = connect_with_window(server.config(config), 1).await;
+        let (response, mut upload) = client.send_request(request(None), false).expect("request");
+        upload.send_data(wire.clone(), true).expect("upload");
+        let (got, headers, terminal) = tokio::time::timeout(Duration::from_secs(2), async {
+            collect_response(response.await.expect("response")).await
+        })
+        .await
+        .expect("small send buffers and one-byte windows must make progress");
+        assert_eq!(got, wire);
+        assert_eq!(headers.get("x-initial").expect("metadata"), "unchanged");
+        assert_eq!(terminal.get("grpc-status").expect("status"), "7");
+        assert_eq!(
+            terminal.get("grpc-message").expect("message"),
+            "peer%20terminal"
+        );
+        assert_eq!(terminal.get("x-terminal").expect("metadata"), "unchanged");
+        assert_eq!(state.ready.load(Ordering::SeqCst), 1);
+        assert_eq!(state.calls.load(Ordering::SeqCst), 1);
+    }
+}
+
+#[tokio::test]
 async fn opaque_native_policies_fail_before_tower_readiness_and_dispatch() {
     let defaults = ServerConfig::default();
     let variants = [
         defaults.send_compressed(true),
         defaults.gzip_compression_level(8),
         defaults.compression_codec(pbrs_grpc::compression::Codec::Deflate),
-        defaults.max_send_buffer_size(8),
     ];
     for config in variants
         .into_iter()

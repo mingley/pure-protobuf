@@ -1,7 +1,7 @@
 {
   "source": "abeb7bcf2ee653bff899ba14f505ced9b373f963",
   "qualified": false,
-  "state": "queued_after_resource_outcome",
+  "state": "queued_after_resource_retry",
   "actual_captures_completed": 0,
   "expected_captures_per_phase": 7200,
   "phases": [
@@ -10,6 +10,7 @@
     "callgrind"
   ],
   "controller_sha256": "613095d556d3a243271828caab05f099dabaebe71cbb789b2045da350c9f1fd6",
-  "snapshot_unix_seconds": 1791515926.6954212,
-  "status": "work/counter-sweeps-abeb/status.json"
+  "snapshot_unix_seconds": 1791518650.746491,
+  "status": "work/counter-sweeps-abeb/status.json",
+  "previous_queue_outcome": "../grpc-adapter-buffer-20261009/README.md"
 }
