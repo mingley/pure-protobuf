@@ -15,6 +15,7 @@ comparative claim. No category currently has a qualified performance win.
 
 | Record | What it contributes | How to read it |
 |---|---|---|
+| [Server regression checks](grpc-server-regressions-20261009/README.md) | All 1,100 server tests pass serially; health 180 and reflection 188 pass; strict documentation checks pass | Original parallel failures are retained; 40 isolated repetitions pass without changing assertions or deadlines |
 | [Resource attempt 008](grpc-resource-soak-20261009-attempt-008/README.md) | Source `a9fe4c2d`, release; queued behind full regressions, then preview and actual day | Initial queue snapshot; see the record for terminal outcome; production qualification remains open |
 | [Compiler, docs and counter runner](grpc-compatibility-20261009/README.md) | Actual Rust 1.85 checks, concise docs, 197 codegen and 25 documentation tests, 600 runner captures | Full native continuation, wider measurements, features and production qualification remain open |
 | [Stalled upload response](grpc-stalled-upload-20261009/README.md) | Reads early rejection while upload waits for credit and preserves ordinary headers | 658 unit/integration tests and strict Clippy pass; earlier-source day does not qualify this runtime change |
