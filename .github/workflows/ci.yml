@@ -281,8 +281,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.85.0
       - name: Install protoc
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
-      - run: cargo test -p pbrs --lib
-      - run: cargo test -p pbrs-grpc --lib
+      - run: cargo test --locked -p pbrs --lib
+      - run: cargo test --locked -p pbrs-grpc --lib
+      - run: cargo test --locked -p pbrs-grpc --test early_upload_response
 
   # Declared rust-version on protobuf-tonic (tonic 0.14.6).
   msrv-tonic:

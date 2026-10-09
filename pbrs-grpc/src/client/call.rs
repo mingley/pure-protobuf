@@ -188,9 +188,10 @@ pub(crate) async fn send_request_frame_in<R: Runtime>(
                     if let Poll::Ready(sent) = send_fut.as_mut().poll(cx) {
                         return Poll::Ready(sent);
                     }
-                    if received.is_none()
-                        && let Poll::Ready(head) = Pin::new(&mut *response).poll(cx)
-                    {
+                    let head = received
+                        .is_none()
+                        .then(|| Pin::new(&mut *response).poll(cx));
+                    if let Some(Poll::Ready(head)) = head {
                         // A server can reject without granting upload credit
                         // or resetting the request half. Only a valid error
                         // ends an incomplete upload; ordinary response
