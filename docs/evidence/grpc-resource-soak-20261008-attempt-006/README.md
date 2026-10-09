@@ -8,4 +8,6 @@ The address-space limit is 1 GiB, the descriptor limit is 128, and the same-uid 
 
 Overall production and performance qualification remain false. This default-feature resource fixture does not close the feature backlog, full matrix, allocator high-water, kernel-memory or dedicated-host release gates. Later runtime changes require their own source-pinned validation.
 
-Run `python3 preview/check.py` to verify the preview inventory.
+Run `python3 preview-at-launch/check.py` to verify the preview inventory.
+
+The launch preview is stored in `preview-at-launch` so final publication can create its own `preview` and `24h` capsules.
