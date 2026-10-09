@@ -74,6 +74,42 @@ allocation measurements cover only 1 KiB, h2c, identity, and one call. They
 retain server instruction and byte losses. The other performance cells,
 many-connection loads, read-all corpora, and dedicated-host timings remain open.
 
+## Running the counter matrix
+
+[`grpc-counter-campaign.py`](../../../scripts/grpc-counter-campaign.py) runs
+separate client and server captures from a clean source checkout and its
+verified release benchmark. Install protoc for the build. Freeze the checkout
+and binary before collecting results:
+
+```sh
+revision=$(git rev-parse HEAD)
+git worktree add --detach work/counter-source "$revision"
+python3 work/counter-source/scripts/build-rpc-bench.py \
+  --source "$revision" --output work/counter-build
+python3 scripts/grpc-counter-campaign.py \
+  --source-checkout work/counter-source \
+  --binary work/counter-build/rpc-bench \
+  --build-record work/counter-build/build.json \
+  --output work/counter-native --phase native
+```
+
+The defaults cover all five call shapes, four synthetic payload sizes,
+h2c/TLS, identity/gzip, and loads of 1:1, 1:16 and 64:1024
+(connections:total calls in flight). Each group has three repeats at N and 2N;
+N is at least the declared concurrency. This produces 7,200 captures per
+phase. `--phase callgrind --valgrind /path/to/valgrind` collects instructions;
+`--phase syscalls --strace /path/to/strace` collects syscall totals. Use a
+separate output directory for each phase. The existing per-RPC deadlines
+and 60-second outer watchdog remain in force.
+
+The runner keeps raw failures and partial results, checks source and binary
+hashes, and writes a per-group comparison ledger. Its
+[600 diagnostic captures](../../evidence/grpc-compatibility-20261009/README.md)
+check execution on an earlier source; they do not fill the current matrix.
+Read-all corpora, saturation, cold/idle lifecycles, task wakeups, observed
+cipher matching, measured noise, and dedicated-host timing still need their
+own captures. Run these campaigns and resource soaks separately.
+
 ## Where the CPU goes
 
 The [SV-09 profile](../../evidence/sv-09.md) identifies large future construction

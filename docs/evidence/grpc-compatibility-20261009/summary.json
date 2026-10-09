@@ -1,0 +1,65 @@
+{
+  "source": "2c66a91ff81f44f896e9228e5e9d73bf038711ba",
+  "qualified": false,
+  "msrv_fixed_source": "89edc7e24914303920dfeeaee57ee1d6fdc88f32",
+  "msrv_baseline_source": "930b3e17b585542d151b3b2054116c11dd3b3bf7",
+  "msrv_unit_passed": 530,
+  "msrv_unit_ignored": 1,
+  "msrv_early_upload_passed": 5,
+  "all_feature_unit_passed": 569,
+  "all_feature_unit_ignored": 1,
+  "codegen_passed": 197,
+  "documentation_passed": 25,
+  "full_native_suite": "incomplete; missing-protoc failure retained; continuation uses explicit protoc",
+  "counter_driver_source": "f8517b53fefaa70866f19ec4896d46254f812b4e",
+  "counter_driver_captures_passed": 600,
+  "counter_driver_final_revision_sha256": "ac9c7672139e5c1810bf628da85031cc5d44c257e71f447987adeb69f424b7f2",
+  "driver_checks": "diagnostic runner checks, not latest-source performance or qualification",
+  "checks": {
+    "source": "2c66a91ff81f44f896e9228e5e9d73bf038711ba",
+    "state": "finished",
+    "passed": true,
+    "qualified": false,
+    "results": [
+      {
+        "name": "documentation",
+        "argv": [
+          "/workspace/pure-protobuf/work/run-rust",
+          "cargo",
+          "test",
+          "--locked",
+          "--test",
+          "documentation",
+          "--message-format=json"
+        ],
+        "environment_overrides": {
+          "PROTOC": "/workspace/pure-protobuf/work/toolchain/protoc/bin/protoc",
+          "PATH": "/workspace/pure-protobuf/work/toolchain/protoc/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+        },
+        "exit_code": 0,
+        "elapsed_seconds": 5.752898104998167
+      },
+      {
+        "name": "rustdoc",
+        "argv": [
+          "/workspace/pure-protobuf/work/run-rust",
+          "cargo",
+          "doc",
+          "--locked",
+          "--no-deps",
+          "-p",
+          "pbrs",
+          "-p",
+          "pbrs-grpc",
+          "--all-features"
+        ],
+        "environment_overrides": {
+          "RUSTDOCFLAGS": "-D warnings"
+        },
+        "exit_code": 0,
+        "elapsed_seconds": 100.81380927999999
+      }
+    ],
+    "retries": "documentation and Rustdoc only; prior formatting, plan, queue, Clippy passed"
+  }
+}

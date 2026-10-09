@@ -15,6 +15,7 @@ comparative claim. No category currently has a qualified performance win.
 
 | Record | What it contributes | How to read it |
 |---|---|---|
+| [Compiler, docs and counter runner](grpc-compatibility-20261009/README.md) | Actual Rust 1.85 checks, concise docs, 197 codegen and 25 documentation tests, 600 runner captures | Full native continuation, wider measurements, features and production qualification remain open |
 | [Stalled upload response](grpc-stalled-upload-20261009/README.md) | Reads early rejection while upload waits for credit and preserves ordinary headers | 658 unit/integration tests and strict Clippy pass; earlier-source day does not qualify this runtime change |
 | [Queued upload rejection](grpc-upload-rejection-20261008/README.md) | Reproduced inactive-stream overload failure and bounded response-header fix | 569 unit and 84 integration tests pass; the separate stalled-upload race is fixed in the record above; broader qualification remains open |
 | [Corrected overload campaign](grpc-resource-soak-20261008-attempt-006/README.md) | Optimized preview and attempted day on source 68484746 | Preview passed; actual day failed after 1,869.51 seconds with a streaming deadline error |
