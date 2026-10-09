@@ -1,0 +1,11 @@
+# Queued resets and RPC admission
+
+Source `abeb7bcf2ee653bff899ba14f505ced9b373f963` checks for an already-queued peer reset before taking a bounded RPC slot. Such requests finish as Cancelled without spawning dispatch tasks. Lifecycle and channelz accounting still record the failed call. Connections with no configured RPC ceiling keep their existing dispatch path.
+
+The deterministic regression feeds three HEADERS/reset pairs before polling the server and holds all dispatch tasks back. With the guard, no task spawns and the sole RPC slot remains available. Removing only the guard makes the same test fail: the first cancelled request holds the slot and the next two receive ResourceExhausted. The original control executable is retained locally as a verified gzip archive; its hash and Cargo artifact are portable.
+
+Candidate checks pass 570 unit tests (one ignored), all 25 resource-bound tests, and five stalled-upload tests. Strict library/integration Clippy and formatting pass. The server suite passes 1,099 tests and fails one Unix deadline test with DeadlineExceeded. That test passes all 30 isolated repetitions. The mixed fairness test passes 28 of 30 repetitions; two runs report only 14 or 12 bulk messages during the small-RPC window. All original test bodies, limits, deadlines and assertions are unchanged. The guard fixes the confirmed admission bug; these timing and bulk-progress failures remain open.
+
+The candidate was tested before commit. source-equivalence.json verifies that its two changed Rust files exactly match this commit and that no other runtime or test file changed. The archive includes successful and failed runs, commands, source hashes, compiler-selected artifacts, the negative control and 44 Python contract tests. Run `python3 check.py` to verify every retained file.
+
+A separate clean-source run is checking the complete 58-target native inventory and the actual Rust 1.85 compiler. Resource attempt 009 is queued behind those checks and builds its release benchmark before the preview/day. Wider synthetic counter sweeps follow the resource outcome; if resource prerequisites fail after benchmark construction, the counters still run as diagnostics. No current-source sweep or actual 24-hour completion is claimed here. Remaining features, full matrix coverage and production qualification stay open.

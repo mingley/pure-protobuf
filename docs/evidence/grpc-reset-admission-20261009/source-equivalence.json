@@ -1,0 +1,18 @@
+{
+  "candidate_base": "54cc601178e10acd03873739c17e99b97e90296a",
+  "committed_source": "abeb7bcf2ee653bff899ba14f505ced9b373f963",
+  "files": [
+    {
+      "path": "pbrs-grpc/src/server/connection.rs",
+      "sha256": "46f246cbf3c8fa5cf692363d99b3205703a6695bc8f14da28daf9891be3ba205",
+      "identical_to_tested_candidate": true
+    },
+    {
+      "path": "pbrs-grpc/src/server/connection/reset_admission_tests.rs",
+      "sha256": "c3b6308da7dfc45f5a78ea07ae4319dc75cbdb4763045457fff9bbc73606ea80",
+      "identical_to_tested_candidate": true
+    }
+  ],
+  "other_runtime_and_test_files_unchanged": true,
+  "ci_changed_after_candidate_tests": "added the already-passing 44 Python contracts to CI; not runtime code"
+}

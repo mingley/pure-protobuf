@@ -32,7 +32,11 @@ of eligible work, not an instruction to start every lane at once.
 The latest [readiness records](docs/evidence/README.md) include the queued
 peer-rejection fix, the stalled-upload fix, and separate client/server
 comparisons. Resource attempts 006 and 007 failed and retain their raw logs.
-The 24-hour gate is still open.
+Attempt 008 stopped at a native fairness prerequisite. The [queued-reset
+admission fix](docs/evidence/grpc-reset-admission-20261009/README.md) passes its
+deterministic regression, while timing and bulk-progress failures remain.
+Attempt 009 is queued behind complete clean-source checks. The 24-hour gate is
+still open.
 
 | Work | Next result | Completion criterion |
 |---|---|---|

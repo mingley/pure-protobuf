@@ -1,0 +1,740 @@
+{
+  "schema": "pbrs.compatibility-capsule.v1",
+  "archive": {
+    "name": "raw.tar.gz",
+    "sha256": "66aefe353443ac5aec8b136869306dd761dae58bffb30fe09705a2bac6a3bf07"
+  },
+  "files": [
+    {
+      "path": "notes/campaign-ci-contracts.stderr",
+      "bytes": 98,
+      "sha256": "f72a3e90f1972a2ddf6075ac407faa00113739b6582612a977f9350e2f22687a"
+    },
+    {
+      "path": "notes/campaign-ci-contracts.stdout",
+      "bytes": 114,
+      "sha256": "b7cda9b654780a1924f27d28960cf02de786438fe7d11b3de207635c1de35145"
+    },
+    {
+      "path": "notes/inactive-incremental-cleanup-006.json",
+      "bytes": 1782,
+      "sha256": "24ef7b308d6c7f994e615e08f3690fda4725820da553a9688329a3579e0d35ce"
+    },
+    {
+      "path": "notes/negative-control-artifact.json",
+      "bytes": 1305,
+      "sha256": "7b008057b10646501379be01782d728c24d641bce47469544171b5e19cf088fc"
+    },
+    {
+      "path": "notes/reset-admission-clippy.stderr",
+      "bytes": 148,
+      "sha256": "c56ce2cd17812a76d167fe2e9517767701be6d99e16f6a9d990d40de9b3ca800"
+    },
+    {
+      "path": "notes/reset-admission-clippy.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "notes/reset-admission-negative-control-connection.rs",
+      "bytes": 26265,
+      "sha256": "77769bbed5d74c5af6fae5efc5026848f62e71fffe31dc14b9fcdf3c48f1eb85"
+    },
+    {
+      "path": "notes/reset-admission-negative-control.json",
+      "bytes": 498,
+      "sha256": "43ce43f5eb551f482bf78526864663bd318771b1b4e7ba8223f9c1bb335fb9c9"
+    },
+    {
+      "path": "notes/reset-admission-negative-control.stderr",
+      "bytes": 290,
+      "sha256": "c5f4719ab0fa2b5a553c9ca0f6ea654ab285544f55aec2ab93f7511f721381c6"
+    },
+    {
+      "path": "notes/reset-admission-negative-control.stdout",
+      "bytes": 112978,
+      "sha256": "2557154165bcc1b2f6f2df1f2018476bb3c42272257d353820211e0fb2ab43df"
+    },
+    {
+      "path": "notes/reset-admission-proposed-connection.rs",
+      "bytes": 27349,
+      "sha256": "46f246cbf3c8fa5cf692363d99b3205703a6695bc8f14da28daf9891be3ba205"
+    },
+    {
+      "path": "notes/reset-admission-test-initial.stderr",
+      "bytes": 148,
+      "sha256": "d88fc4c12048644cff604bcf809db18fa3d1cd78f35f8c5fe95576228d3849db"
+    },
+    {
+      "path": "notes/reset-admission-test-initial.stdout",
+      "bytes": 121298,
+      "sha256": "7c3184261fc6a4f981ded8f06f2a3bfccc983b90ef0bfdf4d01aa44283937830"
+    },
+    {
+      "path": "notes/reset-admission-test.stderr",
+      "bytes": 289,
+      "sha256": "38139cea5f5155bc7410030e724e862aadf9e1fe76473671a55a981b6e5101cb"
+    },
+    {
+      "path": "notes/reset-admission-test.stdout",
+      "bytes": 112339,
+      "sha256": "81910f854879113e5a1564cbb3ef5d8eb11e937701df4638d0ca96baf8e90658"
+    },
+    {
+      "path": "reset-admission-checks/controller.py",
+      "bytes": 2637,
+      "sha256": "649c88f0fb7603ce66041cc9c76eec878f0f5efff48f98683ba264c876a71bdf"
+    },
+    {
+      "path": "reset-admission-checks/early_upload_response/stderr",
+      "bytes": 257,
+      "sha256": "889a0775fe02d2508fdb23bfbb9f55d9b0bce53ce7920319b8a07b4b6c4efc73"
+    },
+    {
+      "path": "reset-admission-checks/early_upload_response/stdout",
+      "bytes": 116408,
+      "sha256": "7b9ffd5aa28885eee6b0e949cd37905865b012dea93b1a775e4f730c8c6910d5"
+    },
+    {
+      "path": "reset-admission-checks/resource_bounds/stderr",
+      "bytes": 245,
+      "sha256": "bdca5892b5bf5881900ba477bf5995823cd76f76f0a4b3ce1b2fcb44be67dab5"
+    },
+    {
+      "path": "reset-admission-checks/resource_bounds/stdout",
+      "bytes": 117647,
+      "sha256": "7dfb5d5b0fccc64b01d14c8b1d95429edb141e8455eddbad13b53bd83a467373"
+    },
+    {
+      "path": "reset-admission-checks/results.json",
+      "bytes": 7556,
+      "sha256": "2afd8a6008c640637c4ae5d2e4185deef6bf435bda2948186bde25968c789558"
+    },
+    {
+      "path": "reset-admission-checks/serving/stderr",
+      "bytes": 293,
+      "sha256": "49b8ec8f6cdbf2caef9affbb3cb636373c3db36f3a9163067d4ce82263aeb37e"
+    },
+    {
+      "path": "reset-admission-checks/serving/stdout",
+      "bytes": 188548,
+      "sha256": "31da992914341d8ee72b1cb77b2e8fc3f65be7b6af742341f06e49227adaea58"
+    },
+    {
+      "path": "reset-admission-checks/unit/stderr",
+      "bytes": 235,
+      "sha256": "9072725202170ac64b88cde2e13560d404e966c07e9c06f760989cb7e6e2d979"
+    },
+    {
+      "path": "reset-admission-checks/unit/stdout",
+      "bytes": 153266,
+      "sha256": "cae08a6835f55c292fe13212150e85939166b679a3c66611ffa25726c49d5cc5"
+    },
+    {
+      "path": "reset-admission-repetitions/00-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/00-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "7a8ef24d86c69c83bf8bb54ce0c65610f473a68953a6e4127a7a85648beaaf78"
+    },
+    {
+      "path": "reset-admission-repetitions/00-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/00-serving/stdout",
+      "bytes": 178,
+      "sha256": "dc0a759e35356910a0c2f8a26321e064ad3314cf413572bbc1062c7612ceb1dc"
+    },
+    {
+      "path": "reset-admission-repetitions/01-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/01-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "467a830a419b85901eb12c09dc4f8099981212c4657d8399f456c546988f46eb"
+    },
+    {
+      "path": "reset-admission-repetitions/01-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/01-serving/stdout",
+      "bytes": 178,
+      "sha256": "cff76f52d5877beb4d2fea9487f8c9bfd13949c08851ff1ef901040f2abc8e7d"
+    },
+    {
+      "path": "reset-admission-repetitions/02-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/02-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "0d44403f6df234ff2e11740748dcbefb1c0057c62e0fcfb6d584e4a9de80903a"
+    },
+    {
+      "path": "reset-admission-repetitions/02-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/02-serving/stdout",
+      "bytes": 178,
+      "sha256": "84452f35f8c990f340b634bc1f19a1f3cf0029b99bf2ee2b408cc4fcc99566fc"
+    },
+    {
+      "path": "reset-admission-repetitions/03-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/03-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "3dbe528d4d6f1454a7d6561da78972112f8228e07a51dccd80bf435e58bf4e11"
+    },
+    {
+      "path": "reset-admission-repetitions/03-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/03-serving/stdout",
+      "bytes": 178,
+      "sha256": "84452f35f8c990f340b634bc1f19a1f3cf0029b99bf2ee2b408cc4fcc99566fc"
+    },
+    {
+      "path": "reset-admission-repetitions/04-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/04-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "6e8cd5289e43d3354220578511f15ba49cfe000ffc1af06e6b14434fcfc0f5d2"
+    },
+    {
+      "path": "reset-admission-repetitions/04-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/04-serving/stdout",
+      "bytes": 178,
+      "sha256": "213d462c58ebce7e518519114f172a51d56dfc40c41834490c55eef726141412"
+    },
+    {
+      "path": "reset-admission-repetitions/05-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/05-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "9cf2246d732ee7b20d6c53ea00503af10961251266293773137a924863fdf413"
+    },
+    {
+      "path": "reset-admission-repetitions/05-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/05-serving/stdout",
+      "bytes": 178,
+      "sha256": "cff76f52d5877beb4d2fea9487f8c9bfd13949c08851ff1ef901040f2abc8e7d"
+    },
+    {
+      "path": "reset-admission-repetitions/06-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/06-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "a03997f152a20fe7b444bd0b994df3fff42894c76e4c4c548f3904eb72de3243"
+    },
+    {
+      "path": "reset-admission-repetitions/06-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/06-serving/stdout",
+      "bytes": 178,
+      "sha256": "213d462c58ebce7e518519114f172a51d56dfc40c41834490c55eef726141412"
+    },
+    {
+      "path": "reset-admission-repetitions/07-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/07-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "a1569454b2ad54bdf659942b2b4beb9a9b708dac4055de0f767b26bd25c589ed"
+    },
+    {
+      "path": "reset-admission-repetitions/07-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/07-serving/stdout",
+      "bytes": 178,
+      "sha256": "213d462c58ebce7e518519114f172a51d56dfc40c41834490c55eef726141412"
+    },
+    {
+      "path": "reset-admission-repetitions/08-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/08-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "f45241128b601384de25c459d115bd5932389315092a353e8b9ed7b60e90ef06"
+    },
+    {
+      "path": "reset-admission-repetitions/08-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/08-serving/stdout",
+      "bytes": 178,
+      "sha256": "cff76f52d5877beb4d2fea9487f8c9bfd13949c08851ff1ef901040f2abc8e7d"
+    },
+    {
+      "path": "reset-admission-repetitions/09-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/09-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "3ccc049c570b20b8eaff19255e64a7d96a79afbd990471f3c5dc00bbb7f92094"
+    },
+    {
+      "path": "reset-admission-repetitions/09-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/09-serving/stdout",
+      "bytes": 178,
+      "sha256": "84452f35f8c990f340b634bc1f19a1f3cf0029b99bf2ee2b408cc4fcc99566fc"
+    },
+    {
+      "path": "reset-admission-repetitions/10-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/10-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "a1569454b2ad54bdf659942b2b4beb9a9b708dac4055de0f767b26bd25c589ed"
+    },
+    {
+      "path": "reset-admission-repetitions/10-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/10-serving/stdout",
+      "bytes": 178,
+      "sha256": "cff76f52d5877beb4d2fea9487f8c9bfd13949c08851ff1ef901040f2abc8e7d"
+    },
+    {
+      "path": "reset-admission-repetitions/11-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/11-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "a50e054bbc7719535ff200af08eba9a579113dc23119a223fb324849ae2bed07"
+    },
+    {
+      "path": "reset-admission-repetitions/11-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/11-serving/stdout",
+      "bytes": 178,
+      "sha256": "84452f35f8c990f340b634bc1f19a1f3cf0029b99bf2ee2b408cc4fcc99566fc"
+    },
+    {
+      "path": "reset-admission-repetitions/12-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/12-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "50f75bab3f5377c87a35442dbd02d1f5c8627dbe112980d375632d1865600fa8"
+    },
+    {
+      "path": "reset-admission-repetitions/12-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/12-serving/stdout",
+      "bytes": 178,
+      "sha256": "cff76f52d5877beb4d2fea9487f8c9bfd13949c08851ff1ef901040f2abc8e7d"
+    },
+    {
+      "path": "reset-admission-repetitions/13-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/13-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "21faa6e252f8e570932c11f2e3b633181982df2a5cd5fd117daeaeffb40fe7a6"
+    },
+    {
+      "path": "reset-admission-repetitions/13-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/13-serving/stdout",
+      "bytes": 178,
+      "sha256": "84452f35f8c990f340b634bc1f19a1f3cf0029b99bf2ee2b408cc4fcc99566fc"
+    },
+    {
+      "path": "reset-admission-repetitions/14-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/14-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "7a8ef24d86c69c83bf8bb54ce0c65610f473a68953a6e4127a7a85648beaaf78"
+    },
+    {
+      "path": "reset-admission-repetitions/14-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/14-serving/stdout",
+      "bytes": 178,
+      "sha256": "213d462c58ebce7e518519114f172a51d56dfc40c41834490c55eef726141412"
+    },
+    {
+      "path": "reset-admission-repetitions/15-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/15-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "3ccc049c570b20b8eaff19255e64a7d96a79afbd990471f3c5dc00bbb7f92094"
+    },
+    {
+      "path": "reset-admission-repetitions/15-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/15-serving/stdout",
+      "bytes": 178,
+      "sha256": "ef38d780cf76d4a0a0285502c6719d419b2c5f045c651cd1fd370fd2cacd72a8"
+    },
+    {
+      "path": "reset-admission-repetitions/16-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/16-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "9cf2246d732ee7b20d6c53ea00503af10961251266293773137a924863fdf413"
+    },
+    {
+      "path": "reset-admission-repetitions/16-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/16-serving/stdout",
+      "bytes": 178,
+      "sha256": "cff76f52d5877beb4d2fea9487f8c9bfd13949c08851ff1ef901040f2abc8e7d"
+    },
+    {
+      "path": "reset-admission-repetitions/17-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/17-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "a03997f152a20fe7b444bd0b994df3fff42894c76e4c4c548f3904eb72de3243"
+    },
+    {
+      "path": "reset-admission-repetitions/17-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/17-serving/stdout",
+      "bytes": 178,
+      "sha256": "213d462c58ebce7e518519114f172a51d56dfc40c41834490c55eef726141412"
+    },
+    {
+      "path": "reset-admission-repetitions/18-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/18-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "a50e054bbc7719535ff200af08eba9a579113dc23119a223fb324849ae2bed07"
+    },
+    {
+      "path": "reset-admission-repetitions/18-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/18-serving/stdout",
+      "bytes": 178,
+      "sha256": "879fe74a170c822439987a23d827ee986e122aadba206828bfe59810cc645049"
+    },
+    {
+      "path": "reset-admission-repetitions/19-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/19-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "7a8ef24d86c69c83bf8bb54ce0c65610f473a68953a6e4127a7a85648beaaf78"
+    },
+    {
+      "path": "reset-admission-repetitions/19-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/19-serving/stdout",
+      "bytes": 178,
+      "sha256": "cff76f52d5877beb4d2fea9487f8c9bfd13949c08851ff1ef901040f2abc8e7d"
+    },
+    {
+      "path": "reset-admission-repetitions/20-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/20-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "0d44403f6df234ff2e11740748dcbefb1c0057c62e0fcfb6d584e4a9de80903a"
+    },
+    {
+      "path": "reset-admission-repetitions/20-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/20-serving/stdout",
+      "bytes": 178,
+      "sha256": "84452f35f8c990f340b634bc1f19a1f3cf0029b99bf2ee2b408cc4fcc99566fc"
+    },
+    {
+      "path": "reset-admission-repetitions/21-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/21-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "7a8ef24d86c69c83bf8bb54ce0c65610f473a68953a6e4127a7a85648beaaf78"
+    },
+    {
+      "path": "reset-admission-repetitions/21-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/21-serving/stdout",
+      "bytes": 178,
+      "sha256": "84452f35f8c990f340b634bc1f19a1f3cf0029b99bf2ee2b408cc4fcc99566fc"
+    },
+    {
+      "path": "reset-admission-repetitions/22-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/22-resource_bounds/stdout",
+      "bytes": 543,
+      "sha256": "782f5ea605e1475ddbc15219d2359d393efff9cdf1007dd142dd42409135031d"
+    },
+    {
+      "path": "reset-admission-repetitions/22-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/22-serving/stdout",
+      "bytes": 178,
+      "sha256": "84452f35f8c990f340b634bc1f19a1f3cf0029b99bf2ee2b408cc4fcc99566fc"
+    },
+    {
+      "path": "reset-admission-repetitions/23-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/23-resource_bounds/stdout",
+      "bytes": 543,
+      "sha256": "6a9a3fd773177faabf9537b71ea62fe6499f2bf4904054a0535c31f9b7fdddc0"
+    },
+    {
+      "path": "reset-admission-repetitions/23-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/23-serving/stdout",
+      "bytes": 178,
+      "sha256": "a7297cc6c4c52d8d77e6e28b0dce7b3a1f80a00480a6dcdff252d9f608ab8934"
+    },
+    {
+      "path": "reset-admission-repetitions/24-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/24-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "65455412cfcebb4da4b6a018501f089a6f182d7cfa70af1e6d5aff489df64f4d"
+    },
+    {
+      "path": "reset-admission-repetitions/24-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/24-serving/stdout",
+      "bytes": 178,
+      "sha256": "cff76f52d5877beb4d2fea9487f8c9bfd13949c08851ff1ef901040f2abc8e7d"
+    },
+    {
+      "path": "reset-admission-repetitions/25-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/25-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "9cf2246d732ee7b20d6c53ea00503af10961251266293773137a924863fdf413"
+    },
+    {
+      "path": "reset-admission-repetitions/25-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/25-serving/stdout",
+      "bytes": 178,
+      "sha256": "84452f35f8c990f340b634bc1f19a1f3cf0029b99bf2ee2b408cc4fcc99566fc"
+    },
+    {
+      "path": "reset-admission-repetitions/26-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/26-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "3ccc049c570b20b8eaff19255e64a7d96a79afbd990471f3c5dc00bbb7f92094"
+    },
+    {
+      "path": "reset-admission-repetitions/26-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/26-serving/stdout",
+      "bytes": 178,
+      "sha256": "84452f35f8c990f340b634bc1f19a1f3cf0029b99bf2ee2b408cc4fcc99566fc"
+    },
+    {
+      "path": "reset-admission-repetitions/27-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/27-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "f45241128b601384de25c459d115bd5932389315092a353e8b9ed7b60e90ef06"
+    },
+    {
+      "path": "reset-admission-repetitions/27-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/27-serving/stdout",
+      "bytes": 178,
+      "sha256": "84452f35f8c990f340b634bc1f19a1f3cf0029b99bf2ee2b408cc4fcc99566fc"
+    },
+    {
+      "path": "reset-admission-repetitions/28-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/28-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "eb886be45bc97f5b3c0837488d60636b4210c06c0c5a7584b3677f437633a157"
+    },
+    {
+      "path": "reset-admission-repetitions/28-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/28-serving/stdout",
+      "bytes": 178,
+      "sha256": "cb60df6859e06eeaed9ed2a84c6449d4c5c93786035c710dfbfc9a7cdfd9abde"
+    },
+    {
+      "path": "reset-admission-repetitions/29-resource_bounds/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/29-resource_bounds/stdout",
+      "bytes": 166,
+      "sha256": "50f75bab3f5377c87a35442dbd02d1f5c8627dbe112980d375632d1865600fa8"
+    },
+    {
+      "path": "reset-admission-repetitions/29-serving/stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "reset-admission-repetitions/29-serving/stdout",
+      "bytes": 178,
+      "sha256": "84452f35f8c990f340b634bc1f19a1f3cf0029b99bf2ee2b408cc4fcc99566fc"
+    },
+    {
+      "path": "reset-admission-repetitions/results.json",
+      "bytes": 25388,
+      "sha256": "e30245bd86be6f3719e7a91fe87128029ea380df001d6cb11e9dba6d3154b832"
+    }
+  ],
+  "logical_bytes": 1028455
+}

@@ -1,0 +1,17 @@
+{
+  "source": "abeb7bcf2ee653bff899ba14f505ced9b373f963",
+  "qualified": false,
+  "reset_guard_regression": "passes; removing only the guard fails with two ResourceExhausted results",
+  "unit_passed": 570,
+  "unit_ignored": 1,
+  "resource_bounds_passed": 25,
+  "early_upload_passed": 5,
+  "server_passed": 1099,
+  "server_failed": 1,
+  "unix_deadline_isolated_passed": 30,
+  "mixed_fairness_isolated_passed": 28,
+  "mixed_fairness_isolated_failed": 2,
+  "python_contracts_passed": 44,
+  "clippy": "all-feature library and integration targets pass with warnings denied",
+  "full_clean_source_inventory": "running separately, including actual Rust 1.85"
+}

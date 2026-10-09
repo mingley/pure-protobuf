@@ -15,6 +15,9 @@ comparative claim. No category currently has a qualified performance win.
 
 | Record | What it contributes | How to read it |
 |---|---|---|
+| [Queued-reset admission](grpc-reset-admission-20261009/README.md) | Confirmed queued-reset slot bug, deterministic positive/negative control and broad candidate checks | Timing and mixed-progress failures retained; complete clean-source checks are running |
+| [Resource attempt 009](grpc-resource-soak-20261009-attempt-009/README.md) | Current reset fix, full native/MSRV gate, release preview/day queue | The actual day has not started at this snapshot; terminal resource output is published automatically |
+| [Current endpoint counter queue](grpc-counter-matrix-20261009-abeb/README.md) | 7,200 planned captures each for native, syscall and instruction counters | No captures yet; diagnostics follow the resource outcome and retain failures |
 | [Mixed resource fairness failure](grpc-resource-admission-20261009/README.md) | 19 more integration targets pass, then a resource fairness test fails; 28 of 30 isolated repetitions pass | Original rejection and two bulk-progress failures retained; resource and counter queues stop before captures |
 | [Endpoint counter queue](grpc-counter-matrix-20261009-a9fe/README.md) | Scheduled wider native, syscall and Callgrind coverage with automatic raw publication | Blocked by the native resource regression; no sweep captures ran |
 | [Server regression checks](grpc-server-regressions-20261009/README.md) | All 1,100 server tests pass serially; health 180 and reflection 188 pass; strict documentation checks pass | Original parallel failures are retained; 40 isolated repetitions pass without changing assertions or deadlines |
