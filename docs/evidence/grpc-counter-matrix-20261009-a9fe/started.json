@@ -1,0 +1,16 @@
+{
+  "source": "a9fe4c2d336710cea6f997b00277e6410eee672a",
+  "state": "queued_after_resource_campaign",
+  "qualified": false,
+  "actual_captures_completed": 0,
+  "expected_captures_per_phase": 7200,
+  "phases": [
+    "native",
+    "syscalls",
+    "callgrind"
+  ],
+  "controller_sha256": "41c761ed321ce826a320b0386a7e0838b48c547684023f356a3bb466e9081789",
+  "publisher_sha256": "725cb156c0937f8aabab25f02953677d63f840f58f4351c31e050c74b2444b31",
+  "snapshot_unix_seconds": 1791513383.9405193,
+  "status": "work/counter-sweeps-a9fe/status.json"
+}
