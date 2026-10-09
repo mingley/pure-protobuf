@@ -19,13 +19,16 @@ use crate::status::{Code, Status};
 use crate::telemetry::{CallLabels, CallRole, LifecycleObserver, RejectionEvent, RejectionReason};
 use crate::tls::PeerIdentity;
 use crate::transport::h2::{RecvStream, SendResponse};
-use crate::transport::{ServerBuilder, ServerConnection};
+use crate::transport::{SendResponse as _, ServerBuilder, ServerConnection};
 use crate::wire::{check_request, reject, reject_request};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use tokio::sync::{Semaphore, watch};
+
+#[cfg(test)]
+mod reset_admission_tests;
 
 pub(crate) fn serve_one<D, IO>(
     dispatch: Arc<D>,
@@ -491,6 +494,25 @@ where
                 let Some(Ok((request, mut respond))) = accepted else {
                     break;
                 };
+                // h2 can accept a request whose reset is already queued. Do
+                // not let it occupy a bounded RPC slot until a spawned task
+                // gets its turn to observe the cancellation.
+                if rpc_slots.is_some()
+                    && std::future::poll_fn(|cx| {
+                        std::task::Poll::Ready(respond.poll_reset(cx).is_ready())
+                    })
+                    .await
+                {
+                    if let Some(obs) = dispatch.observer() {
+                        let path = request.uri().path();
+                        let authority = request.uri().authority().map(http::uri::Authority::as_str);
+                        let labels = CallLabels::new(path, authority, CallRole::Server);
+                        obs.on_server_call_start(&labels);
+                        obs.on_server_call_end(&labels, &Status::cancelled(), Duration::ZERO);
+                    }
+                    note_rejected_call(channelz_server, channelz_socket_id);
+                    continue;
+                }
                 if track_busy {
                     occupied = true;
                 }

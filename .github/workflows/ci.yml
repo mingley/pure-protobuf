@@ -90,6 +90,12 @@ jobs:
             tests.interop.test_qps_proof tests.interop.test_stack_matrix \
             tests.interop.test_conformance_summary tests.test_publish_script \
             tests.test_shared_consumer_report
+      - name: gRPC campaign provenance and failure handling
+        run: |
+          python3 -B -m unittest -q \
+            tests.test_grpc_load_smoke tests.test_dominance_ledger \
+            tests.test_grpc_resource_campaign tests.test_counter_campaign \
+            tests.test_counter_capsule
       - name: Codegen cost harness contracts (no benchmark run)
         run: python3 -B -m unittest discover -s bench/codegen -p 'test_run.py' -q
       - name: Checked Edition 2024 CLOSED-enum oracle integrity (no protoc)
@@ -284,6 +290,7 @@ jobs:
       - run: cargo test --locked -p pbrs --lib
       - run: cargo test --locked -p pbrs-grpc --lib
       - run: cargo test --locked -p pbrs-grpc --test early_upload_response
+      - run: cargo test --locked -p pbrs-grpc --lib queued_resets_do_not_spawn_dispatch_or_exhaust_rpc_slots
 
   # Declared rust-version on protobuf-tonic (tonic 0.14.6).
   msrv-tonic:
