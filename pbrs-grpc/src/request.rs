@@ -146,48 +146,11 @@ impl<T> TlsConnectInfo<T> {
 /// # Ok::<(), pbrs_grpc::Status>(())
 /// ```
 ///
-/// ```
-/// fn dump_request(request: &pbrs_grpc::Request<()>) {
-///     let _ = (
-///         request.path(),
-///         request.service(),
-///         request.method(),
-///         request.metadata(),
-///         request.timeout(),
-///         request.rpc_timeout(),
-///         request.peer_timeout(),
-///         request.deadline(),
-///         request.compress(),
-///         request.compressed(),
-///         request.encoding(),
-///         request.accepts_gzip(),
-///         request.compresses_outbound(),
-///         request.gzip_level(),
-///         request.accepts_compressed(),
-///         request.concurrent_rpc_limit(),
-///         request.send_buffer_size(),
-///         request.remote_addr(),
-///         request.local_addr(),
-///         request.peer_identity(),
-///         request.peer_cred(),
-///         request.authority(),
-///         request.scheme(),
-///         request.wait_for_ready(),
-///         request.limits(),
-///         request.extensions(),
-///         request.user_agent(),
-///     );
-///     let _ = request.cancelled();
-/// }
-/// # let _ = dump_request;
-/// ```
-/// [`Self::user_agent_is_set`] is occupancy on this request envelope, so a later interceptor can prefix only when unset.
-/// [`Self::wait_for_ready_is_set`] is occupancy on this request envelope, so a later interceptor can fill wait-for-ready only when unset.
-/// [`Self::compress_is_set`] is occupancy on this request envelope, so a later interceptor can fill compress only when unset.
-/// [`Self::clear_timeout`] opts out of the channel timeout on this request envelope.
-/// [`Self::clear_wait_for_ready`] restores the channel wait-for-ready overlay on this request envelope.
-/// [`Self::clear_compress`] restores the channel gzip overlay on this request envelope.
-/// [`Self::clear_user_agent`] restores the channel user-agent on this request envelope.
+/// Per-request setters override channel defaults. The `*_is_set` methods
+/// tell interceptors whether an override is present. [`Self::clear_timeout`]
+/// disables the channel timeout for this request. [`Self::clear_wait_for_ready`],
+/// [`Self::clear_compress`], and [`Self::clear_user_agent`] restore their channel
+/// defaults.
 #[derive(Clone)]
 pub struct Request<T> {
     message: T,

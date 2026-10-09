@@ -29,36 +29,25 @@ of eligible work, not an instruction to start every lane at once.
 
 ## Current priorities
 
-QG-05 is delivered: `c89608bd` passes all 19 original consumer crates
-(233 tests plus three regressions), including exact-source Miri and Linux
-compatibility CI. QG-07 now compiles and exercises the operations/production
-guide recipes and rejects API drift without pinning prose. See
-[status](docs/status.md) for their validation and limits.
-The [closed-enum follow-up](docs/evidence/closed-enum-recovery.md) at `3a7aa128`
-keeps unknown wire values out of typed storage and passes a new clean-source
-ordinary/Miri qualification (233 original tests plus six regressions).
-SB-23 has also completed a real corrected-parser CI comparison: 88 cells per
-revision with retained artifacts and unavailable instructions excluded.
+The latest [readiness records](docs/evidence/README.md) include the queued
+peer-rejection fix, the stalled-upload fix, and separate client/server
+comparisons. Resource attempts 006 and 007 failed and retain their raw logs.
+The 24-hour gate is still open.
 
-| Order | Work | First concrete result | Finished when |
-|---|---|---|---|
-| 1, in parallel | **SB-21: finish claim scenario execution** | Normalize reference-peer aggregate arrival rates and add independent accounting; the pinned Go worker applies its rate per outstanding slot. | Both harnesses pass the frozen scenario smoke with reconciled window counts, scheduled-send latency and generator headroom. |
-| 1, in parallel | **SB-24: complete required transport comparisons** | Close the observed TLS cipher mismatch and missing session/settings exports; run equivalent Go/C++ cells. | Required directions, generator/reference headroom, aligned endpoint CPU windows and feasible topology are verified on the campaign hosts. |
-| 1, separate workflow owner | **SB-20: calibrate performance CI** | Build on the two verified corrected-parser pairs in separate Intel/AMD cohorts; collect comparable runs by host and available metrics. | At least 30 comparable artifact runs support reviewed thresholds; thresholds stay advisory meanwhile. |
-| 2 | **RX-09: measure the landed RPC changes** | First match response bytes/counts and codec/handler work in the differing dev-loop cells, then compare the candidate with its pre-change base and tonic. | Audited equivalent-work counters and separate-process Linux profiles show improvements without correctness or tail-latency regressions. |
-| 2, codec/codegen lane | **BM-03, PK-18, GN-02/GN-03** | Finish paired codec measurements, dynamic-parse competitor runs and downstream build-cost reruns. | Their existing acceptance criteria pass with raw evidence; merged code alone is insufficient. |
-| 3 | **QG-06: qualify current-backend resources and recovery** | Freeze finite limits and the slow-reader/cancellation/overload matrix. | A 24-hour exact-candidate soak demonstrates bounded resources and recovery. |
-| 4 | **SB-15, SB-22, then SB-16: run and publish comparisons** | Freeze peer versions, workloads, hosts and thresholds before timing. | Independent x86_64 and arm64 runs meet the benchmark contract; losses and missing rows remain visible. |
-| Broader claim scope | **SB-25: execute more competitors** | Turn Java/.NET and other optional peer manifests into runnable, equivalent comparisons. | Published claims name only peers and directions actually executed. |
+| Work | Next result | Completion criterion |
+|---|---|---|
+| QG-06: resources and recovery | Diagnose the optimized streaming deadline failure; rerun the exact candidate after compile-heavy checks finish. | A full 24-hour run passes the original finite limits, deadlines, recovery and fairness checks. |
+| SB-27: client/server matrix | Extend per-side counters beyond 1 KiB, h2c, identity and one in-flight call. | Include every payload, TLS/compression profile, read-all corpus, concurrency level and lifecycle; retain failures and assign each loss. |
+| SV-09, CL-08, CL-09, RX-10 | Reduce the measured streaming instruction, allocation, byte and scheduling costs. | Matched before/after runs meet the existing thresholds and do not regress the other RPC shapes. |
+| CH-12 and remaining integration cards | Complete external discovery/balancer runtimes and their churn tests. | An external consumer uses only supported public APIs and existing connections remain stable across updates. |
+| Remaining credential and codec cards | Complete the documented providers and broader typed-extension support. | Each feature passes its consumer, wire-compatibility and security checks. |
+| SB-28, SB-22 and SB-16 | Run the completed matrix on dedicated x86_64 and arm64 hosts. | Paired statistics, headroom and latency checks support the published comparisons. |
 
-SB-21 already exports scheduled latency and conserved window counts and runs
-frozen, randomized repeats; its first matrix smoke correctly failed the
-generator-lag gate. SB-24's 144-cell TLS/compression smoke proves wiring, not
-throughput: native/native negotiated AES-256, while native/tonic negotiated
-AES-128 and tonic/tonic lacks actual session telemetry. No core cipher-policy
-API was changed. Finish these gaps, RX-09's equivalent-work profiles and
-SB-20's calibration. The
-[benchmark contract](docs/benchmark-contract.md) owns numeric thresholds.
+Generated Router dispatch reduced instructions in the measured server cases,
+but those cases still lose to tonic. The 2,560-cell functional run checks
+completion and accounting; throughput and latency qualification need separate
+measurements. Numeric thresholds remain in the
+[benchmark contract](docs/benchmark-contract.md).
 
 ## Dominance program
 

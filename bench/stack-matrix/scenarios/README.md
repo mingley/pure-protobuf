@@ -151,7 +151,7 @@ RPC shapes for native and both tonic codecs. Gzip requires gzip response
 metadata on every call; a peer silently returning identity fails validation.
 `transport_smoke.py` covers all nine plaintext directions and native TLS,
 and captures plaintext gRPC message compression flags in both directions.
-Both tonic codecs support TLS with the existing pure-Rust Graviola provider,
+Both tonic codecs support TLS with the same Graviola provider,
 explicit CA/name verification and the TLS 1.3 AES-128-GCM suite.
 Pipelined bidi and configured official-peer gzip responses remain
 unsupported and block any claim covering those cells.

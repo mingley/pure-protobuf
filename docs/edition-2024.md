@@ -356,7 +356,7 @@ Protocol Buffers defines language-specific feature extensions in `descriptor.pro
 Policy for pure-protobuf:
 
 1. **Permissive parsing.** All language-specific feature extensions are valid protobuf option extensions and must be parsed or skipped without failing schema loading.
-2. **C++ `string_type`.** In pure Rust, `VIEW` and `CORD` map to standard `ProtoString` / `ProtoStr` representations, with `LazyStr` zero-copy borrow from the parse buffer where applicable. See [docs/upb.md](upb.md).
+2. **C++ `string_type`.** `VIEW` and `CORD` map to standard `ProtoString` / `ProtoStr` representations, with `LazyStr` zero-copy borrow from the parse buffer where applicable. See [docs/upb.md](upb.md).
 3. **No behavioral coupling.** Java, Go, Python, and C# generator features have zero runtime effect on Rust data structures or wire codecs.
 4. **No `.pb.rust` upstream.** Official Protocol Buffers v35.1 does not define a `.pb.rust` feature extension. `pure-protobuf` introduces no proprietary required feature extensions.
 

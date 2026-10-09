@@ -7,9 +7,7 @@ use std::time::Duration;
 
 /// Default HTTP/2 stream and connection window: 16 MiB.
 ///
-/// Large enough that a single 4 MiB message never stalls on a
-/// `WINDOW_UPDATE` round trip, which is where naive gRPC stacks lose most of
-/// their large-payload throughput.
+/// A 4 MiB message fits within an unused default receive window.
 pub const DEFAULT_WINDOW_SIZE: u32 = 16 * 1024 * 1024;
 
 /// Default adaptive-window starting point: the RFC 9113 initial window.
@@ -24,7 +22,7 @@ pub const DEFAULT_MAX_FRAME_SIZE: u32 = 1024 * 1024;
 /// Default HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`: 256 in-flight RPCs.
 pub const DEFAULT_MAX_CONCURRENT_STREAMS: u32 = 256;
 
-/// Default HTTP/2 send buffer per connection: 1 MiB.
+/// Default HTTP/2 send buffer per stream: 1 MiB.
 pub const DEFAULT_MAX_SEND_BUFFER_SIZE: usize = 1024 * 1024;
 
 /// Default HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`: 16 KiB of metadata.
@@ -108,7 +106,7 @@ pub const DEFAULT_MAX_CONCURRENT_RESET_STREAMS: usize = 50;
 pub const DEFAULT_RESET_STREAM_DURATION: Duration = Duration::from_secs(1);
 
 /// The per-stream settings the wire layer needs: message caps plus how much
-/// the connection will buffer before a write has to wait for flow control.
+/// each stream will buffer before a write waits for flow control.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Wire {
     pub(crate) limits: MessageLimits,
@@ -127,7 +125,7 @@ pub(crate) struct Wire {
 
 /// HTTP/2 and resource settings for a server.
 ///
-/// Every field has a safe default; override only what you measured.
+/// Set connection and RPC admission caps for the expected workload.
 ///
 /// ```
 /// use pbrs_grpc::ServerConfig;
@@ -242,14 +240,10 @@ impl ServerConfig {
         self
     }
 
-    /// Replace both message caps at once. Applies to every call shape.
+    /// Set both inbound and outbound message-size limits.
     ///
-    /// [`crate::Server::message_limits`], [`crate::Router::message_limits`],
-    /// and generated `FooServer::message_limits` set this without building a
-    /// [`ServerConfig`]. Distinct from [`Self::max_decoding_message_size`] /
-    /// [`Self::max_encoding_message_size`]. Oversize inbound or outbound is
-    /// [`crate::Code::ResourceExhausted`], including over TLS, mTLS, Unix, and
-    /// [`crate::Server::serve_connection`].
+    /// An oversize message returns [`crate::Code::ResourceExhausted`]. Limits
+    /// apply to uncompressed message bytes in every RPC shape.
     #[must_use]
     pub fn message_limits(mut self, limits: MessageLimits) -> Self {
         self.limits = limits;
@@ -285,26 +279,19 @@ impl ServerConfig {
         self.grpc_web_cors
     }
 
-    /// HTTP/2 per-stream receive window. Default 16 MiB.
-    /// Applies to every call shape.
-    /// A well-behaved client still completes every call shape, including over
-    /// TLS, mTLS, Unix, and [`crate::Server::serve_connection`]. Distinct from
-    /// [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS
-    /// minimum, and from [`Self::max_concurrent_streams`], which serializes
-    /// extra RPCs.
+    /// Set the HTTP/2 receive window for each stream. Default 16 MiB.
+    ///
+    /// The peer waits for WINDOW_UPDATE when it uses the available credit.
+    /// [`Self::adaptive_window`] overrides this setting while enabled.
     #[must_use]
     pub fn initial_stream_window_size(mut self, bytes: u32) -> Self {
         self.initial_stream_window_size = bytes;
         self
     }
 
-    /// HTTP/2 per-connection receive window. Default 16 MiB.
-    /// Applies to every call shape.
-    /// A well-behaved client still completes every call shape, including over
-    /// TLS, mTLS, Unix, and [`crate::Server::serve_connection`]. Distinct from
-    /// [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS
-    /// minimum, and from [`Self::max_concurrent_streams`], which serializes
-    /// extra RPCs.
+    /// Set the HTTP/2 receive window shared by a connection. Default 16 MiB.
+    ///
+    /// [`Self::adaptive_window`] overrides this setting while enabled.
     #[must_use]
     pub fn initial_connection_window_size(mut self, bytes: u32) -> Self {
         self.initial_connection_window_size = bytes;
@@ -347,185 +334,96 @@ impl ServerConfig {
         self
     }
 
-    /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. Default 1 MiB.
-    /// Applies to every call shape.
-    /// A well-behaved client splits DATA; every call shape still completes,
-    /// including over TLS, mTLS, Unix, and [`crate::Server::serve_connection`].
-    /// Distinct from [`Self::max_header_list_size`], which refuses oversize
-    /// metadata, and from [`Self::max_concurrent_streams`], which serializes
-    /// extra RPCs.
+    /// Set HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. Default 1 MiB.
+    ///
+    /// The peer splits larger payloads into multiple DATA frames.
     #[must_use]
     pub fn max_frame_size(mut self, bytes: u32) -> Self {
         self.max_frame_size = bytes;
         self
     }
 
-    /// Concurrent RPCs allowed per connection. Default 256.
-    /// Applies to every call shape.
-    /// HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`. Distinct from
-    /// [`Self::max_concurrent_rpcs`], which refuses extras as
-    /// [`crate::Code::ResourceExhausted`]. A well-behaved client waits; both
-    /// RPCs still complete, including over TLS, mTLS, Unix, and
-    /// [`crate::Server::serve_connection`].
+    /// Set HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`. Default 256.
+    ///
+    /// The peer waits before opening additional streams on this connection.
+    /// [`Self::max_concurrent_rpcs`] controls application RPC admission.
     #[must_use]
     pub fn max_concurrent_streams(mut self, streams: u32) -> Self {
         self.max_concurrent_streams = streams;
         self
     }
 
-    /// Bytes buffered per connection before writes apply backpressure.
-    /// Default 1 MiB. Applies to every call shape.
-    /// Write backpressure still completes every call shape, including over
-    /// TLS, mTLS, Unix, and [`crate::Server::serve_connection`]. Distinct from
-    /// [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS
-    /// minimum, and from [`Self::initial_stream_window_size`], which still
-    /// serves at a small receive window.
-    /// There is no grpc-go `SharedWriteBuffer` setter: that reuses a
-    /// per-connection transport write buffer after flush. This cap is HTTP/2
-    /// write-byte backpressure per connection; buffers are not pooled across
-    /// connections. Distinct from grpc-go `WriteBufferSize` / `ReadBufferSize`
-    /// (socket byte buffers, default 32 KiB). Distinct from tonic
-    /// `Endpoint::buffer_size` (tower `Buffer` request slots).
+    /// Set the HTTP/2 send buffer cap per stream. Default 1 MiB.
+    ///
+    /// Writes wait when this buffer fills. This is a per-stream cap; account
+    /// for the number of active streams when budgeting process memory.
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
         self.max_send_buffer_size = bytes;
         self
     }
 
-    /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`, i.e. the metadata cap.
-    /// Default 16 KiB. Applies to every call shape.
-    /// Oversize metadata is refused, including over TLS, mTLS, Unix, and
-    /// [`crate::Server::serve_connection`]. Distinct from a raw HTTP/2 peer.
+    /// Set the uncompressed HTTP/2 header-list cap. Default 16 KiB.
+    ///
+    /// Oversize metadata is refused.
     #[must_use]
     pub fn max_header_list_size(mut self, bytes: u32) -> Self {
         self.max_header_list_size = bytes;
         self
     }
 
-    /// HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table). Default 4096.
-    /// Applies to every call shape.
-    /// A well-behaved client still completes every call shape at this table
-    /// size, including over TLS, mTLS, Unix, and
-    /// [`crate::Server::serve_connection`]. Distinct from
-    /// [`Self::max_header_list_size`], which caps uncompressed header-block
-    /// bytes (`SETTINGS_MAX_HEADER_LIST_SIZE`).
+    /// Set the HPACK dynamic-table size. Default 4,096 bytes.
     ///
-    /// [`crate::Server::header_table_size`],
-    /// [`crate::Router::header_table_size`], and generated
-    /// `FooServer::header_table_size` set this without building a
-    /// [`ServerConfig`].
+    /// [`Self::max_header_list_size`] caps the decoded header list.
     #[must_use]
     pub fn header_table_size(mut self, bytes: u32) -> Self {
         self.header_table_size = bytes;
         self
     }
 
-    /// HTTP/2 small-DATA framing budget. Default 25600.
-    /// Applies to every call shape.
-    /// Caps extra memory from tiny DATA frames (payload under 256 bytes).
-    /// Exceeding this is `ENHANCE_YOUR_CALM` (`too_many_data_frames`).
-    /// Distinct from [`Self::initial_connection_window_size`], which is
-    /// flow-control bytes, and from [`Self::max_frame_size`], which caps one
-    /// DATA payload. h2 Auto (half the connection window) is not exposed:
-    /// the 16 MiB default window would otherwise raise this to 8 MiB.
-    /// Empty DATA frames are a separate h2 cap and do not consume this budget.
-    /// A well-behaved client still completes every call shape at this framing
-    /// budget, including over TLS, mTLS, Unix, and
-    /// [`crate::Server::serve_connection`].
+    /// Set the overhead budget for DATA frames smaller than 256 bytes.
     ///
-    /// [`crate::Server::data_frame_budget`],
-    /// [`crate::Router::data_frame_budget`], and generated
-    /// `FooServer::data_frame_budget` set this without building a
-    /// [`ServerConfig`].
+    /// Default 25,600 bytes. Exceeding it closes the connection with
+    /// `ENHANCE_YOUR_CALM` (`too_many_data_frames`). Empty DATA frames have a
+    /// separate backend cap. The budget does not grow with receive windows.
     #[must_use]
     pub fn data_frame_budget(mut self, bytes: usize) -> Self {
         self.data_frame_budget = bytes;
         self
     }
 
-    /// Cap remotely-reset HTTP/2 streams waiting in the accept queue.
-    /// Applies to every call shape.
+    /// Cap remotely reset streams waiting in the accept queue. Default 20.
     ///
-    /// Default 20 ([`DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS`]). A peer that
-    /// opens streams and immediately `RST_STREAM`s them sits in that queue
-    /// until accepted; exceeding this is `ENHANCE_YOUR_CALM` and the
-    /// connection is dropped.
-    /// A well-behaved client never fills that queue; every call shape still
-    /// completes, including over TLS, mTLS, Unix, and
-    /// [`crate::Server::serve_connection`]. Distinct from a raw HTTP/2 peer.
-    ///
-    /// [`crate::Server::max_pending_accept_reset_streams`],
-    /// [`crate::Router::max_pending_accept_reset_streams`], and generated
-    /// `FooServer::max_pending_accept_reset_streams` set this without building a
-    /// [`ServerConfig`].
+    /// Exceeding the cap closes the connection with `ENHANCE_YOUR_CALM`.
     #[must_use]
     pub fn max_pending_accept_reset_streams(mut self, n: usize) -> Self {
         self.max_pending_accept_reset_streams = n;
         self
     }
 
-    /// Cap locally-reset HTTP/2 streams caused by a peer protocol error.
-    /// Default 1024 ([`DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS`]). Exceeding
-    /// this is `ENHANCE_YOUR_CALM` and the connection is dropped.
-    /// Distinct from [`Self::max_pending_accept_reset_streams`]: that caps
-    /// remotely-reset streams waiting in the accept queue (rapid reset).
-    /// This caps RSTs we send after an invalid frame.
-    /// h2's `None` disable is not exposed. Applies to every call shape.
-    /// A well-behaved client never triggers one; every call shape still
-    /// completes, including over TLS, mTLS, Unix, and
-    /// [`crate::Server::serve_connection`].
+    /// Cap locally issued protocol-error resets. Default 1,024.
     ///
-    /// [`crate::Server::max_local_error_reset_streams`],
-    /// [`crate::Router::max_local_error_reset_streams`], and generated
-    /// `FooServer::max_local_error_reset_streams` set this without building a
-    /// [`ServerConfig`].
+    /// Exceeding the cap closes the connection with `ENHANCE_YOUR_CALM`.
     #[must_use]
     pub fn max_local_error_reset_streams(mut self, n: usize) -> Self {
         self.max_local_error_reset_streams = n;
         self
     }
 
-    /// Cap remembered locally-reset HTTP/2 stream IDs.
-    /// Default 50 ([`DEFAULT_MAX_CONCURRENT_RESET_STREAMS`]).
-    /// Applies to every call shape.
-    /// After this endpoint sends `RST_STREAM`, the stream ID is remembered
-    /// so late frames are ignored (RFC 9113). When the cap is reached, the
-    /// oldest ID is purged from memory, not `ENHANCE_YOUR_CALM`.
-    /// Frames on a purged ID are a connection `PROTOCOL_ERROR`.
-    /// Distinct from [`Self::max_pending_accept_reset_streams`] (rapid-reset
-    /// GOAWAY) and [`Self::max_local_error_reset_streams`] (protocol-error RST
-    /// GOAWAY). This memory includes CANCEL after a drop, not only invalid
-    /// frames. Zero is allowed (every local reset is immediately forgotten).
-    /// A well-behaved client still completes every call shape at this memory cap,
-    /// including over TLS, mTLS, Unix, and
-    /// [`crate::Server::serve_connection`].
+    /// Cap the remembered IDs of locally reset streams. Default 50.
     ///
-    /// [`crate::Server::max_concurrent_reset_streams`],
-    /// [`crate::Router::max_concurrent_reset_streams`], and generated
-    /// `FooServer::max_concurrent_reset_streams` set this without building a
-    /// [`ServerConfig`].
+    /// At the cap, the oldest ID is forgotten. A later frame on a forgotten
+    /// ID is a connection `PROTOCOL_ERROR`. Zero is allowed.
     #[must_use]
     pub fn max_concurrent_reset_streams(mut self, n: usize) -> Self {
         self.max_concurrent_reset_streams = n;
         self
     }
 
-    /// How long locally-reset HTTP/2 stream IDs are remembered.
-    /// Default 1 s ([`DEFAULT_RESET_STREAM_DURATION`]).
-    /// Applies to every call shape.
-    /// After this duration the ID is forgotten, not `ENHANCE_YOUR_CALM`.
-    /// Frames on a forgotten ID are a connection `PROTOCOL_ERROR`.
-    /// Distinct from [`Self::max_concurrent_reset_streams`], which is how many
-    /// IDs are remembered (count). This is how long (time). Zero is allowed
-    /// (every local reset is immediately forgotten).
-    /// A well-behaved client still completes every call shape at this reset duration,
-    /// including over TLS, mTLS, Unix, and
-    /// [`crate::Server::serve_connection`].
+    /// Set how long locally reset stream IDs are remembered. Default 1 s.
     ///
-    /// [`crate::Server::reset_stream_duration`],
-    /// [`crate::Router::reset_stream_duration`], and generated
-    /// `FooServer::reset_stream_duration` set this without building a
-    /// [`ServerConfig`].
+    /// A later frame on a forgotten ID is a connection `PROTOCOL_ERROR`.
+    /// Zero is allowed.
     #[must_use]
     pub fn reset_stream_duration(mut self, dur: Duration) -> Self {
         self.reset_stream_duration = dur;
@@ -564,80 +462,44 @@ impl ServerConfig {
         self
     }
 
-    /// Enable TCP `SO_KEEPALIVE` with this idle time before the first probe.
+    /// Enable TCP keepalive after this idle duration. Disabled by default.
     ///
-    /// Disabled by default. Values below 1 ms are raised to 1 ms. Only TCP
-    /// sockets are affected; Unix domain sockets and [`crate::Channel::from_io`]
-    /// streams are not. Probe interval is [`Self::tcp_keepalive_interval`]
-    /// (`TCP_KEEPINTVL`); this idle time does not set it. Probe retry count
-    /// is [`Self::tcp_keepalive_retries`] (`TCP_KEEPCNT`); this idle time
-    /// does not set it.
-    ///
-    /// Distinct from [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
-    /// `TCP_NODELAY` is always on for TCP connect and accept (Nagle off).
-    /// There is no `tcp_nodelay(bool)` setter. Distinct from tonic, which
-    /// defaults Nagle off but lets you turn it back on. Unix domain sockets
-    /// and [`crate::Channel::from_io`] skip TCP socket tuning entirely.
-    /// Applies to every call shape.
+    /// Values below 1 ms are raised to 1 ms. Probe spacing and count use
+    /// [`Self::tcp_keepalive_interval`] and [`Self::tcp_keepalive_retries`].
+    /// This applies to TCP sockets, including TLS; Unix and in-memory I/O
+    /// skip TCP tuning. `TCP_NODELAY` is always enabled on TCP sockets.
     #[must_use]
     pub fn tcp_keepalive(mut self, time: Duration) -> Self {
         self.tcp_keepalive = Some(time.max(Duration::from_millis(1)));
         self
     }
 
-    /// TCP keepalive probe interval (`TCP_KEEPINTVL`) after idle
-    /// [`Self::tcp_keepalive`].
+    /// Set TCP keepalive probe spacing (`TCP_KEEPINTVL`).
     ///
-    /// Disabled by default (kernel default). Values below 1 ms are raised to
-    /// 1 ms. Only applied when [`Self::tcp_keepalive`] is also set; this does
-    /// not turn `SO_KEEPALIVE` on by itself. Probe retry count is
-    /// [`Self::tcp_keepalive_retries`] (`TCP_KEEPCNT`); this interval does
-    /// not set it. Only TCP sockets are affected; Unix domain sockets and
-    /// [`crate::Channel::from_io`] streams are not.
-    ///
-    /// Distinct from [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
-    /// Distinct from [`Self::tcp_keepalive`], which is idle time before the
-    /// first probe (`TCP_KEEPIDLE`).
-    /// Applies to every call shape, including over TLS and mTLS.
+    /// Uses the OS default unless configured; values below 1 ms become 1 ms.
+    /// Only takes effect when [`Self::tcp_keepalive`] is enabled. Applies to
+    /// TCP sockets, including TLS.
     #[must_use]
     pub fn tcp_keepalive_interval(mut self, interval: Duration) -> Self {
         self.tcp_keepalive_interval = Some(interval.max(Duration::from_millis(1)));
         self
     }
 
-    /// TCP keepalive probe count (`TCP_KEEPCNT`) after idle
-    /// [`Self::tcp_keepalive`].
+    /// Set the TCP keepalive probe count (`TCP_KEEPCNT`).
     ///
-    /// Disabled by default (kernel default). Zero is raised to 1. Only
-    /// applied when [`Self::tcp_keepalive`] is also set; this does not turn
-    /// `SO_KEEPALIVE` on by itself. Only TCP sockets are affected; Unix
-    /// domain sockets and [`crate::Channel::from_io`] streams are not.
-    ///
-    /// Distinct from [`Self::tcp_keepalive_interval`], which is probe
-    /// spacing (`TCP_KEEPINTVL`), not how many probes. Distinct from
-    /// [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
-    /// Applies to every call shape, including over TLS and mTLS.
+    /// Uses the OS default unless configured; zero becomes one. Only takes
+    /// effect when [`Self::tcp_keepalive`] is enabled. Applies to TCP sockets,
+    /// including TLS.
     #[must_use]
     pub fn tcp_keepalive_retries(mut self, retries: u32) -> Self {
         self.tcp_keepalive_retries = Some(retries.max(1));
         self
     }
 
-    /// How long TLS accept (if any) and the HTTP/2 preface may each take.
-    /// Default 20 s. Values below 1 ms are raised to 1 ms.
-    /// Applies to every call shape, including over TLS, mTLS, and Unix.
+    /// Limit TLS accept and the HTTP/2 preface separately. Default 20 s each.
     ///
-    /// A client that opens a socket and never speaks is dropped, so it cannot
-    /// pin a connection task forever. A completed handshake is not subject to
-    /// this cap; use [`Self::max_connection_idle`] / [`Self::max_connection_age`]
-    /// for live connections.
-    /// There is no grpc-go `ConnectionTimeout` setter: that is one deadline
-    /// from accept through HTTP/2 handshake (default 120 s). This cap is 20 s
-    /// on TLS accept (if any) and 20 s on the HTTP/2 preface, separately.
-    /// Distinct from [`ChannelConfig::connect_timeout`] (client whole dial).
-    /// Distinct from [`Self::timeout`] (RPC deadline overlay). Distinct from
-    /// [`Self::keep_alive_timeout`] (PING ACK). Distinct from
-    /// [`Self::max_connection_age`] (live connections after handshake).
+    /// Values below 1 ms become 1 ms. A peer that never finishes either
+    /// stage is disconnected. Live connections use the age and idle limits.
     #[must_use]
     pub fn handshake_timeout(mut self, timeout: Duration) -> Self {
         self.handshake_timeout = timeout.max(Duration::from_millis(1));
@@ -690,83 +552,33 @@ impl ServerConfig {
         self
     }
 
-    /// Cap every RPC to this duration even when the client omits `grpc-timeout`.
-    /// Applies to every call shape, including over TLS, mTLS, Unix, and
-    /// [`crate::Server::serve_connection`].
+    /// Apply a server deadline to every RPC. Disabled by default.
     ///
-    /// The effective deadline is the soonest of this, the client's, and any
-    /// [`crate::Rpc::set_timeout`] from an interceptor. Disabled by default.
-    /// Values below 1 ms are raised to 1 ms.
-    /// There is no tonic `Server::timeout` tower layer: that is `TimeoutLayer`
-    /// wrapping every request handler. This cap is a gRPC deadline overlay
-    /// when the client omits `grpc-timeout`. This kernel is not a tower stack.
-    /// Distinct from [`ChannelConfig::timeout`] (client overlay). Distinct from
-    /// [`Self::keep_alive_timeout`] (PING ACK). Distinct from `tower`
-    /// integration, which is protobuf-tonic keeping tonic.
-    ///
-    /// [`crate::Server::timeout`], [`crate::Router::timeout`], and generated
-    /// `FooServer::timeout` set this without building a [`ServerConfig`].
-    /// Interceptors and handlers read it on [`crate::Rpc::rpc_timeout`] /
-    /// [`crate::Request::rpc_timeout`].
+    /// The earliest of this duration, the client's `grpc-timeout`, and an
+    /// interceptor's [`crate::Rpc::set_timeout`] wins. Values below 1 ms
+    /// become 1 ms. Handlers can inspect [`crate::Request::rpc_timeout`].
     #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout.max(Duration::from_millis(1)));
         self
     }
 
-    /// Cap how many TCP/Unix connections the accept loop will serve at once,
-    /// including TLS and mTLS listeners. Applies to every call shape.
+    /// Cap connections served by TCP and Unix accept loops, including TLS.
     ///
-    /// Further accepts are dropped immediately (the peer sees a reset), so an
-    /// accept storm cannot pin an unbounded number of handshake tasks.
-    /// Disabled by default.
-    /// There is no tonic `Server::executor` setter: that is `SharedExec` on
-    /// tonic's hyper stack. Each accept-loop handshake task is `tokio::spawn`ed
-    /// on the current tokio runtime. This kernel is not a hyper/tower stack.
-    /// [`Self`] is `Copy`, so it cannot store a non-`Copy` executor. Distinct
-    /// from tonic `Endpoint::executor`, which is the client `SharedExec` (see
-    /// [`ChannelConfig::connections`]). Distinct from `tower` integration,
-    /// which is protobuf-tonic keeping tonic. [`crate::Server::serve_connection`]
-    /// is already-connected: it is not an accept-loop spawn.
-    ///
-    /// [`crate::Server::max_concurrent_connections`],
-    /// [`crate::Router::max_concurrent_connections`], and generated
-    /// `FooServer::max_concurrent_connections` set this without building a
-    /// [`ServerConfig`].
+    /// Disabled by default. Further accepted sockets are dropped immediately,
+    /// before starting a handshake task. Already-connected
+    /// [`crate::Server::serve_connection`] calls are outside this accept cap.
     #[must_use]
     pub fn max_concurrent_connections(mut self, n: usize) -> Self {
         self.max_concurrent_connections = Some(n);
         self
     }
 
-    /// Cap how many RPCs the process will run at once, across every
-    /// connection. Applies to every call shape, including over TLS, mTLS,
-    /// Unix, and [`crate::Server::serve_connection`].
+    /// Cap in-flight RPCs across all server connections. Disabled by default.
     ///
-    /// Further RPCs are refused with [`crate::Code::ResourceExhausted`]
-    /// before the handler runs. Distinct from
-    /// [`Self::max_concurrent_streams`] (per HTTP/2 connection) and
-    /// [`Self::max_concurrent_connections`] (accept-loop sockets). Disabled
-    /// by default.
-    /// There is no grpc-go `NumStreamWorkers` setter: that is a worker pool
-    /// for stream dispatch (0 means a goroutine per stream). Each accepted
-    /// stream is `tokio::spawn`ed on the current tokio runtime. This cap is
-    /// in-flight handler slots, not a worker count. Distinct from tonic
-    /// `Server::executor` (`SharedExec`, which executor, not a worker pool).
-    /// There is no tonic `Server::concurrency_limit_per_connection` setter:
-    /// that is tower `ConcurrencyLimitLayer` on each spawned connection.
-    /// This kernel is not a tower stack. This cap is process-wide handler
-    /// slots, not a per-connection tower layer. Distinct from
-    /// [`Self::max_concurrent_streams`]: extras wait on that SETTINGS cap.
-    /// Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
-    /// There is no tonic `Server::load_shed` setter: that is tower
-    /// `LoadShedLayer` (fail when `poll_ready` is pending, instead of waiting).
-    /// This kernel is not a tower stack. This cap already refuses extras as
-    /// [`crate::Code::ResourceExhausted`] (`try_acquire`, not wait). Distinct
-    /// from [`Self::max_concurrent_streams`]: extras wait on that SETTINGS cap.
-    /// Distinct from tonic `Server::concurrency_limit_per_connection` (per-connection
-    /// wait layer). Distinct from `tower` integration, which is protobuf-tonic
-    /// keeping tonic.
+    /// Extra RPCs receive [`crate::Code::ResourceExhausted`] before the handler
+    /// runs. Zero becomes one. HTTP/2 stream admission remains controlled
+    /// by [`Self::max_concurrent_streams`].
     #[must_use]
     pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
         self.max_concurrent_rpcs = Some(n.max(1));
@@ -792,30 +604,21 @@ impl ServerConfig {
         self
     }
 
-    /// Deflate effort for outbound gzip. Default 1 (`flate2` fast).
-    /// Applies to every call shape.
+    /// Set gzip/deflate compression effort. Default 1.
     ///
-    /// 0 stores; 9 is best. Values above 9 are clamped to 9. Unused when
-    /// outbound compression is off.
-    /// Distinct from [`Self::send_compressed`], which is on or off.
-    ///
-    /// [`crate::Server::gzip_compression_level`], [`crate::Router::gzip_compression_level`],
-    /// and generated `FooServer::gzip_compression_level` set this without
-    /// building a [`ServerConfig`].
+    /// Zero stores data without compression; 9 is the highest effort.
+    /// Values above 9 become 9. Only used when outbound compression is enabled.
     #[must_use]
     pub fn gzip_compression_level(mut self, level: u32) -> Self {
         self.gzip_compression_level = level.min(9);
         self
     }
 
-    /// Coding for outbound compressed responses. Default gzip.
-    /// Applies to every call shape.
+    /// Choose gzip or deflate for outbound compressed messages. Default gzip.
     ///
-    /// The server still only compresses for a peer that advertised the
-    /// negotiated coding, falling back to the other coding when the peer
-    /// accepts only that one. Inbound accepts gzip and deflate regardless
-    /// of this setting (see [`Self::accept_compressed`]).
-    /// Distinct from [`Self::send_compressed`], which is on or off.
+    /// This selects the codec; [`Self::send_compressed`] enables compression.
+    /// Inbound codec acceptance uses [`Self::accept_compressed`]. Servers
+    /// negotiate a codec the peer accepts.
     #[must_use]
     pub fn compression_codec(mut self, codec: Codec) -> Self {
         self.compression_codec = codec;
@@ -844,19 +647,11 @@ impl ServerConfig {
         self
     }
 
-    /// Inflate inbound gzip. Default `true`. Applies to every call shape,
-    /// including over TLS, mTLS, Unix, and [`crate::Server::serve_connection`].
+    /// Accept supported inbound compression algorithms. Enabled by default.
     ///
-    /// Passing `false` refuses `grpc-encoding: gzip` and `deflate` as
-    /// [`crate::Code::Unimplemented`] before a handler runs, advertises
-    /// `grpc-accept-encoding: identity` only, and does not inflate a
-    /// Compressed-Flag. Distinct from [`Self::send_compressed`], which is
-    /// outbound. Distinct from tonic's `accept_compressed`, which starts
-    /// opt-in; this kernel starts on so interop compression keeps working.
-    ///
-    /// [`crate::Server::accept_compressed`], [`crate::Router::accept_compressed`],
-    /// and generated `FooServer::accept_compressed` set this without building
-    /// a [`ServerConfig`].
+    /// Disabling this advertises only `identity` and rejects compressed
+    /// messages with [`crate::Code::Unimplemented`] without inflating them.
+    /// Outbound compression is configured separately.
     #[must_use]
     pub fn accept_compressed(mut self, accept: bool) -> Self {
         self.accept_compressed = accept;
@@ -865,25 +660,21 @@ impl ServerConfig {
 
     /// Configured message caps. Applies to every call shape.
     /// Server interceptors read this overlay on [`crate::Rpc::limits`] / [`crate::Request::limits`].
-    /// Distinct from [`Self::message_limits`], which sets them.
     #[must_use]
     pub fn limits(self) -> MessageLimits {
         self.limits
     }
 
-    /// Configured per-connection send buffer. Applies to every call shape.
+    /// Configured per-stream send buffer in bytes.
     /// Server interceptors read this overlay on [`crate::Rpc::send_buffer_size`] / [`crate::Request::send_buffer_size`].
-    /// Distinct from [`Self::max_send_buffer_size`], which sets it.
     #[must_use]
     pub fn send_buffer_size(self) -> usize {
         self.max_send_buffer_size
     }
 
     /// Configured per-RPC timeout, if any. See [`Self::timeout`].
-    /// Applies to every call shape.
     /// Interceptors and handlers read this overlay on [`crate::Rpc::rpc_timeout`]
     /// / [`crate::Request::rpc_timeout`].
-    /// Distinct from [`Self::timeout`], which sets it.
     #[must_use]
     pub fn rpc_timeout(self) -> Option<Duration> {
         self.timeout
@@ -897,8 +688,6 @@ impl ServerConfig {
     }
 
     /// Configured process-wide RPC cap, if any. See [`Self::max_concurrent_rpcs`].
-    /// Applies to every call shape.
-    /// Distinct from [`Self::max_concurrent_rpcs`], which sets it.
     #[must_use]
     pub fn concurrent_rpc_limit(self) -> Option<usize> {
         self.max_concurrent_rpcs
@@ -906,23 +695,18 @@ impl ServerConfig {
 
     /// Whether responses are gzipped when the client accepts gzip.
     /// See [`Self::send_compressed`]. Applies to every call shape.
-    /// Distinct from [`Self::send_compressed`], which sets it.
     #[must_use]
     pub fn compresses_outbound(self) -> bool {
         self.send_compressed
     }
 
     /// Configured outbound gzip deflate level. See [`Self::gzip_compression_level`].
-    /// Applies to every call shape.
-    /// Distinct from [`Self::gzip_compression_level`], which sets it.
     #[must_use]
     pub fn gzip_level(self) -> u32 {
         self.gzip_compression_level
     }
 
     /// Last configured gzip/deflate selection. See [`Self::compression_codec`].
-    /// Applies to every call shape.
-    /// Distinct from [`Self::compression_codec`], which sets it.
     /// An optional coding selected by [`Self::compression_algorithm`] cannot
     /// be represented by [`Codec`]; use [`Self::send_algorithm`] to inspect
     /// the current outbound preference.
@@ -941,7 +725,6 @@ impl ServerConfig {
 
     /// Whether inbound gzip is inflated. Default `true`.
     /// See [`Self::accept_compressed`]. Applies to every call shape.
-    /// Distinct from [`Self::accept_compressed`], which sets it.
     /// Distinct from [`crate::Rpc::accepts_gzip`], which is the peer's
     /// `grpc-accept-encoding`.
     #[must_use]
@@ -950,21 +733,18 @@ impl ServerConfig {
     }
 
     /// Configured HTTP/2 PING interval, if any. See [`Self::keep_alive_interval`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn keep_alive_ping_interval(self) -> Option<Duration> {
         self.keep_alive_interval
     }
 
     /// How long to wait for a PING acknowledgement. See [`Self::keep_alive_timeout`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn keep_alive_ack_timeout(self) -> Duration {
         self.keep_alive_timeout
     }
 
     /// Configured TCP keepalive idle time, if any. See [`Self::tcp_keepalive`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn tcp_keepalive_period(self) -> Option<Duration> {
         self.tcp_keepalive
@@ -985,14 +765,12 @@ impl ServerConfig {
     }
 
     /// HTTP/2 per-stream receive window. See [`Self::initial_stream_window_size`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn stream_window(self) -> u32 {
         self.initial_stream_window_size
     }
 
     /// HTTP/2 per-connection receive window. See [`Self::initial_connection_window_size`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn connection_window(self) -> u32 {
         self.initial_connection_window_size
@@ -1017,35 +795,30 @@ impl ServerConfig {
     }
 
     /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. See [`Self::max_frame_size`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn frame_size(self) -> u32 {
         self.max_frame_size
     }
 
     /// Concurrent RPCs allowed per connection. See [`Self::max_concurrent_streams`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn concurrent_streams(self) -> u32 {
         self.max_concurrent_streams
     }
 
     /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. See [`Self::max_header_list_size`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn header_list_size(self) -> u32 {
         self.max_header_list_size
     }
 
     /// HTTP/2 `SETTINGS_HEADER_TABLE_SIZE`. See [`Self::header_table_size`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn header_table(self) -> u32 {
         self.header_table_size
     }
 
     /// HTTP/2 small-DATA framing budget. See [`Self::data_frame_budget`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn data_budget(self) -> usize {
         self.data_frame_budget
@@ -1080,7 +853,6 @@ impl ServerConfig {
     }
 
     /// TLS accept and HTTP/2 preface bound. See [`Self::handshake_timeout`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn handshake_wait(self) -> Duration {
         self.handshake_timeout
@@ -1094,14 +866,12 @@ impl ServerConfig {
     }
 
     /// Configured max connection idle, if any. See [`Self::max_connection_idle`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn connection_idle(self) -> Option<Duration> {
         self.max_connection_idle
     }
 
     /// Grace after age or idle. See [`Self::max_connection_age_grace`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn age_grace(self) -> Duration {
         self.max_connection_age_grace
@@ -1183,13 +953,9 @@ pub(crate) fn jitter_age(age: Duration, seed: u64) -> Duration {
 }
 
 /// HTTP/2 and resource settings for a [`Channel`](crate::Channel).
-/// There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when
-/// the name resolver does not provide a service config, or when
-/// `WithDisableServiceConfig` ignores the resolver. This config is typed
-/// `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go
-/// `WithDisableRetry` (`retryPolicy` only). Distinct from [`Self::timeout`]
-/// (kernel overlay, not methodConfig timeout). There is no
-/// `WithDisableServiceConfig`: nothing to ignore.
+///
+/// Configure transport settings before connecting. Resolver-delivered JSON
+/// and retry policies use [`crate::ServiceConfig`] on the channel.
 ///
 /// ```
 /// use std::time::Duration;
@@ -1291,33 +1057,18 @@ impl Default for ChannelConfig {
 }
 
 impl ChannelConfig {
-    /// Safe defaults: one connection, 4 MiB inbound cap.
+    /// Defaults: one connection and a 4 MiB inbound message cap.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Open `n` independent HTTP/2 connections and spread RPCs round-robin.
-    /// Applies to every call shape, including over TLS, mTLS, and Unix.
-    /// [`crate::Channel::from_io`] cannot pool: [`crate::Channel::from_io_with`]
-    /// forces `connections` to 1.
-    /// All of them must succeed: a pool larger than the server's
-    /// [`crate::Server::max_concurrent_connections`] fails the dial as
-    /// [`crate::Code::Unavailable`].
+    /// Open `n` HTTP/2 connections and distribute RPCs round-robin.
     ///
-    /// One connection means one `h2` driver task, so one core drives all
-    /// framing. Raising this is the single biggest throughput lever for
-    /// concurrent small RPCs; see [the tuning guide](crate#tuning).
-    /// There is no tonic `Endpoint::executor` setter: that is `SharedExec` on
-    /// tonic's hyper stack. Each pooled connection's `h2` driver is
-    /// `tokio::spawn`ed on the current tokio runtime. This kernel is not a
-    /// hyper/tower stack. [`Self`] is `Copy`, so it cannot store a non-`Copy`
-    /// executor. Distinct from `tower` integration, which is protobuf-tonic
-    /// keeping tonic. Distinct from [`Self::max_concurrent_rpcs`]: that is
-    /// in-flight slots, not where tasks run.
-    ///
-    /// A slot that later dies is redialed on the next RPC that lands on it;
-    /// the other slots keep serving.
+    /// Zero becomes one. Initial connection setup must succeed for every
+    /// slot; a failed slot is redialed on its next RPC. Each connection has
+    /// one driver task. [`crate::Channel::from_io_with`] always uses one
+    /// connection.
     #[must_use]
     pub fn connections(mut self, n: usize) -> Self {
         self.connections = n.max(1);
@@ -1325,68 +1076,46 @@ impl ChannelConfig {
     }
 
     /// Cap inbound messages at `limit` uncompressed bytes. Default 4 MiB.
-    /// Applies to every call shape, including when set on
-    /// [`crate::Channel::connect_tls_with`] / [`crate::Channel::connect_unix_with`]
-    /// / [`crate::Channel::from_io_with`]. Distinct from wrapping a live
-    /// [`crate::Channel`] with [`crate::Channel::max_decoding_message_size`].
+    ///
+    /// Applies to every RPC shape.
     #[must_use]
     pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
         self.limits = self.limits.with_max_decoding(limit);
         self
     }
 
-    /// Cap outbound messages at `limit` uncompressed bytes. Default unlimited.
-    /// Applies to every call shape, including when set on
-    /// [`crate::Channel::connect_tls_with`] / [`crate::Channel::connect_unix_with`]
-    /// / [`crate::Channel::from_io_with`]. Distinct from wrapping a live
-    /// [`crate::Channel`] with [`crate::Channel::max_encoding_message_size`].
+    /// Cap outbound messages at `limit` uncompressed bytes.
+    ///
+    /// Unlimited by default. Applies to every RPC shape.
     #[must_use]
     pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
         self.limits = self.limits.with_max_encoding(limit);
         self
     }
 
-    /// Replace both message caps at once. Applies to every call shape.
+    /// Set both inbound and outbound message-size limits.
     ///
-    /// [`crate::Channel::message_limits`] and generated `FooClient::message_limits`
-    /// set this without building a [`ChannelConfig`].
-    /// Dial-time overlay on [`crate::Channel::connect_tls_with`] /
-    /// [`crate::Channel::connect_unix_with`] / [`crate::Channel::from_io_with`].
-    /// Distinct from [`Self::max_encoding_message_size`] /
-    /// [`Self::max_decoding_message_size`].
+    /// An oversize message returns [`crate::Code::ResourceExhausted`]. Limits
+    /// apply to uncompressed message bytes in every RPC shape.
     #[must_use]
     pub fn message_limits(mut self, limits: MessageLimits) -> Self {
         self.limits = limits;
         self
     }
 
-    /// HTTP/2 per-stream receive window. Default 16 MiB.
-    /// Applies to every call shape.
-    /// HTTP/2 stream receive window the client advertises. Distinct from
-    /// [`ServerConfig::initial_stream_window_size`], which still serves when
-    /// the server advertises a small window. A well-behaved server still
-    /// completes every call shape, including over TLS, mTLS, Unix, and
-    /// [`crate::Channel::from_io`].
-    /// There is no tonic `Endpoint::http2_adaptive_window`: that enables
-    /// hyper adaptive flow control and overrides stream and connection
-    /// windows. This cap is a fixed SETTINGS window. Distinct from
-    /// [`Self::initial_connection_window_size`] (connection window, still
-    /// fixed). Distinct from [`Self::data_frame_budget`] (`h2 Auto` tiny-DATA
-    /// budget, not window adaptation). Distinct from tonic
-    /// `Server::http2_adaptive_window` (server adaptive override).
+    /// Set the HTTP/2 receive window for each stream. Default 16 MiB.
+    ///
+    /// The peer waits for WINDOW_UPDATE when it uses the available credit.
+    /// [`Self::adaptive_window`] overrides this setting while enabled.
     #[must_use]
     pub fn initial_stream_window_size(mut self, bytes: u32) -> Self {
         self.initial_stream_window_size = bytes;
         self
     }
 
-    /// HTTP/2 per-connection receive window. Default 16 MiB.
-    /// Applies to every call shape.
-    /// HTTP/2 connection receive window the client advertises. Distinct from
-    /// [`ServerConfig::initial_connection_window_size`], which still serves when
-    /// the server advertises a small window. A well-behaved server still
-    /// completes every call shape, including over TLS, mTLS, Unix, and
-    /// [`crate::Channel::from_io`].
+    /// Set the HTTP/2 receive window shared by a connection. Default 16 MiB.
+    ///
+    /// [`Self::adaptive_window`] overrides this setting while enabled.
     #[must_use]
     pub fn initial_connection_window_size(mut self, bytes: u32) -> Self {
         self.initial_connection_window_size = bytes;
@@ -1429,171 +1158,96 @@ impl ChannelConfig {
         self
     }
 
-    /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. Default 1 MiB.
-    /// Applies to every call shape.
-    /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE` the client advertises. Distinct
-    /// from [`ServerConfig::max_frame_size`], which still serves every call
-    /// shape when the server advertises a small cap. A well-behaved server
-    /// splits DATA, including over TLS, mTLS, Unix, and
-    /// [`crate::Channel::from_io`].
+    /// Set HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. Default 1 MiB.
+    ///
+    /// The peer splits larger payloads into multiple DATA frames.
     #[must_use]
     pub fn max_frame_size(mut self, bytes: u32) -> Self {
         self.max_frame_size = bytes;
         self
     }
 
-    /// Concurrent RPCs allowed per connection. Default 256.
-    /// Applies to every call shape.
-    /// HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS` the client advertises. Distinct
-    /// from [`ServerConfig::max_concurrent_streams`], which serializes extra
-    /// RPCs on the server. Push is disabled, including over TLS, mTLS, Unix,
-    /// and [`crate::Channel::from_io`].
-    /// Distinct from [`Self::max_concurrent_rpcs`], which refuses extras
-    /// before the stream opens.
+    /// Advertise HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`. Default 256.
+    ///
+    /// The server's SETTINGS control outbound stream admission. Use
+    /// [`Self::max_concurrent_rpcs`] to cap this channel's in-flight RPCs.
     #[must_use]
     pub fn max_concurrent_streams(mut self, streams: u32) -> Self {
         self.max_concurrent_streams = streams;
         self
     }
 
-    /// Bytes buffered per connection before writes apply backpressure.
-    /// Default 1 MiB. Applies to every call shape.
-    /// HTTP/2 send buffer the client applies on outbound frames. Distinct from
-    /// [`ServerConfig::max_send_buffer_size`], which still serves when the
-    /// server advertises a small buffer. A well-behaved server still completes
-    /// every call shape, including over TLS, mTLS, Unix, and
-    /// [`crate::Channel::from_io`].
-    /// [`crate::Channel::max_send_buffer_size`] sets the write-time DATA threshold on a live clone without building a [`ChannelConfig`].
-    /// There is no tonic `Endpoint::buffer_size`: that is tower `Buffer` request
-    /// slots (default 1024), not these bytes. This kernel is not a tower stack;
-    /// clones share the pool without an mpsc of RPCs. Distinct from
-    /// [`Self::stream_buffer`]: that is client-streaming/bidi message queue
-    /// depth, not this send buffer. Distinct from grpc-go `ReadBufferSize` /
-    /// `WriteBufferSize`, which are socket byte buffers (default 32 KiB), not
-    /// this HTTP/2 send buffer.
+    /// Set the HTTP/2 send buffer cap per stream. Default 1 MiB.
+    ///
+    /// Writes wait when this buffer fills. This is a per-stream cap; account
+    /// for the number of active streams when budgeting process memory.
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
         self.max_send_buffer_size = bytes;
         self
     }
 
-    /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`, i.e. the metadata cap the
-    /// client will accept from the peer. Default 16 KiB. Applies to every
-    /// call shape.
-    /// Oversize response headers or trailers are refused, including over TLS,
-    /// mTLS, Unix, and [`crate::Channel::from_io`]. Distinct from
-    /// [`ServerConfig::max_header_list_size`], which caps inbound request
-    /// metadata.
+    /// Set the uncompressed HTTP/2 header-list cap. Default 16 KiB.
+    ///
+    /// Oversize metadata is refused.
     #[must_use]
     pub fn max_header_list_size(mut self, bytes: u32) -> Self {
         self.max_header_list_size = bytes;
         self
     }
 
-    /// HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table). Default 4096.
-    /// Applies to every call shape.
-    /// Applied at handshake, not as a live overlay.
-    /// Distinct from [`ServerConfig::header_table_size`], which still serves
-    /// when the server advertises a smaller table. Distinct from
-    /// [`Self::max_header_list_size`], which caps uncompressed header-block
-    /// bytes (`SETTINGS_MAX_HEADER_LIST_SIZE`). A well-behaved server still
-    /// completes every call shape, including over TLS, mTLS, Unix, and
-    /// [`crate::Channel::from_io`].
+    /// Set the HPACK dynamic-table size. Default 4,096 bytes.
+    ///
+    /// [`Self::max_header_list_size`] caps the decoded header list.
     #[must_use]
     pub fn header_table_size(mut self, bytes: u32) -> Self {
         self.header_table_size = bytes;
         self
     }
 
-    /// HTTP/2 small-DATA framing budget. Default 25600.
-    /// Applies to every call shape.
-    /// Applied at handshake, not as a live overlay.
-    /// Caps extra memory from tiny DATA frames (payload under 256 bytes).
-    /// Exceeding this is `ENHANCE_YOUR_CALM` (`too_many_data_frames`).
-    /// Distinct from [`ServerConfig::data_frame_budget`], which still serves
-    /// when the server caps small-DATA framing. Distinct from
-    /// [`Self::initial_connection_window_size`], which is flow-control bytes,
-    /// and from [`Self::max_frame_size`], which caps one DATA payload.
-    /// h2 Auto (half the connection window) is not exposed.
-    /// Empty DATA frames are a separate h2 cap and do not consume this budget.
-    /// A well-behaved server still completes every call shape at this framing
-    /// budget, including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
+    /// Set the overhead budget for DATA frames smaller than 256 bytes.
+    ///
+    /// Default 25,600 bytes. Exceeding it closes the connection with
+    /// `ENHANCE_YOUR_CALM` (`too_many_data_frames`). Empty DATA frames have a
+    /// separate backend cap. The budget does not grow with receive windows.
     #[must_use]
     pub fn data_frame_budget(mut self, bytes: usize) -> Self {
         self.data_frame_budget = bytes;
         self
     }
 
-    /// Cap remotely-reset HTTP/2 streams waiting in the accept queue.
-    /// Applies to every call shape.
+    /// Cap remotely reset streams waiting in the accept queue. Default 20.
     ///
-    /// Default 20 ([`DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS`]). A peer that
-    /// opens streams and immediately `RST_STREAM`s them sits in that queue
-    /// until accepted; exceeding this is `ENHANCE_YOUR_CALM` and the
-    /// connection is dropped. Applied at handshake, not as a live overlay.
-    /// Distinct from [`ServerConfig::max_pending_accept_reset_streams`], which
-    /// still serves when the server caps that queue. A well-behaved server
-    /// never fills this client queue; every call shape still completes,
-    /// including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
+    /// Exceeding the cap closes the connection with `ENHANCE_YOUR_CALM`.
     #[must_use]
     pub fn max_pending_accept_reset_streams(mut self, n: usize) -> Self {
         self.max_pending_accept_reset_streams = n;
         self
     }
 
-    /// Cap locally-reset HTTP/2 streams caused by a peer protocol error.
-    /// Default 1024 ([`DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS`]). Exceeding
-    /// this is `ENHANCE_YOUR_CALM` and the connection is dropped.
-    /// Applied at handshake, not as a live overlay.
-    /// Distinct from [`ServerConfig::max_local_error_reset_streams`], which
-    /// still serves when the server caps protocol-error RSTs. Distinct from
-    /// [`Self::max_pending_accept_reset_streams`] (rapid reset, remote RSTs).
-    /// This caps RSTs we send after an invalid frame.
-    /// h2's `None` disable is not exposed.
-    /// A well-behaved server never forces this; every call shape still
-    /// completes, including over TLS, mTLS, Unix, and
-    /// [`crate::Channel::from_io`].
+    /// Cap locally issued protocol-error resets. Default 1,024.
+    ///
+    /// Exceeding the cap closes the connection with `ENHANCE_YOUR_CALM`.
     #[must_use]
     pub fn max_local_error_reset_streams(mut self, n: usize) -> Self {
         self.max_local_error_reset_streams = n;
         self
     }
 
-    /// Cap remembered locally-reset HTTP/2 stream IDs.
-    /// Default 50 ([`DEFAULT_MAX_CONCURRENT_RESET_STREAMS`]).
-    /// Applies to every call shape.
-    /// Applied at handshake, not as a live overlay.
-    /// After this endpoint sends `RST_STREAM`, the stream ID is remembered
-    /// so late frames are ignored (RFC 9113). When the cap is reached, the
-    /// oldest ID is purged from memory, not `ENHANCE_YOUR_CALM`.
-    /// Frames on a purged ID are a connection `PROTOCOL_ERROR`.
-    /// Distinct from [`ServerConfig::max_concurrent_reset_streams`], which still
-    /// serves when the server remembers fewer reset stream IDs.
-    /// Distinct from [`Self::max_pending_accept_reset_streams`] (rapid-reset
-    /// GOAWAY) and [`Self::max_local_error_reset_streams`] (protocol-error RST
-    /// GOAWAY). This memory includes CANCEL after a drop, not only invalid
-    /// frames. Zero is allowed (every local reset is immediately forgotten).
-    /// A well-behaved server still completes every call shape at this memory cap,
-    /// including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
+    /// Cap the remembered IDs of locally reset streams. Default 50.
+    ///
+    /// At the cap, the oldest ID is forgotten. A later frame on a forgotten
+    /// ID is a connection `PROTOCOL_ERROR`. Zero is allowed.
     #[must_use]
     pub fn max_concurrent_reset_streams(mut self, n: usize) -> Self {
         self.max_concurrent_reset_streams = n;
         self
     }
 
-    /// How long locally-reset HTTP/2 stream IDs are remembered.
-    /// Default 1 s ([`DEFAULT_RESET_STREAM_DURATION`]).
-    /// Applies to every call shape.
-    /// Applied at handshake, not as a live overlay.
-    /// After this duration the ID is forgotten, not `ENHANCE_YOUR_CALM`.
-    /// Frames on a forgotten ID are a connection `PROTOCOL_ERROR`.
-    /// Distinct from [`ServerConfig::reset_stream_duration`], which still
-    /// serves when the server remembers reset stream IDs for less time.
-    /// Distinct from [`Self::max_concurrent_reset_streams`], which is how many
-    /// IDs are remembered (count). This is how long (time). Zero is allowed
-    /// (every local reset is immediately forgotten).
-    /// A well-behaved server still completes every call shape at this reset duration,
-    /// including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
+    /// Set how long locally reset stream IDs are remembered. Default 1 s.
+    ///
+    /// A later frame on a forgotten ID is a connection `PROTOCOL_ERROR`.
+    /// Zero is allowed.
     #[must_use]
     pub fn reset_stream_duration(mut self, dur: Duration) -> Self {
         self.reset_stream_duration = dur;
@@ -1644,59 +1298,34 @@ impl ChannelConfig {
         self
     }
 
-    /// Enable TCP `SO_KEEPALIVE` with this idle time before the first probe.
+    /// Enable TCP keepalive after this idle duration. Disabled by default.
     ///
-    /// Disabled by default. Values below 1 ms are raised to 1 ms. Only TCP
-    /// sockets are affected; Unix domain sockets and [`crate::Channel::from_io`]
-    /// streams are not. Probe interval is [`Self::tcp_keepalive_interval`]
-    /// (`TCP_KEEPINTVL`); this idle time does not set it. Probe retry count
-    /// is [`Self::tcp_keepalive_retries`] (`TCP_KEEPCNT`); this idle time
-    /// does not set it.
-    ///
-    /// Distinct from [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
-    /// `TCP_NODELAY` is always on for TCP connect and accept (Nagle off).
-    /// There is no `tcp_nodelay(bool)` setter. Distinct from tonic, which
-    /// defaults Nagle off but lets you turn it back on. Unix domain sockets
-    /// and [`crate::Channel::from_io`] skip TCP socket tuning entirely.
-    /// Applies to every call shape.
+    /// Values below 1 ms are raised to 1 ms. Probe spacing and count use
+    /// [`Self::tcp_keepalive_interval`] and [`Self::tcp_keepalive_retries`].
+    /// This applies to TCP sockets, including TLS; Unix and in-memory I/O
+    /// skip TCP tuning. `TCP_NODELAY` is always enabled on TCP sockets.
     #[must_use]
     pub fn tcp_keepalive(mut self, time: Duration) -> Self {
         self.tcp_keepalive = Some(time.max(Duration::from_millis(1)));
         self
     }
 
-    /// TCP keepalive probe interval (`TCP_KEEPINTVL`) after idle
-    /// [`Self::tcp_keepalive`].
+    /// Set TCP keepalive probe spacing (`TCP_KEEPINTVL`).
     ///
-    /// Disabled by default (kernel default). Values below 1 ms are raised to
-    /// 1 ms. Only applied when [`Self::tcp_keepalive`] is also set; this does
-    /// not turn `SO_KEEPALIVE` on by itself. Probe retry count is
-    /// [`Self::tcp_keepalive_retries`] (`TCP_KEEPCNT`); this interval does
-    /// not set it. Only TCP sockets are affected; Unix domain sockets and
-    /// [`crate::Channel::from_io`] streams are not.
-    ///
-    /// Distinct from [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
-    /// Distinct from [`Self::tcp_keepalive`], which is idle time before the
-    /// first probe (`TCP_KEEPIDLE`).
-    /// Applies to every call shape, including over TLS and mTLS.
+    /// Uses the OS default unless configured; values below 1 ms become 1 ms.
+    /// Only takes effect when [`Self::tcp_keepalive`] is enabled. Applies to
+    /// TCP sockets, including TLS.
     #[must_use]
     pub fn tcp_keepalive_interval(mut self, interval: Duration) -> Self {
         self.tcp_keepalive_interval = Some(interval.max(Duration::from_millis(1)));
         self
     }
 
-    /// TCP keepalive probe count (`TCP_KEEPCNT`) after idle
-    /// [`Self::tcp_keepalive`].
+    /// Set the TCP keepalive probe count (`TCP_KEEPCNT`).
     ///
-    /// Disabled by default (kernel default). Zero is raised to 1. Only
-    /// applied when [`Self::tcp_keepalive`] is also set; this does not turn
-    /// `SO_KEEPALIVE` on by itself. Only TCP sockets are affected; Unix
-    /// domain sockets and [`crate::Channel::from_io`] streams are not.
-    ///
-    /// Distinct from [`Self::tcp_keepalive_interval`], which is probe
-    /// spacing (`TCP_KEEPINTVL`), not how many probes. Distinct from
-    /// [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
-    /// Applies to every call shape, including over TLS and mTLS.
+    /// Uses the OS default unless configured; zero becomes one. Only takes
+    /// effect when [`Self::tcp_keepalive`] is enabled. Applies to TCP sockets,
+    /// including TLS.
     #[must_use]
     pub fn tcp_keepalive_retries(mut self, retries: u32) -> Self {
         self.tcp_keepalive_retries = Some(retries.max(1));
@@ -1819,29 +1448,21 @@ impl ChannelConfig {
         self
     }
 
-    /// Deflate effort for outbound gzip. Default 1 (`flate2` fast).
-    /// Applies to every call shape, including over TLS, mTLS, Unix, and
-    /// [`crate::Channel::from_io`].
+    /// Set gzip/deflate compression effort. Default 1.
     ///
-    /// 0 stores; 9 is best. Values above 9 are clamped to 9. Unused when
-    /// outbound compression is off.
-    /// Distinct from [`Self::send_compressed`], which is on or off.
-    /// Overlay: [`crate::Channel::gzip_compression_level`] and generated
-    /// `FooClient::gzip_compression_level` set this without building a
-    /// [`ChannelConfig`].
+    /// Zero stores data without compression; 9 is the highest effort.
+    /// Values above 9 become 9. Only used when outbound compression is enabled.
     #[must_use]
     pub fn gzip_compression_level(mut self, level: u32) -> Self {
         self.gzip_compression_level = level.min(9);
         self
     }
 
-    /// Coding for outbound compressed requests. Default gzip.
-    /// Applies to every call shape, including over TLS, mTLS, Unix, and
-    /// [`crate::Channel::from_io`].
+    /// Choose gzip or deflate for outbound compressed messages. Default gzip.
     ///
-    /// Inbound accepts gzip and deflate regardless of this setting (see
-    /// [`Self::accept_compressed`]).
-    /// Distinct from [`Self::send_compressed`], which is on or off.
+    /// This selects the codec; [`Self::send_compressed`] enables compression.
+    /// Inbound codec acceptance uses [`Self::accept_compressed`]. Servers
+    /// negotiate a codec the peer accepts.
     #[must_use]
     pub fn compression_codec(mut self, codec: Codec) -> Self {
         self.compression_codec = codec;
@@ -1870,40 +1491,22 @@ impl ChannelConfig {
         self
     }
 
-    /// Inflate inbound gzip. Default `true`. Applies to every call shape,
-    /// including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
+    /// Accept supported inbound compression algorithms. Enabled by default.
     ///
-    /// Passing `false` omits gzip and deflate from `grpc-accept-encoding`
-    /// and refuses a compressed reply as [`crate::Code::Unimplemented`]
-    /// without inflating. Distinct from [`Self::send_compressed`], which is
-    /// outbound. Distinct from tonic's `accept_compressed`, which starts
-    /// opt-in; this kernel starts on so interop compression keeps working.
-    ///
-    /// [`crate::Channel::accept_compressed`] and generated
-    /// `FooClient::accept_compressed` set this without building a
-    /// [`ChannelConfig`].
+    /// Disabling this advertises only `identity` and rejects compressed
+    /// messages with [`crate::Code::Unimplemented`] without inflating them.
+    /// Outbound compression is configured separately.
     #[must_use]
     pub fn accept_compressed(mut self, accept: bool) -> Self {
         self.accept_compressed = accept;
         self
     }
 
-    /// Default per-RPC deadline when the request omits `grpc-timeout`.
-    /// Applies to every call shape, including over TLS, mTLS, Unix, and
-    /// [`crate::Channel::from_io`].
+    /// Set the default RPC timeout. Disabled by default.
     ///
-    /// Distinct from [`Self::connect_timeout`], which bounds the dial. Disabled
-    /// by default. Values below 1 ms are raised to 1 ms. A request that already
-    /// has a deadline is left alone; a later interceptor can still
-    /// [`crate::Outgoing::set_timeout`] or [`crate::Outgoing::clear_timeout`].
-    /// There is no tonic `Endpoint::timeout` that omits `grpc-timeout`: that
-    /// times out the client future without informing the server. This overlay
-    /// writes `grpc-timeout` when the request omits one. Distinct from
-    /// [`ServerConfig::timeout`] (server overlay). Distinct from `tower`
-    /// integration, which is protobuf-tonic keeping tonic.
-    ///
-    /// [`crate::Channel::timeout`] and generated `FooClient::timeout` set this
-    /// without building a [`ChannelConfig`].
+    /// Applied when the request has no timeout; the client writes
+    /// `grpc-timeout` for the server. Values below 1 ms become 1 ms.
+    /// Request overrides and later interceptors can set or clear it.
     #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout.max(Duration::from_millis(1)));
@@ -1939,31 +1542,11 @@ impl ChannelConfig {
         self
     }
 
-    /// Cap how many RPCs this channel will run at once, across every
-    /// pooled connection. Applies to every call shape, including over TLS,
-    /// mTLS, Unix, and [`crate::Channel::from_io`].
+    /// Cap in-flight RPCs across all pooled connections. Disabled by default.
     ///
-    /// Further RPCs are refused with [`crate::Code::ResourceExhausted`]
-    /// before the stream opens. Distinct from
-    /// [`Self::max_concurrent_streams`] (per HTTP/2 connection SETTINGS;
-    /// extras wait) and from [`ServerConfig::max_concurrent_rpcs`] (the
-    /// server refuses inbound). Disabled by default.
-    /// There is no tonic `Endpoint::rate_limit` setter: that is tower
-    /// `RateLimitLayer` (at most N RPCs per duration). This kernel is not a
-    /// tower stack. This cap is in-flight slots, not a token bucket.
-    /// Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
-    /// There is no tonic `Endpoint::concurrency_limit` setter: that is tower
-    /// `ConcurrencyLimitLayer` (wait when `poll_ready` is pending). This kernel
-    /// is not a tower stack. This cap already refuses extras as
-    /// [`crate::Code::ResourceExhausted`] (`try_acquire`, not wait). Distinct
-    /// from `Endpoint::rate_limit` (token bucket). Distinct from tonic
-    /// `Server::concurrency_limit_per_connection` (server per-connection wait
-    /// layer). Distinct from `tower` integration, which is protobuf-tonic
-    /// keeping tonic.
-    ///
-    /// [`crate::Channel::max_concurrent_rpcs`] and generated
-    /// `FooClient::max_concurrent_rpcs` set this without building a
-    /// [`ChannelConfig`].
+    /// Extra RPCs receive [`crate::Code::ResourceExhausted`] before opening
+    /// a stream. Zero becomes one. Streaming RPCs retain their slot until
+    /// the received stream is dropped.
     #[must_use]
     pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
         self.max_concurrent_rpcs = Some(n.max(1));
@@ -1972,7 +1555,6 @@ impl ChannelConfig {
 
     /// Configured message caps. Applies to every call shape.
     /// [`crate::Channel::limits`] reads this overlay on a live clone without building a [`ChannelConfig`].
-    /// Distinct from [`Self::message_limits`], which sets them.
     #[must_use]
     pub fn limits(self) -> MessageLimits {
         self.limits
@@ -1986,35 +1568,30 @@ impl ChannelConfig {
 
     /// Configured outbound streaming queue depth. Applies to client-streaming
     /// and bidi request streams. See [`Self::stream_buffer`].
-    /// Distinct from [`Self::stream_buffer`], which sets it.
     #[must_use]
     pub fn stream_buffer_size(self) -> usize {
         self.stream_buffer
     }
 
-    /// Configured per-connection send buffer. Applies to every call shape.
-    /// Distinct from [`Self::max_send_buffer_size`], which sets it.
+    /// Configured per-stream send buffer in bytes.
     #[must_use]
     pub fn send_buffer_size(self) -> usize {
         self.max_send_buffer_size
     }
 
     /// Configured HTTP/2 PING interval, if any. See [`Self::keep_alive_interval`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn keep_alive_ping_interval(self) -> Option<Duration> {
         self.keep_alive_interval
     }
 
     /// How long to wait for a PING acknowledgement. See [`Self::keep_alive_timeout`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn keep_alive_ack_timeout(self) -> Duration {
         self.keep_alive_timeout
     }
 
     /// Configured TCP keepalive idle time, if any. See [`Self::tcp_keepalive`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn tcp_keepalive_period(self) -> Option<Duration> {
         self.tcp_keepalive
@@ -2037,21 +1614,18 @@ impl ChannelConfig {
     /// Configured TCP source bind, if any. See [`Self::local_address`].
     /// Applies to every TCP call shape; Unix and [`crate::Channel::from_io`]
     /// skip it.
-    /// Distinct from [`Self::local_address`], which sets it.
     #[must_use]
     pub fn bound_local_address(self) -> Option<SocketAddr> {
         self.local_address
     }
 
     /// HTTP/2 per-stream receive window. See [`Self::initial_stream_window_size`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn stream_window(self) -> u32 {
         self.initial_stream_window_size
     }
 
     /// HTTP/2 per-connection receive window. See [`Self::initial_connection_window_size`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn connection_window(self) -> u32 {
         self.initial_connection_window_size
@@ -2076,35 +1650,30 @@ impl ChannelConfig {
     }
 
     /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. See [`Self::max_frame_size`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn frame_size(self) -> u32 {
         self.max_frame_size
     }
 
     /// Concurrent RPCs allowed per connection. See [`Self::max_concurrent_streams`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn concurrent_streams(self) -> u32 {
         self.max_concurrent_streams
     }
 
     /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. See [`Self::max_header_list_size`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn header_list_size(self) -> u32 {
         self.max_header_list_size
     }
 
     /// HTTP/2 `SETTINGS_HEADER_TABLE_SIZE`. See [`Self::header_table_size`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn header_table(self) -> u32 {
         self.header_table_size
     }
 
     /// HTTP/2 small-DATA framing budget. See [`Self::data_frame_budget`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn data_budget(self) -> usize {
         self.data_frame_budget
@@ -2147,45 +1716,36 @@ impl ChannelConfig {
     }
 
     /// Configured max connection idle, if any. See [`Self::max_connection_idle`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn connection_idle(self) -> Option<Duration> {
         self.max_connection_idle
     }
 
     /// Configured max connection age, if any. See [`Self::max_connection_age`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn connection_age(self) -> Option<Duration> {
         self.max_connection_age
     }
 
     /// Grace after client age. See [`Self::max_connection_age_grace`].
-    /// Applies to every call shape.
     #[must_use]
     pub fn age_grace(self) -> Duration {
         self.max_connection_age_grace
     }
 
     /// Whether request payloads are gzipped. See [`Self::send_compressed`].
-    /// Applies to every call shape.
-    /// Distinct from [`Self::send_compressed`], which sets it.
     #[must_use]
     pub fn compresses_outbound(self) -> bool {
         self.send_compressed
     }
 
     /// Configured outbound gzip deflate level. See [`Self::gzip_compression_level`].
-    /// Applies to every call shape.
-    /// Distinct from [`Self::gzip_compression_level`], which sets it.
     #[must_use]
     pub fn gzip_level(self) -> u32 {
         self.gzip_compression_level
     }
 
     /// Last configured gzip/deflate selection. See [`Self::compression_codec`].
-    /// Applies to every call shape.
-    /// Distinct from [`Self::compression_codec`], which sets it.
     /// An optional coding selected by [`Self::compression_algorithm`] cannot
     /// be represented by [`Codec`]; use [`Self::send_algorithm`] to inspect
     /// the current outbound preference.
@@ -2204,7 +1764,6 @@ impl ChannelConfig {
 
     /// Whether inbound gzip is inflated. Default `true`.
     /// See [`Self::accept_compressed`]. Applies to every call shape.
-    /// Distinct from [`Self::accept_compressed`], which sets it.
     /// Distinct from [`crate::Rpc::accepts_gzip`], which is the peer's
     /// `grpc-accept-encoding`.
     #[must_use]
@@ -2213,16 +1772,12 @@ impl ChannelConfig {
     }
 
     /// Configured default per-RPC deadline, if any. See [`Self::timeout`].
-    /// Applies to every call shape.
-    /// Distinct from [`Self::timeout`], which sets it.
     #[must_use]
     pub fn rpc_timeout(self) -> Option<Duration> {
         self.timeout
     }
 
     /// Configured default wait-for-ready. See [`Self::wait_for_ready`].
-    /// Applies to every call shape.
-    /// Distinct from [`Self::wait_for_ready`], which sets it.
     #[must_use]
     pub fn waits_for_ready(self) -> bool {
         self.wait_for_ready
@@ -2237,8 +1792,6 @@ impl ChannelConfig {
     }
 
     /// Configured channel-wide RPC cap, if any. See [`Self::max_concurrent_rpcs`].
-    /// Applies to every call shape.
-    /// Distinct from [`Self::max_concurrent_rpcs`], which sets it.
     #[must_use]
     pub fn concurrent_rpc_limit(self) -> Option<usize> {
         self.max_concurrent_rpcs

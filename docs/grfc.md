@@ -100,7 +100,7 @@ The matrix covers cross-language (`A`) and protocol-level (`G`) proposals in
 | A87 | mTLS SPIFFE support | shipped | Exact-match SPIFFE ID constraint on the leaf URI SAN, checked after WebPKI verification (`mtls_spiffe`, `ca_spiffe`, `ca_mtls_spiffe`); can only reject more, never a skip-verify path (GF-06, in-`tls.rs` tests). |
 | A97 | xDS JWT call creds | planned | JWT call credentials (also usable without xDS). |
 | A107 | TLS private-key offloading | boundary | Requires HSM/key-provider integration; not portable. |
-| A120 | Post-quantum cryptography | boundary | Pinned `rustls-graviola` 0.2.1 negotiates classical KX only (X25519/P-256/P-384); tracked in code by `post_quantum_key_exchange_available` with a provider-change tripwire test. Re-evaluate at `rustls-graviola` 0.4 (pure-Rust `X25519MLKEM768`, needs rustc 1.89 > MSRV 1.85). |
+| A120 | Post-quantum cryptography | boundary | Pinned `rustls-graviola` 0.2.1 negotiates classical KX only (X25519/P-256/P-384); tracked in code by `post_quantum_key_exchange_available` with a provider-change tripwire test. Re-evaluate at `rustls-graviola` 0.4 (`X25519MLKEM768`, needs rustc 1.89 > MSRV 1.85). |
 | ALTS | (no single gRFC; L126/L18x touch it) | boundary | Google-internal transport; JWT/mTLS cover portable auth. |
 
 ## Fault tolerance and traffic policy

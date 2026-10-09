@@ -86,7 +86,7 @@ lists a dependency. Use `python3 scripts/plan-status.py --lane AD` and
 - **Do identical work.** Handler work, response bytes and read checksums
   must match across the compared profiles.
 - **Keep adapters optional.** Integration adapters live behind opt-in
-  features. The default dependency graph and pure-Rust profiles stay
-  unchanged unless a decision record approves otherwise.
+  features. Changes to the default dependency graph need a recorded decision
+  and the shipping-profile audit.
 - **Escalate decisions.** Public API shape, thresholds, new dependencies and
   external actions need maintainer approval, as the worker protocol says.

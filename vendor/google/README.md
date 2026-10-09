@@ -23,7 +23,7 @@ License: BSD-3 (see `LICENSE`). Source: `github.com/protocolbuffers/protobuf`.
    stay here as the remaining port corpus.
 
 3. `upb/test/*.cc` and `rust/test/upb/`. These are C/minitable/arena
-   internals. They are not applicable to a pure-Rust kernel and are not
+   internals. They depend on C arena layout and are not
    vendored.
 
 ## Layout

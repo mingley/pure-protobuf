@@ -6,9 +6,9 @@ using both prost and pbrs messages. Track each loss until a rerun shows improvem
 
 **Coordinator:** Michael Ingley.
 **Relationship to other programs:** the
-[world-class program](../world-class/README.md) sets the performance strategy,
+[performance plan](../world-class/README.md) sets the performance strategy,
 and the [adoption program](../adoption/README.md) sets integration targets.
-This program defines the every-cell bar and tracks each loss until it flips.
+This plan tracks results for each workload and side.
 **Cards:** [`../world-class/tasks.json`](../world-class/tasks.json).
 **Rules:** [worker protocol](../world-class/README.md#worker-protocol) and the
 [benchmark contract](../../benchmark-contract.md).

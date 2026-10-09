@@ -50,7 +50,7 @@ optimization card names the categories it targets.
 | C. Client | C1 unary latency, C2 QPS/core, C3 streaming msgs/s/core, C4 large messages, C5 instructions/allocations per RPC, C6 memory, C7 time to first RPC, C8 CPU/RPC at matched load | tonic, grpc-go, grpc-java (Netty), grpc-c++, grpc-dotnet, volo-grpc, connect-rust, Google `grpc` |
 | D. Server | D1 latency at fixed load, D2 QPS/core within the p99 SLO, D3 streaming/core, D4 CPU/allocations per RPC, D5 memory per connection/stream, D6 accept and TLS handshake rate, D7 overload goodput/fairness, D8 multi-core scaling | same as C, plus the Vert.x and Quarkus rows from grpc_bench |
 | E. End-to-end | E1 grpc_bench-style, E2 official WorkerService scenarios, E3 TLS, E4 compression, E5 real-network RTT | same as C/D |
-| F. Gates | F1 conformance and unmodified upstream Rust tests, F2 interop, F3 HTTP/2 negative tests and h2spec, F4 gRFC coverage, F5 xDS interop, F6 fuzz/Miri, F7 pure-Rust graph | These must never regress. A win that breaks a gate does not count. |
+| F. Gates | F1 conformance and unmodified upstream Rust tests, F2 interop, F3 HTTP/2 negative tests and h2spec, F4 gRFC coverage, F5 xDS interop, F6 fuzz/Miri, F7 dependency audit | These must never regress. A win that breaks a gate does not count. |
 
 Evidence comes in two tiers. They are never mixed.
 
@@ -63,7 +63,7 @@ Evidence comes in two tiers. They are never mixed.
 ## Strategy
 
 1. **Preserve trustworthy gates.** Retain the QG-05 compatibility recovery,
-   QG-07 compiled recipes, conformance, interop, hostile-input and pure-Rust
+   QG-07 compiled recipes, conformance, interop, hostile-input and dependency
    checks. No speedup earns a pass by dropping validation or changing semantics.
 2. **Complete comparable measurements.** Finish SB-21 and SB-24, then calibrate SB-20.
    Freeze workloads and effective settings; verify offered/completed counts
@@ -115,7 +115,7 @@ M4 (upb) and M5 (tonic) can start during M0.
 
 | Milestone | Exit criteria |
 |---|---|
-| **M0** Truthful baseline and fast feedback | Tonic comparator fixed and its old claims retracted (SB-01). The seven core official scenarios run end-to-end as diagnostics (SB-10). Dev-loop harness and CI lane live (SB-03/04). Docs reconciled with the landed A6 retry work (MX-00) and monoliths split (MX-01..05). Pure-Rust audit and Miri policy in CI (QG-04/01). Corpora frozen (SB-05). Scoreboard published with honest standing (SB-02). |
+| **M0** Truthful baseline and fast feedback | Tonic comparator fixed and its old claims retracted (SB-01). The seven core official scenarios run end-to-end as diagnostics (SB-10). Dev-loop harness and CI lane live (SB-03/04). Docs reconciled with the landed A6 retry work (MX-00) and monoliths split (MX-01..05). Dependency audit and Miri policy in CI (QG-04/01). Corpora frozen (SB-05). Scoreboard published with honest standing (SB-02). |
 | **M1** Codec and codegen wins | Dev-loop wins on at least 80% of primary A cells against equivalent comparators, including generated C++ protobuf and upb C for typed claims; no unexplained loss above 5%. Claim-grade leadership uses contract §7.2 and SB-15. B4/B6 beat prost-build and upb on 100/1,000-message corpora. The optional Rust frontend has its own GN-07b/GN-09 exit and does not block measuring native gRPC. |
 | **M2** Transport wins on the `h2` backend | On the same host, pbrs-grpc wins dev-loop C2 and D2 cells at 1 and 4 CPUs against the required peers (tonic, grpc-go, grpc-c++; SB-11) and every optional peer that runs (SB-18). Its grpc_bench entry beats the re-measured leaders in a diagnostic reproduction (SB-17). F2/F3 green. The transport seam has landed (H2-02). |
 | **M3** Conditional engine and runtime experiments | Start engine implementation only after H2-16 records GO. If built, one candidate must improve primary-cell CPU/RPC by at least 15% and pass H2-15 (h2spec, negative interop, 24 h soak, 24 CPU-hours of fuzzing per target) before H2-14 considers the default. A NO-GO is a valid outcome. Runtime modes are retained only where measured scaling/fairness improves. M3 does not gate claims on today's backend. |
@@ -238,7 +238,7 @@ monolithic write paths.
 | Cross-peer behavior | `./scripts/grpc-interop.sh`, C++ and tonic runners | Transport changes |
 | Malformed HTTP/2 and resource behavior | HTTP/2 interop scripts, hostile/lifecycle tests | Transport and new engines |
 | Unsafe correctness | Miri and fuzz workflows; [invariants](../../unsafe-invariants.md) | Unsafe/parser changes |
-| Pure Rust | `./scripts/pure-rust-audit.sh` | Shipping dependency/profile changes |
+| Dependency audit | `./scripts/pure-rust-audit.sh` | Shipping dependency/profile changes |
 | Documentation and queue | `cargo test --test documentation`, `python3 scripts/plan-lint.py` | Guides, contracts and cards |
 
 Local smoke tests do not replace missing upstream suites, long fuzz
@@ -318,9 +318,9 @@ Scoreboard and evidence engine. Read current cards with
 Protobuf kernel performance (plugin/owned path). Read current cards with
 `python3 scripts/plan-status.py --lane PK`.
 
-### GN: Code generator and pure-Rust frontend
+### GN: Code generator and frontend
 
-Code generator and pure-Rust frontend. Read current cards with
+Code generator and frontend. Read current cards with
 `python3 scripts/plan-status.py --lane GN`.
 
 ### UK: upb replacement kernel for official rust_out gencode
