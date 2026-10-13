@@ -422,6 +422,16 @@ impl<T> Streaming<T> {
         }
     }
 
+    /// Whether the producer is gone, so a scheduling yield cannot refill the queue.
+    ///
+    /// A wire-backed stream has no separate producer task.
+    pub(crate) fn producer_finished(&self) -> bool {
+        match &self.source {
+            Source::Channel(rx) => rx.is_closed(),
+            Source::Wire(_) => true,
+        }
+    }
+
     /// Take up to `limit` already-queued messages without waiting.
     ///
     /// Used to top up a batch after yielding to the producer. A wire-backed

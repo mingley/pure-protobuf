@@ -298,7 +298,7 @@ pub(crate) async fn pump_outbound<T: CodecMessage>(
         // See the note in the server's drain loop: yield only when the caller
         // is demonstrably ahead of the network.
         let room = OutBatch::BURST - items.len();
-        if items.len() > 1 && room > 0 {
+        if items.len() > 1 && room > 0 && !rx.producer_finished() {
             let_producer_catch_up().await;
             rx.try_recv_many(&mut items, room);
         }

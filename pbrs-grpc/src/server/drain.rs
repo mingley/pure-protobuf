@@ -720,7 +720,9 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
         // means it is not ahead — a request/response stream, say — and must not
         // pay a turn of latency for nothing.
         let room = OutBatch::BURST - items.len();
-        if items.len() > 1 && room > 0 {
+        // The sender is already dropped, so every message it produced is queued.
+        // Yielding cannot enlarge this batch.
+        if items.len() > 1 && room > 0 && !stream.producer_finished() {
             let_producer_catch_up().await;
             stream.try_recv_many(&mut items, room);
         }

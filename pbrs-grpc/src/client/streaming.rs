@@ -409,7 +409,7 @@ async fn pump_outbound_budget<T: CodecMessage>(
             return PumpEnd::HalfClosed;
         }
         let room = OutBatch::BURST - items.len();
-        if items.len() > 1 && room > 0 {
+        if items.len() > 1 && room > 0 && !rx.producer_finished() {
             crate::wire::let_producer_catch_up().await;
             rx.try_recv_many(&mut items, room);
         }
