@@ -920,76 +920,14 @@ impl ChannelInner {
                 }
             }
             drop(lease);
-            let dial_start = tokio::time::Instant::now();
-            self.note_channel_dial_start();
-            match handshake(&self.endpoint, self.dial, self.tls.as_ref()).await {
-                Ok(dialed) => {
-                    if let Some(obs) = observer {
-                        if r#gen > 0 || attempt > 0 {
-                            let target_desc = self.endpoint.describe();
-                            let attempt_u32 =
-                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
-                            obs.on_reconnect(&ReconnectEvent {
-                                target: &target_desc,
-                                attempt: attempt_u32,
-                                duration: dial_start.elapsed(),
-                                status: None,
-                            });
-                        }
-                    }
-                    let mut slot = self.slot(i)?.lock().await;
-                    if slot.r#gen == r#gen {
-                        let dial_local = dialed.local_addr.clone();
-                        let dial_peer = dialed.peer_addr.clone();
-                        let send = store_dialed(&mut slot, dialed);
-                        let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
-                        let driver = slot.stop.clone();
-                        let r#gen = slot.r#gen;
-                        let channelz_socket =
-                            Some(self.note_dial_ok(&mut slot, None, dial_peer, dial_local));
-                        drop(slot);
-                        spawn_idle_watch(Arc::clone(self), i);
-                        spawn_age_watch(Arc::clone(self), i);
-                        let load = Some(load.start(send.current_max_send_streams()));
-                        return Ok(LiveConn {
-                            send,
-                            load,
-                            lease,
-                            driver,
-                            slot: i,
-                            r#gen,
-                            rr_addr: None,
-                            channelz_socket,
-                        });
-                    }
-                    dialed.stop.send(true).ok();
-                }
-                Err(status) => {
-                    if let Some(obs) = observer {
-                        if r#gen > 0 || attempt > 0 {
-                            let target_desc = self.endpoint.describe();
-                            let attempt_u32 =
-                                u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
-                            obs.on_reconnect(&ReconnectEvent {
-                                target: &target_desc,
-                                attempt: attempt_u32,
-                                duration: dial_start.elapsed(),
-                                status: Some(status.code()),
-                            });
-                        }
-                    }
-                    self.note_dial_err(None, None, &status).await;
-                    if wait_for_ready && self.endpoint.can_redial() {
-                        let delay_ms = WAIT_FOR_READY_BACKOFF_MS
-                            .get(attempt)
-                            .copied()
-                            .unwrap_or(1000);
-                        attempt = attempt.saturating_add(1);
-                        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
-                    } else {
-                        return Err(status);
-                    }
-                }
+            // Dial and backoff live in a separate future. A warm pool hit
+            // must not copy that state machine on every RPC.
+            match drive_direct_redial(self, i, &load, r#gen, attempt, wait_for_ready, observer)
+                .await
+            {
+                DirectRedial::Ready(conn) => return Ok(conn),
+                DirectRedial::Retry { attempt: next } => attempt = next,
+                DirectRedial::Failed(status) => return Err(status),
             }
         }
     }
@@ -2770,6 +2708,105 @@ async fn idle_watch(
             () = busy.wait_busy() => {}
         }
     }
+}
+
+enum DirectRedial {
+    Ready(LiveConn),
+    Retry { attempt: usize },
+    Failed(Status),
+}
+
+/// Dial one direct-pool slot. Kept out of [`ChannelInner::acquire`] so a
+/// warm reuse does not copy the handshake future.
+#[inline(never)]
+fn drive_direct_redial<'a>(
+    inner: &'a Arc<ChannelInner>,
+    slot_index: usize,
+    load: &'a Arc<SlotLoad>,
+    generation: u64,
+    mut attempt: usize,
+    wait_for_ready: bool,
+    observer: Option<&'a dyn LifecycleObserver>,
+) -> Pin<Box<impl Future<Output = DirectRedial> + 'a>> {
+    Box::pin(async move {
+        let dial_start = tokio::time::Instant::now();
+        inner.note_channel_dial_start();
+        match handshake(&inner.endpoint, inner.dial, inner.tls.as_ref()).await {
+            Ok(dialed) => {
+                if let Some(obs) = observer {
+                    if generation > 0 || attempt > 0 {
+                        let target_desc = inner.endpoint.describe();
+                        let attempt_u32 =
+                            u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
+                        obs.on_reconnect(&ReconnectEvent {
+                            target: &target_desc,
+                            attempt: attempt_u32,
+                            duration: dial_start.elapsed(),
+                            status: None,
+                        });
+                    }
+                }
+                let slot = match inner.slot(slot_index) {
+                    Ok(slot) => slot,
+                    Err(status) => return DirectRedial::Failed(status),
+                };
+                let mut slot = slot.lock().await;
+                if slot.r#gen == generation {
+                    let dial_local = dialed.local_addr.clone();
+                    let dial_peer = dialed.peer_addr.clone();
+                    let send = store_dialed(&mut slot, dialed);
+                    let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                    let driver = slot.stop.clone();
+                    let generation = slot.r#gen;
+                    let channelz_socket =
+                        Some(inner.note_dial_ok(&mut slot, None, dial_peer, dial_local));
+                    drop(slot);
+                    spawn_idle_watch(Arc::clone(inner), slot_index);
+                    spawn_age_watch(Arc::clone(inner), slot_index);
+                    let load = Some(load.start(send.current_max_send_streams()));
+                    return DirectRedial::Ready(LiveConn {
+                        send,
+                        load,
+                        lease,
+                        driver,
+                        slot: slot_index,
+                        r#gen: generation,
+                        rr_addr: None,
+                        channelz_socket,
+                    });
+                }
+                dialed.stop.send(true).ok();
+                DirectRedial::Retry { attempt }
+            }
+            Err(status) => {
+                if let Some(obs) = observer {
+                    if generation > 0 || attempt > 0 {
+                        let target_desc = inner.endpoint.describe();
+                        let attempt_u32 =
+                            u32::try_from(attempt).unwrap_or(u32::MAX).saturating_add(1);
+                        obs.on_reconnect(&ReconnectEvent {
+                            target: &target_desc,
+                            attempt: attempt_u32,
+                            duration: dial_start.elapsed(),
+                            status: Some(status.code()),
+                        });
+                    }
+                }
+                inner.note_dial_err(None, None, &status).await;
+                if wait_for_ready && inner.endpoint.can_redial() {
+                    let delay_ms = WAIT_FOR_READY_BACKOFF_MS
+                        .get(attempt)
+                        .copied()
+                        .unwrap_or(1000);
+                    attempt = attempt.saturating_add(1);
+                    tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+                    DirectRedial::Retry { attempt }
+                } else {
+                    DirectRedial::Failed(status)
+                }
+            }
+        }
+    })
 }
 
 async fn handshake(
