@@ -12,8 +12,10 @@
 //! timestamps are millis-since-epoch atomics (0 = unset). Registry
 //! maps sit behind a std `RwLock`: lookups clone the entry `Arc`
 //! under a read lock and touch it after release, so record calls
-//! never hold map locks while touching entries. All methods are
-//! sync; the async service layer snapshots above them.
+//! never hold map locks while touching entries. A stream resolves
+//! that `Arc` once and counts messages on it, so a burst does not
+//! take the map lock per frame. All methods are sync; the async
+//! service layer snapshots above them.
 //!
 //! The entity graph is flat: a channel owns subchannels (one per
 //! resolved address with dial activity on resolver-LB channels) or
@@ -191,6 +193,51 @@ pub(crate) struct SocketEntry {
     last_remote_stream_ms: AtomicU64,
     last_message_sent_ms: AtomicU64,
     last_message_received_ms: AtomicU64,
+}
+
+impl SocketEntry {
+    /// Count messages without looking the socket up again.
+    ///
+    /// Stream pumps resolve the entry once and call this per frame.
+    #[inline]
+    pub(crate) fn add_messages(&self, sent: bool, count: u64) {
+        if sent {
+            self.messages_sent.fetch_add(count, Ordering::Relaxed);
+            self.last_message_sent_ms
+                .store(coarse_now_ms(), Ordering::Relaxed);
+        } else {
+            self.messages_received.fetch_add(count, Ordering::Relaxed);
+            self.last_message_received_ms
+                .store(coarse_now_ms(), Ordering::Relaxed);
+        }
+    }
+
+    /// Count one completed stream without looking the socket up again.
+    ///
+    /// A parent subchannel's call counters still go through `registry`,
+    /// which is the registry that owns this entry.
+    pub(crate) fn add_stream_end(&self, registry: &Registry, ok: bool) {
+        if ok {
+            self.streams_succeeded.fetch_add(1, Ordering::Relaxed);
+        } else {
+            self.streams_failed.fetch_add(1, Ordering::Relaxed);
+        }
+        if let SocketParent::Subchannel(parent) = self.parent {
+            if let Some(sub) = registry.subchannel(parent) {
+                if ok {
+                    sub.calls_succeeded.fetch_add(1, Ordering::Relaxed);
+                } else {
+                    sub.calls_failed.fetch_add(1, Ordering::Relaxed);
+                }
+            }
+        }
+    }
+}
+
+/// Resolve a live socket entry. `None` when the id is already gone.
+#[inline]
+pub(crate) fn socket_entry(id: SocketId) -> Option<Arc<SocketEntry>> {
+    Registry::global().socket(id)
 }
 
 /// The single process-global registry both [`Registry::global`] and
@@ -767,37 +814,14 @@ impl Registry {
     /// parent subchannel's call counters when there is one.
     pub fn note_stream_end(&self, id: SocketId, ok: bool) {
         let Some(entry) = self.socket(id) else { return };
-        if ok {
-            entry.streams_succeeded.fetch_add(1, Ordering::Relaxed);
-        } else {
-            entry.streams_failed.fetch_add(1, Ordering::Relaxed);
-        }
-        if let SocketParent::Subchannel(parent) = entry.parent {
-            if let Some(sub) = self.subchannel(parent) {
-                if ok {
-                    sub.calls_succeeded.fetch_add(1, Ordering::Relaxed);
-                } else {
-                    sub.calls_failed.fetch_add(1, Ordering::Relaxed);
-                }
-            }
-        }
+        entry.add_stream_end(self, ok);
     }
 
     /// Count messages on a socket (lock-free). `sent` selects the
     /// direction; `count` is usually 1.
     pub fn note_messages(&self, id: SocketId, sent: bool, count: u64) {
         let Some(entry) = self.socket(id) else { return };
-        if sent {
-            entry.messages_sent.fetch_add(count, Ordering::Relaxed);
-            entry
-                .last_message_sent_ms
-                .store(coarse_now_ms(), Ordering::Relaxed);
-        } else {
-            entry.messages_received.fetch_add(count, Ordering::Relaxed);
-            entry
-                .last_message_received_ms
-                .store(coarse_now_ms(), Ordering::Relaxed);
-        }
+        entry.add_messages(sent, count);
     }
 
     /// Count one keepalive sent on a socket (lock-free).

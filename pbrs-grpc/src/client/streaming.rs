@@ -375,6 +375,9 @@ async fn pump_outbound_budget<T: CodecMessage>(
     if let Some(tap) = &tap {
         batch.set_tap(tap.clone());
     }
+    // One map lookup for the whole upload. Each encoded message then
+    // touches the entry's atomics.
+    let channelz_entry = channelz_socket.and_then(crate::channelz::socket_entry);
     let mut items = Vec::with_capacity(OutBatch::BURST);
     let mut permits = Vec::with_capacity(OutBatch::BURST);
     let mut watch_cancel = true;
@@ -425,8 +428,8 @@ async fn pump_outbound_budget<T: CodecMessage>(
             }
             // Channelz: each encoded message counts as sent (a later
             // flush failure can only overcount a doomed stream).
-            if let Some(socket) = channelz_socket {
-                crate::channelz::Registry::global().note_messages(socket, true, 1);
+            if let Some(entry) = &channelz_entry {
+                entry.add_messages(true, 1);
             }
             if batch.is_full() {
                 if batch.flush(send).await.is_err() {

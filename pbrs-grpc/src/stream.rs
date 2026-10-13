@@ -139,9 +139,12 @@ pub struct Streaming<T> {
 
 /// Channelz socket-stream state for a received stream: which socket
 /// to count messages on, and whether the stream end was recorded.
+///
+/// The entry is resolved at bind time. Each received message then
+/// updates atomics directly instead of locking the registry map.
 #[derive(Debug)]
 struct ChannelzStream {
-    socket: crate::channelz::SocketId,
+    entry: std::sync::Arc<crate::channelz::SocketEntry>,
     /// An explicit end (trailers or wire error) was recorded.
     ended: bool,
     /// A clean end-of-messages was observed through the polls.
@@ -150,6 +153,14 @@ struct ChannelzStream {
     /// Server inbound streams use this: the RPC terminal arms own the
     /// end, so the polls must not record it.
     count_only: bool,
+}
+
+/// Resolve a socket id once. A missing id binds nothing, matching the
+/// registry's silent no-op for stale handles.
+fn channelz_binding(
+    socket: crate::channelz::SocketId,
+) -> Option<std::sync::Arc<crate::channelz::SocketEntry>> {
+    crate::channelz::socket_entry(socket)
 }
 
 impl<T> Streaming<T> {
@@ -267,12 +278,14 @@ impl<T> Streaming<T> {
         mut self,
         socket: Option<crate::channelz::SocketId>,
     ) -> Self {
-        self.channelz = socket.map(|socket| ChannelzStream {
-            socket,
-            ended: false,
-            clean_end: false,
-            count_only: false,
-        });
+        self.channelz = socket
+            .and_then(channelz_binding)
+            .map(|entry| ChannelzStream {
+                entry,
+                ended: false,
+                clean_end: false,
+                count_only: false,
+            });
         self
     }
 
@@ -283,12 +296,14 @@ impl<T> Streaming<T> {
         mut self,
         socket: Option<crate::channelz::SocketId>,
     ) -> Self {
-        self.channelz = socket.map(|socket| ChannelzStream {
-            socket,
-            ended: false,
-            clean_end: false,
-            count_only: true,
-        });
+        self.channelz = socket
+            .and_then(channelz_binding)
+            .map(|entry| ChannelzStream {
+                entry,
+                ended: false,
+                clean_end: false,
+                count_only: true,
+            });
         self
     }
 
@@ -301,7 +316,9 @@ impl<T> Streaming<T> {
             .filter(|state| !state.ended && !state.count_only)
         {
             state.ended = true;
-            crate::channelz::Registry::global().note_stream_end(state.socket, ok);
+            state
+                .entry
+                .add_stream_end(crate::channelz::Registry::global(), ok);
         }
     }
 
@@ -344,7 +361,7 @@ impl<T> Streaming<T> {
         match &poll {
             Poll::Ready(Ok(Some(_))) => {
                 if let Some(state) = self.channelz.as_ref() {
-                    crate::channelz::Registry::global().note_messages(state.socket, false, 1);
+                    state.entry.add_messages(false, 1);
                 }
             }
             Poll::Ready(Ok(None)) => {
