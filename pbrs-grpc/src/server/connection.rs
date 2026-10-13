@@ -21,12 +21,17 @@ use crate::tls::PeerIdentity;
 use crate::transport::h2::{RecvStream, SendResponse};
 use crate::transport::{SendResponse as _, ServerBuilder, ServerConnection};
 use crate::wire::{check_request, reject, reject_request};
+use std::future::Future;
 use std::net::SocketAddr;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::sync::{Semaphore, watch};
 
+#[cfg(test)]
+mod inline_dispatch_tests;
 #[cfg(test)]
 mod reset_admission_tests;
 
@@ -460,6 +465,10 @@ where
     let mut occupied = false;
     let mut draining = false;
     let mut force_close: Option<tokio::time::Instant> = None;
+    // Admitted RPCs run on this connection task. A parked handler is polled
+    // again when its waker fires, so the accept loop keeps reading other
+    // streams. Fast handlers finish in the poll that accepted them.
+    let mut admitted: Vec<Pin<Box<dyn Future<Output = ()> + Send>>> = Vec::new();
     // Hoisted one-shot waits: re-creating them every round re-registers a
     // waiter per RPC. Each fires once (`drain` arms `draining`, `dead`
     // breaks), so they are never polled after completion.
@@ -490,6 +499,9 @@ where
         };
         tokio::select! {
             biased;
+            // Drive in-flight RPCs before accepting another so a handler that
+            // became ready is not stuck behind the next HEADERS frame.
+            _ = std::future::poll_fn(|cx| poll_admitted(&mut admitted, cx)), if !admitted.is_empty() => {}
             accepted = conn.accept() => {
                 let Some(Ok((request, mut respond))) = accepted else {
                     break;
@@ -634,9 +646,7 @@ where
                 let dispatch = Arc::clone(&dispatch);
                 let rpc_peer = peer.clone();
                 let byte_budget = dispatch.byte_budget();
-                #[cfg(feature = "copy-counts")]
-                crate::copy_counts::note_spawn(crate::copy_counts::SpawnSite::ServerRpcDispatch);
-                drop(R::spawn(async move {
+                admitted.push(Box::pin(async move {
                     let _lease = lease;
                     let _permit = permit;
                     if let (Some(obs), Some(queued_at)) = (dispatch.observer(), queued_at) {
@@ -683,6 +693,29 @@ where
         }
     }
     Ok(())
+}
+
+/// Poll every admitted RPC once. `Ready` means at least one finished, so the
+/// connection loop can refresh idle accounting before parking again.
+fn poll_admitted(
+    admitted: &mut Vec<Pin<Box<dyn Future<Output = ()> + Send>>>,
+    cx: &mut Context<'_>,
+) -> Poll<()> {
+    let mut index = 0;
+    let mut finished = false;
+    while index < admitted.len() {
+        if admitted[index].as_mut().poll(cx).is_ready() {
+            drop(admitted.swap_remove(index));
+            finished = true;
+        } else {
+            index += 1;
+        }
+    }
+    if finished {
+        Poll::Ready(())
+    } else {
+        Poll::Pending
+    }
 }
 
 /// Sleep until `at` on runtime `R`, or pend forever when there is none.

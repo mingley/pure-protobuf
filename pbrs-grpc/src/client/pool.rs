@@ -703,6 +703,98 @@ pub(crate) fn unix_authority() -> Authority {
     Authority::from_static("localhost")
 }
 
+#[inline(never)]
+fn drive_pick_first<'a>(
+    inner: &'a Arc<ChannelInner>,
+    policy: &'a Arc<PickFirst>,
+    wait_for_ready: bool,
+    observer: Option<&'a dyn LifecycleObserver>,
+    health: Option<HealthDirective>,
+) -> Pin<Box<impl Future<Output = Result<LiveConn, Status>> + 'a>> {
+    Box::pin(inner.acquire_lb(policy, wait_for_ready, observer, health))
+}
+
+#[inline(never)]
+fn drive_round_robin<'a>(
+    inner: &'a Arc<ChannelInner>,
+    policy: &'a Arc<RoundRobin>,
+    wait_for_ready: bool,
+    observer: Option<&'a dyn LifecycleObserver>,
+    health: Option<HealthDirective>,
+) -> Pin<Box<impl Future<Output = Result<LiveConn, Status>> + 'a>> {
+    Box::pin(inner.acquire_rr(policy, wait_for_ready, observer, health))
+}
+
+#[inline(never)]
+fn drive_weighted<'a>(
+    inner: &'a Arc<ChannelInner>,
+    policy: &'a Arc<WeightedRoundRobin>,
+    wait_for_ready: bool,
+    observer: Option<&'a dyn LifecycleObserver>,
+    health: Option<HealthDirective>,
+) -> Pin<Box<impl Future<Output = Result<LiveConn, Status>> + 'a>> {
+    Box::pin(inner.acquire_wrr(policy, wait_for_ready, observer, health))
+}
+
+#[inline(never)]
+fn drive_ring<'a>(
+    inner: &'a Arc<ChannelInner>,
+    policy: &'a Arc<RingHash>,
+    hash: Option<u64>,
+    wait_for_ready: bool,
+    observer: Option<&'a dyn LifecycleObserver>,
+    health: Option<HealthDirective>,
+) -> Pin<Box<impl Future<Output = Result<LiveConn, Status>> + 'a>> {
+    Box::pin(inner.acquire_rh(policy, hash, wait_for_ready, observer, health))
+}
+
+#[inline(never)]
+fn drive_least<'a>(
+    inner: &'a Arc<ChannelInner>,
+    policy: &'a Arc<LeastRequest>,
+    wait_for_ready: bool,
+    observer: Option<&'a dyn LifecycleObserver>,
+    health: Option<HealthDirective>,
+) -> Pin<Box<impl Future<Output = Result<LiveConn, Status>> + 'a>> {
+    Box::pin(inner.acquire_lr(policy, wait_for_ready, observer, health))
+}
+
+#[inline(never)]
+fn drive_subset<'a>(
+    inner: &'a Arc<ChannelInner>,
+    policy: &'a Arc<RandomSubsetting>,
+    hash: Option<u64>,
+    wait_for_ready: bool,
+    observer: Option<&'a dyn LifecycleObserver>,
+    health: Option<HealthDirective>,
+) -> Pin<Box<impl Future<Output = Result<LiveConn, Status>> + 'a>> {
+    Box::pin(inner.acquire_subset(policy, hash, wait_for_ready, observer, health))
+}
+
+#[inline(never)]
+fn drive_priority<'a>(
+    inner: &'a Arc<ChannelInner>,
+    policy: &'a Arc<Priority>,
+    hash: Option<u64>,
+    wait_for_ready: bool,
+    observer: Option<&'a dyn LifecycleObserver>,
+    health: Option<HealthDirective>,
+) -> Pin<Box<impl Future<Output = Result<LiveConn, Status>> + 'a>> {
+    Box::pin(inner.acquire_priority(policy, hash, wait_for_ready, observer, health))
+}
+
+#[inline(never)]
+fn drive_outlier<'a>(
+    inner: &'a Arc<ChannelInner>,
+    policy: &'a Arc<OutlierDetection>,
+    hash: Option<u64>,
+    wait_for_ready: bool,
+    observer: Option<&'a dyn LifecycleObserver>,
+    health: Option<HealthDirective>,
+) -> Pin<Box<impl Future<Output = Result<LiveConn, Status>> + 'a>> {
+    Box::pin(inner.acquire_outlier(policy, hash, wait_for_ready, observer, health))
+}
+
 impl ChannelInner {
     pub(crate) fn pick(&self) -> Result<usize, Status> {
         let n = self.slots.len();
@@ -760,41 +852,35 @@ impl ChannelInner {
             lb: Some(policy), ..
         } = &self.endpoint
         {
+            // Each policy future is built inside its own non-inlined function.
+            // Awaiting it directly made every connection attempt carry the
+            // largest policy's state machine.
             match policy {
                 LbPolicy::PickFirst(pick) => {
-                    return self
-                        .acquire_lb(pick, wait_for_ready, observer, health)
-                        .await;
+                    return drive_pick_first(self, pick, wait_for_ready, observer, health).await;
                 }
                 LbPolicy::RoundRobin(rr) => {
-                    return self.acquire_rr(rr, wait_for_ready, observer, health).await;
+                    return drive_round_robin(self, rr, wait_for_ready, observer, health).await;
                 }
                 LbPolicy::WeightedRoundRobin(wrr) => {
-                    return self
-                        .acquire_wrr(wrr, wait_for_ready, observer, health)
-                        .await;
+                    return drive_weighted(self, wrr, wait_for_ready, observer, health).await;
                 }
                 LbPolicy::RingHash(ring) => {
-                    return self
-                        .acquire_rh(ring, hash, wait_for_ready, observer, health)
-                        .await;
+                    return drive_ring(self, ring, hash, wait_for_ready, observer, health).await;
                 }
                 LbPolicy::LeastRequest(lr) => {
-                    return self.acquire_lr(lr, wait_for_ready, observer, health).await;
+                    return drive_least(self, lr, wait_for_ready, observer, health).await;
                 }
                 LbPolicy::RandomSubsetting(subset) => {
-                    return self
-                        .acquire_subset(subset, hash, wait_for_ready, observer, health)
+                    return drive_subset(self, subset, hash, wait_for_ready, observer, health)
                         .await;
                 }
                 LbPolicy::Priority(priority) => {
-                    return self
-                        .acquire_priority(priority, hash, wait_for_ready, observer, health)
+                    return drive_priority(self, priority, hash, wait_for_ready, observer, health)
                         .await;
                 }
                 LbPolicy::OutlierDetection(outlier) => {
-                    return self
-                        .acquire_outlier(outlier, hash, wait_for_ready, observer, health)
+                    return drive_outlier(self, outlier, hash, wait_for_ready, observer, health)
                         .await;
                 }
             }

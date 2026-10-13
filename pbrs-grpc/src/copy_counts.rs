@@ -37,9 +37,11 @@ pub struct SchedulerCounts {
     pub client_connection_driver: u64,
     /// Client bidirectional request-body pumps.
     pub client_bidi_upload: u64,
-    /// Client cancellation owners retaining a server-stream request send half.
+    /// Historical per-RPC server-stream cancel tasks. Cancellation is parked
+    /// on one shared task, so this stays zero on the production path.
     pub client_server_stream_cancel: u64,
-    /// Server dispatch tasks for admitted RPCs.
+    /// Historical per-RPC server dispatch tasks. Admitted RPCs run on the
+    /// connection task, so this stays zero on the production path.
     pub server_rpc_dispatch: u64,
 }
 

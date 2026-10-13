@@ -18,6 +18,9 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD_NO_PAD;
 use bytes::Bytes;
 use http::{HeaderMap, HeaderValue, Response, StatusCode};
+use std::future::Future;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use std::time::Duration;
 
 pub(crate) async fn wait_capacity(send: &mut backend::SendStream, n: usize) -> Result<(), Status> {
@@ -335,9 +338,9 @@ pub(crate) fn reset_on_cancel(
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,
     deadline: Option<tokio::time::Instant>,
 ) {
-    #[cfg(feature = "copy-counts")]
-    crate::copy_counts::note_spawn(crate::copy_counts::SpawnSite::ClientServerStreamCancel);
-    drop(tokio::spawn(async move {
+    // One process-wide parker, not a task per RPC. The watch still resets the
+    // send half if the caller is not currently reading.
+    park_cancel(async move {
         let until_deadline = async {
             match deadline {
                 Some(at) => tokio::time::sleep_until(at).await,
@@ -353,7 +356,66 @@ pub(crate) fn reset_on_cancel(
             }
             () = until_deadline => send.send_reset(Reason::CANCEL),
         }
-    }));
+    });
+}
+
+/// Park `fut` on a single background task. A dropped runtime closes the
+/// sender; the next park starts a new task on the runtime that is current
+/// then. The lock is not held across any await.
+fn park_cancel(fut: impl std::future::Future<Output = ()> + Send + 'static) {
+    use std::sync::{Mutex, OnceLock};
+    use tokio::sync::mpsc;
+
+    static PARK: OnceLock<
+        Mutex<Option<mpsc::UnboundedSender<Pin<Box<dyn Future<Output = ()> + Send>>>>>,
+    > = OnceLock::new();
+    let slot = PARK.get_or_init(|| Mutex::new(None));
+    let mut guard = slot.lock().unwrap_or_else(|err| err.into_inner());
+    if guard.as_ref().is_none_or(|tx| tx.is_closed()) {
+        let (tx, mut rx) = mpsc::unbounded_channel::<Pin<Box<dyn Future<Output = ()> + Send>>>();
+        drop(tokio::spawn(async move {
+            let mut parked: Vec<Pin<Box<dyn Future<Output = ()> + Send>>> = Vec::new();
+            loop {
+                tokio::select! {
+                    biased;
+                    incoming = rx.recv() => {
+                        match incoming {
+                            Some(next) => parked.push(next),
+                            None => break,
+                        }
+                    }
+                    _ = std::future::poll_fn(|cx| poll_parked(&mut parked, cx)), if !parked.is_empty() => {}
+                }
+            }
+        }));
+        *guard = Some(tx);
+    }
+    let Some(tx) = guard.as_ref().cloned() else {
+        return;
+    };
+    drop(guard);
+    tx.send(Box::pin(fut)).ok();
+}
+
+fn poll_parked(
+    parked: &mut Vec<Pin<Box<dyn Future<Output = ()> + Send>>>,
+    cx: &mut Context<'_>,
+) -> Poll<()> {
+    let mut index = 0;
+    let mut finished = false;
+    while index < parked.len() {
+        if parked[index].as_mut().poll(cx).is_ready() {
+            drop(parked.swap_remove(index));
+            finished = true;
+        } else {
+            index += 1;
+        }
+    }
+    if finished {
+        Poll::Ready(())
+    } else {
+        Poll::Pending
+    }
 }
 
 pub(crate) async fn wrap_timeout<T>(

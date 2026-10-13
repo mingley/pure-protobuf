@@ -522,8 +522,11 @@ async fn campaign() -> Value {
                 assert_eq!(
                     counts,
                     LibrarySpawns {
-                        server_rpc_dispatch: 1,
-                        client_server_stream_cancel: u64::from(shape == "server_stream"),
+                        // Admitted server RPCs run on the connection task, and
+                        // server-stream cancellation is parked on one shared
+                        // task instead of a task per RPC.
+                        server_rpc_dispatch: 0,
+                        client_server_stream_cancel: 0,
                         client_bidi_upload: u64::from(shape == "bidi"),
                         ..LibrarySpawns::default()
                     }

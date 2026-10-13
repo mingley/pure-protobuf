@@ -25,7 +25,7 @@ use crate::status::{Code, Status};
 use crate::stream::Streaming;
 use crate::telemetry::{
     CallLabels, CallRole, CancellationEvent, CancellationReason, DiagnosticConfig,
-    LifecycleObserver, RejectionEvent, RejectionReason, diagnostic_debug_value,
+    LifecycleObserver, OwnedCallLabels, RejectionEvent, RejectionReason, diagnostic_debug_value,
     diagnostic_identity,
 };
 use crate::tls::PeerIdentity;
@@ -1161,180 +1161,14 @@ impl Rpc {
         F: FnOnce(Request<Req>) -> Fut,
         Fut: Future<Output = Result<T, Status>>,
     {
-        let timeout = self.effective_timeout();
-        let authority = self.authority().map(str::to_owned);
-        let scheme = self.scheme().map(str::to_owned);
-        let path = Some(self.path().to_owned());
-        let peer_timeout = self.peer_timeout();
-        let rpc_timeout = self.rpc_timeout();
-        let peer_accepts_gzip = self.accepts_gzip();
-        let peer_accepts_deflate =
-            accepts_codec(self.request.headers(), CompressionAlgorithm::Deflate);
-        #[cfg(feature = "zstd")]
-        let peer_accepts_zstd = accepts_codec(self.request.headers(), CompressionAlgorithm::Zstd);
-        let request_codec = inbound_codec(self.request.headers());
-        let encoding = self.encoding().map(str::to_owned);
-        let observer = self.observer.clone();
-        let channelz_server = self.channelz_server;
-        let channelz_socket = self.channelz_socket;
-        #[cfg(feature = "grpc-web")]
-        let web = self.web;
-        let call_start = tokio::time::Instant::now();
-        let owned_labels = observer.as_ref().map(|_| {
-            CallLabels::new(
-                path.as_deref().unwrap_or(""),
-                authority.as_deref(),
-                CallRole::Server,
-            )
-            .to_owned()
-        });
-        if let (Some(obs), Some(labels)) = (&observer, &owned_labels) {
-            obs.on_server_call_start(&labels.as_borrowed());
-        }
-        channelz_start(channelz_server, channelz_socket);
-        let Self {
-            request,
-            mut respond,
-            config,
-            remote_addr,
-            local_addr,
-            peer_identity,
-            peer_cred,
-            transport_scheme: _,
-            #[cfg(feature = "grpc-web")]
-                web: _,
-            extensions,
-            metadata,
-            diagnostic_config,
-            timeout: _,
-            response_interceptor: _,
-            byte_budget,
-            observer: _,
-            binlog,
-            channelz_server: _,
-            channelz_socket: _,
-        } = self;
-        let limits = config.limits();
-        let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
-        let prefer_gzip = config.compresses_outbound();
-        let mut recv = request.into_body();
-        let (cancel_tx, cancel_rx) = watch::channel(false);
-        let on_reset = cancel_tx.clone();
-        let obs_clone = observer.clone();
-        let labels_clone = owned_labels.clone();
-        let outcome = wrap_timeout(timeout, async {
-            #[cfg(feature = "grpc-web")]
-            let framed = if web.is_some_and(crate::web::Mode::is_text) {
-                crate::web::read_one_text_message::<Req>(
-                    &mut recv,
-                    limits,
-                    config.accepts_compressed(),
-                    request_codec,
-                    binlog.as_ref(),
-                )
-                .await?
-            } else {
-                read_one_message::<Req>(
-                    &mut recv,
-                    limits,
-                    config.accepts_compressed(),
-                    request_codec,
-                    binlog.as_ref(),
-                    false,
-                )
-                .await?
-            };
-            #[cfg(not(feature = "grpc-web"))]
-            let framed = read_one_message::<Req>(
-                &mut recv,
-                limits,
-                config.accepts_compressed(),
-                request_codec,
-                binlog.as_ref(),
-                false,
-            )
-            .await?;
-            if let Some(socket) = channelz_socket {
-                crate::channelz::Registry::global().note_messages(socket, false, 1);
-            }
-            if let (Some(obs), Some(labels)) = (&obs_clone, &labels_clone) {
-                obs.on_bytes_received(&labels.as_borrowed(), 0);
-            }
-            let mut req = Request::from_metadata(
-                framed.message,
-                metadata,
-                remote_addr,
-                local_addr,
-                peer_identity,
-            )
-            .with_extensions(extensions)
-            .with_http(authority, scheme, path.clone());
-            if let Some(config) = diagnostic_config {
-                req.set_diagnostic_config(config);
-            }
-            req.set_compressed(framed.compressed);
-            req.set_peer_cred(peer_cred);
-            req.set_limits(limits);
-            req.set_peer_timeout(peer_timeout);
-            req.set_rpc_timeout(rpc_timeout);
-            req.set_accepts_gzip(peer_accepts_gzip);
-            req.set_compresses_outbound(prefer_gzip);
-            req.set_gzip_level(config.gzip_level());
-            req.set_accepts_compressed(config.accepts_compressed());
-            req.set_concurrent_rpc_limit(config.concurrent_rpc_limit());
-            req.set_send_buffer_size(config.send_buffer_size());
-            req.set_encoding(encoding);
-            req.set_cancel(cancel_rx);
-            if let Some(d) = timeout {
-                req.set_timeout(d);
-            }
-            if let Some(at) = deadline {
-                req.set_deadline(at);
-            }
-            run_handler(&mut respond, on_reset, handler(req), binlog.as_ref()).await
-        })
-        .await;
-        notify_deadline(&outcome, &cancel_tx);
-        if matches!(&outcome, Err(s) if s.code() == Code::DeadlineExceeded) {
-            if let (Some(obs), Some(labels)) = (&observer, &owned_labels) {
-                obs.on_cancellation(&CancellationEvent {
-                    call: labels.as_borrowed(),
-                    reason: CancellationReason::DeadlineExceeded,
-                });
-            }
-        } else if matches!(&outcome, Err(s) if s.code() == Code::Cancelled) {
-            if let (Some(obs), Some(labels)) = (&observer, &owned_labels) {
-                obs.on_cancellation(&CancellationEvent {
-                    call: labels.as_borrowed(),
-                    reason: CancellationReason::PeerReset,
-                });
-            }
-        }
-        Some(Prepared {
-            respond,
-            wire: config.wire(),
-            deadline,
-            outcome,
-            prefer_gzip,
-            peer_accepts_gzip,
-            peer_accepts_deflate,
-            #[cfg(feature = "zstd")]
-            peer_accepts_zstd,
-            cancel: CancelOnDrop(cancel_tx),
-            path,
-            gzip_level: config.gzip_level(),
-            timeout,
-            peer_timeout,
-            rpc_timeout,
-            budget: byte_budget,
-            observer,
-            call_start,
-            binlog,
-            channelz_server,
-            channelz_socket,
-            #[cfg(feature = "grpc-web")]
-            web,
-        })
+        // The live request state sits in one heap allocation. The future that
+        // the connection task polls only holds that pointer plus the read.
+        let mut inbound = InboundRpc::from_rpc(self);
+        let timeout = inbound.timeout;
+        // Box the read here, in a synchronous helper, so this future stores a
+        // pointer instead of the read state machine.
+        let outcome = wrap_timeout(timeout, read_unary_fut(&mut inbound, handler)).await;
+        Some((*inbound).into_prepared(outcome))
     }
 
     /// Hand the request stream to `handler`, under the deadline.
@@ -1346,24 +1180,75 @@ impl Rpc {
         F: FnOnce(Request<Streaming<Req>>) -> Fut,
         Fut: Future<Output = Result<T, Status>>,
     {
-        let timeout = self.effective_timeout();
-        let authority = self.authority().map(str::to_owned);
-        let scheme = self.scheme().map(str::to_owned);
-        let path = Some(self.path().to_owned());
-        let peer_timeout = self.peer_timeout();
-        let rpc_timeout = self.rpc_timeout();
-        let peer_accepts_gzip = self.accepts_gzip();
+        let mut inbound = InboundRpc::from_rpc(self);
+        let outcome = read_streaming_fut(&mut inbound, handler).await;
+        Some((*inbound).into_prepared(outcome))
+    }
+}
+
+/// Request fields that used to live in the RPC future across every await.
+///
+/// Keeping them behind a pointer is what makes dispatch futures small enough
+/// to poll on the connection task without copying a multi-kilobyte state
+/// machine onto the heap for each call.
+struct InboundRpc {
+    respond: SendResponse,
+    config: ServerConfig,
+    recv: Option<RecvStream>,
+    remote_addr: Option<SocketAddr>,
+    local_addr: Option<SocketAddr>,
+    peer_identity: Option<PeerIdentity>,
+    peer_cred: Option<super::accept::PeerCred>,
+    extensions: http::Extensions,
+    metadata: Metadata,
+    diagnostic_config: Option<DiagnosticConfig>,
+    byte_budget: ByteBudgetTracker,
+    binlog: Option<crate::binlog::CallLogger>,
+    authority: Option<String>,
+    scheme: Option<String>,
+    path: Option<String>,
+    timeout: Option<Duration>,
+    peer_timeout: Option<Duration>,
+    rpc_timeout: Option<Duration>,
+    peer_accepts_gzip: bool,
+    peer_accepts_deflate: bool,
+    #[cfg(feature = "zstd")]
+    peer_accepts_zstd: bool,
+    request_codec: CompressionAlgorithm,
+    encoding: Option<String>,
+    observer: Option<Arc<dyn LifecycleObserver>>,
+    channelz_server: Option<crate::channelz::ServerId>,
+    channelz_socket: Option<crate::channelz::SocketId>,
+    #[cfg(feature = "grpc-web")]
+    web: Option<crate::web::Mode>,
+    call_start: tokio::time::Instant,
+    owned_labels: Option<OwnedCallLabels>,
+    deadline: Option<tokio::time::Instant>,
+    prefer_gzip: bool,
+    limits: MessageLimits,
+    cancel_tx: watch::Sender<bool>,
+}
+
+impl InboundRpc {
+    fn from_rpc(rpc: Rpc) -> Box<Self> {
+        let timeout = rpc.effective_timeout();
+        let authority = rpc.authority().map(str::to_owned);
+        let scheme = rpc.scheme().map(str::to_owned);
+        let path = Some(rpc.path().to_owned());
+        let peer_timeout = rpc.peer_timeout();
+        let rpc_timeout = rpc.rpc_timeout();
+        let peer_accepts_gzip = rpc.accepts_gzip();
         let peer_accepts_deflate =
-            accepts_codec(self.request.headers(), CompressionAlgorithm::Deflate);
+            accepts_codec(rpc.request.headers(), CompressionAlgorithm::Deflate);
         #[cfg(feature = "zstd")]
-        let peer_accepts_zstd = accepts_codec(self.request.headers(), CompressionAlgorithm::Zstd);
-        let request_codec = inbound_codec(self.request.headers());
-        let encoding = self.encoding().map(str::to_owned);
-        let observer = self.observer.clone();
-        let channelz_server = self.channelz_server;
-        let channelz_socket = self.channelz_socket;
+        let peer_accepts_zstd = accepts_codec(rpc.request.headers(), CompressionAlgorithm::Zstd);
+        let request_codec = inbound_codec(rpc.request.headers());
+        let encoding = rpc.encoding().map(str::to_owned);
+        let observer = rpc.observer.clone();
+        let channelz_server = rpc.channelz_server;
+        let channelz_socket = rpc.channelz_socket;
         #[cfg(feature = "grpc-web")]
-        let web = self.web;
+        let web = rpc.web;
         let call_start = tokio::time::Instant::now();
         let owned_labels = observer.as_ref().map(|_| {
             CallLabels::new(
@@ -1377,9 +1262,9 @@ impl Rpc {
             obs.on_server_call_start(&labels.as_borrowed());
         }
         channelz_start(channelz_server, channelz_socket);
-        let Self {
+        let Rpc {
             request,
-            mut respond,
+            respond,
             config,
             remote_addr,
             local_addr,
@@ -1398,97 +1283,243 @@ impl Rpc {
             binlog,
             channelz_server: _,
             channelz_socket: _,
-        } = self;
+        } = rpc;
         let limits = config.limits();
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
         let prefer_gzip = config.compresses_outbound();
-        let recv = request.into_body();
-        // Decoded on the handler's task: no pump task, no queue, and reading
-        // is what releases HTTP/2 capacity.
-        let stream = Streaming::from_wire(WireStream::<Req>::new(
-            recv,
-            limits,
-            deadline,
-            config.accepts_compressed(),
+        let (cancel_tx, _) = watch::channel(false);
+        Box::new(Self {
+            respond,
+            config,
+            recv: Some(request.into_body()),
+            remote_addr,
+            local_addr,
+            peer_identity,
+            peer_cred,
+            extensions,
+            metadata,
+            diagnostic_config,
+            byte_budget,
+            binlog,
+            authority,
+            scheme,
+            path,
+            timeout,
+            peer_timeout,
+            rpc_timeout,
+            peer_accepts_gzip,
+            peer_accepts_deflate,
+            #[cfg(feature = "zstd")]
+            peer_accepts_zstd,
             request_codec,
-            binlog.clone(),
-        ))
-        // Channelz: count received messages through the handler's polls.
-        // Count-only: the terminal arms below own the stream end.
-        .bind_channelz_socket_count_only(channelz_socket);
-        let mut req =
-            Request::from_metadata(stream, metadata, remote_addr, local_addr, peer_identity)
-                .with_extensions(extensions)
-                .with_http(authority, scheme, path.clone());
-        if let Some(config) = diagnostic_config {
-            req.set_diagnostic_config(config);
-        }
-        req.set_peer_cred(peer_cred);
-        req.set_limits(limits);
-        req.set_peer_timeout(peer_timeout);
-        req.set_rpc_timeout(rpc_timeout);
-        req.set_accepts_gzip(peer_accepts_gzip);
-        req.set_compresses_outbound(prefer_gzip);
-        req.set_gzip_level(config.gzip_level());
-        req.set_accepts_compressed(config.accepts_compressed());
-        req.set_concurrent_rpc_limit(config.concurrent_rpc_limit());
-        req.set_send_buffer_size(config.send_buffer_size());
-        req.set_encoding(encoding);
-        if let Some(d) = timeout {
-            req.set_timeout(d);
-        }
-        if let Some(at) = deadline {
-            req.set_deadline(at);
-        }
-        let (cancel_tx, cancel_rx) = watch::channel(false);
-        let on_reset = cancel_tx.clone();
-        req.set_cancel(cancel_rx);
-        let outcome = wrap_timeout(timeout, async {
-            run_handler(&mut respond, on_reset, handler(req), binlog.as_ref()).await
+            encoding,
+            observer,
+            channelz_server,
+            channelz_socket,
+            #[cfg(feature = "grpc-web")]
+            web,
+            call_start,
+            owned_labels,
+            deadline,
+            prefer_gzip,
+            limits,
+            cancel_tx,
         })
-        .await;
-        notify_deadline(&outcome, &cancel_tx);
-        if matches!(&outcome, Err(s) if s.code() == Code::DeadlineExceeded) {
-            if let (Some(obs), Some(labels)) = (&observer, &owned_labels) {
+    }
+
+    fn into_prepared<T>(self, outcome: Result<T, Status>) -> Prepared<T> {
+        notify_deadline(&outcome, &self.cancel_tx);
+        if matches!(&outcome, Err(status) if status.code() == Code::DeadlineExceeded) {
+            if let (Some(obs), Some(labels)) = (&self.observer, &self.owned_labels) {
                 obs.on_cancellation(&CancellationEvent {
                     call: labels.as_borrowed(),
                     reason: CancellationReason::DeadlineExceeded,
                 });
             }
-        } else if matches!(&outcome, Err(s) if s.code() == Code::Cancelled) {
-            if let (Some(obs), Some(labels)) = (&observer, &owned_labels) {
+        } else if matches!(&outcome, Err(status) if status.code() == Code::Cancelled) {
+            if let (Some(obs), Some(labels)) = (&self.observer, &self.owned_labels) {
                 obs.on_cancellation(&CancellationEvent {
                     call: labels.as_borrowed(),
                     reason: CancellationReason::PeerReset,
                 });
             }
         }
-        Some(Prepared {
-            respond,
-            wire: config.wire(),
-            deadline,
+        Prepared {
+            respond: self.respond,
+            wire: self.config.wire(),
+            deadline: self.deadline,
             outcome,
-            prefer_gzip,
-            peer_accepts_gzip,
-            peer_accepts_deflate,
+            prefer_gzip: self.prefer_gzip,
+            peer_accepts_gzip: self.peer_accepts_gzip,
+            peer_accepts_deflate: self.peer_accepts_deflate,
             #[cfg(feature = "zstd")]
-            peer_accepts_zstd,
-            cancel: CancelOnDrop(cancel_tx),
-            path,
-            gzip_level: config.gzip_level(),
-            timeout,
-            peer_timeout,
-            rpc_timeout,
-            budget: byte_budget,
-            observer,
-            call_start,
-            binlog,
-            channelz_server,
-            channelz_socket,
+            peer_accepts_zstd: self.peer_accepts_zstd,
+            cancel: CancelOnDrop(self.cancel_tx),
+            path: self.path,
+            gzip_level: self.config.gzip_level(),
+            timeout: self.timeout,
+            peer_timeout: self.peer_timeout,
+            rpc_timeout: self.rpc_timeout,
+            budget: self.byte_budget,
+            observer: self.observer,
+            call_start: self.call_start,
+            binlog: self.binlog,
+            channelz_server: self.channelz_server,
+            channelz_socket: self.channelz_socket,
             #[cfg(feature = "grpc-web")]
-            web,
-        })
+            web: self.web,
+        }
     }
+
+    fn base_request<T>(&mut self, message: T) -> Request<T> {
+        let mut req = Request::from_metadata(
+            message,
+            std::mem::take(&mut self.metadata),
+            self.remote_addr,
+            self.local_addr,
+            self.peer_identity.take(),
+        )
+        .with_extensions(std::mem::take(&mut self.extensions))
+        .with_http(
+            self.authority.clone(),
+            self.scheme.clone(),
+            self.path.clone(),
+        );
+        if let Some(config) = self.diagnostic_config.take() {
+            req.set_diagnostic_config(config);
+        }
+        req.set_peer_cred(self.peer_cred.take());
+        req.set_limits(self.limits);
+        req.set_peer_timeout(self.peer_timeout);
+        req.set_rpc_timeout(self.rpc_timeout);
+        req.set_accepts_gzip(self.peer_accepts_gzip);
+        req.set_compresses_outbound(self.prefer_gzip);
+        req.set_gzip_level(self.config.gzip_level());
+        req.set_accepts_compressed(self.config.accepts_compressed());
+        req.set_concurrent_rpc_limit(self.config.concurrent_rpc_limit());
+        req.set_send_buffer_size(self.config.send_buffer_size());
+        req.set_encoding(self.encoding.take());
+        if let Some(timeout) = self.timeout {
+            req.set_timeout(timeout);
+        }
+        if let Some(deadline) = self.deadline {
+            req.set_deadline(deadline);
+        }
+        req
+    }
+
+    async fn read_unary<Req, T, F, Fut>(&mut self, handler: F) -> Result<T, Status>
+    where
+        Req: CodecMessage,
+        F: FnOnce(Request<Req>) -> Fut,
+        Fut: Future<Output = Result<T, Status>>,
+    {
+        let framed = read_unary_frame_fut::<Req>(self).await?;
+        if let Some(socket) = self.channelz_socket {
+            crate::channelz::Registry::global().note_messages(socket, false, 1);
+        }
+        if let (Some(obs), Some(labels)) = (&self.observer, &self.owned_labels) {
+            obs.on_bytes_received(&labels.as_borrowed(), 0);
+        }
+        let mut req = self.base_request(framed.message);
+        req.set_compressed(framed.compressed);
+        req.set_cancel(self.cancel_tx.subscribe());
+        let on_reset = self.cancel_tx.clone();
+        let handler = handler(req);
+        run_handler_fut(self, on_reset, handler).await
+    }
+
+    async fn read_unary_frame<Req: CodecMessage>(
+        &mut self,
+    ) -> Result<crate::stream::Framed<Req>, Status> {
+        let limits = self.limits;
+        let accept = self.config.accepts_compressed();
+        let codec = self.request_codec;
+        #[cfg(feature = "grpc-web")]
+        let text = self.web.is_some_and(crate::web::Mode::is_text);
+        let recv = self
+            .recv
+            .as_mut()
+            .ok_or_else(|| Status::internal("request body already consumed"))?;
+        #[cfg(feature = "grpc-web")]
+        if text {
+            return crate::web::read_one_text_message::<Req>(
+                recv,
+                limits,
+                accept,
+                codec,
+                self.binlog.as_ref(),
+            )
+            .await;
+        }
+        read_one_message::<Req>(recv, limits, accept, codec, self.binlog.as_ref(), false).await
+    }
+
+    async fn read_streaming<Req, T, F, Fut>(&mut self, handler: F) -> Result<T, Status>
+    where
+        Req: CodecMessage + Send + 'static,
+        F: FnOnce(Request<Streaming<Req>>) -> Fut,
+        Fut: Future<Output = Result<T, Status>>,
+    {
+        let recv = self
+            .recv
+            .take()
+            .ok_or_else(|| Status::internal("request body already consumed"))?;
+        let stream = Streaming::from_wire(WireStream::<Req>::new(
+            recv,
+            self.limits,
+            self.deadline,
+            self.config.accepts_compressed(),
+            self.request_codec,
+            self.binlog.clone(),
+        ))
+        .bind_channelz_socket_count_only(self.channelz_socket);
+        let mut req = self.base_request(stream);
+        req.set_cancel(self.cancel_tx.subscribe());
+        let on_reset = self.cancel_tx.clone();
+        let timeout = self.timeout;
+        let handler = handler(req);
+        wrap_timeout(timeout, run_handler_fut(self, on_reset, handler)).await
+    }
+}
+
+fn read_unary_fut<'a, Req, T: 'a, F, Fut>(
+    inbound: &'a mut InboundRpc,
+    handler: F,
+) -> std::pin::Pin<Box<impl Future<Output = Result<T, Status>> + 'a>>
+where
+    Req: CodecMessage + 'a,
+    F: FnOnce(Request<Req>) -> Fut + 'a,
+    Fut: Future<Output = Result<T, Status>> + 'a,
+{
+    Box::pin(inbound.read_unary(handler))
+}
+
+fn read_streaming_fut<'a, Req, T: 'a, F, Fut>(
+    inbound: &'a mut InboundRpc,
+    handler: F,
+) -> std::pin::Pin<Box<impl Future<Output = Result<T, Status>> + 'a>>
+where
+    Req: CodecMessage + Send + 'static,
+    F: FnOnce(Request<Streaming<Req>>) -> Fut + 'a,
+    Fut: Future<Output = Result<T, Status>> + 'a,
+{
+    Box::pin(inbound.read_streaming(handler))
+}
+
+fn read_unary_frame_fut<'a, Req: CodecMessage + 'a>(
+    inbound: &'a mut InboundRpc,
+) -> std::pin::Pin<Box<impl Future<Output = Result<crate::stream::Framed<Req>, Status>> + 'a>> {
+    Box::pin(inbound.read_unary_frame())
+}
+
+fn run_handler_fut<'a, T: 'a>(
+    inbound: &'a mut InboundRpc,
+    on_reset: watch::Sender<bool>,
+    handler: impl Future<Output = Result<T, Status>> + 'a,
+) -> std::pin::Pin<Box<impl Future<Output = Result<T, Status>> + 'a>> {
+    let tap = inbound.binlog.as_ref();
+    Box::pin(run_handler(&mut inbound.respond, on_reset, handler, tap))
 }
 
 /// Channelz: a dispatched RPC started. The socket stream is
