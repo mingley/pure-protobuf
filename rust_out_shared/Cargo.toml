@@ -18,3 +18,9 @@ paste = "1.0"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(bzl)'] }
+
+# Local QG-19 oracle, not an upstream rust/test/shared crate. Keep it out of
+# tests/*.rs so shared-consumers (19 crates) and upstream-drift stay honest.
+[[test]]
+name = "arena_recursion"
+path = "local_tests/arena_recursion.rs"

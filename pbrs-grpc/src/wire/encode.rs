@@ -133,11 +133,10 @@ impl WireOut for SegSink {
         self.total_len += data.len();
     }
 
-    fn write_contiguous<R>(&mut self, write: impl FnOnce(&mut BytesMut) -> R) -> R {
+    fn write_contiguous(&mut self, write: &mut dyn FnMut(&mut BytesMut)) {
         let before = self.head.len();
-        let result = write(&mut self.head);
+        write(&mut self.head);
         self.total_len += self.head.len() - before;
-        result
     }
 
     fn put_shared(&mut self, b: &Bytes) {

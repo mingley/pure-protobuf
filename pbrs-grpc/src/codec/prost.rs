@@ -41,16 +41,18 @@ where
     fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status> {
         // Prost writes straight into the frame buffer. The previous path
         // encoded into a `Vec` and copied that into the frame.
-        out.write_contiguous(|buf| {
+        let mut result = Ok(());
+        out.write_contiguous(&mut |buf| {
             let before = buf.len();
-            match self.0.encode(buf) {
+            result = match self.0.encode(buf) {
                 Ok(()) => Ok(()),
                 Err(err) => {
                     buf.truncate(before);
                     Err(Status::internal(err.to_string()))
                 }
-            }
-        })
+            };
+        });
+        result
     }
 
     fn encode_to_vec(&self) -> Result<Vec<u8>, Status> {

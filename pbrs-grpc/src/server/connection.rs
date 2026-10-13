@@ -714,7 +714,10 @@ fn poll_admitted(
     let mut index = 0;
     let mut finished = false;
     while index < admitted.len() {
-        if admitted[index].as_mut().poll(cx).is_ready() {
+        let Some(fut) = admitted.get_mut(index) else {
+            break;
+        };
+        if fut.as_mut().poll(cx).is_ready() {
             drop(admitted.swap_remove(index));
             finished = true;
         } else {

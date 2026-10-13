@@ -407,18 +407,20 @@ pub(crate) fn reset_on_cancel(
 /// sender; the next park starts a new task on the runtime that is current
 /// then. The lock is not held across any await.
 fn park_cancel(fut: impl std::future::Future<Output = ()> + Send + 'static) {
-    use std::sync::{Mutex, OnceLock};
-    use tokio::sync::mpsc;
+    use std::sync::OnceLock;
+    use tokio::sync::{Mutex, mpsc};
 
-    static PARK: OnceLock<
-        Mutex<Option<mpsc::UnboundedSender<Pin<Box<dyn Future<Output = ()> + Send>>>>>,
-    > = OnceLock::new();
+    type Parked = Pin<Box<dyn Future<Output = ()> + Send>>;
+    type ParkTx = mpsc::UnboundedSender<Parked>;
+
+    static PARK: OnceLock<Mutex<Option<ParkTx>>> = OnceLock::new();
     let slot = PARK.get_or_init(|| Mutex::new(None));
-    let mut guard = slot.lock().unwrap_or_else(|err| err.into_inner());
+    // Sync caller; the lock is not held across any await.
+    let mut guard = slot.blocking_lock();
     if guard.as_ref().is_none_or(|tx| tx.is_closed()) {
-        let (tx, mut rx) = mpsc::unbounded_channel::<Pin<Box<dyn Future<Output = ()> + Send>>>();
+        let (tx, mut rx) = mpsc::unbounded_channel::<Parked>();
         drop(tokio::spawn(async move {
-            let mut parked: Vec<Pin<Box<dyn Future<Output = ()> + Send>>> = Vec::new();
+            let mut parked: Vec<Parked> = Vec::new();
             loop {
                 tokio::select! {
                     biased;
@@ -448,7 +450,10 @@ fn poll_parked(
     let mut index = 0;
     let mut finished = false;
     while index < parked.len() {
-        if parked[index].as_mut().poll(cx).is_ready() {
+        let Some(fut) = parked.get_mut(index) else {
+            break;
+        };
+        if fut.as_mut().poll(cx).is_ready() {
             drop(parked.swap_remove(index));
             finished = true;
         } else {

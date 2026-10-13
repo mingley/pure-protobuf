@@ -54,12 +54,15 @@ pub trait WireOut {
     ///
     /// The default encodes into a temporary buffer and copies it in. Sinks
     /// that already have a `BytesMut` override this and skip that copy.
+    ///
+    /// The callback is `&mut dyn FnMut` so this trait stays dyn-compatible.
+    /// A generic `FnOnce` method would be a major break against published
+    /// `pbrs` 0.2.0 (`dyn WireOut`).
     #[inline]
-    fn write_contiguous<R>(&mut self, write: impl FnOnce(&mut BytesMut) -> R) -> R {
+    fn write_contiguous(&mut self, write: &mut dyn FnMut(&mut BytesMut)) {
         let mut buf = BytesMut::new();
-        let result = write(&mut buf);
+        write(&mut buf);
         self.put_slice(&buf);
-        result
     }
 }
 
@@ -805,6 +808,16 @@ mod tests {
     /// Minimized fuzzer crash: the length varint exceeds the remaining
     /// buffer by far (`fuzz/corpus/wire/len_overflow_min.bin`).
     const LEN_OVERFLOW: &[u8] = &[0x0a, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01];
+
+    #[test]
+    fn wire_out_stays_dyn_compatible() {
+        fn takes(out: &mut dyn WireOut, byte: u8) {
+            out.put_u8(byte);
+        }
+        let mut buf = Vec::new();
+        takes(&mut buf, 1);
+        assert_eq!(buf, [1]);
+    }
 
     #[test]
     fn max_field_number_matches_spec_bound() {
