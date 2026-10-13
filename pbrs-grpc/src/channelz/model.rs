@@ -791,12 +791,12 @@ impl Registry {
             entry.messages_sent.fetch_add(count, Ordering::Relaxed);
             entry
                 .last_message_sent_ms
-                .store(now_ms(), Ordering::Relaxed);
+                .store(coarse_now_ms(), Ordering::Relaxed);
         } else {
             entry.messages_received.fetch_add(count, Ordering::Relaxed);
             entry
                 .last_message_received_ms
-                .store(now_ms(), Ordering::Relaxed);
+                .store(coarse_now_ms(), Ordering::Relaxed);
         }
     }
 
@@ -1199,6 +1199,28 @@ pub(crate) fn now_ms() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|elapsed| u64::try_from(elapsed.as_millis()).unwrap_or(u64::MAX))
         .unwrap_or(0)
+}
+
+/// Message timestamps only need millisecond resolution. A burst reuses the
+/// last reading for a few frames so each one does not read the wall clock.
+fn coarse_now_ms() -> u64 {
+    use std::cell::Cell;
+    const BURST: u8 = 16;
+    thread_local! {
+        static TICK: Cell<u8> = const { Cell::new(0) };
+        static MS: Cell<u64> = const { Cell::new(0) };
+    }
+    TICK.with(|tick| {
+        let n = tick.get();
+        if n % BURST != 0 {
+            tick.set(n.wrapping_add(1));
+            return MS.with(|ms| ms.get());
+        }
+        let ms = now_ms();
+        tick.set(1);
+        MS.with(|slot| slot.set(ms));
+        ms
+    })
 }
 
 impl From<&crate::resolver::ResolvedAddress> for EndpointAddr {
