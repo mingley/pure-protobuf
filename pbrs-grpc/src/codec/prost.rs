@@ -39,8 +39,18 @@ where
     }
 
     fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status> {
-        out.put_slice(&self.encode_to_vec()?);
-        Ok(())
+        // Prost writes straight into the frame buffer. The previous path
+        // encoded into a `Vec` and copied that into the frame.
+        out.write_contiguous(|buf| {
+            let before = buf.len();
+            match self.0.encode(buf) {
+                Ok(()) => Ok(()),
+                Err(err) => {
+                    buf.truncate(before);
+                    Err(Status::internal(err.to_string()))
+                }
+            }
+        })
     }
 
     fn encode_to_vec(&self) -> Result<Vec<u8>, Status> {
@@ -215,6 +225,31 @@ pub fn streaming_response_from_native<T>(
     response: crate::Response<crate::Streaming<Message<T>>>,
 ) -> crate::Response<Streaming<T>> {
     response.map(Streaming::from_native)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Clone, PartialEq, prost::Message)]
+    struct Sample {
+        #[prost(bytes = "vec", tag = "1")]
+        payload: Vec<u8>,
+        #[prost(int32, tag = "2")]
+        n: i32,
+    }
+
+    #[test]
+    fn direct_encode_matches_the_buffered_payload() {
+        let msg = Message(Sample {
+            payload: vec![0x11; 1000],
+            n: -7,
+        });
+        let buffered = msg.encode_to_vec().expect("buffered");
+        let mut direct = Vec::new();
+        msg.encode_payload(&mut direct).expect("direct");
+        assert_eq!(direct, buffered);
+    }
 }
 
 /// Apply encode limits before handing a prost message to a native sender.

@@ -133,6 +133,13 @@ impl WireOut for SegSink {
         self.total_len += data.len();
     }
 
+    fn write_contiguous<R>(&mut self, write: impl FnOnce(&mut BytesMut) -> R) -> R {
+        let before = self.head.len();
+        let result = write(&mut self.head);
+        self.total_len += self.head.len() - before;
+        result
+    }
+
     fn put_shared(&mut self, b: &Bytes) {
         crate::copy_counts::note_shared(b.len());
         self.freeze_head();

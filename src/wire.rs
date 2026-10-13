@@ -6,7 +6,7 @@
 
 use crate::error::ParseError;
 use crate::internal::MAX_MESSAGE_BYTES;
-use bytes::{BufMut, Bytes};
+use bytes::{BufMut, Bytes, BytesMut};
 #[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::*;
 #[cfg(target_arch = "x86_64")]
@@ -48,6 +48,18 @@ pub trait WireOut {
     #[inline]
     fn supports_shared(&self) -> bool {
         false
+    }
+
+    /// Run `write` against a contiguous buffer that becomes part of this sink.
+    ///
+    /// The default encodes into a temporary buffer and copies it in. Sinks
+    /// that already have a `BytesMut` override this and skip that copy.
+    #[inline]
+    fn write_contiguous<R>(&mut self, write: impl FnOnce(&mut BytesMut) -> R) -> R {
+        let mut buf = BytesMut::new();
+        let result = write(&mut buf);
+        self.put_slice(&buf);
+        result
     }
 }
 
