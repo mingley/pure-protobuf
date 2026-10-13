@@ -109,6 +109,19 @@ pub(crate) trait Dispatch: Send + Sync + 'static {
     }
 }
 
+/// Build the handler future inside this frame.
+///
+/// `inline(never)` keeps `Service::call`'s state machine out of the
+/// connection task. Generated services override [`Service::call_boxed`] and
+/// box a single method; the default boxes [`Service::call`].
+#[inline(never)]
+fn start_service_call<'a, S: Service>(
+    service: &'a S,
+    rpc: Rpc,
+) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
+    service.call_boxed(rpc)
+}
+
 /// Newtype so the monomorphic path gets its own [`Dispatch`] impl.
 pub(crate) struct Single<S> {
     pub(crate) service: Arc<S>,
@@ -147,7 +160,10 @@ impl<S: Service> Dispatch for Single<S> {
                 return rpc.reject(status);
             }
         }
-        self.service.call(rpc).await;
+        // Box one method future. Awaiting `Service::call` here would embed
+        // every method's state in this connection-task future and copy it
+        // onto the heap on each RPC.
+        start_service_call(self.service.as_ref(), rpc).await;
     }
 
     fn observer(&self) -> Option<&Arc<dyn LifecycleObserver>> {
