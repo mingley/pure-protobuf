@@ -767,7 +767,10 @@ impl Rpc {
             return;
         }
         let hook = self.response_interceptor.clone();
-        let Some(Prepared {
+        let Some(prepared) = self.run_streaming_request(handler).await else {
+            return;
+        };
+        let Prepared {
             mut respond,
             wire,
             outcome,
@@ -791,10 +794,7 @@ impl Rpc {
             channelz_socket,
             #[cfg(feature = "grpc-web")]
                 web: _,
-        }) = self.run_streaming_request(handler).await
-        else {
-            return;
-        };
+        } = *prepared;
         hold_cancel(cancel, async move {
             let path_for_labels = observer.as_ref().and_then(|_| path.clone());
             let call_labels = CallLabels::new(
@@ -1062,7 +1062,10 @@ impl Rpc {
             return;
         }
         let hook = self.response_interceptor.clone();
-        let Some(Prepared {
+        let Some(prepared) = self.run_streaming_request(handler).await else {
+            return;
+        };
+        let Prepared {
             mut respond,
             wire,
             deadline,
@@ -1086,10 +1089,7 @@ impl Rpc {
             channelz_socket,
             #[cfg(feature = "grpc-web")]
                 web: _,
-        }) = self.run_streaming_request(handler).await
-        else {
-            return;
-        };
+        } = *prepared;
         hold_cancel(cancel, async move {
             let path_for_labels = observer.as_ref().and_then(|_| path.clone());
             let call_labels = CallLabels::new(
@@ -1174,15 +1174,23 @@ impl Rpc {
     /// Hand the request stream to `handler`, under the deadline.
     ///
     /// `None` means the request was rejected and already answered.
-    async fn run_streaming_request<Req, T, F, Fut>(self, handler: F) -> Option<Prepared<T>>
+    fn run_streaming_request<Req, T, F, Fut>(
+        self,
+        handler: F,
+    ) -> impl Future<Output = Option<Box<Prepared<T>>>>
     where
         Req: CodecMessage + Send + 'static,
         F: FnOnce(Request<Streaming<Req>>) -> Fut,
         Fut: Future<Output = Result<T, Status>>,
     {
+        // `Rpc` is 960 bytes. An `async fn` keeps that argument in the
+        // generator and the connection task copies it on every resume.
+        // Move it into the heap before the future is built.
         let mut inbound = InboundRpc::from_rpc(self);
-        let outcome = read_streaming_fut(&mut inbound, handler).await;
-        Some((*inbound).into_prepared(outcome))
+        async move {
+            let outcome = read_streaming_fut(&mut inbound, handler).await;
+            Some(box_prepared(inbound, outcome))
+        }
     }
 }
 
@@ -1493,6 +1501,11 @@ where
     Fut: Future<Output = Result<T, Status>> + 'a,
 {
     Box::pin(inbound.read_unary(handler))
+}
+
+#[inline(never)]
+fn box_prepared<T>(inbound: Box<InboundRpc>, outcome: Result<T, Status>) -> Box<Prepared<T>> {
+    Box::new((*inbound).into_prepared(outcome))
 }
 
 fn read_streaming_fut<'a, Req, T: 'a, F, Fut>(
