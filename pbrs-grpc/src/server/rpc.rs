@@ -1047,24 +1047,51 @@ impl Rpc {
     /// .await;
     /// # }
     /// ```
-    pub async fn bidi_streaming<Req, Resp, F, Fut>(self, handler: F)
+    pub fn bidi_streaming<Req, Resp, F, Fut>(self, handler: F) -> impl Future<Output = ()>
     where
         Req: CodecMessage + Send + 'static,
         Resp: CodecMessage + Send,
         F: FnOnce(Request<Streaming<Req>>) -> Fut,
         Fut: Future<Output = Result<Response<Streaming<Resp>>, Status>>,
     {
+        // `Rpc` is 960 bytes. Keeping it in this generator made every resume
+        // copy it. The read future is built only after `self` has moved.
         #[cfg(feature = "grpc-web")]
         if self.web.is_some() {
             self.reject(Status::unimplemented(
                 "gRPC-Web supports unary and server-streaming methods",
             ));
-            return;
+            return Box::pin(std::future::ready(()))
+                as std::pin::Pin<Box<dyn Future<Output = ()> + '_>>;
         }
         let hook = self.response_interceptor.clone();
-        let Some(prepared) = self.run_streaming_request(handler).await else {
-            return;
-        };
+        let read = self.run_streaming_request(handler);
+        #[cfg(feature = "grpc-web")]
+        {
+            return Box::pin(async move {
+                if let Some(prepared) = read.await {
+                    Self::write_bidi_response(prepared, hook).await;
+                }
+            }) as std::pin::Pin<Box<dyn Future<Output = ()> + '_>>;
+        }
+        #[cfg(not(feature = "grpc-web"))]
+        {
+            async move {
+                if let Some(prepared) = read.await {
+                    Self::write_bidi_response(prepared, hook).await;
+                }
+            }
+        }
+    }
+
+    #[inline(never)]
+    fn write_bidi_response<Resp>(
+        prepared: Box<Prepared<Response<Streaming<Resp>>>>,
+        hook: Option<crate::interceptor::ResponseHook>,
+    ) -> impl Future<Output = ()>
+    where
+        Resp: CodecMessage + Send,
+    {
         let Prepared {
             mut respond,
             wire,
@@ -1149,7 +1176,6 @@ impl Rpc {
                 }
             }
         })
-        .await;
     }
 
     /// Read the single request message, then run `handler` under the deadline.
