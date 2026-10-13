@@ -285,15 +285,12 @@ where
     // mid-wait. Harvesting it from a spawned pump lost the RST: cancel can
     // win the same `select!` as JoinHandle Ready, and RecvStream drop is
     // not a last-ref reset while that task holds SendStream.
-    let mut send = ResetSend {
-        stream: send_stream,
-        live: true,
-    };
+    let mut send = ResetSend::new(send_stream);
     let result = {
         let mut failed = false;
         let result = {
             let pump = pump_outbound_budget(
-                &mut send.stream,
+                send.stream_mut(),
                 rx,
                 cancel_rx.clone(),
                 wire,
@@ -340,7 +337,7 @@ where
                 Err(s) if s.code() == Code::Cancelled || s.code() == Code::DeadlineExceeded
             )
         {
-            send.stream.send_reset(Reason::CANCEL);
+            send.stream_mut().send_reset(Reason::CANCEL);
         }
         result
     };
@@ -452,15 +449,30 @@ async fn pump_outbound_budget<T: CodecMessage>(
 /// `RST_STREAM` a client-streaming send half if the Call is dropped while
 /// still waiting for the unary response (including after a clean half-close).
 struct ResetSend {
-    stream: backend::SendStream,
+    stream: Option<backend::SendStream>,
     live: bool,
 }
 
 impl Drop for ResetSend {
     fn drop(&mut self) {
         if self.live {
-            self.stream.send_reset(Reason::CANCEL);
+            if let Some(stream) = self.stream.as_mut() {
+                stream.send_reset(Reason::CANCEL);
+            }
         }
+    }
+}
+
+impl ResetSend {
+    fn new(stream: backend::SendStream) -> Self {
+        Self {
+            stream: Some(stream),
+            live: true,
+        }
+    }
+
+    fn stream_mut(&mut self) -> &mut backend::SendStream {
+        self.stream.as_mut().expect("send half is still held")
     }
 }
 
@@ -468,6 +480,151 @@ impl Drop for ResetSend {
     clippy::too_many_arguments,
     reason = "response and send halves plus cancel, limits, deadline, and tap"
 )]
+/// Bidi upload is already half-closed, so the request pump can finish on this
+/// task. A live [`StreamSender`] still uses the spawned pump below: the
+/// [`Call`] returns at response headers while the caller keeps sending.
+async fn run_bidi_flushed<Req, Resp>(
+    resp_fut: backend::ResponseFuture,
+    send_stream: backend::SendStream,
+    rx: Streaming<Req>,
+    cancel_rx: watch::Receiver<bool>,
+    wire: Wire,
+    tap: Option<CallLogger>,
+    deadline: Option<tokio::time::Instant>,
+    budget: ByteBudgetTracker,
+    socket: Option<crate::channelz::SocketId>,
+) -> Result<Response<Streaming<Resp>>, Status>
+where
+    Req: CodecMessage + Send + 'static,
+    Resp: CodecMessage + Send + 'static,
+{
+    let mut send = ResetSend::new(send_stream);
+    let later_cancel = cancel_rx.clone();
+    let mut reset_after = false;
+    let mut cancelled_call = false;
+    let mut half_closed = false;
+    let mut pump_failed: Option<Status> = None;
+    let response = {
+        let pump = pump_outbound_budget(
+            send.stream_mut(),
+            rx,
+            cancel_rx.clone(),
+            wire,
+            &budget,
+            tap.clone(),
+            socket,
+        );
+        tokio::pin!(pump);
+        let response_fut = async {
+            let response = resp_fut.await.map_err(Status::from_h2_post_dispatch)?;
+            finish_stream::<Resp>(
+                response,
+                wire.limits,
+                deadline,
+                wire.accept_gzip,
+                tap.clone(),
+            )
+            .await
+        };
+        tokio::pin!(response_fut);
+        let until_deadline = async {
+            match deadline {
+                Some(at) => tokio::time::sleep_until(at).await,
+                None => std::future::pending().await,
+            }
+        };
+        tokio::pin!(until_deadline);
+        let mut cancelled = cancel_rx;
+        let mut pump_done = false;
+        let mut headers: Option<Result<Response<Streaming<Resp>>, Status>> = None;
+        loop {
+            tokio::select! {
+                biased;
+                () = &mut until_deadline => {
+                    reset_after = true;
+                    break None;
+                }
+                _ = cancelled.wait_for(|v| *v) => {
+                    reset_after = true;
+                    cancelled_call = true;
+                    break None;
+                }
+                end = &mut pump, if !pump_done => {
+                    pump_done = true;
+                    match end {
+                        PumpEnd::Failed(status) => {
+                            reset_after = true;
+                            pump_failed = Some(status);
+                            break None;
+                        }
+                        PumpEnd::HalfClosed => half_closed = true,
+                        PumpEnd::Reset => {}
+                    }
+                }
+                result = &mut response_fut, if headers.is_none() => {
+                    headers = Some(result);
+                }
+            }
+            if pump_done && headers.is_some() {
+                break headers.take();
+            }
+        }
+    };
+    if reset_after && send.live {
+        send.stream_mut().send_reset(Reason::CANCEL);
+    }
+    send.live = false;
+    let result = if let Some(status) = pump_failed {
+        Err(status)
+    } else if reset_after {
+        Err(if cancelled_call {
+            Status::cancelled()
+        } else {
+            Status::deadline_exceeded()
+        })
+    } else {
+        response.unwrap_or(Err(Status::cancelled()))
+    };
+    let result = prefer_deadline(result, deadline);
+    if let (Some(tap), Err(status)) = (&tap, &result) {
+        if status.code() == Code::Cancelled {
+            tap.log_cancel();
+        }
+    }
+    match result {
+        Ok(response) => {
+            if let Some(sock) = socket {
+                crate::channelz::Registry::global().note_stream_started(sock, true);
+            }
+            let (completed_tx, completed_rx) = tokio::sync::oneshot::channel();
+            if half_closed {
+                send.live = false;
+                if let Some(stream) = send.stream.take() {
+                    crate::wire::hold_half_closed_send(
+                        stream,
+                        later_cancel,
+                        deadline,
+                        completed_rx,
+                    );
+                }
+            }
+            Ok(response.map(|stream| {
+                stream
+                    .bind_channelz_socket(socket)
+                    .with_outbound_completion(completed_tx)
+            }))
+        }
+        Err(status) => {
+            if let Some(sock) = socket {
+                let global = crate::channelz::Registry::global();
+                global.note_stream_started(sock, true);
+                global.note_stream_end(sock, false);
+            }
+            Err(status)
+        }
+    }
+}
+
 async fn run_bidi<Req, Resp>(
     resp_fut: backend::ResponseFuture,
     send_stream: backend::SendStream,
@@ -483,6 +640,23 @@ where
     Req: CodecMessage + Send + 'static,
     Resp: CodecMessage + Send + 'static,
 {
+    // The request sender is already gone, so every queued message can be
+    // written here. Spawning the pump would add a task after the upload
+    // has nothing left to wait for.
+    if rx.producer_finished() {
+        return run_bidi_flushed(
+            resp_fut,
+            send_stream,
+            rx,
+            cancel_rx,
+            wire,
+            tap,
+            deadline,
+            budget,
+            socket,
+        )
+        .await;
+    }
     // A spawned pump can RST before headers; without this channel the Call
     // would see UNAVAILABLE from h2 instead of StreamSender::fail's status.
     // The Call deadline does not set cancel_rx (`is_cancelled` is not

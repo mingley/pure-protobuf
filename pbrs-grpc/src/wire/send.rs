@@ -333,6 +333,34 @@ pub(crate) async fn pump_outbound<T: CodecMessage>(
 /// reset while this handle lives. The deadline RSTs too: the [`crate::Call`]
 /// is already Ready, so it will not set `cancel_rx`. Client-streaming keeps
 /// the send half on the Call task instead.
+/// Half-closed bidi upload: `finished` fires when the response stream ends
+/// or is dropped, and that must not RST. Cancel and the deadline still do.
+pub(crate) fn hold_half_closed_send(
+    mut send: backend::SendStream,
+    mut cancel_rx: tokio::sync::watch::Receiver<bool>,
+    deadline: Option<tokio::time::Instant>,
+    mut finished: tokio::sync::oneshot::Receiver<()>,
+) {
+    park_cancel(async move {
+        let until_deadline = async {
+            match deadline {
+                Some(at) => tokio::time::sleep_until(at).await,
+                None => std::future::pending().await,
+            }
+        };
+        tokio::select! {
+            biased;
+            _ = &mut finished => {}
+            result = cancel_rx.wait_for(|v| *v) => {
+                if result.is_ok() {
+                    send.send_reset(Reason::CANCEL);
+                }
+            }
+            () = until_deadline => send.send_reset(Reason::CANCEL),
+        }
+    });
+}
+
 pub(crate) fn reset_on_cancel(
     mut send: backend::SendStream,
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,
