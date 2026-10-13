@@ -70,6 +70,16 @@ impl OutBatch {
         self.sink.len() >= STREAM_BATCH_BYTES
     }
 
+    /// Take the accumulated frame, leaving the batch empty.
+    /// `None` when there is nothing to write.
+    pub(crate) fn take_frame(&mut self) -> Option<super::encode::SegFrame> {
+        if self.sink.is_empty() {
+            return None;
+        }
+        let sink = std::mem::replace(&mut self.sink, SegSink::new());
+        Some(sink.finish())
+    }
+
     /// Hand whatever has accumulated to HTTP/2.
     pub(crate) async fn flush(&mut self, send: &mut SendStream) -> Result<(), Status> {
         if self.sink.is_empty() {

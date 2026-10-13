@@ -439,6 +439,25 @@ impl<T> Streaming<T> {
         }
     }
 
+    /// Drain a closed in-memory channel. `None` when this stream is wire-backed
+    /// or the sender is still alive, so the caller must keep the async pump.
+    pub(crate) fn drain_closed_channel(&mut self) -> Option<Vec<Result<Framed<T>, Status>>> {
+        let Source::Channel(rx) = &mut self.source else {
+            return None;
+        };
+        if !rx.is_closed() {
+            return None;
+        }
+        let mut out = Vec::new();
+        loop {
+            match rx.try_recv() {
+                Ok(item) => out.push(item),
+                Err(_) => break,
+            }
+        }
+        Some(out)
+    }
+
     /// Whether the producer is gone, so a scheduling yield cannot refill the queue.
     ///
     /// A wire-backed stream has no separate producer task.

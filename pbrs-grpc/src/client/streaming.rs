@@ -628,10 +628,324 @@ where
     }
 }
 
-async fn run_bidi<Req, Resp>(
+enum ClosedUpload {
+    /// Every request byte and the half-close are queued.
+    Sent,
+    /// A prefix may already be queued. `rest` is the unsent payload, in order.
+    Rest(Vec<Bytes>),
+}
+
+/// Encode a closed request stream and queue it without waiting for window.
+///
+/// `Err` resets `send`. [`ClosedUpload::Rest`] means at least one segment did
+/// not fit in the stream buffer; nothing in `rest` has been queued.
+fn write_closed_upload<T: CodecMessage>(
+    send: &mut backend::SendStream,
+    items: Vec<Result<crate::stream::Framed<T>, Status>>,
+    wire: Wire,
+    budget: &ByteBudgetTracker,
+    tap: &Option<CallLogger>,
+    socket: Option<crate::channelz::SocketId>,
+) -> Result<ClosedUpload, Status> {
+    let channelz_entry = socket.and_then(crate::channelz::socket_entry);
+    let mut batch = OutBatch::new(wire);
+    if let Some(tap) = tap {
+        batch.set_tap(tap.clone());
+    }
+    let mut permits = Vec::with_capacity(items.len());
+    let mut queued: Vec<Bytes> = Vec::new();
+    let fail = |send: &mut backend::SendStream, status: Status| {
+        send.send_reset(Reason::CANCEL);
+        status
+    };
+    for item in items {
+        let item = match item {
+            Ok(item) => item,
+            Err(status) => return Err(fail(send, status)),
+        };
+        let frame_len = 5 + item.message.encoded_len();
+        match budget.acquire(frame_len) {
+            Ok(permit) => permits.push(permit),
+            Err(status) => return Err(fail(send, status)),
+        }
+        if let Err(status) = batch.encode(item) {
+            return Err(fail(send, status));
+        }
+        if let Some(entry) = &channelz_entry {
+            entry.add_messages(true, 1);
+        }
+        if batch.is_full() {
+            if let Some(frame) = batch.take_frame() {
+                queued.extend(frame.into_segments());
+            }
+            permits.clear();
+        }
+    }
+    if let Some(frame) = batch.take_frame() {
+        queued.extend(frame.into_segments());
+    }
+    permits.clear();
+    let mut rest = queued;
+    while !rest.is_empty() {
+        let seg = rest.remove(0);
+        match send.try_send_data(seg, false) {
+            Ok(Ok(())) => {}
+            Ok(Err(err)) => return Err(fail(send, Status::from_h2_send(err))),
+            Err(seg) => {
+                rest.insert(0, seg);
+                return Ok(ClosedUpload::Rest(rest));
+            }
+        }
+    }
+    if let Err(err) = send.send_data(Bytes::new(), true) {
+        return Err(fail(send, Status::from_h2_send(err)));
+    }
+    if let Some(tap) = tap {
+        tap.log_half_close();
+    }
+    Ok(ClosedUpload::Sent)
+}
+
+#[allow(
+    clippy::too_many_arguments,
+    reason = "response half plus cancel, deadline, and the already-queued upload"
+)]
+/// Headers, cancel, and deadline after a closed upload is fully queued.
+async fn await_flushed_bidi_headers<Resp>(
     resp_fut: backend::ResponseFuture,
     send_stream: backend::SendStream,
-    rx: Streaming<Req>,
+    cancel_rx: watch::Receiver<bool>,
+    wire: Wire,
+    tap: Option<CallLogger>,
+    deadline: Option<tokio::time::Instant>,
+    socket: Option<crate::channelz::SocketId>,
+) -> Result<Response<Streaming<Resp>>, Status>
+where
+    Resp: CodecMessage + Send + 'static,
+{
+    let mut send = ResetSend::new(send_stream);
+    let later_cancel = cancel_rx.clone();
+    let mut cancelled = cancel_rx;
+    let response_fut = async {
+        let response = resp_fut.await.map_err(Status::from_h2_post_dispatch)?;
+        finish_stream::<Resp>(
+            response,
+            wire.limits,
+            deadline,
+            wire.accept_gzip,
+            tap.clone(),
+        )
+        .await
+    };
+    tokio::pin!(response_fut);
+    let until_deadline = async {
+        match deadline {
+            Some(at) => tokio::time::sleep_until(at).await,
+            None => std::future::pending::<()>().await,
+        }
+    };
+    tokio::pin!(until_deadline);
+    let result = tokio::select! {
+        biased;
+        () = &mut until_deadline => {
+            send.stream_mut().send_reset(Reason::CANCEL);
+            Err(Status::deadline_exceeded())
+        }
+        _ = cancelled.wait_for(|v| *v) => {
+            send.stream_mut().send_reset(Reason::CANCEL);
+            Err(Status::cancelled())
+        }
+        result = &mut response_fut => result,
+    };
+    send.live = false;
+    let result = prefer_deadline(result, deadline);
+    if let (Some(tap), Err(status)) = (&tap, &result) {
+        if status.code() == Code::Cancelled {
+            tap.log_cancel();
+        }
+    }
+    match result {
+        Ok(response) => {
+            if let Some(sock) = socket {
+                crate::channelz::Registry::global().note_stream_started(sock, true);
+            }
+            let (completed_tx, completed_rx) = tokio::sync::oneshot::channel();
+            send.live = false;
+            if let Some(stream) = send.stream.take() {
+                crate::wire::hold_half_closed_send(stream, later_cancel, deadline, completed_rx);
+            }
+            Ok(response.map(|stream| {
+                stream
+                    .bind_channelz_socket(socket)
+                    .with_outbound_completion(completed_tx)
+            }))
+        }
+        Err(status) => {
+            if let Some(sock) = socket {
+                let global = crate::channelz::Registry::global();
+                global.note_stream_started(sock, true);
+                global.note_stream_end(sock, false);
+            }
+            Err(status)
+        }
+    }
+}
+
+#[allow(
+    clippy::too_many_arguments,
+    reason = "response half plus the unsent tail of a closed upload"
+)]
+/// Finish queueing a closed upload that did not fit, then wait for headers.
+///
+/// Sending and reading stay concurrent so a full window cannot stall the RPC.
+async fn send_rest_and_await_bidi_headers<Resp>(
+    resp_fut: backend::ResponseFuture,
+    send_stream: backend::SendStream,
+    rest: Vec<Bytes>,
+    cancel_rx: watch::Receiver<bool>,
+    wire: Wire,
+    tap: Option<CallLogger>,
+    deadline: Option<tokio::time::Instant>,
+    socket: Option<crate::channelz::SocketId>,
+) -> Result<Response<Streaming<Resp>>, Status>
+where
+    Resp: CodecMessage + Send + 'static,
+{
+    let mut send = ResetSend::new(send_stream);
+    let later_cancel = cancel_rx.clone();
+    let send_buffer = wire.send_buffer;
+    let mut rest = rest;
+    let (send_done, headers, reset_after, cancelled_call, send_failed) = {
+        let send_fut = async {
+            while !rest.is_empty() {
+                let seg = rest.remove(0);
+                crate::wire::send::send_bytes(send.stream_mut(), seg, false, send_buffer).await?;
+            }
+            send.stream_mut()
+                .send_data(Bytes::new(), true)
+                .map_err(Status::from_h2_send)?;
+            if let Some(tap) = &tap {
+                tap.log_half_close();
+            }
+            Ok(())
+        };
+        tokio::pin!(send_fut);
+        let response_fut = async {
+            let response = resp_fut.await.map_err(Status::from_h2_post_dispatch)?;
+            finish_stream::<Resp>(
+                response,
+                wire.limits,
+                deadline,
+                wire.accept_gzip,
+                tap.clone(),
+            )
+            .await
+        };
+        tokio::pin!(response_fut);
+        let until_deadline = async {
+            match deadline {
+                Some(at) => tokio::time::sleep_until(at).await,
+                None => std::future::pending::<()>().await,
+            }
+        };
+        tokio::pin!(until_deadline);
+        let mut cancelled = cancel_rx;
+        let mut send_done = false;
+        let mut headers: Option<Result<Response<Streaming<Resp>>, Status>> = None;
+        let mut reset_after = false;
+        let mut cancelled_call = false;
+        let mut send_failed: Option<Status> = None;
+        loop {
+            tokio::select! {
+                biased;
+                () = &mut until_deadline => {
+                    reset_after = true;
+                    break;
+                }
+                _ = cancelled.wait_for(|v| *v) => {
+                    reset_after = true;
+                    cancelled_call = true;
+                    break;
+                }
+                sent = &mut send_fut, if !send_done => {
+                    send_done = true;
+                    if let Err(status) = sent {
+                        send_failed = Some(status);
+                        break;
+                    }
+                }
+                result = &mut response_fut, if headers.is_none() => {
+                    headers = Some(result);
+                }
+            }
+            if send_done && headers.is_some() {
+                break;
+            }
+        }
+        (send_done, headers, reset_after, cancelled_call, send_failed)
+    };
+    if send_failed.is_some() && send.live {
+        send.stream_mut().send_reset(Reason::INTERNAL_ERROR);
+    }
+    if reset_after && send.live {
+        send.stream_mut().send_reset(Reason::CANCEL);
+    }
+    send.live = false;
+    let send_failed_now = send_failed.is_some();
+    let result = if let Some(status) = send_failed {
+        Err(status)
+    } else if reset_after {
+        Err(if cancelled_call {
+            Status::cancelled()
+        } else {
+            Status::deadline_exceeded()
+        })
+    } else {
+        headers.unwrap_or(Err(Status::cancelled()))
+    };
+    let result = prefer_deadline(result, deadline);
+    if let (Some(tap), Err(status)) = (&tap, &result) {
+        if status.code() == Code::Cancelled {
+            tap.log_cancel();
+        }
+    }
+    match result {
+        Ok(response) => {
+            if let Some(sock) = socket {
+                crate::channelz::Registry::global().note_stream_started(sock, true);
+            }
+            let (completed_tx, completed_rx) = tokio::sync::oneshot::channel();
+            if send_done && !send_failed_now && !reset_after {
+                if let Some(stream) = send.stream.take() {
+                    crate::wire::hold_half_closed_send(
+                        stream,
+                        later_cancel,
+                        deadline,
+                        completed_rx,
+                    );
+                }
+            }
+            Ok(response.map(|stream| {
+                stream
+                    .bind_channelz_socket(socket)
+                    .with_outbound_completion(completed_tx)
+            }))
+        }
+        Err(status) => {
+            if let Some(sock) = socket {
+                let global = crate::channelz::Registry::global();
+                global.note_stream_started(sock, true);
+                global.note_stream_end(sock, false);
+            }
+            Err(status)
+        }
+    }
+}
+
+async fn run_bidi<Req, Resp>(
+    resp_fut: backend::ResponseFuture,
+    mut send_stream: backend::SendStream,
+    mut rx: Streaming<Req>,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
     tap: Option<CallLogger>,
@@ -647,6 +961,39 @@ where
     // written here. Spawning the pump would add a task after the upload
     // has nothing left to wait for.
     if rx.producer_finished() {
+        // The messages are already queued. Writing them before the first
+        // await keeps the upload state machine out of the call future when
+        // they fit in the HTTP/2 send buffer.
+        if let Some(items) = rx.drain_closed_channel() {
+            match write_closed_upload(&mut send_stream, items, wire, &budget, &tap, socket) {
+                Ok(ClosedUpload::Sent) => {
+                    return await_flushed_bidi_headers(
+                        resp_fut,
+                        send_stream,
+                        cancel_rx,
+                        wire,
+                        tap,
+                        deadline,
+                        socket,
+                    )
+                    .await;
+                }
+                Ok(ClosedUpload::Rest(rest)) => {
+                    return send_rest_and_await_bidi_headers(
+                        resp_fut,
+                        send_stream,
+                        rest,
+                        cancel_rx,
+                        wire,
+                        tap,
+                        deadline,
+                        socket,
+                    )
+                    .await;
+                }
+                Err(status) => return Err(status),
+            }
+        }
         return run_bidi_flushed(
             resp_fut,
             send_stream,
