@@ -1057,25 +1057,25 @@ impl Rpc {
         // `Rpc` is 960 bytes. Keeping it in this generator made every resume
         // copy it. The read future is built only after `self` has moved.
         #[cfg(feature = "grpc-web")]
-        if self.web.is_some() {
-            self.reject(Status::unimplemented(
-                "gRPC-Web supports unary and server-streaming methods",
-            ));
-            return Box::pin(std::future::ready(()))
-                as std::pin::Pin<Box<dyn Future<Output = ()> + '_>>;
-        }
-        let hook = self.response_interceptor.clone();
-        let read = self.run_streaming_request(handler);
-        #[cfg(feature = "grpc-web")]
         {
-            return Box::pin(async move {
+            if self.web.is_some() {
+                self.reject(Status::unimplemented(
+                    "gRPC-Web supports unary and server-streaming methods",
+                ));
+                return BidiDrive::Done;
+            }
+            let hook = self.response_interceptor.clone();
+            let read = self.run_streaming_request(handler);
+            return BidiDrive::Run(Box::pin(async move {
                 if let Some(prepared) = read.await {
                     Self::write_bidi_response(prepared, hook).await;
                 }
-            }) as std::pin::Pin<Box<dyn Future<Output = ()> + '_>>;
+            }));
         }
         #[cfg(not(feature = "grpc-web"))]
         {
+            let hook = self.response_interceptor.clone();
+            let read = self.run_streaming_request(handler);
             async move {
                 if let Some(prepared) = read.await {
                     Self::write_bidi_response(prepared, hook).await;
@@ -1527,6 +1527,28 @@ where
     Fut: Future<Output = Result<T, Status>> + 'a,
 {
     Box::pin(inbound.read_unary(handler))
+}
+
+/// Lets a gRPC-Web rejection and a real bidi call share one future type.
+#[cfg(feature = "grpc-web")]
+enum BidiDrive<F> {
+    Done,
+    Run(std::pin::Pin<Box<F>>),
+}
+
+#[cfg(feature = "grpc-web")]
+impl<F: Future<Output = ()>> Future for BidiDrive<F> {
+    type Output = ();
+
+    fn poll(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<()> {
+        match self.get_mut() {
+            BidiDrive::Done => std::task::Poll::Ready(()),
+            BidiDrive::Run(fut) => fut.as_mut().poll(cx),
+        }
+    }
 }
 
 #[inline(never)]
