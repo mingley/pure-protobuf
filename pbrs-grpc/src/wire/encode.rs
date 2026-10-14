@@ -301,7 +301,15 @@ pub(crate) fn append_frame<T: CodecMessage>(
         return Ok(());
     }
     let prefix = u32::try_from(len).map_err(|_| Status::internal("message too large"))?;
-    sink.reserve(codec::HEADER_LEN + len);
+    let need = codec::HEADER_LEN + len;
+    // A batch of equal frames otherwise reallocates and copies the prefix on
+    // every message. The first small frame reserves room for three more.
+    // `frame_from_msg` keeps the exact size for a single message.
+    if sink.is_empty() && need <= 8 * 1024 {
+        sink.reserve(need.saturating_mul(4));
+    } else {
+        sink.reserve(need);
+    }
     sink.put_u8(0);
     sink.put_slice(&prefix.to_be_bytes());
     msg.encode_payload(sink)?;
@@ -334,6 +342,24 @@ mod tests {
         expect.extend_from_slice(&u32::try_from(len).expect("test len fits u32").to_be_bytes());
         expect.extend_from_slice(&pbrs::Serialize::serialize(&msg).expect("serialize"));
         assert_eq!(frame.concat(), expect);
+    }
+
+    #[test]
+    fn four_small_frames_match_separate_encodes() {
+        let mut p = Payload::new();
+        p.set_body(vec![0xABu8; 32]);
+        let len = pbrs::Serialize::serialized_len(&p);
+        let mut sink = SegSink::new();
+        for _ in 0..4 {
+            append_frame(&mut sink, &p, None, MessageLimits::default(), 0).expect("append");
+        }
+        let batched = sink.finish();
+        let mut expect = Vec::new();
+        for _ in 0..4 {
+            expect.extend(frame_from_msg(&p, len).expect("frame").concat());
+        }
+        assert_eq!(batched.concat(), expect);
+        assert_eq!(batched.seg_count(), 1);
     }
 
     #[test]
