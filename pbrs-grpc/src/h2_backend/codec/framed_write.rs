@@ -143,13 +143,11 @@ where
                         let mut buf = (&mut self.encoder.buf).chain(frame.payload_mut());
                         ready!(poll_write_buf(Pin::new(&mut self.inner), cx, &mut buf))?
                     }
-                    _ => {
-                        ready!(poll_write_buf(
-                            Pin::new(&mut self.inner),
-                            cx,
-                            &mut self.encoder.buf
-                        ))?
-                    }
+                    _ => ready!(poll_write_buf(
+                        Pin::new(&mut self.inner),
+                        cx,
+                        &mut self.encoder.buf
+                    ))?,
                 };
                 if n == 0 {
                     // No progress is possible; retrying would busy-loop.
@@ -232,7 +230,14 @@ where
                     // Encode the frame head to the buffer
                     head.encode(len, self.buf.get_mut());
 
-                    if self.buf.get_ref().remaining() < self.chain_threshold {
+                    // A short header is padded up to `chain_threshold` only when
+                    // the payload is several pieces. One contiguous payload is
+                    // already a single writev vector beside the header, so
+                    // copying its prefix into the header buffer does not
+                    // change the number of vectors.
+                    if self.buf.get_ref().remaining() < self.chain_threshold
+                        && v.payload().chunk().len() < v.payload().remaining()
+                    {
                         let extra_bytes = self.chain_threshold - self.buf.remaining();
                         self.buf.get_mut().put(v.payload_mut().take(extra_bytes));
                     }
