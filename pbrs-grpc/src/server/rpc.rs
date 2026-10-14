@@ -1416,11 +1416,7 @@ impl InboundRpc {
             self.peer_identity.take(),
         )
         .with_extensions(std::mem::take(&mut self.extensions))
-        .with_http(
-            self.authority.clone(),
-            self.scheme.clone(),
-            self.path.clone(),
-        );
+        .with_http(self.authority.take(), self.scheme.take(), self.path.clone());
         if let Some(config) = self.diagnostic_config.take() {
             req.set_diagnostic_config(config);
         }
