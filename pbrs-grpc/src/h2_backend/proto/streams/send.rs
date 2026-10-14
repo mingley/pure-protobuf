@@ -143,12 +143,6 @@ impl Send {
         counts: &mut Counts,
         task: &mut Option<Waker>,
     ) -> Result<(), UserError> {
-        tracing::trace!(
-            "send_headers; frame={:?}; init_window={:?}",
-            frame,
-            self.init_window_sz
-        );
-
         Self::check_headers(frame.fields())?;
 
         let end_stream = frame.is_end_stream();
@@ -347,7 +341,6 @@ impl Send {
 
         stream.state.send_close();
 
-        tracing::trace!("send_trailers -- queuing; frame={:?}", frame);
         self.prioritize
             .queue_frame(frame.into(), buffer, stream, task);
 
