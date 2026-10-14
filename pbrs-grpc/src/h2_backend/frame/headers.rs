@@ -326,7 +326,7 @@ impl Headers {
 
         self.header_block
             .into_encoding(encoder)
-            .encode(&head, dst, Some(encoder), |_| {})
+            .encode(&head, dst, Some(encoder), 0, |_| {})
     }
 
     fn head(&self) -> Head {
@@ -551,7 +551,7 @@ impl PushPromise {
 
         self.header_block
             .into_encoding(encoder)
-            .encode(&head, dst, Some(encoder), |dst| {
+            .encode(&head, dst, Some(encoder), 4, |dst| {
                 dst.put_u32(promised_id.into());
             })
     }
@@ -594,7 +594,7 @@ impl Continuation {
         // Get the CONTINUATION frame head
         let head = self.head();
 
-        self.header_block.encode(&head, dst, None, |_| {})
+        self.header_block.encode(&head, dst, None, 0, |_| {})
     }
 }
 
@@ -698,16 +698,30 @@ impl EncodingHeaderBlock {
         head: &Head,
         dst: &mut EncodeBuf<'_>,
         encoder: Option<&mut hpack::Encoder>,
+        prefix_len: usize,
         f: F,
     ) -> Option<Continuation>
     where
         F: FnOnce(&mut EncodeBuf<'_>),
     {
+        let payload_len = self.hpack.len() + prefix_len;
+        // A block that fits in this frame can carry its real length in the
+        // head. The zero-length head plus a later patch is the continuation
+        // path, used when the block is larger than the frame.
+        if payload_len + head.encode_len() <= dst.remaining_mut() {
+            head.encode(payload_len, dst);
+            f(dst);
+            dst.put_slice(&self.hpack);
+            if let Some(encoder) = encoder {
+                encoder.return_scratch(self.hpack);
+            }
+            return None;
+        }
+
         let head_pos = dst.get_ref().len();
 
-        // At this point, we don't know how big the h2 frame will be.
-        // So, we write the head with length 0, then write the body, and
-        // finally write the length once we know the size.
+        // The block does not fit. Write the head with length 0, then the
+        // body that fits, and patch the length once that prefix is known.
         head.encode(0, dst);
 
         let payload_pos = dst.get_ref().len();
