@@ -105,9 +105,14 @@ pub(crate) fn grpc_trailers(status: &Status) -> Result<HeaderMap, Status> {
         && status.retry_pushback().is_none()
     {
         // The overwhelmingly common case: one static header, no formatting.
-        let mut map = HeaderMap::with_capacity(1);
-        map.insert(GRPC_STATUS, STATUS_OK);
-        return Ok(map);
+        return Ok(crate::h2_backend::header_pool::take(
+            crate::h2_backend::header_pool::Slot::Trailers,
+            || {
+                let mut map = HeaderMap::with_capacity(1);
+                map.insert(GRPC_STATUS, STATUS_OK);
+                map
+            },
+        ));
     }
     let mut map = HeaderMap::with_capacity(6);
     let code = HeaderValue::from_str(&status.code().to_i32().to_string())
@@ -225,7 +230,10 @@ pub(crate) fn send_ok_headers(
     // Default responses repeat the same two headers. Clone that block
     // instead of hashing the names again.
     if md.is_empty() && send_codec.is_none() && accept_gzip {
-        *res.headers_mut() = crate::wire::headers::standard_response_headers().clone();
+        *res.headers_mut() = crate::h2_backend::header_pool::take(
+            crate::h2_backend::header_pool::Slot::Response,
+            || crate::wire::headers::standard_response_headers().clone(),
+        );
         return respond
             .send_response(res, false)
             .map_err(|e| Status::internal(e.to_string()));

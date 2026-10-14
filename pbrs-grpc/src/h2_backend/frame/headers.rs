@@ -858,6 +858,59 @@ impl fmt::Debug for PushPromiseFlag {
 
 // ===== HeaderBlock =====
 
+/// A header map the connection sends again on the next RPC.
+#[derive(Copy, Clone, Debug)]
+enum StandardMap {
+    None,
+    Request,
+    Response,
+    Trailers,
+}
+
+const CT: u8 = 1;
+const TE: u8 = 2;
+const ACCEPT: u8 = 4;
+const UA: u8 = 8;
+const STATUS: u8 = 16;
+const REQUEST_BITS: u8 = CT | TE | ACCEPT | UA;
+const RESPONSE_BITS: u8 = CT | ACCEPT;
+
+const GRPC_ACCEPT_NAME: HeaderName = HeaderName::from_static("grpc-accept-encoding");
+const GRPC_STATUS_NAME: HeaderName = HeaderName::from_static("grpc-status");
+#[cfg(not(feature = "zstd"))]
+const ACCEPT_VALUE: &[u8] = b"identity,gzip,deflate";
+#[cfg(feature = "zstd")]
+const ACCEPT_VALUE: &[u8] = b"identity,gzip,deflate,zstd";
+const UA_VALUE: &[u8] = concat!("pbrs-grpc/", env!("CARGO_PKG_VERSION")).as_bytes();
+
+impl StandardMap {
+    fn slot(self) -> Option<crate::h2_backend::header_pool::Slot> {
+        match self {
+            StandardMap::Request => Some(crate::h2_backend::header_pool::Slot::Request),
+            StandardMap::Response => Some(crate::h2_backend::header_pool::Slot::Response),
+            StandardMap::Trailers => Some(crate::h2_backend::header_pool::Slot::Trailers),
+            StandardMap::None => None,
+        }
+    }
+}
+
+fn standard_header_bit(name: &HeaderName, value: &HeaderValue) -> u8 {
+    let bytes = value.as_bytes();
+    if name == header::CONTENT_TYPE && bytes == b"application/grpc" {
+        CT
+    } else if name == header::TE && bytes == b"trailers" {
+        TE
+    } else if name == GRPC_ACCEPT_NAME && bytes == ACCEPT_VALUE {
+        ACCEPT
+    } else if name == header::USER_AGENT && bytes == UA_VALUE {
+        UA
+    } else if name == GRPC_STATUS_NAME && bytes == b"0" {
+        STATUS
+    } else {
+        0
+    }
+}
+
 impl HeaderBlock {
     fn load(
         &mut self,
@@ -1051,15 +1104,27 @@ impl HeaderBlock {
         hpack.clear();
         // The same headers on a stable table encode to the same bytes.
         // The key buffer lives on the encoder, so a hit does not allocate.
+        let mut recycle = StandardMap::None;
         let keyed = if encoder.has_size_update() {
             false
         } else {
             encoder.clear_key();
-            Self::fill_encoding_key(encoder.key_buf(), &self.pseudo, &self.fields)
+            Self::fill_encoding_key(
+                encoder.key_buf(),
+                &self.pseudo,
+                &self.fields,
+                &mut recycle,
+            )
         };
         if keyed {
             if let Some(bytes) = encoder.cached_block() {
                 hpack.extend_from_slice(bytes);
+                // The block is cached, so this map is not needed for encoding.
+                // A standard gRPC block goes back to the pool instead of being freed.
+                let fields = self.fields;
+                if let Some(slot) = recycle.slot() {
+                    crate::h2_backend::header_pool::recycle(slot, fields);
+                }
                 return EncodingHeaderBlock { hpack };
             }
         }
@@ -1081,8 +1146,14 @@ impl HeaderBlock {
     /// Writes the cache key into `key`, which the caller has cleared.
     ///
     /// Returns false when the headers do not fit in the 256-byte key. Those
-    /// blocks are encoded normally and not cached.
-    fn fill_encoding_key(key: &mut Vec<u8>, pseudo: &Pseudo, fields: &HeaderMap) -> bool {
+    /// blocks are encoded normally and not cached. `recycle` is set when
+    /// `fields` is one of the three maps the pool reuses.
+    fn fill_encoding_key(
+        key: &mut Vec<u8>,
+        pseudo: &Pseudo,
+        fields: &HeaderMap,
+        recycle: &mut StandardMap,
+    ) -> bool {
         fn push(key: &mut Vec<u8>, bytes: Option<&[u8]>) -> bool {
             match bytes {
                 None => {
@@ -1130,11 +1201,29 @@ impl HeaderBlock {
         if !ok {
             return false;
         }
+        let mut bits = 0u8;
+        let mut count = 0u8;
+        let mut ordinary = true;
         for (name, value) in fields {
+            if ordinary {
+                let bit = standard_header_bit(name, value);
+                if bit == 0 {
+                    ordinary = false;
+                } else {
+                    bits |= bit;
+                    count += 1;
+                }
+            }
             if !push(key, Some(name.as_str().as_bytes())) || !push(key, Some(value.as_bytes())) {
                 return false;
             }
         }
+        *recycle = match (ordinary, count, bits) {
+            (true, 4, REQUEST_BITS) => StandardMap::Request,
+            (true, 2, RESPONSE_BITS) => StandardMap::Response,
+            (true, 1, STATUS) => StandardMap::Trailers,
+            _ => StandardMap::None,
+        };
         true
     }
 
@@ -1516,6 +1605,83 @@ mod test {
         let changed_again = encode_block(&mut encoder, path, "application/grpc+proto");
         let changed_stable = encode_block(&mut encoder, path, "application/grpc+proto");
         assert_eq!(&changed_again[9..], &changed_stable[9..]);
+    }
+
+    fn encode_frame(encoder: &mut Encoder, frame: Headers) {
+        let mut dst = BytesMut::new();
+        assert!(
+            frame
+                .encode(encoder, &mut (&mut dst).limit(1024))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn standard_blocks_return_to_the_header_pool() {
+        use crate::h2_backend::header_pool::{self, Slot};
+
+        let _ = header_pool::take(Slot::Request, HeaderMap::new);
+        let _ = header_pool::take(Slot::Response, HeaderMap::new);
+        let _ = header_pool::take(Slot::Trailers, HeaderMap::new);
+
+        let mut map = HeaderMap::with_capacity(4);
+        map.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/grpc"),
+        );
+        map.insert(header::TE, HeaderValue::from_static("trailers"));
+        map.insert(
+            super::GRPC_ACCEPT_NAME.clone(),
+            HeaderValue::from_bytes(super::ACCEPT_VALUE).unwrap(),
+        );
+        map.insert(
+            header::USER_AGENT,
+            HeaderValue::from_static(concat!("pbrs-grpc/", env!("CARGO_PKG_VERSION"))),
+        );
+        let mut encoder = Encoder::default();
+        let path = Uri::from_static("http://localhost/echo.Echo/Echo");
+        for _ in 0..3 {
+            encode_frame(
+                &mut encoder,
+                Headers::new(
+                    StreamId::from(1),
+                    Pseudo::request(Method::POST, path.clone(), None),
+                    map.clone(),
+                ),
+            );
+        }
+        let pooled = header_pool::take(Slot::Request, HeaderMap::new);
+        assert_eq!(pooled.len(), 4);
+        assert_eq!(
+            pooled.get(header::CONTENT_TYPE).map(|v| v.as_bytes()),
+            Some(b"application/grpc".as_slice())
+        );
+
+        let _ = header_pool::take(Slot::Request, HeaderMap::new);
+        let mut weird = HeaderMap::new();
+        weird.insert(
+            HeaderName::from_static("x-test"),
+            HeaderValue::from_static("1"),
+        );
+        let weird_path = Uri::from_static("http://localhost/echo.Echo/Echo");
+        encode_frame(
+            &mut encoder,
+            Headers::new(
+                StreamId::from(1),
+                Pseudo::request(Method::POST, weird_path.clone(), None),
+                weird.clone(),
+            ),
+        );
+        encode_frame(
+            &mut encoder,
+            Headers::new(
+                StreamId::from(1),
+                Pseudo::request(Method::POST, weird_path, None),
+                weird,
+            ),
+        );
+        let pooled = header_pool::take(Slot::Request, HeaderMap::new);
+        assert!(pooled.is_empty());
     }
 
     #[test]

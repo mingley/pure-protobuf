@@ -103,7 +103,10 @@ pub(crate) fn grpc_request(
         && accept_gzip
         && user_agent == &PBRS_GRPC_UA
     {
-        *req.headers_mut() = standard_request_headers().clone();
+        *req.headers_mut() = crate::h2_backend::header_pool::take(
+            crate::h2_backend::header_pool::Slot::Request,
+            || standard_request_headers().clone(),
+        );
         return Ok(req);
     }
     // Exact sizing: the fixed headers plus user metadata. A minimal table

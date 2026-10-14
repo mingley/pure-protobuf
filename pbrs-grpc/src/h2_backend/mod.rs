@@ -139,6 +139,7 @@ macro_rules! ready {
 #[cfg_attr(any(), allow(missing_docs))]
 mod codec;
 mod error;
+pub(crate) mod header_pool;
 mod hpack;
 
 #[cfg(not(any()))]
