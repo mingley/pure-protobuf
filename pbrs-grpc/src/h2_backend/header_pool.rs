@@ -17,20 +17,22 @@ pub(crate) enum Slot {
     Trailers,
 }
 
-struct Pool([Cell<Option<HeaderMap>>; 3]);
-
 thread_local! {
-    static POOL: Pool = const {
-        Pool([
-            Cell::new(None),
-            Cell::new(None),
-            Cell::new(None),
-        ])
-    };
+    static REQUEST_MAP: Cell<Option<HeaderMap>> = const { Cell::new(None) };
+    static RESPONSE_MAP: Cell<Option<HeaderMap>> = const { Cell::new(None) };
+    static TRAILER_MAP: Cell<Option<HeaderMap>> = const { Cell::new(None) };
+}
+
+fn slot_map(slot: Slot) -> &'static std::thread::LocalKey<Cell<Option<HeaderMap>>> {
+    match slot {
+        Slot::Request => &REQUEST_MAP,
+        Slot::Response => &RESPONSE_MAP,
+        Slot::Trailers => &TRAILER_MAP,
+    }
 }
 
 pub(crate) fn take(slot: Slot, make: impl FnOnce() -> HeaderMap) -> HeaderMap {
-    POOL.with(|pool| pool.0[slot as usize].take().unwrap_or_else(make))
+    slot_map(slot).take().unwrap_or_else(make)
 }
 
 /// `grpc-status: 0` and nothing else.
@@ -118,9 +120,7 @@ pub(crate) fn recycle_received_response(map: HeaderMap) {
 }
 
 pub(crate) fn recycle(slot: Slot, map: HeaderMap) {
-    POOL.with(|pool| {
-        drop(pool.0[slot as usize].replace(Some(map)));
-    });
+    slot_map(slot).set(Some(map));
 }
 
 /// Replace `dst` with `src`.
