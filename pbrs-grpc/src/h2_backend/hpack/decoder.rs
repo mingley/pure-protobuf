@@ -288,10 +288,9 @@ impl Decoder {
             && block.decoded.stock_facts.is_some_and(|facts| facts.stock)
         {
             let decoded = &block.decoded;
-            let want = crate::h2_backend::header_pool::accept_encoding_bytes(&decoded.fields);
             let fields = match crate::h2_backend::header_pool::take_received_response() {
                 Some(spare)
-                    if crate::h2_backend::header_pool::accept_encoding_bytes(&spare) == want =>
+                    if crate::h2_backend::header_pool::same_two_values(&spare, &decoded.fields) =>
                 {
                     spare
                 }

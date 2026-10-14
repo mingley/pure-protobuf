@@ -82,14 +82,26 @@ pub(crate) fn is_stock_response(fields: &HeaderMap) -> bool {
     saw_type && saw_accept
 }
 
-/// The `grpc-accept-encoding` value, without hashing the name.
-pub(crate) fn accept_encoding_bytes(fields: &HeaderMap) -> &[u8] {
-    for (name, value) in fields {
-        if name.as_str() == "grpc-accept-encoding" {
-            return value.as_bytes();
-        }
-    }
-    b""
+/// Both maps are two-header stock responses in the same order.
+///
+/// Shared header values compare by address first. A clone of a static or
+/// refcounted value keeps that address, so the steady hit does not scan names
+/// or memcmp the bytes.
+pub(crate) fn same_two_values(left: &HeaderMap, right: &HeaderMap) -> bool {
+    let mut left_iter = left.iter();
+    let mut right_iter = right.iter();
+    let (Some((_, left_a)), Some((_, right_a))) = (left_iter.next(), right_iter.next()) else {
+        return false;
+    };
+    let (Some((_, left_b)), Some((_, right_b))) = (left_iter.next(), right_iter.next()) else {
+        return false;
+    };
+    same_value(left_a.as_bytes(), right_a.as_bytes())
+        && same_value(left_b.as_bytes(), right_b.as_bytes())
+}
+
+fn same_value(left: &[u8], right: &[u8]) -> bool {
+    left.len() == right.len() && (left.as_ptr() == right.as_ptr() || left == right)
 }
 
 thread_local! {
