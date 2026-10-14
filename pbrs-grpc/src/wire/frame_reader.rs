@@ -100,6 +100,10 @@ fn has_error_status(headers: &HeaderMap) -> bool {
 /// Next HTTP/2 DATA chunk. Flow-control capacity is *not* released; the caller
 /// releases it once the chunk has been handed on, which is what turns a slow
 /// reader into peer backpressure.
+#[allow(
+    dead_code,
+    reason = "delayed-release callers; the steady path uses poll_data_released"
+)]
 pub(crate) fn poll_data(
     recv: &mut backend::RecvStream,
     cx: &mut Context<'_>,
@@ -112,10 +116,37 @@ pub(crate) fn poll_data(
     }
 }
 
+/// [`poll_data`] plus the immediate window release, under one stream lock.
+pub(crate) fn poll_data_released(
+    recv: &mut backend::RecvStream,
+    cx: &mut Context<'_>,
+) -> Poll<Result<Option<Bytes>, Status>> {
+    match recv.poll_data_released(cx) {
+        Poll::Pending => Poll::Pending,
+        Poll::Ready(None) => Poll::Ready(Ok(None)),
+        Poll::Ready(Some(Ok(bytes))) => Poll::Ready(Ok(Some(bytes))),
+        Poll::Ready(Some(Err(e))) => Poll::Ready(Err(h2_error(e))),
+    }
+}
+
+#[allow(
+    dead_code,
+    reason = "delayed-release callers; the steady path uses next_data_released"
+)]
 pub(crate) async fn next_data(recv: &mut backend::RecvStream) -> Result<Option<Bytes>, Status> {
     poll_fn(|cx| poll_data(recv, cx)).await
 }
 
+pub(crate) async fn next_data_released(
+    recv: &mut backend::RecvStream,
+) -> Result<Option<Bytes>, Status> {
+    poll_fn(|cx| poll_data_released(recv, cx)).await
+}
+
+#[allow(
+    dead_code,
+    reason = "delayed-release callers; the steady path releases inside poll_data_released"
+)]
 pub(crate) fn release(recv: &mut backend::RecvStream, n: usize) -> Result<(), Status> {
     if n == 0 {
         return Ok(());
@@ -229,10 +260,8 @@ pub(crate) async fn read_one_message<T: CodecMessage>(
 ) -> Result<Framed<T>, Status> {
     let mut reader = FrameReader::new(limits);
     let mut found: Option<Framed<T>> = None;
-    while let Some(chunk) = next_data(recv).await? {
-        let n = chunk.len();
+    while let Some(chunk) = next_data_released(recv).await? {
         reader.push(chunk);
-        release(recv, n)?;
         while let Some(frame) = reader.next_frame()? {
             if found.is_some() {
                 return Err(Status::internal("unary rpc received more than one message"));
@@ -401,15 +430,11 @@ impl<T> WireStream<T> {
                     }
                 };
             }
-            match poll_data(&mut self.recv, cx) {
+            match poll_data_released(&mut self.recv, cx) {
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
                 Poll::Ready(Ok(Some(chunk))) => {
-                    let n = chunk.len();
                     self.reader.push(chunk);
-                    if let Err(e) = release(&mut self.recv, n) {
-                        return Poll::Ready(Err(e));
-                    }
                 }
                 Poll::Ready(Ok(None)) => {
                     self.ended = true;

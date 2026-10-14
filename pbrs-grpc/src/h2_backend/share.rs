@@ -428,6 +428,14 @@ impl RecvStream {
         self.inner.inner.poll_data(cx).map_err(Into::into)
     }
 
+    /// Poll for the next data frame and release its window in one lock.
+    pub fn poll_data_released(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<Bytes, crate::h2_backend::Error>>> {
+        self.inner.inner.poll_data_released(cx).map_err(Into::into)
+    }
+
     #[doc(hidden)]
     pub fn poll_trailers(
         &mut self,

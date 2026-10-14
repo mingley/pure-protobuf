@@ -1743,6 +1743,42 @@ impl OpaqueStreamRef {
             })
     }
 
+    /// Take the next chunk and return its window under one stream lock.
+    ///
+    /// The split `poll_data` + `release_capacity` pair locks twice per chunk.
+    /// Callers that release immediately use this instead.
+    pub fn poll_data_released(
+        &mut self,
+        cx: &Context,
+    ) -> Poll<Option<Result<Bytes, proto::Error>>> {
+        let mut me = self.inner.lock().unwrap();
+        let me = &mut *me;
+        let mut stream = me.store.resolve(self.key);
+        match me.actions.recv.poll_data(cx, &mut stream) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Ready(Some(Err(err))) => Poll::Ready(Some(Err(err))),
+            Poll::Ready(Some(Ok(data))) => {
+                if data.is_budgeted {
+                    me.counts.release_data_frame(data.payload.len());
+                }
+                let n = data.payload.len();
+                if n > 0
+                    && me
+                        .actions
+                        .recv
+                        .release_capacity(n as WindowSize, &mut stream, &mut me.actions.task)
+                        .is_err()
+                {
+                    return Poll::Ready(Some(Err(proto::Error::library_go_away(
+                        Reason::INTERNAL_ERROR,
+                    ))));
+                }
+                Poll::Ready(Some(Ok(data.payload)))
+            }
+        }
+    }
+
     pub fn poll_trailers(&mut self, cx: &Context) -> Poll<Option<Result<HeaderMap, proto::Error>>> {
         let mut me = self.inner.lock().unwrap();
         let me = &mut *me;

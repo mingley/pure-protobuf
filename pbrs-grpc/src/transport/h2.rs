@@ -255,11 +255,31 @@ impl RecvStream {
         Self { inner, recorder }
     }
 
+    /// Next DATA chunk, with its receive window returned in the same lock.
+    pub(crate) fn poll_data_released(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<Bytes, Error>>> {
+        match self.inner.poll_data_released(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Ready(Some(Ok(bytes))) => {
+                self.recorder.record_data(bytes.len());
+                Poll::Ready(Some(Ok(bytes)))
+            }
+            Poll::Ready(Some(Err(error))) => Poll::Ready(Some(Err(Error(error)))),
+        }
+    }
+
     /// Release receive window without cloning the stream ref.
     ///
     /// `flow_control` clones that ref so the handle can outlive the stream
     /// borrow. The steady read path releases and drops the handle immediately,
     /// so it uses the borrowed window instead.
+    #[allow(
+        dead_code,
+        reason = "delayed-release callers; the steady path releases in the same lock"
+    )]
     pub(crate) fn release_capacity(&mut self, sz: usize) -> Result<(), Error> {
         self.inner.flow_control().release_capacity(sz).map_err(Error)
     }
