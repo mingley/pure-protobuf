@@ -217,6 +217,53 @@ pub(crate) fn accepts_gzip(headers: &HeaderMap) -> bool {
     accepts_codec(headers, CompressionAlgorithm::Gzip)
 }
 
+/// Accept-encoding, grpc-encoding, and grpc-timeout from one pass.
+///
+/// The default request is four headers and none of the three names need a
+/// hashed lookup. Larger or unusual blocks use the single-key helpers.
+pub(crate) fn request_facts(headers: &HeaderMap) -> (bool, bool, Option<&str>, Option<Duration>) {
+    if headers.len() > 8 {
+        let (gzip, deflate) = accept_pair(headers);
+        return (
+            gzip,
+            deflate,
+            grpc_encoding(headers),
+            timeout_from_headers(headers),
+        );
+    }
+    let mut gzip = false;
+    let mut deflate = false;
+    let mut encoding = None;
+    let mut timeout = None;
+    let mut unusual_accept = false;
+    for (name, value) in headers {
+        if name == GRPC_ACCEPT_ENCODING && !gzip && !deflate && !unusual_accept {
+            if *value == IDENTITY_GZIP_DEFLATE {
+                gzip = true;
+                deflate = true;
+            } else {
+                unusual_accept = true;
+            }
+        } else if name == GRPC_ENCODING && encoding.is_none() {
+            encoding = value.to_str().ok().and_then(|raw| {
+                let token = encoding_token(raw);
+                if token.is_empty() || token.eq_ignore_ascii_case("identity") {
+                    None
+                } else {
+                    Some(token)
+                }
+            });
+        } else if name == GRPC_TIMEOUT && timeout.is_none() {
+            timeout = value.to_str().ok().and_then(crate::timeout::parse_timeout);
+        }
+    }
+    if unusual_accept {
+        let (gzip, deflate) = accept_pair(headers);
+        return (gzip, deflate, encoding, timeout);
+    }
+    (gzip, deflate, encoding, timeout)
+}
+
 /// Gzip and deflate advertisements from one lookup of `grpc-accept-encoding`.
 pub(crate) fn accept_pair(headers: &HeaderMap) -> (bool, bool) {
     let Some(value) = headers.get(GRPC_ACCEPT_ENCODING) else {
@@ -460,5 +507,44 @@ pub(crate) fn soonest(a: Option<Duration>, b: Option<Duration>) -> Option<Durati
         (Some(x), Some(y)) => Some(x.min(y)),
         (Some(x), None) | (None, Some(x)) => Some(x),
         (None, None) => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use http::HeaderValue;
+    use std::time::Duration;
+
+    #[test]
+    fn request_facts_matches_the_single_key_helpers() {
+        let mut headers = HeaderMap::new();
+        headers.insert(http::header::CONTENT_TYPE, APPLICATION_GRPC);
+        headers.insert(http::header::TE, TRAILERS);
+        headers.insert(GRPC_ACCEPT_ENCODING, IDENTITY_GZIP_DEFLATE);
+        headers.insert(USER_AGENT, PBRS_GRPC_UA.clone());
+        assert_eq!(
+            request_facts(&headers),
+            (
+                accept_pair(&headers).0,
+                accept_pair(&headers).1,
+                grpc_encoding(&headers),
+                timeout_from_headers(&headers),
+            )
+        );
+
+        headers.insert(GRPC_ENCODING, HeaderValue::from_static("gzip"));
+        headers.insert(GRPC_TIMEOUT, HeaderValue::from_static("100m"));
+        let facts = request_facts(&headers);
+        assert_eq!(facts.0, accept_pair(&headers).0);
+        assert_eq!(facts.1, accept_pair(&headers).1);
+        assert_eq!(facts.2, grpc_encoding(&headers));
+        assert_eq!(facts.3, timeout_from_headers(&headers));
+        assert_eq!(facts.3, Some(Duration::from_millis(100)));
+
+        headers.insert(GRPC_ACCEPT_ENCODING, HeaderValue::from_static("gzip"));
+        let facts = request_facts(&headers);
+        assert_eq!((facts.0, facts.1), accept_pair(&headers));
+        assert_eq!(facts.2, grpc_encoding(&headers));
     }
 }
