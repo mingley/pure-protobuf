@@ -82,16 +82,25 @@ impl Send {
     }
 
     fn check_headers(fields: &http::HeaderMap) -> Result<(), UserError> {
-        // 8.1.2.2. Connection-Specific Header Fields
-        if fields.contains_key(http::header::CONNECTION)
-            || fields.contains_key(http::header::TRANSFER_ENCODING)
-            || fields.contains_key(http::header::UPGRADE)
-            || fields.contains_key("keep-alive")
-            || fields.contains_key("proxy-connection")
-        {
-            tracing::debug!("illegal connection-specific headers found");
-            return Err(UserError::MalformedHeaders);
-        } else if let Some(te) = fields.get(http::header::TE) {
+        // RFC 9113 §8.2.2. One pass: `contains_key("keep-alive")` parses a
+        // header name on every block, and gRPC blocks do not carry these names.
+        // `get` returns the first value, so a repeated `te` is judged by the first.
+        let mut te = None;
+        for (name, value) in fields.iter() {
+            if name == http::header::CONNECTION
+                || name == http::header::TRANSFER_ENCODING
+                || name == http::header::UPGRADE
+                || name.as_str() == "keep-alive"
+                || name.as_str() == "proxy-connection"
+            {
+                tracing::debug!("illegal connection-specific headers found");
+                return Err(UserError::MalformedHeaders);
+            }
+            if te.is_none() && name == http::header::TE {
+                te = Some(value);
+            }
+        }
+        if let Some(te) = te {
             if te != "trailers" {
                 tracing::debug!("illegal connection-specific headers found");
                 return Err(UserError::MalformedHeaders);
@@ -667,5 +676,55 @@ impl Send {
 
     pub(crate) fn is_extended_connect_protocol_enabled(&self) -> bool {
         self.is_extended_connect_protocol_enabled
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn map(pairs: &[(&'static str, &'static str)]) -> http::HeaderMap {
+        let mut fields = http::HeaderMap::new();
+        for (name, value) in pairs {
+            fields.append(*name, http::HeaderValue::from_static(value));
+        }
+        fields
+    }
+
+    #[test]
+    fn outbound_header_accepts_te_trailers() {
+        assert!(Send::check_headers(&map(&[("te", "trailers")])).is_ok());
+        assert!(Send::check_headers(&http::HeaderMap::new()).is_ok());
+    }
+
+    #[test]
+    fn outbound_header_rejects_other_te_and_judges_the_first_value() {
+        assert!(matches!(
+            Send::check_headers(&map(&[("te", "gzip")])),
+            Err(UserError::MalformedHeaders)
+        ));
+        let mut fields = http::HeaderMap::new();
+        fields.append("te", http::HeaderValue::from_static("trailers"));
+        fields.append("te", http::HeaderValue::from_static("gzip"));
+        assert!(Send::check_headers(&fields).is_ok());
+    }
+
+    #[test]
+    fn outbound_header_rejects_connection_specific_names() {
+        for name in [
+            "connection",
+            "transfer-encoding",
+            "upgrade",
+            "keep-alive",
+            "proxy-connection",
+        ] {
+            assert!(
+                matches!(
+                    Send::check_headers(&map(&[(name, "x")])),
+                    Err(UserError::MalformedHeaders)
+                ),
+                "{name}"
+            );
+        }
     }
 }
