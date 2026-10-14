@@ -288,20 +288,41 @@ impl BytesStr {
         if value.len() > 128 {
             return BytesStr::from(value);
         }
-        thread_local! {
-            static SLOTS: [Cell<Option<BytesStr>>; 2] = [const { Cell::new(None) }; 2];
+        struct Saved {
+            ptr: usize,
+            len: usize,
+            value: BytesStr,
         }
+        thread_local! {
+            static SLOTS: [Cell<Option<Saved>>; 2] = [const { Cell::new(None) }; 2];
+        }
+        let ptr = value.as_ptr() as usize;
+        let len = value.len();
         SLOTS.with(|slots| {
             let cell = &slots[slot as usize];
             if let Some(existing) = cell.take() {
-                if existing.as_str() == value {
-                    let cloned = existing.clone();
+                // The caller repeats the same path and authority allocation.
+                if existing.len == len && existing.ptr == ptr {
+                    let cloned = existing.value.clone();
                     cell.set(Some(existing));
+                    return cloned;
+                }
+                if existing.value.as_str() == value {
+                    let cloned = existing.value.clone();
+                    cell.set(Some(Saved {
+                        ptr,
+                        len,
+                        value: existing.value,
+                    }));
                     return cloned;
                 }
             }
             let made = BytesStr::from(value);
-            cell.set(Some(made.clone()));
+            cell.set(Some(Saved {
+                ptr,
+                len,
+                value: made.clone(),
+            }));
             made
         })
     }
