@@ -2262,7 +2262,9 @@ impl super::Channel {
                             Err(status) => Err(status),
                         }
                     } else {
-                        run_bidi(
+                        // Cold: the upload is not a closed channel. Box it so
+                        // the call future's hot state does not include it.
+                        Box::pin(run_bidi(
                             resp_fut,
                             send,
                             rx,
@@ -2272,11 +2274,11 @@ impl super::Channel {
                             deadline,
                             budget.clone(),
                             channelz_socket,
-                        )
+                        ))
                         .await
                     }
                 } else {
-                    run_bidi(
+                    Box::pin(run_bidi(
                         resp_fut,
                         send,
                         rx,
@@ -2286,7 +2288,7 @@ impl super::Channel {
                         deadline,
                         budget,
                         channelz_socket,
-                    )
+                    ))
                     .await
                 };
                 let response = match bidi_result {
