@@ -254,6 +254,15 @@ impl RecvStream {
     fn new(inner: crate::h2_backend::RecvStream, recorder: bdp::Recorder) -> Self {
         Self { inner, recorder }
     }
+
+    /// Release receive window without cloning the stream ref.
+    ///
+    /// `flow_control` clones that ref so the handle can outlive the stream
+    /// borrow. The steady read path releases and drops the handle immediately,
+    /// so it uses the borrowed window instead.
+    pub(crate) fn release_capacity(&mut self, sz: usize) -> Result<(), Error> {
+        self.inner.flow_control().release_capacity(sz).map_err(Error)
+    }
 }
 
 impl fmt::Debug for RecvStream {

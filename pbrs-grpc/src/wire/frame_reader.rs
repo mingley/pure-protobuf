@@ -11,7 +11,7 @@ use crate::limits::MessageLimits;
 use crate::metadata::{self, Metadata};
 use crate::status::{Code, Status, parse_pushback_value};
 use crate::stream::{Framed, Streaming};
-use crate::transport::{Error as TransportError, FlowControl, RecvStream, h2 as backend};
+use crate::transport::{Error as TransportError, RecvStream, h2 as backend};
 use bytes::{Bytes, BytesMut};
 use http::{HeaderMap, StatusCode};
 use std::future::{Future, poll_fn};
@@ -109,8 +109,7 @@ pub(crate) fn release(recv: &mut backend::RecvStream, n: usize) -> Result<(), St
     if n == 0 {
         return Ok(());
     }
-    recv.flow_control()
-        .release_capacity(n)
+    recv.release_capacity(n)
         .map_err(|e| Status::internal(e.to_string()))
 }
 
