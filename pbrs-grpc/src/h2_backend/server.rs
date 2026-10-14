@@ -1664,8 +1664,6 @@ impl proto::Peer for Peer {
     ) -> Result<Self::Poll, Error> {
         use http::{uri, Version};
 
-        let mut b = Request::builder();
-
         macro_rules! malformed {
             ($($arg:tt)*) => {{
                 tracing::debug!($($arg)*);
@@ -1673,24 +1671,17 @@ impl proto::Peer for Peer {
             }}
         }
 
-        b = b.version(Version::HTTP_2);
-
         let is_connect;
-        if let Some(method) = pseudo.method {
+        let method = if let Some(method) = pseudo.method {
             is_connect = method == Method::CONNECT;
-            b = b.method(method);
+            method
         } else {
             malformed!("malformed headers: missing method");
-        }
+        };
 
         let has_protocol = pseudo.protocol.is_some();
-        if has_protocol {
-            if is_connect {
-                // Assert that we have the right type.
-                b = b.extension::<crate::h2_backend::ext::Protocol>(pseudo.protocol.unwrap());
-            } else {
-                malformed!("malformed headers: :protocol on non-CONNECT request");
-            }
+        if has_protocol && !is_connect {
+            malformed!("malformed headers: :protocol on non-CONNECT request");
         }
 
         if pseudo.status.is_some() {
@@ -1755,18 +1746,22 @@ impl proto::Peer for Peer {
             malformed!("malformed headers: missing path in extended CONNECT");
         }
 
-        b = b.uri(parts);
-
-        let mut request = match b.body(()) {
-            Ok(request) => request,
+        let uri = match uri::Uri::from_parts(parts) {
+            Ok(uri) => uri,
             Err(e) => {
-                // TODO: Should there be more specialized handling for different
-                // kinds of errors
                 proto_err!(stream: "error building request: {}; stream={:?}", e, stream_id);
                 return Err(Error::library_reset(stream_id, Reason::PROTOCOL_ERROR));
             }
         };
-
+        // The builder's method/uri/version closures were copies on every
+        // request. The headers map is the one HPACK already decoded.
+        let mut request = Request::new(());
+        *request.method_mut() = method;
+        *request.uri_mut() = uri;
+        *request.version_mut() = Version::HTTP_2;
+        if let Some(protocol) = pseudo.protocol {
+            request.extensions_mut().insert(protocol);
+        }
         *request.headers_mut() = fields;
 
         Ok(request)
