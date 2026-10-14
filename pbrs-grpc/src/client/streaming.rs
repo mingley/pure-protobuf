@@ -27,6 +27,8 @@ use crate::wire::{
 use bytes::Bytes;
 use http::HeaderValue;
 use http::uri::Authority;
+use std::future::Future;
+use std::pin::Pin;
 use std::time::Duration;
 use tokio::sync::watch;
 
@@ -229,7 +231,6 @@ where
                 wire.accept_gzip,
                 tap.cloned(),
             )
-            .await
             .map_err(|e| commitment.classify(e))
         },
         cancel_rx.clone(),
@@ -527,7 +528,6 @@ where
                 wire.accept_gzip,
                 tap.clone(),
             )
-            .await
         };
         tokio::pin!(response_fut);
         let until_deadline = async {
@@ -708,6 +708,188 @@ fn write_closed_upload<T: CodecMessage>(
 
 #[allow(
     clippy::too_many_arguments,
+    reason = "response half plus cancel after a closed upload with no deadline"
+)]
+/// Headers and cancel after a closed upload, when the call has no deadline.
+///
+/// The sleep future is absent, so a resumed call does not copy it.
+async fn await_ready_bidi_headers<Resp>(
+    resp_fut: backend::ResponseFuture,
+    send_stream: backend::SendStream,
+    cancel_rx: watch::Receiver<bool>,
+    wire: Wire,
+    tap: Option<CallLogger>,
+    socket: Option<crate::channelz::SocketId>,
+) -> Result<Response<Streaming<Resp>>, Status>
+where
+    Resp: CodecMessage + Send + 'static,
+{
+    let mut send = ResetSend::new(send_stream);
+    let later_cancel = cancel_rx.clone();
+    let mut cancelled = cancel_rx;
+    let response_fut = async {
+        let response = resp_fut.await.map_err(Status::from_h2_post_dispatch)?;
+        finish_stream::<Resp>(response, wire.limits, None, wire.accept_gzip, tap.clone())
+    };
+    tokio::pin!(response_fut);
+    let result = tokio::select! {
+        biased;
+        _ = cancelled.wait_for(|v| *v) => {
+            send.stream_mut().send_reset(Reason::CANCEL);
+            Err(Status::cancelled())
+        }
+        result = &mut response_fut => result,
+    };
+    send.live = false;
+    if let (Some(tap), Err(status)) = (&tap, &result) {
+        if status.code() == Code::Cancelled {
+            tap.log_cancel();
+        }
+    }
+    match result {
+        Ok(response) => {
+            if let Some(sock) = socket {
+                crate::channelz::Registry::global().note_stream_started(sock, true);
+            }
+            let (completed_tx, completed_rx) = tokio::sync::oneshot::channel();
+            send.live = false;
+            if let Some(stream) = send.stream.take() {
+                crate::wire::hold_half_closed_send(stream, later_cancel, None, completed_rx);
+            }
+            Ok(response.map(|stream| {
+                stream
+                    .bind_channelz_socket(socket)
+                    .with_outbound_completion(completed_tx)
+            }))
+        }
+        Err(status) => {
+            if let Some(sock) = socket {
+                let global = crate::channelz::Registry::global();
+                global.note_stream_started(sock, true);
+                global.note_stream_end(sock, false);
+            }
+            Err(status)
+        }
+    }
+}
+
+type BidiFut<Resp> =
+    Pin<Box<dyn Future<Output = Result<Response<Streaming<Resp>>, Status>> + Send>>;
+
+/// Build the deadline header wait inside this function so the caller stores a pointer.
+#[inline(never)]
+fn box_bidi_deadline<Resp>(
+    resp_fut: backend::ResponseFuture,
+    send_stream: backend::SendStream,
+    cancel_rx: watch::Receiver<bool>,
+    wire: Wire,
+    tap: Option<CallLogger>,
+    deadline: Option<tokio::time::Instant>,
+    socket: Option<crate::channelz::SocketId>,
+) -> BidiFut<Resp>
+where
+    Resp: CodecMessage + Send + 'static,
+{
+    Box::pin(await_flushed_bidi_headers(
+        resp_fut,
+        send_stream,
+        cancel_rx,
+        wire,
+        tap,
+        deadline,
+        socket,
+    ))
+}
+
+/// Build the partial-upload wait inside this function so the caller stores a pointer.
+#[inline(never)]
+fn box_bidi_rest<Resp>(
+    resp_fut: backend::ResponseFuture,
+    send_stream: backend::SendStream,
+    rest: Vec<Bytes>,
+    cancel_rx: watch::Receiver<bool>,
+    wire: Wire,
+    tap: Option<CallLogger>,
+    deadline: Option<tokio::time::Instant>,
+    socket: Option<crate::channelz::SocketId>,
+) -> BidiFut<Resp>
+where
+    Resp: CodecMessage + Send + 'static,
+{
+    Box::pin(send_rest_and_await_bidi_headers(
+        resp_fut,
+        send_stream,
+        rest,
+        cancel_rx,
+        wire,
+        tap,
+        deadline,
+        socket,
+    ))
+}
+
+/// Build the flushed pump inside this function so the caller stores a pointer.
+#[inline(never)]
+fn box_bidi_flushed<Req, Resp>(
+    resp_fut: backend::ResponseFuture,
+    send_stream: backend::SendStream,
+    rx: Streaming<Req>,
+    cancel_rx: watch::Receiver<bool>,
+    wire: Wire,
+    tap: Option<CallLogger>,
+    deadline: Option<tokio::time::Instant>,
+    budget: ByteBudgetTracker,
+    socket: Option<crate::channelz::SocketId>,
+) -> BidiFut<Resp>
+where
+    Req: CodecMessage + Send + 'static,
+    Resp: CodecMessage + Send + 'static,
+{
+    Box::pin(run_bidi_flushed(
+        resp_fut,
+        send_stream,
+        rx,
+        cancel_rx,
+        wire,
+        tap,
+        deadline,
+        budget,
+        socket,
+    ))
+}
+
+/// Build the live upload inside this function so the caller stores a pointer.
+#[inline(never)]
+fn box_bidi_live<Req, Resp>(
+    resp_fut: backend::ResponseFuture,
+    send_stream: backend::SendStream,
+    rx: Streaming<Req>,
+    cancel_rx: watch::Receiver<bool>,
+    wire: Wire,
+    tap: Option<CallLogger>,
+    deadline: Option<tokio::time::Instant>,
+    budget: ByteBudgetTracker,
+    socket: Option<crate::channelz::SocketId>,
+) -> BidiFut<Resp>
+where
+    Req: CodecMessage + Send + 'static,
+    Resp: CodecMessage + Send + 'static,
+{
+    Box::pin(run_bidi_live(
+        resp_fut,
+        send_stream,
+        rx,
+        cancel_rx,
+        wire,
+        tap,
+        deadline,
+        budget,
+        socket,
+    ))
+}
+
+#[allow(
+    clippy::too_many_arguments,
     reason = "response half plus cancel, deadline, and the already-queued upload"
 )]
 /// Headers, cancel, and deadline after a closed upload is fully queued.
@@ -735,7 +917,6 @@ where
             wire.accept_gzip,
             tap.clone(),
         )
-        .await
     };
     tokio::pin!(response_fut);
     let until_deadline = async {
@@ -839,7 +1020,6 @@ where
                 wire.accept_gzip,
                 tap.clone(),
             )
-            .await
         };
         tokio::pin!(response_fut);
         let until_deadline = async {
@@ -966,8 +1146,19 @@ where
         // they fit in the HTTP/2 send buffer.
         if let Some(items) = rx.drain_closed_channel() {
             match write_closed_upload(&mut send_stream, items, wire, &budget, &tap, socket) {
+                Ok(ClosedUpload::Sent) if deadline.is_none() => {
+                    return await_ready_bidi_headers(
+                        resp_fut,
+                        send_stream,
+                        cancel_rx,
+                        wire,
+                        tap,
+                        socket,
+                    )
+                    .await;
+                }
                 Ok(ClosedUpload::Sent) => {
-                    return await_flushed_bidi_headers(
+                    return box_bidi_deadline(
                         resp_fut,
                         send_stream,
                         cancel_rx,
@@ -979,7 +1170,7 @@ where
                     .await;
                 }
                 Ok(ClosedUpload::Rest(rest)) => {
-                    return send_rest_and_await_bidi_headers(
+                    return box_bidi_rest(
                         resp_fut,
                         send_stream,
                         rest,
@@ -994,7 +1185,7 @@ where
                 Err(status) => return Err(status),
             }
         }
-        return run_bidi_flushed(
+        return box_bidi_flushed(
             resp_fut,
             send_stream,
             rx,
@@ -1007,6 +1198,35 @@ where
         )
         .await;
     }
+    box_bidi_live(
+        resp_fut,
+        send_stream,
+        rx,
+        cancel_rx,
+        wire,
+        tap,
+        deadline,
+        budget,
+        socket,
+    )
+    .await
+}
+
+async fn run_bidi_live<Req, Resp>(
+    resp_fut: backend::ResponseFuture,
+    send_stream: backend::SendStream,
+    rx: Streaming<Req>,
+    cancel_rx: watch::Receiver<bool>,
+    wire: Wire,
+    tap: Option<CallLogger>,
+    deadline: Option<tokio::time::Instant>,
+    budget: ByteBudgetTracker,
+    socket: Option<crate::channelz::SocketId>,
+) -> Result<Response<Streaming<Resp>>, Status>
+where
+    Req: CodecMessage + Send + 'static,
+    Resp: CodecMessage + Send + 'static,
+{
     // A spawned pump can RST before headers; without this channel the Call
     // would see UNAVAILABLE from h2 instead of StreamSender::fail's status.
     // The Call deadline does not set cancel_rx (`is_cancelled` is not
@@ -1086,7 +1306,6 @@ where
                 wire.accept_gzip,
                 tap.clone(),
             )
-            .await
         };
         tokio::pin!(fut);
         let until_deadline = async {

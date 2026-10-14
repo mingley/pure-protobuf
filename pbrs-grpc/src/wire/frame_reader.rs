@@ -591,7 +591,7 @@ pub(crate) async fn finish_unary<Resp: CodecMessage>(
     .with_encoding(encoding))
 }
 
-pub(crate) async fn finish_stream<Resp: CodecMessage + Send + 'static>(
+pub(crate) fn finish_stream<Resp: CodecMessage + Send + 'static>(
     response: http::Response<backend::RecvStream>,
     limits: MessageLimits,
     deadline: Option<tokio::time::Instant>,
