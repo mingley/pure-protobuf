@@ -125,33 +125,33 @@ impl ByteBudgetTracker {
     }
 
     fn acquire_token_count(&self) -> Result<(), Status> {
-        let mut current = self.inner.active_byte_permit_tokens.load(Ordering::SeqCst);
-        loop {
-            let next = current.checked_add(1).ok_or_else(|| {
-                Status::resource_exhausted("transport byte permit token counter overflow")
-            })?;
-            match self.inner.active_byte_permit_tokens.compare_exchange_weak(
-                current,
-                next,
-                Ordering::SeqCst,
-                Ordering::SeqCst,
-            ) {
-                Ok(_) => {
-                    if next
-                        > self
-                            .inner
-                            .peak_active_byte_permit_tokens
-                            .load(Ordering::Relaxed)
-                    {
-                        self.inner
-                            .peak_active_byte_permit_tokens
-                            .fetch_max(next, Ordering::SeqCst);
-                    }
-                    return Ok(());
-                }
-                Err(actual) => current = actual,
-            }
+        // A permit token is a counter, not a capacity check. One relaxed add
+        // is enough; the byte limit above still uses a sequentially consistent
+        // compare-exchange.
+        let prev = self
+            .inner
+            .active_byte_permit_tokens
+            .fetch_add(1, Ordering::Relaxed);
+        if prev == usize::MAX {
+            self.inner
+                .active_byte_permit_tokens
+                .fetch_sub(1, Ordering::Relaxed);
+            return Err(Status::resource_exhausted(
+                "transport byte permit token counter overflow",
+            ));
         }
+        let next = prev + 1;
+        if next
+            > self
+                .inner
+                .peak_active_byte_permit_tokens
+                .load(Ordering::Relaxed)
+        {
+            self.inner
+                .peak_active_byte_permit_tokens
+                .fetch_max(next, Ordering::Relaxed);
+        }
+        Ok(())
     }
 
     /// Try to acquire a permit for `bytes`.
@@ -240,19 +240,11 @@ impl ByteBudgetTracker {
     }
 
     fn release_token_count(&self) {
-        let mut current = self.inner.active_byte_permit_tokens.load(Ordering::SeqCst);
-        loop {
-            assert!(current > 0, "byte permit token counter underflow");
-            match self.inner.active_byte_permit_tokens.compare_exchange_weak(
-                current,
-                current - 1,
-                Ordering::SeqCst,
-                Ordering::SeqCst,
-            ) {
-                Ok(_) => break,
-                Err(actual) => current = actual,
-            }
-        }
+        let prev = self
+            .inner
+            .active_byte_permit_tokens
+            .fetch_sub(1, Ordering::Relaxed);
+        assert!(prev > 0, "byte permit token counter underflow");
     }
 }
 
