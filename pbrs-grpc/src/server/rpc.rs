@@ -1296,7 +1296,7 @@ impl InboundRpc {
         let channelz_socket = rpc.channelz_socket;
         #[cfg(feature = "grpc-web")]
         let web = rpc.web;
-        let call_start = tokio::time::Instant::now();
+        let call_start = call_start_instant(observer.is_some());
         let owned_labels = observer.as_ref().map(|_| {
             CallLabels::new(
                 path.as_deref().unwrap_or(""),
@@ -1598,6 +1598,26 @@ fn run_handler_fut<'a, T: 'a>(
 ) -> std::pin::Pin<Box<impl Future<Output = Result<T, Status>> + 'a>> {
     let tap = inbound.binlog.as_ref();
     Box::pin(run_handler(&mut inbound.respond, on_reset, handler, tap))
+}
+
+/// `call_start` is only read when an observer records elapsed time.
+/// Without one, reuse a single instant instead of reading the clock.
+fn call_start_instant(observed: bool) -> tokio::time::Instant {
+    if observed {
+        return tokio::time::Instant::now();
+    }
+    thread_local! {
+        static CACHED: std::cell::Cell<Option<tokio::time::Instant>> =
+            const { std::cell::Cell::new(None) };
+    }
+    CACHED.with(|cell| {
+        if let Some(cached) = cell.get() {
+            return cached;
+        }
+        let now = tokio::time::Instant::now();
+        cell.set(Some(now));
+        now
+    })
 }
 
 /// Channelz: a dispatched RPC started. The socket stream is
