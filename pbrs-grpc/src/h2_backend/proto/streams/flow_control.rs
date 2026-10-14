@@ -121,13 +121,6 @@ impl FlowControl {
             return Err(Reason::FLOW_CONTROL_ERROR);
         }
 
-        tracing::trace!(
-            "inc_window; sz={}; old={}; new={}",
-            sz,
-            self.window_size,
-            val
-        );
-
         self.window_size = Window(val);
         Ok(())
     }

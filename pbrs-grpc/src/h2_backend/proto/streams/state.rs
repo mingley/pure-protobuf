@@ -236,12 +236,10 @@ impl State {
         match self.inner {
             Open { local, .. } => {
                 // The remote side will continue to receive data.
-                tracing::trace!("recv_close: Open => HalfClosedRemote({:?})", local);
                 self.inner = HalfClosedRemote(local);
                 Ok(())
             }
             HalfClosedLocal(..) => {
-                tracing::trace!("recv_close: HalfClosedLocal => Closed");
                 self.inner = Closed(Cause::EndStream);
                 Ok(())
             }
@@ -327,11 +325,9 @@ impl State {
         match self.inner {
             Open { remote, .. } => {
                 // The remote side will continue to receive data.
-                tracing::trace!("send_close: Open => HalfClosedLocal({:?})", remote);
                 self.inner = HalfClosedLocal(remote);
             }
             HalfClosedRemote(..) => {
-                tracing::trace!("send_close: HalfClosedRemote => Closed");
                 self.inner = Closed(Cause::EndStream);
             }
             ref state => panic!("send_close: unexpected state {:?}", state),

@@ -694,13 +694,6 @@ impl Recv {
             return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
         }
 
-        tracing::trace!(
-            "recv_data; size={}; connection={}; stream={}",
-            sz,
-            self.flow.window_size(),
-            stream.recv_flow.window_size()
-        );
-
         if is_ignoring_frame {
             tracing::trace!(
                 "recv_data; frame ignored on locally reset {:?} for some time",
