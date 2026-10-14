@@ -107,6 +107,7 @@ pub(crate) fn grpc_request(
     user_agent: &HeaderValue,
     https: bool,
 ) -> Result<Request<()>, Status> {
+    crate::h2_backend::header_pool::clear_pending_stock();
     let mut parts = http::uri::Parts::default();
     parts.scheme = Some(if https { Scheme::HTTPS } else { Scheme::HTTP });
     parts.authority = Some(authority.clone());
@@ -126,6 +127,9 @@ pub(crate) fn grpc_request(
         *req.headers_mut() = crate::h2_backend::header_pool::take(
             crate::h2_backend::header_pool::Slot::Request,
             || standard_request_headers().clone(),
+        );
+        crate::h2_backend::header_pool::set_pending_stock(
+            crate::h2_backend::header_pool::STOCK_REQUEST,
         );
         return Ok(req);
     }

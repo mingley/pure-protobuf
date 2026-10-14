@@ -234,6 +234,9 @@ pub(crate) fn send_ok_headers(
             crate::h2_backend::header_pool::Slot::Response,
             || crate::wire::headers::standard_response_headers().clone(),
         );
+        crate::h2_backend::header_pool::mark_next_stock(
+            crate::h2_backend::header_pool::STOCK_RESPONSE,
+        );
         return respond
             .send_response(res, false)
             .map_err(|e| Status::internal(e.to_string()));

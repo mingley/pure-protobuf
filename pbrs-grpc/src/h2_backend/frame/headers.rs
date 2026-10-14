@@ -275,6 +275,11 @@ impl Headers {
     /// Remember a stock field set. `true` means those names are legal on the
     /// wire, so `Send::check_headers` can skip its walk.
     pub(crate) fn note_stock_fields(&mut self) -> bool {
+        // The gRPC layer built this block from the stock pool and marked it.
+        // The names and values are the ones `fields_match` would accept.
+        if self.header_block.stock != StandardMap::None {
+            return true;
+        }
         let kind = match self.header_block.fields.len() {
             4 if fields_match(&self.header_block.fields, REQUEST_BITS, 4) => StandardMap::Request,
             2 if fields_match(&self.header_block.fields, RESPONSE_BITS, 2) => {
@@ -285,6 +290,14 @@ impl Headers {
         };
         self.header_block.stock = kind;
         true
+    }
+
+    pub(crate) fn preset_stock_request(&mut self) {
+        self.header_block.stock = StandardMap::Request;
+    }
+
+    pub(crate) fn preset_stock_response(&mut self) {
+        self.header_block.stock = StandardMap::Response;
     }
 
     pub fn into_parts(self) -> (Pseudo, HeaderMap) {

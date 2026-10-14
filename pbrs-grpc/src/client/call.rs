@@ -327,9 +327,18 @@ pub(crate) async fn open_in<R: Runtime>(
     tokio::pin!(guarded);
     // Preserve the optimistic warm path, but never poll admission without the
     // cancellation/deadline/header checks above.
+    // The stock-pool request is marked only for this poll. A pending admission
+    // has not built the HEADERS frame, so the mark must not leak to a later send.
+    crate::h2_backend::header_pool::promote_pending_stock();
     let raced = match poll_now(guarded.as_mut()) {
-        Some(result) => result,
-        None => first_of_in::<R, _>(guarded, cancel_rx.clone(), deadline).await,
+        Some(result) => {
+            crate::h2_backend::header_pool::clear_next_stock();
+            result
+        }
+        None => {
+            crate::h2_backend::header_pool::clear_next_stock();
+            first_of_in::<R, _>(guarded, cancel_rx.clone(), deadline).await
+        }
     };
     prefer_deadline_in::<R, _>(raced, deadline)
 }

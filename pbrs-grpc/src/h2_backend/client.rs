@@ -1747,6 +1747,11 @@ impl Peer {
 
         // Create the HEADERS frame
         let mut frame = Headers::new(id, pseudo, headers);
+        if crate::h2_backend::header_pool::take_next_stock(
+            crate::h2_backend::header_pool::STOCK_REQUEST,
+        ) {
+            frame.preset_stock_request();
+        }
 
         if end_of_stream {
             frame.set_end_stream()
