@@ -929,9 +929,9 @@ impl HeaderBlock {
             && self.pseudo.protocol.is_none()
             && self.pseudo.status.is_none();
         // A repeated block that does not change the dynamic table decodes to
-        // the same headers. Replaying them skips the Huffman and index work.
-        let neutral = fresh && hpack::block_leaves_table_unchanged(src);
-        if neutral {
+        // the same headers. The saved bytes were checked when stored, so a
+        // hit does not walk the block again.
+        if fresh {
             if let Some(saved) = decoder.cached_block(src) {
                 self.fields = saved.fields;
                 self.pseudo.method = saved.method;
@@ -945,6 +945,7 @@ impl HeaderBlock {
                 return Ok(());
             }
         }
+        let neutral = fresh && hpack::block_leaves_table_unchanged(src);
         let record = neutral;
         let raw = if record { Some(src.to_vec()) } else { None };
 
