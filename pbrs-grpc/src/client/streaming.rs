@@ -706,6 +706,142 @@ fn write_closed_upload<T: CodecMessage>(
     Ok(ClosedUpload::Sent)
 }
 
+/// Unary response after a closed client-streaming upload is fully queued.
+///
+/// No deadline arm: the caller only uses this when the deadline is absent, so
+/// the wait does not embed a sleep timer.
+async fn await_closed_client_response<Resp: CodecMessage>(
+    resp_fut: backend::ResponseFuture,
+    send_stream: backend::SendStream,
+    cancel_rx: watch::Receiver<bool>,
+    wire: Wire,
+    tap: Option<&CallLogger>,
+    socket: Option<crate::channelz::SocketId>,
+) -> Result<Response<Resp>, Status> {
+    let mut send = ResetSend::new(send_stream);
+    let mut cancelled = cancel_rx;
+    let fut = async {
+        let response = resp_fut.await.map_err(Status::from_h2_post_dispatch)?;
+        finish_unary::<Resp>(response, wire.limits, wire.accept_gzip, tap).await
+    };
+    tokio::pin!(fut);
+    let result = tokio::select! {
+        biased;
+        _ = cancelled.wait_for(|v| *v) => {
+            send.stream_mut().send_reset(Reason::CANCEL);
+            Err(Status::cancelled())
+        }
+        result = &mut fut => result,
+    };
+    send.live = false;
+    if let (Some(tap), Err(status)) = (tap, &result) {
+        if status.code() == Code::Cancelled {
+            tap.log_cancel();
+        }
+    }
+    note_client_stream_end(socket, &result);
+    result
+}
+
+/// Finish a closed upload that did not fit in the send buffer, then read the
+/// unary response. Send and read stay concurrent so a full window cannot stall.
+async fn send_client_rest<Resp: CodecMessage>(
+    resp_fut: backend::ResponseFuture,
+    send_stream: backend::SendStream,
+    mut rest: Vec<Bytes>,
+    cancel_rx: watch::Receiver<bool>,
+    wire: Wire,
+    tap: Option<CallLogger>,
+    socket: Option<crate::channelz::SocketId>,
+) -> Result<Response<Resp>, Status> {
+    let mut send = ResetSend::new(send_stream);
+    let send_buffer = wire.send_buffer;
+    let mut cancelled = cancel_rx;
+    let (send_failed, reset_after, headers) = {
+        let send_fut = async {
+            while !rest.is_empty() {
+                let seg = rest.remove(0);
+                crate::wire::send::send_bytes(send.stream_mut(), seg, false, send_buffer).await?;
+            }
+            send.stream_mut()
+                .send_data(Bytes::new(), true)
+                .map_err(Status::from_h2_send)?;
+            if let Some(tap) = &tap {
+                tap.log_half_close();
+            }
+            Ok(())
+        };
+        tokio::pin!(send_fut);
+        let response_fut = async {
+            let response = resp_fut.await.map_err(Status::from_h2_post_dispatch)?;
+            finish_unary::<Resp>(response, wire.limits, wire.accept_gzip, tap.as_ref()).await
+        };
+        tokio::pin!(response_fut);
+        let mut send_done = false;
+        let mut headers: Option<Result<Response<Resp>, Status>> = None;
+        let mut reset_after = false;
+        let mut send_failed: Option<Status> = None;
+        loop {
+            tokio::select! {
+                biased;
+                _ = cancelled.wait_for(|v| *v) => {
+                    reset_after = true;
+                    break;
+                }
+                sent = &mut send_fut, if !send_done => {
+                    send_done = true;
+                    if let Err(status) = sent {
+                        send_failed = Some(status);
+                        break;
+                    }
+                }
+                result = &mut response_fut, if headers.is_none() => {
+                    headers = Some(result);
+                }
+            }
+            if send_done && headers.is_some() {
+                break;
+            }
+        }
+        (send_failed, reset_after, headers)
+    };
+    if send_failed.is_some() && send.live {
+        send.stream_mut().send_reset(Reason::INTERNAL_ERROR);
+    }
+    if reset_after && send.live {
+        send.stream_mut().send_reset(Reason::CANCEL);
+    }
+    send.live = false;
+    let result = if let Some(status) = send_failed {
+        Err(status)
+    } else if reset_after {
+        Err(Status::cancelled())
+    } else {
+        headers.unwrap_or(Err(Status::cancelled()))
+    };
+    if let (Some(tap), Err(status)) = (&tap, &result) {
+        if status.code() == Code::Cancelled {
+            tap.log_cancel();
+        }
+    }
+    note_client_stream_end(socket, &result);
+    result
+}
+
+fn note_client_stream_end<T>(
+    socket: Option<crate::channelz::SocketId>,
+    result: &Result<T, Status>,
+) {
+    if let Some(sock) = socket {
+        let global = crate::channelz::Registry::global();
+        global.note_stream_started(sock, true);
+        global.note_stream_end(sock, result.is_ok());
+        if result.is_ok() {
+            global.note_messages(sock, false, 1);
+        }
+    }
+}
+
 /// HTTP response after a closed upload with no deadline.
 ///
 /// The gRPC envelope is built after this resolves so the wait future does not
@@ -1981,21 +2117,87 @@ impl super::Channel {
                         return Err(status);
                     }
                 };
-                let _load = opened.load;
+                let crate::client::call::Opened {
+                    load: _load,
+                    lease: _lease,
+                    driver: _driver,
+                    resp_fut,
+                    mut send,
+                    channelz_socket,
+                } = opened;
                 let budget = channel.byte_budget.clone();
-                let response: Response<Resp> = match run_client_stream(
-                    opened.resp_fut,
-                    opened.send,
-                    rx,
-                    cancel_rx.clone(),
-                    wire,
-                    deadline,
-                    budget,
-                    tap.as_ref(),
-                    opened.channelz_socket,
-                )
-                .await
-                {
+                // Not read again after headers are sent. Ending them here keeps
+                // them out of the state polled while the unary response arrives.
+                drop(user_agent);
+                drop(md);
+                let mut rx = rx;
+                // A closed upload with no deadline is the common case. Queue it
+                // before waiting so this future does not carry the pump.
+                let response: Result<Response<Resp>, Status> =
+                    if deadline.is_none() && rx.producer_finished() {
+                        if let Some(items) = rx.drain_closed_channel() {
+                            match write_closed_upload(
+                                &mut send,
+                                items,
+                                wire,
+                                &budget,
+                                &tap,
+                                channelz_socket,
+                            ) {
+                                Ok(ClosedUpload::Sent) => {
+                                    await_closed_client_response(
+                                        resp_fut,
+                                        send,
+                                        cancel_rx.clone(),
+                                        wire,
+                                        tap.as_ref(),
+                                        channelz_socket,
+                                    )
+                                    .await
+                                }
+                                Ok(ClosedUpload::Rest(rest)) => {
+                                    Box::pin(send_client_rest(
+                                        resp_fut,
+                                        send,
+                                        rest,
+                                        cancel_rx.clone(),
+                                        wire,
+                                        tap.clone(),
+                                        channelz_socket,
+                                    ))
+                                    .await
+                                }
+                                Err(status) => Err(status),
+                            }
+                        } else {
+                            Box::pin(run_client_stream(
+                                resp_fut,
+                                send,
+                                rx,
+                                cancel_rx.clone(),
+                                wire,
+                                deadline,
+                                budget,
+                                tap.as_ref(),
+                                channelz_socket,
+                            ))
+                            .await
+                        }
+                    } else {
+                        Box::pin(run_client_stream(
+                            resp_fut,
+                            send,
+                            rx,
+                            cancel_rx.clone(),
+                            wire,
+                            deadline,
+                            budget,
+                            tap.as_ref(),
+                            channelz_socket,
+                        ))
+                        .await
+                    };
+                let response: Response<Resp> = match response {
                     Ok(r) => r,
                     Err(status) => {
                         if *cancel_rx.borrow() {
