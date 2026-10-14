@@ -160,8 +160,9 @@ impl Table {
     fn index_dynamic(&mut self, header: Header, statik: Option<(usize, bool)>) -> Index {
         debug_assert!(self.assert_valid_state("one"));
 
-        if header.len() + self.size < self.max_size || !header.is_sensitive() {
-            // Only grow internal storage if needed
+        // Non-sensitive headers always take the grow path, so the length is
+        // not required there. Sensitivity is checked first to skip it.
+        if !header.is_sensitive() || header.len() + self.size < self.max_size {
             self.reserve_one();
         }
 
