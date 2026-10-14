@@ -1162,7 +1162,7 @@ impl Recv {
     {
         // Most polls have nothing to advertise. Skip both update walks.
         if self.flow.unclaimed_capacity().is_none() && self.pending_window_updates.is_empty() {
-            return Ok(BufferStatus::Complete);
+            return Ok(BufferStatus::Idle);
         }
         // Send any pending connection level window updates
         if self.send_connection_window_update(dst)? == BufferStatus::CodecFull {

@@ -33,8 +33,12 @@ use std::time::Duration;
 
 #[derive(Debug, Eq, PartialEq)]
 pub(super) enum BufferStatus {
+    /// Frames were staged, or a partial write may still need reclaiming.
     Complete,
+    /// The codec cannot accept another frame until it is flushed.
     CodecFull,
+    /// No window update, no queued frame, and nothing in flight.
+    Idle,
 }
 
 #[derive(Debug)]

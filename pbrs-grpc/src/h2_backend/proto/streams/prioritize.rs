@@ -492,7 +492,7 @@ impl Prioritize {
             && self.pending_open.is_empty()
             && self.pending_send.is_empty()
         {
-            return Ok(BufferStatus::Complete);
+            return Ok(BufferStatus::Idle);
         }
         // Reclaim any frame that has previously been written
         self.reclaim_frame(buffer, store, dst);

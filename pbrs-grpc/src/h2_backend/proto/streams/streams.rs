@@ -4,7 +4,7 @@ use super::{Buffer, BufferStatus, Config, Counts, Prioritized, Recv, Send, Strea
 use crate::h2_backend::codec::{Codec, SendError, UserError};
 use crate::h2_backend::ext::Protocol;
 use crate::h2_backend::frame::{self, Frame, Reason};
-use crate::h2_backend::proto::{peer, Error, Initiator, Open, Peer, WindowSize};
+use crate::h2_backend::proto::{Error, Initiator, Open, Peer, WindowSize, peer};
 use crate::h2_backend::{client, proto, server};
 
 use bytes::{Buf, Bytes};
@@ -186,7 +186,7 @@ where
             };
 
             match status {
-                BufferStatus::Complete => return Poll::Ready(Ok(())),
+                BufferStatus::Complete | BufferStatus::Idle => return Poll::Ready(Ok(())),
                 BufferStatus::CodecFull => ready!(dst.poll_ready(cx))?,
             }
         }
@@ -220,7 +220,7 @@ where
                 // observe that all pending frames have been buffered. A
                 // producer that queues another frame while the codec is being
                 // flushed will then take and wake this task.
-                if status == BufferStatus::Complete {
+                if matches!(status, BufferStatus::Complete | BufferStatus::Idle) {
                     me.actions.task = Some(cx.waker().clone());
                 }
 
@@ -228,6 +228,13 @@ where
             };
 
             match status {
+                // Nothing was staged and no data frame is in flight, so the
+                // reclaim lock cannot observe one. Flush still runs: a previous
+                // write may be waiting on the socket.
+                BufferStatus::Idle => {
+                    ready!(dst.flush(cx))?;
+                    return Poll::Ready(Ok(()));
+                }
                 BufferStatus::Complete => {}
                 BufferStatus::CodecFull => continue,
             }
@@ -373,7 +380,6 @@ where
         ))
     }
 
-
     pub fn poll_send_request(
         &mut self,
         request: &mut Option<Request<()>>,
@@ -406,7 +412,9 @@ where
             me.counts.wait_send_capacity(cx, waiter);
             return Poll::Pending;
         }
-        let mut request = request.take().expect("request future polled after completion");
+        let mut request = request
+            .take()
+            .expect("request future polled after completion");
         std::mem::swap(request.extensions_mut(), &mut deferred_extensions);
         let protocol = deferred_extensions.remove::<Protocol>();
 
@@ -1102,26 +1110,29 @@ impl Inner {
         //
         // TODO: It would probably be better to interleave updates w/ data
         // frames.
-        if self
-            .actions
-            .recv
-            .buffer_pending(&mut self.store, &mut self.counts, dst)?
-            == BufferStatus::CodecFull
-        {
+        let recv_status =
+            self.actions
+                .recv
+                .buffer_pending(&mut self.store, &mut self.counts, dst)?;
+        if recv_status == BufferStatus::CodecFull {
             return Ok(BufferStatus::CodecFull);
         }
 
         // Send any other pending frames
-        if self
-            .actions
-            .send
-            .buffer_pending(send_buffer, &mut self.store, &mut self.counts, dst)?
-            == BufferStatus::CodecFull
-        {
+        let send_status = self.actions.send.buffer_pending(
+            send_buffer,
+            &mut self.store,
+            &mut self.counts,
+            dst,
+        )?;
+        if send_status == BufferStatus::CodecFull {
             return Ok(BufferStatus::CodecFull);
         }
-
-        Ok(BufferStatus::Complete)
+        if recv_status == BufferStatus::Idle && send_status == BufferStatus::Idle {
+            Ok(BufferStatus::Idle)
+        } else {
+            Ok(BufferStatus::Complete)
+        }
     }
 
     fn reclaim_written_frame<T, B>(
@@ -1310,7 +1321,11 @@ where
 impl<B> StreamRef<B> {
     /// Queue DATA only if the configured stream buffer can hold it. Returning
     /// the original buffer lets the caller wait without copying or cloning it.
-    pub(crate) fn try_send_data(&mut self, data: B, end_stream: bool) -> Result<Result<(), UserError>, B>
+    pub(crate) fn try_send_data(
+        &mut self,
+        data: B,
+        end_stream: bool,
+    ) -> Result<Result<(), UserError>, B>
     where
         B: Buf,
     {
@@ -1318,14 +1333,21 @@ impl<B> StreamRef<B> {
         let me = &mut *me;
         let stream = me.store.resolve(self.opaque.key);
         let actions = &mut me.actions;
-        if data.remaining() > actions.send.max_buffer_size().saturating_sub(stream.buffered_send_data) {
+        if data.remaining()
+            > actions
+                .send
+                .max_buffer_size()
+                .saturating_sub(stream.buffered_send_data)
+        {
             return Err(data);
         }
         let mut send_buffer = self.send_buffer.inner.lock().unwrap();
         Ok(me.counts.transition(stream, |counts, stream| {
             let mut frame = frame::Data::new(stream.id, data);
             frame.set_end_stream(end_stream);
-            actions.send.send_data(frame, &mut send_buffer, stream, counts, &mut actions.task)
+            actions
+                .send
+                .send_data(frame, &mut send_buffer, stream, counts, &mut actions.task)
         }))
     }
 
@@ -1490,7 +1512,11 @@ impl<B> StreamRef<B> {
         let pushed = {
             let mut stream = me.store.resolve(self.opaque.key);
 
-            let frame = crate::h2_backend::server::Peer::convert_push_message(stream.id, promised_id, request)?;
+            let frame = crate::h2_backend::server::Peer::convert_push_message(
+                stream.id,
+                promised_id,
+                request,
+            )?;
 
             actions
                 .send
