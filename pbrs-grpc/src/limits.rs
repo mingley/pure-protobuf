@@ -419,21 +419,34 @@ impl MessageLimits {
     }
 
     pub(crate) fn check_decode(self, n: usize) -> Result<(), Status> {
-        match self.max_decoding {
-            Some(max) if n > max => Err(Status::resource_exhausted(format!(
-                "decoded message length {n} exceeds limit {max}"
-            ))),
-            _ => Ok(()),
+        if let Some(max) = self.max_decoding {
+            if n > max {
+                return Err(Self::decoding_limit_exceeded(n, max));
+            }
         }
+        Ok(())
     }
 
     pub(crate) fn check_encode(self, n: usize) -> Result<(), Status> {
-        match self.max_encoding {
-            Some(max) if n > max => Err(Status::resource_exhausted(format!(
-                "encoded message length {n} exceeds limit {max}"
-            ))),
-            _ => Ok(()),
+        if let Some(max) = self.max_encoding {
+            if n > max {
+                return Err(Self::encoding_limit_exceeded(n, max));
+            }
         }
+        Ok(())
+    }
+
+    /// The limit strings stay off the per-message compare.
+    #[cold]
+    #[inline(never)]
+    fn decoding_limit_exceeded(n: usize, max: usize) -> Status {
+        Status::resource_exhausted(format!("decoded message length {n} exceeds limit {max}"))
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn encoding_limit_exceeded(n: usize, max: usize) -> Status {
+        Status::resource_exhausted(format!("encoded message length {n} exceeds limit {max}"))
     }
 
     /// How many decompressed bytes an inbound frame may produce.
