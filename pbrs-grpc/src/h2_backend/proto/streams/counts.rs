@@ -195,7 +195,9 @@ impl Counts {
 
     pub fn can_reserve_send_stream(&self) -> bool {
         self.max_send_streams
-            > self.num_send_streams.saturating_add(self.num_pending_send_streams)
+            > self
+                .num_send_streams
+                .saturating_add(self.num_pending_send_streams)
     }
 
     pub fn inc_pending_send_streams(&mut self) {
@@ -212,13 +214,18 @@ impl Counts {
         cx: &std::task::Context<'_>,
         waiter: &mut Option<std::sync::Arc<atomic_waker::AtomicWaker>>,
     ) {
-        let waiter = waiter.get_or_insert_with(|| {
-            std::sync::Arc::new(atomic_waker::AtomicWaker::new())
-        });
+        let waiter =
+            waiter.get_or_insert_with(|| std::sync::Arc::new(atomic_waker::AtomicWaker::new()));
         waiter.register(cx.waker());
-        self.send_capacity_waiters.retain(|old| old.strong_count() > 0);
-        if !self.send_capacity_waiters.iter().any(|old| old.as_ptr() == std::sync::Arc::as_ptr(waiter)) {
-            self.send_capacity_waiters.push(std::sync::Arc::downgrade(waiter));
+        self.send_capacity_waiters
+            .retain(|old| old.strong_count() > 0);
+        if !self
+            .send_capacity_waiters
+            .iter()
+            .any(|old| old.as_ptr() == std::sync::Arc::as_ptr(waiter))
+        {
+            self.send_capacity_waiters
+                .push(std::sync::Arc::downgrade(waiter));
         }
     }
 
@@ -302,6 +309,7 @@ impl Counts {
     /// all necessary cleanup.
     ///
     /// TODO: Is this function still needed?
+    #[inline]
     pub fn transition<F, U>(&mut self, mut stream: store::Ptr, f: F) -> U
     where
         F: FnOnce(&mut Self, &mut store::Ptr) -> U,
@@ -317,24 +325,31 @@ impl Counts {
         ret
     }
 
-    // TODO: move this to macro?
-    pub fn transition_after(&mut self, mut stream: store::Ptr, is_reset_counted: bool) {
+    /// The open-stream case is a closed-state check. Cleanup runs once, on close.
+    #[inline]
+    pub fn transition_after(&mut self, stream: store::Ptr, is_reset_counted: bool) {
         if stream.is_closed() {
-            if !stream.is_pending_reset_expiration() {
-                stream.unlink();
-                if is_reset_counted {
-                    self.dec_num_reset_streams();
-                }
+            self.finish_closed(stream, is_reset_counted);
+        }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn finish_closed(&mut self, mut stream: store::Ptr, is_reset_counted: bool) {
+        if !stream.is_pending_reset_expiration() {
+            stream.unlink();
+            if is_reset_counted {
+                self.dec_num_reset_streams();
             }
+        }
 
         if !stream.state.is_scheduled_reset() && stream.is_counted {
             tracing::trace!("dec_num_streams; stream={:?}", stream.id);
             // Decrement the number of active streams.
             self.dec_num_streams(&mut stream);
         }
-            if stream.release_ready() {
-                stream.remove();
-            }
+        if stream.release_ready() {
+            stream.remove();
         }
     }
 
