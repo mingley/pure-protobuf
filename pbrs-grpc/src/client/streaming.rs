@@ -706,29 +706,25 @@ fn write_closed_upload<T: CodecMessage>(
     Ok(ClosedUpload::Sent)
 }
 
-#[allow(
-    clippy::too_many_arguments,
-    reason = "response half plus cancel after a closed upload with no deadline"
-)]
-/// Headers and cancel after a closed upload, when the call has no deadline.
+/// HTTP response after a closed upload with no deadline.
 ///
-/// The sleep future is absent, so a resumed call does not copy it.
-async fn await_ready_bidi_headers<Resp>(
+/// The gRPC envelope is built after this resolves so the wait future does not
+/// carry it.
+struct ReadyHttp {
+    received: Result<http::Response<backend::RecvStream>, Status>,
+    send: ResetSend,
+    later_cancel: watch::Receiver<bool>,
+}
+
+async fn wait_ready_bidi_http(
     resp_fut: backend::ResponseFuture,
     send_stream: backend::SendStream,
     cancel_rx: watch::Receiver<bool>,
-    wire: Wire,
     tap: Option<CallLogger>,
-    socket: Option<crate::channelz::SocketId>,
-) -> Result<Response<Streaming<Resp>>, Status>
-where
-    Resp: CodecMessage + Send + 'static,
-{
+) -> ReadyHttp {
     let mut send = ResetSend::new(send_stream);
     let later_cancel = cancel_rx.clone();
     let mut cancelled = cancel_rx;
-    // Only the HTTP response future is live across the wait. Building the
-    // gRPC `Response` here would make every resume copy that envelope.
     let response_fut = async { resp_fut.await.map_err(Status::from_h2_post_dispatch) };
     tokio::pin!(response_fut);
     let received = tokio::select! {
@@ -745,6 +741,27 @@ where
             tap.log_cancel();
         }
     }
+    ReadyHttp {
+        received,
+        send,
+        later_cancel,
+    }
+}
+
+fn finish_ready_bidi<Resp>(
+    ready: ReadyHttp,
+    wire: Wire,
+    tap: Option<CallLogger>,
+    socket: Option<crate::channelz::SocketId>,
+) -> Result<Response<Streaming<Resp>>, Status>
+where
+    Resp: CodecMessage + Send + 'static,
+{
+    let ReadyHttp {
+        received,
+        mut send,
+        later_cancel,
+    } = ready;
     let result = match received {
         Ok(response) => {
             finish_stream::<Resp>(response, wire.limits, None, wire.accept_gzip, tap.clone())
@@ -1152,15 +1169,9 @@ where
         if let Some(items) = rx.drain_closed_channel() {
             match write_closed_upload(&mut send_stream, items, wire, &budget, &tap, socket) {
                 Ok(ClosedUpload::Sent) if deadline.is_none() => {
-                    return await_ready_bidi_headers(
-                        resp_fut,
-                        send_stream,
-                        cancel_rx,
-                        wire,
-                        tap,
-                        socket,
-                    )
-                    .await;
+                    let ready =
+                        wait_ready_bidi_http(resp_fut, send_stream, cancel_rx, tap.clone()).await;
+                    return finish_ready_bidi(ready, wire, tap, socket);
                 }
                 Ok(ClosedUpload::Sent) => {
                     return box_bidi_deadline(
