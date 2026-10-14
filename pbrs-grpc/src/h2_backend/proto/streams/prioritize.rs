@@ -475,6 +475,13 @@ impl Prioritize {
         }
     }
 
+    /// No queued frame and no data frame sitting in the codec.
+    pub(super) fn is_idle(&self) -> bool {
+        matches!(self.in_flight_data_frame, InFlightData::Nothing)
+            && self.pending_open.is_empty()
+            && self.pending_send.is_empty()
+    }
+
     pub fn buffer_pending<T, B>(
         &mut self,
         buffer: &mut Buffer<Frame<B>>,
@@ -488,10 +495,7 @@ impl Prioritize {
     {
         // Nothing in flight and nothing queued. Reclaim would observe an empty
         // codec slot, and both pops would return immediately.
-        if matches!(self.in_flight_data_frame, InFlightData::Nothing)
-            && self.pending_open.is_empty()
-            && self.pending_send.is_empty()
-        {
+        if self.is_idle() {
             return Ok(BufferStatus::Idle);
         }
         // Reclaim any frame that has previously been written

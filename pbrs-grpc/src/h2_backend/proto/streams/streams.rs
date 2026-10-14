@@ -1117,10 +1117,8 @@ impl Inner {
         T: AsyncWrite + Unpin,
         B: Buf,
     {
-        let mut send_buffer = send_buffer.inner.lock().unwrap();
-        let send_buffer = &mut *send_buffer;
-
-        // Send WINDOW_UPDATE frames first
+        // Send WINDOW_UPDATE frames first. They do not touch the frame slab,
+        // so an idle send side never takes that lock.
         //
         // TODO: It would probably be better to interleave updates w/ data
         // frames.
@@ -1131,6 +1129,16 @@ impl Inner {
         if recv_status == BufferStatus::CodecFull {
             return Ok(BufferStatus::CodecFull);
         }
+        if self.actions.send.is_idle() {
+            return Ok(if recv_status == BufferStatus::Idle {
+                BufferStatus::Idle
+            } else {
+                BufferStatus::Complete
+            });
+        }
+
+        let mut send_buffer = send_buffer.inner.lock().unwrap();
+        let send_buffer = &mut *send_buffer;
 
         // Send any other pending frames
         let send_status = self.actions.send.buffer_pending(

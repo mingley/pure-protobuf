@@ -355,6 +355,10 @@ impl Send {
         Ok(())
     }
 
+    pub(super) fn is_idle(&self) -> bool {
+        self.prioritize.is_idle()
+    }
+
     pub fn buffer_pending<T, B>(
         &mut self,
         buffer: &mut Buffer<Frame<B>>,
