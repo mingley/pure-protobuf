@@ -65,11 +65,23 @@ impl Head {
 
     pub fn encode<T: BufMut>(&self, payload_len: usize, dst: &mut T) {
         debug_assert!(self.encode_len() <= dst.remaining_mut());
+        debug_assert!(payload_len < (1 << 24));
 
-        dst.put_uint(payload_len as u64, 3);
-        dst.put_u8(self.kind as u8);
-        dst.put_u8(self.flag);
-        dst.put_u32(self.stream_id.into());
+        // One 9-byte store. Four separate puts each copied a fragment.
+        let len = payload_len as u32;
+        let id: u32 = self.stream_id.into();
+        let head = [
+            (len >> 16) as u8,
+            (len >> 8) as u8,
+            len as u8,
+            self.kind as u8,
+            self.flag,
+            (id >> 24) as u8,
+            (id >> 16) as u8,
+            (id >> 8) as u8,
+            id as u8,
+        ];
+        dst.put_slice(&head);
     }
 }
 
