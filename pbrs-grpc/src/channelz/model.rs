@@ -751,7 +751,7 @@ impl Registry {
             entry.calls_started.fetch_add(1, Ordering::Relaxed);
             entry
                 .last_call_started_ms
-                .store(now_ms(), Ordering::Relaxed);
+                .store(coarse_now_ms(), Ordering::Relaxed);
         }
     }
 
@@ -772,7 +772,7 @@ impl Registry {
             entry.calls_started.fetch_add(1, Ordering::Relaxed);
             entry
                 .last_call_started_ms
-                .store(now_ms(), Ordering::Relaxed);
+                .store(coarse_now_ms(), Ordering::Relaxed);
         }
     }
 
@@ -796,16 +796,17 @@ impl Registry {
         if local {
             entry
                 .last_local_stream_ms
-                .store(now_ms(), Ordering::Relaxed);
+                .store(coarse_now_ms(), Ordering::Relaxed);
         } else {
             entry
                 .last_remote_stream_ms
-                .store(now_ms(), Ordering::Relaxed);
+                .store(coarse_now_ms(), Ordering::Relaxed);
         }
         if let SocketParent::Subchannel(parent) = entry.parent {
             if let Some(sub) = self.subchannel(parent) {
                 sub.calls_started.fetch_add(1, Ordering::Relaxed);
-                sub.last_call_started_ms.store(now_ms(), Ordering::Relaxed);
+                sub.last_call_started_ms
+                    .store(coarse_now_ms(), Ordering::Relaxed);
             }
         }
     }
@@ -1225,8 +1226,9 @@ pub(crate) fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
-/// Message timestamps only need millisecond resolution. A burst reuses the
-/// last reading for a few frames so each one does not read the wall clock.
+/// Channelz timestamps only need millisecond resolution. A burst reuses the
+/// last reading for a few events so each call or message does not read the
+/// wall clock. A timestamp can be up to 15 events stale.
 fn coarse_now_ms() -> u64 {
     use std::cell::Cell;
     const BURST: u8 = 16;
