@@ -351,6 +351,11 @@ impl<T, B> FramedWrite<T, B> {
         self.encoder.last_data_frame.take()
     }
 
+    /// Whether flush left a data frame for the prioritizer to reclaim.
+    pub fn has_last_data_frame(&self) -> bool {
+        self.encoder.last_data_frame.is_some()
+    }
+
     pub fn get_mut(&mut self) -> &mut T {
         &mut self.inner
     }

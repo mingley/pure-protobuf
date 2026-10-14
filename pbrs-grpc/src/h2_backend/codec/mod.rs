@@ -112,6 +112,11 @@ impl<T, B> Codec<T, B> {
         self.framed_write().take_last_data_frame()
     }
 
+    /// Whether flush left a data frame for the prioritizer to reclaim.
+    pub(crate) fn has_last_data_frame(&mut self) -> bool {
+        self.framed_write().has_last_data_frame()
+    }
+
     fn framed_write(&mut self) -> &mut FramedWrite<T, B> {
         self.inner.get_mut()
     }

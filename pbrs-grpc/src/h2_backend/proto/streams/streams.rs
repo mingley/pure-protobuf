@@ -257,6 +257,12 @@ where
             // stream-state or send-buffer mutexes.
             ready!(dst.flush(cx))?;
 
+            // Header and trailer flushes leave no data frame. Reclaim would
+            // only take the stream lock to observe that.
+            if !dst.has_last_data_frame() {
+                return Poll::Ready(Ok(()));
+            }
+
             let reclaimed = {
                 let mut me = self.inner.lock().unwrap();
                 me.reclaim_written_frame(&self.send_buffer, dst)
