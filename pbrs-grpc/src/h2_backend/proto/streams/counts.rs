@@ -344,7 +344,7 @@ impl Counts {
     /// The open-stream case is a closed-state check. Cleanup runs once, on close.
     #[inline]
     pub fn transition_after(&mut self, stream: store::Ptr, is_reset_counted: bool) {
-        if stream.is_closed() {
+        if stream.is_closed() && !(stream.protocol_unlinked && stream.ref_count > 0) {
             self.finish_closed(stream, is_reset_counted);
         }
     }
@@ -354,6 +354,7 @@ impl Counts {
     fn finish_closed(&mut self, mut stream: store::Ptr, is_reset_counted: bool) {
         if !stream.is_pending_reset_expiration() {
             stream.unlink();
+            stream.protocol_unlinked = true;
             if is_reset_counted {
                 self.dec_num_reset_streams();
             }

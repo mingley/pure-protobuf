@@ -28,6 +28,10 @@ pub(super) struct Stream {
     /// concurrent streams.
     pub is_counted: bool,
 
+    /// Set once `finish_closed` has unlinked the stream id. Later closes that
+    /// still have a user handle skip the repeat cleanup.
+    pub(super) protocol_unlinked: bool,
+
     /// Number of outstanding handles pointing to this stream
     pub ref_count: usize,
 
@@ -163,6 +167,7 @@ impl Stream {
             state: State::default(),
             ref_count: 0,
             is_counted: false,
+            protocol_unlinked: false,
 
             // ===== Fields related to sending =====
             next_pending_send: None,
