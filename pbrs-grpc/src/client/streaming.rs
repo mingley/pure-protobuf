@@ -727,12 +727,11 @@ where
     let mut send = ResetSend::new(send_stream);
     let later_cancel = cancel_rx.clone();
     let mut cancelled = cancel_rx;
-    let response_fut = async {
-        let response = resp_fut.await.map_err(Status::from_h2_post_dispatch)?;
-        finish_stream::<Resp>(response, wire.limits, None, wire.accept_gzip, tap.clone())
-    };
+    // Only the HTTP response future is live across the wait. Building the
+    // gRPC `Response` here would make every resume copy that envelope.
+    let response_fut = async { resp_fut.await.map_err(Status::from_h2_post_dispatch) };
     tokio::pin!(response_fut);
-    let result = tokio::select! {
+    let received = tokio::select! {
         biased;
         _ = cancelled.wait_for(|v| *v) => {
             send.stream_mut().send_reset(Reason::CANCEL);
@@ -741,11 +740,17 @@ where
         result = &mut response_fut => result,
     };
     send.live = false;
-    if let (Some(tap), Err(status)) = (&tap, &result) {
+    if let (Some(tap), Err(status)) = (&tap, &received) {
         if status.code() == Code::Cancelled {
             tap.log_cancel();
         }
     }
+    let result = match received {
+        Ok(response) => {
+            finish_stream::<Resp>(response, wire.limits, None, wire.accept_gzip, tap.clone())
+        }
+        Err(status) => Err(status),
+    };
     match result {
         Ok(response) => {
             if let Some(sock) = socket {
