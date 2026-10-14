@@ -18,7 +18,24 @@ pub struct Encoder {
     /// across frames instead of being allocated and freed per frame. See
     /// `take_scratch` / `return_scratch`.
     scratch: BytesMut,
+    /// Last literal string written for a header whose value is not indexed.
+    ///
+    /// `:path` is one of those. The Huffman bytes depend only on the value,
+    /// and a connection repeats the same path, so the next request appends
+    /// the saved bytes instead of encoding again.
+    literal: Option<CachedLiteral>,
 }
+
+/// A short literal value and the `encode_str` bytes it produced.
+#[derive(Debug)]
+struct CachedLiteral {
+    value: [u8; LITERAL_CACHE],
+    value_len: u8,
+    encoded: [u8; LITERAL_CACHE],
+    encoded_len: u8,
+}
+
+const LITERAL_CACHE: usize = 128;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum SizeUpdate {
@@ -35,6 +52,7 @@ impl Encoder {
             max_allowed_size: DEFAULT_MAX_ALLOWED_SIZE,
             size_update: None,
             scratch: BytesMut::new(),
+            literal: None,
         }
     }
 
@@ -158,9 +176,29 @@ impl Encoder {
                 encode_int(idx, 7, 0x80, dst);
             }
             Index::Name(idx, _) => {
-                let header = self.table.resolve(index);
-
-                encode_not_indexed(idx, header.value_slice(), header.is_sensitive(), dst);
+                // Copy the value out before touching `dst` or the cache. The
+                // table borrow cannot overlap those writes.
+                let mut scratch = [0u8; LITERAL_CACHE];
+                let copied = {
+                    let header = self.table.resolve(index);
+                    let value = header.value_slice();
+                    if header.is_sensitive() {
+                        encode_int(idx, 4, 0b10000, dst);
+                    } else {
+                        encode_int(idx, 4, 0, dst);
+                    }
+                    if value.len() > scratch.len() {
+                        encode_str(value, dst);
+                        None
+                    } else {
+                        let n = value.len();
+                        scratch[..n].copy_from_slice(value);
+                        Some(n)
+                    }
+                };
+                if let Some(n) = copied {
+                    self.write_cached_literal(&scratch[..n], dst);
+                }
             }
             Index::Inserted(_) => {
                 let header = self.table.resolve(index);
@@ -190,6 +228,34 @@ impl Encoder {
                     dst,
                 );
             }
+        }
+    }
+
+    /// Append the Huffman form of `value`, reusing it when this connection
+    /// already encoded that exact literal.
+    fn write_cached_literal(&mut self, value: &[u8], dst: &mut BytesMut) {
+        if let Some(cache) = &self.literal {
+            if cache.value_len as usize == value.len()
+                && &cache.value[..value.len()] == value
+            {
+                let n = cache.encoded_len as usize;
+                dst.extend_from_slice(&cache.encoded[..n]);
+                return;
+            }
+        }
+        let start = dst.len();
+        encode_str(value, dst);
+        let encoded = &dst[start..];
+        if encoded.len() <= LITERAL_CACHE {
+            let mut cache = CachedLiteral {
+                value: [0; LITERAL_CACHE],
+                value_len: value.len() as u8,
+                encoded: [0; LITERAL_CACHE],
+                encoded_len: encoded.len() as u8,
+            };
+            cache.value[..value.len()].copy_from_slice(value);
+            cache.encoded[..encoded.len()].copy_from_slice(encoded);
+            self.literal = Some(cache);
         }
     }
 
