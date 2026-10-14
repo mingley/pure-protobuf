@@ -327,16 +327,14 @@ impl Counts {
                 }
             }
 
-            if !stream.state.is_scheduled_reset() && stream.is_counted {
-                tracing::trace!("dec_num_streams; stream={:?}", stream.id);
-                // Decrement the number of active streams.
-                self.dec_num_streams(&mut stream);
-            }
+        if !stream.state.is_scheduled_reset() && stream.is_counted {
+            tracing::trace!("dec_num_streams; stream={:?}", stream.id);
+            // Decrement the number of active streams.
+            self.dec_num_streams(&mut stream);
         }
-
-        // Release the stream if it requires releasing
-        if stream.is_released() {
-            stream.remove();
+            if stream.release_ready() {
+                stream.remove();
+            }
         }
     }
 

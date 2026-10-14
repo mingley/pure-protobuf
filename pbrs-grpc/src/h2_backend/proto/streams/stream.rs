@@ -253,13 +253,20 @@ impl Stream {
     /// Returns true if the stream is no longer in use
     pub fn is_released(&self) -> bool {
         // The stream is closed and fully flushed
-        self.is_closed() &&
-            // There are no more outstanding references to the stream
-            self.ref_count == 0 &&
-            // The stream is not in any queue
-            !self.is_pending_send && !self.is_pending_send_capacity &&
-            !self.is_pending_accept && !self.is_pending_window_update &&
-            !self.is_pending_open && self.reset_at.is_none()
+        self.is_closed() && self.release_ready()
+    }
+
+    /// Queue and refcount checks for [`Self::is_released`], once `is_closed`
+    /// is already known. `transition_after` uses this so a live stream does
+    /// not test the closed state twice.
+    pub(super) fn release_ready(&self) -> bool {
+        self.ref_count == 0
+            && !self.is_pending_send
+            && !self.is_pending_send_capacity
+            && !self.is_pending_accept
+            && !self.is_pending_window_update
+            && !self.is_pending_open
+            && self.reset_at.is_none()
     }
 
     /// Returns true when the consumer of the stream has dropped all handles
