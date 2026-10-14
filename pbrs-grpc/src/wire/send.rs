@@ -222,6 +222,14 @@ pub(crate) fn send_ok_headers(
 ) -> Result<backend::SendStream, Status> {
     let mut res = Response::new(());
     *res.status_mut() = StatusCode::OK;
+    // Default responses repeat the same two headers. Clone that block
+    // instead of hashing the names again.
+    if md.is_empty() && send_codec.is_none() && accept_gzip {
+        *res.headers_mut() = crate::wire::headers::standard_response_headers().clone();
+        return respond
+            .send_response(res, false)
+            .map_err(|e| Status::internal(e.to_string()));
+    }
     // Exact sizing: the fixed headers plus response metadata. A minimal
     // table for the common no-metadata call, and never a rehash past it.
     let capacity = 2 + md.len() + usize::from(send_codec.is_some());

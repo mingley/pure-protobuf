@@ -6,6 +6,7 @@ use crate::status::Status;
 use crate::transport::h2::RecvStream;
 use http::uri::{Authority, PathAndQuery, Scheme};
 use http::{HeaderMap, HeaderName, HeaderValue, Request, StatusCode};
+use std::sync::OnceLock;
 use std::time::Duration;
 
 pub(crate) const GRPC_STATUS: HeaderName = HeaderName::from_static("grpc-status");
@@ -94,6 +95,17 @@ pub(crate) fn grpc_request(
     let mut req = Request::new(());
     *req.method_mut() = http::Method::POST;
     *req.uri_mut() = uri;
+    // The benchmark and the default client repeat the same four headers.
+    // Cloning that block skips four hashed inserts.
+    if md.is_empty()
+        && timeout.is_none()
+        && send_codec.is_none()
+        && accept_gzip
+        && user_agent == &PBRS_GRPC_UA
+    {
+        *req.headers_mut() = standard_request_headers().clone();
+        return Ok(req);
+    }
     // Exact sizing: the fixed headers plus user metadata. A minimal table
     // for the common no-metadata call, and never a rehash past it.
     let capacity =
@@ -115,6 +127,30 @@ pub(crate) fn grpc_request(
     // After user metadata so a `user-agent` smuggled in metadata cannot win.
     headers.insert(USER_AGENT, user_agent.clone());
     Ok(req)
+}
+
+/// `content-type`, `te`, `grpc-accept-encoding`, and the default user-agent.
+fn standard_request_headers() -> &'static HeaderMap {
+    static HEADERS: OnceLock<HeaderMap> = OnceLock::new();
+    HEADERS.get_or_init(|| {
+        let mut headers = HeaderMap::with_capacity(4);
+        headers.insert(http::header::CONTENT_TYPE, APPLICATION_GRPC);
+        headers.insert(http::header::TE, TRAILERS);
+        headers.insert(GRPC_ACCEPT_ENCODING, IDENTITY_GZIP_DEFLATE);
+        headers.insert(USER_AGENT, PBRS_GRPC_UA.clone());
+        headers
+    })
+}
+
+/// `content-type` and `grpc-accept-encoding` for an uncompressed response.
+pub(crate) fn standard_response_headers() -> &'static HeaderMap {
+    static HEADERS: OnceLock<HeaderMap> = OnceLock::new();
+    HEADERS.get_or_init(|| {
+        let mut headers = HeaderMap::with_capacity(2);
+        headers.insert(http::header::CONTENT_TYPE, APPLICATION_GRPC);
+        headers.insert(GRPC_ACCEPT_ENCODING, IDENTITY_GZIP_DEFLATE);
+        headers
+    })
 }
 
 /// Content-coding token in `grpc-encoding`: trim whitespace and a trailing
