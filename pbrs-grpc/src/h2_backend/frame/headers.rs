@@ -155,8 +155,6 @@ impl Headers {
         let flags = HeadersFlag(head.flag());
         let mut pad = 0;
 
-        tracing::trace!("loading headers; flags={:?}", flags);
-
         if head.stream_id().is_zero() {
             return Err(Error::InvalidStreamId);
         }

@@ -837,12 +837,9 @@ impl Prioritize {
         store: &'s mut Store,
         counts: &mut Counts,
     ) -> Option<store::Ptr<'s>> {
-        tracing::trace!("schedule_pending_open");
         // check for any pending open streams
         if counts.can_inc_num_send_streams() {
             if let Some(mut stream) = self.pending_open.pop(store) {
-                tracing::trace!("schedule_pending_open; stream={:?}", stream.id);
-
                 counts.dec_pending_send_streams();
                 counts.inc_num_send_streams(&mut stream);
                 stream.notify_send();

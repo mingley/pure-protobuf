@@ -168,13 +168,6 @@ impl FlowControl {
     /// Decrements the window reflecting data has actually been sent. The caller
     /// must ensure that the window has capacity.
     pub fn send_data(&mut self, sz: WindowSize) -> Result<(), Reason> {
-        tracing::trace!(
-            "send_data; sz={}; window={}; available={}",
-            sz,
-            self.window_size,
-            self.available
-        );
-
         // If send size is zero it's meaningless to update flow control window
         if sz > 0 {
             // Ensure that the argument is correct
