@@ -64,7 +64,7 @@ pub(crate) async fn run_unary<Resp>(
     tap: Option<&CallLogger>,
 ) -> Result<Response<Resp>, Status>
 where
-    Resp: CodecMessage,
+    Resp: CodecMessage + Send,
 {
     run_unary_frame(
         send_req, authority, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
@@ -97,7 +97,7 @@ async fn run_unary_frame<Resp>(
     policy_dispatch: Option<&mut PolicyRetryDispatch<'_>>,
 ) -> Result<Response<Resp>, UnaryFailure>
 where
-    Resp: CodecMessage,
+    Resp: CodecMessage + Send,
 {
     let outcome = run_unary_inner(
         send_req,
@@ -147,7 +147,7 @@ async fn run_unary_inner<Resp>(
     policy_dispatch: Option<&mut PolicyRetryDispatch<'_>>,
 ) -> Result<Response<Resp>, UnaryFailure>
 where
-    Resp: CodecMessage,
+    Resp: CodecMessage + Send,
 {
     let mut commitment = AttemptCommitment::Uncommitted;
     if let Some(tap) = tap {

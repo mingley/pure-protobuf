@@ -9,6 +9,7 @@ use crate::transport::{
     Error as TransportError, Reason, RecvStream, SendRequest, SendStream, h2 as backend,
 };
 use crate::wire::{SegFrame, grpc_request, send_frame, status_from};
+use futures_util::future::Either;
 use http::HeaderValue;
 use http::uri::Authority;
 use std::future::{Future, poll_fn};
@@ -380,62 +381,118 @@ pub(crate) fn prefer_deadline_in<R: Runtime, T>(
     }
 }
 
-pub(crate) fn first_of<T>(
-    fut: impl std::future::Future<Output = Result<T, Status>>,
+pub(crate) fn first_of<'a, T>(
+    fut: impl Future<Output = Result<T, Status>> + Send + 'a,
     cancel_rx: watch::Receiver<bool>,
     deadline: Option<tokio::time::Instant>,
-) -> impl std::future::Future<Output = Result<T, Status>> {
+) -> impl Future<Output = Result<T, Status>> + Send + 'a
+where
+    T: Send + 'a,
+{
     first_of_in::<TokioRuntime, T>(fut, cancel_rx, deadline)
 }
 
-/// [`first_of`] on runtime `R`; production callers use Tokio.
-pub(crate) async fn first_of_in<R: Runtime, T>(
-    fut: impl std::future::Future<Output = Result<T, Status>>,
-    mut cancel_rx: watch::Receiver<bool>,
+/// [`first_of`] on runtime `R`.
+///
+/// A deadline and a plain cancel are different futures. The deadline arm is
+/// boxed so a call with no deadline does not carry the timer.
+pub(crate) fn first_of_in<'a, R, T>(
+    fut: impl Future<Output = Result<T, Status>> + Send + 'a,
+    cancel_rx: watch::Receiver<bool>,
     deadline: Option<tokio::time::Instant>,
-) -> Result<T, Status> {
-    if let Some(at) = deadline {
-        tokio::select! {
-            biased;
-            _ = cancel_rx.wait_for(|v| *v) => Err(Status::cancelled()),
-            _ = R::sleep_until(at) => Err(Status::deadline_exceeded()),
-            r = fut => r,
-        }
-    } else {
-        tokio::select! {
-            biased;
-            _ = cancel_rx.wait_for(|v| *v) => Err(Status::cancelled()),
-            r = fut => r,
-        }
+) -> impl Future<Output = Result<T, Status>> + Send + 'a
+where
+    R: Runtime + 'a,
+    T: Send + 'a,
+{
+    match deadline {
+        None => Either::Left(first_of_cancel(fut, cancel_rx)),
+        Some(at) => Either::Right(Box::pin(first_of_deadline::<R, T, _>(fut, cancel_rx, at))
+            as Pin<Box<dyn Future<Output = Result<T, Status>> + Send + 'a>>),
     }
 }
 
-pub(crate) fn race<T>(
-    fut: impl std::future::Future<Output = Result<T, Status>>,
-    cancel_rx: watch::Receiver<bool>,
-    deadline: Option<tokio::time::Instant>,
-    send: Option<&mut backend::SendStream>,
-) -> impl std::future::Future<Output = Result<T, Status>> {
-    race_in::<TokioRuntime, T>(fut, cancel_rx, deadline, send)
+async fn first_of_cancel<T>(
+    fut: impl Future<Output = Result<T, Status>>,
+    mut cancel_rx: watch::Receiver<bool>,
+) -> Result<T, Status> {
+    tokio::select! {
+        biased;
+        _ = cancel_rx.wait_for(|v| *v) => Err(Status::cancelled()),
+        r = fut => r,
+    }
 }
 
-/// [`race`] on runtime `R`; production callers use Tokio.
-pub(crate) async fn race_in<R: Runtime, T>(
-    fut: impl std::future::Future<Output = Result<T, Status>>,
+async fn first_of_deadline<R, T, F>(
+    fut: F,
+    mut cancel_rx: watch::Receiver<bool>,
+    at: tokio::time::Instant,
+) -> Result<T, Status>
+where
+    R: Runtime,
+    F: Future<Output = Result<T, Status>>,
+{
+    tokio::select! {
+        biased;
+        _ = cancel_rx.wait_for(|v| *v) => Err(Status::cancelled()),
+        _ = R::sleep_until(at) => Err(Status::deadline_exceeded()),
+        r = fut => r,
+    }
+}
+
+pub(crate) fn race<'a, T>(
+    fut: impl Future<Output = Result<T, Status>> + Send + 'a,
     cancel_rx: watch::Receiver<bool>,
     deadline: Option<tokio::time::Instant>,
+    send: Option<&'a mut backend::SendStream>,
+) -> impl Future<Output = Result<T, Status>> + Send + 'a
+where
+    T: Send + 'a,
+{
+    match deadline {
+        None => Either::Left(race_plain(fut, cancel_rx, send)),
+        Some(at) => Either::Right(Box::pin(race_deadline::<TokioRuntime, T, _>(
+            fut, cancel_rx, at, send,
+        ))
+            as Pin<Box<dyn Future<Output = Result<T, Status>> + Send + 'a>>),
+    }
+}
+
+async fn race_plain<T>(
+    fut: impl Future<Output = Result<T, Status>> + Send,
+    cancel_rx: watch::Receiver<bool>,
     send: Option<&mut backend::SendStream>,
 ) -> Result<T, Status> {
-    let result = first_of_in::<R, _>(fut, cancel_rx, deadline).await;
+    let result = first_of_cancel(fut, cancel_rx).await;
+    reset_send_on_cancel(send, &result);
+    result
+}
+
+async fn race_deadline<R, T, F>(
+    fut: F,
+    cancel_rx: watch::Receiver<bool>,
+    at: tokio::time::Instant,
+    send: Option<&mut backend::SendStream>,
+) -> Result<T, Status>
+where
+    R: Runtime,
+    T: Send,
+    F: Future<Output = Result<T, Status>> + Send,
+{
+    let result = first_of_deadline::<R, T, F>(fut, cancel_rx, at).await;
+    reset_send_on_cancel(send, &result);
+    prefer_deadline_in::<R, _>(result, Some(at))
+}
+
+fn reset_send_on_cancel<T>(send: Option<&mut backend::SendStream>, result: &Result<T, Status>) {
     if let Some(send) = send {
         if matches!(
-            &result,
-            Err(s) if s.code() == Code::Cancelled || s.code() == Code::DeadlineExceeded
+            result,
+            Err(status) if status.code() == Code::Cancelled || status.code() == Code::DeadlineExceeded
         ) {
             send.send_reset(Reason::CANCEL);
         }
     }
-    prefer_deadline_in::<R, _>(result, deadline)
 }
 
 /// HEADERS sent; request DATA has not started. Transparent retry stops here.

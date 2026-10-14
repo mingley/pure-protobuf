@@ -26,6 +26,8 @@ fnv = "=1.0.7"
 # a per-message allocation.
 futures-core = { version = "0.3", default-features = false }
 futures-sink = { version = "=0.3.34", default-features = false }
+# `Either` keeps a deadline race out of the no-deadline future.
+futures-util = { version = "=0.3.34", default-features = false, features = ["std"] }
 # gzip uses miniz_oxide with runtime CPU feature detection.
 flate2 = { version = "1", default-features = false, features = ["rust_backend", "runtime_detection"] }
 h2 = { version = "0.4.18", optional = true }
