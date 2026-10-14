@@ -279,6 +279,28 @@ impl Decoder {
     /// Headers from an identical block that did not change the dynamic table.
     pub(crate) fn cached_block(&self, raw: &[u8]) -> Option<SavedHeaders> {
         let block = self.saved.iter().find(|block| block.raw == raw)?;
+        // A repeated OK trailer is one header. Reuse the last received map
+        // instead of cloning it. The encoder keeps its own trailer slot.
+        if block.decoded.method.is_none()
+            && block.decoded.status.is_none()
+            && crate::h2_backend::header_pool::is_bare_ok_trailer(&block.decoded.fields)
+        {
+            let decoded = &block.decoded;
+            let fields =
+                crate::h2_backend::header_pool::take_received_ok_trailer(|| decoded.fields.clone());
+            return Some(SavedHeaders {
+                fields,
+                method: decoded.method.clone(),
+                scheme: decoded.scheme.clone(),
+                authority: decoded.authority.clone(),
+                path: decoded.path.clone(),
+                protocol: decoded.protocol.clone(),
+                status: decoded.status,
+                field_size: decoded.field_size,
+                stock_facts: decoded.stock_facts,
+                shared_fields: None,
+            });
+        }
         // Only a request. A trailers-only error is also four stock headers,
         // and handing back an empty map would drop `grpc-status`.
         if block.decoded.method.is_some() {

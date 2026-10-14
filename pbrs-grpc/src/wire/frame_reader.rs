@@ -463,7 +463,7 @@ impl<T> WireStream<T> {
                         }
                     }
                 }
-                self.trailers = Metadata::from_owned_headers(map);
+                self.trailers = metadata_from_trailers(map);
                 self.log_response_trailer(&status);
                 if status.code() == Code::Ok {
                     Poll::Ready(Ok(()))
@@ -583,9 +583,7 @@ pub(crate) async fn finish_unary<Resp: CodecMessage>(
     let status = status_from(&parts.headers, trailers.as_ref());
     let encoding = encoding_token.map(str::to_owned);
     let header_md = Metadata::from_owned_headers(parts.headers);
-    let trailers_md = trailers
-        .map(Metadata::from_owned_headers)
-        .unwrap_or_default();
+    let trailers_md = trailers.map(metadata_from_trailers).unwrap_or_default();
     if let Some(tap) = tap {
         tap.log_trailer(&trailers_md, &status);
     }
@@ -655,6 +653,15 @@ pub(crate) fn finish_stream<Resp: CodecMessage + Send + 'static>(
         Metadata::new(),
     )
     .with_encoding(encoding))
+}
+
+fn metadata_from_trailers(map: HeaderMap) -> Metadata {
+    if crate::h2_backend::header_pool::is_bare_ok_trailer(&map) {
+        crate::h2_backend::header_pool::recycle_received_ok_trailer(map);
+        Metadata::new()
+    } else {
+        Metadata::from_owned_headers(map)
+    }
 }
 
 pub(crate) fn hex_value(b: u8) -> Option<u8> {

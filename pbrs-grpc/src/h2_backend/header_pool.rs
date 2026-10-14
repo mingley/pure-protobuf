@@ -33,6 +33,32 @@ pub(crate) fn take(slot: Slot, make: impl FnOnce() -> HeaderMap) -> HeaderMap {
     POOL.with(|pool| pool.0[slot as usize].take().unwrap_or_else(make))
 }
 
+/// `grpc-status: 0` and nothing else.
+pub(crate) fn is_bare_ok_trailer(fields: &HeaderMap) -> bool {
+    if fields.len() != 1 {
+        return false;
+    }
+    let Some((name, value)) = fields.iter().next() else {
+        return false;
+    };
+    let bytes = value.as_bytes();
+    name.as_str() == "grpc-status" && bytes.len() == 1 && bytes[0] == b'0'
+}
+
+thread_local! {
+    // Received OK trailers only. The send-side `Slot::Trailers` map stays
+    // with the encoder; sharing it made client-stream allocate again.
+    static RECEIVED_OK_TRAILER: Cell<Option<HeaderMap>> = const { Cell::new(None) };
+}
+
+pub(crate) fn take_received_ok_trailer(make: impl FnOnce() -> HeaderMap) -> HeaderMap {
+    RECEIVED_OK_TRAILER.with(|cell| cell.take().unwrap_or_else(make))
+}
+
+pub(crate) fn recycle_received_ok_trailer(map: HeaderMap) {
+    RECEIVED_OK_TRAILER.set(Some(map));
+}
+
 pub(crate) fn recycle(slot: Slot, map: HeaderMap) {
     POOL.with(|pool| {
         drop(pool.0[slot as usize].replace(Some(map)));
