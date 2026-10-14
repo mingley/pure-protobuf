@@ -11,7 +11,7 @@ use crate::metadata::Metadata;
 use crate::status::Status;
 use futures_core::Stream;
 use futures_core::stream::FusedStream;
-use std::future::poll_fn;
+use std::future::{Future, poll_fn};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::sync::{mpsc, watch};
@@ -448,11 +448,19 @@ impl<T> Streaming<T> {
         if !rx.is_closed() {
             return None;
         }
+        // One locked pop of everything already queued. `try_recv` locks once
+        // per message. If the task budget is spent, fall back to that path so
+        // a `Pending` poll cannot leave messages in the channel.
         let mut out = Vec::new();
-        loop {
-            match rx.try_recv() {
-                Ok(item) => out.push(item),
-                Err(_) => break,
+        let pending = {
+            let waker = std::task::Waker::noop();
+            let mut cx = std::task::Context::from_waker(waker);
+            let fut = std::pin::pin!(rx.recv_many(&mut out, usize::MAX));
+            fut.poll(&mut cx).is_pending()
+        };
+        if pending {
+            while let Ok(item) = rx.try_recv() {
+                out.push(item);
             }
         }
         Some(out)
