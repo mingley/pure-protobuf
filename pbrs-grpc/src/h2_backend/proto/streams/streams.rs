@@ -163,6 +163,7 @@ where
         })
     }
 
+    #[inline]
     pub fn send_pending_refusal<T>(
         &mut self,
         cx: &mut Context,
@@ -174,6 +175,19 @@ where
         if !self.refusal_pending.load(Ordering::Acquire) {
             return Poll::Ready(Ok(()));
         }
+        self.send_pending_refusal_cold(cx, dst)
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn send_pending_refusal_cold<T>(
+        &mut self,
+        cx: &mut Context,
+        dst: &mut Codec<T, Prioritized<B>>,
+    ) -> Poll<io::Result<()>>
+    where
+        T: AsyncWrite + Unpin,
+    {
         loop {
             let status = {
                 let mut me = self.inner.lock().unwrap();
