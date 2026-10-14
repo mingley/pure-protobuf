@@ -8,6 +8,7 @@
 
 use http::HeaderMap;
 use std::cell::Cell;
+use std::sync::Arc;
 
 #[derive(Copy, Clone)]
 pub(crate) enum Slot {
@@ -93,4 +94,18 @@ pub(crate) fn take_next_stock(kind: u8) -> bool {
 
 pub(crate) fn clear_next_stock() {
     NEXT_STOCK.set(0);
+}
+
+thread_local! {
+    static SHARED_REQUEST: Cell<Option<Arc<HeaderMap>>> = const { Cell::new(None) };
+}
+
+/// A decoded stock request is shared with the accept loop. The cache keeps
+/// the other handle.
+pub(crate) fn publish_shared_request(map: Arc<HeaderMap>) {
+    SHARED_REQUEST.set(Some(map));
+}
+
+pub(crate) fn take_shared_request() -> Option<Arc<HeaderMap>> {
+    SHARED_REQUEST.take()
 }

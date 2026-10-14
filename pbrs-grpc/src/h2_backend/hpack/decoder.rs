@@ -13,6 +13,7 @@ use std::collections::VecDeque;
 use std::io::Cursor;
 use std::ops::ControlFlow;
 use std::str::Utf8Error;
+use std::sync::Arc;
 
 /// Decodes headers using HPACK
 #[derive(Debug)]
@@ -48,6 +49,8 @@ pub struct SavedHeaders {
     pub status: Option<StatusCode>,
     pub field_size: usize,
     pub stock_facts: Option<crate::wire::headers::StockFacts>,
+    /// Stock request headers. A hit shares this handle instead of cloning.
+    pub shared_fields: Option<Arc<HeaderMap>>,
 }
 
 /// Huffman input and the bytes it decoded to.
@@ -275,10 +278,28 @@ impl Decoder {
 
     /// Headers from an identical block that did not change the dynamic table.
     pub(crate) fn cached_block(&self, raw: &[u8]) -> Option<SavedHeaders> {
-        self.saved
-            .iter()
-            .find(|block| block.raw == raw)
-            .map(|block| block.decoded.clone())
+        let block = self.saved.iter().find(|block| block.raw == raw)?;
+        // Only a request. A trailers-only error is also four stock headers,
+        // and handing back an empty map would drop `grpc-status`.
+        if block.decoded.method.is_some() {
+            if let Some(shared) = &block.decoded.shared_fields {
+                crate::h2_backend::header_pool::publish_shared_request(Arc::clone(shared));
+                let decoded = &block.decoded;
+                return Some(SavedHeaders {
+                    fields: HeaderMap::new(),
+                    method: decoded.method.clone(),
+                    scheme: decoded.scheme.clone(),
+                    authority: decoded.authority.clone(),
+                    path: decoded.path.clone(),
+                    protocol: decoded.protocol.clone(),
+                    status: decoded.status,
+                    field_size: decoded.field_size,
+                    stock_facts: decoded.stock_facts,
+                    shared_fields: None,
+                });
+            }
+        }
+        Some(block.decoded.clone())
     }
 
     /// Remember `decoded` for a later identical `raw` block.

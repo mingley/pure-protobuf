@@ -1270,6 +1270,14 @@ impl HeaderBlock {
             self.stock_facts = Some(crate::wire::headers::stock_facts(&self.fields));
         }
         if let Some(raw) = raw {
+            let shared_fields = if self.pseudo.method.is_some()
+                && self.stock_facts.is_some_and(|facts| facts.stock)
+                && self.fields.len() == 4
+            {
+                Some(std::sync::Arc::new(self.fields.clone()))
+            } else {
+                None
+            };
             decoder.store_block(
                 raw,
                 hpack::SavedHeaders {
@@ -1282,6 +1290,7 @@ impl HeaderBlock {
                     status: self.pseudo.status,
                     field_size: self.field_size,
                     stock_facts: self.stock_facts,
+                    shared_fields,
                 },
             );
         }

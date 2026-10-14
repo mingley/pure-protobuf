@@ -97,10 +97,55 @@ pub fn is_sensitive_key(key: &str) -> bool {
 /// The total size a peer can send is bounded by
 /// [`ServerConfig::max_header_list_size`](crate::ServerConfig::max_header_list_size),
 /// not by this type.
-#[derive(Clone, Default)]
 pub struct Metadata {
-    map: HeaderMap,
+    map: HeaderStore,
     sensitive_keys: Option<Arc<BTreeSet<String>>>,
+}
+
+/// Owned headers, or one shared stock request block.
+///
+/// The shared arm avoids cloning the four request headers on a cache hit.
+/// Every other map stays owned, so an empty trailer does not allocate.
+enum HeaderStore {
+    Owned(HeaderMap),
+    Shared(Arc<HeaderMap>),
+}
+
+impl HeaderStore {
+    #[inline]
+    fn get(&self) -> &HeaderMap {
+        match self {
+            Self::Owned(map) => map,
+            Self::Shared(map) => map,
+        }
+    }
+
+    #[inline]
+    fn get_mut(&mut self) -> &mut HeaderMap {
+        match self {
+            Self::Owned(map) => map,
+            Self::Shared(map) => Arc::make_mut(map),
+        }
+    }
+}
+
+impl Default for Metadata {
+    fn default() -> Self {
+        Self {
+            map: HeaderStore::Owned(HeaderMap::new()),
+            sensitive_keys: None,
+        }
+    }
+}
+
+impl Clone for Metadata {
+    fn clone(&self) -> Self {
+        // A clone must not observe later mutations of the original.
+        Self {
+            map: HeaderStore::Owned(self.map.get().clone()),
+            sensitive_keys: self.sensitive_keys.clone(),
+        }
+    }
 }
 
 impl fmt::Debug for Metadata {
@@ -109,7 +154,7 @@ impl fmt::Debug for Metadata {
         let mut count = 0usize;
         const DEFAULT_MAX_METADATA_ENTRIES: usize = 64;
 
-        for (k, _) in &self.map {
+        for (k, _) in self.headers() {
             let key_str = k.as_str();
             if is_reserved(key_str) {
                 continue;
@@ -139,7 +184,7 @@ impl fmt::Debug for SafeMetadataDebug<'_> {
         let max_entries = self.config.max_metadata_entries();
         let max_len = self.config.max_value_length();
 
-        for (k, v) in &self.metadata.map {
+        for (k, v) in self.metadata.headers() {
             let key_str = k.as_str();
             if is_reserved(key_str) {
                 continue;
@@ -183,16 +228,26 @@ impl Metadata {
         Self::default()
     }
 
+    #[inline]
+    fn headers(&self) -> &HeaderMap {
+        self.map.get()
+    }
+
+    #[inline]
+    fn headers_mut(&mut self) -> &mut HeaderMap {
+        self.map.get_mut()
+    }
+
     /// Whether any non-reserved entry is present.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        !self.map.keys().any(|k| !is_reserved(k.as_str()))
+        !self.headers().keys().any(|k| !is_reserved(k.as_str()))
     }
 
     /// Number of non-reserved entries, counting repeats of the same key.
     #[must_use]
     pub fn len(&self) -> usize {
-        self.map
+        self.headers()
             .iter()
             .filter(|(k, _)| !is_reserved(k.as_str()))
             .count()
@@ -218,7 +273,7 @@ impl Metadata {
         }
         let name = header_name(key)?;
         let value = ascii_header_value(value.as_ref())?;
-        self.map.append(name, value);
+        self.headers_mut().append(name, value);
         Ok(())
     }
 
@@ -242,7 +297,7 @@ impl Metadata {
         }
         let name = header_name(key)?;
         let value = ascii_header_value(value.as_ref())?;
-        drop(self.map.insert(name, value));
+        drop(self.headers_mut().insert(name, value));
         Ok(())
     }
 
@@ -269,7 +324,7 @@ impl Metadata {
         let encoded = STANDARD_NO_PAD.encode(value.as_ref());
         let value = HeaderValue::from_str(&encoded)
             .map_err(|e| Status::internal(format!("base64 metadata: {e}")))?;
-        self.map.append(name, value);
+        self.headers_mut().append(name, value);
         Ok(())
     }
 
@@ -296,7 +351,7 @@ impl Metadata {
         let encoded = STANDARD_NO_PAD.encode(value.as_ref());
         let value = HeaderValue::from_str(&encoded)
             .map_err(|e| Status::internal(format!("base64 metadata: {e}")))?;
-        drop(self.map.insert(name, value));
+        drop(self.headers_mut().insert(name, value));
         Ok(())
     }
 
@@ -309,7 +364,7 @@ impl Metadata {
         let Ok(name) = HeaderName::from_bytes(key.to_ascii_lowercase().as_bytes()) else {
             return false;
         };
-        self.map.remove(name).is_some()
+        self.headers_mut().remove(name).is_some()
     }
 
     /// Remove every `-bin` entry for `key`. Returns whether anything was removed.
@@ -320,7 +375,7 @@ impl Metadata {
         let Ok(name) = HeaderName::from_bytes(key.to_ascii_lowercase().as_bytes()) else {
             return false;
         };
-        self.map.remove(name).is_some()
+        self.headers_mut().remove(name).is_some()
     }
 
     /// First ASCII value for `key`, matched case-insensitively.
@@ -332,7 +387,7 @@ impl Metadata {
         if is_reserved(key) {
             return None;
         }
-        self.map.get(key.to_ascii_lowercase())?.to_str().ok()
+        self.headers().get(key.to_ascii_lowercase())?.to_str().ok()
     }
 
     /// First `-bin` value for `key`, base64-decoded.
@@ -344,7 +399,11 @@ impl Metadata {
         if is_reserved(key) {
             return None;
         }
-        let raw = self.map.get(key.to_ascii_lowercase())?.to_str().ok()?;
+        let raw = self
+            .headers()
+            .get(key.to_ascii_lowercase())?
+            .to_str()
+            .ok()?;
         decode_base64(raw)
     }
 
@@ -356,7 +415,7 @@ impl Metadata {
     /// these. Reserved keys yield nothing.
     pub fn get_all(&self, key: &str) -> impl Iterator<Item = &str> + '_ + use<'_> {
         let skip = is_reserved(key);
-        self.map
+        self.headers()
             .get_all(key)
             .iter()
             .filter(move |_| !skip)
@@ -369,7 +428,7 @@ impl Metadata {
     /// [`Self::get_bin`] is the first of these. Reserved keys yield nothing.
     pub fn get_all_bin(&self, key: &str) -> impl Iterator<Item = Vec<u8>> + '_ + use<'_> {
         let skip = is_reserved(key);
-        self.map
+        self.headers()
             .get_all(key)
             .iter()
             .filter(move |_| !skip)
@@ -394,7 +453,7 @@ impl Metadata {
     /// [`Self::get_all_bin`] for the values. Reserved protocol names are
     /// omitted, matching every other read path.
     pub fn keys(&self) -> impl Iterator<Item = &str> + '_ {
-        self.map.keys().filter_map(|name| {
+        self.headers().keys().filter_map(|name| {
             let key = name.as_str();
             if is_reserved(key) { None } else { Some(key) }
         })
@@ -406,7 +465,7 @@ impl Metadata {
     /// wire. An interceptor that wants to forward none of the caller's
     /// metadata can clear and then insert what it still needs.
     pub fn clear(&mut self) {
-        self.map.clear();
+        self.headers_mut().clear();
         self.sensitive_keys = None;
     }
 
@@ -415,11 +474,11 @@ impl Metadata {
     /// Reserved names in `other` are not copied. Repeats accumulate, same as
     /// [`Self::insert`]. `other` is left unchanged.
     pub fn merge(&mut self, other: &Self) {
-        for (name, value) in &other.map {
+        for (name, value) in other.headers() {
             if is_reserved(name.as_str()) {
                 continue;
             }
-            self.map.append(name.clone(), value.clone());
+            self.headers_mut().append(name.clone(), value.clone());
         }
         if let Some(other_sens) = &other.sensitive_keys {
             let set = self
@@ -480,7 +539,7 @@ impl Metadata {
     /// [`Self::clear`] and [`Self::insert`].
     pub fn retain(&mut self, mut f: impl FnMut(&str) -> bool) {
         let drop_names: Vec<HeaderName> = self
-            .map
+            .headers()
             .keys()
             .filter(|name| {
                 let key = name.as_str();
@@ -489,13 +548,13 @@ impl Metadata {
             .cloned()
             .collect();
         for name in drop_names {
-            drop(self.map.remove(name));
+            drop(self.headers_mut().remove(name));
         }
     }
 
     /// Every ASCII entry, skipping reserved and `-bin` keys.
     pub fn iter(&self) -> impl Iterator<Item = (&str, &str)> + '_ {
-        self.map.iter().filter_map(|(name, value)| {
+        self.headers().iter().filter_map(|(name, value)| {
             let key = name.as_str();
             if is_reserved(key) || key.ends_with("-bin") {
                 return None;
@@ -506,7 +565,7 @@ impl Metadata {
 
     /// Every `-bin` entry, base64-decoded.
     pub fn iter_bin(&self) -> impl Iterator<Item = (&str, Vec<u8>)> + '_ {
-        self.map.iter().filter_map(|(name, value)| {
+        self.headers().iter().filter_map(|(name, value)| {
             let key = name.as_str();
             if is_reserved(key) || !key.ends_with("-bin") {
                 return None;
@@ -524,28 +583,36 @@ impl Metadata {
     /// [`Self::get`] hides those names. Callers that parse `grpc-timeout` or
     /// `grpc-encoding` need this view.
     pub(crate) fn all_headers(&self) -> &HeaderMap {
-        &self.map
+        self.headers()
     }
 
     pub(crate) fn from_owned_headers(map: HeaderMap) -> Self {
         Self {
-            map,
+            map: HeaderStore::Owned(map),
+            sensitive_keys: None,
+        }
+    }
+
+    /// Share a decoded stock request. The cache keeps the other handle.
+    pub(crate) fn from_shared_headers(map: Arc<HeaderMap>) -> Self {
+        Self {
+            map: HeaderStore::Shared(map),
             sensitive_keys: None,
         }
     }
 
     pub(crate) fn from_headers(map: &HeaderMap) -> Self {
         Self {
-            map: map.clone(),
+            map: HeaderStore::Owned(map.clone()),
             sensitive_keys: None,
         }
     }
 
     pub(crate) fn write_to(&self, headers: &mut HeaderMap) -> Result<(), Status> {
-        if self.map.is_empty() {
+        if self.headers().is_empty() {
             return Ok(());
         }
-        for (name, value) in &self.map {
+        for (name, value) in self.headers() {
             if is_reserved(name.as_str()) {
                 continue;
             }

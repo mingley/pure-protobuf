@@ -311,12 +311,17 @@ pub(crate) fn incoming_rpc(
     channelz_server: Option<crate::channelz::ServerId>,
     channelz_socket: Option<crate::channelz::SocketId>,
     stock_facts: crate::wire::headers::StockFacts,
+    shared_headers: Option<std::sync::Arc<http::HeaderMap>>,
 ) -> Rpc {
     let mut request = request;
     #[cfg(feature = "grpc-web")]
     let web = crate::web::Mode::from_headers(request.headers());
     // One map. The request keeps the body; protocol readers use metadata.
-    let metadata = Metadata::from_owned_headers(std::mem::take(request.headers_mut()));
+    let metadata = if let Some(shared) = shared_headers {
+        Metadata::from_shared_headers(shared)
+    } else {
+        Metadata::from_owned_headers(std::mem::take(request.headers_mut()))
+    };
     let mut extensions = http::Extensions::new();
     let tcp_info = TcpConnectInfo {
         local_addr: peer.local,
@@ -513,6 +518,7 @@ where
                 };
                 // Popped with this request, before the arm can park.
                 let precomputed = crate::wire::headers::take_accept_facts();
+                let shared_headers = crate::h2_backend::header_pool::take_shared_request();
                 // h2 can accept a request whose reset is already queued. Do
                 // not let it occupy a bounded RPC slot until a spawned task
                 // gets its turn to observe the cancellation.
@@ -687,6 +693,7 @@ where
                             channelz_server,
                             channelz_socket_id,
                             facts,
+                            shared_headers,
                         ))
                         .await;
                 }));
