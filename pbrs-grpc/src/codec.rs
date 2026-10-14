@@ -15,7 +15,7 @@
 
 use crate::limits::MessageLimits;
 use crate::status::Status;
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 use pbrs::{Parse, Serialize};
 
 #[cfg(feature = "prost")]
@@ -191,11 +191,20 @@ pub(crate) fn pop_from_chunk(
     if chunk.len() < total {
         return Ok(None);
     }
-    drop(chunk.split_to(HEADER_LEN));
+    // The 5-byte header is discarded. `advance` moves the view; `split_to`
+    // would clone the shared buffer just to drop those bytes.
+    chunk.advance(HEADER_LEN);
     crate::copy_counts::note_chunk_slice(len);
+    // A DATA frame that holds exactly one gRPC message is the whole chunk
+    // after the header. Moving it avoids another shared-buffer clone.
+    let payload = if chunk.len() == len {
+        std::mem::take(chunk)
+    } else {
+        chunk.split_to(len)
+    };
     Ok(Some(Frame {
         compressed: flag == 1,
-        payload: chunk.split_to(len),
+        payload,
     }))
 }
 
