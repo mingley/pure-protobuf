@@ -21,6 +21,16 @@ use std::task::{Context, Poll};
 /// Read `grpc-status` from trailers, falling back to headers for
 /// Trailers-Only responses.
 pub(crate) fn status_from(headers: &HeaderMap, trailers: Option<&HeaderMap>) -> Status {
+    // The success trailer is exactly `grpc-status: 0`.
+    if let Some(trailers) = trailers {
+        if trailers.len() == 1 {
+            if let Some((name, value)) = trailers.iter().next() {
+                if name == GRPC_STATUS && value.as_bytes() == b"0" {
+                    return Status::new(Code::Ok, "");
+                }
+            }
+        }
+    }
     // Single pass over the status block. OK responses carry exactly one
     // trailer, so this replaces four hashed lookups with one short scan.
     // First values win, matching `HeaderMap::get`; an unreadable or
