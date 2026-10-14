@@ -126,11 +126,6 @@ fn decode_frame(
     partial_inout: &mut Option<Partial>,
     mut bytes: BytesMut,
 ) -> Result<Option<Frame>, Error> {
-    let span = tracing::trace_span!("FramedRead::decode_frame", offset = bytes.len());
-    let _e = span.enter();
-
-    tracing::trace!("decoding frame from {}B", bytes.len());
-
     // Parse the head
     let head = frame::Head::parse(&bytes);
 
@@ -140,8 +135,6 @@ fn decode_frame(
     }
 
     let kind = head.kind();
-
-    tracing::trace!(frame.kind = ?kind);
 
     macro_rules! header_block {
         ($frame:ident, $head:ident, $bytes:ident) => ({

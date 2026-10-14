@@ -136,19 +136,14 @@ where
 
     /// Flush buffered data to the wire
     pub fn flush(&mut self, cx: &mut Context) -> Poll<io::Result<()>> {
-        let span = tracing::trace_span!("FramedWrite::flush");
-        let _e = span.enter();
-
         loop {
             while !self.encoder.is_empty() {
                 let n = match self.encoder.next {
                     Some(Next::Data(ref mut frame)) => {
-                        tracing::trace!(queued_data_frame = true);
                         let mut buf = (&mut self.encoder.buf).chain(frame.payload_mut());
                         ready!(poll_write_buf(Pin::new(&mut self.inner), cx, &mut buf))?
                     }
                     _ => {
-                        tracing::trace!(queued_data_frame = false);
                         ready!(poll_write_buf(
                             Pin::new(&mut self.inner),
                             cx,
@@ -158,7 +153,6 @@ where
                 };
                 if n == 0 {
                     // No progress is possible; retrying would busy-loop.
-                    tracing::trace!("write returned zero, but non-zero bytes remaining");
                     return Poll::Ready(Err(io::ErrorKind::WriteZero.into()));
                 }
             }
@@ -169,7 +163,6 @@ where
             }
         }
 
-        tracing::trace!("flushing buffer");
         // Flush the upstream
         ready!(Pin::new(&mut self.inner).poll_flush(cx))?;
 
@@ -223,10 +216,6 @@ where
     fn buffer(&mut self, item: Frame<B>) -> Result<(), UserError> {
         // Ensure that we have enough capacity to accept the write.
         assert!(self.has_capacity());
-        let span = tracing::trace_span!("FramedWrite::buffer", frame = ?item);
-        let _e = span.enter();
-
-        tracing::debug!(frame = ?item, "send");
 
         match item {
             Frame::Data(mut v) => {

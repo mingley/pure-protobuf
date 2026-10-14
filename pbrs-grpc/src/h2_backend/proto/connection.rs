@@ -541,27 +541,21 @@ where
         use crate::h2_backend::frame::Frame::*;
         match frame {
             Some(Headers(frame)) => {
-                tracing::trace!(?frame, "recv HEADERS");
                 self.streams.recv_headers(*frame)?;
             }
             Some(Data(frame)) => {
-                tracing::trace!(?frame, "recv DATA");
                 self.streams.recv_data(frame)?;
             }
             Some(Reset(frame)) => {
-                tracing::trace!(?frame, "recv RST_STREAM");
                 self.streams.recv_reset(frame)?;
             }
             Some(PushPromise(frame)) => {
-                tracing::trace!(?frame, "recv PUSH_PROMISE");
                 self.streams.recv_push_promise(*frame)?;
             }
             Some(Settings(frame)) => {
-                tracing::trace!(?frame, "recv SETTINGS");
                 return Ok(ReceivedFrame::Settings(frame));
             }
             Some(GoAway(frame)) => {
-                tracing::trace!(?frame, "recv GOAWAY");
                 // This should prevent starting new streams,
                 // but should allow continuing to process current streams
                 // until they are all EOS. Once they are, State should
@@ -570,7 +564,6 @@ where
                 *self.error = Some(frame);
             }
             Some(Ping(frame)) => {
-                tracing::trace!(?frame, "recv PING");
                 let status = self.ping_pong.recv_ping(frame);
                 if status.is_shutdown() {
                     assert!(
@@ -583,15 +576,12 @@ where
                 }
             }
             Some(WindowUpdate(frame)) => {
-                tracing::trace!(?frame, "recv WINDOW_UPDATE");
                 self.streams.recv_window_update(frame)?;
             }
-            Some(Priority(frame)) => {
-                tracing::trace!(?frame, "recv PRIORITY");
+            Some(Priority(_frame)) => {
                 // TODO: handle
             }
             None => {
-                tracing::trace!("codec closed");
                 self.streams.recv_eof(false).expect("mutex poisoned");
                 return Ok(ReceivedFrame::Done);
             }
