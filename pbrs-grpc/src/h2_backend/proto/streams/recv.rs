@@ -1072,6 +1072,10 @@ impl Recv {
         Ok(BufferStatus::Complete)
     }
 
+    pub(super) fn has_pending_refusal(&self) -> bool {
+        self.refused.is_some()
+    }
+
     pub fn clear_expired_reset_streams(&mut self, store: &mut Store, counts: &mut Counts) {
         if !self.pending_reset_expired.is_empty() {
             let now = Instant::now();

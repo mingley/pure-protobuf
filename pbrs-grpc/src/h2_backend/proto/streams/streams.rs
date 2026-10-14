@@ -12,6 +12,7 @@ use http::{HeaderMap, Request, Response};
 use std::task::{Context, Poll, Waker};
 use tokio::io::AsyncWrite;
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::{fmt, io};
 
@@ -33,6 +34,10 @@ where
     /// bit of unsafe code. This optimization has been postponed until it has
     /// been shown to be necessary.
     send_buffer: Arc<SendBuffer<B>>,
+
+    /// Set when a remote stream was refused and the RST_STREAM is not yet
+    /// buffered. `send_pending_refusal` skips the stream lock when this is clear.
+    refusal_pending: Arc<AtomicBool>,
 
     _p: ::std::marker::PhantomData<P>,
 }
@@ -78,6 +83,9 @@ struct Inner {
 
     /// The number of stream refs to this shared state.
     refs: usize,
+
+    /// Shared with [`Streams::refusal_pending`].
+    refusal_pending: Arc<AtomicBool>,
 }
 
 #[derive(Debug)]
@@ -111,9 +119,11 @@ where
     pub fn new(config: Config) -> Self {
         let peer = P::r#dyn();
 
+        let (inner, refusal_pending) = Inner::new(peer, config);
         Streams {
-            inner: Inner::new(peer, config),
+            inner,
             send_buffer: Arc::new(SendBuffer::new()),
+            refusal_pending,
             _p: ::std::marker::PhantomData,
         }
     }
@@ -161,11 +171,18 @@ where
     where
         T: AsyncWrite + Unpin,
     {
+        if !self.refusal_pending.load(Ordering::Acquire) {
+            return Poll::Ready(Ok(()));
+        }
         loop {
             let status = {
                 let mut me = self.inner.lock().unwrap();
                 let me = &mut *me;
-                me.actions.recv.send_pending_refusal(dst)?
+                let status = me.actions.recv.send_pending_refusal(dst)?;
+                if !me.actions.recv.has_pending_refusal() {
+                    me.refusal_pending.store(false, Ordering::Release);
+                }
+                status
             };
 
             match status {
@@ -554,8 +571,9 @@ impl<B> DynStreams<'_, B> {
 }
 
 impl Inner {
-    fn new(peer: peer::Dyn, config: Config) -> Arc<Mutex<Self>> {
-        Arc::new(Mutex::new(Inner {
+    fn new(peer: peer::Dyn, config: Config) -> (Arc<Mutex<Self>>, Arc<AtomicBool>) {
+        let refusal_pending = Arc::new(AtomicBool::new(false));
+        let inner = Arc::new(Mutex::new(Inner {
             counts: Counts::new(peer, &config),
             actions: Actions {
                 recv: Recv::new(peer, &config),
@@ -565,7 +583,9 @@ impl Inner {
             },
             store: Store::new(),
             refs: 1,
-        }))
+            refusal_pending: refusal_pending.clone(),
+        }));
+        (inner, refusal_pending)
     }
 
     fn recv_headers<B>(
@@ -621,7 +641,10 @@ impl Inner {
 
                         e.insert(stream)
                     }
-                    None => return Ok(()),
+                    None => {
+                        self.refusal_pending.store(true, Ordering::Release);
+                        return Ok(());
+                    }
                 }
             }
         };
@@ -977,6 +1000,7 @@ impl Inner {
             .open(promised_id, Open::PushPromise, &mut self.counts)?
             .is_none()
         {
+            self.refusal_pending.store(true, Ordering::Release);
             return Ok(());
         }
 
@@ -1201,6 +1225,7 @@ where
         let Self {
             inner,
             send_buffer,
+            refusal_pending: _,
             _p,
         } = self;
         DynStreams {
@@ -1258,6 +1283,7 @@ where
         Streams {
             inner: self.inner.clone(),
             send_buffer: self.send_buffer.clone(),
+            refusal_pending: self.refusal_pending.clone(),
             _p: ::std::marker::PhantomData,
         }
     }
