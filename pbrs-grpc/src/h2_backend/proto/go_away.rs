@@ -117,6 +117,7 @@ impl GoAway {
     /// Try to write a pending GOAWAY frame to the buffer.
     ///
     /// If a frame is written, the `Reason` of the GOAWAY is returned.
+    #[inline]
     pub fn send_pending_go_away<T, B>(
         &mut self,
         cx: &mut Context,
@@ -126,6 +127,10 @@ impl GoAway {
         T: AsyncWrite + Unpin,
         B: Buf,
     {
+        // A live connection has no pending GOAWAY and is not closing.
+        if self.pending.is_none() && !self.close_now {
+            return Poll::Ready(None);
+        }
         if let Some(frame) = self.pending.take() {
             if !dst.poll_ready(cx)?.is_ready() {
                 self.pending = Some(frame);

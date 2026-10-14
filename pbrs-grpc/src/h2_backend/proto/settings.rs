@@ -108,6 +108,7 @@ impl Settings {
         !has_received
     }
 
+    #[inline]
     pub(crate) fn poll_send<T, B, C, P>(
         &mut self,
         cx: &mut Context,
@@ -120,6 +121,11 @@ impl Settings {
         C: Buf,
         P: Peer,
     {
+        // After the handshake, remote ACK state is clear and local settings
+        // are synced. Nothing to write.
+        if self.remote.is_none() && !matches!(self.local, Local::ToSend(_)) {
+            return Poll::Ready(Ok(()));
+        }
         if let Some(settings) = self.remote.clone() {
             if !dst.poll_ready(cx)?.is_ready() {
                 return Poll::Pending;
