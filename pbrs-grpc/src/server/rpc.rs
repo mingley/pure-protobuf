@@ -1408,6 +1408,13 @@ impl InboundRpc {
     }
 
     fn base_request<T>(&mut self, message: T) -> Request<T> {
+        // Prepared keeps `path` only to label an observed call. With no
+        // observer the handler request is the only owner.
+        let path = if self.observer.is_some() {
+            self.path.clone()
+        } else {
+            self.path.take()
+        };
         let mut req = Request::from_metadata(
             message,
             std::mem::take(&mut self.metadata),
@@ -1416,7 +1423,7 @@ impl InboundRpc {
             self.peer_identity.take(),
         )
         .with_extensions(std::mem::take(&mut self.extensions))
-        .with_http(self.authority.take(), self.scheme.take(), self.path.clone());
+        .with_http(self.authority.take(), self.scheme.take(), path);
         if let Some(config) = self.diagnostic_config.take() {
             req.set_diagnostic_config(config);
         }
