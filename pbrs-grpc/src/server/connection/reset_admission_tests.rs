@@ -141,7 +141,7 @@ async fn queued_resets_do_not_spawn_dispatch_or_exhaust_rpc_slots() {
         dispatch,
         io,
         ConnectionInfo::new(),
-        ServerConfig::default(),
+        std::sync::Arc::new(ServerConfig::default()),
         drained,
         Some(slots.clone()),
     ));

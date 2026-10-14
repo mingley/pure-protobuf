@@ -1717,6 +1717,7 @@ pub(crate) async fn accept_loop_with_slots<D: Dispatch>(
                 let drain = drain_tx.clone();
                 let tls = tls.clone();
                 let rpcs = rpcs.clone();
+                let config = Arc::new(config);
                 drop(tokio::spawn(async move {
                     crate::tcp::tune(
                         &tcp,
@@ -1847,6 +1848,7 @@ pub(crate) async fn accept_unix_loop<D: Dispatch>(
                 let drain = drain_tx.clone();
                 let rpcs = rpcs.clone();
                 let cred = peer_cred_of(&io);
+                let config = Arc::new(config);
                 drop(tokio::spawn(async move {
                     let connection = ConnectionInfo::unix(cred, Some(peer_addr));
                     #[cfg(feature = "tonic")]
@@ -1922,6 +1924,7 @@ pub(crate) async fn accept_incoming<D: Dispatch, I: Incoming>(
                 let drain = drain_tx.clone();
                 let rpcs = rpcs.clone();
                 let info = incoming.peer(&io, peer);
+                let config = Arc::new(config);
                 drop(tokio::spawn(async move {
                     drop(serve_io(dispatch, io, info, config, goaway, rpcs).await);
                     drop(permit);

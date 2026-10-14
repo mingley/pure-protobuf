@@ -60,13 +60,14 @@ where
     IO: crate::rt::Io,
 {
     let (goaway_tx, goaway_rx) = watch::channel(false);
+    let config = Arc::new(config);
     let result = serve_io_in::<R, _, _>(
         dispatch,
         io,
         ConnectionInfo::from_accept(peer),
-        config,
+        Arc::clone(&config),
         goaway_rx,
-        rpc_slots(config),
+        rpc_slots(*config),
     )
     .await;
     drop(goaway_tx);
@@ -389,7 +390,7 @@ pub(crate) fn serve_io<D, IO>(
     dispatch: Arc<D>,
     io: IO,
     peer: ConnectionInfo,
-    config: ServerConfig,
+    config: Arc<ServerConfig>,
     goaway: watch::Receiver<bool>,
     rpc_slots: Option<Arc<Semaphore>>,
 ) -> impl std::future::Future<Output = Result<(), Status>>
@@ -405,7 +406,7 @@ pub(crate) async fn serve_io_in<R: Runtime, D, IO>(
     dispatch: Arc<D>,
     io: IO,
     peer: ConnectionInfo,
-    config: ServerConfig,
+    config: Arc<ServerConfig>,
     goaway: watch::Receiver<bool>,
     rpc_slots: Option<Arc<Semaphore>>,
 ) -> Result<(), Status>
@@ -646,6 +647,7 @@ where
                 let dispatch = Arc::clone(&dispatch);
                 let rpc_peer = peer.clone();
                 let byte_budget = dispatch.byte_budget();
+                let rpc_config = Arc::clone(&config);
                 admitted.push(Box::pin(async move {
                     let _lease = lease;
                     let _permit = permit;
@@ -659,7 +661,7 @@ where
                         .dispatch(incoming_rpc(
                             request,
                             respond,
-                            config,
+                            *rpc_config,
                             rpc_peer,
                             byte_budget,
                             channelz_server,
