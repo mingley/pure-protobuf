@@ -326,28 +326,33 @@ where
         true
     }
 
+    #[inline]
     pub fn pop<'a, R>(&mut self, store: &'a mut R) -> Option<store::Ptr<'a>>
     where
         R: Resolve,
     {
-        if let Some(mut idxs) = self.indices {
-            let mut stream = store.resolve(idxs.head);
+        let Some(mut idxs) = self.indices else {
+            return None;
+        };
+        let mut stream = store.resolve(idxs.head);
 
-            if idxs.head == idxs.tail {
-                assert!(N::next(&stream).is_none());
-                self.indices = None;
-            } else {
-                idxs.head = N::take_next(&mut stream).unwrap();
-                self.indices = Some(idxs);
+        if idxs.head == idxs.tail {
+            if N::next(&stream).is_some() {
+                broken_stream_queue();
             }
-
-            debug_assert!(N::is_queued(&stream));
-            N::set_queued(&mut stream, false);
-
-            return Some(stream);
+            self.indices = None;
+        } else {
+            let Some(head) = N::take_next(&mut stream) else {
+                broken_stream_queue();
+            };
+            idxs.head = head;
+            self.indices = Some(idxs);
         }
 
-        None
+        debug_assert!(N::is_queued(&stream));
+        N::set_queued(&mut stream, false);
+
+        Some(stream)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -368,6 +373,12 @@ where
 
         None
     }
+}
+
+#[cold]
+#[inline(never)]
+fn broken_stream_queue() -> ! {
+    panic!("http2 stream queue is corrupt");
 }
 
 impl<N> fmt::Debug for Queue<N> {
