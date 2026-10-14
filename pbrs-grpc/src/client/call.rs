@@ -159,6 +159,18 @@ pub(crate) fn poll_now<F: std::future::Future>(fut: Pin<&mut F>) -> Option<F::Ou
     }
 }
 
+/// `true` when a cancel watch has been set.
+///
+/// An unchanged version is still the initial `false`, so the steady path is
+/// one atomic load. The value lock runs only after a send or a dropped sender.
+#[inline]
+pub(crate) fn cancel_requested(rx: &watch::Receiver<bool>) -> bool {
+    match rx.has_changed() {
+        Ok(false) => false,
+        _ => *rx.borrow(),
+    }
+}
+
 pub(crate) async fn send_request_frame_in<R: Runtime>(
     send: &mut backend::SendStream,
     frame: SegFrame,
@@ -171,7 +183,7 @@ pub(crate) async fn send_request_frame_in<R: Runtime>(
     // Optimistic: a send with capacity completes without arming the race.
     // The pre-checks mirror `first_of_in`'s biased order (cancel, then
     // deadline) so an already-fired signal still wins, with the same reset.
-    if *cancel_rx.borrow() {
+    if cancel_requested(&cancel_rx) {
         send.send_reset(Reason::CANCEL);
         return Err(Status::cancelled());
     }
@@ -278,7 +290,7 @@ pub(crate) async fn open_in<R: Runtime>(
     if timeout.is_some_and(|d| d.is_zero()) {
         return Err(Status::deadline_exceeded());
     }
-    if *cancel_rx.borrow() {
+    if cancel_requested(&cancel_rx) {
         return Err(Status::cancelled());
     }
     let remaining = outgoing_timeout(timeout, remaining_timeout(deadline)?);
@@ -300,7 +312,7 @@ pub(crate) async fn open_in<R: Runtime>(
     // race. Request headers remain untouched by h2 while pending; refresh the
     // relative timeout here, outside its stream lock, immediately before poll.
     let guarded = poll_fn(|cx| {
-        if *cancel_rx.borrow() {
+        if cancel_requested(&cancel_rx) {
             return Poll::Ready(Err(Status::cancelled()));
         }
         let remaining = match remaining_timeout(deadline) {
@@ -644,7 +656,7 @@ impl super::Channel {
         // Optimistic: a pool hit completes without arming the race. The
         // cancel pre-check mirrors `first_of_in`'s biased order (the deadline
         // was just checked above) so an already-fired cancel still wins.
-        if *cancel_rx.borrow() {
+        if cancel_requested(&cancel_rx) {
             return Err(Status::cancelled());
         }
         let inner = Arc::clone(&self.inner);
