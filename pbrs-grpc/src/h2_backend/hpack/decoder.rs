@@ -1,10 +1,12 @@
 use super::{header::BytesStr, huffman, Header};
+use crate::h2_backend::ext::Protocol;
 use crate::h2_backend::frame;
 
 use bytes::{Buf, Bytes, BytesMut};
 use http::header;
 use http::method::{self, Method};
 use http::status::{self, StatusCode};
+use http::HeaderMap;
 
 use std::cmp;
 use std::collections::VecDeque;
@@ -31,7 +33,20 @@ pub struct Decoder {
 #[derive(Debug)]
 struct SavedBlock {
     raw: Vec<u8>,
-    headers: Vec<Header>,
+    decoded: SavedHeaders,
+}
+
+/// Decoded headers from a block that did not change the dynamic table.
+#[derive(Clone, Debug)]
+pub struct SavedHeaders {
+    pub fields: HeaderMap,
+    pub method: Option<Method>,
+    pub scheme: Option<BytesStr>,
+    pub authority: Option<BytesStr>,
+    pub path: Option<BytesStr>,
+    pub protocol: Option<Protocol>,
+    pub status: Option<StatusCode>,
+    pub field_size: usize,
 }
 
 /// Huffman input and the bytes it decoded to.
@@ -258,19 +273,19 @@ impl Decoder {
     }
 
     /// Headers from an identical block that did not change the dynamic table.
-    pub(crate) fn cached_block(&self, raw: &[u8]) -> Option<Vec<Header>> {
+    pub(crate) fn cached_block(&self, raw: &[u8]) -> Option<SavedHeaders> {
         self.saved
             .iter()
             .find(|block| block.raw == raw)
-            .map(|block| block.headers.clone())
+            .map(|block| block.decoded.clone())
     }
 
-    /// Remember `headers` for a later identical `raw` block.
-    pub(crate) fn store_block(&mut self, raw: Vec<u8>, headers: Vec<Header>) {
+    /// Remember `decoded` for a later identical `raw` block.
+    pub(crate) fn store_block(&mut self, raw: Vec<u8>, decoded: SavedHeaders) {
         if raw.len() > 256 || self.saved.iter().any(|block| block.raw == raw) {
             return;
         }
-        let block = SavedBlock { raw, headers };
+        let block = SavedBlock { raw, decoded };
         if self.saved.len() < 3 {
             self.saved.push(block);
             return;

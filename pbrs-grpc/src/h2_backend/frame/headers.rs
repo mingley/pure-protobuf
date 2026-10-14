@@ -876,15 +876,21 @@ impl HeaderBlock {
         // the same headers. Replaying them skips the Huffman and index work.
         let neutral = fresh && hpack::block_leaves_table_unchanged(src);
         if neutral {
-            if let Some(headers) = decoder.cached_block(src) {
-                let result = self.replay_headers(headers, max_header_list_size);
+            if let Some(saved) = decoder.cached_block(src) {
+                self.fields = saved.fields;
+                self.pseudo.method = saved.method;
+                self.pseudo.scheme = saved.scheme;
+                self.pseudo.authority = saved.authority;
+                self.pseudo.path = saved.path;
+                self.pseudo.protocol = saved.protocol;
+                self.pseudo.status = saved.status;
+                self.field_size = saved.field_size;
                 src.clear();
-                return result;
+                return Ok(());
             }
         }
         let record = neutral;
         let raw = if record { Some(src.to_vec()) } else { None };
-        let mut recorded = Vec::new();
 
         let mut reg = !self.fields.is_empty();
         let mut malformed = false;
@@ -900,9 +906,6 @@ impl HeaderBlock {
         // the hpack state is connection level. In order to maintain correct
         // state for other streams, the hpack decoding process must complete.
         let res = decoder.decode(&mut cursor, |header| {
-            if record {
-                recorded.push(header.clone());
-            }
             self.apply_decoded(
                 header,
                 &mut reg,
@@ -932,48 +935,22 @@ impl HeaderBlock {
             return Err(Error::MalformedMessage);
         }
 
-        if record {
-            if let Some(raw) = raw {
-                decoder.store_block(raw, recorded);
-            }
+        if let Some(raw) = raw {
+            decoder.store_block(
+                raw,
+                hpack::SavedHeaders {
+                    fields: self.fields.clone(),
+                    method: self.pseudo.method.clone(),
+                    scheme: self.pseudo.scheme.clone(),
+                    authority: self.pseudo.authority.clone(),
+                    path: self.pseudo.path.clone(),
+                    protocol: self.pseudo.protocol.clone(),
+                    status: self.pseudo.status,
+                    field_size: self.field_size,
+                },
+            );
         }
 
-        Ok(())
-    }
-
-    fn replay_headers(
-        &mut self,
-        headers: Vec<hpack::Header>,
-        max_header_list_size: usize,
-    ) -> Result<(), Error> {
-        let mut reg = false;
-        let mut malformed = false;
-        let mut header_list_way_too_large = false;
-        let mut headers_size = self.calculate_header_list_size();
-        let max_header_list_abuse_size =
-            max_header_list_size.saturating_mul(MAX_HEADER_LIST_ABUSE_MULTIPLIER);
-        for header in headers {
-            if self
-                .apply_decoded(
-                    header,
-                    &mut reg,
-                    &mut malformed,
-                    &mut header_list_way_too_large,
-                    &mut headers_size,
-                    max_header_list_size,
-                    max_header_list_abuse_size,
-                )
-                .is_break()
-            {
-                break;
-            }
-        }
-        if header_list_way_too_large {
-            return Err(Error::HeaderListWayTooLarge);
-        }
-        if malformed {
-            return Err(Error::MalformedMessage);
-        }
         Ok(())
     }
 
