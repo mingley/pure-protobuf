@@ -714,23 +714,15 @@ impl Prioritize {
     where
         B: Buf,
     {
-        let span = tracing::trace_span!("pop_frame");
-        let _e = span.enter();
-
         loop {
             match self.pending_send.pop(store) {
                 Some(mut stream) => {
-                    let span = tracing::trace_span!("popped", ?stream.id, ?stream.state);
-                    let _e = span.enter();
-
                     // It's possible that this stream, besides having data to send,
                     // is also queued to send a reset, and thus is already in the queue
                     // to wait for "some time" after a reset.
                     //
                     // To be safe, we just always ask the stream.
                     let is_pending_reset = stream.is_pending_reset_expiration();
-
-                    tracing::trace!(is_pending_reset);
 
                     let frame = match stream.pending_send.pop_front(buffer) {
                         Some(Frame::Data(mut frame)) => {
@@ -756,21 +748,9 @@ impl Prioritize {
                             let stream_capacity = stream.send_flow.available();
                             let sz = frame.payload().remaining();
 
-                            tracing::trace!(
-                                sz,
-                                eos = frame.is_end_stream(),
-                                window = %stream_capacity,
-                                available = %stream.send_flow.available(),
-                                requested = stream.requested_send_capacity,
-                                buffered = stream.buffered_send_data,
-                                "data frame"
-                            );
-
                             // Zero length data frames always have capacity to
                             // be sent.
                             if sz > 0 && stream_capacity == 0 {
-                                tracing::trace!("stream capacity is 0");
-
                                 // Ensure that the stream is waiting for
                                 // connection level capacity
                                 //
@@ -805,37 +785,28 @@ impl Prioritize {
                                 continue;
                             }
 
-                            tracing::trace!(len, "sending data frame");
-
                             // Update the flow control
-                            tracing::trace_span!("updating stream flow").in_scope(|| {
-                                stream.send_data(len, self.max_buffer_size);
+                            stream.send_data(len, self.max_buffer_size);
 
-                                // Assign the capacity back to the connection that
-                                // was just consumed from the stream in the previous
-                                // line.
-                                // TODO: proper error handling
-                                let _res = self.flow.assign_capacity(len);
-                                debug_assert!(_res.is_ok());
-                            });
+                            // Assign the capacity back to the connection that
+                            // was just consumed from the stream in the previous
+                            // line.
+                            // TODO: proper error handling
+                            let _res = self.flow.assign_capacity(len);
+                            debug_assert!(_res.is_ok());
 
-                            let (eos, len) = tracing::trace_span!("updating connection flow")
-                                .in_scope(|| {
-                                    // TODO: proper error handling
-                                    let _res = self.flow.send_data(len);
-                                    debug_assert!(_res.is_ok());
+                            // TODO: proper error handling
+                            let _res = self.flow.send_data(len);
+                            debug_assert!(_res.is_ok());
 
-                                    // Wrap the frame's data payload to ensure that the
-                                    // correct amount of data gets written.
+                            // Wrap the frame's data payload to ensure that the
+                            // correct amount of data gets written.
+                            let eos = frame.is_end_stream();
+                            let len = len as usize;
 
-                                    let eos = frame.is_end_stream();
-                                    let len = len as usize;
-
-                                    if frame.payload().remaining() > len {
-                                        frame.set_end_stream(false);
-                                    }
-                                    (eos, len)
-                                });
+                            if frame.payload().remaining() > len {
+                                frame.set_end_stream(false);
+                            }
 
                             Frame::Data(frame.map(|buf| Prioritized {
                                 inner: buf.take(len),
@@ -876,7 +847,6 @@ impl Prioritize {
                                 // had data buffered to be sent, but all the frames are cleared
                                 // in clear_queue(). Instead of doing O(N) traversal through queue
                                 // to remove, lets just ignore the stream here.
-                                tracing::trace!("removing dangling stream from pending_send");
                                 // Since this should only happen as a consequence of `clear_queue`,
                                 // we must be in a closed state of some kind.
                                 debug_assert!(stream.state.is_closed());
@@ -885,8 +855,6 @@ impl Prioritize {
                             }
                         }
                     };
-
-                    tracing::trace!("pop_frame; frame={:?}", frame);
 
                     if cfg!(debug_assertions) && stream.state.is_idle() {
                         debug_assert!(stream.id > self.last_opened_id);
