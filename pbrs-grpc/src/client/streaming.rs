@@ -2206,7 +2206,14 @@ impl super::Channel {
                         return Err(status);
                     }
                 };
-                let _load = opened.load;
+                let crate::client::call::Opened {
+                    load: _load,
+                    lease,
+                    driver,
+                    resp_fut,
+                    mut send,
+                    channelz_socket,
+                } = opened;
                 let budget = channel.byte_budget.clone();
                 // The header wait polls this future several times. Channel,
                 // the request metadata, and the user-agent are not read again
@@ -2215,19 +2222,74 @@ impl super::Channel {
                 drop(channel);
                 drop(user_agent);
                 drop(md);
-                let response = match run_bidi(
-                    opened.resp_fut,
-                    opened.send,
-                    rx,
-                    cancel_rx.clone(),
-                    wire,
-                    tap,
-                    deadline,
-                    budget,
-                    opened.channelz_socket,
-                )
-                .await
-                {
+                // The common case is a closed upload and no deadline. Await
+                // only that small wait here so the call future does not also
+                // carry the colder upload state machines.
+                let mut rx = rx;
+                let bidi_result = if deadline.is_none() && rx.producer_finished() {
+                    if let Some(items) = rx.drain_closed_channel() {
+                        match write_closed_upload(
+                            &mut send,
+                            items,
+                            wire,
+                            &budget,
+                            &tap,
+                            channelz_socket,
+                        ) {
+                            Ok(ClosedUpload::Sent) => {
+                                let ready = wait_ready_bidi_http(
+                                    resp_fut,
+                                    send,
+                                    cancel_rx.clone(),
+                                    tap.clone(),
+                                )
+                                .await;
+                                finish_ready_bidi(ready, wire, tap.clone(), channelz_socket)
+                            }
+                            Ok(ClosedUpload::Rest(rest)) => {
+                                box_bidi_rest(
+                                    resp_fut,
+                                    send,
+                                    rest,
+                                    cancel_rx.clone(),
+                                    wire,
+                                    tap.clone(),
+                                    deadline,
+                                    channelz_socket,
+                                )
+                                .await
+                            }
+                            Err(status) => Err(status),
+                        }
+                    } else {
+                        run_bidi(
+                            resp_fut,
+                            send,
+                            rx,
+                            cancel_rx.clone(),
+                            wire,
+                            tap.clone(),
+                            deadline,
+                            budget.clone(),
+                            channelz_socket,
+                        )
+                        .await
+                    }
+                } else {
+                    run_bidi(
+                        resp_fut,
+                        send,
+                        rx,
+                        cancel_rx.clone(),
+                        wire,
+                        tap.clone(),
+                        deadline,
+                        budget,
+                        channelz_socket,
+                    )
+                    .await
+                };
+                let response = match bidi_result {
                     Ok(resp) => resp,
                     Err(status) => {
                         if *cancel_rx.borrow() {
@@ -2255,11 +2317,11 @@ impl super::Channel {
                 call_guard.finish(&Status::ok());
                 Ok(pool::attach_conn(
                     response,
-                    opened.lease,
-                    opened.driver,
+                    lease,
+                    driver,
                     Some(reset),
                     permit,
-                    opened.channelz_socket,
+                    channelz_socket,
                 ))
             }),
         );
