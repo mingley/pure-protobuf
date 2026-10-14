@@ -350,6 +350,26 @@ impl Headers {
         // Get the HEADERS frame head
         let head = self.head();
 
+        // A repeated stock block is already encoded. Write those bytes into
+        // the frame instead of copying them into the scratch buffer first.
+        if !encoder.has_size_update() {
+            if let Some((kind, bytes)) = replayed_standard(
+                encoder,
+                &self.header_block.pseudo,
+                &self.header_block.fields,
+                self.header_block.stock,
+            ) {
+                if bytes.len() + head.encode_len() <= dst.remaining_mut() {
+                    head.encode(bytes.len(), dst);
+                    dst.put_slice(bytes);
+                    if let Some(slot) = kind.slot() {
+                        crate::h2_backend::header_pool::recycle(slot, self.header_block.fields);
+                    }
+                    return None;
+                }
+            }
+        }
+
         self.header_block
             .into_encoding(encoder)
             .encode(&head, dst, Some(encoder), 0, |_| {})
@@ -1027,15 +1047,14 @@ fn fields_match(fields: &HeaderMap, expect_bits: u8, expect_count: usize) -> boo
     bits == expect_bits
 }
 
-/// Copies a previously encoded stock block. The field walk runs only after
-/// the path, authority, or status already matches, so a miss does not scan.
-fn copy_stable_standard(
-    encoder: &hpack::Encoder,
+/// A previously encoded stock block. The field walk runs only after the path,
+/// authority, or status already matches, so a miss does not scan.
+fn replayed_standard<'a>(
+    encoder: &'a hpack::Encoder,
     pseudo: &Pseudo,
     fields: &HeaderMap,
-    dst: &mut BytesMut,
     stock: StandardMap,
-) -> Option<StandardMap> {
+) -> Option<(StandardMap, &'a [u8])> {
     if let Some(method) = pseudo.method.as_ref() {
         if method != Method::POST || pseudo.protocol.is_some() || pseudo.status.is_some() {
             return None;
@@ -1051,8 +1070,7 @@ fn copy_stable_standard(
         if stock != StandardMap::Request && !fields_match(fields, REQUEST_BITS, 4) {
             return None;
         }
-        dst.extend_from_slice(bytes);
-        return Some(StandardMap::Request);
+        return Some((StandardMap::Request, bytes));
     }
 
     if let Some(status) = pseudo.status {
@@ -1067,8 +1085,7 @@ fn copy_stable_standard(
         if stock != StandardMap::Response && !fields_match(fields, RESPONSE_BITS, 2) {
             return None;
         }
-        dst.extend_from_slice(bytes);
-        return Some(StandardMap::Response);
+        return Some((StandardMap::Response, bytes));
     }
 
     if pseudo.scheme.is_some()
@@ -1082,8 +1099,20 @@ fn copy_stable_standard(
     if stock != StandardMap::Trailers && !fields_match(fields, STATUS, 1) {
         return None;
     }
+    Some((StandardMap::Trailers, bytes))
+}
+
+/// Copies a previously encoded stock block into `dst`.
+fn copy_stable_standard(
+    encoder: &hpack::Encoder,
+    pseudo: &Pseudo,
+    fields: &HeaderMap,
+    dst: &mut BytesMut,
+    stock: StandardMap,
+) -> Option<StandardMap> {
+    let (kind, bytes) = replayed_standard(encoder, pseudo, fields, stock)?;
     dst.extend_from_slice(bytes);
-    Some(StandardMap::Trailers)
+    Some(kind)
 }
 
 fn stable_standard_id(kind: StandardMap, pseudo: &Pseudo) -> Option<StableStandard> {
