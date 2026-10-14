@@ -10,20 +10,21 @@ use futures_core::Stream;
 
 use bytes::{Buf, BytesMut};
 
+use std::fmt;
 use std::io;
 
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::io::AsyncRead;
+use tokio_util::codec::Decoder;
 use tokio_util::codec::FramedRead as InnerFramedRead;
-use tokio_util::codec::{LengthDelimitedCodec, LengthDelimitedCodecError};
 
 // 16 MB "sane default" taken from golang http2
 const DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE: usize = 16 << 20;
 
 #[derive(Debug)]
 pub struct FramedRead<T> {
-    inner: InnerFramedRead<T, LengthDelimitedCodec>,
+    inner: InnerFramedRead<T, H2FrameDecoder>,
 
     // hpack decoder state
     hpack: hpack::Decoder,
@@ -54,10 +55,14 @@ enum Continuable {
 }
 
 impl<T> FramedRead<T> {
-    pub fn new(inner: InnerFramedRead<T, LengthDelimitedCodec>) -> FramedRead<T> {
+    pub fn new(io: T) -> FramedRead<T> {
+        // tokio-util's length-delimited builder starts at 8 MiB. The
+        // connection then calls `set_max_frame_size` with the HTTP/2 limit.
+        let max_frame_len = 8 * 1024 * 1024;
         let max_header_list_size = DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE;
         let max_continuation_frames =
-            calc_max_continuation_frames(max_header_list_size, inner.decoder().max_frame_length());
+            calc_max_continuation_frames(max_header_list_size, max_frame_len);
+        let inner = InnerFramedRead::new(io, H2FrameDecoder::new(max_frame_len));
         FramedRead {
             inner,
             hpack: hpack::Decoder::new(DEFAULT_SETTINGS_HEADER_TABLE_SIZE),
@@ -78,7 +83,7 @@ impl<T> FramedRead<T> {
     /// Returns the current max frame size setting
     #[inline]
     pub fn max_frame_size(&self) -> usize {
-        self.inner.decoder().max_frame_length()
+        self.inner.decoder().max_frame_len
     }
 
     /// Updates the max frame size setting.
@@ -87,7 +92,7 @@ impl<T> FramedRead<T> {
     #[inline]
     pub fn set_max_frame_size(&mut self, val: usize) {
         assert!(DEFAULT_MAX_FRAME_SIZE as usize <= val && val <= MAX_MAX_FRAME_SIZE as usize);
-        self.inner.decoder_mut().set_max_frame_length(val);
+        self.inner.decoder_mut().max_frame_len = val;
         // Update max CONTINUATION frames too, since its based on this
         self.max_continuation_frames = calc_max_continuation_frames(self.max_header_list_size, val);
     }
@@ -413,13 +418,96 @@ where
 fn map_err(err: io::Error) -> Error {
     if let io::ErrorKind::InvalidData = err.kind() {
         if let Some(custom) = err.get_ref() {
-            if custom.is::<LengthDelimitedCodecError>() {
+            if custom.is::<FrameTooBig>() {
                 return Error::library_go_away(Reason::FRAME_SIZE_ERROR);
             }
         }
     }
     err.into()
 }
+
+/// HTTP/2 frames are a 3-byte length plus a 9-byte header. The read buffer
+/// and its reserve policy match the length-delimited codec this replaced.
+/// Only the generic `Cursor` / `get_uint` walk is gone.
+#[derive(Debug)]
+struct H2FrameDecoder {
+    max_frame_len: usize,
+    state: ReadState,
+}
+
+#[derive(Debug)]
+enum ReadState {
+    Head,
+    Data(usize),
+}
+
+const HEAD_LEN: usize = 3;
+
+impl H2FrameDecoder {
+    fn new(max_frame_len: usize) -> Self {
+        Self {
+            max_frame_len,
+            state: ReadState::Head,
+        }
+    }
+}
+
+impl Decoder for H2FrameDecoder {
+    type Item = BytesMut;
+    type Error = io::Error;
+
+    fn decode(&mut self, src: &mut BytesMut) -> io::Result<Option<BytesMut>> {
+        let total = match self.state {
+            ReadState::Data(n) => n,
+            ReadState::Head => match read_total(src, self.max_frame_len)? {
+                Some(n) => {
+                    self.state = ReadState::Data(n);
+                    n
+                }
+                None => return Ok(None),
+            },
+        };
+        if src.len() < total {
+            return Ok(None);
+        }
+        self.state = ReadState::Head;
+        let frame = src.split_to(total);
+        // Same post-frame reserve as the length-delimited codec, including
+        // a zero reserve when the next header is already buffered.
+        src.reserve(HEAD_LEN.saturating_sub(src.len()));
+        Ok(Some(frame))
+    }
+}
+
+fn read_total(src: &mut BytesMut, max_frame_len: usize) -> io::Result<Option<usize>> {
+    let raw = match src.get(..HEAD_LEN) {
+        Some([b0, b1, b2]) => ((*b0 as usize) << 16) | ((*b1 as usize) << 8) | (*b2 as usize),
+        _ => return Ok(None),
+    };
+    if raw > max_frame_len {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, FrameTooBig));
+    }
+    let Some(total) = raw.checked_add(frame::HEADER_LEN) else {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "provided length would overflow after adjustment",
+        ));
+    };
+    // `num_skip` is 0, so the header stays in the returned buffer.
+    src.reserve(total.saturating_sub(src.len()));
+    Ok(Some(total))
+}
+
+#[derive(Debug)]
+struct FrameTooBig;
+
+impl fmt::Display for FrameTooBig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("frame size too big")
+    }
+}
+
+impl std::error::Error for FrameTooBig {}
 
 // ===== impl Continuable =====
 
@@ -462,6 +550,90 @@ impl<T> From<Continuable> for Frame<T> {
                 push.set_end_headers();
                 push.into()
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Error, Frame, FramedRead, H2FrameDecoder, Reason, map_err};
+    use bytes::BytesMut;
+    use futures_core::Stream;
+    use std::pin::Pin;
+    use std::task::{Context, Poll, Waker};
+    use tokio_util::codec::Decoder;
+
+    fn settings_ack() -> [u8; 9] {
+        [0, 0, 0, 4, 1, 0, 0, 0, 0]
+    }
+
+    #[test]
+    fn splits_two_buffered_frames() {
+        let mut dec = H2FrameDecoder::new(16_384);
+        let mut buf = BytesMut::new();
+        buf.extend_from_slice(&settings_ack());
+        buf.extend_from_slice(&settings_ack());
+        let first = dec.decode(&mut buf).unwrap().unwrap();
+        let second = dec.decode(&mut buf).unwrap().unwrap();
+        assert!(dec.decode(&mut buf).unwrap().is_none());
+        assert_eq!(&first[..], &settings_ack());
+        assert_eq!(&second[..], &settings_ack());
+    }
+
+    #[test]
+    fn waits_for_the_payload() {
+        let mut dec = H2FrameDecoder::new(16_384);
+        let mut buf = BytesMut::from(&b"\x00\x00\x01\x00\x00\x00\x00\x00\x01"[..]);
+        assert!(dec.decode(&mut buf).unwrap().is_none());
+        buf.extend_from_slice(&[0xAB]);
+        let frame = dec.decode(&mut buf).unwrap().unwrap();
+        assert_eq!(frame.len(), 10);
+        assert_eq!(frame[9], 0xAB);
+    }
+
+    #[test]
+    fn rejects_an_oversized_length() {
+        let mut dec = H2FrameDecoder::new(16_384);
+        let mut buf = BytesMut::from(&b"\x00\x40\x01"[..]);
+        let err = dec.decode(&mut buf).unwrap_err();
+        assert!(matches!(
+            map_err(err),
+            Error::GoAway(_, Reason::FRAME_SIZE_ERROR, _)
+        ));
+    }
+
+    #[test]
+    fn reads_two_settings_acks_then_eof() {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&settings_ack());
+        bytes.extend_from_slice(&settings_ack());
+        let mut framed = FramedRead::new(std::io::Cursor::new(bytes));
+        framed.set_max_frame_size(16_384);
+        let waker = Waker::noop();
+        let mut cx = Context::from_waker(waker);
+        for _ in 0..2 {
+            match Pin::new(&mut framed).poll_next(&mut cx) {
+                Poll::Ready(Some(Ok(Frame::Settings(_)))) => {}
+                other => panic!("expected settings, got {other:?}"),
+            }
+        }
+        assert!(matches!(
+            Pin::new(&mut framed).poll_next(&mut cx),
+            Poll::Ready(None)
+        ));
+    }
+
+    #[test]
+    fn partial_frame_at_eof_is_an_error() {
+        let mut framed = FramedRead::new(std::io::Cursor::new(vec![0, 0, 1]));
+        framed.set_max_frame_size(16_384);
+        let waker = Waker::noop();
+        let mut cx = Context::from_waker(waker);
+        match Pin::new(&mut framed).poll_next(&mut cx) {
+            Poll::Ready(Some(Err(Error::Io(_, Some(message))))) => {
+                assert!(message.contains("bytes remaining"));
+            }
+            other => panic!("expected a truncated-frame error, got {other:?}"),
         }
     }
 }
