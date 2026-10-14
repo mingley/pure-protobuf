@@ -1656,7 +1656,8 @@ fn cached_authority(raw: Bytes) -> Result<http::uri::Authority, http::uri::Inval
     LAST.with(|slot| {
         let mut slot = slot.borrow_mut();
         if let Some((prev, parsed)) = slot.as_ref() {
-            if prev == &raw {
+            // Repeated frames share the decoded authority allocation.
+            if (prev.len() == raw.len() && prev.as_ptr() == raw.as_ptr()) || prev == &raw {
                 return Ok(parsed.clone());
             }
         }
@@ -1674,7 +1675,8 @@ fn cached_path_and_query(raw: Bytes) -> Result<http::uri::PathAndQuery, http::ur
     LAST.with(|slot| {
         let mut slot = slot.borrow_mut();
         if let Some((prev, parsed)) = slot.as_ref() {
-            if prev == &raw {
+            // Repeated frames share the decoded path allocation.
+            if (prev.len() == raw.len() && prev.as_ptr() == raw.as_ptr()) || prev == &raw {
                 return Ok(parsed.clone());
             }
         }
