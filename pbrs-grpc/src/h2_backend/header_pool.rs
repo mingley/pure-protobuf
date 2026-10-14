@@ -59,6 +59,52 @@ pub(crate) fn recycle_received_ok_trailer(map: HeaderMap) {
     RECEIVED_OK_TRAILER.set(Some(map));
 }
 
+/// Content-type plus `grpc-accept-encoding`, and nothing else.
+pub(crate) fn is_stock_response(fields: &HeaderMap) -> bool {
+    if fields.len() != 2 {
+        return false;
+    }
+    let mut saw_type = false;
+    let mut saw_accept = false;
+    for (name, value) in fields {
+        if name == http::header::CONTENT_TYPE {
+            let bytes = value.as_bytes();
+            if bytes != b"application/grpc" && bytes != b"application/grpc+proto" {
+                return false;
+            }
+            saw_type = true;
+        } else if name.as_str() == "grpc-accept-encoding" {
+            saw_accept = true;
+        } else {
+            return false;
+        }
+    }
+    saw_type && saw_accept
+}
+
+/// The `grpc-accept-encoding` value, without hashing the name.
+pub(crate) fn accept_encoding_bytes(fields: &HeaderMap) -> &[u8] {
+    for (name, value) in fields {
+        if name.as_str() == "grpc-accept-encoding" {
+            return value.as_bytes();
+        }
+    }
+    b""
+}
+
+thread_local! {
+    // Received stock responses only. The encoder keeps `Slot::Response`.
+    static RECEIVED_RESPONSE: Cell<Option<HeaderMap>> = const { Cell::new(None) };
+}
+
+pub(crate) fn take_received_response() -> Option<HeaderMap> {
+    RECEIVED_RESPONSE.take()
+}
+
+pub(crate) fn recycle_received_response(map: HeaderMap) {
+    RECEIVED_RESPONSE.set(Some(map));
+}
+
 pub(crate) fn recycle(slot: Slot, map: HeaderMap) {
     POOL.with(|pool| {
         drop(pool.0[slot as usize].replace(Some(map)));

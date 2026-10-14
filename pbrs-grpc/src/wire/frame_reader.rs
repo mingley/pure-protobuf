@@ -582,7 +582,7 @@ pub(crate) async fn finish_unary<Resp: CodecMessage>(
     };
     let status = status_from(&parts.headers, trailers.as_ref());
     let encoding = encoding_token.map(str::to_owned);
-    let header_md = Metadata::from_owned_headers(parts.headers);
+    let header_md = metadata_from_response(parts.headers);
     let trailers_md = trailers.map(metadata_from_trailers).unwrap_or_default();
     if let Some(tap) = tap {
         tap.log_trailer(&trailers_md, &status);
@@ -640,7 +640,7 @@ pub(crate) fn finish_stream<Resp: CodecMessage + Send + 'static>(
     }
     let encoding = encoding_token.map(str::to_owned);
     let codec = inbound_codec_from_token(encoding_token);
-    let header_md = Metadata::from_owned_headers(parts.headers);
+    let header_md = metadata_from_response(parts.headers);
     if let Some(tap) = &tap {
         tap.log_server_header(&header_md);
     }
@@ -653,6 +653,15 @@ pub(crate) fn finish_stream<Resp: CodecMessage + Send + 'static>(
         Metadata::new(),
     )
     .with_encoding(encoding))
+}
+
+fn metadata_from_response(map: HeaderMap) -> Metadata {
+    if crate::h2_backend::header_pool::is_stock_response(&map) {
+        crate::h2_backend::header_pool::recycle_received_response(map);
+        Metadata::new()
+    } else {
+        Metadata::from_owned_headers(map)
+    }
 }
 
 fn metadata_from_trailers(map: HeaderMap) -> Metadata {

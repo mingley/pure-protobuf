@@ -279,6 +279,41 @@ impl Decoder {
     /// Headers from an identical block that did not change the dynamic table.
     pub(crate) fn cached_block(&self, raw: &[u8]) -> Option<SavedHeaders> {
         let block = self.saved.iter().find(|block| block.raw == raw)?;
+        // A repeated stock response is two headers. Reuse the last received
+        // map when the accept-encoding value matches; do not use `HeaderMap`
+        // equality, which hashes.
+        if block.decoded.method.is_none()
+            && block.decoded.status.is_some()
+            && block.decoded.fields.len() == 2
+            && block.decoded.stock_facts.is_some_and(|facts| facts.stock)
+        {
+            let decoded = &block.decoded;
+            let want = crate::h2_backend::header_pool::accept_encoding_bytes(&decoded.fields);
+            let fields = match crate::h2_backend::header_pool::take_received_response() {
+                Some(spare)
+                    if crate::h2_backend::header_pool::accept_encoding_bytes(&spare) == want =>
+                {
+                    spare
+                }
+                Some(other) => {
+                    crate::h2_backend::header_pool::recycle_received_response(other);
+                    decoded.fields.clone()
+                }
+                None => decoded.fields.clone(),
+            };
+            return Some(SavedHeaders {
+                fields,
+                method: decoded.method.clone(),
+                scheme: decoded.scheme.clone(),
+                authority: decoded.authority.clone(),
+                path: decoded.path.clone(),
+                protocol: decoded.protocol.clone(),
+                status: decoded.status,
+                field_size: decoded.field_size,
+                stock_facts: decoded.stock_facts,
+                shared_fields: None,
+            });
+        }
         // A repeated OK trailer is one header. Reuse the last received map
         // instead of cloning it. The encoder keeps its own trailer slot.
         if block.decoded.method.is_none()
