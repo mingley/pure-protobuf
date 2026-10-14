@@ -29,6 +29,9 @@ pub struct Table {
 struct Hit {
     epoch: u64,
     hash: HashValue,
+    kind: u8,
+    name: [u8; HIT_NAME],
+    name_len: u8,
     value: [u8; HIT_VALUE],
     value_len: u8,
     indexed: usize,
@@ -36,6 +39,7 @@ struct Hit {
 
 const HIT_SLOTS: usize = 8;
 const HIT_VALUE: usize = 64;
+const HIT_NAME: usize = 32;
 
 #[derive(Debug)]
 pub enum Index {
@@ -75,6 +79,9 @@ impl Hit {
     const EMPTY: Self = Self {
         epoch: 0,
         hash: HashValue(0),
+        kind: 0,
+        name: [0; HIT_NAME],
+        name_len: 0,
         value: [0; HIT_VALUE],
         value_len: 0,
         indexed: 0,
@@ -163,6 +170,11 @@ impl Table {
 
     /// Index the header in the HPACK table.
     pub fn index(&mut self, header: Header) -> Index {
+        // A repeated field is already indexed. This skips the static-table
+        // match and the hash probe while the dynamic table is unchanged.
+        if let Some(indexed) = self.early_hit(&header) {
+            return Index::Indexed(indexed, header);
+        }
         // Check the static table
         let statik = index_static(&header);
 
@@ -397,14 +409,49 @@ impl Table {
         }
     }
 
+    fn early_hit(&self, header: &Header) -> Option<usize> {
+        let Header::Field { name, value } = header else {
+            return None;
+        };
+        let name = name.as_str().as_bytes();
+        let value = value.as_bytes();
+        if name.len() > HIT_NAME || value.len() > HIT_VALUE {
+            return None;
+        }
+        for hit in &self.hits {
+            if hit.epoch != self.epoch || hit.kind != 1 {
+                continue;
+            }
+            if hit.name_len as usize != name.len() || hit.value_len as usize != value.len() {
+                continue;
+            }
+            if &hit.name[..name.len()] == name && &hit.value[..value.len()] == value {
+                return Some(hit.indexed);
+            }
+        }
+        None
+    }
+
     fn remember_hit(&mut self, hash: HashValue, header: &Header, indexed: usize) {
         let value = header.value_slice();
         if value.len() > HIT_VALUE {
             return;
         }
+        let (kind, name) = match header {
+            Header::Field { name, .. } => (1u8, name.as_str().as_bytes()),
+            _ => (0, &[][..]),
+        };
+        if kind == 1 && name.len() > HIT_NAME {
+            return;
+        }
         let hit = &mut self.hits[hash.0 % HIT_SLOTS];
         hit.epoch = self.epoch;
         hit.hash = hash;
+        hit.kind = kind;
+        hit.name_len = name.len() as u8;
+        if !name.is_empty() {
+            hit.name[..name.len()].copy_from_slice(name);
+        }
         hit.value[..value.len()].copy_from_slice(value);
         hit.value_len = value.len() as u8;
         hit.indexed = indexed;
