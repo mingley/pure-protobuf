@@ -137,7 +137,7 @@
 
 use crate::h2_backend::codec::{Codec, SendError, UserError};
 use crate::h2_backend::ext::Protocol;
-use crate::h2_backend::frame::{Headers, Pseudo, Reason, Settings, StreamId};
+use crate::h2_backend::frame::{Headers, Pseudo, Settings, StreamId};
 use crate::h2_backend::proto::{self, Error};
 use crate::h2_backend::{FlowControl, PingPong, RecvStream, SendStream};
 
@@ -1774,27 +1774,16 @@ impl proto::Peer for Peer {
     fn convert_poll_message(
         pseudo: Pseudo,
         fields: HeaderMap,
-        stream_id: StreamId,
+        _stream_id: StreamId,
     ) -> Result<Self::Poll, Error> {
-        let mut b = Response::builder();
-
-        b = b.version(Version::HTTP_2);
-
+        // Status and version are already typed values. The builder wrapped
+        // each one in a closure and then discarded its empty header map.
+        let mut response = Response::new(());
+        *response.version_mut() = Version::HTTP_2;
         if let Some(status) = pseudo.status {
-            b = b.status(status);
+            *response.status_mut() = status;
         }
-
-        let mut response = match b.body(()) {
-            Ok(response) => response,
-            Err(_) => {
-                // TODO: Should there be more specialized handling for different
-                // kinds of errors
-                return Err(Error::library_reset(stream_id, Reason::PROTOCOL_ERROR));
-            }
-        };
-
         *response.headers_mut() = fields;
-
         Ok(response)
     }
 }
