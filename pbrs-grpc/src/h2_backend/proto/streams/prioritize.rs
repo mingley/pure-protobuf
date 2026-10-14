@@ -486,6 +486,14 @@ impl Prioritize {
         T: AsyncWrite + Unpin,
         B: Buf,
     {
+        // Nothing in flight and nothing queued. Reclaim would observe an empty
+        // codec slot, and both pops would return immediately.
+        if matches!(self.in_flight_data_frame, InFlightData::Nothing)
+            && self.pending_open.is_empty()
+            && self.pending_send.is_empty()
+        {
+            return Ok(BufferStatus::Complete);
+        }
         // Reclaim any frame that has previously been written
         self.reclaim_frame(buffer, store, dst);
 
