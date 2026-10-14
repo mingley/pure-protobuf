@@ -184,25 +184,30 @@ impl Resolve for Store {
 impl ops::Index<Key> for Store {
     type Output = Stream;
 
+    #[inline]
     fn index(&self, key: Key) -> &Self::Output {
-        self.slab
-            .get(key.index.0 as usize)
-            .filter(|s| s.id == key.stream_id)
-            .unwrap_or_else(|| {
-                panic!("dangling store key for stream_id={:?}", key.stream_id);
-            })
+        match self.slab.get(key.index.0 as usize) {
+            Some(stream) if stream.id == key.stream_id => stream,
+            _ => dangling_store_key(key.stream_id),
+        }
     }
 }
 
 impl ops::IndexMut<Key> for Store {
+    #[inline]
     fn index_mut(&mut self, key: Key) -> &mut Self::Output {
-        self.slab
-            .get_mut(key.index.0 as usize)
-            .filter(|s| s.id == key.stream_id)
-            .unwrap_or_else(|| {
-                panic!("dangling store key for stream_id={:?}", key.stream_id);
-            })
+        match self.slab.get_mut(key.index.0 as usize) {
+            Some(stream) if stream.id == key.stream_id => stream,
+            _ => dangling_store_key(key.stream_id),
+        }
     }
+}
+
+/// Kept cold so a live stream lookup does not carry the panic formatting.
+#[cold]
+#[inline(never)]
+fn dangling_store_key(stream_id: StreamId) -> ! {
+    panic!("dangling store key for stream_id={stream_id:?}");
 }
 
 impl Store {
@@ -419,12 +424,14 @@ impl<'a> Resolve for Ptr<'a> {
 impl<'a> ops::Deref for Ptr<'a> {
     type Target = Stream;
 
+    #[inline]
     fn deref(&self) -> &Stream {
         &self.store[self.key]
     }
 }
 
 impl<'a> ops::DerefMut for Ptr<'a> {
+    #[inline]
     fn deref_mut(&mut self) -> &mut Stream {
         &mut self.store[self.key]
     }
