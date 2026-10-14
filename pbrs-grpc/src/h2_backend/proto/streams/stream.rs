@@ -299,7 +299,17 @@ impl Stream {
     }
 
     pub fn send_data(&mut self, len: WindowSize, max_buffer_size: usize) {
-        let prev_capacity = self.capacity(max_buffer_size);
+        // Capacity is `min(window, max_buffer) - buffered`. Consuming `len`
+        // from both the window and the buffered count leaves that value
+        // unchanged while the window is the tighter limit, so there is
+        // nothing new to wake.
+        let window_limited =
+            (self.send_flow.available().as_size() as usize) <= max_buffer_size;
+        let prev_capacity = if window_limited {
+            0
+        } else {
+            self.capacity(max_buffer_size)
+        };
 
         // TODO: proper error handling
         let _res = self.send_flow.send_data(len);
@@ -310,7 +320,7 @@ impl Stream {
         self.buffered_send_data -= len as usize;
         self.requested_send_capacity -= len;
 
-        if prev_capacity < self.capacity(max_buffer_size) {
+        if !window_limited && prev_capacity < self.capacity(max_buffer_size) {
             self.notify_capacity();
         }
     }
