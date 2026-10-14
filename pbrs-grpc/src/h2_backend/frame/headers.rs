@@ -127,6 +127,17 @@ const ALL: u8 = END_STREAM | END_HEADERS | PADDED | PRIORITY;
 
 // ===== impl Headers =====
 
+fn bare_ok_trailer(fields: &HeaderMap) -> bool {
+    if fields.len() != 1 {
+        return false;
+    }
+    let Some((name, value)) = fields.iter().next() else {
+        return false;
+    };
+    let bytes = value.as_bytes();
+    name == GRPC_STATUS_NAME && bytes.len() == 1 && bytes[0] == b'0'
+}
+
 impl Headers {
     /// Create a new HEADERS frame
     pub fn new(stream_id: StreamId, pseudo: Pseudo, fields: HeaderMap) -> Self {
@@ -151,6 +162,13 @@ impl Headers {
     pub fn trailers(stream_id: StreamId, fields: HeaderMap) -> Self {
         let mut flags = HeadersFlag::default();
         flags.set_end_stream();
+        // A bare OK trailer is the block we replay. Marking it here skips
+        // the field walk at encode time.
+        let stock = if bare_ok_trailer(&fields) {
+            StandardMap::Trailers
+        } else {
+            StandardMap::None
+        };
 
         Headers {
             stream_id,
@@ -160,7 +178,7 @@ impl Headers {
                 fields,
                 is_over_size: false,
                 has_content_length: false,
-                stock: StandardMap::None,
+                stock,
                 stock_facts: None,
                 pseudo: Pseudo::default(),
             },
