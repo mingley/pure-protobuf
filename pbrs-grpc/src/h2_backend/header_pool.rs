@@ -52,7 +52,7 @@ thread_local! {
 }
 
 pub(crate) fn take_received_ok_trailer(make: impl FnOnce() -> HeaderMap) -> HeaderMap {
-    RECEIVED_OK_TRAILER.with(|cell| cell.take().unwrap_or_else(make))
+    RECEIVED_OK_TRAILER.take().unwrap_or_else(make)
 }
 
 pub(crate) fn recycle_received_ok_trailer(map: HeaderMap) {
