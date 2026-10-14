@@ -101,6 +101,10 @@ struct HeaderBlock {
     /// lookup on the stock gRPC blocks, which never carry that field.
     has_content_length: bool,
 
+    /// Stock gRPC fields. Classified once so the connection-header walk and
+    /// the replay identity walk are not both paid.
+    stock: StandardMap,
+
     /// Pseudo headers, these are broken out as they must be sent as part of the
     /// headers frame.
     pseudo: Pseudo,
@@ -130,6 +134,7 @@ impl Headers {
                 fields,
                 is_over_size: false,
                 has_content_length: false,
+                stock: StandardMap::None,
                 pseudo,
             },
             flags: HeadersFlag::default(),
@@ -148,6 +153,7 @@ impl Headers {
                 fields,
                 is_over_size: false,
                 has_content_length: false,
+                stock: StandardMap::None,
                 pseudo: Pseudo::default(),
             },
             flags,
@@ -212,6 +218,7 @@ impl Headers {
                 field_size: 0,
                 is_over_size: false,
                 has_content_length: false,
+                stock: StandardMap::None,
                 pseudo: Pseudo::default(),
             },
             flags,
@@ -263,6 +270,21 @@ impl Headers {
         } else {
             None
         }
+    }
+
+    /// Remember a stock field set. `true` means those names are legal on the
+    /// wire, so `Send::check_headers` can skip its walk.
+    pub(crate) fn note_stock_fields(&mut self) -> bool {
+        let kind = match self.header_block.fields.len() {
+            4 if fields_match(&self.header_block.fields, REQUEST_BITS, 4) => StandardMap::Request,
+            2 if fields_match(&self.header_block.fields, RESPONSE_BITS, 2) => {
+                StandardMap::Response
+            }
+            1 if fields_match(&self.header_block.fields, STATUS, 1) => StandardMap::Trailers,
+            _ => return false,
+        };
+        self.header_block.stock = kind;
+        true
     }
 
     pub fn into_parts(self) -> (Pseudo, HeaderMap) {
@@ -385,6 +407,7 @@ impl PushPromise {
                 fields,
                 is_over_size: false,
                 has_content_length: false,
+                stock: StandardMap::None,
                 pseudo,
             },
             promised_id,
@@ -477,6 +500,7 @@ impl PushPromise {
                 field_size: 0,
                 is_over_size: false,
                 has_content_length: false,
+                stock: StandardMap::None,
                 pseudo: Pseudo::default(),
             },
             promised_id,
@@ -881,7 +905,7 @@ impl fmt::Debug for PushPromiseFlag {
 // ===== HeaderBlock =====
 
 /// A header map the connection sends again on the next RPC.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum StandardMap {
     None,
     Request,
@@ -968,6 +992,7 @@ fn copy_stable_standard(
     pseudo: &Pseudo,
     fields: &HeaderMap,
     dst: &mut BytesMut,
+    stock: StandardMap,
 ) -> Option<StandardMap> {
     if let Some(method) = pseudo.method.as_ref() {
         if method != Method::POST || pseudo.protocol.is_some() || pseudo.status.is_some() {
@@ -981,7 +1006,7 @@ fn copy_stable_standard(
         let path = pseudo.path.as_ref()?.as_str().as_bytes();
         let authority = pseudo.authority.as_ref()?.as_str().as_bytes();
         let bytes = encoder.replay_request(https, path, authority)?;
-        if !fields_match(fields, REQUEST_BITS, 4) {
+        if stock != StandardMap::Request && !fields_match(fields, REQUEST_BITS, 4) {
             return None;
         }
         dst.extend_from_slice(bytes);
@@ -997,7 +1022,7 @@ fn copy_stable_standard(
             return None;
         }
         let bytes = encoder.replay_response(status.as_u16())?;
-        if !fields_match(fields, RESPONSE_BITS, 2) {
+        if stock != StandardMap::Response && !fields_match(fields, RESPONSE_BITS, 2) {
             return None;
         }
         dst.extend_from_slice(bytes);
@@ -1012,7 +1037,7 @@ fn copy_stable_standard(
         return None;
     }
     let bytes = encoder.replay_trailers()?;
-    if !fields_match(fields, STATUS, 1) {
+    if stock != StandardMap::Trailers && !fields_match(fields, STATUS, 1) {
         return None;
     }
     dst.extend_from_slice(bytes);
@@ -1271,7 +1296,7 @@ impl HeaderBlock {
         // Stock gRPC blocks repeat. Once stored, replay skips the key fill.
         if !encoder.has_size_update() {
             if let Some(kind) =
-                copy_stable_standard(encoder, &self.pseudo, &self.fields, &mut hpack)
+                copy_stable_standard(encoder, &self.pseudo, &self.fields, &mut hpack, self.stock)
             {
                 let fields = self.fields;
                 if let Some(slot) = kind.slot() {

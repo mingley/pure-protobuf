@@ -137,13 +137,15 @@ impl Send {
 
     pub fn send_headers<B>(
         &mut self,
-        frame: frame::Headers,
+        mut frame: frame::Headers,
         buffer: &mut Buffer<Frame<B>>,
         stream: &mut store::Ptr,
         counts: &mut Counts,
         task: &mut Option<Waker>,
     ) -> Result<(), UserError> {
-        Self::check_headers(frame.fields())?;
+        if !frame.note_stock_fields() {
+            Self::check_headers(frame.fields())?;
+        }
 
         let end_stream = frame.is_end_stream();
 
@@ -318,7 +320,7 @@ impl Send {
 
     pub fn send_trailers<B>(
         &mut self,
-        frame: frame::Headers,
+        mut frame: frame::Headers,
         buffer: &mut Buffer<Frame<B>>,
         stream: &mut store::Ptr,
         counts: &mut Counts,
@@ -332,7 +334,10 @@ impl Send {
         // caller cannot make this crate *generate* a message §8.2.2 forbids.
         // Checked before the state transition so a rejected call leaves the stream
         // untouched and still able to send valid trailers.
-        Self::check_headers(frame.fields())?;
+        // A stock `grpc-status: 0` block is already known to be legal.
+        if !frame.note_stock_fields() {
+            Self::check_headers(frame.fields())?;
+        }
 
         // TODO: Should this logic be moved into state.rs?
         if !stream.state.is_send_streaming() {
