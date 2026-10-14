@@ -426,9 +426,12 @@ fn map_err(err: io::Error) -> Error {
     err.into()
 }
 
-/// HTTP/2 frames are a 3-byte length plus a 9-byte header. The read buffer
-/// and its reserve policy match the length-delimited codec this replaced.
-/// Only the generic `Cursor` / `get_uint` walk is gone.
+/// HTTP/2 frames are a 3-byte length plus a 9-byte header.
+///
+/// An incomplete frame still reserves its missing tail. A finished frame does
+/// not: that reserve ran while the returned buffer still shared the allocation
+/// and copied the remainder. The next read reserves after the caller has
+/// dropped the frame.
 #[derive(Debug)]
 struct H2FrameDecoder {
     max_frame_len: usize,
@@ -471,11 +474,7 @@ impl Decoder for H2FrameDecoder {
             return Ok(None);
         }
         self.state = ReadState::Head;
-        let frame = src.split_to(total);
-        // Same post-frame reserve as the length-delimited codec, including
-        // a zero reserve when the next header is already buffered.
-        src.reserve(HEAD_LEN.saturating_sub(src.len()));
-        Ok(Some(frame))
+        Ok(Some(src.split_to(total)))
     }
 }
 
@@ -494,7 +493,12 @@ fn read_total(src: &mut BytesMut, max_frame_len: usize) -> io::Result<Option<usi
         ));
     };
     // `num_skip` is 0, so the header stays in the returned buffer.
-    src.reserve(total.saturating_sub(src.len()));
+    // A zero reserve never allocates; skip the call when the frame is
+    // already buffered.
+    let short = total.saturating_sub(src.len());
+    if short > 0 {
+        src.reserve(short);
+    }
     Ok(Some(total))
 }
 
