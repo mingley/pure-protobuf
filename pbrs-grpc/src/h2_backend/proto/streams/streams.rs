@@ -43,6 +43,10 @@ where
     /// `clear_expired_reset_streams` skips the stream lock when this is clear.
     reset_pending: Arc<AtomicBool>,
 
+    /// Set while `Counts` has a send or receive stream. Lets
+    /// `has_streams_or_other_references` return without the stream lock.
+    streams_open: Arc<AtomicBool>,
+
     _p: ::std::marker::PhantomData<P>,
 }
 
@@ -126,12 +130,13 @@ where
     pub fn new(config: Config) -> Self {
         let peer = P::r#dyn();
 
-        let (inner, refusal_pending, reset_pending) = Inner::new(peer, config);
+        let (inner, refusal_pending, reset_pending, streams_open) = Inner::new(peer, config);
         Streams {
             inner,
             send_buffer: Arc::new(SendBuffer::new()),
             refusal_pending,
             reset_pending,
+            streams_open,
             _p: ::std::marker::PhantomData,
         }
     }
@@ -622,11 +627,18 @@ impl Inner {
     fn new(
         peer: peer::Dyn,
         config: Config,
-    ) -> (Arc<Mutex<Self>>, Arc<AtomicBool>, Arc<AtomicBool>) {
+    ) -> (
+        Arc<Mutex<Self>>,
+        Arc<AtomicBool>,
+        Arc<AtomicBool>,
+        Arc<AtomicBool>,
+    ) {
         let refusal_pending = Arc::new(AtomicBool::new(false));
         let reset_pending = Arc::new(AtomicBool::new(false));
+        let counts = Counts::new(peer, &config);
+        let streams_open = counts.streams_open_flag();
         let inner = Arc::new(Mutex::new(Inner {
-            counts: Counts::new(peer, &config),
+            counts,
             actions: Actions {
                 recv: Recv::new(peer, &config),
                 send: Send::new(&config),
@@ -638,7 +650,7 @@ impl Inner {
             refusal_pending: refusal_pending.clone(),
             reset_pending: reset_pending.clone(),
         }));
-        (inner, refusal_pending, reset_pending)
+        (inner, refusal_pending, reset_pending, streams_open)
     }
 
     fn recv_headers<B>(
@@ -1307,6 +1319,7 @@ where
             send_buffer,
             refusal_pending: _,
             reset_pending: _,
+            streams_open: _,
             _p,
         } = self;
         DynStreams {
@@ -1343,6 +1356,12 @@ where
     }
 
     pub fn has_streams_or_other_references(&self) -> bool {
+        // While a stream is counted this is true regardless of `refs`.
+        // The flag is updated under the stream lock and loaded with Acquire,
+        // so a same-task close is visible to the check after `poll`.
+        if self.streams_open.load(Ordering::Acquire) {
+            return true;
+        }
         let me = self.inner.lock().unwrap();
         me.counts.has_streams() || me.refs > 1
     }
@@ -1366,6 +1385,7 @@ where
             send_buffer: self.send_buffer.clone(),
             refusal_pending: self.refusal_pending.clone(),
             reset_pending: self.reset_pending.clone(),
+            streams_open: self.streams_open.clone(),
             _p: ::std::marker::PhantomData,
         }
     }

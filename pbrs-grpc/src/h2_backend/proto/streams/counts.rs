@@ -1,5 +1,8 @@
 use super::*;
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 #[derive(Debug)]
 struct Budget {
     available: usize,
@@ -78,6 +81,11 @@ pub(super) struct Counts {
     /// Number of empty, non-final DATA frames received over the lifetime of
     /// the connection.
     num_recv_empty_data_frames: usize,
+
+    /// Mirrors `has_streams` so the connection driver can skip the stream lock
+    /// while any stream is counted. Cleared when the last stream is released.
+    /// A connection with no open stream and `refs > 1` still takes the lock.
+    streams_open: Arc<AtomicBool>,
 }
 
 impl Counts {
@@ -99,7 +107,13 @@ impl Counts {
             num_local_error_reset_streams: 0,
             data_frame_budget: Budget::new(config.data_frame_budget),
             num_recv_empty_data_frames: 0,
+            streams_open: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    /// Clone of the flag mirrored by `has_streams`.
+    pub(crate) fn streams_open_flag(&self) -> Arc<AtomicBool> {
+        self.streams_open.clone()
     }
 
     /// Records the framing overhead of a DATA frame.
@@ -186,6 +200,7 @@ impl Counts {
         // Increment the number of remote initiated streams
         self.num_recv_streams += 1;
         stream.is_counted = true;
+        self.streams_open.store(true, Ordering::Release);
     }
 
     /// Returns true if the send stream concurrency can be incremented
@@ -249,6 +264,7 @@ impl Counts {
         // Increment the number of remote initiated streams
         self.num_send_streams += 1;
         stream.is_counted = true;
+        self.streams_open.store(true, Ordering::Release);
     }
 
     /// Returns true if the number of pending reset streams can be incremented.
@@ -377,6 +393,9 @@ impl Counts {
             assert!(self.num_recv_streams > 0);
             self.num_recv_streams -= 1;
             stream.is_counted = false;
+        }
+        if self.num_send_streams == 0 && self.num_recv_streams == 0 {
+            self.streams_open.store(false, Ordering::Release);
         }
     }
 
