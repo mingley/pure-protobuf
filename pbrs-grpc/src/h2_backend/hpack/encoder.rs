@@ -20,6 +20,8 @@ pub struct Encoder {
     scratch: BytesMut,
     /// Encoded blocks for a stable dynamic table. Keyed by the header bytes.
     encoded: Vec<EncodedBlock>,
+    /// Reused buffer for the header-block cache key. Cleared per frame.
+    key_scratch: Vec<u8>,
     /// Last literal string written for a header whose value is not indexed.
     ///
     /// `:path` is one of those. The Huffman bytes depend only on the value,
@@ -62,6 +64,7 @@ impl Encoder {
             size_update: None,
             scratch: BytesMut::new(),
             encoded: Vec::new(),
+            key_scratch: Vec::with_capacity(128),
             literal: None,
         }
     }
@@ -74,9 +77,19 @@ impl Encoder {
         self.size_update.is_some()
     }
 
-    /// Encoded bytes for `key` while the dynamic table is still `table_epoch`.
-    pub(crate) fn cached_block(&self, key: &[u8]) -> Option<&[u8]> {
+    /// Start a cache key in the reused buffer.
+    pub(crate) fn clear_key(&mut self) {
+        self.key_scratch.clear();
+    }
+
+    pub(crate) fn key_buf(&mut self) -> &mut Vec<u8> {
+        &mut self.key_scratch
+    }
+
+    /// Encoded bytes for the key in `key_scratch`, while the table epoch matches.
+    pub(crate) fn cached_block(&self) -> Option<&[u8]> {
         let epoch = self.table.epoch();
+        let key = self.key_scratch.as_slice();
         self.encoded
             .iter()
             .find(|block| block.epoch == epoch && block.key == key)

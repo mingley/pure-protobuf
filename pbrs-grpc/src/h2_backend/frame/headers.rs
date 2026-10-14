@@ -1050,13 +1050,15 @@ impl HeaderBlock {
         let mut hpack = encoder.take_scratch();
         hpack.clear();
         // The same headers on a stable table encode to the same bytes.
-        let key = if encoder.has_size_update() {
-            None
+        // The key buffer lives on the encoder, so a hit does not allocate.
+        let keyed = if encoder.has_size_update() {
+            false
         } else {
-            Self::encoding_key(&self.pseudo, &self.fields)
+            encoder.clear_key();
+            Self::fill_encoding_key(encoder.key_buf(), &self.pseudo, &self.fields)
         };
-        if let Some(key) = key.as_deref() {
-            if let Some(bytes) = encoder.cached_block(key) {
+        if keyed {
+            if let Some(bytes) = encoder.cached_block() {
                 hpack.extend_from_slice(bytes);
                 return EncodingHeaderBlock { hpack };
             }
@@ -1068,16 +1070,19 @@ impl HeaderBlock {
         };
 
         encoder.encode(headers, &mut hpack);
-        if let Some(key) = key {
-            if encoder.table_epoch() == epoch {
-                encoder.store_block(key, &hpack);
-            }
+        if keyed && encoder.table_epoch() == epoch {
+            let key = encoder.key_buf().clone();
+            encoder.store_block(key, &hpack);
         }
 
         EncodingHeaderBlock { hpack }
     }
 
-    fn encoding_key(pseudo: &Pseudo, fields: &HeaderMap) -> Option<Vec<u8>> {
+    /// Writes the cache key into `key`, which the caller has cleared.
+    ///
+    /// Returns false when the headers do not fit in the 256-byte key. Those
+    /// blocks are encoded normally and not cached.
+    fn fill_encoding_key(key: &mut Vec<u8>, pseudo: &Pseudo, fields: &HeaderMap) -> bool {
         fn push(key: &mut Vec<u8>, bytes: Option<&[u8]>) -> bool {
             match bytes {
                 None => {
@@ -1097,43 +1102,40 @@ impl HeaderBlock {
                 }
             }
         }
-        let mut key = Vec::with_capacity(128);
         let ok = push(
-            &mut key,
+            key,
             pseudo.method.as_ref().map(|value| value.as_str().as_bytes()),
         ) && push(
-            &mut key,
+            key,
             pseudo.scheme.as_ref().map(|value| value.as_str().as_bytes()),
         ) && push(
-            &mut key,
+            key,
             pseudo
                 .authority
                 .as_ref()
                 .map(|value| value.as_str().as_bytes()),
         ) && push(
-            &mut key,
+            key,
             pseudo.path.as_ref().map(|value| value.as_str().as_bytes()),
         ) && push(
-            &mut key,
+            key,
             pseudo
                 .protocol
                 .as_ref()
                 .map(|value| value.as_str().as_bytes()),
         ) && push(
-            &mut key,
+            key,
             pseudo.status.as_ref().map(|value| value.as_str().as_bytes()),
         );
         if !ok {
-            return None;
+            return false;
         }
         for (name, value) in fields {
-            if !push(&mut key, Some(name.as_str().as_bytes()))
-                || !push(&mut key, Some(value.as_bytes()))
-            {
-                return None;
+            if !push(key, Some(name.as_str().as_bytes())) || !push(key, Some(value.as_bytes())) {
+                return false;
             }
         }
-        Some(key)
+        true
     }
 
     /// Calculates the size of the currently decoded header list.
@@ -1478,5 +1480,52 @@ mod test {
                 }
             );
         }
+    }
+
+    fn encode_block(encoder: &mut Encoder, path: &'static str, value: &'static str) -> BytesMut {
+        let mut dst = BytesMut::new();
+        let frame = Headers::new(
+            StreamId::from(1),
+            Pseudo::request(Method::POST, Uri::from_static(path), None),
+            HeaderMap::from_iter([(
+                HeaderName::from_static("content-type"),
+                HeaderValue::from_static(value),
+            )]),
+        );
+        assert!(
+            frame
+                .encode(encoder, &mut (&mut dst).limit(1024))
+                .is_none()
+        );
+        dst
+    }
+
+    #[test]
+    fn repeated_header_block_reuses_the_stable_encoding() {
+        let mut encoder = Encoder::default();
+        let path = "http://localhost/echo.Echo/Echo";
+        let _first = encode_block(&mut encoder, path, "application/grpc");
+        let second = encode_block(&mut encoder, path, "application/grpc");
+        let third = encode_block(&mut encoder, path, "application/grpc");
+        // The first encode may insert into the dynamic table. Once the table
+        // is stable, the next two blocks are the cached bytes.
+        assert_eq!(&second[9..], &third[9..]);
+        // A different value is inserted, so the previous block must not be replayed.
+        let changed = encode_block(&mut encoder, path, "application/grpc+proto");
+        assert_ne!(&third[9..], &changed[9..]);
+        let changed_again = encode_block(&mut encoder, path, "application/grpc+proto");
+        let changed_stable = encode_block(&mut encoder, path, "application/grpc+proto");
+        assert_eq!(&changed_again[9..], &changed_stable[9..]);
+    }
+
+    #[test]
+    fn size_update_is_not_served_from_the_block_cache() {
+        let mut encoder = Encoder::default();
+        let path = "http://localhost/echo.Echo/Echo";
+        let _ = encode_block(&mut encoder, path, "application/grpc");
+        let stable = encode_block(&mut encoder, path, "application/grpc");
+        encoder.update_max_size(0);
+        let updated = encode_block(&mut encoder, path, "application/grpc");
+        assert_ne!(&stable[9..], &updated[9..]);
     }
 }
