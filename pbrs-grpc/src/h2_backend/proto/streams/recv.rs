@@ -63,10 +63,11 @@ pub(super) struct Recv {
 
 #[derive(Debug)]
 pub(super) enum Event {
-    Headers(peer::PollMessage),
+    /// Boxed so a queued DATA event is not copied at request size.
+    Headers(Box<peer::PollMessage>),
     Data(DataEvent),
-    Trailers(HeaderMap),
-    InformationalHeaders(peer::PollMessage),
+    Trailers(Box<HeaderMap>),
+    InformationalHeaders(Box<peer::PollMessage>),
 }
 
 #[derive(Debug)]
@@ -264,7 +265,7 @@ impl Recv {
             // Push the frame onto the stream's recv buffer
             stream
                 .pending_recv
-                .push_back(&mut self.buffer, Event::Headers(message));
+                .push_back(&mut self.buffer, Event::Headers(Box::new(message)));
             stream.notify_recv();
 
             // Only servers can receive a headers frame that initiates the stream.
@@ -287,7 +288,7 @@ impl Recv {
             // with a special event type so it can be polled separately
             stream
                 .pending_recv
-                .push_back(&mut self.buffer, Event::InformationalHeaders(message));
+                .push_back(&mut self.buffer, Event::InformationalHeaders(Box::new(message)));
             stream.notify_recv();
         }
 
@@ -304,7 +305,10 @@ impl Recv {
         use super::peer::PollMessage::*;
 
         match stream.pending_recv.pop_front(&mut self.buffer) {
-            Some(Event::Headers(Server(request))) => request,
+            Some(Event::Headers(message)) => match *message {
+                Server(request) => request,
+                Client(_) => unreachable!("server stream queue must start with Headers"),
+            },
             _ => unreachable!("server stream queue must start with Headers"),
         }
     }
@@ -320,7 +324,10 @@ impl Recv {
         let mut ppp = stream.pending_push_promises.take();
         let pushed = ppp.pop(stream.store_mut()).map(|mut pushed| {
             match pushed.pending_recv.pop_front(&mut self.buffer) {
-                Some(Event::Headers(Server(headers))) => (headers, pushed.key()),
+                Some(Event::Headers(message)) => match *message {
+                    Server(headers) => (headers, pushed.key()),
+                    Client(_) => panic!("Headers not set on pushed stream"),
+                },
                 // When frames are pushed into the queue, it is verified that
                 // the first frame is a HEADERS frame.
                 _ => panic!("Headers not set on pushed stream"),
@@ -352,7 +359,10 @@ impl Recv {
         // Skip over any interim informational headers to find the main response
         loop {
             match stream.pending_recv.pop_front(&mut self.buffer) {
-                Some(Event::Headers(Client(response))) => return Poll::Ready(Ok(response)),
+                Some(Event::Headers(message)) => match *message {
+                    Client(response) => return Poll::Ready(Ok(response)),
+                    Server(_) => panic!("poll_response called after response returned"),
+                },
                 Some(Event::InformationalHeaders(_)) => {
                     tracing::trace!("Skipping informational response in poll_response - should be consumed via poll_informational; stream_id={:?}", stream.id);
                     continue;
@@ -386,17 +396,29 @@ impl Recv {
         // If it's not, we put it back
         if let Some(event) = stream.pending_recv.pop_front(&mut self.buffer) {
             match event {
-                Event::Headers(Client(response)) => {
-                    // Final response
+                Event::Headers(message) => {
+                    let is_final = matches!(message.as_ref(), Client(_));
+                    // Final response stays at the front for poll_response.
+                    // Any other headers frame is put back and is not 1xx.
                     stream
                         .pending_recv
-                        .push_front(&mut self.buffer, Event::Headers(Client(response)));
-                    return Poll::Ready(None);
+                        .push_front(&mut self.buffer, Event::Headers(message));
+                    if is_final {
+                        return Poll::Ready(None);
+                    }
                 }
-                Event::InformationalHeaders(Client(response)) => {
-                    // Found an informational response, return it
-                    return Poll::Ready(Some(Ok(response)));
-                }
+                Event::InformationalHeaders(message) => match *message {
+                    Client(response) => {
+                        // Found an informational response, return it
+                        return Poll::Ready(Some(Ok(response)));
+                    }
+                    other => {
+                        stream.pending_recv.push_front(
+                            &mut self.buffer,
+                            Event::InformationalHeaders(Box::new(other)),
+                        );
+                    }
+                },
                 other => {
                     // Not an informational response, put it back at the front
                     stream.pending_recv.push_front(&mut self.buffer, other);
@@ -434,7 +456,7 @@ impl Recv {
         // Push the frame onto the stream's recv buffer
         stream
             .pending_recv
-            .push_back(&mut self.buffer, Event::Trailers(trailers));
+            .push_back(&mut self.buffer, Event::Trailers(Box::new(trailers)));
         stream.notify_recv();
 
         Ok(())
@@ -871,7 +893,7 @@ impl Recv {
         use super::peer::PollMessage::*;
         stream
             .pending_recv
-            .push_back(&mut self.buffer, Event::Headers(Server(req)));
+            .push_back(&mut self.buffer, Event::Headers(Box::new(Server(req))));
         stream.notify_recv();
         stream.notify_push();
         Ok(())
@@ -1274,7 +1296,7 @@ impl Recv {
         stream: &mut Stream,
     ) -> Poll<Option<Result<HeaderMap, proto::Error>>> {
         match stream.pending_recv.pop_front(&mut self.buffer) {
-            Some(Event::Trailers(trailers)) => Poll::Ready(Some(Ok(trailers))),
+            Some(Event::Trailers(trailers)) => Poll::Ready(Some(Ok(*trailers))),
             Some(event) => {
                 // Frame is not trailers.. not ready to poll trailers yet.
                 stream.pending_recv.push_front(&mut self.buffer, event);

@@ -297,7 +297,7 @@ impl Headers {
 
 impl<T> From<Headers> for Frame<T> {
     fn from(src: Headers) -> Self {
-        Frame::Headers(src)
+        Frame::Headers(Box::new(src))
     }
 }
 
@@ -525,7 +525,7 @@ impl PushPromise {
 
 impl<T> From<PushPromise> for Frame<T> {
     fn from(src: PushPromise) -> Self {
-        Frame::PushPromise(src)
+        Frame::PushPromise(Box::new(src))
     }
 }
 

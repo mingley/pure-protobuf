@@ -542,7 +542,7 @@ where
         match frame {
             Some(Headers(frame)) => {
                 tracing::trace!(?frame, "recv HEADERS");
-                self.streams.recv_headers(frame)?;
+                self.streams.recv_headers(*frame)?;
             }
             Some(Data(frame)) => {
                 tracing::trace!(?frame, "recv DATA");
@@ -554,7 +554,7 @@ where
             }
             Some(PushPromise(frame)) => {
                 tracing::trace!(?frame, "recv PUSH_PROMISE");
-                self.streams.recv_push_promise(frame)?;
+                self.streams.recv_push_promise(*frame)?;
             }
             Some(Settings(frame)) => {
                 tracing::trace!(?frame, "recv SETTINGS");

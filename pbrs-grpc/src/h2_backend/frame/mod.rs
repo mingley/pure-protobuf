@@ -79,9 +79,10 @@ pub const HEADER_LEN: usize = 9;
 #[derive(Eq, PartialEq)]
 pub enum Frame<T = Bytes> {
     Data(Data<T>),
-    Headers(Headers),
+    /// Boxed so a queued DATA frame is not copied at header-frame size.
+    Headers(Box<Headers>),
     Priority(Priority),
-    PushPromise(PushPromise),
+    PushPromise(Box<PushPromise>),
     Settings(Settings),
     Ping(Ping),
     GoAway(GoAway),
@@ -98,9 +99,9 @@ impl<T> Frame<T> {
 
         match self {
             Data(frame) => frame.map(f).into(),
-            Headers(frame) => frame.into(),
+            Headers(frame) => (*frame).into(),
             Priority(frame) => frame.into(),
-            PushPromise(frame) => frame.into(),
+            PushPromise(frame) => (*frame).into(),
             Settings(frame) => frame.into(),
             Ping(frame) => frame.into(),
             GoAway(frame) => frame.into(),
