@@ -2192,6 +2192,13 @@ impl super::Channel {
                 };
                 let _load = opened.load;
                 let budget = channel.byte_budget.clone();
+                // The header wait polls this future several times. Channel,
+                // the request metadata, and the user-agent are not read again
+                // after the stream is open, so drop them before that wait.
+                let interceptors = std::sync::Arc::clone(&channel.response_interceptors);
+                drop(channel);
+                drop(user_agent);
+                drop(md);
                 let response = match run_bidi(
                     opened.resp_fut,
                     opened.send,
@@ -2222,7 +2229,12 @@ impl super::Channel {
                         return Err(status);
                     }
                 };
-                let response = channel.apply_response_hooks(path, response)?;
+                let response = response.with_static_path(path);
+                let response = if interceptors.is_empty() {
+                    response
+                } else {
+                    crate::interceptor::intercept_response_all(response, &interceptors)?
+                };
                 finish_attempt(&mut attempt_guard, &Status::ok());
                 call_guard.finish(&Status::ok());
                 Ok(pool::attach_conn(
