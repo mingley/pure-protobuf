@@ -38,6 +38,18 @@ pub(crate) fn recycle(slot: Slot, map: HeaderMap) {
     });
 }
 
+/// Replace `dst` with `src`.
+///
+/// `HeaderMap::new` does not allocate. Dropping that empty map is only
+/// glue, so a zero-capacity map is forgotten instead.
+#[inline]
+pub(crate) fn replace_map(dst: &mut HeaderMap, src: HeaderMap) {
+    let old = std::mem::replace(dst, src);
+    if old.capacity() == 0 {
+        std::mem::forget(old);
+    }
+}
+
 pub(crate) const STOCK_REQUEST: u8 = 1;
 pub(crate) const STOCK_RESPONSE: u8 = 2;
 

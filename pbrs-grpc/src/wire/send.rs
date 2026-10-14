@@ -230,9 +230,12 @@ pub(crate) fn send_ok_headers(
     // Default responses repeat the same two headers. Clone that block
     // instead of hashing the names again.
     if md.is_empty() && send_codec.is_none() && accept_gzip {
-        *res.headers_mut() = crate::h2_backend::header_pool::take(
-            crate::h2_backend::header_pool::Slot::Response,
-            || crate::wire::headers::standard_response_headers().clone(),
+        crate::h2_backend::header_pool::replace_map(
+            res.headers_mut(),
+            crate::h2_backend::header_pool::take(
+                crate::h2_backend::header_pool::Slot::Response,
+                || crate::wire::headers::standard_response_headers().clone(),
+            ),
         );
         crate::h2_backend::header_pool::mark_next_stock(
             crate::h2_backend::header_pool::STOCK_RESPONSE,
@@ -244,7 +247,10 @@ pub(crate) fn send_ok_headers(
     // Exact sizing: the fixed headers plus response metadata. A minimal
     // table for the common no-metadata call, and never a rehash past it.
     let capacity = 2 + md.len() + usize::from(send_codec.is_some());
-    *res.headers_mut() = HeaderMap::with_capacity(capacity);
+    crate::h2_backend::header_pool::replace_map(
+        res.headers_mut(),
+        HeaderMap::with_capacity(capacity),
+    );
     let headers = res.headers_mut();
     headers.insert(http::header::CONTENT_TYPE, APPLICATION_GRPC);
     headers.insert(GRPC_ACCEPT_ENCODING, accept_encoding_value(accept_gzip));

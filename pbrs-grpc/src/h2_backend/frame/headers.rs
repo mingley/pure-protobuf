@@ -1188,7 +1188,7 @@ impl HeaderBlock {
         // hit does not walk the block again.
         if fresh {
             if let Some(saved) = decoder.cached_block(src) {
-                self.fields = saved.fields;
+                crate::h2_backend::header_pool::replace_map(&mut self.fields, saved.fields);
                 self.pseudo.method = saved.method;
                 self.pseudo.scheme = saved.scheme;
                 self.pseudo.authority = saved.authority;

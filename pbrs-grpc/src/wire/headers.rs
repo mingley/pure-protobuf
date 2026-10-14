@@ -124,9 +124,12 @@ pub(crate) fn grpc_request(
         && accept_gzip
         && user_agent == &PBRS_GRPC_UA
     {
-        *req.headers_mut() = crate::h2_backend::header_pool::take(
-            crate::h2_backend::header_pool::Slot::Request,
-            || standard_request_headers().clone(),
+        crate::h2_backend::header_pool::replace_map(
+            req.headers_mut(),
+            crate::h2_backend::header_pool::take(
+                crate::h2_backend::header_pool::Slot::Request,
+                || standard_request_headers().clone(),
+            ),
         );
         crate::h2_backend::header_pool::set_pending_stock(
             crate::h2_backend::header_pool::STOCK_REQUEST,
@@ -137,7 +140,10 @@ pub(crate) fn grpc_request(
     // for the common no-metadata call, and never a rehash past it.
     let capacity =
         4 + md.len() + usize::from(send_codec.is_some()) + usize::from(timeout.is_some());
-    *req.headers_mut() = HeaderMap::with_capacity(capacity);
+    crate::h2_backend::header_pool::replace_map(
+        req.headers_mut(),
+        HeaderMap::with_capacity(capacity),
+    );
     let headers = req.headers_mut();
     headers.insert(http::header::CONTENT_TYPE, APPLICATION_GRPC);
     headers.insert(http::header::TE, TRAILERS);

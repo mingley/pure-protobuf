@@ -1806,7 +1806,7 @@ impl proto::Peer for Peer {
         if let Some(protocol) = pseudo.protocol {
             request.extensions_mut().insert(protocol);
         }
-        *request.headers_mut() = fields;
+        crate::h2_backend::header_pool::replace_map(request.headers_mut(), fields);
 
         Ok(request)
     }

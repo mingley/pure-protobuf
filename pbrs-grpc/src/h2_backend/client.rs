@@ -1788,7 +1788,7 @@ impl proto::Peer for Peer {
         if let Some(status) = pseudo.status {
             *response.status_mut() = status;
         }
-        *response.headers_mut() = fields;
+        crate::h2_backend::header_pool::replace_map(response.headers_mut(), fields);
         Ok(response)
     }
 }
