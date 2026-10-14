@@ -20,7 +20,19 @@ pub struct Decoder {
     last_max_update: usize,
     table: Table,
     buffer: BytesMut,
+    /// Last Huffman string. A repeated `:path` arrives as the same bytes.
+    huff: Option<HuffCache>,
 }
+
+/// Huffman input and the bytes it decoded to.
+#[derive(Debug)]
+struct HuffCache {
+    raw: [u8; HUFF_CACHE],
+    raw_len: u8,
+    decoded: Bytes,
+}
+
+const HUFF_CACHE: usize = 128;
 
 /// Represents all errors that can be encountered while performing the decoding
 /// of an HPACK header set.
@@ -159,6 +171,7 @@ impl Decoder {
             last_max_update: size,
             table: Table::new(size),
             buffer: BytesMut::with_capacity(4096),
+            huff: None,
         }
     }
 
@@ -333,17 +346,41 @@ impl Decoder {
 
         let offset = (buf.position() - old_pos) as usize;
         if huff {
-            let ret = {
+            if len <= HUFF_CACHE {
                 let raw = &buf.chunk()[..len];
-                huffman::decode(raw, &mut self.buffer).map(|buf| StringMarker {
-                    offset,
-                    len,
-                    string: Some(BytesMut::freeze(buf)),
-                })
+                if let Some(cache) = &self.huff {
+                    if cache.raw_len as usize == len && &cache.raw[..len] == raw {
+                        let string = cache.decoded.clone();
+                        buf.advance(len);
+                        return Ok(StringMarker {
+                            offset,
+                            len,
+                            string: Some(string),
+                        });
+                    }
+                }
+            }
+            let string = {
+                let raw = &buf.chunk()[..len];
+                let decoded = huffman::decode(raw, &mut self.buffer)?;
+                BytesMut::freeze(decoded)
             };
-
+            if len <= HUFF_CACHE {
+                let raw = &buf.chunk()[..len];
+                let mut cache = HuffCache {
+                    raw: [0; HUFF_CACHE],
+                    raw_len: len as u8,
+                    decoded: string.clone(),
+                };
+                cache.raw[..len].copy_from_slice(raw);
+                self.huff = Some(cache);
+            }
             buf.advance(len);
-            ret
+            Ok(StringMarker {
+                offset,
+                len,
+                string: Some(string),
+            })
         } else {
             buf.advance(len);
             Ok(StringMarker {
