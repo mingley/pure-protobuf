@@ -310,6 +310,7 @@ pub(crate) fn incoming_rpc(
     byte_budget: ByteBudgetTracker,
     channelz_server: Option<crate::channelz::ServerId>,
     channelz_socket: Option<crate::channelz::SocketId>,
+    stock_facts: crate::wire::headers::StockFacts,
 ) -> Rpc {
     let mut request = request;
     #[cfg(feature = "grpc-web")]
@@ -367,6 +368,7 @@ pub(crate) fn incoming_rpc(
         binlog: None,
         channelz_server,
         channelz_socket,
+        stock_facts,
     }
 }
 
@@ -535,8 +537,12 @@ where
                 if crate::web::send_cors_preflight(&request, &mut respond, config.grpc_web_cors()) {
                     continue;
                 }
-                let stock = request.method() == http::Method::POST
-                    && crate::wire::headers::stock_request_without_deadline(request.headers());
+                let facts = if request.method() == http::Method::POST {
+                    crate::wire::headers::stock_facts(request.headers())
+                } else {
+                    crate::wire::headers::StockFacts::not_stock()
+                };
+                let stock = facts.stock;
                 if !stock {
                 if let Err(err) = check_request(&request, config.accepts_compressed()) {
                     if let Some(obs) = dispatch.observer() {
@@ -676,6 +682,7 @@ where
                             byte_budget,
                             channelz_server,
                             channelz_socket_id,
+                            facts,
                         ))
                         .await;
                 }));

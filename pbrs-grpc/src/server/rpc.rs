@@ -71,6 +71,9 @@ pub struct Rpc {
     pub(crate) channelz_server: Option<crate::channelz::ServerId>,
     /// Channelz socket serving this RPC, for stream/message counters.
     pub(crate) channelz_socket: Option<crate::channelz::SocketId>,
+    /// Accept-loop classification of the request headers. When `classified`,
+    /// dispatch does not walk the block again.
+    pub(crate) stock_facts: crate::wire::headers::StockFacts,
 }
 
 impl std::fmt::Debug for Rpc {
@@ -1266,7 +1269,11 @@ impl InboundRpc {
         // Each request header is read once. Timeout, accept-encoding, and
         // grpc-encoding feed the deadline and the compression decision.
         let (peer_accepts_gzip, peer_accepts_deflate, enc_token, peer_timeout) =
-            crate::wire::headers::request_facts(rpc.metadata.all_headers());
+            if rpc.stock_facts.classified {
+                (rpc.stock_facts.gzip, rpc.stock_facts.deflate, None, None)
+            } else {
+                crate::wire::headers::request_facts(rpc.metadata.all_headers())
+            };
         let rpc_timeout = rpc.rpc_timeout();
         let timeout =
             crate::wire::soonest(crate::wire::soonest(peer_timeout, rpc_timeout), rpc.timeout);
@@ -1274,10 +1281,14 @@ impl InboundRpc {
         let scheme = rpc.scheme().map(str::to_owned);
         let path = Some(rpc.path().to_owned());
         #[cfg(feature = "zstd")]
-        let peer_accepts_zstd = crate::wire::headers::accepts_codec(
-            rpc.metadata.all_headers(),
-            CompressionAlgorithm::Zstd,
-        );
+        let peer_accepts_zstd = if rpc.stock_facts.classified {
+            rpc.stock_facts.zstd
+        } else {
+            crate::wire::headers::accepts_codec(
+                rpc.metadata.all_headers(),
+                CompressionAlgorithm::Zstd,
+            )
+        };
         let request_codec = crate::wire::inbound_codec_from_token(enc_token);
         let encoding = enc_token.map(str::to_owned);
         let observer = rpc.observer.clone();
@@ -1319,6 +1330,7 @@ impl InboundRpc {
             binlog,
             channelz_server: _,
             channelz_socket: _,
+            stock_facts: _,
         } = rpc;
         let limits = config.limits();
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);

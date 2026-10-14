@@ -459,28 +459,78 @@ pub(crate) fn encoding_not_supported(gzip: bool) -> Status {
     })
 }
 
-/// A POST whose headers are the stock protobuf set and carry neither
-/// `grpc-encoding` nor `grpc-timeout`.
-///
-/// [`check_request`] cannot reject that request, and the header deadline is
-/// absent, so the accept loop only has to apply the server cap.
-pub(crate) fn stock_request_without_deadline(headers: &HeaderMap) -> bool {
+/// One pass over a small request block: the stock-protobuf check plus the
+/// accept-encoding facts [`request_facts`] would return when the block has
+/// no `grpc-encoding` and no `grpc-timeout`.
+#[derive(Clone, Copy)]
+pub(crate) struct StockFacts {
+    /// Content-type is protobuf gRPC and neither encoding nor timeout is set.
+    pub stock: bool,
+    /// `gzip` / `deflate` (and `zstd`, when that feature is on) are final.
+    /// An unusual accept-encoding value leaves this false so the caller
+    /// still runs [`request_facts`].
+    pub classified: bool,
+    pub gzip: bool,
+    pub deflate: bool,
+    #[cfg(feature = "zstd")]
+    pub zstd: bool,
+}
+
+impl StockFacts {
+    pub(crate) const fn not_stock() -> Self {
+        Self {
+            stock: false,
+            classified: false,
+            gzip: false,
+            deflate: false,
+            #[cfg(feature = "zstd")]
+            zstd: false,
+        }
+    }
+}
+
+pub(crate) fn stock_facts(headers: &HeaderMap) -> StockFacts {
     if headers.len() > 8 {
-        return false;
+        return StockFacts::not_stock();
     }
     let mut saw_type = false;
+    let mut gzip = false;
+    let mut deflate = false;
+    #[cfg(feature = "zstd")]
+    let mut zstd = false;
+    let mut unusual_accept = false;
+    let mut saw_accept = false;
     for (name, value) in headers {
         if name == http::header::CONTENT_TYPE {
             let raw = value.as_bytes();
             if raw != b"application/grpc" && raw != b"application/grpc+proto" {
-                return false;
+                return StockFacts::not_stock();
             }
             saw_type = true;
         } else if name == GRPC_ENCODING || name == GRPC_TIMEOUT {
-            return false;
+            return StockFacts::not_stock();
+        } else if name == GRPC_ACCEPT_ENCODING && !saw_accept {
+            saw_accept = true;
+            if *value == IDENTITY_GZIP_DEFLATE {
+                gzip = true;
+                deflate = true;
+                #[cfg(feature = "zstd")]
+                {
+                    zstd = true;
+                }
+            } else {
+                unusual_accept = true;
+            }
         }
     }
-    saw_type
+    StockFacts {
+        stock: saw_type,
+        classified: saw_type && !unusual_accept,
+        gzip,
+        deflate,
+        #[cfg(feature = "zstd")]
+        zstd,
+    }
 }
 
 /// Reject anything that is not a gRPC request we can answer.
@@ -599,24 +649,36 @@ mod tests {
         headers.insert(http::header::TE, TRAILERS);
         headers.insert(GRPC_ACCEPT_ENCODING, IDENTITY_GZIP_DEFLATE);
         headers.insert(USER_AGENT, PBRS_GRPC_UA.clone());
-        assert!(stock_request_without_deadline(&headers));
+        assert!(stock_facts(&headers).stock);
+        let classified = stock_facts(&headers);
+        assert!(classified.stock && classified.classified);
+        assert!(classified.gzip && classified.deflate);
+        assert_eq!(
+            (classified.gzip, classified.deflate, None, None),
+            (
+                request_facts(&headers).0,
+                request_facts(&headers).1,
+                request_facts(&headers).2,
+                request_facts(&headers).3,
+            )
+        );
 
         headers.insert(
             http::header::CONTENT_TYPE,
             HeaderValue::from_static("application/grpc+proto"),
         );
-        assert!(stock_request_without_deadline(&headers));
+        assert!(stock_facts(&headers).stock);
 
         headers.insert(GRPC_TIMEOUT, HeaderValue::from_static("100m"));
-        assert!(!stock_request_without_deadline(&headers));
+        assert!(!stock_facts(&headers).stock);
         headers.remove(GRPC_TIMEOUT);
         headers.insert(GRPC_ENCODING, HeaderValue::from_static("identity"));
-        assert!(!stock_request_without_deadline(&headers));
+        assert!(!stock_facts(&headers).stock);
         headers.remove(GRPC_ENCODING);
         headers.insert(
             http::header::CONTENT_TYPE,
             HeaderValue::from_static("application/json"),
         );
-        assert!(!stock_request_without_deadline(&headers));
+        assert!(!stock_facts(&headers).stock);
     }
 }
