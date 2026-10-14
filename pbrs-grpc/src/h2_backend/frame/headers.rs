@@ -134,7 +134,9 @@ impl Headers {
             stream_id,
             stream_dep: None,
             header_block: HeaderBlock {
-                field_size: calculate_headermap_size(&fields),
+                // Encode never reads this. The receive path fills it while
+                // decoding, which is the only place the size limit is enforced.
+                field_size: 0,
                 fields,
                 is_over_size: false,
                 has_content_length: false,
@@ -154,7 +156,7 @@ impl Headers {
             stream_id,
             stream_dep: None,
             header_block: HeaderBlock {
-                field_size: calculate_headermap_size(&fields),
+                field_size: 0,
                 fields,
                 is_over_size: false,
                 has_content_length: false,
@@ -427,7 +429,7 @@ impl PushPromise {
         PushPromise {
             flags: PushPromiseFlag::default(),
             header_block: HeaderBlock {
-                field_size: calculate_headermap_size(&fields),
+                field_size: 0,
                 fields,
                 is_over_size: false,
                 has_content_length: false,
@@ -1515,12 +1517,6 @@ impl HeaderBlock {
             + pseudo_size!(path)
             + self.field_size
     }
-}
-
-fn calculate_headermap_size(map: &HeaderMap) -> usize {
-    map.iter()
-        .map(|(name, value)| decoded_header_size(name.as_str().len(), value.len()))
-        .sum::<usize>()
 }
 
 fn decoded_header_size(name: usize, value: usize) -> usize {
