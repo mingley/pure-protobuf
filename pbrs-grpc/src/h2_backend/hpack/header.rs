@@ -4,6 +4,7 @@ use crate::h2_backend::ext::Protocol;
 use bytes::Bytes;
 use http::header::{HeaderName, HeaderValue};
 use http::{Method, StatusCode};
+use std::cell::Cell;
 use std::fmt;
 
 /// HTTP/2 Header
@@ -34,6 +35,13 @@ pub enum Name<'a> {
 #[doc(hidden)]
 #[derive(Clone, Eq, PartialEq, Default)]
 pub struct BytesStr(Bytes);
+
+/// Which repeated pseudo-header string to share on this thread.
+#[derive(Copy, Clone)]
+pub(crate) enum ReusedStr {
+    Path,
+    Authority,
+}
 
 pub fn len(name: &HeaderName, value: &HeaderValue) -> usize {
     let n: &str = name.as_ref();
@@ -272,6 +280,32 @@ impl BytesStr {
         BytesStr(Bytes::copy_from_slice(value.as_bytes()))
     }
 
+    /// Copy `value` once per thread, then share that allocation.
+    ///
+    /// A connection repeats the same `:path` and `:authority`. The first
+    /// request allocates; the rest clone the `Bytes` instead of copying.
+    pub(crate) fn reused(slot: ReusedStr, value: &str) -> Self {
+        if value.len() > 128 {
+            return BytesStr::from(value);
+        }
+        thread_local! {
+            static SLOTS: [Cell<Option<BytesStr>>; 2] = [const { Cell::new(None) }; 2];
+        }
+        SLOTS.with(|slots| {
+            let cell = &slots[slot as usize];
+            if let Some(existing) = cell.take() {
+                if existing.as_str() == value {
+                    let cloned = existing.clone();
+                    cell.set(Some(existing));
+                    return cloned;
+                }
+            }
+            let made = BytesStr::from(value);
+            cell.set(Some(made.clone()));
+            made
+        })
+    }
+
     #[doc(hidden)]
     pub fn try_from(bytes: Bytes) -> Result<Self, std::str::Utf8Error> {
         std::str::from_utf8(bytes.as_ref())?;
@@ -316,6 +350,17 @@ impl fmt::Debug for BytesStr {
 mod bytes_str_invariant_tests {
     use super::BytesStr;
     use bytes::Bytes;
+
+    #[test]
+    fn repeated_path_reuses_the_same_allocation() {
+        let first = BytesStr::reused(super::ReusedStr::Path, "/echo.Echo/Echo");
+        let second = BytesStr::reused(super::ReusedStr::Path, "/echo.Echo/Echo");
+        assert_eq!(first.as_str(), "/echo.Echo/Echo");
+        assert_eq!(first.as_ref().as_ptr(), second.as_ref().as_ptr());
+        let other = BytesStr::reused(super::ReusedStr::Authority, "127.0.0.1:1");
+        assert_eq!(other.as_str(), "127.0.0.1:1");
+        assert_ne!(other.as_ref().as_ptr(), first.as_ref().as_ptr());
+    }
 
     #[test]
     fn valid_constructors_retain_exact_utf8_views() {

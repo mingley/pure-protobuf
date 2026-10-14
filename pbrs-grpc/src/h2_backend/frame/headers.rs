@@ -566,7 +566,7 @@ impl Pseudo {
         } else {
             let path = parts
                 .path_and_query
-                .map(|v| BytesStr::from(v.as_str()))
+                .map(|v| BytesStr::reused(crate::h2_backend::hpack::header::ReusedStr::Path, v.as_str()))
                 .unwrap_or(BytesStr::from_static(""));
 
             let path = if !path.is_empty() {
@@ -597,7 +597,10 @@ impl Pseudo {
         // If the URI includes an authority component, add it to the pseudo
         // headers
         if let Some(authority) = parts.authority {
-            pseudo.set_authority(BytesStr::from(authority.as_str()));
+            pseudo.set_authority(BytesStr::reused(
+                crate::h2_backend::hpack::header::ReusedStr::Authority,
+                authority.as_str(),
+            ));
         }
 
         pseudo
