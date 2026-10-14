@@ -90,6 +90,7 @@ impl FlowControl {
     /// available bytes does not reach the threshold, this returns `None`.
     ///
     /// This represents pending outbound WINDOW_UPDATE frames.
+    #[inline]
     pub fn unclaimed_capacity(&self) -> Option<WindowSize> {
         let available = self.available;
 
