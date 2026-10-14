@@ -439,6 +439,30 @@ pub(crate) fn encoding_not_supported(gzip: bool) -> Status {
     })
 }
 
+/// A POST whose headers are the stock protobuf set and carry neither
+/// `grpc-encoding` nor `grpc-timeout`.
+///
+/// [`check_request`] cannot reject that request, and the header deadline is
+/// absent, so the accept loop only has to apply the server cap.
+pub(crate) fn stock_request_without_deadline(headers: &HeaderMap) -> bool {
+    if headers.len() > 8 {
+        return false;
+    }
+    let mut saw_type = false;
+    for (name, value) in headers {
+        if name == http::header::CONTENT_TYPE {
+            let raw = value.as_bytes();
+            if raw != b"application/grpc" && raw != b"application/grpc+proto" {
+                return false;
+            }
+            saw_type = true;
+        } else if name == GRPC_ENCODING || name == GRPC_TIMEOUT {
+            return false;
+        }
+    }
+    saw_type
+}
+
 /// Reject anything that is not a gRPC request we can answer.
 ///
 /// Runs before a handler is spawned, so a malformed or unsupported request
@@ -546,5 +570,33 @@ mod tests {
         let facts = request_facts(&headers);
         assert_eq!((facts.0, facts.1), accept_pair(&headers));
         assert_eq!(facts.2, grpc_encoding(&headers));
+    }
+
+    #[test]
+    fn stock_request_without_deadline_is_only_the_plain_protobuf_set() {
+        let mut headers = HeaderMap::new();
+        headers.insert(http::header::CONTENT_TYPE, APPLICATION_GRPC);
+        headers.insert(http::header::TE, TRAILERS);
+        headers.insert(GRPC_ACCEPT_ENCODING, IDENTITY_GZIP_DEFLATE);
+        headers.insert(USER_AGENT, PBRS_GRPC_UA.clone());
+        assert!(stock_request_without_deadline(&headers));
+
+        headers.insert(
+            http::header::CONTENT_TYPE,
+            HeaderValue::from_static("application/grpc+proto"),
+        );
+        assert!(stock_request_without_deadline(&headers));
+
+        headers.insert(GRPC_TIMEOUT, HeaderValue::from_static("100m"));
+        assert!(!stock_request_without_deadline(&headers));
+        headers.remove(GRPC_TIMEOUT);
+        headers.insert(GRPC_ENCODING, HeaderValue::from_static("identity"));
+        assert!(!stock_request_without_deadline(&headers));
+        headers.remove(GRPC_ENCODING);
+        headers.insert(
+            http::header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        );
+        assert!(!stock_request_without_deadline(&headers));
     }
 }

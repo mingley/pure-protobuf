@@ -533,6 +533,9 @@ where
                 if crate::web::send_cors_preflight(&request, &mut respond, config.grpc_web_cors()) {
                     continue;
                 }
+                let stock = request.method() == http::Method::POST
+                    && crate::wire::headers::stock_request_without_deadline(request.headers());
+                if !stock {
                 if let Err(err) = check_request(&request, config.accepts_compressed()) {
                     if let Some(obs) = dispatch.observer() {
                         let path = request.uri().path();
@@ -568,9 +571,14 @@ where
                     reject_request(&mut respond, err, config.accepts_compressed());
                     continue;
                 }
-                if crate::wire::effective_timeout(request.headers(), config.rpc_timeout())
-                    .is_some_and(|timeout| timeout.is_zero())
-                {
+                }
+                let deadline_zero = if stock {
+                    config.rpc_timeout().is_some_and(|timeout| timeout.is_zero())
+                } else {
+                    crate::wire::effective_timeout(request.headers(), config.rpc_timeout())
+                        .is_some_and(|timeout| timeout.is_zero())
+                };
+                if deadline_zero {
                     let status = Status::deadline_exceeded();
                     if let Some(obs) = dispatch.observer() {
                         let path = request.uri().path();
