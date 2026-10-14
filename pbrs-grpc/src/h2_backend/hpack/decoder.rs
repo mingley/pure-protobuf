@@ -47,6 +47,7 @@ pub struct SavedHeaders {
     pub protocol: Option<Protocol>,
     pub status: Option<StatusCode>,
     pub field_size: usize,
+    pub stock_facts: Option<crate::wire::headers::StockFacts>,
 }
 
 /// Huffman input and the bytes it decoded to.

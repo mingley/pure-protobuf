@@ -466,7 +466,7 @@ pub(crate) fn encoding_not_supported(gzip: bool) -> Status {
 /// One pass over a small request block: the stock-protobuf check plus the
 /// accept-encoding facts [`request_facts`] would return when the block has
 /// no `grpc-encoding` and no `grpc-timeout`.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct StockFacts {
     /// Content-type is protobuf gRPC and neither encoding nor timeout is set.
     pub stock: bool,
@@ -478,6 +478,20 @@ pub(crate) struct StockFacts {
     pub deflate: bool,
     #[cfg(feature = "zstd")]
     pub zstd: bool,
+}
+
+thread_local! {
+    static ACCEPT_FACTS: std::cell::Cell<Option<StockFacts>> = const { std::cell::Cell::new(None) };
+}
+
+/// `next_incoming` just popped one request. The accept loop takes it before
+/// it parks again.
+pub(crate) fn publish_accept_facts(facts: Option<StockFacts>) {
+    ACCEPT_FACTS.set(facts);
+}
+
+pub(crate) fn take_accept_facts() -> Option<StockFacts> {
+    ACCEPT_FACTS.replace(None)
 }
 
 impl StockFacts {

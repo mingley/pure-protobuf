@@ -105,6 +105,10 @@ struct HeaderBlock {
     /// the replay identity walk are not both paid.
     stock: StandardMap,
 
+    /// Accept-encoding facts for a fully decoded block. A cache hit copies
+    /// this instead of walking the fields again.
+    stock_facts: Option<crate::wire::headers::StockFacts>,
+
     /// Pseudo headers, these are broken out as they must be sent as part of the
     /// headers frame.
     pseudo: Pseudo,
@@ -135,6 +139,7 @@ impl Headers {
                 is_over_size: false,
                 has_content_length: false,
                 stock: StandardMap::None,
+                stock_facts: None,
                 pseudo,
             },
             flags: HeadersFlag::default(),
@@ -154,6 +159,7 @@ impl Headers {
                 is_over_size: false,
                 has_content_length: false,
                 stock: StandardMap::None,
+                stock_facts: None,
                 pseudo: Pseudo::default(),
             },
             flags,
@@ -219,6 +225,7 @@ impl Headers {
                 is_over_size: false,
                 has_content_length: false,
                 stock: StandardMap::None,
+                stock_facts: None,
                 pseudo: Pseudo::default(),
             },
             flags,
@@ -298,6 +305,10 @@ impl Headers {
 
     pub(crate) fn preset_stock_response(&mut self) {
         self.header_block.stock = StandardMap::Response;
+    }
+
+    pub(crate) fn stock_facts(&self) -> Option<crate::wire::headers::StockFacts> {
+        self.header_block.stock_facts
     }
 
     pub fn into_parts(self) -> (Pseudo, HeaderMap) {
@@ -421,6 +432,7 @@ impl PushPromise {
                 is_over_size: false,
                 has_content_length: false,
                 stock: StandardMap::None,
+                stock_facts: None,
                 pseudo,
             },
             promised_id,
@@ -514,6 +526,7 @@ impl PushPromise {
                 is_over_size: false,
                 has_content_length: false,
                 stock: StandardMap::None,
+                stock_facts: None,
                 pseudo: Pseudo::default(),
             },
             promised_id,
@@ -1152,6 +1165,7 @@ impl HeaderBlock {
                 self.pseudo.protocol = saved.protocol;
                 self.pseudo.status = saved.status;
                 self.field_size = saved.field_size;
+                self.stock_facts = saved.stock_facts;
                 src.clear();
                 return Ok(());
             }
@@ -1203,6 +1217,9 @@ impl HeaderBlock {
             return Err(Error::MalformedMessage);
         }
 
+        if fresh {
+            self.stock_facts = Some(crate::wire::headers::stock_facts(&self.fields));
+        }
         if let Some(raw) = raw {
             decoder.store_block(
                 raw,
@@ -1215,6 +1232,7 @@ impl HeaderBlock {
                     protocol: self.pseudo.protocol.clone(),
                     status: self.pseudo.status,
                     field_size: self.field_size,
+                    stock_facts: self.stock_facts,
                 },
             );
         }

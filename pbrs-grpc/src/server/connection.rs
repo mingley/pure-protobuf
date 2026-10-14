@@ -511,6 +511,8 @@ where
                 let Some(Ok((request, mut respond))) = accepted else {
                     break;
                 };
+                // Popped with this request, before the arm can park.
+                let precomputed = crate::wire::headers::take_accept_facts();
                 // h2 can accept a request whose reset is already queued. Do
                 // not let it occupy a bounded RPC slot until a spawned task
                 // gets its turn to observe the cancellation.
@@ -538,7 +540,9 @@ where
                     continue;
                 }
                 let facts = if request.method() == http::Method::POST {
-                    crate::wire::headers::stock_facts(request.headers())
+                    precomputed.unwrap_or_else(|| {
+                        crate::wire::headers::stock_facts(request.headers())
+                    })
                 } else {
                     crate::wire::headers::StockFacts::not_stock()
                 };

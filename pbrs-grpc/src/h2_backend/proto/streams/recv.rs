@@ -42,6 +42,9 @@ pub(super) struct Recv {
     /// New streams to be accepted
     pending_accept: store::Queue<stream::NextAccept>,
 
+    /// Accept-encoding facts, one per `pending_accept` entry, in the same order.
+    accept_facts: std::collections::VecDeque<crate::wire::headers::StockFacts>,
+
     /// Locally reset streams that should be reaped when they expire
     pending_reset_expired: store::Queue<stream::NextResetExpire>,
 
@@ -109,6 +112,7 @@ impl Recv {
             last_processed_id: StreamId::ZERO,
             max_stream_id: StreamId::MAX,
             pending_accept: store::Queue::new(),
+            accept_facts: std::collections::VecDeque::with_capacity(4),
             pending_reset_expired: store::Queue::new(),
             reset_duration: config.local_reset_duration,
             buffer: Buffer::new(),
@@ -241,6 +245,7 @@ impl Recv {
         }
 
         let stream_id = frame.stream_id();
+        let cached_facts = frame.stock_facts();
         let (pseudo, fields) = frame.into_parts();
 
         if pseudo.protocol.is_some()
@@ -257,6 +262,9 @@ impl Recv {
         }
 
         if !pseudo.is_informational() {
+            let accept_facts = counts.peer().is_server().then(|| {
+                cached_facts.unwrap_or_else(|| crate::wire::headers::stock_facts(&fields))
+            });
             let message = counts
                 .peer()
                 .convert_poll_message(pseudo, fields, stream_id)?;
@@ -272,6 +280,9 @@ impl Recv {
             if counts.peer().is_server() {
                 // Correctness: never push a stream to `pending_accept` without having the
                 // corresponding headers frame pushed to `stream.pending_recv`.
+                if let Some(facts) = accept_facts {
+                    self.accept_facts.push_back(facts);
+                }
                 self.pending_accept.push(stream);
             }
         } else {
@@ -1263,7 +1274,9 @@ impl Recv {
     }
 
     pub fn next_incoming(&mut self, store: &mut Store) -> Option<store::Key> {
-        self.pending_accept.pop(store).map(|ptr| ptr.key())
+        let key = self.pending_accept.pop(store).map(|ptr| ptr.key())?;
+        crate::wire::headers::publish_accept_facts(self.accept_facts.pop_front());
+        Some(key)
     }
 
     pub fn poll_data(
