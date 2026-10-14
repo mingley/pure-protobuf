@@ -39,6 +39,10 @@ where
     /// buffered. `send_pending_refusal` skips the stream lock when this is clear.
     refusal_pending: Arc<AtomicBool>,
 
+    /// Set when a locally reset stream is waiting to be reaped.
+    /// `clear_expired_reset_streams` skips the stream lock when this is clear.
+    reset_pending: Arc<AtomicBool>,
+
     _p: ::std::marker::PhantomData<P>,
 }
 
@@ -86,6 +90,9 @@ struct Inner {
 
     /// Shared with [`Streams::refusal_pending`].
     refusal_pending: Arc<AtomicBool>,
+
+    /// Shared with [`Streams::reset_pending`].
+    reset_pending: Arc<AtomicBool>,
 }
 
 #[derive(Debug)]
@@ -119,11 +126,12 @@ where
     pub fn new(config: Config) -> Self {
         let peer = P::r#dyn();
 
-        let (inner, refusal_pending) = Inner::new(peer, config);
+        let (inner, refusal_pending, reset_pending) = Inner::new(peer, config);
         Streams {
             inner,
             send_buffer: Arc::new(SendBuffer::new()),
             refusal_pending,
+            reset_pending,
             _p: ::std::marker::PhantomData,
         }
     }
@@ -206,12 +214,24 @@ where
         }
     }
 
+    #[inline]
     pub fn clear_expired_reset_streams(&mut self) {
+        if self.reset_pending.load(Ordering::Acquire) {
+            self.clear_expired_reset_streams_cold();
+        }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn clear_expired_reset_streams_cold(&mut self) {
         let mut me = self.inner.lock().unwrap();
         let me = &mut *me;
         me.actions
             .recv
             .clear_expired_reset_streams(&mut me.store, &mut me.counts);
+        if me.actions.recv.reset_queue_is_empty() {
+            self.reset_pending.store(false, Ordering::Release);
+        }
     }
 
     pub fn poll_complete<T>(
@@ -599,8 +619,12 @@ impl<B> DynStreams<'_, B> {
 }
 
 impl Inner {
-    fn new(peer: peer::Dyn, config: Config) -> (Arc<Mutex<Self>>, Arc<AtomicBool>) {
+    fn new(
+        peer: peer::Dyn,
+        config: Config,
+    ) -> (Arc<Mutex<Self>>, Arc<AtomicBool>, Arc<AtomicBool>) {
         let refusal_pending = Arc::new(AtomicBool::new(false));
+        let reset_pending = Arc::new(AtomicBool::new(false));
         let inner = Arc::new(Mutex::new(Inner {
             counts: Counts::new(peer, &config),
             actions: Actions {
@@ -612,8 +636,9 @@ impl Inner {
             store: Store::new(),
             refs: 1,
             refusal_pending: refusal_pending.clone(),
+            reset_pending: reset_pending.clone(),
         }));
-        (inner, refusal_pending)
+        (inner, refusal_pending, reset_pending)
     }
 
     fn recv_headers<B>(
@@ -692,6 +717,7 @@ impl Inner {
             return Ok(());
         }
 
+        let reset_pending = &self.reset_pending;
         let actions = &mut self.actions;
         let mut send_buffer = send_buffer.inner.lock().unwrap();
         let send_buffer = &mut *send_buffer;
@@ -718,7 +744,9 @@ impl Inner {
                                 counts,
                                 &mut actions.task);
 
-                            actions.recv.enqueue_reset_expiration(stream, counts);
+                            actions
+                                .recv
+                                .enqueue_reset_expiration(stream, counts, reset_pending);
 
                             Ok(())
                         } else {
@@ -738,7 +766,7 @@ impl Inner {
                 actions.recv.recv_trailers(frame, stream)
             };
 
-            actions.reset_on_recv_stream_err(send_buffer, stream, counts, res)
+            actions.reset_on_recv_stream_err(send_buffer, stream, counts, res, reset_pending)
         })
     }
 
@@ -789,6 +817,7 @@ impl Inner {
             }
         };
 
+        let reset_pending = &self.reset_pending;
         let actions = &mut self.actions;
         let mut send_buffer = send_buffer.inner.lock().unwrap();
         let send_buffer = &mut *send_buffer;
@@ -815,7 +844,7 @@ impl Inner {
                     .recv
                     .release_connection_capacity(sz as WindowSize, &mut None);
             }
-            actions.reset_on_recv_stream_err(send_buffer, stream, counts, res)
+            actions.reset_on_recv_stream_err(send_buffer, stream, counts, res, reset_pending)
         })
     }
 
@@ -913,6 +942,7 @@ impl Inner {
                     &mut stream,
                     &mut self.counts,
                     res,
+                    &self.reset_pending,
                 );
             } else {
                 self.actions
@@ -1044,6 +1074,7 @@ impl Inner {
                 )
             });
 
+            let reset_pending = &self.reset_pending;
             let actions = &mut self.actions;
 
             self.counts.transition(stream, |counts, stream| {
@@ -1059,6 +1090,7 @@ impl Inner {
                                 stream,
                                 counts,
                                 stream_valid,
+                                reset_pending,
                             )
                             .map(|()| None)
                     }
@@ -1233,6 +1265,7 @@ impl Inner {
             Initiator::Library,
             &mut self.counts,
             send_buffer,
+            &self.reset_pending,
         )
     }
 }
@@ -1273,6 +1306,7 @@ where
             inner,
             send_buffer,
             refusal_pending: _,
+            reset_pending: _,
             _p,
         } = self;
         DynStreams {
@@ -1331,6 +1365,7 @@ where
             inner: self.inner.clone(),
             send_buffer: self.send_buffer.clone(),
             refusal_pending: self.refusal_pending.clone(),
+            reset_pending: self.reset_pending.clone(),
             _p: ::std::marker::PhantomData,
         }
     }
@@ -1439,10 +1474,14 @@ impl<B> StreamRef<B> {
         let mut send_buffer = self.send_buffer.inner.lock().unwrap();
         let send_buffer = &mut *send_buffer;
 
-        match me
-            .actions
-            .send_reset(stream, reason, Initiator::User, &mut me.counts, send_buffer)
-        {
+        match me.actions.send_reset(
+            stream,
+            reason,
+            Initiator::User,
+            &mut me.counts,
+            send_buffer,
+            &me.reset_pending,
+        ) {
             Ok(()) => (),
             Err(crate::h2_backend::proto::error::GoAway { .. }) => {
                 // this should never happen, because Initiator::User resets do
@@ -1913,8 +1952,9 @@ fn drop_stream_ref(inner: &Mutex<Inner>, key: store::Key) {
         }
     }
 
+    let reset_pending = &me.reset_pending;
     me.counts.transition(stream, |counts, stream| {
-        maybe_cancel(stream, actions, counts);
+        maybe_cancel(stream, actions, counts, reset_pending);
 
         if stream.ref_count == 0 {
             // Release any recv window back to connection, no one can access
@@ -1927,14 +1967,19 @@ fn drop_stream_ref(inner: &Mutex<Inner>, key: store::Key) {
             let mut ppp = stream.pending_push_promises.take();
             while let Some(promise) = ppp.pop(stream.store_mut()) {
                 counts.transition(promise, |counts, stream| {
-                    maybe_cancel(stream, actions, counts);
+                    maybe_cancel(stream, actions, counts, reset_pending);
                 });
             }
         }
     });
 }
 
-fn maybe_cancel(stream: &mut store::Ptr, actions: &mut Actions, counts: &mut Counts) {
+fn maybe_cancel(
+    stream: &mut store::Ptr,
+    actions: &mut Actions,
+    counts: &mut Counts,
+    pending: &AtomicBool,
+) {
     if stream.is_canceled_interest() {
         // Server is allowed to early respond without fully consuming the client input stream
         // But per the RFC, must send a RST_STREAM(NO_ERROR) in such cases. https://www.rfc-editor.org/rfc/rfc7540#section-8.1
@@ -1951,7 +1996,9 @@ fn maybe_cancel(stream: &mut store::Ptr, actions: &mut Actions, counts: &mut Cou
         actions
             .send
             .schedule_implicit_reset(stream, reason, counts, &mut actions.task);
-        actions.recv.enqueue_reset_expiration(stream, counts);
+        actions
+            .recv
+            .enqueue_reset_expiration(stream, counts, pending);
     }
 }
 
@@ -1979,6 +2026,7 @@ impl Actions {
         initiator: Initiator,
         counts: &mut Counts,
         send_buffer: &mut Buffer<Frame<B>>,
+        pending: &AtomicBool,
     ) -> Result<(), crate::h2_backend::proto::error::GoAway> {
         counts.transition(stream, |counts, stream| {
             if initiator.is_library() {
@@ -2004,7 +2052,7 @@ impl Actions {
                 counts,
                 &mut self.task,
             );
-            self.recv.enqueue_reset_expiration(stream, counts);
+            self.recv.enqueue_reset_expiration(stream, counts, pending);
             // if a RecvStream is parked, ensure it's notified
             stream.notify_recv();
 
@@ -2018,6 +2066,7 @@ impl Actions {
         stream: &mut store::Ptr,
         counts: &mut Counts,
         res: Result<(), Error>,
+        pending: &AtomicBool,
     ) -> Result<(), Error> {
         if let Err(Error::Reset(stream_id, reason, initiator)) = res {
             debug_assert_eq!(stream_id, stream.id);
@@ -2028,7 +2077,7 @@ impl Actions {
                 // Reset the stream.
                 self.send
                     .send_reset(reason, initiator, buffer, stream, counts, &mut self.task);
-                self.recv.enqueue_reset_expiration(stream, counts);
+                self.recv.enqueue_reset_expiration(stream, counts, pending);
                 // if a RecvStream is parked, ensure it's notified
                 stream.notify_recv();
                 Ok(())

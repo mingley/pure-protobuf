@@ -1061,7 +1061,15 @@ impl Recv {
     }
 
     /// Add a locally reset stream to queue to be eventually reaped.
-    pub fn enqueue_reset_expiration(&mut self, stream: &mut store::Ptr, counts: &mut Counts) {
+    ///
+    /// `pending` is set when a stream is actually queued so the connection
+    /// can skip the reap lock while the queue is empty.
+    pub fn enqueue_reset_expiration(
+        &mut self,
+        stream: &mut store::Ptr,
+        counts: &mut Counts,
+        pending: &std::sync::atomic::AtomicBool,
+    ) {
         if !stream.state.is_local_error() || stream.is_pending_reset_expiration() {
             return;
         }
@@ -1070,12 +1078,17 @@ impl Recv {
             counts.inc_num_reset_streams();
             tracing::trace!("enqueue_reset_expiration; added {:?}", stream.id);
             self.pending_reset_expired.push(stream);
+            pending.store(true, std::sync::atomic::Ordering::Release);
         } else {
             tracing::trace!(
                 "enqueue_reset_expiration; dropped {:?}, over max_concurrent_reset_streams",
                 stream.id
             );
         }
+    }
+
+    pub(super) fn reset_queue_is_empty(&self) -> bool {
+        self.pending_reset_expired.is_empty()
     }
 
     /// Send any pending refusals.
