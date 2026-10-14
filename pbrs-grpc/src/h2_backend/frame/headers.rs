@@ -97,6 +97,10 @@ struct HeaderBlock {
     /// Set to true if decoding went over the max header list size.
     is_over_size: bool,
 
+    /// `content-length` was inserted. Lets the receive path skip the hashed
+    /// lookup on the stock gRPC blocks, which never carry that field.
+    has_content_length: bool,
+
     /// Pseudo headers, these are broken out as they must be sent as part of the
     /// headers frame.
     pseudo: Pseudo,
@@ -125,6 +129,7 @@ impl Headers {
                 field_size: calculate_headermap_size(&fields),
                 fields,
                 is_over_size: false,
+                has_content_length: false,
                 pseudo,
             },
             flags: HeadersFlag::default(),
@@ -142,6 +147,7 @@ impl Headers {
                 field_size: calculate_headermap_size(&fields),
                 fields,
                 is_over_size: false,
+                has_content_length: false,
                 pseudo: Pseudo::default(),
             },
             flags,
@@ -205,6 +211,7 @@ impl Headers {
                 fields: HeaderMap::new(),
                 field_size: 0,
                 is_over_size: false,
+                has_content_length: false,
                 pseudo: Pseudo::default(),
             },
             flags,
@@ -244,6 +251,18 @@ impl Headers {
 
     pub fn is_over_size(&self) -> bool {
         self.header_block.is_over_size
+    }
+
+    /// `content-length` when the decoded block contains one.
+    ///
+    /// Absent on every stock gRPC block, so the receive path does not hash
+    /// the name on that miss.
+    pub fn content_length(&self) -> Option<&HeaderValue> {
+        if self.header_block.has_content_length {
+            self.header_block.fields.get(header::CONTENT_LENGTH)
+        } else {
+            None
+        }
     }
 
     pub fn into_parts(self) -> (Pseudo, HeaderMap) {
@@ -365,6 +384,7 @@ impl PushPromise {
                 field_size: calculate_headermap_size(&fields),
                 fields,
                 is_over_size: false,
+                has_content_length: false,
                 pseudo,
             },
             promised_id,
@@ -456,6 +476,7 @@ impl PushPromise {
                 fields: HeaderMap::new(),
                 field_size: 0,
                 is_over_size: false,
+                has_content_length: false,
                 pseudo: Pseudo::default(),
             },
             promised_id,
@@ -1225,8 +1246,11 @@ impl HeaderBlock {
                     }
                     if !self.is_over_size {
                         self.field_size += header_size;
+                        let saw_length = name == header::CONTENT_LENGTH;
                         if self.fields.try_append(name, value).is_err() {
                             self.is_over_size = true;
+                        } else if saw_length {
+                            self.has_content_length = true;
                         }
                     }
                 }

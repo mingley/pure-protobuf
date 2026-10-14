@@ -184,9 +184,8 @@ impl Recv {
 
         if !stream.content_length.is_head() {
             use super::stream::ContentLength;
-            use http::header;
 
-            if let Some(content_length) = frame.fields().get(header::CONTENT_LENGTH) {
+            if let Some(content_length) = frame.content_length() {
                 let content_length = match frame::parse_u64(content_length.as_bytes()) {
                     Ok(v) => v,
                     Err(_) => {
