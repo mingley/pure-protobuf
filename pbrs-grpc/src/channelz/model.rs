@@ -787,6 +787,31 @@ impl Registry {
         }
     }
 
+    /// One lookup for a finished locally-initiated stream: it started,
+    /// it ended, and `received` messages arrived (zero skips that count).
+    ///
+    /// The three separate notes each lock the socket map.
+    pub(crate) fn note_local_stream_finished(&self, id: SocketId, ok: bool, received: u64) {
+        let Some(entry) = self.socket(id) else {
+            return;
+        };
+        entry.streams_started.fetch_add(1, Ordering::Relaxed);
+        entry
+            .last_local_stream_ms
+            .store(coarse_now_ms(), Ordering::Relaxed);
+        if let SocketParent::Subchannel(parent) = entry.parent {
+            if let Some(sub) = self.subchannel(parent) {
+                sub.calls_started.fetch_add(1, Ordering::Relaxed);
+                sub.last_call_started_ms
+                    .store(coarse_now_ms(), Ordering::Relaxed);
+            }
+        }
+        entry.add_stream_end(self, ok);
+        if received > 0 {
+            entry.add_messages(false, received);
+        }
+    }
+
     /// Count one stream started on a socket, cascading to the parent
     /// subchannel's call counters when there is one (each attempt is
     /// one stream). `local` marks locally-initiated streams.
@@ -1400,10 +1425,25 @@ mod tests {
         assert_eq!(socket_entry.streams_started.load(Ordering::Relaxed), 1);
         assert_eq!(socket_entry.messages_sent.load(Ordering::Relaxed), 1);
         assert_eq!(socket_entry.messages_received.load(Ordering::Relaxed), 2);
+        let finished = registry.register_socket(
+            SocketParent::Subchannel(sub.id()),
+            Some(tcp(443)),
+            Some(tcp(50052)),
+            None,
+            SocketSecurity::None,
+            false,
+        );
+        registry.note_local_stream_finished(finished.id(), true, 1);
+        let finished_entry = registry.socket(finished.id()).expect("finished");
+        assert_eq!(finished_entry.streams_started.load(Ordering::Relaxed), 1);
+        assert_eq!(finished_entry.streams_succeeded.load(Ordering::Relaxed), 1);
+        assert_eq!(finished_entry.messages_received.load(Ordering::Relaxed), 1);
+        assert_eq!(sub_entry.calls_started.load(Ordering::Relaxed), 2);
+        assert_eq!(sub_entry.calls_succeeded.load(Ordering::Relaxed), 2);
         // Channel-level calls are counted separately, at call completion.
         let channel_entry = registry.channel(channel.id()).expect("channel");
         assert_eq!(channel_entry.calls_started.load(Ordering::Relaxed), 0);
-        drop((channel, sub, socket));
+        drop((channel, sub, socket, finished));
     }
 
     #[test]

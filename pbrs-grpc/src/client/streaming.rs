@@ -352,14 +352,7 @@ where
     // Channelz: the attempt's stream ends here, like unary. Sent messages
     // were claimed by the pump as written; the single response claims one
     // received message on success.
-    if let Some(sock) = socket {
-        let global = crate::channelz::Registry::global();
-        global.note_stream_started(sock, true);
-        global.note_stream_end(sock, result.is_ok());
-        if result.is_ok() {
-            global.note_messages(sock, false, 1);
-        }
-    }
+    note_client_stream_end(socket, &result);
     result
 }
 
@@ -833,12 +826,11 @@ fn note_client_stream_end<T>(
     result: &Result<T, Status>,
 ) {
     if let Some(sock) = socket {
-        let global = crate::channelz::Registry::global();
-        global.note_stream_started(sock, true);
-        global.note_stream_end(sock, result.is_ok());
-        if result.is_ok() {
-            global.note_messages(sock, false, 1);
-        }
+        crate::channelz::Registry::global().note_local_stream_finished(
+            sock,
+            result.is_ok(),
+            u64::from(result.is_ok()),
+        );
     }
 }
 
