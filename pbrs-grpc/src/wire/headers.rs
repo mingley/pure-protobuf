@@ -406,15 +406,23 @@ pub(crate) fn check_request(
     let Some(ct) = request.headers().get(http::header::CONTENT_TYPE) else {
         return Err(RequestReject::Http(StatusCode::UNSUPPORTED_MEDIA_TYPE));
     };
-    let Ok(ct) = ct.to_str() else {
-        return Err(RequestReject::Http(StatusCode::UNSUPPORTED_MEDIA_TYPE));
+    // The bytes our own clients send. Skip UTF-8 validation and the second
+    // string compare; anything else still goes through the general parser.
+    let stock_grpc = {
+        let raw = ct.as_bytes();
+        raw == b"application/grpc" || raw == b"application/grpc+proto"
     };
-    if !grpc_content_type(ct) {
-        #[cfg(feature = "grpc-web")]
-        if crate::web::is_supported_content_type(ct) {
-            return Ok(());
+    if !stock_grpc {
+        let Ok(ct) = ct.to_str() else {
+            return Err(RequestReject::Http(StatusCode::UNSUPPORTED_MEDIA_TYPE));
+        };
+        if !grpc_content_type(ct) {
+            #[cfg(feature = "grpc-web")]
+            if crate::web::is_supported_content_type(ct) {
+                return Ok(());
+            }
+            return Err(RequestReject::Http(StatusCode::UNSUPPORTED_MEDIA_TYPE));
         }
-        return Err(RequestReject::Http(StatusCode::UNSUPPORTED_MEDIA_TYPE));
     }
     if let Some(enc) = request.headers().get(GRPC_ENCODING) {
         let supported = enc.to_str().is_ok_and(|value| {
