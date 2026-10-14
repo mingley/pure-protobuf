@@ -18,7 +18,24 @@ pub struct Table {
     // Size is in bytes
     size: usize,
     max_size: usize,
+    /// Bumped on insert, eviction, and resize. Cached indexes from an older
+    /// epoch are not returned.
+    epoch: u64,
+    hits: [Hit; HIT_SLOTS],
 }
+
+/// A dynamic-table hit that is still valid for `epoch`.
+#[derive(Debug, Clone, Copy)]
+struct Hit {
+    epoch: u64,
+    hash: HashValue,
+    value: [u8; HIT_VALUE],
+    value_len: u8,
+    indexed: usize,
+}
+
+const HIT_SLOTS: usize = 8;
+const HIT_VALUE: usize = 64;
 
 #[derive(Debug)]
 pub enum Index {
@@ -54,6 +71,16 @@ struct Pos {
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 struct HashValue(usize);
 
+impl Hit {
+    const EMPTY: Self = Self {
+        epoch: 0,
+        hash: HashValue(0),
+        value: [0; HIT_VALUE],
+        value_len: 0,
+        indexed: 0,
+    };
+}
+
 const MAX_SIZE: usize = 1 << 16;
 const DYN_OFFSET: usize = 62;
 
@@ -81,6 +108,8 @@ impl Table {
                 inserted: 0,
                 size: 0,
                 max_size,
+                epoch: 1,
+                hits: [Hit::EMPTY; HIT_SLOTS],
             }
         } else {
             let capacity = cmp::max(to_raw_capacity(capacity).next_power_of_two(), 8);
@@ -92,6 +121,8 @@ impl Table {
                 inserted: 0,
                 size: 0,
                 max_size,
+                epoch: 1,
+                hits: [Hit::EMPTY; HIT_SLOTS],
             }
         }
     }
@@ -174,6 +205,9 @@ impl Table {
         }
 
         let hash = hash_header(&header);
+        if let Some(indexed) = self.cached_hit(hash, &header) {
+            return Index::Indexed(indexed, header);
+        }
 
         let desired_pos = desired_pos(self.mask, hash);
         let mut probe = desired_pos;
@@ -221,7 +255,9 @@ impl Table {
 
             if self.slots[real_idx].header.value_eq(&header) {
                 // We have a full match!
-                return Index::Indexed(real_idx + DYN_OFFSET, header);
+                let indexed = real_idx + DYN_OFFSET;
+                self.remember_hit(hash, &header, indexed);
+                return Index::Indexed(indexed, header);
             }
 
             if let Some(next) = self.slots[real_idx].next {
@@ -338,7 +374,44 @@ impl Table {
         }
     }
 
+    fn invalidate_hits(&mut self) {
+        self.epoch = self.epoch.wrapping_add(1);
+        if self.epoch == 0 {
+            self.epoch = 1;
+        }
+    }
+
+    /// `indexed` is still the dynamic-table index for this header when the
+    /// table has not inserted or evicted since it was recorded.
+    fn cached_hit(&self, hash: HashValue, header: &Header) -> Option<usize> {
+        let hit = &self.hits[hash.0 % HIT_SLOTS];
+        if hit.epoch != self.epoch || hit.hash != hash {
+            return None;
+        }
+        let value = header.value_slice();
+        let n = hit.value_len as usize;
+        if value.len() == n && value == &hit.value[..n] {
+            Some(hit.indexed)
+        } else {
+            None
+        }
+    }
+
+    fn remember_hit(&mut self, hash: HashValue, header: &Header, indexed: usize) {
+        let value = header.value_slice();
+        if value.len() > HIT_VALUE {
+            return;
+        }
+        let hit = &mut self.hits[hash.0 % HIT_SLOTS];
+        hit.epoch = self.epoch;
+        hit.hash = hash;
+        hit.value[..value.len()].copy_from_slice(value);
+        hit.value_len = value.len() as u8;
+        hit.indexed = indexed;
+    }
+
     fn insert(&mut self, header: Header, hash: HashValue) {
+        self.invalidate_hits();
         self.inserted = self.inserted.wrapping_add(1);
 
         self.slots.push_front(Slot {
@@ -349,6 +422,7 @@ impl Table {
     }
 
     pub fn resize(&mut self, size: usize) {
+        self.invalidate_hits();
         self.max_size = size;
 
         if size == 0 {
@@ -382,6 +456,7 @@ impl Table {
     }
 
     fn evict(&mut self, prev_idx: Option<usize>) {
+        self.invalidate_hits();
         let pos_idx = (self.slots.len() - 1).wrapping_sub(self.inserted);
 
         debug_assert!(!self.slots.is_empty());
