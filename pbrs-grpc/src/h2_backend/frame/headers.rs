@@ -914,6 +914,146 @@ fn standard_header_bit(name: &HeaderName, value: &HeaderValue) -> u8 {
     }
 }
 
+/// Identity of a stock block worth replaying without rebuilding the key.
+enum StableStandard {
+    Request {
+        https: bool,
+        path: Vec<u8>,
+        authority: Vec<u8>,
+    },
+    Response {
+        status: u16,
+    },
+    Trailers,
+}
+
+fn fields_match(fields: &HeaderMap, expect_bits: u8, expect_count: usize) -> bool {
+    if fields.len() != expect_count {
+        return false;
+    }
+    let mut bits = 0u8;
+    for (name, value) in fields {
+        let bit = standard_header_bit(name, value);
+        if bit == 0 || bits & bit != 0 {
+            return false;
+        }
+        bits |= bit;
+    }
+    bits == expect_bits
+}
+
+/// Copies a previously encoded stock block. The field walk runs only after
+/// the path, authority, or status already matches, so a miss does not scan.
+fn copy_stable_standard(
+    encoder: &hpack::Encoder,
+    pseudo: &Pseudo,
+    fields: &HeaderMap,
+    dst: &mut BytesMut,
+) -> Option<StandardMap> {
+    if let Some(method) = pseudo.method.as_ref() {
+        if method != Method::POST || pseudo.protocol.is_some() || pseudo.status.is_some() {
+            return None;
+        }
+        let https = match pseudo.scheme.as_ref().map(|scheme| scheme.as_str()) {
+            Some("https") => true,
+            Some("http") => false,
+            _ => return None,
+        };
+        let path = pseudo.path.as_ref()?.as_str().as_bytes();
+        let authority = pseudo.authority.as_ref()?.as_str().as_bytes();
+        let bytes = encoder.replay_request(https, path, authority)?;
+        if !fields_match(fields, REQUEST_BITS, 4) {
+            return None;
+        }
+        dst.extend_from_slice(bytes);
+        return Some(StandardMap::Request);
+    }
+
+    if let Some(status) = pseudo.status {
+        if pseudo.scheme.is_some()
+            || pseudo.authority.is_some()
+            || pseudo.path.is_some()
+            || pseudo.protocol.is_some()
+        {
+            return None;
+        }
+        let bytes = encoder.replay_response(status.as_u16())?;
+        if !fields_match(fields, RESPONSE_BITS, 2) {
+            return None;
+        }
+        dst.extend_from_slice(bytes);
+        return Some(StandardMap::Response);
+    }
+
+    if pseudo.scheme.is_some()
+        || pseudo.authority.is_some()
+        || pseudo.path.is_some()
+        || pseudo.protocol.is_some()
+    {
+        return None;
+    }
+    let bytes = encoder.replay_trailers()?;
+    if !fields_match(fields, STATUS, 1) {
+        return None;
+    }
+    dst.extend_from_slice(bytes);
+    Some(StandardMap::Trailers)
+}
+
+fn stable_standard_id(kind: StandardMap, pseudo: &Pseudo) -> Option<StableStandard> {
+    match kind {
+        StandardMap::None => None,
+        StandardMap::Request => {
+            if pseudo.method.as_ref() != Some(&Method::POST)
+                || pseudo.protocol.is_some()
+                || pseudo.status.is_some()
+            {
+                return None;
+            }
+            let https = match pseudo.scheme.as_ref().map(|scheme| scheme.as_str()) {
+                Some("https") => true,
+                Some("http") => false,
+                _ => return None,
+            };
+            let path = pseudo.path.as_ref()?.as_str().as_bytes();
+            let authority = pseudo.authority.as_ref()?.as_str().as_bytes();
+            if path.len() > 128 || authority.len() > 128 {
+                return None;
+            }
+            Some(StableStandard::Request {
+                https,
+                path: path.to_vec(),
+                authority: authority.to_vec(),
+            })
+        }
+        StandardMap::Response => {
+            if pseudo.scheme.is_some()
+                || pseudo.authority.is_some()
+                || pseudo.path.is_some()
+                || pseudo.protocol.is_some()
+                || pseudo.method.is_some()
+            {
+                return None;
+            }
+            Some(StableStandard::Response {
+                status: pseudo.status?.as_u16(),
+            })
+        }
+        StandardMap::Trailers => {
+            if pseudo.method.is_some()
+                || pseudo.scheme.is_some()
+                || pseudo.authority.is_some()
+                || pseudo.path.is_some()
+                || pseudo.protocol.is_some()
+                || pseudo.status.is_some()
+            {
+                return None;
+            }
+            Some(StableStandard::Trailers)
+        }
+    }
+}
+
 impl HeaderBlock {
     fn load(
         &mut self,
@@ -1106,6 +1246,18 @@ impl HeaderBlock {
     fn into_encoding(self, encoder: &mut hpack::Encoder) -> EncodingHeaderBlock {
         let mut hpack = encoder.take_scratch();
         hpack.clear();
+        // Stock gRPC blocks repeat. Once stored, replay skips the key fill.
+        if !encoder.has_size_update() {
+            if let Some(kind) =
+                copy_stable_standard(encoder, &self.pseudo, &self.fields, &mut hpack)
+            {
+                let fields = self.fields;
+                if let Some(slot) = kind.slot() {
+                    crate::h2_backend::header_pool::recycle(slot, fields);
+                }
+                return EncodingHeaderBlock { hpack };
+            }
+        }
         // The same headers on a stable table encode to the same bytes.
         // The key buffer lives on the encoder, so a hit does not allocate.
         let mut recycle = StandardMap::None;
@@ -1132,6 +1284,11 @@ impl HeaderBlock {
                 return EncodingHeaderBlock { hpack };
             }
         }
+        let stable = if keyed {
+            stable_standard_id(recycle, &self.pseudo)
+        } else {
+            None
+        };
         let epoch = encoder.table_epoch();
         let headers = Iter {
             pseudo: Some(self.pseudo),
@@ -1142,6 +1299,16 @@ impl HeaderBlock {
         if keyed && encoder.table_epoch() == epoch {
             let key = encoder.key_buf().clone();
             encoder.store_block(key, &hpack);
+            match stable {
+                Some(StableStandard::Request {
+                    https,
+                    path,
+                    authority,
+                }) => encoder.store_request(https, &path, &authority, &hpack),
+                Some(StableStandard::Response { status }) => encoder.store_response(status, &hpack),
+                Some(StableStandard::Trailers) => encoder.store_trailers(&hpack),
+                None => {}
+            }
         }
 
         EncodingHeaderBlock { hpack }
@@ -1686,6 +1853,106 @@ mod test {
         );
         let pooled = header_pool::take(Slot::Request, HeaderMap::new);
         assert!(pooled.is_empty());
+    }
+
+    fn standard_request_map() -> HeaderMap {
+        let mut map = HeaderMap::with_capacity(4);
+        map.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/grpc"),
+        );
+        map.insert(header::TE, HeaderValue::from_static("trailers"));
+        map.insert(
+            super::GRPC_ACCEPT_NAME.clone(),
+            HeaderValue::from_bytes(super::ACCEPT_VALUE).unwrap(),
+        );
+        map.insert(
+            header::USER_AGENT,
+            HeaderValue::from_static(concat!("pbrs-grpc/", env!("CARGO_PKG_VERSION"))),
+        );
+        map
+    }
+
+    fn encode_standard(encoder: &mut Encoder, path: &'static str) -> BytesMut {
+        let mut dst = BytesMut::new();
+        let frame = Headers::new(
+            StreamId::from(1),
+            Pseudo::request(Method::POST, Uri::from_static(path), None),
+            standard_request_map(),
+        );
+        assert!(
+            frame
+                .encode(encoder, &mut (&mut dst).limit(1024))
+                .is_none()
+        );
+        dst
+    }
+
+    #[test]
+    fn standard_blocks_replay_without_mixing_paths_or_size_updates() {
+        let mut encoder = Encoder::default();
+        let path_a = "http://localhost/echo.Echo/Echo";
+        let path_b = "http://localhost/echo.Echo/Other";
+        let _ = encode_standard(&mut encoder, path_a);
+        let second = encode_standard(&mut encoder, path_a);
+        let third = encode_standard(&mut encoder, path_a);
+        assert_eq!(&second[9..], &third[9..]);
+        let other = encode_standard(&mut encoder, path_b);
+        assert_ne!(&third[9..], &other[9..]);
+
+        let mut response_encoder = Encoder::default();
+        let mut response_map = HeaderMap::with_capacity(2);
+        response_map.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/grpc"),
+        );
+        response_map.insert(
+            super::GRPC_ACCEPT_NAME.clone(),
+            HeaderValue::from_bytes(super::ACCEPT_VALUE).unwrap(),
+        );
+        let encode_response = |encoder: &mut Encoder| {
+            let mut dst = BytesMut::new();
+            let frame = Headers::new(
+                StreamId::from(1),
+                Pseudo::response(StatusCode::OK),
+                response_map.clone(),
+            );
+            assert!(
+                frame
+                    .encode(encoder, &mut (&mut dst).limit(1024))
+                    .is_none()
+            );
+            dst
+        };
+        let _ = encode_response(&mut response_encoder);
+        let response_b = encode_response(&mut response_encoder);
+        let response_c = encode_response(&mut response_encoder);
+        assert_eq!(&response_b[9..], &response_c[9..]);
+
+        let mut trailer_encoder = Encoder::default();
+        let mut trailers = HeaderMap::with_capacity(1);
+        trailers.insert(super::GRPC_STATUS_NAME.clone(), HeaderValue::from_static("0"));
+        let encode_trailers = |encoder: &mut Encoder| {
+            let mut dst = BytesMut::new();
+            let frame = Headers::trailers(StreamId::from(1), trailers.clone());
+            assert!(
+                frame
+                    .encode(encoder, &mut (&mut dst).limit(1024))
+                    .is_none()
+            );
+            dst
+        };
+        let _ = encode_trailers(&mut trailer_encoder);
+        let trailers_b = encode_trailers(&mut trailer_encoder);
+        let trailers_c = encode_trailers(&mut trailer_encoder);
+        assert_eq!(&trailers_b[9..], &trailers_c[9..]);
+
+        let mut sized = Encoder::default();
+        let _ = encode_standard(&mut sized, path_a);
+        let stable = encode_standard(&mut sized, path_a);
+        sized.update_max_size(0);
+        let updated = encode_standard(&mut sized, path_a);
+        assert_ne!(&stable[9..], &updated[9..]);
     }
 
     #[test]

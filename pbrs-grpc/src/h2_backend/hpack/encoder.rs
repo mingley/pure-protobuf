@@ -22,6 +22,10 @@ pub struct Encoder {
     encoded: Vec<EncodedBlock>,
     /// Reused buffer for the header-block cache key. Cleared per frame.
     key_scratch: Vec<u8>,
+    /// Encoded stock gRPC blocks. A hit skips rebuilding the cache key.
+    request_block: Option<SavedRequest>,
+    response_block: Option<SavedFixed>,
+    trailers_block: Option<SavedBytes>,
     /// Last literal string written for a header whose value is not indexed.
     ///
     /// `:path` is one of those. The Huffman bytes depend only on the value,
@@ -40,6 +44,28 @@ struct CachedLiteral {
 }
 
 const LITERAL_CACHE: usize = 128;
+
+#[derive(Debug)]
+struct SavedRequest {
+    epoch: u64,
+    https: bool,
+    path: Vec<u8>,
+    authority: Vec<u8>,
+    bytes: Vec<u8>,
+}
+
+#[derive(Debug)]
+struct SavedFixed {
+    epoch: u64,
+    status: u16,
+    bytes: Vec<u8>,
+}
+
+#[derive(Debug)]
+struct SavedBytes {
+    epoch: u64,
+    bytes: Vec<u8>,
+}
 
 #[derive(Debug)]
 struct EncodedBlock {
@@ -66,7 +92,86 @@ impl Encoder {
             encoded: Vec::new(),
             key_scratch: Vec::with_capacity(128),
             literal: None,
+            request_block: None,
+            response_block: None,
+            trailers_block: None,
         }
+    }
+
+    /// Stock request block for this path, authority, and scheme.
+    pub(crate) fn replay_request(
+        &self,
+        https: bool,
+        path: &[u8],
+        authority: &[u8],
+    ) -> Option<&[u8]> {
+        let saved = self.request_block.as_ref()?;
+        if saved.epoch != self.table.epoch()
+            || saved.https != https
+            || saved.path.as_slice() != path
+            || saved.authority.as_slice() != authority
+        {
+            return None;
+        }
+        Some(saved.bytes.as_slice())
+    }
+
+    pub(crate) fn store_request(
+        &mut self,
+        https: bool,
+        path: &[u8],
+        authority: &[u8],
+        bytes: &[u8],
+    ) {
+        if bytes.len() > 512 || path.len() > 128 || authority.len() > 128 {
+            return;
+        }
+        self.request_block = Some(SavedRequest {
+            epoch: self.table.epoch(),
+            https,
+            path: path.to_vec(),
+            authority: authority.to_vec(),
+            bytes: bytes.to_vec(),
+        });
+    }
+
+    /// Stock response block for this status code.
+    pub(crate) fn replay_response(&self, status: u16) -> Option<&[u8]> {
+        let saved = self.response_block.as_ref()?;
+        if saved.epoch != self.table.epoch() || saved.status != status {
+            return None;
+        }
+        Some(saved.bytes.as_slice())
+    }
+
+    pub(crate) fn store_response(&mut self, status: u16, bytes: &[u8]) {
+        if bytes.len() > 512 {
+            return;
+        }
+        self.response_block = Some(SavedFixed {
+            epoch: self.table.epoch(),
+            status,
+            bytes: bytes.to_vec(),
+        });
+    }
+
+    /// Stock `grpc-status: 0` trailers.
+    pub(crate) fn replay_trailers(&self) -> Option<&[u8]> {
+        let saved = self.trailers_block.as_ref()?;
+        if saved.epoch != self.table.epoch() {
+            return None;
+        }
+        Some(saved.bytes.as_slice())
+    }
+
+    pub(crate) fn store_trailers(&mut self, bytes: &[u8]) {
+        if bytes.len() > 512 {
+            return;
+        }
+        self.trailers_block = Some(SavedBytes {
+            epoch: self.table.epoch(),
+            bytes: bytes.to_vec(),
+        });
     }
 
     pub(crate) fn table_epoch(&self) -> u64 {
