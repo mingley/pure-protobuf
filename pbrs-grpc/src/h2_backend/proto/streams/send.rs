@@ -385,6 +385,25 @@ impl Send {
         self.prioritize.reclaim_written_frame(buffer, store, dst)
     }
 
+    pub(super) fn reclaim_consumed<B>(&mut self, frame: frame::Data<Prioritized<B>>)
+    where
+        B: Buf,
+    {
+        self.prioritize.reclaim_consumed(frame);
+    }
+
+    pub(super) fn reclaim_partial<B>(
+        &mut self,
+        buffer: &mut Buffer<Frame<B>>,
+        store: &mut Store,
+        frame: frame::Data<Prioritized<B>>,
+    ) -> bool
+    where
+        B: Buf,
+    {
+        self.prioritize.reclaim_partial(buffer, store, frame)
+    }
+
     /// Request capacity to send data
     pub fn reserve_capacity(
         &mut self,

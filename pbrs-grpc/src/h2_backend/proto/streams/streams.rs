@@ -1165,12 +1165,20 @@ impl Inner {
     where
         B: Buf,
     {
+        // A fully written frame only clears the in-flight mark. The slab
+        // lock is for the remainder that has to be queued again.
+        let Some(frame) = dst.take_last_data_frame() else {
+            return false;
+        };
+        if !frame.payload().has_remaining() {
+            self.actions.send.reclaim_consumed(frame);
+            return false;
+        }
         let mut send_buffer = send_buffer.inner.lock().unwrap();
         let send_buffer = &mut *send_buffer;
-
         self.actions
             .send
-            .reclaim_written_frame(send_buffer, &mut self.store, dst)
+            .reclaim_partial(send_buffer, &mut self.store, frame)
     }
 
     fn send_reset<B>(

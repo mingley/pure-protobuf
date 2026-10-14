@@ -547,6 +547,34 @@ impl Prioritize {
         self.reclaim_frame(buffer, store, dst)
     }
 
+    /// The codec finished this data frame. Clear the in-flight mark.
+    /// The frame slab is not involved.
+    pub(super) fn reclaim_consumed<B>(&mut self, frame: frame::Data<Prioritized<B>>)
+    where
+        B: Buf,
+    {
+        let key = frame.payload().stream;
+        match mem::replace(&mut self.in_flight_data_frame, InFlightData::Nothing) {
+            InFlightData::Nothing => panic!("wasn't expecting a frame to reclaim"),
+            InFlightData::Drop => {}
+            InFlightData::DataFrame(found) => {
+                debug_assert_eq!(found, key);
+            }
+        }
+    }
+
+    pub(super) fn reclaim_partial<B>(
+        &mut self,
+        buffer: &mut Buffer<Frame<B>>,
+        store: &mut Store,
+        frame: frame::Data<Prioritized<B>>,
+    ) -> bool
+    where
+        B: Buf,
+    {
+        self.reclaim_frame_inner(buffer, store, frame)
+    }
+
     /// Tries to reclaim a pending data frame from the codec.
     ///
     /// Returns true if a frame was reclaimed.
