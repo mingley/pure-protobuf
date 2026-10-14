@@ -865,50 +865,33 @@ impl HeaderBlock {
         max_header_list_size: usize,
         decoder: &mut hpack::Decoder,
     ) -> Result<(), Error> {
+        let fresh = self.fields.is_empty()
+            && self.pseudo.method.is_none()
+            && self.pseudo.scheme.is_none()
+            && self.pseudo.authority.is_none()
+            && self.pseudo.path.is_none()
+            && self.pseudo.protocol.is_none()
+            && self.pseudo.status.is_none();
+        // A repeated block that does not change the dynamic table decodes to
+        // the same headers. Replaying them skips the Huffman and index work.
+        let neutral = fresh && hpack::block_leaves_table_unchanged(src);
+        if neutral {
+            if let Some(headers) = decoder.cached_block(src) {
+                let result = self.replay_headers(headers, max_header_list_size);
+                src.clear();
+                return result;
+            }
+        }
+        let record = neutral;
+        let raw = if record { Some(src.to_vec()) } else { None };
+        let mut recorded = Vec::new();
+
         let mut reg = !self.fields.is_empty();
         let mut malformed = false;
         let mut header_list_way_too_large = false;
         let mut headers_size = self.calculate_header_list_size();
         let max_header_list_abuse_size =
             max_header_list_size.saturating_mul(MAX_HEADER_LIST_ABUSE_MULTIPLIER);
-
-        macro_rules! check_size {
-            () => {{
-                if headers_size > max_header_list_abuse_size {
-                    tracing::trace!("load_hpack; header list size over abuse max");
-                    header_list_way_too_large = true;
-                    ControlFlow::Break(())
-                } else {
-                    if headers_size >= max_header_list_size && !self.is_over_size {
-                        tracing::trace!("load_hpack; header list size over max");
-                        self.is_over_size = true;
-                    }
-                    ControlFlow::Continue(())
-                }
-            }};
-        }
-
-        macro_rules! set_pseudo {
-            ($field:ident, $val:expr) => {{
-                if reg {
-                    tracing::trace!("load_hpack; header malformed -- pseudo not at head of block");
-                    malformed = true;
-                } else if self.pseudo.$field.is_some() {
-                    tracing::trace!("load_hpack; header malformed -- repeated pseudo");
-                    malformed = true;
-                } else {
-                    let __val = $val;
-                    headers_size +=
-                        decoded_header_size(stringify!($field).len() + 1, __val.as_str().len());
-                    if check_size!().is_break() {
-                        return ControlFlow::Break(());
-                    }
-                    if !self.is_over_size {
-                        self.pseudo.$field = Some(__val);
-                    }
-                }
-            }};
-        }
 
         let mut cursor = Cursor::new(src);
 
@@ -917,55 +900,18 @@ impl HeaderBlock {
         // the hpack state is connection level. In order to maintain correct
         // state for other streams, the hpack decoding process must complete.
         let res = decoder.decode(&mut cursor, |header| {
-            use crate::h2_backend::hpack::Header::*;
-
-            match header {
-                Field { name, value } => {
-                    // Connection level header fields are not supported and must
-                    // result in a protocol error.
-
-                    if name == header::CONNECTION
-                        || name == header::TRANSFER_ENCODING
-                        || name == header::UPGRADE
-                        || name == "keep-alive"
-                        || name == "proxy-connection"
-                    {
-                        tracing::trace!("load_hpack; connection level header");
-                        malformed = true;
-                    } else if name == header::TE && value != "trailers" {
-                        tracing::trace!(
-                            "load_hpack; TE header not set to trailers; val={:?}",
-                            value
-                        );
-                        malformed = true;
-                    } else {
-                        reg = true;
-
-                        let header_size = decoded_header_size(name.as_str().len(), value.len());
-                        headers_size += header_size;
-                        if check_size!().is_break() {
-                            return ControlFlow::Break(());
-                        }
-                        if !self.is_over_size {
-                            self.field_size += header_size;
-                            if let Err(_) = self.fields.try_append(name, value) {
-                                // HeaderMap capacity exceeded — treat as over-size
-                                // so the stream is rejected downstream (RST_STREAM / 431)
-                                // instead of panicking on the 24,577th unique header.
-                                self.is_over_size = true;
-                            }
-                        }
-                    }
-                }
-                Authority(v) => set_pseudo!(authority, v),
-                Method(v) => set_pseudo!(method, v),
-                Scheme(v) => set_pseudo!(scheme, v),
-                Path(v) => set_pseudo!(path, v),
-                Protocol(v) => set_pseudo!(protocol, v),
-                Status(v) => set_pseudo!(status, v),
+            if record {
+                recorded.push(header.clone());
             }
-
-            ControlFlow::Continue(())
+            self.apply_decoded(
+                header,
+                &mut reg,
+                &mut malformed,
+                &mut header_list_way_too_large,
+                &mut headers_size,
+                max_header_list_size,
+                max_header_list_abuse_size,
+            )
         });
 
         match res {
@@ -986,7 +932,141 @@ impl HeaderBlock {
             return Err(Error::MalformedMessage);
         }
 
+        if record {
+            if let Some(raw) = raw {
+                decoder.store_block(raw, recorded);
+            }
+        }
+
         Ok(())
+    }
+
+    fn replay_headers(
+        &mut self,
+        headers: Vec<hpack::Header>,
+        max_header_list_size: usize,
+    ) -> Result<(), Error> {
+        let mut reg = false;
+        let mut malformed = false;
+        let mut header_list_way_too_large = false;
+        let mut headers_size = self.calculate_header_list_size();
+        let max_header_list_abuse_size =
+            max_header_list_size.saturating_mul(MAX_HEADER_LIST_ABUSE_MULTIPLIER);
+        for header in headers {
+            if self
+                .apply_decoded(
+                    header,
+                    &mut reg,
+                    &mut malformed,
+                    &mut header_list_way_too_large,
+                    &mut headers_size,
+                    max_header_list_size,
+                    max_header_list_abuse_size,
+                )
+                .is_break()
+            {
+                break;
+            }
+        }
+        if header_list_way_too_large {
+            return Err(Error::HeaderListWayTooLarge);
+        }
+        if malformed {
+            return Err(Error::MalformedMessage);
+        }
+        Ok(())
+    }
+
+    fn apply_decoded(
+        &mut self,
+        header: hpack::Header,
+        reg: &mut bool,
+        malformed: &mut bool,
+        header_list_way_too_large: &mut bool,
+        headers_size: &mut usize,
+        max_header_list_size: usize,
+        max_header_list_abuse_size: usize,
+    ) -> ControlFlow<()> {
+        use crate::h2_backend::hpack::Header::*;
+
+        macro_rules! too_big {
+            () => {{
+                let size = *headers_size;
+                if size > max_header_list_abuse_size {
+                    tracing::trace!("load_hpack; header list size over abuse max");
+                    *header_list_way_too_large = true;
+                    ControlFlow::Break(())
+                } else {
+                    if size >= max_header_list_size && !self.is_over_size {
+                        tracing::trace!("load_hpack; header list size over max");
+                        self.is_over_size = true;
+                    }
+                    ControlFlow::Continue(())
+                }
+            }};
+        }
+
+        macro_rules! set_saved_pseudo {
+            ($field:ident, $val:expr) => {{
+                if *reg {
+                    tracing::trace!("load_hpack; header malformed -- pseudo not at head of block");
+                    *malformed = true;
+                } else if self.pseudo.$field.is_some() {
+                    tracing::trace!("load_hpack; header malformed -- repeated pseudo");
+                    *malformed = true;
+                } else {
+                    let __val = $val;
+                    *headers_size +=
+                        decoded_header_size(stringify!($field).len() + 1, __val.as_str().len());
+                    if too_big!().is_break() {
+                        return ControlFlow::Break(());
+                    }
+                    if !self.is_over_size {
+                        self.pseudo.$field = Some(__val);
+                    }
+                }
+            }};
+        }
+
+        match header {
+            Field { name, value } => {
+                if name == header::CONNECTION
+                    || name == header::TRANSFER_ENCODING
+                    || name == header::UPGRADE
+                    || name == "keep-alive"
+                    || name == "proxy-connection"
+                {
+                    tracing::trace!("load_hpack; connection level header");
+                    *malformed = true;
+                } else if name == header::TE && value != "trailers" {
+                    tracing::trace!(
+                        "load_hpack; TE header not set to trailers; val={:?}",
+                        value
+                    );
+                    *malformed = true;
+                } else {
+                    *reg = true;
+                    let header_size = decoded_header_size(name.as_str().len(), value.len());
+                    *headers_size += header_size;
+                    if too_big!().is_break() {
+                        return ControlFlow::Break(());
+                    }
+                    if !self.is_over_size {
+                        self.field_size += header_size;
+                        if self.fields.try_append(name, value).is_err() {
+                            self.is_over_size = true;
+                        }
+                    }
+                }
+            }
+            Authority(v) => set_saved_pseudo!(authority, v),
+            Method(v) => set_saved_pseudo!(method, v),
+            Scheme(v) => set_saved_pseudo!(scheme, v),
+            Path(v) => set_saved_pseudo!(path, v),
+            Protocol(v) => set_saved_pseudo!(protocol, v),
+            Status(v) => set_saved_pseudo!(status, v),
+        }
+        ControlFlow::Continue(())
     }
 
     fn into_encoding(self, encoder: &mut hpack::Encoder) -> EncodingHeaderBlock {

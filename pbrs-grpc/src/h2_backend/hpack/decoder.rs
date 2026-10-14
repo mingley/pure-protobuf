@@ -22,6 +22,16 @@ pub struct Decoder {
     buffer: BytesMut,
     /// Last Huffman string. A repeated `:path` arrives as the same bytes.
     huff: Option<HuffCache>,
+    /// Header blocks that do not change the dynamic table. A repeated block
+    /// returns these headers instead of decoding again.
+    saved: Vec<SavedBlock>,
+    next_saved: usize,
+}
+
+#[derive(Debug)]
+struct SavedBlock {
+    raw: Vec<u8>,
+    headers: Vec<Header>,
 }
 
 /// Huffman input and the bytes it decoded to.
@@ -33,6 +43,76 @@ struct HuffCache {
 }
 
 const HUFF_CACHE: usize = 128;
+
+/// True when every instruction only reads the dynamic table.
+///
+/// Indexed fields and literals that are not added to the table leave it
+/// unchanged, so a repeated copy of this block decodes to the same headers.
+pub fn block_leaves_table_unchanged(block: &[u8]) -> bool {
+    if block.is_empty() {
+        return false;
+    }
+    let mut i = 0;
+    while i < block.len() {
+        let b = block[i];
+        if b & 0x80 == 0x80 {
+            if skip_int(block, &mut i, 7).is_none() {
+                return false;
+            }
+        } else if b & 0xc0 == 0x40 || b & 0xe0 == 0x20 {
+            // Incremental indexing, or a dynamic table size update.
+            return false;
+        } else {
+            let name_index = match skip_int(block, &mut i, 4) {
+                Some(index) => index,
+                None => return false,
+            };
+            if name_index == 0 && !skip_string(block, &mut i) {
+                return false;
+            }
+            if !skip_string(block, &mut i) {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+fn skip_int(block: &[u8], i: &mut usize, prefix_bits: usize) -> Option<usize> {
+    if *i >= block.len() || prefix_bits == 0 || prefix_bits > 7 {
+        return None;
+    }
+    let mask = (1usize << prefix_bits) - 1;
+    let mut value = (block[*i] & mask as u8) as usize;
+    *i += 1;
+    if value < mask {
+        return Some(value);
+    }
+    let mut shift = 0;
+    loop {
+        if *i >= block.len() || shift > 21 {
+            return None;
+        }
+        let byte = block[*i];
+        *i += 1;
+        value = value.saturating_add(((byte & 0x7f) as usize) << shift);
+        shift += 7;
+        if byte & 0x80 == 0 {
+            return Some(value);
+        }
+    }
+}
+
+fn skip_string(block: &[u8], i: &mut usize) -> bool {
+    let Some(len) = skip_int(block, i, 7) else {
+        return false;
+    };
+    if len > block.len() - *i {
+        return false;
+    }
+    *i += len;
+    true
+}
 
 /// Represents all errors that can be encountered while performing the decoding
 /// of an HPACK header set.
@@ -172,7 +252,31 @@ impl Decoder {
             table: Table::new(size),
             buffer: BytesMut::with_capacity(4096),
             huff: None,
+            saved: Vec::new(),
+            next_saved: 0,
         }
+    }
+
+    /// Headers from an identical block that did not change the dynamic table.
+    pub(crate) fn cached_block(&self, raw: &[u8]) -> Option<Vec<Header>> {
+        self.saved
+            .iter()
+            .find(|block| block.raw == raw)
+            .map(|block| block.headers.clone())
+    }
+
+    /// Remember `headers` for a later identical `raw` block.
+    pub(crate) fn store_block(&mut self, raw: Vec<u8>, headers: Vec<Header>) {
+        if raw.len() > 256 || self.saved.iter().any(|block| block.raw == raw) {
+            return;
+        }
+        let block = SavedBlock { raw, headers };
+        if self.saved.len() < 3 {
+            self.saved.push(block);
+            return;
+        }
+        self.saved[self.next_saved % 3] = block;
+        self.next_saved = self.next_saved.wrapping_add(1);
     }
 
     /// Queues a potential size update
@@ -875,6 +979,17 @@ pub fn get_static(idx: usize) -> Header {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn repeated_indexed_block_does_not_change_the_table() {
+        // Static index 2 (:method GET) and 8 (:status 200), one byte each.
+        assert!(block_leaves_table_unchanged(&[0x82, 0x88]));
+        // Literal with incremental indexing.
+        assert!(!block_leaves_table_unchanged(&[0x40]));
+        // Dynamic table size update.
+        assert!(!block_leaves_table_unchanged(&[0x20]));
+        assert!(!block_leaves_table_unchanged(&[]));
+    }
 
     #[test]
     fn test_peek_u8() {
