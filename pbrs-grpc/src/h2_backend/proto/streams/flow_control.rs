@@ -1,5 +1,5 @@
 use crate::h2_backend::frame::Reason;
-use crate::h2_backend::proto::{WindowSize, MAX_WINDOW_SIZE};
+use crate::h2_backend::proto::{MAX_WINDOW_SIZE, WindowSize};
 
 use std::fmt;
 
@@ -160,11 +160,14 @@ impl FlowControl {
 
     /// Decrements the window reflecting data has actually been sent. The caller
     /// must ensure that the window has capacity.
+    #[inline]
     pub fn send_data(&mut self, sz: WindowSize) -> Result<(), Reason> {
         // If send size is zero it's meaningless to update flow control window
         if sz > 0 {
             // Ensure that the argument is correct
-            assert!(self.window_size.0 >= sz as i32);
+            if self.window_size.0 < sz as i32 {
+                window_smaller_than_send();
+            }
 
             // Update values
             self.window_size.decrease_by(sz)?;
@@ -186,11 +189,7 @@ pub struct Window(i32);
 
 impl Window {
     pub fn as_size(&self) -> WindowSize {
-        if self.0 < 0 {
-            0
-        } else {
-            self.0 as WindowSize
-        }
+        if self.0 < 0 { 0 } else { self.0 as WindowSize }
     }
 
     pub fn checked_size(&self) -> WindowSize {
@@ -198,6 +197,7 @@ impl Window {
         self.0 as WindowSize
     }
 
+    #[inline]
     pub fn decrease_by(&mut self, other: WindowSize) -> Result<(), Reason> {
         if let Some(v) = self.0.checked_sub(other as i32) {
             self.0 = v;
@@ -252,4 +252,10 @@ impl From<Window> for isize {
     fn from(w: Window) -> isize {
         w.0 as isize
     }
+}
+
+#[cold]
+#[inline(never)]
+fn window_smaller_than_send() -> ! {
+    panic!("flow-control window is smaller than the data being sent");
 }

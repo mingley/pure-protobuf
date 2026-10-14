@@ -1,6 +1,6 @@
 use super::*;
 use crate::h2_backend::codec::UserError;
-use crate::h2_backend::frame::{PushPromiseHeaderError, Reason, DEFAULT_INITIAL_WINDOW_SIZE};
+use crate::h2_backend::frame::{DEFAULT_INITIAL_WINDOW_SIZE, PushPromiseHeaderError, Reason};
 use crate::h2_backend::proto;
 
 use http::{HeaderMap, Request, Response};
@@ -286,9 +286,10 @@ impl Recv {
 
             // Push the informational response onto the stream's recv buffer
             // with a special event type so it can be polled separately
-            stream
-                .pending_recv
-                .push_back(&mut self.buffer, Event::InformationalHeaders(Box::new(message)));
+            stream.pending_recv.push_back(
+                &mut self.buffer,
+                Event::InformationalHeaders(Box::new(message)),
+            );
             stream.notify_recv();
         }
 
@@ -364,7 +365,10 @@ impl Recv {
                     Server(_) => panic!("poll_response called after response returned"),
                 },
                 Some(Event::InformationalHeaders(_)) => {
-                    tracing::trace!("Skipping informational response in poll_response - should be consumed via poll_informational; stream_id={:?}", stream.id);
+                    tracing::trace!(
+                        "Skipping informational response in poll_response - should be consumed via poll_informational; stream_id={:?}",
+                        stream.id
+                    );
                     continue;
                 }
                 Some(_) => panic!("poll_response called after response returned"),
@@ -678,7 +682,9 @@ impl Recv {
 
         // This should have been enforced at the codec::FramedRead layer, so
         // this is just a sanity check.
-        assert!(sz <= MAX_WINDOW_SIZE as usize);
+        if sz > MAX_WINDOW_SIZE as usize {
+            data_frame_exceeds_window();
+        }
 
         let sz = sz as WindowSize;
 
@@ -862,7 +868,8 @@ impl Recv {
 
         let promised_id = frame.promised_id();
         let (pseudo, fields) = frame.into_parts();
-        let req = crate::h2_backend::server::Peer::convert_poll_message(pseudo, fields, promised_id)?;
+        let req =
+            crate::h2_backend::server::Peer::convert_poll_message(pseudo, fields, promised_id)?;
 
         if let Err(e) = frame::PushPromise::validate_request(&req) {
             use PushPromiseHeaderError::*;
@@ -1314,6 +1321,12 @@ impl Recv {
             Poll::Ready(None)
         }
     }
+}
+
+#[cold]
+#[inline(never)]
+fn data_frame_exceeds_window() -> ! {
+    panic!("DATA frame larger than the maximum flow-control window");
 }
 
 #[cfg(test)]
