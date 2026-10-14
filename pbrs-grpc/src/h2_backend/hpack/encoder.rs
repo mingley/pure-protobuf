@@ -18,6 +18,8 @@ pub struct Encoder {
     /// across frames instead of being allocated and freed per frame. See
     /// `take_scratch` / `return_scratch`.
     scratch: BytesMut,
+    /// Encoded blocks for a stable dynamic table. Keyed by the header bytes.
+    encoded: Vec<EncodedBlock>,
     /// Last literal string written for a header whose value is not indexed.
     ///
     /// `:path` is one of those. The Huffman bytes depend only on the value,
@@ -37,6 +39,13 @@ struct CachedLiteral {
 
 const LITERAL_CACHE: usize = 128;
 
+#[derive(Debug)]
+struct EncodedBlock {
+    epoch: u64,
+    key: Vec<u8>,
+    bytes: Vec<u8>,
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum SizeUpdate {
     One(usize),
@@ -52,8 +61,51 @@ impl Encoder {
             max_allowed_size: DEFAULT_MAX_ALLOWED_SIZE,
             size_update: None,
             scratch: BytesMut::new(),
+            encoded: Vec::new(),
             literal: None,
         }
+    }
+
+    pub(crate) fn table_epoch(&self) -> u64 {
+        self.table.epoch()
+    }
+
+    pub(crate) fn has_size_update(&self) -> bool {
+        self.size_update.is_some()
+    }
+
+    /// Encoded bytes for `key` while the dynamic table is still `table_epoch`.
+    pub(crate) fn cached_block(&self, key: &[u8]) -> Option<&[u8]> {
+        let epoch = self.table.epoch();
+        self.encoded
+            .iter()
+            .find(|block| block.epoch == epoch && block.key == key)
+            .map(|block| block.bytes.as_slice())
+    }
+
+    pub(crate) fn store_block(&mut self, key: Vec<u8>, bytes: &[u8]) {
+        if key.len() > 256 || bytes.len() > 512 {
+            return;
+        }
+        let epoch = self.table.epoch();
+        if self
+            .encoded
+            .iter()
+            .any(|block| block.epoch == epoch && block.key == key)
+        {
+            return;
+        }
+        let block = EncodedBlock {
+            epoch,
+            key,
+            bytes: bytes.to_vec(),
+        };
+        if self.encoded.len() < 3 {
+            self.encoded.push(block);
+            return;
+        }
+        self.encoded.remove(0);
+        self.encoded.push(block);
     }
 
     #[cfg(test)]

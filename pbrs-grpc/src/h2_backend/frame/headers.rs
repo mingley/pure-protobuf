@@ -1049,14 +1049,91 @@ impl HeaderBlock {
     fn into_encoding(self, encoder: &mut hpack::Encoder) -> EncodingHeaderBlock {
         let mut hpack = encoder.take_scratch();
         hpack.clear();
+        // The same headers on a stable table encode to the same bytes.
+        let key = if encoder.has_size_update() {
+            None
+        } else {
+            Self::encoding_key(&self.pseudo, &self.fields)
+        };
+        if let Some(key) = key.as_deref() {
+            if let Some(bytes) = encoder.cached_block(key) {
+                hpack.extend_from_slice(bytes);
+                return EncodingHeaderBlock { hpack };
+            }
+        }
+        let epoch = encoder.table_epoch();
         let headers = Iter {
             pseudo: Some(self.pseudo),
             fields: self.fields.into_iter(),
         };
 
         encoder.encode(headers, &mut hpack);
+        if let Some(key) = key {
+            if encoder.table_epoch() == epoch {
+                encoder.store_block(key, &hpack);
+            }
+        }
 
         EncodingHeaderBlock { hpack }
+    }
+
+    fn encoding_key(pseudo: &Pseudo, fields: &HeaderMap) -> Option<Vec<u8>> {
+        fn push(key: &mut Vec<u8>, bytes: Option<&[u8]>) -> bool {
+            match bytes {
+                None => {
+                    if key.len() == 256 {
+                        return false;
+                    }
+                    key.push(0xff);
+                    true
+                }
+                Some(bytes) => {
+                    if bytes.len() > 254 || key.len() + 1 + bytes.len() > 256 {
+                        return false;
+                    }
+                    key.push(bytes.len() as u8);
+                    key.extend_from_slice(bytes);
+                    true
+                }
+            }
+        }
+        let mut key = Vec::with_capacity(128);
+        let ok = push(
+            &mut key,
+            pseudo.method.as_ref().map(|value| value.as_str().as_bytes()),
+        ) && push(
+            &mut key,
+            pseudo.scheme.as_ref().map(|value| value.as_str().as_bytes()),
+        ) && push(
+            &mut key,
+            pseudo
+                .authority
+                .as_ref()
+                .map(|value| value.as_str().as_bytes()),
+        ) && push(
+            &mut key,
+            pseudo.path.as_ref().map(|value| value.as_str().as_bytes()),
+        ) && push(
+            &mut key,
+            pseudo
+                .protocol
+                .as_ref()
+                .map(|value| value.as_str().as_bytes()),
+        ) && push(
+            &mut key,
+            pseudo.status.as_ref().map(|value| value.as_str().as_bytes()),
+        );
+        if !ok {
+            return None;
+        }
+        for (name, value) in fields {
+            if !push(&mut key, Some(name.as_str().as_bytes()))
+                || !push(&mut key, Some(value.as_bytes()))
+            {
+                return None;
+            }
+        }
+        Some(key)
     }
 
     /// Calculates the size of the currently decoded header list.

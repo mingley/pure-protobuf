@@ -143,6 +143,10 @@ impl Table {
         self.max_size
     }
 
+    pub(super) fn epoch(&self) -> u64 {
+        self.epoch
+    }
+
     /// Gets the header stored in the table
     pub fn resolve<'a>(&'a self, index: &'a Index) -> &'a Header {
         use self::Index::*;
