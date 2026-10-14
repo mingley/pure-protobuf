@@ -4,7 +4,7 @@ use crate::h2_backend::ext::Protocol;
 use bytes::Bytes;
 use http::header::{HeaderName, HeaderValue};
 use http::{Method, StatusCode};
-use std::cell::Cell;
+use std::cell::RefCell;
 use std::fmt;
 
 /// HTTP/2 Header
@@ -294,35 +294,33 @@ impl BytesStr {
             value: BytesStr,
         }
         thread_local! {
-            static SLOTS: [Cell<Option<Saved>>; 2] = [const { Cell::new(None) }; 2];
+            static SLOTS: [RefCell<Option<Saved>>; 2] = [const { RefCell::new(None) }; 2];
         }
         let ptr = value.as_ptr() as usize;
         let len = value.len();
         SLOTS.with(|slots| {
             let cell = &slots[slot as usize];
-            if let Some(existing) = cell.take() {
-                // The caller repeats the same path and authority allocation.
+            // A repeated allocation is cloned in place. Moving the slot out
+            // and back cost more than the refcount bump.
+            if let Some(existing) = cell.borrow().as_ref() {
                 if existing.len == len && existing.ptr == ptr {
-                    let cloned = existing.value.clone();
-                    cell.set(Some(existing));
-                    return cloned;
+                    return existing.value.clone();
                 }
+            }
+            let mut slot_ref = cell.borrow_mut();
+            if let Some(existing) = slot_ref.as_mut() {
                 if existing.value.as_str() == value {
-                    let cloned = existing.value.clone();
-                    cell.set(Some(Saved {
-                        ptr,
-                        len,
-                        value: existing.value,
-                    }));
-                    return cloned;
+                    existing.ptr = ptr;
+                    existing.len = len;
+                    return existing.value.clone();
                 }
             }
             let made = BytesStr::from(value);
-            cell.set(Some(Saved {
+            *slot_ref = Some(Saved {
                 ptr,
                 len,
                 value: made.clone(),
-            }));
+            });
             made
         })
     }
