@@ -52,7 +52,7 @@ pub use self::data::Data;
 pub use self::go_away::GoAway;
 pub use self::head::{Head, Kind};
 pub use self::headers::{
-    parse_u64, Continuation, Headers, Pseudo, PushPromise, PushPromiseHeaderError,
+    Continuation, Headers, Pseudo, PushPromise, PushPromiseHeaderError, parse_u64,
 };
 pub use self::ping::Ping;
 pub use self::priority::{Priority, StreamDependency};
@@ -99,9 +99,11 @@ impl<T> Frame<T> {
 
         match self {
             Data(frame) => frame.map(f).into(),
-            Headers(frame) => (*frame).into(),
+            // These variants do not contain `T`. Moving the box avoids
+            // allocating a second one on every queued HEADERS frame.
+            Headers(frame) => Headers(frame),
             Priority(frame) => frame.into(),
-            PushPromise(frame) => (*frame).into(),
+            PushPromise(frame) => PushPromise(frame),
             Settings(frame) => frame.into(),
             Ping(frame) => frame.into(),
             GoAway(frame) => frame.into(),
