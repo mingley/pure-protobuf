@@ -534,7 +534,7 @@ impl super::Channel {
                         self.authority(),
                         self.https,
                         self.grpc_user_agent(),
-                        self.config,
+                        *self.config,
                     )
                     .with_connected(self.connected()),
             )?;

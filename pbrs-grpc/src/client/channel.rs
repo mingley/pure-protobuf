@@ -632,7 +632,9 @@ fn endpoint_dns_bounds() -> Result<crate::resolver::DnsConfig, Status> {
 #[derive(Clone)]
 pub struct Channel {
     pub(crate) inner: Arc<ChannelInner>,
-    pub(crate) config: ChannelConfig,
+    /// Per-clone overlays. Shared until a setter replaces them, so cloning a
+    /// channel does not copy the configuration.
+    pub(crate) config: Arc<ChannelConfig>,
     pub(crate) interceptors: Arc<[ClientHook]>,
     pub(crate) response_interceptors: Arc<[ResponseHook]>,
     /// Shared across clones of this lineage. `None` when the cap is unset.
@@ -667,7 +669,7 @@ impl fmt::Debug for Channel {
             .field("https", &self.https)
             .field("interceptors", &self.interceptors.len())
             .field("response_interceptors", &self.response_interceptors.len())
-            .field("config", &self.config)
+            .field("config", &*self.config)
             .field("byte_budget_allocated", &self.byte_budget.allocated())
             .field("user_agent", &"[REDACTED]")
             .field("observer", &self.observer.is_some())
@@ -1045,7 +1047,7 @@ impl super::Channel {
     /// The configuration in effect. Applies to every call shape.
     #[must_use]
     pub fn config(&self) -> ChannelConfig {
-        self.config
+        *self.config
     }
 
     /// Attach a JSON service-config document (gRPC A6/A21/A24).
@@ -1137,7 +1139,7 @@ impl super::Channel {
     /// [`Self::from_io`].
     #[must_use]
     pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
-        self.config = self.config.max_decoding_message_size(limit);
+        self.config = Arc::new(self.config.max_decoding_message_size(limit));
         self
     }
 
@@ -1146,7 +1148,7 @@ impl super::Channel {
     /// [`Self::from_io`].
     #[must_use]
     pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
-        self.config = self.config.max_encoding_message_size(limit);
+        self.config = Arc::new(self.config.max_encoding_message_size(limit));
         self
     }
 
@@ -1160,7 +1162,7 @@ impl super::Channel {
     /// [`Self::from_io`].
     #[must_use]
     pub fn message_limits(mut self, limits: crate::MessageLimits) -> Self {
-        self.config = self.config.message_limits(limits);
+        self.config = Arc::new(self.config.message_limits(limits));
         self
     }
 
@@ -1196,7 +1198,7 @@ impl super::Channel {
     /// reapplies this overlay.
     #[must_use]
     pub fn send_compressed(mut self) -> Self {
-        self.config = self.config.send_compressed(true);
+        self.config = Arc::new(self.config.send_compressed(true));
         self
     }
 
@@ -1208,7 +1210,7 @@ impl super::Channel {
     /// redialed.
     #[must_use]
     pub fn gzip_compression_level(mut self, level: u32) -> Self {
-        self.config = self.config.gzip_compression_level(level);
+        self.config = Arc::new(self.config.gzip_compression_level(level));
         self
     }
 
@@ -1220,7 +1222,7 @@ impl super::Channel {
     /// [`ChannelConfig::accept_compressed`].
     #[must_use]
     pub fn accept_compressed(mut self, accept: bool) -> Self {
-        self.config = self.config.accept_compressed(accept);
+        self.config = Arc::new(self.config.accept_compressed(accept));
         self
     }
 
@@ -1233,7 +1235,7 @@ impl super::Channel {
     /// [`crate::Outgoing::clear_timeout`].
     #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> Self {
-        self.config = self.config.timeout(timeout);
+        self.config = Arc::new(self.config.timeout(timeout));
         self
     }
 
@@ -1245,7 +1247,7 @@ impl super::Channel {
     /// or clear it.
     #[must_use]
     pub fn wait_for_ready(mut self) -> Self {
-        self.config = self.config.wait_for_ready(true);
+        self.config = Arc::new(self.config.wait_for_ready(true));
         self
     }
 
@@ -1299,7 +1301,7 @@ impl super::Channel {
     /// redialed.
     #[must_use]
     pub fn stream_buffer(mut self, messages: usize) -> Self {
-        self.config = self.config.stream_buffer(messages);
+        self.config = Arc::new(self.config.stream_buffer(messages));
         self
     }
 
@@ -1321,7 +1323,7 @@ impl super::Channel {
     /// Distinct from [`crate::Server::max_send_buffer_size`]: that is the server write buffer, not this client overlay.
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
-        self.config = self.config.max_send_buffer_size(bytes);
+        self.config = Arc::new(self.config.max_send_buffer_size(bytes));
         self
     }
 
@@ -1388,8 +1390,8 @@ impl super::Channel {
     /// Equivalent to [`ChannelConfig::max_concurrent_rpcs`].
     #[must_use]
     pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
-        self.config = self.config.max_concurrent_rpcs(n);
-        self.rpc_slots = pool::rpc_slots_from(self.config);
+        self.config = Arc::new(self.config.max_concurrent_rpcs(n));
+        self.rpc_slots = pool::rpc_slots_from(*self.config);
         self
     }
 

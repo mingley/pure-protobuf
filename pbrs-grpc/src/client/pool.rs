@@ -619,7 +619,7 @@ pub(crate) fn finish_channel(
     }
     Channel {
         inner,
-        config,
+        config: Arc::new(config),
         interceptors: Arc::from([]),
         response_interceptors: Arc::from([]),
         rpc_slots: rpc_slots_from(config),
