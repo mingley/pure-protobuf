@@ -311,9 +311,11 @@ pub(crate) fn incoming_rpc(
     channelz_server: Option<crate::channelz::ServerId>,
     channelz_socket: Option<crate::channelz::SocketId>,
 ) -> Rpc {
-    let metadata = Metadata::from_headers(request.headers());
+    let mut request = request;
     #[cfg(feature = "grpc-web")]
     let web = crate::web::Mode::from_headers(request.headers());
+    // One map. The request keeps the body; protocol readers use metadata.
+    let metadata = Metadata::from_owned_headers(std::mem::take(request.headers_mut()));
     let mut extensions = http::Extensions::new();
     let tcp_info = TcpConnectInfo {
         local_addr: peer.local,

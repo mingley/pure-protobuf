@@ -519,6 +519,14 @@ impl Metadata {
     ///
     /// No per-entry copying: reserved keys are filtered on read and on write,
     /// so receiving metadata costs nothing until it is used.
+    /// The received header map, including protocol names.
+    ///
+    /// [`Self::get`] hides those names. Callers that parse `grpc-timeout` or
+    /// `grpc-encoding` need this view.
+    pub(crate) fn all_headers(&self) -> &HeaderMap {
+        &self.map
+    }
+
     pub(crate) fn from_owned_headers(map: HeaderMap) -> Self {
         Self {
             map,

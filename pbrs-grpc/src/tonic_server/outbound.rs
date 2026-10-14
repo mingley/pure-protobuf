@@ -25,7 +25,7 @@ pub(super) fn requested(config: ServerConfig) -> bool {
 }
 
 fn selected(rpc: &Rpc) -> Option<CompressionAlgorithm> {
-    let headers = rpc.request.headers();
+    let headers = rpc.metadata.all_headers();
     let accepts = |coding| crate::wire::headers::accepts_codec(headers, coding);
     crate::wire::select_outbound_codec(
         None,

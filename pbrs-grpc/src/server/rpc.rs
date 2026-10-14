@@ -325,7 +325,7 @@ impl Rpc {
     /// Response interceptors see the same duration on [`crate::Response::peer_timeout`].
     #[must_use]
     pub fn peer_timeout(&self) -> Option<Duration> {
-        crate::wire::timeout_from_headers(self.request.headers())
+        crate::wire::timeout_from_headers(self.metadata.all_headers())
     }
 
     /// Deadline the handler will run under: the soonest of the client's
@@ -334,7 +334,7 @@ impl Rpc {
     #[must_use]
     pub fn effective_timeout(&self) -> Option<Duration> {
         crate::wire::soonest(
-            crate::wire::effective_timeout(self.request.headers(), self.config.rpc_timeout()),
+            crate::wire::effective_timeout(self.metadata.all_headers(), self.config.rpc_timeout()),
             self.timeout,
         )
     }
@@ -375,7 +375,7 @@ impl Rpc {
     /// Response interceptors see the same value on [`crate::Response::accepts_gzip`].
     #[must_use]
     pub fn accepts_gzip(&self) -> bool {
-        crate::wire::accepts_gzip(self.request.headers())
+        crate::wire::accepts_gzip(self.metadata.all_headers())
     }
 
     /// Whether this server gzips responses when the peer advertised gzip.
@@ -464,7 +464,7 @@ impl Rpc {
     /// `let enc = rpc.encoding();`.
     #[must_use]
     pub fn encoding(&self) -> Option<&str> {
-        crate::wire::grpc_encoding(self.request.headers())
+        crate::wire::grpc_encoding(self.metadata.all_headers())
     }
 
     /// Typed values an interceptor may attach for the handler.
@@ -1266,7 +1266,7 @@ impl InboundRpc {
         // Each request header is read once. Timeout, accept-encoding, and
         // grpc-encoding feed the deadline and the compression decision.
         let (peer_accepts_gzip, peer_accepts_deflate, enc_token, peer_timeout) =
-            crate::wire::headers::request_facts(rpc.request.headers());
+            crate::wire::headers::request_facts(rpc.metadata.all_headers());
         let rpc_timeout = rpc.rpc_timeout();
         let timeout =
             crate::wire::soonest(crate::wire::soonest(peer_timeout, rpc_timeout), rpc.timeout);
@@ -1274,8 +1274,10 @@ impl InboundRpc {
         let scheme = rpc.scheme().map(str::to_owned);
         let path = Some(rpc.path().to_owned());
         #[cfg(feature = "zstd")]
-        let peer_accepts_zstd =
-            crate::wire::headers::accepts_codec(rpc.request.headers(), CompressionAlgorithm::Zstd);
+        let peer_accepts_zstd = crate::wire::headers::accepts_codec(
+            rpc.metadata.all_headers(),
+            CompressionAlgorithm::Zstd,
+        );
         let request_codec = crate::wire::inbound_codec_from_token(enc_token);
         let encoding = enc_token.map(str::to_owned);
         let observer = rpc.observer.clone();

@@ -184,6 +184,10 @@ where
             ..
         } = rpc;
         let (mut parts, recv) = request.into_parts();
+        // The connection moved the header block onto metadata.
+        if parts.headers.is_empty() {
+            parts.headers = metadata.all_headers().clone();
+        }
         // Remove original user headers first. Otherwise an interceptor's
         // removal or replacement (especially authorization) could be undone.
         let original = Metadata::from_headers(&parts.headers);
@@ -305,7 +309,7 @@ where
     let outbound = outbound::requested(rpc.config).then(|| outbound::Settings::new(&rpc));
     let input_gzip = if cap_input {
         match (
-            crate::wire::grpc_encoding(rpc.request.headers()),
+            crate::wire::grpc_encoding(rpc.metadata.all_headers()),
             limits.max_decoding(),
         ) {
             (Some("gzip"), Some(max)) => Some(max),
@@ -329,6 +333,9 @@ where
         ..
     } = rpc;
     let (mut parts, recv) = request.into_parts();
+    if parts.headers.is_empty() {
+        parts.headers = metadata.all_headers().clone();
+    }
     let original = Metadata::from_headers(&parts.headers);
     for name in original.keys() {
         parts.headers.remove(name);
