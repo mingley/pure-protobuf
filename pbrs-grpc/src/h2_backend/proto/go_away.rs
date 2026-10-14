@@ -131,6 +131,20 @@ impl GoAway {
         if self.pending.is_none() && !self.close_now {
             return Poll::Ready(None);
         }
+        self.send_pending_go_away_cold(cx, dst)
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn send_pending_go_away_cold<T, B>(
+        &mut self,
+        cx: &mut Context,
+        dst: &mut Codec<T, B>,
+    ) -> Poll<Option<io::Result<Reason>>>
+    where
+        T: AsyncWrite + Unpin,
+        B: Buf,
+    {
         if let Some(frame) = self.pending.take() {
             if !dst.poll_ready(cx)?.is_ready() {
                 self.pending = Some(frame);

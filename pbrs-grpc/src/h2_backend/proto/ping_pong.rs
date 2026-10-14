@@ -135,7 +135,25 @@ impl PingPong {
     }
 
     /// Send any pending pongs.
+    #[inline]
     pub(crate) fn send_pending_pong<T, B>(
+        &mut self,
+        cx: &mut Context,
+        dst: &mut Codec<T, B>,
+    ) -> Poll<io::Result<()>>
+    where
+        T: AsyncWrite + Unpin,
+        B: Buf,
+    {
+        if self.pending_pong.is_none() {
+            return Poll::Ready(Ok(()));
+        }
+        self.send_pending_pong_cold(cx, dst)
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn send_pending_pong_cold<T, B>(
         &mut self,
         cx: &mut Context,
         dst: &mut Codec<T, B>,
