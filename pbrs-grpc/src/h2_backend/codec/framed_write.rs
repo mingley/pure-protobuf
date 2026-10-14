@@ -24,6 +24,9 @@ pub struct FramedWrite<T, B> {
     /// Upstream `AsyncWrite`
     inner: T,
     final_flush_done: bool,
+    /// Set when a frame is buffered. Cleared after `poll_flush` succeeds.
+    /// An empty, already-flushed codec does not touch the socket again.
+    needs_flush: bool,
 
     encoder: Encoder<B>,
 }
@@ -91,6 +94,7 @@ where
         FramedWrite {
             inner,
             final_flush_done: false,
+            needs_flush: false,
             encoder: Encoder {
                 hpack: hpack::Encoder::default(),
                 buf: Cursor::new(BytesMut::with_capacity(DEFAULT_BUFFER_CAPACITY)),
@@ -131,11 +135,15 @@ where
     /// `poll_ready` must be called first to ensure that a frame may be
     /// accepted.
     pub fn buffer(&mut self, item: Frame<B>) -> Result<(), UserError> {
+        self.needs_flush = true;
         self.encoder.buffer(item)
     }
 
     /// Flush buffered data to the wire
     pub fn flush(&mut self, cx: &mut Context) -> Poll<io::Result<()>> {
+        if !self.needs_flush {
+            return Poll::Ready(Ok(()));
+        }
         loop {
             while !self.encoder.is_empty() {
                 let n = match self.encoder.next {
@@ -163,6 +171,7 @@ where
 
         // Flush the upstream
         ready!(Pin::new(&mut self.inner).poll_flush(cx))?;
+        self.needs_flush = false;
 
         Poll::Ready(Ok(()))
     }
