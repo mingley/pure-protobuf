@@ -73,6 +73,26 @@ pub(crate) fn encoding_value(codec: CompressionAlgorithm) -> HeaderValue {
 #[cfg(feature = "grpc-web")]
 pub(crate) const HEADER_CAPACITY: usize = 10;
 
+/// One `:path` per worker. Callers pass a `'static` method path, so a hit
+/// is pointer equality and a refcount bump instead of scanning the path.
+fn cached_static_path(path: &'static str) -> PathAndQuery {
+    use std::cell::RefCell;
+    thread_local! {
+        static LAST: RefCell<Option<(&'static str, PathAndQuery)>> = const { RefCell::new(None) };
+    }
+    LAST.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        if let Some((prev, parsed)) = slot.as_ref() {
+            if std::ptr::eq(*prev, path) {
+                return parsed.clone();
+            }
+        }
+        let parsed = PathAndQuery::from_static(path);
+        *slot = Some((path, parsed.clone()));
+        parsed
+    })
+}
+
 #[allow(
     clippy::too_many_arguments,
     reason = "gRPC request headers: routing, timeout, gzip offer, identity"
@@ -90,7 +110,7 @@ pub(crate) fn grpc_request(
     let mut parts = http::uri::Parts::default();
     parts.scheme = Some(if https { Scheme::HTTPS } else { Scheme::HTTP });
     parts.authority = Some(authority.clone());
-    parts.path_and_query = Some(PathAndQuery::from_static(path));
+    parts.path_and_query = Some(cached_static_path(path));
     let uri = http::Uri::from_parts(parts).map_err(|e| Status::internal(e.to_string()))?;
     let mut req = Request::new(());
     *req.method_mut() = http::Method::POST;
