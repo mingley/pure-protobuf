@@ -2,6 +2,7 @@ use super::table::{Index, Table};
 use super::{huffman, Header};
 
 use bytes::{BufMut, BytesMut};
+use std::cell::Cell;
 use http::header::{HeaderName, HeaderValue};
 
 const DEFAULT_MAX_ALLOWED_SIZE: usize = 4 * 1024;
@@ -52,6 +53,12 @@ struct SavedRequest {
     path: Vec<u8>,
     authority: Vec<u8>,
     bytes: Vec<u8>,
+    /// Pointer of the last `:path` / `:authority` that matched. Those bytes
+    /// are reused across calls, so a hit skips the slice compare.
+    path_ptr: Cell<usize>,
+    path_len: Cell<usize>,
+    auth_ptr: Cell<usize>,
+    auth_len: Cell<usize>,
 }
 
 #[derive(Debug)]
@@ -106,13 +113,25 @@ impl Encoder {
         authority: &[u8],
     ) -> Option<&[u8]> {
         let saved = self.request_block.as_ref()?;
-        if saved.epoch != self.table.epoch()
-            || saved.https != https
-            || saved.path.as_slice() != path
-            || saved.authority.as_slice() != authority
-        {
+        if saved.epoch != self.table.epoch() || saved.https != https {
             return None;
         }
+        let path_ptr = path.as_ptr() as usize;
+        let auth_ptr = authority.as_ptr() as usize;
+        if saved.path_len.get() == path.len()
+            && saved.path_ptr.get() == path_ptr
+            && saved.auth_len.get() == authority.len()
+            && saved.auth_ptr.get() == auth_ptr
+        {
+            return Some(saved.bytes.as_slice());
+        }
+        if saved.path.as_slice() != path || saved.authority.as_slice() != authority {
+            return None;
+        }
+        saved.path_ptr.set(path_ptr);
+        saved.path_len.set(path.len());
+        saved.auth_ptr.set(auth_ptr);
+        saved.auth_len.set(authority.len());
         Some(saved.bytes.as_slice())
     }
 
@@ -132,6 +151,10 @@ impl Encoder {
             path: path.to_vec(),
             authority: authority.to_vec(),
             bytes: bytes.to_vec(),
+            path_ptr: Cell::new(0),
+            path_len: Cell::new(0),
+            auth_ptr: Cell::new(0),
+            auth_len: Cell::new(0),
         });
     }
 
