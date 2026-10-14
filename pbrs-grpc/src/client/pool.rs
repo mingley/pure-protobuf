@@ -894,15 +894,29 @@ impl ChannelInner {
         let mut attempt = 0usize;
         loop {
             let (handle, lease, r#gen, driver, channelz_socket) = {
-                let slot = self.slot(i)?.lock().await;
-                let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
-                (
-                    slot.send.clone(),
-                    lease,
-                    slot.r#gen,
-                    slot.stop.clone(),
-                    socket_id_of(&slot),
-                )
+                let slot_mutex = self.slot(i)?;
+                // A warm call finds the slot free. `try_lock` clones the sender
+                // without polling the async semaphore; a held lock still waits.
+                if let Ok(slot) = slot_mutex.try_lock() {
+                    let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                    (
+                        slot.send.clone(),
+                        lease,
+                        slot.r#gen,
+                        slot.stop.clone(),
+                        socket_id_of(&slot),
+                    )
+                } else {
+                    let slot = slot_mutex.lock().await;
+                    let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                    (
+                        slot.send.clone(),
+                        lease,
+                        slot.r#gen,
+                        slot.stop.clone(),
+                        socket_id_of(&slot),
+                    )
+                }
             };
             if let Some(handle) = handle {
                 if let Ok(ready) = handle.ready().await {
