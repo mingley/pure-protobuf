@@ -4,7 +4,7 @@ use crate::h2_backend::ext::Protocol;
 use bytes::Bytes;
 use http::header::{HeaderName, HeaderValue};
 use http::{Method, StatusCode};
-use std::cell::RefCell;
+use std::cell::UnsafeCell;
 use std::fmt;
 
 /// HTTP/2 Header
@@ -284,6 +284,10 @@ impl BytesStr {
     ///
     /// A connection repeats the same `:path` and `:authority`. The first
     /// request allocates; the rest clone the `Bytes` instead of copying.
+    #[allow(
+        unsafe_code,
+        reason = "the thread-local slot is only borrowed inside this function and the call does not re-enter"
+    )]
     pub(crate) fn reused(slot: ReusedStr, value: &str) -> Self {
         if value.len() > 128 {
             return BytesStr::from(value);
@@ -294,21 +298,19 @@ impl BytesStr {
             value: BytesStr,
         }
         thread_local! {
-            static SLOTS: [RefCell<Option<Saved>>; 2] = [const { RefCell::new(None) }; 2];
+            static SLOTS: [UnsafeCell<Option<Saved>>; 2] =
+                [const { UnsafeCell::new(None) }; 2];
         }
         let ptr = value.as_ptr() as usize;
         let len = value.len();
         SLOTS.with(|slots| {
-            let cell = &slots[slot as usize];
-            // A repeated allocation is cloned in place. Moving the slot out
-            // and back cost more than the refcount bump.
-            if let Some(existing) = cell.borrow().as_ref() {
+            // SAFETY: `SLOTS` is thread-local and this function does not call
+            // itself while `slot_ref` is alive, so the mutable borrow is unique.
+            let slot_ref = unsafe { &mut *slots[slot as usize].get() };
+            if let Some(existing) = slot_ref.as_mut() {
                 if existing.len == len && existing.ptr == ptr {
                     return existing.value.clone();
                 }
-            }
-            let mut slot_ref = cell.borrow_mut();
-            if let Some(existing) = slot_ref.as_mut() {
                 if existing.value.as_str() == value {
                     existing.ptr = ptr;
                     existing.len = len;
