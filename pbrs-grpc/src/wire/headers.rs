@@ -178,6 +178,20 @@ pub(crate) fn accepts_gzip(headers: &HeaderMap) -> bool {
     accepts_codec(headers, CompressionAlgorithm::Gzip)
 }
 
+/// Gzip and deflate advertisements from one lookup of `grpc-accept-encoding`.
+pub(crate) fn accept_pair(headers: &HeaderMap) -> (bool, bool) {
+    let Some(value) = headers.get(GRPC_ACCEPT_ENCODING) else {
+        return (false, false);
+    };
+    if *value == IDENTITY_GZIP_DEFLATE {
+        return (true, true);
+    }
+    (
+        accepts_codec(headers, CompressionAlgorithm::Gzip),
+        accepts_codec(headers, CompressionAlgorithm::Deflate),
+    )
+}
+
 /// The coding compressed inbound frames on this RPC use.
 ///
 /// Parsed from the peer's `grpc-encoding` token. Missing, empty, or
@@ -186,6 +200,7 @@ pub(crate) fn accepts_gzip(headers: &HeaderMap) -> bool {
 /// token first ([`check_request`] on the server,
 /// [`super::frame_reader::refuse_encoding_reply`] on the client), so an
 /// unknown coding never reaches the decoder.
+#[allow(dead_code, reason = "one-lookup callers use inbound_codec_from_token")]
 pub(crate) fn inbound_codec(headers: &HeaderMap) -> CompressionAlgorithm {
     inbound_codec_from_token(grpc_encoding(headers))
 }
