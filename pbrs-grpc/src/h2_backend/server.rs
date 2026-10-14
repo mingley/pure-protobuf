@@ -1642,6 +1642,43 @@ impl Peer {
     }
 }
 
+fn cached_authority(raw: Bytes) -> Result<http::uri::Authority, http::uri::InvalidUri> {
+    use std::cell::RefCell;
+    // One repeated authority per worker. A miss still parses.
+    thread_local! {
+        static LAST: RefCell<Option<(Bytes, http::uri::Authority)>> = const { RefCell::new(None) };
+    }
+    LAST.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        if let Some((prev, parsed)) = slot.as_ref() {
+            if prev == &raw {
+                return Ok(parsed.clone());
+            }
+        }
+        let parsed = http::uri::Authority::from_maybe_shared(raw.clone())?;
+        *slot = Some((raw, parsed.clone()));
+        Ok(parsed)
+    })
+}
+
+fn cached_path_and_query(raw: Bytes) -> Result<http::uri::PathAndQuery, http::uri::InvalidUri> {
+    use std::cell::RefCell;
+    thread_local! {
+        static LAST: RefCell<Option<(Bytes, http::uri::PathAndQuery)>> = const { RefCell::new(None) };
+    }
+    LAST.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        if let Some((prev, parsed)) = slot.as_ref() {
+            if prev == &raw {
+                return Ok(parsed.clone());
+            }
+        }
+        let parsed = http::uri::PathAndQuery::from_maybe_shared(raw.clone())?;
+        *slot = Some((raw, parsed.clone()));
+        Ok(parsed)
+    })
+}
+
 impl proto::Peer for Peer {
     type Poll = Request<()>;
 
@@ -1694,7 +1731,7 @@ impl proto::Peer for Peer {
         // A request translated from HTTP/1 must not include the :authority
         // header
         if let Some(authority) = pseudo.authority {
-            let maybe_authority = uri::Authority::from_maybe_shared(authority.clone().into_inner());
+            let maybe_authority = cached_authority(authority.clone().into_inner());
             parts.authority = Some(maybe_authority.or_else(|why| {
                 malformed!(
                     "malformed headers: malformed authority ({:?}): {}",
@@ -1738,7 +1775,7 @@ impl proto::Peer for Peer {
                 malformed!("malformed headers: missing path");
             }
 
-            let maybe_path = uri::PathAndQuery::from_maybe_shared(path.clone().into_inner());
+            let maybe_path = cached_path_and_query(path.clone().into_inner());
             parts.path_and_query = Some(maybe_path.or_else(|why| {
                 malformed!("malformed headers: malformed path ({:?}): {}", path, why,)
             })?);
