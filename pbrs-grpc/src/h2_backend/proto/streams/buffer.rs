@@ -78,22 +78,32 @@ impl Deque {
         }
     }
 
+    #[inline]
     pub fn pop_front<T>(&mut self, buf: &mut Buffer<T>) -> Option<T> {
-        match self.indices {
-            Some(mut idxs) => {
-                let mut slot = buf.slab.remove(idxs.head);
+        let Some(mut idxs) = self.indices else {
+            return None;
+        };
+        let mut slot = buf.slab.remove(idxs.head);
 
-                if idxs.head == idxs.tail {
-                    assert!(slot.next.is_none());
-                    self.indices = None;
-                } else {
-                    idxs.head = slot.next.take().unwrap();
-                    self.indices = Some(idxs);
-                }
-
-                Some(slot.value)
+        if idxs.head == idxs.tail {
+            if slot.next.is_some() {
+                broken_frame_deque();
             }
-            None => None,
+            self.indices = None;
+        } else {
+            let Some(head) = slot.next.take() else {
+                broken_frame_deque();
+            };
+            idxs.head = head;
+            self.indices = Some(idxs);
         }
+
+        Some(slot.value)
     }
+}
+
+#[cold]
+#[inline(never)]
+fn broken_frame_deque() -> ! {
+    panic!("http2 stream frame deque is corrupt");
 }
