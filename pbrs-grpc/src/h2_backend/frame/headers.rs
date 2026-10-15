@@ -1303,6 +1303,9 @@ fn stable_standard_id(kind: StandardMap, pseudo: &Pseudo) -> Option<StableStanda
 }
 
 impl HeaderBlock {
+    /// A cache hit returns before HPACK runs. The miss keeps its own frame so
+    /// a repeated block does not reserve the decoder.
+    #[inline(never)]
     fn load(
         &mut self,
         src: &mut BytesMut,
@@ -1365,6 +1368,18 @@ impl HeaderBlock {
                 return Ok(());
             }
         }
+        self.load_uncached(src, max_header_list_size, decoder, fresh)
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn load_uncached(
+        &mut self,
+        src: &mut BytesMut,
+        max_header_list_size: usize,
+        decoder: &mut hpack::Decoder,
+        fresh: bool,
+    ) -> Result<(), Error> {
         let neutral = fresh && hpack::block_leaves_table_unchanged(src);
         let record = neutral;
         let raw = if record { Some(src.to_vec()) } else { None };
