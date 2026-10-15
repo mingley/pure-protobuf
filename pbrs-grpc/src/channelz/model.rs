@@ -1276,19 +1276,24 @@ pub(crate) fn now_ms() -> u64 {
 fn coarse_now_ms() -> u64 {
     use std::cell::Cell;
     const BURST: u8 = 16;
-    thread_local! {
-        static TICK: Cell<u8> = const { Cell::new(0) };
-        static MS: Cell<u64> = const { Cell::new(0) };
+    #[derive(Clone, Copy)]
+    struct Coarse {
+        tick: u8,
+        ms: u64,
     }
-    TICK.with(|tick| {
-        let n = tick.get();
-        if n % BURST != 0 {
-            tick.set(n.wrapping_add(1));
-            return MS.with(|ms| ms.get());
+    thread_local! {
+        static CLOCK: Cell<Coarse> = const { Cell::new(Coarse { tick: 0, ms: 0 }) };
+    }
+    // One slot: the steady path used to enter two thread-locals per stamp.
+    CLOCK.with(|cell| {
+        let mut clock = cell.get();
+        if clock.tick % BURST != 0 {
+            clock.tick = clock.tick.wrapping_add(1);
+            cell.set(clock);
+            return clock.ms;
         }
         let ms = now_ms();
-        tick.set(1);
-        MS.with(|slot| slot.set(ms));
+        cell.set(Coarse { tick: 1, ms });
         ms
     })
 }
