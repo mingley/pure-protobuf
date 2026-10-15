@@ -1073,6 +1073,35 @@ fn replayed_standard<'a>(
     fields: &HeaderMap,
     stock: StandardMap,
 ) -> Option<(StandardMap, &'a [u8])> {
+    // The gRPC layer already classified this block. Replay from the pseudo
+    // values and skip the method, protocol, and field-bit checks.
+    match stock {
+        StandardMap::Request => {
+            let https = match pseudo.scheme.as_ref().map(|scheme| scheme.as_str()) {
+                Some("https") => true,
+                Some("http") => false,
+                _ => return None,
+            };
+            let path = pseudo.path.as_ref()?.as_str().as_bytes();
+            let authority = pseudo.authority.as_ref()?.as_str().as_bytes();
+            if let Some(bytes) = encoder.replay_request(https, path, authority) {
+                return Some((StandardMap::Request, bytes));
+            }
+        }
+        StandardMap::Response => {
+            if let Some(status) = pseudo.status {
+                if let Some(bytes) = encoder.replay_response(status.as_u16()) {
+                    return Some((StandardMap::Response, bytes));
+                }
+            }
+        }
+        StandardMap::Trailers => {
+            if let Some(bytes) = encoder.replay_trailers() {
+                return Some((StandardMap::Trailers, bytes));
+            }
+        }
+        StandardMap::None => {}
+    }
     if let Some(method) = pseudo.method.as_ref() {
         if method != Method::POST || pseudo.protocol.is_some() || pseudo.status.is_some() {
             return None;
