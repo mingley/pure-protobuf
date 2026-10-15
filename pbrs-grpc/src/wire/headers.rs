@@ -115,7 +115,9 @@ pub(crate) fn grpc_request(
     let uri = http::Uri::from_parts(parts).map_err(|e| Status::internal(e.to_string()))?;
     let mut req = Request::new(());
     *req.method_mut() = http::Method::POST;
-    *req.uri_mut() = uri;
+    // `Request::new` installs `Uri::default()` (`/` plus empty scheme and
+    // authority, all static). Forgetting it skips that drop; nothing is freed.
+    std::mem::forget(std::mem::replace(req.uri_mut(), uri));
     // The benchmark and the default client repeat the same four headers.
     // Cloning that block skips four hashed inserts.
     if md.is_empty()
