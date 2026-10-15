@@ -122,7 +122,8 @@ pub(crate) fn grpc_request(
         && timeout.is_none()
         && send_codec.is_none()
         && accept_gzip
-        && user_agent == &PBRS_GRPC_UA
+        && (std::ptr::eq(user_agent.as_bytes(), PBRS_GRPC_UA.as_bytes())
+            || user_agent == &PBRS_GRPC_UA)
     {
         crate::h2_backend::header_pool::replace_map(
             req.headers_mut(),
