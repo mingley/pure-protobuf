@@ -239,9 +239,20 @@ impl Metadata {
     }
 
     /// Whether any non-reserved entry is present.
+    ///
+    /// The stock call carries no user metadata, so the map is empty and the
+    /// reserved-key scan does not run.
+    #[inline]
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        !self.headers().keys().any(|k| !is_reserved(k.as_str()))
+        let headers = self.headers();
+        headers.is_empty() || !Self::has_user_metadata(headers)
+    }
+
+    /// `true` when a header map contains a key the application can set.
+    #[inline(never)]
+    fn has_user_metadata(headers: &HeaderMap) -> bool {
+        headers.keys().any(|k| !is_reserved(k.as_str()))
     }
 
     /// Number of non-reserved entries, counting repeats of the same key.
