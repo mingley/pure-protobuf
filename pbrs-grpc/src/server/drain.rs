@@ -28,6 +28,8 @@ use std::time::Duration;
 /// tasks that have started waiting.
 pub(crate) struct CancelFlag {
     value: AtomicBool,
+    /// A task has registered in `waiters`. `signal` skips that lock until then.
+    armed: AtomicBool,
     waiters: Mutex<Vec<Waker>>,
 }
 
@@ -35,6 +37,7 @@ impl CancelFlag {
     pub(crate) fn new() -> Arc<Self> {
         Arc::new(Self {
             value: AtomicBool::new(false),
+            armed: AtomicBool::new(false),
             waiters: Mutex::new(Vec::new()),
         })
     }
@@ -45,6 +48,16 @@ impl CancelFlag {
 
     pub(crate) fn signal(&self) {
         self.value.store(true, Ordering::Release);
+        // A waiter registers, then checks `value` again. If this load misses
+        // the registration, that second check still observes the store above.
+        if self.armed.load(Ordering::Acquire) {
+            self.wake_waiters();
+        }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn wake_waiters(&self) {
         let waiters = match self.waiters.lock() {
             Ok(mut waiters) => std::mem::take(&mut *waiters),
             Err(poisoned) => std::mem::take(&mut *poisoned.into_inner()),
@@ -96,6 +109,7 @@ impl Future for WaitCancel {
                 waiters.push(cx.waker().clone());
             }
         }
+        flag.armed.store(true, Ordering::Release);
         if flag.is_cancelled() {
             Poll::Ready(())
         } else {
@@ -852,6 +866,41 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
     batch.flush(send).await.map_err(|_| DrainError::Transport)?;
     permits.clear();
     Ok(())
+}
+
+#[cfg(test)]
+mod cancel_flag_wait_tests {
+    use super::{CancelFlag, wait_cancel};
+    use std::future::poll_fn;
+    use std::pin::Pin;
+    use std::sync::Arc;
+    use std::task::Poll;
+
+    #[tokio::test]
+    async fn signal_wakes_a_task_that_is_already_waiting() {
+        let flag = CancelFlag::new();
+        let waiting = wait_cancel(Some(Arc::clone(&flag)));
+        let gate = Arc::clone(&flag);
+        tokio::spawn(async move {
+            tokio::task::yield_now().await;
+            gate.signal();
+        });
+        tokio::time::timeout(std::time::Duration::from_secs(2), waiting)
+            .await
+            .expect("waiter woke");
+    }
+
+    #[tokio::test]
+    async fn signal_before_wait_is_ready_without_parking() {
+        let flag = CancelFlag::new();
+        flag.signal();
+        let mut waiting = wait_cancel(Some(flag));
+        poll_fn(|cx| {
+            assert!(Pin::new(&mut waiting).poll(cx).is_ready());
+            Poll::Ready(())
+        })
+        .await;
+    }
 }
 
 #[cfg(test)]
