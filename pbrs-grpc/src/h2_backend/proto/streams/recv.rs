@@ -686,6 +686,7 @@ impl Recv {
         stream.pending_recv.is_empty()
     }
 
+    #[inline(never)]
     pub fn recv_data(&mut self, frame: frame::Data, stream: &mut store::Ptr) -> Result<(), Error> {
         // One length for the window and the padding check. Padding is the
         // gap between the flow-controlled size and the payload the user sees.
@@ -703,21 +704,11 @@ impl Recv {
         let is_ignoring_frame = stream.state.is_local_error();
 
         if !is_ignoring_frame && !stream.state.is_recv_streaming() {
-            // TODO: There are cases where this can be a stream error of
-            // STREAM_CLOSED instead...
-
-            // Receiving a DATA frame when not expecting one is a protocol
-            // error.
-            proto_err!(conn: "unexpected DATA frame; stream={:?}", stream.id);
-            return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
+            return Err(unexpected_data(stream.id));
         }
 
         if is_ignoring_frame {
-            tracing::trace!(
-                "recv_data; frame ignored on locally reset {:?} for some time",
-                stream.id,
-            );
-            return self.ignore_data(sz);
+            return self.ignore_reset_data(sz, stream.id);
         }
 
         // Ensure that there is enough capacity on the connection before acting
@@ -738,38 +729,22 @@ impl Recv {
 
         // use payload len, padding doesn't count for content-length
         if stream.dec_content_length(payload_len).is_err() {
-            proto_err!(stream:
-                "recv_data: content-length overflow; stream={:?}; len={:?}",
-                stream.id,
-                frame.payload().len(),
-            );
-            return Err(Error::library_reset(stream.id, Reason::PROTOCOL_ERROR));
+            return Err(content_length_overflow(stream.id, payload_len));
         }
 
         if frame.is_end_stream() {
             if stream.ensure_content_length_zero().is_err() {
-                proto_err!(stream:
-                    "recv_data: content-length underflow; stream={:?}; len={:?}",
-                    stream.id,
-                    frame.payload().len(),
-                );
-                return Err(Error::library_reset(stream.id, Reason::PROTOCOL_ERROR));
+                return Err(content_length_underflow(stream.id, payload_len));
             }
 
             if stream.state.recv_close().is_err() {
-                proto_err!(conn: "recv_data: failed to transition to closed state; stream={:?}", stream.id);
-                return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
+                return Err(recv_close_failed(stream.id));
             }
         }
 
         // Received a frame, but no one cared about it. fix issue#648
         if !stream.is_recv {
-            tracing::trace!(
-                "recv_data; frame ignored on stream release {:?} for some time",
-                stream.id,
-            );
-            self.release_connection_capacity(sz, &mut None);
-            return Ok(());
+            return self.release_unwatched_data(sz, stream.id);
         }
 
         // Update stream level flow control
@@ -785,14 +760,7 @@ impl Recv {
         // since the user only sees the data payload via `payload()`.
         let padding = (flow_len - payload_len) as WindowSize;
         if padding > 0 {
-            tracing::trace!(
-                "recv_data; auto-releasing padding of {:?} for {:?}",
-                padding,
-                stream.id,
-            );
-            let _res = self.release_capacity(padding, stream, &mut None);
-            // cannot fail, we JUST added more in_flight data above.
-            debug_assert!(_res.is_ok());
+            self.release_padding(padding, stream);
         }
 
         // An empty DATA frame without END_STREAM has no effect on the HTTP
@@ -813,6 +781,40 @@ impl Recv {
         stream.notify_recv();
 
         Ok(())
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn ignore_reset_data(&mut self, sz: WindowSize, id: StreamId) -> Result<(), Error> {
+        tracing::trace!(
+            "recv_data; frame ignored on locally reset {:?} for some time",
+            id,
+        );
+        self.ignore_data(sz)
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn release_unwatched_data(&mut self, sz: WindowSize, id: StreamId) -> Result<(), Error> {
+        tracing::trace!(
+            "recv_data; frame ignored on stream release {:?} for some time",
+            id,
+        );
+        self.release_connection_capacity(sz, &mut None);
+        Ok(())
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn release_padding(&mut self, padding: WindowSize, stream: &mut store::Ptr) {
+        tracing::trace!(
+            "recv_data; auto-releasing padding of {:?} for {:?}",
+            padding,
+            stream.id,
+        );
+        let _res = self.release_capacity(padding, stream, &mut None);
+        // cannot fail, we JUST added more in_flight data above.
+        debug_assert!(_res.is_ok());
     }
 
     pub fn ignore_data(&mut self, sz: WindowSize) -> Result<(), Error> {
@@ -1359,6 +1361,45 @@ impl Recv {
 #[inline(never)]
 fn data_frame_exceeds_window() -> ! {
     panic!("DATA frame larger than the maximum flow-control window");
+}
+
+#[cold]
+#[inline(never)]
+fn unexpected_data(id: StreamId) -> Error {
+    // TODO: There are cases where this can be a stream error of
+    // STREAM_CLOSED instead...
+    // Receiving a DATA frame when not expecting one is a protocol error.
+    proto_err!(conn: "unexpected DATA frame; stream={:?}", id);
+    Error::library_go_away(Reason::PROTOCOL_ERROR)
+}
+
+#[cold]
+#[inline(never)]
+fn content_length_overflow(id: StreamId, len: usize) -> Error {
+    proto_err!(stream:
+        "recv_data: content-length overflow; stream={:?}; len={:?}",
+        id,
+        len,
+    );
+    Error::library_reset(id, Reason::PROTOCOL_ERROR)
+}
+
+#[cold]
+#[inline(never)]
+fn content_length_underflow(id: StreamId, len: usize) -> Error {
+    proto_err!(stream:
+        "recv_data: content-length underflow; stream={:?}; len={:?}",
+        id,
+        len,
+    );
+    Error::library_reset(id, Reason::PROTOCOL_ERROR)
+}
+
+#[cold]
+#[inline(never)]
+fn recv_close_failed(id: StreamId) -> Error {
+    proto_err!(conn: "recv_data: failed to transition to closed state; stream={:?}", id);
+    Error::library_go_away(Reason::PROTOCOL_ERROR)
 }
 
 #[cfg(test)]
