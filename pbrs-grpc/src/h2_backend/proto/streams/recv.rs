@@ -687,16 +687,18 @@ impl Recv {
     }
 
     pub fn recv_data(&mut self, frame: frame::Data, stream: &mut store::Ptr) -> Result<(), Error> {
-        // could include padding
-        let sz = frame.flow_controlled_len();
+        // One length for the window and the padding check. Padding is the
+        // gap between the flow-controlled size and the payload the user sees.
+        let payload_len = frame.payload().len();
+        let flow_len = frame.flow_controlled_len();
 
         // This should have been enforced at the codec::FramedRead layer, so
         // this is just a sanity check.
-        if sz > MAX_WINDOW_SIZE as usize {
+        if flow_len > MAX_WINDOW_SIZE as usize {
             data_frame_exceeds_window();
         }
 
-        let sz = sz as WindowSize;
+        let sz = flow_len as WindowSize;
 
         let is_ignoring_frame = stream.state.is_local_error();
 
@@ -735,7 +737,7 @@ impl Recv {
         }
 
         // use payload len, padding doesn't count for content-length
-        if stream.dec_content_length(frame.payload().len()).is_err() {
+        if stream.dec_content_length(payload_len).is_err() {
             proto_err!(stream:
                 "recv_data: content-length overflow; stream={:?}; len={:?}",
                 stream.id,
@@ -781,7 +783,7 @@ impl Recv {
 
         // Auto-release padding overhead (pad_len field + padding bytes),
         // since the user only sees the data payload via `payload()`.
-        let padding = (frame.flow_controlled_len() - frame.payload().len()) as WindowSize;
+        let padding = (flow_len - payload_len) as WindowSize;
         if padding > 0 {
             tracing::trace!(
                 "recv_data; auto-releasing padding of {:?} for {:?}",
@@ -796,7 +798,7 @@ impl Recv {
         // An empty DATA frame without END_STREAM has no effect on the HTTP
         // message. Padding has already been accounted for and released above,
         // so there is no event to pass to the user.
-        if frame.payload().is_empty() && !frame.is_end_stream() {
+        if payload_len == 0 && !frame.is_end_stream() {
             return Ok(());
         }
 
