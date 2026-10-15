@@ -483,11 +483,19 @@ impl Future for ResponseFuture {
     type Output = Result<Response<RecvStream>, Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let recorder = self.recorder.clone();
-        Pin::new(&mut self.inner).poll(cx).map(|r| {
-            r.map(|rsp| rsp.map(|recv| RecvStream::new(recv, recorder)))
-                .map_err(Error)
-        })
+        // The disabled recorder is an empty `Option`. Cloning it on every
+        // pending poll still copies and drops that word.
+        match Pin::new(&mut self.inner).poll(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(result) => {
+                let recorder = self.recorder.clone();
+                Poll::Ready(
+                    result
+                        .map(|rsp| rsp.map(|recv| RecvStream::new(recv, recorder)))
+                        .map_err(Error),
+                )
+            }
+        }
     }
 }
 
@@ -763,24 +771,31 @@ impl<IO: AsyncRead + AsyncWrite + Unpin> super::ServerConnection for ServerConne
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Result<super::Accepted, Error>>> {
-        if self.ping_timed_out {
-            return Poll::Ready(None);
+        // Adaptive window and keepalive are off unless a driver was installed.
+        // The timed-out flag is only set from that driver.
+        if self.ping.is_some() {
+            if self.ping_timed_out {
+                return Poll::Ready(None);
+            }
+            if let Poll::Ready(Err(error)) = self.poll_ping(cx) {
+                return Poll::Ready(Some(Err(error)));
+            }
         }
-        if let Poll::Ready(Err(error)) = self.poll_ping(cx) {
-            return Poll::Ready(Some(Err(error)));
+        match self.inner.poll_accept(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(opt) => {
+                let recorder = self.recorder.clone();
+                Poll::Ready(opt.map(|r| {
+                    r.map(|(req, rsp)| {
+                        (
+                            req.map(|recv| RecvStream::new(recv, recorder)),
+                            SendResponse(rsp),
+                        )
+                    })
+                    .map_err(Error)
+                }))
+            }
         }
-        let recorder = self.recorder.clone();
-        self.inner.poll_accept(cx).map(|opt| {
-            opt.map(|r| {
-                r.map(|(req, rsp)| {
-                    (
-                        req.map(|recv| RecvStream::new(recv, recorder)),
-                        SendResponse(rsp),
-                    )
-                })
-                .map_err(Error)
-            })
-        })
     }
 
     fn accept(&mut self) -> impl Future<Output = Option<Result<super::Accepted, Error>>> {
