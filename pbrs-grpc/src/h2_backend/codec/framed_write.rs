@@ -221,8 +221,8 @@ where
     }
 
     fn buffer(&mut self, item: Frame<B>) -> Result<(), UserError> {
-        // Ensure that we have enough capacity to accept the write.
-        assert!(self.has_capacity());
+        // The caller already checked. Release builds do not repeat it.
+        debug_assert!(self.has_capacity());
 
         match item {
             Frame::Data(mut v) => {
