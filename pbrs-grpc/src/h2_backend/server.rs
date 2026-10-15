@@ -1648,6 +1648,53 @@ impl Peer {
     }
 }
 
+/// POST with `:scheme` http(s), `:authority`, and a non-empty `:path`.
+///
+/// Anything else, including a scheme or path the cache cannot parse, is
+/// returned unchanged for the general builder.
+fn simple_post_request(pseudo: &Pseudo, fields: HeaderMap) -> Result<Request<()>, HeaderMap> {
+    let Some(method) = pseudo.method.as_ref() else {
+        return Err(fields);
+    };
+    if method != Method::POST || pseudo.protocol.is_some() || pseudo.status.is_some() {
+        return Err(fields);
+    }
+    let (Some(authority), Some(scheme), Some(path)) = (
+        pseudo.authority.as_ref(),
+        pseudo.scheme.as_ref(),
+        pseudo.path.as_ref(),
+    ) else {
+        return Err(fields);
+    };
+    if path.is_empty() {
+        return Err(fields);
+    }
+    let Ok(authority) = cached_authority(authority) else {
+        return Err(fields);
+    };
+    let scheme = match scheme.as_str() {
+        "https" => http::uri::Scheme::HTTPS,
+        "http" => http::uri::Scheme::HTTP,
+        _ => return Err(fields),
+    };
+    let Ok(path) = cached_path_and_query(path) else {
+        return Err(fields);
+    };
+    let mut parts = http::uri::Parts::default();
+    parts.scheme = Some(scheme);
+    parts.authority = Some(authority);
+    parts.path_and_query = Some(path);
+    let Ok(uri) = http::uri::Uri::from_parts(parts) else {
+        return Err(fields);
+    };
+    let mut request = Request::new(());
+    *request.method_mut() = Method::POST;
+    *request.uri_mut() = uri;
+    *request.version_mut() = http::Version::HTTP_2;
+    crate::h2_backend::header_pool::replace_map(request.headers_mut(), fields);
+    Ok(request)
+}
+
 fn cached_authority(raw: &BytesStr) -> Result<http::uri::Authority, http::uri::InvalidUri> {
     use std::cell::RefCell;
     // One repeated authority per worker. The hit path borrows `raw` and only
@@ -1714,110 +1761,124 @@ impl proto::Peer for Peer {
         fields: HeaderMap,
         stream_id: StreamId,
     ) -> Result<Self::Poll, Error> {
-        use http::{uri, Version};
-
-        macro_rules! malformed {
-            ($($arg:tt)*) => {{
-                tracing::debug!($($arg)*);
-                return Err(Error::library_reset(stream_id, Reason::PROTOCOL_ERROR));
-            }}
-        }
-
-        let is_connect;
-        let method = if let Some(method) = pseudo.method {
-            is_connect = method == Method::CONNECT;
-            method
-        } else {
-            malformed!("malformed headers: missing method");
+        let fields = match simple_post_request(&pseudo, fields) {
+            Ok(request) => return Ok(request),
+            Err(fields) => fields,
         };
-
-        let has_protocol = pseudo.protocol.is_some();
-        if has_protocol && !is_connect {
-            malformed!("malformed headers: :protocol on non-CONNECT request");
-        }
-
-        if pseudo.status.is_some() {
-            malformed!("malformed headers: :status field on request");
-        }
-
-        // Convert the URI
-        let mut parts = uri::Parts::default();
-
-        // A request translated from HTTP/1 must not include the :authority
-        // header
-        if let Some(authority) = pseudo.authority {
-            let maybe_authority = cached_authority(&authority);
-            parts.authority = Some(maybe_authority.or_else(|why| {
-                malformed!(
-                    "malformed headers: malformed authority ({:?}): {}",
-                    authority,
-                    why,
-                )
-            })?);
-        }
-
-        // A :scheme is required, except CONNECT.
-        if let Some(scheme) = pseudo.scheme {
-            if is_connect && !has_protocol {
-                malformed!("malformed headers: :scheme in CONNECT");
-            }
-            let maybe_scheme = scheme.parse();
-            let scheme = maybe_scheme.or_else(|why| {
-                malformed!(
-                    "malformed headers: malformed scheme ({:?}): {}",
-                    scheme,
-                    why,
-                )
-            })?;
-
-            // It's not possible to build an `Uri` from a scheme and path. So,
-            // after validating is was a valid scheme, we just have to drop it
-            // if there isn't an :authority.
-            if parts.authority.is_some() {
-                parts.scheme = Some(scheme);
-            }
-        } else if !is_connect || has_protocol {
-            malformed!("malformed headers: missing scheme");
-        }
-
-        if let Some(path) = pseudo.path {
-            if is_connect && !has_protocol {
-                malformed!("malformed headers: :path in CONNECT");
-            }
-
-            // This cannot be empty
-            if path.is_empty() {
-                malformed!("malformed headers: missing path");
-            }
-
-            let maybe_path = cached_path_and_query(&path);
-            parts.path_and_query = Some(maybe_path.or_else(|why| {
-                malformed!("malformed headers: malformed path ({:?}): {}", path, why,)
-            })?);
-        } else if is_connect && has_protocol {
-            malformed!("malformed headers: missing path in extended CONNECT");
-        }
-
-        let uri = match uri::Uri::from_parts(parts) {
-            Ok(uri) => uri,
-            Err(e) => {
-                proto_err!(stream: "error building request: {}; stream={:?}", e, stream_id);
-                return Err(Error::library_reset(stream_id, Reason::PROTOCOL_ERROR));
-            }
-        };
-        // The builder's method/uri/version closures were copies on every
-        // request. The headers map is the one HPACK already decoded.
-        let mut request = Request::new(());
-        *request.method_mut() = method;
-        *request.uri_mut() = uri;
-        *request.version_mut() = Version::HTTP_2;
-        if let Some(protocol) = pseudo.protocol {
-            request.extensions_mut().insert(protocol);
-        }
-        crate::h2_backend::header_pool::replace_map(request.headers_mut(), fields);
-
-        Ok(request)
+        convert_poll_message_general(pseudo, fields, stream_id)
     }
+}
+
+#[cold]
+#[inline(never)]
+fn convert_poll_message_general(
+    pseudo: Pseudo,
+    fields: HeaderMap,
+    stream_id: StreamId,
+) -> Result<Request<()>, Error> {
+    use http::{uri, Version};
+
+    macro_rules! malformed {
+        ($($arg:tt)*) => {{
+            tracing::debug!($($arg)*);
+            return Err(Error::library_reset(stream_id, Reason::PROTOCOL_ERROR));
+        }}
+    }
+
+    let is_connect;
+    let method = if let Some(method) = pseudo.method {
+        is_connect = method == Method::CONNECT;
+        method
+    } else {
+        malformed!("malformed headers: missing method");
+    };
+
+    let has_protocol = pseudo.protocol.is_some();
+    if has_protocol && !is_connect {
+        malformed!("malformed headers: :protocol on non-CONNECT request");
+    }
+
+    if pseudo.status.is_some() {
+        malformed!("malformed headers: :status field on request");
+    }
+
+    // Convert the URI
+    let mut parts = uri::Parts::default();
+
+    // A request translated from HTTP/1 must not include the :authority
+    // header
+    if let Some(authority) = pseudo.authority {
+        let maybe_authority = cached_authority(&authority);
+        parts.authority = Some(maybe_authority.or_else(|why| {
+            malformed!(
+                "malformed headers: malformed authority ({:?}): {}",
+                authority,
+                why,
+            )
+        })?);
+    }
+
+    // A :scheme is required, except CONNECT.
+    if let Some(scheme) = pseudo.scheme {
+        if is_connect && !has_protocol {
+            malformed!("malformed headers: :scheme in CONNECT");
+        }
+        let maybe_scheme = scheme.parse();
+        let scheme = maybe_scheme.or_else(|why| {
+            malformed!(
+                "malformed headers: malformed scheme ({:?}): {}",
+                scheme,
+                why,
+            )
+        })?;
+
+        // It's not possible to build an `Uri` from a scheme and path. So,
+        // after validating is was a valid scheme, we just have to drop it
+        // if there isn't an :authority.
+        if parts.authority.is_some() {
+            parts.scheme = Some(scheme);
+        }
+    } else if !is_connect || has_protocol {
+        malformed!("malformed headers: missing scheme");
+    }
+
+    if let Some(path) = pseudo.path {
+        if is_connect && !has_protocol {
+            malformed!("malformed headers: :path in CONNECT");
+        }
+
+        // This cannot be empty
+        if path.is_empty() {
+            malformed!("malformed headers: missing path");
+        }
+
+        let maybe_path = cached_path_and_query(&path);
+        parts.path_and_query = Some(maybe_path.or_else(|why| {
+            malformed!("malformed headers: malformed path ({:?}): {}", path, why,)
+        })?);
+    } else if is_connect && has_protocol {
+        malformed!("malformed headers: missing path in extended CONNECT");
+    }
+
+    let uri = match uri::Uri::from_parts(parts) {
+        Ok(uri) => uri,
+        Err(e) => {
+            proto_err!(stream: "error building request: {}; stream={:?}", e, stream_id);
+            return Err(Error::library_reset(stream_id, Reason::PROTOCOL_ERROR));
+        }
+    };
+    // The builder's method/uri/version closures were copies on every
+    // request. The headers map is the one HPACK already decoded.
+    let mut request = Request::new(());
+    *request.method_mut() = method;
+    *request.uri_mut() = uri;
+    *request.version_mut() = Version::HTTP_2;
+    if let Some(protocol) = pseudo.protocol {
+        request.extensions_mut().insert(protocol);
+    }
+    crate::h2_backend::header_pool::replace_map(request.headers_mut(), fields);
+
+    Ok(request)
 }
 
 // ===== impl Handshaking =====
