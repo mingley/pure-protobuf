@@ -2483,6 +2483,7 @@ impl<T> Response<T> {
         self.path.as_deref().map(|p| split_path(p).1)
     }
 
+    #[allow(dead_code, reason = "unit tests chain this; RPC stamping uses apply_outbound")]
     pub(crate) fn with_path(mut self, path: Option<String>) -> Self {
         self.path = path.map(Cow::Owned);
         self
@@ -2493,6 +2494,7 @@ impl<T> Response<T> {
         self
     }
 
+    #[allow(dead_code, reason = "unit tests chain this; RPC stamping uses apply_outbound")]
     pub(crate) fn with_gzip_level(mut self, gzip_level: u32) -> Self {
         self.gzip_level = gzip_level;
         self
@@ -2515,6 +2517,7 @@ impl<T> Response<T> {
         self.gzip_level
     }
 
+    #[allow(dead_code, reason = "unit tests chain this; RPC stamping uses apply_outbound")]
     pub(crate) fn with_compresses_outbound(mut self, compresses_outbound: bool) -> Self {
         self.compresses_outbound = compresses_outbound;
         self
@@ -2537,6 +2540,7 @@ impl<T> Response<T> {
         self.compresses_outbound
     }
 
+    #[allow(dead_code, reason = "unit tests chain this; RPC stamping uses apply_outbound")]
     pub(crate) fn with_accepts_gzip(mut self, accepts_gzip: bool) -> Self {
         self.accepts_gzip = accepts_gzip;
         self
@@ -2560,6 +2564,7 @@ impl<T> Response<T> {
         self.accepts_gzip
     }
 
+    #[allow(dead_code, reason = "unit tests chain this; RPC stamping uses apply_outbound")]
     pub(crate) fn with_accepts_compressed(mut self, accepts_compressed: bool) -> Self {
         self.accepts_compressed = accepts_compressed;
         self
@@ -2582,6 +2587,7 @@ impl<T> Response<T> {
         self.accepts_compressed
     }
 
+    #[allow(dead_code, reason = "unit tests chain this; RPC stamping uses apply_outbound")]
     pub(crate) fn with_deadline(mut self, deadline: Option<tokio::time::Instant>) -> Self {
         self.deadline = deadline;
         self
@@ -2606,6 +2612,7 @@ impl<T> Response<T> {
         self.deadline
     }
 
+    #[allow(dead_code, reason = "unit tests chain this; RPC stamping uses apply_outbound")]
     pub(crate) fn with_timeout(mut self, timeout: Option<Duration>) -> Self {
         self.timeout = timeout;
         self
@@ -2632,6 +2639,7 @@ impl<T> Response<T> {
         self.timeout
     }
 
+    #[allow(dead_code, reason = "unit tests chain this; RPC stamping uses apply_outbound")]
     pub(crate) fn with_peer_timeout(mut self, peer_timeout: Option<Duration>) -> Self {
         self.peer_timeout = peer_timeout;
         self
@@ -2657,6 +2665,7 @@ impl<T> Response<T> {
         self.peer_timeout
     }
 
+    #[allow(dead_code, reason = "unit tests chain this; RPC stamping uses apply_outbound")]
     pub(crate) fn with_rpc_timeout(mut self, rpc_timeout: Option<Duration>) -> Self {
         self.rpc_timeout = rpc_timeout;
         self
@@ -2681,6 +2690,7 @@ impl<T> Response<T> {
         self.rpc_timeout
     }
 
+    #[allow(dead_code, reason = "unit tests chain this; RPC stamping uses apply_outbound")]
     pub(crate) fn with_limits(mut self, limits: Option<MessageLimits>) -> Self {
         self.limits = limits;
         self
@@ -2705,9 +2715,42 @@ impl<T> Response<T> {
         self.limits
     }
 
+    #[allow(dead_code, reason = "unit tests chain this; RPC stamping uses apply_outbound")]
     pub(crate) fn with_send_buffer_size(mut self, send_buffer_size: Option<usize>) -> Self {
         self.send_buffer_size = send_buffer_size;
         self
+    }
+
+    /// Stamp the kernel overlays in place.
+    ///
+    /// The chained `with_*` helpers each take `self` by value. On a reply
+    /// that already owns maps, that is a full move per field.
+    #[inline]
+    pub(crate) fn apply_outbound(
+        &mut self,
+        path: Option<String>,
+        gzip_level: u32,
+        compresses_outbound: bool,
+        accepts_gzip: bool,
+        accepts_compressed: bool,
+        deadline: Option<tokio::time::Instant>,
+        timeout: Option<Duration>,
+        peer_timeout: Option<Duration>,
+        rpc_timeout: Option<Duration>,
+        limits: Option<MessageLimits>,
+        send_buffer_size: Option<usize>,
+    ) {
+        self.path = path.map(Cow::Owned);
+        self.gzip_level = gzip_level;
+        self.compresses_outbound = compresses_outbound;
+        self.accepts_gzip = accepts_gzip;
+        self.accepts_compressed = accepts_compressed;
+        self.deadline = deadline;
+        self.timeout = timeout;
+        self.peer_timeout = peer_timeout;
+        self.rpc_timeout = rpc_timeout;
+        self.limits = limits;
+        self.send_buffer_size = send_buffer_size;
     }
 
     /// Server [`crate::Server::max_send_buffer_size`] overlay, when the kernel is writing this reply.

@@ -636,20 +636,21 @@ impl Rpc {
                 Some(path) => CallLabels::new(path.as_str(), None, CallRole::Server),
                 None => CallLabels::UNLABELED_SERVER,
             };
-            match outcome.and_then(|response| {
+            match outcome.and_then(|mut response| {
                 {
-                    let response = response
-                        .with_path(path)
-                        .with_gzip_level(gzip_level)
-                        .with_compresses_outbound(prefer_gzip)
-                        .with_accepts_gzip(peer_accepts_gzip)
-                        .with_accepts_compressed(wire.accept_gzip)
-                        .with_deadline(deadline)
-                        .with_timeout(timeout)
-                        .with_peer_timeout(peer_timeout)
-                        .with_rpc_timeout(rpc_timeout)
-                        .with_limits(Some(wire.limits))
-                        .with_send_buffer_size(Some(wire.send_buffer));
+                    response.apply_outbound(
+                        path,
+                        gzip_level,
+                        prefer_gzip,
+                        peer_accepts_gzip,
+                        wire.accept_gzip,
+                        deadline,
+                        timeout,
+                        peer_timeout,
+                        rpc_timeout,
+                        Some(wire.limits),
+                        Some(wire.send_buffer),
+                    );
                     // No hook: keep the response in place. The call would only
                     // move it in and return it.
                     if hook.is_none() {
@@ -806,20 +807,21 @@ impl Rpc {
                 Some(path) => CallLabels::new(path.as_str(), None, CallRole::Server),
                 None => CallLabels::UNLABELED_SERVER,
             };
-            match outcome.and_then(|response| {
+            match outcome.and_then(|mut response| {
                 {
-                    let response = response
-                        .with_path(path)
-                        .with_gzip_level(gzip_level)
-                        .with_compresses_outbound(prefer_gzip)
-                        .with_accepts_gzip(peer_accepts_gzip)
-                        .with_accepts_compressed(wire.accept_gzip)
-                        .with_deadline(deadline)
-                        .with_timeout(timeout)
-                        .with_peer_timeout(peer_timeout)
-                        .with_rpc_timeout(rpc_timeout)
-                        .with_limits(Some(wire.limits))
-                        .with_send_buffer_size(Some(wire.send_buffer));
+                    response.apply_outbound(
+                        path,
+                        gzip_level,
+                        prefer_gzip,
+                        peer_accepts_gzip,
+                        wire.accept_gzip,
+                        deadline,
+                        timeout,
+                        peer_timeout,
+                        rpc_timeout,
+                        Some(wire.limits),
+                        Some(wire.send_buffer),
+                    );
                     // No hook: keep the response in place. The call would only
                     // move it in and return it.
                     if hook.is_none() {
@@ -931,20 +933,21 @@ impl Rpc {
                 Some(path) => CallLabels::new(path.as_str(), None, CallRole::Server),
                 None => CallLabels::UNLABELED_SERVER,
             };
-            match outcome.and_then(|response| {
+            match outcome.and_then(|mut response| {
                 {
-                    let response = response
-                        .with_path(path)
-                        .with_gzip_level(gzip_level)
-                        .with_compresses_outbound(prefer_gzip)
-                        .with_accepts_gzip(peer_accepts_gzip)
-                        .with_accepts_compressed(wire.accept_gzip)
-                        .with_deadline(deadline)
-                        .with_timeout(timeout)
-                        .with_peer_timeout(peer_timeout)
-                        .with_rpc_timeout(rpc_timeout)
-                        .with_limits(Some(wire.limits))
-                        .with_send_buffer_size(Some(wire.send_buffer));
+                    response.apply_outbound(
+                        path,
+                        gzip_level,
+                        prefer_gzip,
+                        peer_accepts_gzip,
+                        wire.accept_gzip,
+                        deadline,
+                        timeout,
+                        peer_timeout,
+                        rpc_timeout,
+                        Some(wire.limits),
+                        Some(wire.send_buffer),
+                    );
                     // No hook: keep the response in place. The call would only
                     // move it in and return it.
                     if hook.is_none() {
@@ -1138,20 +1141,21 @@ impl Rpc {
                 Some(path) => CallLabels::new(path.as_str(), None, CallRole::Server),
                 None => CallLabels::UNLABELED_SERVER,
             };
-            match outcome.and_then(|response| {
+            match outcome.and_then(|mut response| {
                 {
-                    let response = response
-                        .with_path(path)
-                        .with_gzip_level(gzip_level)
-                        .with_compresses_outbound(prefer_gzip)
-                        .with_accepts_gzip(peer_accepts_gzip)
-                        .with_accepts_compressed(wire.accept_gzip)
-                        .with_deadline(deadline)
-                        .with_timeout(timeout)
-                        .with_peer_timeout(peer_timeout)
-                        .with_rpc_timeout(rpc_timeout)
-                        .with_limits(Some(wire.limits))
-                        .with_send_buffer_size(Some(wire.send_buffer));
+                    response.apply_outbound(
+                        path,
+                        gzip_level,
+                        prefer_gzip,
+                        peer_accepts_gzip,
+                        wire.accept_gzip,
+                        deadline,
+                        timeout,
+                        peer_timeout,
+                        rpc_timeout,
+                        Some(wire.limits),
+                        Some(wire.send_buffer),
+                    );
                     // No hook: keep the response in place. The call would only
                     // move it in and return it.
                     if hook.is_none() {
