@@ -17,6 +17,7 @@ use crate::transport::{Reason, SendResponse, SendStream, h2 as backend};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD_NO_PAD;
 use bytes::Bytes;
+use futures_util::future::Either;
 use http::{HeaderMap, HeaderValue, Response, StatusCode};
 use std::future::Future;
 use std::pin::Pin;
@@ -471,16 +472,25 @@ fn poll_parked(
     }
 }
 
-pub(crate) async fn wrap_timeout<T>(
+/// No deadline polls `fut` directly. The sleep is boxed in the other arm, so a
+/// call without a timeout does not carry that state machine.
+pub(crate) fn wrap_timeout<T>(
     timeout: Option<Duration>,
-    fut: impl std::future::Future<Output = Result<T, Status>>,
-) -> Result<T, Status> {
+    fut: impl Future<Output = Result<T, Status>>,
+) -> impl Future<Output = Result<T, Status>> {
     match timeout {
-        Some(d) => match tokio::time::timeout(d, fut).await {
-            Ok(r) => r,
-            Err(_) => Err(Status::deadline_exceeded()),
-        },
-        None => fut.await,
+        None => Either::Left(fut),
+        Some(d) => Either::Right(Box::pin(expire_after(d, fut))),
+    }
+}
+
+async fn expire_after<T>(
+    d: Duration,
+    fut: impl Future<Output = Result<T, Status>>,
+) -> Result<T, Status> {
+    match tokio::time::timeout(d, fut).await {
+        Ok(r) => r,
+        Err(_) => Err(Status::deadline_exceeded()),
     }
 }
 
