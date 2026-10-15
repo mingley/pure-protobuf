@@ -3592,11 +3592,14 @@ where
     #[cfg(feature = "copy-counts")]
     crate::copy_counts::note_spawn(crate::copy_counts::SpawnSite::ClientConnectionDriver);
     drop(tokio::spawn(async move {
+        let keepalive = dead.is_some();
         tokio::select! {
             r = conn => {
                 drop(r);
             }
-            _ = crate::keepalive::wait_opt(dead) => {}
+            // Disabled keepalive is `pending()`. Leave it out of the poll
+            // set so a connection wake does not touch it.
+            _ = crate::keepalive::wait_opt(dead), if keepalive => {}
             _ = crate::keepalive::wait(stop_rx) => {}
         }
     }));

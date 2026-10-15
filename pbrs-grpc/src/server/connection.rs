@@ -717,7 +717,9 @@ where
             _ = sleep_until_opt::<R>(force_close), if force_close.is_some() => {
                 break;
             }
-            _ = &mut dead_fut => {
+            // No keepalive task means this future only pends. Polling it
+            // every accept still registers the connection waker.
+            _ = &mut dead_fut, if dead.is_some() => {
                 break;
             }
         }
