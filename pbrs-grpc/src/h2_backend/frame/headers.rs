@@ -109,6 +109,10 @@ struct HeaderBlock {
     /// this instead of walking the fields again.
     stock_facts: Option<crate::wire::headers::StockFacts>,
 
+    /// Receive blocks start empty. The first `load` is the only one that
+    /// may replay a cached block; later CONTINUATION bytes must decode.
+    pristine: bool,
+
     /// Pseudo headers, these are broken out as they must be sent as part of the
     /// headers frame.
     pseudo: Pseudo,
@@ -153,6 +157,7 @@ impl Headers {
                 has_content_length: false,
                 stock: StandardMap::None,
                 stock_facts: None,
+                pristine: false,
                 pseudo,
             },
             flags: HeadersFlag::default(),
@@ -180,6 +185,7 @@ impl Headers {
                 has_content_length: false,
                 stock,
                 stock_facts: None,
+                pristine: false,
                 pseudo: Pseudo::default(),
             },
             flags,
@@ -246,6 +252,7 @@ impl Headers {
                 has_content_length: false,
                 stock: StandardMap::None,
                 stock_facts: None,
+                pristine: true,
                 pseudo: Pseudo::default(),
             },
             flags,
@@ -473,6 +480,7 @@ impl PushPromise {
                 has_content_length: false,
                 stock: StandardMap::None,
                 stock_facts: None,
+                pristine: false,
                 pseudo,
             },
             promised_id,
@@ -567,6 +575,7 @@ impl PushPromise {
                 has_content_length: false,
                 stock: StandardMap::None,
                 stock_facts: None,
+                pristine: true,
                 pseudo: Pseudo::default(),
             },
             promised_id,
@@ -1223,13 +1232,9 @@ impl HeaderBlock {
         max_header_list_size: usize,
         decoder: &mut hpack::Decoder,
     ) -> Result<(), Error> {
-        let fresh = self.fields.is_empty()
-            && self.pseudo.method.is_none()
-            && self.pseudo.scheme.is_none()
-            && self.pseudo.authority.is_none()
-            && self.pseudo.path.is_none()
-            && self.pseudo.protocol.is_none()
-            && self.pseudo.status.is_none();
+        // A new receive block is empty. The flag replaces the field walk on
+        // the hit; a miss still records that the block is no longer empty.
+        let fresh = self.pristine;
         // A repeated block that does not change the dynamic table decodes to
         // the same headers. The saved bytes were checked when stored, so a
         // hit does not walk the block again.
@@ -1244,6 +1249,7 @@ impl HeaderBlock {
                 self.pseudo.status = saved.status;
                 self.field_size = saved.field_size;
                 self.stock_facts = saved.stock_facts;
+                self.pristine = false;
                 src.clear();
                 return Ok(());
             }
@@ -1276,6 +1282,10 @@ impl HeaderBlock {
                 max_header_list_abuse_size,
             )
         });
+
+        if fresh {
+            self.note_filled();
+        }
 
         match res {
             Ok(()) => {}
@@ -1325,6 +1335,21 @@ impl HeaderBlock {
         }
 
         Ok(())
+    }
+
+    /// A partial decode that stored a header is no longer a cache candidate.
+    fn note_filled(&mut self) {
+        if self.fields.is_empty()
+            && self.pseudo.method.is_none()
+            && self.pseudo.scheme.is_none()
+            && self.pseudo.authority.is_none()
+            && self.pseudo.path.is_none()
+            && self.pseudo.protocol.is_none()
+            && self.pseudo.status.is_none()
+        {
+            return;
+        }
+        self.pristine = false;
     }
 
     fn apply_decoded(
