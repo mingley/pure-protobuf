@@ -1973,10 +1973,16 @@ fn drop_stream_ref(inner: &Mutex<Inner>, key: store::Key) {
     me.refs -= 1;
     let mut stream = me.store.resolve(key);
 
-    tracing::trace!("drop_stream_ref; stream={:?}", stream);
-
     // decrement the stream's ref count by 1.
     stream.ref_dec();
+
+    // The id was already unlinked and another handle remains. Close cleanup
+    // ran then; this drop only keeps the count.
+    if stream.protocol_unlinked && stream.ref_count > 0 {
+        return;
+    }
+
+    tracing::trace!("drop_stream_ref; stream={:?}", stream);
 
     let actions = &mut me.actions;
 
