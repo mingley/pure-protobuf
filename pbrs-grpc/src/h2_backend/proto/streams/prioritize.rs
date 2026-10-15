@@ -6,7 +6,6 @@ use crate::h2_backend::frame::Reason;
 use crate::h2_backend::codec::UserError;
 use crate::h2_backend::codec::UserError::*;
 
-use bytes::buf::Take;
 use std::{
     cmp::{self, Ordering},
     fmt, io, mem,
@@ -69,12 +68,14 @@ enum InFlightData {
 }
 
 pub(crate) struct Prioritized<B> {
-    // The buffer
-    inner: Take<B>,
-
+    /// Bytes still owned by this frame. `limit` is how many of them this
+    /// write may send; the tail stays in `inner` for a later frame.
+    ///
+    /// A `bytes::Take` is a `usize` wider than this, and that width was
+    /// copied on every queued frame.
+    inner: B,
+    limit: u32,
     end_of_stream: bool,
-
-    // The stream that this is associated with
     stream: store::Key,
 }
 
@@ -625,7 +626,7 @@ impl Prioritize {
         let mut frame = frame.map(|prioritized| {
             // TODO: Ensure fully written
             eos = prioritized.end_of_stream;
-            prioritized.inner.into_inner()
+            prioritized.inner
         });
 
         if frame.payload().has_remaining() {
@@ -804,7 +805,8 @@ impl Prioritize {
                             }
 
                             Frame::Data(frame.map(|buf| Prioritized {
-                                inner: buf.take(len),
+                                inner: buf,
+                                limit: len as u32,
                                 end_of_stream: eos,
                                 stream: stream.key(),
                             }))
@@ -902,27 +904,44 @@ impl<B> Buf for Prioritized<B>
 where
     B: Buf,
 {
+    #[inline]
     fn remaining(&self) -> usize {
-        self.inner.remaining()
+        cmp::min(self.inner.remaining(), self.limit as usize)
     }
 
+    #[inline]
     fn chunk(&self) -> &[u8] {
-        self.inner.chunk()
+        let bytes = self.inner.chunk();
+        let n = cmp::min(bytes.len(), self.limit as usize);
+        &bytes[..n]
     }
 
+    #[inline]
     fn chunks_vectored<'a>(&'a self, dst: &mut [std::io::IoSlice<'a>]) -> usize {
-        self.inner.chunks_vectored(dst)
+        if self.limit as usize >= self.inner.remaining() {
+            return self.inner.chunks_vectored(dst);
+        }
+        if dst.is_empty() || self.limit == 0 {
+            return 0;
+        }
+        // The frame ends inside a later chunk. One limited slice is a valid
+        // prefix; the next poll continues after `advance`.
+        dst[0] = std::io::IoSlice::new(self.chunk());
+        1
     }
 
+    #[inline]
     fn advance(&mut self, cnt: usize) {
-        self.inner.advance(cnt)
+        assert!(cnt <= self.limit as usize);
+        self.inner.advance(cnt);
+        self.limit -= cnt as u32;
     }
 }
 
 impl<B: Buf> fmt::Debug for Prioritized<B> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("Prioritized")
-            .field("remaining", &self.inner.get_ref().remaining())
+            .field("remaining", &self.inner.remaining())
             .field("end_of_stream", &self.end_of_stream)
             .field("stream", &self.stream)
             .finish()
