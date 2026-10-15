@@ -133,19 +133,26 @@ pub fn deadline_from(timeout: Option<Duration>) -> Option<tokio::time::Instant> 
 /// - `Ok(None)` if no deadline was set (`deadline` is `None`).
 /// - `Ok(Some(remaining))` if the deadline has not expired (`remaining > Duration::ZERO`).
 /// - `Err(Status::deadline_exceeded())` if the deadline has expired (`remaining == Duration::ZERO`).
+#[inline]
 pub fn remaining_timeout(
     deadline: Option<tokio::time::Instant>,
 ) -> Result<Option<Duration>, Status> {
     match deadline {
+        // The steady path has no deadline. Keep the clock read out of line
+        // so each of these checks is a single branch.
         None => Ok(None),
-        Some(at) => {
-            let remaining = at.saturating_duration_since(TokioRuntime::now());
-            if remaining.is_zero() {
-                Err(Status::deadline_exceeded())
-            } else {
-                Ok(Some(remaining))
-            }
-        }
+        Some(at) => remaining_until(at),
+    }
+}
+
+#[cold]
+#[inline(never)]
+fn remaining_until(at: tokio::time::Instant) -> Result<Option<Duration>, Status> {
+    let remaining = at.saturating_duration_since(TokioRuntime::now());
+    if remaining.is_zero() {
+        Err(Status::deadline_exceeded())
+    } else {
+        Ok(Some(remaining))
     }
 }
 
