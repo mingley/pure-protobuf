@@ -1579,7 +1579,7 @@ impl super::Channel {
                 // unobserved call neither constructs nor stores them.
                 let labels =
                     || CallLabels::new(path, Some(channel.authority.as_str()), CallRole::Client);
-                let call_start = std::time::Instant::now();
+                let call_start = crate::telemetry::call_started_at(observer.is_some());
                 if let Some(obs) = &observer {
                     obs.on_call_start(&labels());
                 }
@@ -2010,7 +2010,7 @@ impl super::Channel {
                 // unobserved call neither constructs nor stores them.
                 let labels =
                     || CallLabels::new(path, Some(channel.authority.as_str()), CallRole::Client);
-                let call_start = std::time::Instant::now();
+                let call_start = crate::telemetry::call_started_at(observer.is_some());
                 if let Some(obs) = &observer {
                     obs.on_call_start(&labels());
                 }
@@ -2301,7 +2301,7 @@ impl super::Channel {
                 // unobserved call neither constructs nor stores them.
                 let labels =
                     || CallLabels::new(path, Some(channel.authority.as_str()), CallRole::Client);
-                let call_start = std::time::Instant::now();
+                let call_start = crate::telemetry::call_started_at(observer.is_some());
                 if let Some(obs) = &observer {
                     obs.on_call_start(&labels());
                 }
