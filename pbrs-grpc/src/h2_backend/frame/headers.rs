@@ -390,6 +390,18 @@ impl Headers {
                     if let Some(slot) = kind.slot() {
                         crate::h2_backend::header_pool::recycle(slot, self.header_block.fields);
                     }
+                    // Stock responses and trailers own no pseudo strings. Skipping
+                    // the drop avoids five `None` checks on every replayed block.
+                    if matches!(kind, StandardMap::Response | StandardMap::Trailers) {
+                        debug_assert!(
+                            self.header_block.pseudo.method.is_none()
+                                && self.header_block.pseudo.scheme.is_none()
+                                && self.header_block.pseudo.authority.is_none()
+                                && self.header_block.pseudo.path.is_none()
+                                && self.header_block.pseudo.protocol.is_none()
+                        );
+                        std::mem::forget(self.header_block.pseudo);
+                    }
                     return None;
                 }
             }
