@@ -696,19 +696,17 @@ impl Pseudo {
             return Self::request_general(method, uri, protocol);
         }
         let parts = uri::Parts::from(uri);
-        let path = parts
-            .path_and_query
-            .map(|v| {
-                BytesStr::reused(
-                    crate::h2_backend::hpack::header::ReusedStr::Path,
-                    v.as_str(),
-                )
-            })
-            .unwrap_or_else(|| BytesStr::from_static(""));
-        let path = if path.is_empty() {
-            BytesStr::from_static("/")
+        // Missing and empty paths are not gRPC. The `/` substitute stays out
+        // of the POST prologue.
+        let path = if let Some(v) = parts.path_and_query {
+            let raw = v.as_str();
+            if raw.is_empty() {
+                Self::post_empty_path()
+            } else {
+                BytesStr::reused(crate::h2_backend::hpack::header::ReusedStr::Path, raw)
+            }
         } else {
-            path
+            Self::post_empty_path()
         };
         let mut pseudo = Pseudo {
             method: Some(Method::POST),
@@ -719,13 +717,11 @@ impl Pseudo {
             status: None,
         };
         if let Some(scheme) = parts.scheme {
-            // Standard schemes are a discriminant, not a string scan.
+            // `http` is a discriminant. https and custom schemes are rare.
             pseudo.scheme = Some(if scheme == uri::Scheme::HTTP {
                 BytesStr::from_static("http")
-            } else if scheme == uri::Scheme::HTTPS {
-                BytesStr::from_static("https")
             } else {
-                BytesStr::from(scheme.as_str())
+                Self::post_scheme(scheme)
             });
         }
         if let Some(authority) = parts.authority {
@@ -735,6 +731,22 @@ impl Pseudo {
             ));
         }
         pseudo
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn post_empty_path() -> BytesStr {
+        BytesStr::from_static("/")
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn post_scheme(scheme: uri::Scheme) -> BytesStr {
+        if scheme == uri::Scheme::HTTPS {
+            BytesStr::from_static("https")
+        } else {
+            BytesStr::from(scheme.as_str())
+        }
     }
 
     #[cold]
