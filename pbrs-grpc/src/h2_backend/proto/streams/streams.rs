@@ -1976,9 +1976,10 @@ fn drop_stream_ref(inner: &Mutex<Inner>, key: store::Key) {
     // decrement the stream's ref count by 1.
     stream.ref_dec();
 
-    // The id was already unlinked and another handle remains. Close cleanup
-    // ran then; this drop only keeps the count.
-    if stream.protocol_unlinked && stream.ref_count > 0 {
+    // Another handle still owns an open stream, or close cleanup already
+    // unlinked it. Cancel, wake, and final release only run for the last
+    // reference of a stream that is already closed.
+    if stream.ref_count > 0 && (stream.protocol_unlinked || !stream.is_closed()) {
         return;
     }
 
