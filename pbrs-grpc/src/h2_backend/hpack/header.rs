@@ -284,47 +284,31 @@ impl BytesStr {
     ///
     /// A connection repeats the same `:path` and `:authority`. The first
     /// request allocates; the rest clone the `Bytes` instead of copying.
-    #[allow(
-        unsafe_code,
-        reason = "the thread-local slot is only borrowed inside this function and the call does not re-enter"
-    )]
     pub(crate) fn reused(slot: ReusedStr, value: &str) -> Self {
         if value.len() > 128 {
             return BytesStr::from(value);
         }
-        struct Saved {
-            ptr: usize,
-            len: usize,
-            value: BytesStr,
-        }
-        thread_local! {
-            static SLOTS: [UnsafeCell<Option<Saved>>; 2] =
-                [const { UnsafeCell::new(None) }; 2];
-        }
-        let ptr = value.as_ptr() as usize;
+        use std::sync::atomic::Ordering;
+        let ptr = value.as_ptr();
         let len = value.len();
-        SLOTS.with(|slots| {
-            // SAFETY: `SLOTS` is thread-local and this function does not call
-            // itself while `slot_ref` is alive, so the mutable borrow is unique.
-            let slot_ref = unsafe { &mut *slots[slot as usize].get() };
-            if let Some(existing) = slot_ref.as_mut() {
-                if existing.len == len && existing.ptr == ptr {
-                    return existing.value.clone();
-                }
-                if existing.value.as_str() == value {
-                    existing.ptr = ptr;
-                    existing.len = len;
-                    return existing.value.clone();
-                }
-            }
-            let made = BytesStr::from(value);
-            *slot_ref = Some(Saved {
-                ptr,
-                len,
-                value: made.clone(),
-            });
-            made
-        })
+        let (slot_ptr, slot_len, parsed) = match slot {
+            ReusedStr::Path => (
+                &reuse_cache::PATH_PTR,
+                &reuse_cache::PATH_LEN,
+                &reuse_cache::PATH,
+            ),
+            ReusedStr::Authority => (
+                &reuse_cache::AUTH_PTR,
+                &reuse_cache::AUTH_LEN,
+                &reuse_cache::AUTH,
+            ),
+        };
+        if slot_ptr.load(Ordering::Acquire) == ptr as *mut u8
+            && slot_len.load(Ordering::Relaxed) == len
+        {
+            return parsed.get().unwrap().clone();
+        }
+        reused_miss(slot, value)
     }
 
     #[doc(hidden)]
@@ -365,6 +349,82 @@ impl fmt::Debug for BytesStr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
+}
+
+#[cold]
+#[inline(never)]
+#[allow(
+    unsafe_code,
+    reason = "the thread-local slot is only borrowed inside this function and the call does not re-enter"
+)]
+fn reused_miss(slot: ReusedStr, value: &str) -> BytesStr {
+    struct Saved {
+        ptr: usize,
+        len: usize,
+        value: BytesStr,
+    }
+    thread_local! {
+        static SLOTS: [UnsafeCell<Option<Saved>>; 2] = [const { UnsafeCell::new(None) }; 2];
+    }
+    let ptr = value.as_ptr() as usize;
+    let len = value.len();
+    let made = SLOTS.with(|slots| {
+        // SAFETY: `SLOTS` is thread-local and this function does not call
+        // itself while `slot_ref` is alive, so the mutable borrow is unique.
+        let slot_ref = unsafe { &mut *slots[slot as usize].get() };
+        if let Some(existing) = slot_ref.as_mut() {
+            if existing.len == len && existing.ptr == ptr {
+                return existing.value.clone();
+            }
+            if existing.value.as_str() == value {
+                existing.ptr = ptr;
+                existing.len = len;
+                return existing.value.clone();
+            }
+        }
+        let made = BytesStr::from(value);
+        *slot_ref = Some(Saved {
+            ptr,
+            len,
+            value: made.clone(),
+        });
+        made
+    });
+    let (slot_ptr, slot_len, parsed) = match slot {
+        ReusedStr::Path => (
+            &reuse_cache::PATH_PTR,
+            &reuse_cache::PATH_LEN,
+            &reuse_cache::PATH,
+        ),
+        ReusedStr::Authority => (
+            &reuse_cache::AUTH_PTR,
+            &reuse_cache::AUTH_LEN,
+            &reuse_cache::AUTH,
+        ),
+    };
+    if slot_ptr
+        .load(std::sync::atomic::Ordering::Relaxed)
+        .is_null()
+        && parsed.set(made.clone()).is_ok()
+    {
+        slot_len.store(len, std::sync::atomic::Ordering::Relaxed);
+        slot_ptr.store(
+            value.as_ptr() as *mut u8,
+            std::sync::atomic::Ordering::Release,
+        );
+    }
+    made
+}
+
+mod reuse_cache {
+    use std::sync::atomic::{AtomicPtr, AtomicUsize};
+
+    pub(super) static PATH_PTR: AtomicPtr<u8> = AtomicPtr::new(std::ptr::null_mut());
+    pub(super) static PATH_LEN: AtomicUsize = AtomicUsize::new(0);
+    pub(super) static PATH: std::sync::OnceLock<super::BytesStr> = std::sync::OnceLock::new();
+    pub(super) static AUTH_PTR: AtomicPtr<u8> = AtomicPtr::new(std::ptr::null_mut());
+    pub(super) static AUTH_LEN: AtomicUsize = AtomicUsize::new(0);
+    pub(super) static AUTH: std::sync::OnceLock<super::BytesStr> = std::sync::OnceLock::new();
 }
 
 #[cfg(test)]
