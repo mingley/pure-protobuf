@@ -35,6 +35,13 @@ pub(crate) struct CancelFlag {
 
 impl CancelFlag {
     pub(crate) fn new() -> Arc<Self> {
+        if let Some(flag) = take_spare_cancel() {
+            // The slot may still be marked cancelled from the call that
+            // finished. The next call has not been cancelled.
+            flag.value.store(false, Ordering::Release);
+            flag.armed.store(false, Ordering::Release);
+            return flag;
+        }
         Arc::new(Self {
             value: AtomicBool::new(false),
             armed: AtomicBool::new(false),
@@ -169,12 +176,45 @@ pub(crate) async fn run_handler<T>(
 /// Lives until the response is on the wire so a streaming producer spawned
 /// before the handler returns is not cancelled at return — only when the
 /// stream drains, the client resets, or the deadline fires.
-pub(crate) struct CancelOnDrop(pub(crate) Arc<CancelFlag>);
+pub(crate) struct CancelOnDrop(Option<Arc<CancelFlag>>);
+
+impl CancelOnDrop {
+    pub(crate) fn new(flag: Arc<CancelFlag>) -> Self {
+        Self(Some(flag))
+    }
+}
 
 impl Drop for CancelOnDrop {
     fn drop(&mut self) {
-        self.0.signal();
+        let Some(flag) = self.0.take() else {
+            return;
+        };
+        // Other clones (the handler request, an in-flight reset waiter) still
+        // need the signal. The last owner is the usual end of a call that
+        // nobody waited on: keep the allocation for the next call.
+        if Arc::strong_count(&flag) == 1 {
+            if flag.armed.load(Ordering::Acquire) {
+                flag.wake_waiters();
+                flag.armed.store(false, Ordering::Release);
+            }
+            stash_spare_cancel(flag);
+            return;
+        }
+        flag.signal();
     }
+}
+
+thread_local! {
+    static SPARE_CANCEL: std::cell::Cell<Option<Arc<CancelFlag>>> = const { std::cell::Cell::new(None) };
+}
+
+fn take_spare_cancel() -> Option<Arc<CancelFlag>> {
+    SPARE_CANCEL.try_with(std::cell::Cell::take).ok().flatten()
+}
+
+fn stash_spare_cancel(flag: Arc<CancelFlag>) {
+    // Thread shutdown drops the slot; the flag is freed with the closure.
+    let _ = SPARE_CANCEL.try_with(|cell| cell.set(Some(flag)));
 }
 
 /// Keep [`CancelOnDrop`] alive across `write`.
@@ -870,7 +910,7 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
 
 #[cfg(test)]
 mod cancel_flag_wait_tests {
-    use super::{CancelFlag, wait_cancel};
+    use super::{CancelFlag, CancelOnDrop, wait_cancel};
     use std::future::poll_fn;
     use std::pin::Pin;
     use std::sync::Arc;
@@ -900,6 +940,25 @@ mod cancel_flag_wait_tests {
             Poll::Ready(())
         })
         .await;
+    }
+
+    #[test]
+    fn last_owner_is_reused_and_not_cancelled() {
+        let first = CancelFlag::new();
+        let ptr = Arc::as_ptr(&first);
+        drop(CancelOnDrop::new(first));
+        let second = CancelFlag::new();
+        assert!(!second.is_cancelled());
+        assert!(!second.armed.load(std::sync::atomic::Ordering::Acquire));
+        assert!(std::ptr::eq(Arc::as_ptr(&second), ptr));
+    }
+
+    #[test]
+    fn drop_still_signals_when_another_clone_is_alive() {
+        let flag = CancelFlag::new();
+        let watch = Arc::clone(&flag);
+        drop(CancelOnDrop::new(flag));
+        assert!(watch.is_cancelled());
     }
 }
 

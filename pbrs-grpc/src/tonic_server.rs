@@ -205,7 +205,7 @@ where
             TonicBody::new(IncomingBody::new(recv, Arc::clone(&cancel))),
         );
         let mut service = self.inner.clone();
-        hold_cancel(CancelOnDrop(Arc::clone(&cancel)), async {
+        hold_cancel(CancelOnDrop::new(Arc::clone(&cancel)), async {
             let handler = async {
                 poll_fn(|cx| service.poll_ready(cx))
                     .await
@@ -385,7 +385,7 @@ where
     };
     let request = http::Request::from_parts(parts, body);
     let mut service = server.inner.clone();
-    hold_cancel(CancelOnDrop(Arc::clone(&cancel)), async {
+    hold_cancel(CancelOnDrop::new(Arc::clone(&cancel)), async {
         let handler = async {
             poll_fn(|cx| service.poll_ready(cx))
                 .await

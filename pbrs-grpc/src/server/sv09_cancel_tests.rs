@@ -65,7 +65,7 @@ fn prepare(mode: Mode) -> (CancelOnDrop, Writer, Arc<CancelFlag>, Events) {
     let cancelled = CancelFlag::new();
     let events = Events::default();
     (
-        CancelOnDrop(Arc::clone(&cancelled)),
+        CancelOnDrop::new(Arc::clone(&cancelled)),
         Writer {
             mode,
             cancelled: Arc::clone(&cancelled),

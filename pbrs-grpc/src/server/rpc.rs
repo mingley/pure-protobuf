@@ -1421,7 +1421,7 @@ impl InboundRpc {
             peer_accepts_deflate: self.peer_accepts_deflate,
             #[cfg(feature = "zstd")]
             peer_accepts_zstd: self.peer_accepts_zstd,
-            cancel: CancelOnDrop(self.cancel_tx),
+            cancel: CancelOnDrop::new(self.cancel_tx),
             path: self.path,
             gzip_level: self.config.gzip_level(),
             timeout: self.timeout,
