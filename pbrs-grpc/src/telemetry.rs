@@ -64,6 +64,18 @@ pub struct CallLabels<'a> {
 }
 
 impl<'a> CallLabels<'a> {
+    /// Server labels for a call with no lifecycle observer.
+    ///
+    /// Splitting the path is wasted when nothing reads the labels. Callers
+    /// substitute this instead of [`Self::new`] on that path.
+    pub(crate) const UNLABELED_SERVER: Self = Self {
+        service: "",
+        method: "",
+        path: "",
+        authority: None,
+        role: CallRole::Server,
+    };
+
     /// Construct call labels from a gRPC path, optional authority, and call role.
     #[must_use]
     pub fn new(path: &'a str, authority: Option<&'a str>, role: CallRole) -> Self {

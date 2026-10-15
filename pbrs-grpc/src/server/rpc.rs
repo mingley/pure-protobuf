@@ -633,11 +633,10 @@ impl Rpc {
         };
         hold_cancel(cancel, async move {
             let path_for_labels = observer.as_ref().and_then(|_| path.clone());
-            let call_labels = CallLabels::new(
-                path_for_labels.as_deref().unwrap_or(""),
-                None,
-                CallRole::Server,
-            );
+            let call_labels = match &path_for_labels {
+                Some(path) => CallLabels::new(path.as_str(), None, CallRole::Server),
+                None => CallLabels::UNLABELED_SERVER,
+            };
             match outcome.and_then(|response| {
                 crate::interceptor::intercept_response(
                     response
@@ -798,11 +797,10 @@ impl Rpc {
         } = *prepared;
         hold_cancel(cancel, async move {
             let path_for_labels = observer.as_ref().and_then(|_| path.clone());
-            let call_labels = CallLabels::new(
-                path_for_labels.as_deref().unwrap_or(""),
-                None,
-                CallRole::Server,
-            );
+            let call_labels = match &path_for_labels {
+                Some(path) => CallLabels::new(path.as_str(), None, CallRole::Server),
+                None => CallLabels::UNLABELED_SERVER,
+            };
             match outcome.and_then(|response| {
                 crate::interceptor::intercept_response(
                     response
@@ -918,11 +916,10 @@ impl Rpc {
         };
         hold_cancel(cancel, async move {
             let path_for_labels = observer.as_ref().and_then(|_| path.clone());
-            let call_labels = CallLabels::new(
-                path_for_labels.as_deref().unwrap_or(""),
-                None,
-                CallRole::Server,
-            );
+            let call_labels = match &path_for_labels {
+                Some(path) => CallLabels::new(path.as_str(), None, CallRole::Server),
+                None => CallLabels::UNLABELED_SERVER,
+            };
             match outcome.and_then(|response| {
                 crate::interceptor::intercept_response(
                     response
@@ -1120,11 +1117,10 @@ impl Rpc {
         } = *prepared;
         hold_cancel(cancel, async move {
             let path_for_labels = observer.as_ref().and_then(|_| path.clone());
-            let call_labels = CallLabels::new(
-                path_for_labels.as_deref().unwrap_or(""),
-                None,
-                CallRole::Server,
-            );
+            let call_labels = match &path_for_labels {
+                Some(path) => CallLabels::new(path.as_str(), None, CallRole::Server),
+                None => CallLabels::UNLABELED_SERVER,
+            };
             match outcome.and_then(|response| {
                 crate::interceptor::intercept_response(
                     response
