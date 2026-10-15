@@ -73,12 +73,28 @@ const STOCK_ACCEPT: &[u8] = b"identity,gzip,deflate,zstd";
 /// accept-encoding value, stays an owned map.
 #[inline(never)]
 pub(crate) fn is_stock_response(fields: &HeaderMap) -> Option<bool> {
+    use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize, Ordering};
+    // The recycled stock map keeps the same content-type buffer. After the
+    // first full check, that pointer skips the second header and the compares.
+    static VALUE_PTR: AtomicPtr<u8> = AtomicPtr::new(std::ptr::null_mut());
+    static VALUE_LEN: AtomicUsize = AtomicUsize::new(0);
+    static PROTO: AtomicBool = AtomicBool::new(false);
+
     if fields.len() != 2 {
         return None;
     }
     let mut headers = fields.iter();
-    let (Some((name, value)), Some((accept, accept_value))) = (headers.next(), headers.next())
-    else {
+    let Some((name, value)) = headers.next() else {
+        return None;
+    };
+    let bytes = value.as_bytes();
+    if name == http::header::CONTENT_TYPE
+        && VALUE_PTR.load(Ordering::Acquire) == bytes.as_ptr() as *mut u8
+        && VALUE_LEN.load(Ordering::Relaxed) == bytes.len()
+    {
+        return Some(PROTO.load(Ordering::Relaxed));
+    }
+    let Some((accept, accept_value)) = headers.next() else {
         return None;
     };
     if name != http::header::CONTENT_TYPE || accept.as_str() != "grpc-accept-encoding" {
@@ -87,14 +103,17 @@ pub(crate) fn is_stock_response(fields: &HeaderMap) -> Option<bool> {
     if accept_value.as_bytes() != STOCK_ACCEPT {
         return None;
     }
-    let bytes = value.as_bytes();
-    if bytes == b"application/grpc" {
-        Some(false)
+    let proto = if bytes == b"application/grpc" {
+        false
     } else if bytes == b"application/grpc+proto" {
-        Some(true)
+        true
     } else {
-        None
-    }
+        return None;
+    };
+    VALUE_LEN.store(bytes.len(), Ordering::Relaxed);
+    PROTO.store(proto, Ordering::Relaxed);
+    VALUE_PTR.store(bytes.as_ptr() as *mut u8, Ordering::Release);
+    Some(proto)
 }
 
 thread_local! {
