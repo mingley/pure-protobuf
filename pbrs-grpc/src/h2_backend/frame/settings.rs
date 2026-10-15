@@ -261,7 +261,7 @@ impl Settings {
 
 impl<T> From<Settings> for Frame<T> {
     fn from(src: Settings) -> Frame<T> {
-        Frame::Settings(src)
+        Frame::Settings(Box::new(src))
     }
 }
 

@@ -558,7 +558,7 @@ where
                 self.streams.recv_push_promise(*frame)?;
             }
             Some(Settings(frame)) => {
-                return Ok(ReceivedFrame::Settings(frame));
+                return Ok(ReceivedFrame::Settings(*frame));
             }
             Some(GoAway(frame)) => {
                 // This should prevent starting new streams,

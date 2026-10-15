@@ -83,7 +83,8 @@ pub enum Frame<T = Bytes> {
     Headers(Box<Headers>),
     Priority(Priority),
     PushPromise(Box<PushPromise>),
-    Settings(Settings),
+    /// Boxed so a received DATA frame is not copied at settings-frame size.
+    Settings(Box<Settings>),
     Ping(Ping),
     GoAway(GoAway),
     WindowUpdate(WindowUpdate),
@@ -104,7 +105,7 @@ impl<T> Frame<T> {
             Headers(frame) => Headers(frame),
             Priority(frame) => frame.into(),
             PushPromise(frame) => PushPromise(frame),
-            Settings(frame) => frame.into(),
+            Settings(frame) => Settings(frame),
             Ping(frame) => frame.into(),
             GoAway(frame) => frame.into(),
             WindowUpdate(frame) => frame.into(),
