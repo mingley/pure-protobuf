@@ -124,7 +124,12 @@ pub(super) enum Entry<'a> {
 }
 
 pub(super) struct OccupiedEntry<'a> {
-    ids: indexmap::map::OccupiedEntry<'a, StreamId, SlabIndex>,
+    kind: OccupiedKind<'a>,
+}
+
+enum OccupiedKind<'a> {
+    Map(indexmap::map::OccupiedEntry<'a, StreamId, SlabIndex>),
+    Cached(Key),
 }
 
 pub(super) struct VacantEntry<'a> {
@@ -146,10 +151,23 @@ impl Store {
         }
     }
 
+    /// The only stored stream, without hashing, when `id` is that stream.
+    fn sole_index(&self, id: StreamId) -> Option<SlabIndex> {
+        if self.ids.len() != 1 {
+            return None;
+        }
+        let (only, index) = self.ids.get_index(0)?;
+        if *only == id { Some(*index) } else { None }
+    }
+
     pub fn find_mut(&mut self, id: &StreamId) -> Option<Ptr<'_>> {
-        let index = match self.ids.get(id) {
-            Some(key) => *key,
-            None => return None,
+        let index = if let Some(index) = self.sole_index(*id) {
+            index
+        } else {
+            match self.ids.get(id) {
+                Some(key) => *key,
+                None => return None,
+            }
         };
 
         Some(Ptr {
@@ -177,8 +195,19 @@ impl Store {
     pub fn find_entry(&mut self, id: StreamId) -> Entry<'_> {
         use self::indexmap::map::Entry::*;
 
+        if let Some(index) = self.sole_index(id) {
+            return Entry::Occupied(OccupiedEntry {
+                kind: OccupiedKind::Cached(Key {
+                    index,
+                    stream_id: id,
+                }),
+            });
+        }
+
         match self.ids.entry(id) {
-            Occupied(e) => Entry::Occupied(OccupiedEntry { ids: e }),
+            Occupied(e) => Entry::Occupied(OccupiedEntry {
+                kind: OccupiedKind::Map(e),
+            }),
             Vacant(e) => Entry::Vacant(VacantEntry {
                 ids: e,
                 slab: &mut self.slab,
@@ -525,9 +554,13 @@ impl<'a> fmt::Debug for Ptr<'a> {
 
 impl<'a> OccupiedEntry<'a> {
     pub fn key(&self) -> Key {
-        let stream_id = *self.ids.key();
-        let index = *self.ids.get();
-        Key { index, stream_id }
+        match &self.kind {
+            OccupiedKind::Map(ids) => Key {
+                index: *ids.get(),
+                stream_id: *ids.key(),
+            },
+            OccupiedKind::Cached(key) => *key,
+        }
     }
 }
 
