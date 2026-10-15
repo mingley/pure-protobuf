@@ -1692,7 +1692,13 @@ fn simple_post_request(pseudo: &Pseudo, fields: HeaderMap) -> Result<Request<()>
     // Same static `Uri::default()` as the client stamp. Nothing to free.
     std::mem::forget(std::mem::replace(request.uri_mut(), uri));
     *request.version_mut() = http::Version::HTTP_2;
-    crate::h2_backend::header_pool::replace_map(request.headers_mut(), fields);
+    // A stock request carries its headers in the shared map. `fields` is the
+    // empty map `Request::new` already installed, so swapping them is a copy.
+    if fields.capacity() == 0 {
+        std::mem::forget(fields);
+    } else {
+        crate::h2_backend::header_pool::replace_map(request.headers_mut(), fields);
+    }
     Ok(request)
 }
 

@@ -1274,7 +1274,17 @@ impl HeaderBlock {
                         self.stock_facts = stock_facts;
                     }
                     hpack::CachedHit::Other(saved) => {
-                        crate::h2_backend::header_pool::replace_map(&mut self.fields, saved.fields);
+                        // Stock requests publish the real map separately and
+                        // leave this one empty. The block was just constructed
+                        // empty too, so the replace only moves two zero maps.
+                        if saved.fields.capacity() == 0 && self.fields.capacity() == 0 {
+                            std::mem::forget(saved.fields);
+                        } else {
+                            crate::h2_backend::header_pool::replace_map(
+                                &mut self.fields,
+                                saved.fields,
+                            );
+                        }
                         self.pseudo.method = saved.method;
                         self.pseudo.scheme = saved.scheme;
                         self.pseudo.authority = saved.authority;
