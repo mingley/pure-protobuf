@@ -576,9 +576,15 @@ pub(crate) async fn finish_unary<Resp: CodecMessage>(
     if let Some(tap) = tap {
         tap.log_server_header(&Metadata::from_owned_headers(parts.headers.clone()));
     }
-    // One `grpc-encoding` lookup serves the refuse check, the decode, and
-    // the envelope below.
-    let encoding_token = grpc_encoding(&parts.headers);
+    // A stock response is content-type plus accept-encoding. It has no
+    // grpc-encoding, so the hashed miss is skipped. The flag is reused
+    // when the header map becomes metadata.
+    let stock_response = crate::h2_backend::header_pool::is_stock_response(&parts.headers);
+    let encoding_token = if stock_response {
+        None
+    } else {
+        grpc_encoding(&parts.headers)
+    };
     if let Err(status) = refuse_encoding_reply(encoding_token, accept_gzip) {
         if let Some(tap) = tap {
             tap.log_trailer(&Metadata::new(), &status);
@@ -607,7 +613,7 @@ pub(crate) async fn finish_unary<Resp: CodecMessage>(
     };
     let status = status_from(&parts.headers, trailers.as_ref());
     let encoding = encoding_token.map(str::to_owned);
-    let header_md = metadata_from_response(parts.headers);
+    let header_md = metadata_from_response(parts.headers, stock_response);
     let trailers_md = trailers.map(metadata_from_trailers).unwrap_or_default();
     if let Some(tap) = tap {
         tap.log_trailer(&trailers_md, &status);
@@ -653,9 +659,14 @@ pub(crate) fn finish_stream<Resp: CodecMessage + Send + 'static>(
             return Err(status);
         }
     }
-    // One `grpc-encoding` lookup serves the refuse check, the decode, and
-    // the envelope below.
-    let encoding_token = grpc_encoding(&parts.headers);
+    // A stock response is content-type plus accept-encoding. It has no
+    // grpc-encoding, so the hashed miss is skipped.
+    let stock_response = crate::h2_backend::header_pool::is_stock_response(&parts.headers);
+    let encoding_token = if stock_response {
+        None
+    } else {
+        grpc_encoding(&parts.headers)
+    };
     if let Err(status) = refuse_encoding_reply(encoding_token, accept_gzip) {
         if let Some(tap) = &tap {
             tap.log_server_header(&Metadata::from_owned_headers(parts.headers.clone()));
@@ -665,7 +676,7 @@ pub(crate) fn finish_stream<Resp: CodecMessage + Send + 'static>(
     }
     let encoding = encoding_token.map(str::to_owned);
     let codec = inbound_codec_from_token(encoding_token);
-    let header_md = metadata_from_response(parts.headers);
+    let header_md = metadata_from_response(parts.headers, stock_response);
     if let Some(tap) = &tap {
         tap.log_server_header(&header_md);
     }
@@ -680,8 +691,8 @@ pub(crate) fn finish_stream<Resp: CodecMessage + Send + 'static>(
     .with_encoding(encoding))
 }
 
-fn metadata_from_response(map: HeaderMap) -> Metadata {
-    if crate::h2_backend::header_pool::is_stock_response(&map) {
+fn metadata_from_response(map: HeaderMap, stock: bool) -> Metadata {
+    if stock {
         crate::h2_backend::header_pool::recycle_received_response(map);
         Metadata::new()
     } else {
