@@ -479,7 +479,14 @@ impl<'a> Ptr<'a> {
     /// concerned.
     pub fn unlink(&mut self) {
         let id = self.key.stream_id;
-        self.store.ids.swap_remove(&id);
+        let ids = &mut self.store.ids;
+        // One live stream is the steady case. Clearing it skips the hash
+        // lookup and the index fixup that `swap_remove` does for a larger map.
+        if ids.len() == 1 && ids.get_index(0).is_some_and(|(only, _)| *only == id) {
+            ids.clear();
+            return;
+        }
+        ids.swap_remove(&id);
     }
 }
 
