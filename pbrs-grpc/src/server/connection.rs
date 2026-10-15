@@ -486,6 +486,15 @@ where
     tokio::pin!(drain_fut);
     let dead_fut = crate::keepalive::wait_opt(dead.clone());
     tokio::pin!(dead_fut);
+    // The steady connection has no idle timer, age, or keepalive. Those
+    // branches stay out of the poll set so the accept loop does not check
+    // them on every RPC.
+    enum Wait<T> {
+        Tick,
+        Accepted(T),
+        Shutdown,
+        Stop,
+    }
     loop {
         let in_flight = if track_busy {
             let n = busy.count();
@@ -507,12 +516,36 @@ where
         } else {
             None
         };
-        tokio::select! {
-            biased;
-            // Drive in-flight RPCs before accepting another so a handler that
-            // became ready is not stuck behind the next HEADERS frame.
-            _ = std::future::poll_fn(|cx| poll_admitted(&mut admitted, cx)), if !admitted.is_empty() => {}
-            accepted = conn.accept() => {
+        let steady = age.is_none() && idle.is_none() && dead.is_none() && force_close.is_none();
+        let wait = if steady {
+            tokio::select! {
+                biased;
+                _ = std::future::poll_fn(|cx| poll_admitted(&mut admitted, cx)), if !admitted.is_empty() => Wait::Tick,
+                accepted = conn.accept() => Wait::Accepted(accepted),
+                _ = &mut drain_fut, if !draining => Wait::Shutdown,
+            }
+        } else {
+            tokio::select! {
+                biased;
+                _ = std::future::poll_fn(|cx| poll_admitted(&mut admitted, cx)), if !admitted.is_empty() => Wait::Tick,
+                accepted = conn.accept() => Wait::Accepted(accepted),
+                _ = busy.notified(), if track_busy => Wait::Tick,
+                _ = &mut drain_fut, if !draining => Wait::Shutdown,
+                _ = sleep_until_opt::<R>(age_at), if !draining && age_at.is_some() => Wait::Shutdown,
+                _ = sleep_until_opt::<R>(idle_at), if !draining && idle_at.is_some() => Wait::Shutdown,
+                _ = sleep_until_opt::<R>(force_close), if force_close.is_some() => Wait::Stop,
+                _ = &mut dead_fut, if dead.is_some() => Wait::Stop,
+            }
+        };
+        match wait {
+            Wait::Tick => {}
+            Wait::Stop => break,
+            Wait::Shutdown => {
+                draining = true;
+                force_close = Some(R::now() + grace);
+                conn.graceful_shutdown();
+            }
+            Wait::Accepted(accepted) => {
                 let Some(Ok((request, mut respond))) = accepted else {
                     break;
                 };
@@ -546,52 +579,54 @@ where
                     continue;
                 }
                 let facts = if request.method() == http::Method::POST {
-                    precomputed.unwrap_or_else(|| {
-                        crate::wire::headers::stock_facts(request.headers())
-                    })
+                    precomputed
+                        .unwrap_or_else(|| crate::wire::headers::stock_facts(request.headers()))
                 } else {
                     crate::wire::headers::StockFacts::not_stock()
                 };
                 let stock = facts.stock;
                 if !stock {
-                if let Err(err) = check_request(&request, config.accepts_compressed()) {
-                    if let Some(obs) = dispatch.observer() {
-                        let path = request.uri().path();
-                        let authority = request.uri().authority().map(http::uri::Authority::as_str);
-                        let labels = CallLabels::new(path, authority, CallRole::Server);
-                        let status = match &err {
-                            crate::wire::RequestReject::Grpc(s) => s.clone(),
-                            crate::wire::RequestReject::Http(c) => {
-                                Status::unknown(format!("http {c}"))
-                            }
-                        };
-                        obs.on_server_call_start(&labels);
-                        obs.on_rejection(&RejectionEvent {
-                            call: labels,
-                            reason: RejectionReason::InvalidRequest,
-                            code: status.code(),
-                        });
-                        obs.on_server_call_end(&labels, &status, Duration::ZERO);
-                    }
-                    note_rejected_call(channelz_server, channelz_socket_id);
-                    #[cfg(feature = "grpc-web")]
-                    if let (Some(web), crate::wire::RequestReject::Grpc(status)) =
-                        (crate::web::Mode::from_headers(request.headers()), &err)
-                    {
-                        crate::web::send_trailers_only(
-                            &mut respond,
-                            web,
-                            status.clone(),
-                            &Metadata::new(),
-                        );
+                    if let Err(err) = check_request(&request, config.accepts_compressed()) {
+                        if let Some(obs) = dispatch.observer() {
+                            let path = request.uri().path();
+                            let authority =
+                                request.uri().authority().map(http::uri::Authority::as_str);
+                            let labels = CallLabels::new(path, authority, CallRole::Server);
+                            let status = match &err {
+                                crate::wire::RequestReject::Grpc(s) => s.clone(),
+                                crate::wire::RequestReject::Http(c) => {
+                                    Status::unknown(format!("http {c}"))
+                                }
+                            };
+                            obs.on_server_call_start(&labels);
+                            obs.on_rejection(&RejectionEvent {
+                                call: labels,
+                                reason: RejectionReason::InvalidRequest,
+                                code: status.code(),
+                            });
+                            obs.on_server_call_end(&labels, &status, Duration::ZERO);
+                        }
+                        note_rejected_call(channelz_server, channelz_socket_id);
+                        #[cfg(feature = "grpc-web")]
+                        if let (Some(web), crate::wire::RequestReject::Grpc(status)) =
+                            (crate::web::Mode::from_headers(request.headers()), &err)
+                        {
+                            crate::web::send_trailers_only(
+                                &mut respond,
+                                web,
+                                status.clone(),
+                                &Metadata::new(),
+                            );
+                            continue;
+                        }
+                        reject_request(&mut respond, err, config.accepts_compressed());
                         continue;
                     }
-                    reject_request(&mut respond, err, config.accepts_compressed());
-                    continue;
-                }
                 }
                 let deadline_zero = if stock {
-                    config.rpc_timeout().is_some_and(|timeout| timeout.is_zero())
+                    config
+                        .rpc_timeout()
+                        .is_some_and(|timeout| timeout.is_zero())
                 } else {
                     crate::wire::effective_timeout(request.headers(), config.rpc_timeout())
                         .is_some_and(|timeout| timeout.is_zero())
@@ -613,19 +648,10 @@ where
                     note_rejected_call(channelz_server, channelz_socket_id);
                     #[cfg(feature = "grpc-web")]
                     if let Some(web) = crate::web::Mode::from_headers(request.headers()) {
-                        crate::web::send_trailers_only(
-                            &mut respond,
-                            web,
-                            status,
-                            &Metadata::new(),
-                        );
+                        crate::web::send_trailers_only(&mut respond, web, status, &Metadata::new());
                         continue;
                     }
-                    reject(
-                        &mut respond,
-                        status,
-                        config.accepts_compressed(),
-                    );
+                    reject(&mut respond, status, config.accepts_compressed());
                     continue;
                 }
                 let permit = match &rpc_slots {
@@ -636,7 +662,8 @@ where
                             let status = Status::resource_exhausted("too many concurrent RPCs");
                             if let Some(obs) = dispatch.observer() {
                                 let path = request.uri().path();
-                                let authority = request.uri().authority().map(http::uri::Authority::as_str);
+                                let authority =
+                                    request.uri().authority().map(http::uri::Authority::as_str);
                                 let labels = CallLabels::new(path, authority, CallRole::Server);
                                 obs.on_server_call_start(&labels);
                                 obs.on_rejection(&RejectionEvent {
@@ -657,19 +684,13 @@ where
                                 );
                                 continue;
                             }
-                            reject(
-                                &mut respond,
-                                status,
-                                config.accepts_compressed(),
-                            );
+                            reject(&mut respond, status, config.accepts_compressed());
                             continue;
                         }
                     },
                 };
                 let lease = track_busy.then(|| busy.start());
-                let queued_at = dispatch
-                    .observer()
-                    .map(|_| std::time::Instant::now());
+                let queued_at = dispatch.observer().map(|_| std::time::Instant::now());
                 let dispatch = Arc::clone(&dispatch);
                 let rpc_peer = peer.clone();
                 let byte_budget = dispatch.byte_budget();
@@ -697,30 +718,6 @@ where
                         ))
                         .await;
                 }));
-            }
-            _ = busy.notified(), if track_busy => {}
-            _ = &mut drain_fut, if !draining => {
-                draining = true;
-                force_close = Some(R::now() + grace);
-                conn.graceful_shutdown();
-            }
-            _ = sleep_until_opt::<R>(age_at), if !draining && age_at.is_some() => {
-                draining = true;
-                force_close = Some(R::now() + grace);
-                conn.graceful_shutdown();
-            }
-            _ = sleep_until_opt::<R>(idle_at), if !draining && idle_at.is_some() => {
-                draining = true;
-                force_close = Some(R::now() + grace);
-                conn.graceful_shutdown();
-            }
-            _ = sleep_until_opt::<R>(force_close), if force_close.is_some() => {
-                break;
-            }
-            // No keepalive task means this future only pends. Polling it
-            // every accept still registers the connection waker.
-            _ = &mut dead_fut, if dead.is_some() => {
-                break;
             }
         }
     }
