@@ -257,13 +257,18 @@ where
     }
 
     /// Closes the connection by transitioning to a GOAWAY state
-    /// iff there are no streams or references
-    pub fn maybe_close_connection_if_no_streams(&mut self) {
-        // If we poll() and realize that there are no streams or references
-        // then we can close the connection by transitioning to GOAWAY
+    /// iff there are no streams or references.
+    ///
+    /// Returns whether streams or other references were present after the
+    /// check. The open path returns the value already loaded. The close path
+    /// re-reads after `go_away_now`, matching a caller that observed the
+    /// post-close state.
+    pub fn maybe_close_connection_if_no_streams(&mut self) -> bool {
         if !self.inner.streams.has_streams_or_other_references() {
             self.inner.as_dyn().go_away_now(Reason::NO_ERROR);
+            return self.inner.streams.has_streams_or_other_references();
         }
+        true
     }
 
     /// Checks if there are any streams
