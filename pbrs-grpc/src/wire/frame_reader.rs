@@ -480,7 +480,14 @@ impl<T> WireStream<T> {
                 }
             }
             Poll::Ready(Ok(Some(map))) => {
-                let mut status = status_from(&map, Some(&map));
+                // `status_from` repeats this check. A bare OK trailer is the
+                // common block, so classify it once and recycle from that.
+                let bare_ok = crate::h2_backend::header_pool::is_bare_ok_trailer(&map);
+                let mut status = if bare_ok {
+                    Status::ok()
+                } else {
+                    status_from(&map, Some(&map))
+                };
                 if self.require_response_status {
                     if let Err(framing_error) = self.reader.finish() {
                         if !has_error_status(&map) {
@@ -488,7 +495,12 @@ impl<T> WireStream<T> {
                         }
                     }
                 }
-                self.trailers = metadata_from_trailers(map);
+                self.trailers = if bare_ok {
+                    crate::h2_backend::header_pool::recycle_received_ok_trailer(map);
+                    Metadata::new()
+                } else {
+                    metadata_from_trailers(map)
+                };
                 self.log_response_trailer(&status);
                 if status.code() == Code::Ok {
                     Poll::Ready(Ok(()))
