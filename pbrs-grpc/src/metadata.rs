@@ -132,10 +132,19 @@ impl HeaderStore {
 impl Default for Metadata {
     fn default() -> Self {
         Self {
-            map: HeaderStore::Owned(HeaderMap::new()),
+            // One process-wide empty map. A later insert copies it via
+            // `Arc::make_mut`, so two `Metadata::new()` values stay independent
+            // once either is written. Dropping the untouched value is an
+            // `Arc` decrement, not a `HeaderMap` drop.
+            map: HeaderStore::Shared(empty_metadata_map()),
             sensitive_keys: None,
         }
     }
+}
+
+fn empty_metadata_map() -> Arc<HeaderMap> {
+    static EMPTY: std::sync::OnceLock<Arc<HeaderMap>> = std::sync::OnceLock::new();
+    Arc::clone(EMPTY.get_or_init(|| Arc::new(HeaderMap::new())))
 }
 
 impl Clone for Metadata {
