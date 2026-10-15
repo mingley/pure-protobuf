@@ -1756,12 +1756,17 @@ mod auth_cache {
 
 fn cached_path_and_query(raw: &BytesStr) -> Result<http::uri::PathAndQuery, http::uri::InvalidUri> {
     use std::sync::atomic::Ordering;
-    let ptr = raw.as_ref().as_ptr();
-    let len = raw.len();
-    if path_cache::PTR.load(Ordering::Acquire) == ptr as *mut u8
-        && path_cache::LEN.load(Ordering::Relaxed) == len
-    {
-        return Ok(path_cache::PARSED.get().unwrap().clone());
+    // The decoded path is a fresh buffer each request, so the pointer does
+    // not stay put. Same length and same bytes still reuse the parsed value.
+    let bytes = raw.as_ref();
+    let len = bytes.len();
+    if path_cache::LEN.load(Ordering::Relaxed) == len && len != 0 {
+        let parsed = path_cache::PARSED.get().unwrap();
+        if path_cache::PTR.load(Ordering::Acquire) == bytes.as_ptr() as *mut u8
+            || parsed.as_str().as_bytes() == bytes
+        {
+            return Ok(parsed.clone());
+        }
     }
     cached_path_and_query_miss(raw)
 }
