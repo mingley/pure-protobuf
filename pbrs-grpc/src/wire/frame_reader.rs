@@ -623,10 +623,28 @@ pub(crate) async fn finish_unary<Resp: CodecMessage>(
             return Err(status);
         }
     };
-    let status = status_from(&parts.headers, trailers.as_ref());
+    let (status, trailers_md) = match trailers {
+        Some(map) => {
+            // Same one-header block `status_from` would accept. Classify it
+            // once, then recycle, instead of walking it twice.
+            let bare_ok = crate::h2_backend::header_pool::is_bare_ok_trailer(&map);
+            let status = if bare_ok {
+                Status::ok()
+            } else {
+                status_from(&parts.headers, Some(&map))
+            };
+            let trailers_md = if bare_ok {
+                crate::h2_backend::header_pool::recycle_received_ok_trailer(map);
+                Metadata::new()
+            } else {
+                metadata_from_trailers(map)
+            };
+            (status, trailers_md)
+        }
+        None => (status_from(&parts.headers, None), Metadata::new()),
+    };
     let encoding = encoding_token.map(str::to_owned);
     let header_md = metadata_from_response(parts.headers, stock_response);
-    let trailers_md = trailers.map(metadata_from_trailers).unwrap_or_default();
     if let Some(tap) = tap {
         tap.log_trailer(&trailers_md, &status);
     }
