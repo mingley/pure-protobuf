@@ -873,12 +873,16 @@ impl Prioritize {
         }
     }
 
+    #[inline(never)]
     fn pop_pending_open<'s>(
         &mut self,
         store: &'s mut Store,
         counts: &mut Counts,
     ) -> Option<store::Ptr<'s>> {
-        // check for any pending open streams
+        // Steady state never queues an open. Skip the concurrency check.
+        if self.pending_open.is_empty() {
+            return None;
+        }
         if counts.can_inc_num_send_streams() {
             if let Some(mut stream) = self.pending_open.pop(store) {
                 counts.dec_pending_send_streams();
