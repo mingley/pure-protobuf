@@ -283,6 +283,10 @@ impl Decoder {
         // map when the accept-encoding value matches; do not use `HeaderMap`
         // equality, which hashes.
         if block.decoded.method.is_none()
+            && block.decoded.scheme.is_none()
+            && block.decoded.authority.is_none()
+            && block.decoded.path.is_none()
+            && block.decoded.protocol.is_none()
             && block.decoded.status.is_some()
             && block.decoded.fields.len() == 2
             && block.decoded.stock_facts.is_some_and(|facts| facts.stock)
@@ -300,13 +304,14 @@ impl Decoder {
                 }
                 None => decoded.fields.clone(),
             };
+            // The guard already proved every pseudo except `:status` is absent.
             return Some(SavedHeaders {
                 fields,
-                method: decoded.method.clone(),
-                scheme: decoded.scheme.clone(),
-                authority: decoded.authority.clone(),
-                path: decoded.path.clone(),
-                protocol: decoded.protocol.clone(),
+                method: None,
+                scheme: None,
+                authority: None,
+                path: None,
+                protocol: None,
                 status: decoded.status,
                 field_size: decoded.field_size,
                 stock_facts: decoded.stock_facts,
@@ -316,6 +321,10 @@ impl Decoder {
         // A repeated OK trailer is one header. Reuse the last received map
         // instead of cloning it. The encoder keeps its own trailer slot.
         if block.decoded.method.is_none()
+            && block.decoded.scheme.is_none()
+            && block.decoded.authority.is_none()
+            && block.decoded.path.is_none()
+            && block.decoded.protocol.is_none()
             && block.decoded.status.is_none()
             && crate::h2_backend::header_pool::is_bare_ok_trailer(&block.decoded.fields)
         {
@@ -324,12 +333,12 @@ impl Decoder {
                 crate::h2_backend::header_pool::take_received_ok_trailer(|| decoded.fields.clone());
             return Some(SavedHeaders {
                 fields,
-                method: decoded.method.clone(),
-                scheme: decoded.scheme.clone(),
-                authority: decoded.authority.clone(),
-                path: decoded.path.clone(),
-                protocol: decoded.protocol.clone(),
-                status: decoded.status,
+                method: None,
+                scheme: None,
+                authority: None,
+                path: None,
+                protocol: None,
+                status: None,
                 field_size: decoded.field_size,
                 stock_facts: decoded.stock_facts,
                 shared_fields: None,
@@ -337,7 +346,7 @@ impl Decoder {
         }
         // Only a request. A trailers-only error is also four stock headers,
         // and handing back an empty map would drop `grpc-status`.
-        if block.decoded.method.is_some() {
+        if block.decoded.method.is_some() && block.decoded.protocol.is_none() {
             if let Some(shared) = &block.decoded.shared_fields {
                 crate::h2_backend::header_pool::publish_shared_request(Arc::clone(shared));
                 let decoded = &block.decoded;
@@ -347,7 +356,7 @@ impl Decoder {
                     scheme: decoded.scheme.clone(),
                     authority: decoded.authority.clone(),
                     path: decoded.path.clone(),
-                    protocol: decoded.protocol.clone(),
+                    protocol: None,
                     status: decoded.status,
                     field_size: decoded.field_size,
                     stock_facts: decoded.stock_facts,
