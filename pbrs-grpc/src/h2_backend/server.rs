@@ -1762,9 +1762,15 @@ fn cached_path_and_query(raw: &BytesStr) -> Result<http::uri::PathAndQuery, http
     let len = bytes.len();
     if path_cache::LEN.load(Ordering::Relaxed) == len && len != 0 {
         let parsed = path_cache::PARSED.get().unwrap();
-        if path_cache::PTR.load(Ordering::Acquire) == bytes.as_ptr() as *mut u8
-            || parsed.as_str().as_bytes() == bytes
-        {
+        let ptr = bytes.as_ptr() as *mut u8;
+        // The first decoded buffer is not the one later requests clone.
+        // Remember the stable pointer once the bytes match, and skip the
+        // compare after that.
+        if path_cache::PTR.load(Ordering::Acquire) == ptr {
+            return Ok(parsed.clone());
+        }
+        if parsed.as_str().as_bytes() == bytes {
+            path_cache::PTR.store(ptr, Ordering::Release);
             return Ok(parsed.clone());
         }
     }
