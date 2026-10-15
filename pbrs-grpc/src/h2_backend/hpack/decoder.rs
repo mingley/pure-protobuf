@@ -41,7 +41,8 @@ struct SavedBlock {
 /// Which fast path `cached_block` can take. Computed once, when the block is stored.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum BlockKind {
-    Response,
+    /// `true` when content-type is `application/grpc+proto`.
+    Response(bool),
     Trailers,
     Request,
     Other,
@@ -55,9 +56,16 @@ fn block_kind(decoded: &SavedHeaders) -> BlockKind {
         && decoded.protocol.is_none()
         && decoded.status.is_some()
         && decoded.fields.len() == 2
-        && decoded.stock_facts.is_some_and(|facts| facts.stock)
+        && decoded.stock_facts.is_some_and(|facts| facts.classified)
     {
-        return BlockKind::Response;
+        // Classified responses use the standard accept-encoding. The only
+        // remaining difference is the content-type token.
+        let grpc_proto = decoded
+            .fields
+            .iter()
+            .next()
+            .is_some_and(|(_, value)| value.as_bytes() == b"application/grpc+proto");
+        return BlockKind::Response(grpc_proto);
     }
     if decoded.method.is_none()
         && decoded.scheme.is_none()
@@ -320,16 +328,12 @@ impl Decoder {
         // A repeated stock response is two headers. Reuse the last received
         // map when the accept-encoding value matches; do not use `HeaderMap`
         // equality, which hashes.
-        if block.kind == BlockKind::Response {
+        if let BlockKind::Response(grpc_proto) = block.kind {
             let decoded = &block.decoded;
             let fields = match crate::h2_backend::header_pool::take_received_response() {
-                Some(spare)
-                    if crate::h2_backend::header_pool::same_two_values(&spare, &decoded.fields) =>
-                {
-                    spare
-                }
-                Some(other) => {
-                    crate::h2_backend::header_pool::recycle_received_response(other);
+                Some((spare, spare_proto)) if spare_proto == grpc_proto => spare,
+                Some((other, other_proto)) => {
+                    crate::h2_backend::header_pool::recycle_received_response(other, other_proto);
                     decoded.fields.clone()
                 }
                 None => decoded.fields.clone(),

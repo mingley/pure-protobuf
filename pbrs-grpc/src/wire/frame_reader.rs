@@ -580,7 +580,7 @@ pub(crate) async fn finish_unary<Resp: CodecMessage>(
     // grpc-encoding, so the hashed miss is skipped. The flag is reused
     // when the header map becomes metadata.
     let stock_response = crate::h2_backend::header_pool::is_stock_response(&parts.headers);
-    let encoding_token = if stock_response {
+    let encoding_token = if stock_response.is_some() {
         None
     } else {
         grpc_encoding(&parts.headers)
@@ -662,7 +662,7 @@ pub(crate) fn finish_stream<Resp: CodecMessage + Send + 'static>(
     // A stock response is content-type plus accept-encoding. It has no
     // grpc-encoding, so the hashed miss is skipped.
     let stock_response = crate::h2_backend::header_pool::is_stock_response(&parts.headers);
-    let encoding_token = if stock_response {
+    let encoding_token = if stock_response.is_some() {
         None
     } else {
         grpc_encoding(&parts.headers)
@@ -691,9 +691,9 @@ pub(crate) fn finish_stream<Resp: CodecMessage + Send + 'static>(
     .with_encoding(encoding))
 }
 
-fn metadata_from_response(map: HeaderMap, stock: bool) -> Metadata {
-    if stock {
-        crate::h2_backend::header_pool::recycle_received_response(map);
+fn metadata_from_response(map: HeaderMap, stock: Option<bool>) -> Metadata {
+    if let Some(grpc_proto) = stock {
+        crate::h2_backend::header_pool::recycle_received_response(map, grpc_proto);
         Metadata::new()
     } else {
         Metadata::from_owned_headers(map)

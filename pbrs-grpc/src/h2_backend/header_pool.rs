@@ -61,58 +61,54 @@ pub(crate) fn recycle_received_ok_trailer(map: HeaderMap) {
     RECEIVED_OK_TRAILER.set(Some(map));
 }
 
-/// Content-type plus `grpc-accept-encoding`, and nothing else.
+#[cfg(not(feature = "zstd"))]
+const STOCK_ACCEPT: &[u8] = b"identity,gzip,deflate";
+#[cfg(feature = "zstd")]
+const STOCK_ACCEPT: &[u8] = b"identity,gzip,deflate,zstd";
+
+/// Content-type plus the standard `grpc-accept-encoding`, and nothing else.
 ///
-/// Our encoder writes content-type first. A reversed pair is not stock here;
-/// it stays an owned map and still hides those names from user metadata.
+/// `Some(false)` is `application/grpc`. `Some(true)` is `application/grpc+proto`.
+/// Our encoder writes content-type first. A reversed pair, or any other
+/// accept-encoding value, stays an owned map.
 #[inline(never)]
-pub(crate) fn is_stock_response(fields: &HeaderMap) -> bool {
+pub(crate) fn is_stock_response(fields: &HeaderMap) -> Option<bool> {
     if fields.len() != 2 {
-        return false;
+        return None;
     }
     let mut headers = fields.iter();
-    let (Some((name, value)), Some((accept, _))) = (headers.next(), headers.next()) else {
-        return false;
+    let (Some((name, value)), Some((accept, accept_value))) = (headers.next(), headers.next())
+    else {
+        return None;
     };
+    if name != http::header::CONTENT_TYPE || accept.as_str() != "grpc-accept-encoding" {
+        return None;
+    }
+    if accept_value.as_bytes() != STOCK_ACCEPT {
+        return None;
+    }
     let bytes = value.as_bytes();
-    name == http::header::CONTENT_TYPE
-        && (bytes == b"application/grpc" || bytes == b"application/grpc+proto")
-        && accept.as_str() == "grpc-accept-encoding"
-}
-
-/// Both maps are two-header stock responses in the same order.
-///
-/// Shared header values compare by address first. A clone of a static or
-/// refcounted value keeps that address, so the steady hit does not scan names
-/// or memcmp the bytes.
-pub(crate) fn same_two_values(left: &HeaderMap, right: &HeaderMap) -> bool {
-    let mut left_iter = left.iter();
-    let mut right_iter = right.iter();
-    let (Some((_, left_a)), Some((_, right_a))) = (left_iter.next(), right_iter.next()) else {
-        return false;
-    };
-    let (Some((_, left_b)), Some((_, right_b))) = (left_iter.next(), right_iter.next()) else {
-        return false;
-    };
-    same_value(left_a.as_bytes(), right_a.as_bytes())
-        && same_value(left_b.as_bytes(), right_b.as_bytes())
-}
-
-fn same_value(left: &[u8], right: &[u8]) -> bool {
-    left.len() == right.len() && (left.as_ptr() == right.as_ptr() || left == right)
+    if bytes == b"application/grpc" {
+        Some(false)
+    } else if bytes == b"application/grpc+proto" {
+        Some(true)
+    } else {
+        None
+    }
 }
 
 thread_local! {
-    // Received stock responses only. The encoder keeps `Slot::Response`.
-    static RECEIVED_RESPONSE: Cell<Option<HeaderMap>> = const { Cell::new(None) };
+    // Received stock responses only. The bool is `application/grpc+proto`.
+    // The encoder keeps `Slot::Response`.
+    static RECEIVED_RESPONSE: Cell<Option<(HeaderMap, bool)>> = const { Cell::new(None) };
 }
 
-pub(crate) fn take_received_response() -> Option<HeaderMap> {
+pub(crate) fn take_received_response() -> Option<(HeaderMap, bool)> {
     RECEIVED_RESPONSE.take()
 }
 
-pub(crate) fn recycle_received_response(map: HeaderMap) {
-    RECEIVED_RESPONSE.set(Some(map));
+pub(crate) fn recycle_received_response(map: HeaderMap, grpc_proto: bool) {
+    RECEIVED_RESPONSE.set(Some((map, grpc_proto)));
 }
 
 pub(crate) fn recycle(slot: Slot, map: HeaderMap) {
