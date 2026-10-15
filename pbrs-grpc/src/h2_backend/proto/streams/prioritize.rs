@@ -522,11 +522,12 @@ impl Prioritize {
                     }
                     dst.buffer(frame).expect("invalid frame");
 
-                    // Small DATA frames can be fully encoded by `buffer`,
-                    // which records completion in a single codec slot. Reclaim
-                    // before accepting another frame so that slot is not
-                    // overwritten.
-                    self.reclaim_frame(buffer, store, dst);
+                    // Only a fully encoded small DATA frame occupies the codec
+                    // slot. A larger payload stays in `next` and a header block
+                    // never sets it, so reclaim would only observe None.
+                    if dst.has_last_data_frame() {
+                        self.reclaim_frame(buffer, store, dst);
+                    }
                 }
                 None => {
                     return Ok(BufferStatus::Complete);
