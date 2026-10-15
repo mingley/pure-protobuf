@@ -18,6 +18,35 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use tokio::sync::{Notify, watch};
 
+/// Arm user PINGs only when an interval is configured.
+///
+/// Taking the ping handle registers a waker on every connection poll. Outlined
+/// so the connection task's poll loop does not absorb that branch.
+#[inline(never)]
+pub(crate) fn spawn_if(
+    ping_pong: impl FnOnce() -> Option<backend::PingPong>,
+    interval: Option<Duration>,
+    timeout: Duration,
+) -> Option<watch::Receiver<bool>> {
+    if interval.is_none() {
+        return None;
+    }
+    spawn(ping_pong(), interval, timeout)
+}
+
+/// [`spawn_if`] on runtime `R`.
+#[inline(never)]
+pub(crate) fn spawn_if_in<R: Runtime>(
+    ping_pong: impl FnOnce() -> Option<backend::PingPong>,
+    interval: Option<Duration>,
+    timeout: Duration,
+) -> Option<watch::Receiver<bool>> {
+    if interval.is_none() {
+        return None;
+    }
+    spawn_in::<R>(ping_pong(), interval, timeout)
+}
+
 /// Drive PINGs until one fails or times out. `None` means keepalive is off.
 pub(crate) fn spawn(
     ping_pong: Option<backend::PingPong>,

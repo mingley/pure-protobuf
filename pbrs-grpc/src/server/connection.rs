@@ -468,7 +468,7 @@ where
     let (age, idle, grace) = config.connection_lifetime();
     let track_busy = idle.is_some();
     let age = age.map(|d| crate::config::jitter_age(d, connection_seed(peer.remote)));
-    let dead = crate::keepalive::spawn_in::<R>(conn.ping_pong(), interval, timeout);
+    let dead = crate::keepalive::spawn_if_in::<R>(|| conn.ping_pong(), interval, timeout);
     let born = R::now();
     let busy = crate::keepalive::Busy::new();
     let mut last_idle = born;

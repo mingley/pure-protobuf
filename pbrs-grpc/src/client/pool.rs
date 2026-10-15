@@ -3561,7 +3561,7 @@ where
         .await
         .map_err(|e| Status::unavailable(e.to_string()))?;
     let (interval, timeout) = config.keepalive();
-    let dead = crate::keepalive::spawn(conn.ping_pong(), interval, timeout);
+    let dead = crate::keepalive::spawn_if(|| conn.ping_pong(), interval, timeout);
     // `SendRequest::ready` does not wait for SETTINGS. Drive the connection
     // until send capacity leaves 0, which is when the peer's preface has
     // been applied. Dropping this future on connect_timeout drops `conn`.
