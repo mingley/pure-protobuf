@@ -72,7 +72,19 @@ impl Recorder {
     }
 
     /// Record an inbound DATA chunk.
+    ///
+    /// Fixed-window connections leave `shared` empty. That check stays in
+    /// the caller; the clock and the lock are only for adaptive windows.
+    #[inline]
     pub(crate) fn record_data(&self, len: usize) {
+        if self.shared.is_some() {
+            self.record_enabled(len);
+        }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn record_enabled(&self, len: usize) {
         let Some(shared) = &self.shared else {
             return;
         };
