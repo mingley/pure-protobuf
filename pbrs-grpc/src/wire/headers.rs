@@ -73,10 +73,24 @@ pub(crate) fn encoding_value(codec: CompressionAlgorithm) -> HeaderValue {
 #[cfg(feature = "grpc-web")]
 pub(crate) const HEADER_CAPACITY: usize = 10;
 
-/// One `:path` per worker. Callers pass a `'static` method path, so a hit
-/// is pointer equality and a refcount bump instead of scanning the path.
+/// One `:path` per process. Callers pass a `'static` method path, so a hit
+/// is two atomics and a refcount bump. Parsing stays off this path.
 fn cached_static_path(path: &'static str) -> PathAndQuery {
+    use std::sync::atomic::Ordering;
+    let ptr = path.as_ptr();
+    if static_path::PTR.load(Ordering::Acquire) == ptr as *mut u8
+        && static_path::LEN.load(Ordering::Relaxed) == path.len()
+    {
+        return static_path::PARSED.get().unwrap().clone();
+    }
+    cached_static_path_miss(path)
+}
+
+#[cold]
+#[inline(never)]
+fn cached_static_path_miss(path: &'static str) -> PathAndQuery {
     use std::cell::RefCell;
+    use std::sync::atomic::Ordering;
     thread_local! {
         static LAST: RefCell<Option<(&'static str, PathAndQuery)>> = const { RefCell::new(None) };
     }
@@ -89,14 +103,29 @@ fn cached_static_path(path: &'static str) -> PathAndQuery {
         }
         let parsed = PathAndQuery::from_static(path);
         *slot = Some((path, parsed.clone()));
+        if static_path::PTR.load(Ordering::Relaxed).is_null()
+            && static_path::PARSED.set(parsed.clone()).is_ok()
+        {
+            static_path::LEN.store(path.len(), Ordering::Relaxed);
+            static_path::PTR.store(path.as_ptr() as *mut u8, Ordering::Release);
+        }
         parsed
     })
+}
+
+mod static_path {
+    use std::sync::atomic::{AtomicPtr, AtomicUsize};
+
+    pub(super) static PTR: AtomicPtr<u8> = AtomicPtr::new(std::ptr::null_mut());
+    pub(super) static LEN: AtomicUsize = AtomicUsize::new(0);
+    pub(super) static PARSED: std::sync::OnceLock<super::PathAndQuery> = std::sync::OnceLock::new();
 }
 
 #[allow(
     clippy::too_many_arguments,
     reason = "gRPC request headers: routing, timeout, gzip offer, identity"
 )]
+#[inline(never)]
 pub(crate) fn grpc_request(
     authority: &Authority,
     path: &'static str,
