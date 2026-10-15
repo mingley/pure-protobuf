@@ -1696,6 +1696,21 @@ fn simple_post_request(pseudo: &Pseudo, fields: HeaderMap) -> Result<Request<()>
 }
 
 fn cached_authority(raw: &BytesStr) -> Result<http::uri::Authority, http::uri::InvalidUri> {
+    use std::sync::atomic::Ordering;
+    let ptr = raw.as_ref().as_ptr();
+    let len = raw.len();
+    if auth_cache::PTR.load(Ordering::Acquire) == ptr as *mut u8
+        && auth_cache::LEN.load(Ordering::Relaxed) == len
+    {
+        return Ok(auth_cache::PARSED.get().unwrap().clone());
+    }
+    cached_authority_miss(raw)
+}
+
+/// Worker slot for an authority that is not the process-wide one.
+#[cold]
+#[inline(never)]
+fn cached_authority_miss(raw: &BytesStr) -> Result<http::uri::Authority, http::uri::InvalidUri> {
     use std::cell::RefCell;
     // One repeated authority per worker. The hit path borrows `raw` and only
     // clones the already-parsed value. A miss still parses.
@@ -1715,11 +1730,47 @@ fn cached_authority(raw: &BytesStr) -> Result<http::uri::Authority, http::uri::I
         let bytes = raw.clone().into_inner();
         let parsed = http::uri::Authority::from_maybe_shared(bytes.clone())?;
         *slot = Some((ptr, len, bytes, parsed.clone()));
+        if auth_cache::PTR
+            .load(std::sync::atomic::Ordering::Relaxed)
+            .is_null()
+            && auth_cache::PARSED.set(parsed.clone()).is_ok()
+        {
+            auth_cache::LEN.store(len, std::sync::atomic::Ordering::Relaxed);
+            auth_cache::PTR.store(
+                raw.as_ref().as_ptr() as *mut u8,
+                std::sync::atomic::Ordering::Release,
+            );
+        }
         Ok(parsed)
     })
 }
 
+mod auth_cache {
+    use std::sync::atomic::{AtomicPtr, AtomicUsize};
+
+    pub(super) static PTR: AtomicPtr<u8> = AtomicPtr::new(std::ptr::null_mut());
+    pub(super) static LEN: AtomicUsize = AtomicUsize::new(0);
+    pub(super) static PARSED: std::sync::OnceLock<http::uri::Authority> =
+        std::sync::OnceLock::new();
+}
+
 fn cached_path_and_query(raw: &BytesStr) -> Result<http::uri::PathAndQuery, http::uri::InvalidUri> {
+    use std::sync::atomic::Ordering;
+    let ptr = raw.as_ref().as_ptr();
+    let len = raw.len();
+    if path_cache::PTR.load(Ordering::Acquire) == ptr as *mut u8
+        && path_cache::LEN.load(Ordering::Relaxed) == len
+    {
+        return Ok(path_cache::PARSED.get().unwrap().clone());
+    }
+    cached_path_and_query_miss(raw)
+}
+
+#[cold]
+#[inline(never)]
+fn cached_path_and_query_miss(
+    raw: &BytesStr,
+) -> Result<http::uri::PathAndQuery, http::uri::InvalidUri> {
     use std::cell::RefCell;
     thread_local! {
         static LAST: RefCell<Option<(usize, usize, Bytes, http::uri::PathAndQuery)>> =
@@ -1737,8 +1788,28 @@ fn cached_path_and_query(raw: &BytesStr) -> Result<http::uri::PathAndQuery, http
         let bytes = raw.clone().into_inner();
         let parsed = http::uri::PathAndQuery::from_maybe_shared(bytes.clone())?;
         *slot = Some((ptr, len, bytes, parsed.clone()));
+        if path_cache::PTR
+            .load(std::sync::atomic::Ordering::Relaxed)
+            .is_null()
+            && path_cache::PARSED.set(parsed.clone()).is_ok()
+        {
+            path_cache::LEN.store(len, std::sync::atomic::Ordering::Relaxed);
+            path_cache::PTR.store(
+                raw.as_ref().as_ptr() as *mut u8,
+                std::sync::atomic::Ordering::Release,
+            );
+        }
         Ok(parsed)
     })
+}
+
+mod path_cache {
+    use std::sync::atomic::{AtomicPtr, AtomicUsize};
+
+    pub(super) static PTR: AtomicPtr<u8> = AtomicPtr::new(std::ptr::null_mut());
+    pub(super) static LEN: AtomicUsize = AtomicUsize::new(0);
+    pub(super) static PARSED: std::sync::OnceLock<http::uri::PathAndQuery> =
+        std::sync::OnceLock::new();
 }
 
 impl proto::Peer for Peer {
