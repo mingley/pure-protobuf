@@ -4,6 +4,7 @@ use indexmap::{self, IndexMap};
 
 use std::convert::Infallible;
 use std::fmt;
+use std::hash::{BuildHasher, Hash, Hasher};
 use std::marker::PhantomData;
 use std::ops;
 
@@ -11,7 +12,66 @@ use std::ops;
 #[derive(Debug)]
 pub(super) struct Store {
     slab: slab::Slab<Stream>,
-    ids: IndexMap<StreamId, SlabIndex>,
+    ids: IndexMap<StreamId, SlabIndex, StreamIdHasher>,
+}
+
+/// Identity hash for stream ids.
+///
+/// SipHash of a 31-bit id is most of a stream lookup. The id is already a
+/// unique key, so the hash is the id. Sixteen bytes match `RandomState`,
+/// which keeps this map the same size.
+#[derive(Clone, Default)]
+struct StreamIdHasher {
+    #[allow(
+        dead_code,
+        reason = "matches RandomState so Store does not change size"
+    )]
+    pad: [u64; 2],
+}
+
+impl BuildHasher for StreamIdHasher {
+    type Hasher = IdentityU32;
+
+    fn build_hasher(&self) -> IdentityU32 {
+        IdentityU32 { hash: 0 }
+    }
+
+    fn hash_one<T: Hash>(&self, x: T) -> u64 {
+        let mut hasher = IdentityU32 { hash: 0 };
+        x.hash(&mut hasher);
+        hasher.hash
+    }
+}
+
+const _: () = {
+    assert!(
+        std::mem::size_of::<StreamIdHasher>()
+            == std::mem::size_of::<std::collections::hash_map::RandomState>()
+    );
+    assert!(
+        std::mem::align_of::<StreamIdHasher>()
+            == std::mem::align_of::<std::collections::hash_map::RandomState>()
+    );
+};
+
+struct IdentityU32 {
+    hash: u64,
+}
+
+impl Hasher for IdentityU32 {
+    fn finish(&self) -> u64 {
+        self.hash
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        if let Ok(bytes) = <[u8; 4]>::try_from(bytes) {
+            self.write_u32(u32::from_le_bytes(bytes));
+        }
+    }
+
+    fn write_u32(&mut self, i: u32) {
+        self.hash = u64::from(i);
+    }
 }
 
 /// "Pointer" to an entry in the store
@@ -82,7 +142,7 @@ impl Store {
     pub fn new() -> Self {
         Store {
             slab: slab::Slab::new(),
-            ids: IndexMap::new(),
+            ids: IndexMap::with_hasher(StreamIdHasher::default()),
         }
     }
 
