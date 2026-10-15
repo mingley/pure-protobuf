@@ -316,6 +316,7 @@ impl Registry {
         ChannelHandle {
             registry: Arc::clone(self),
             id,
+            entry,
         }
     }
 
@@ -748,21 +749,14 @@ impl Registry {
     /// Count one call started on a channel (lock-free).
     pub fn note_call_started(&self, id: ChannelId) {
         if let Some(entry) = self.channel(id) {
-            entry.calls_started.fetch_add(1, Ordering::Relaxed);
-            entry
-                .last_call_started_ms
-                .store(coarse_now_ms(), Ordering::Relaxed);
+            entry.record_call_started();
         }
     }
 
     /// Count one call completed on a channel (lock-free).
     pub fn note_call_end(&self, id: ChannelId, ok: bool) {
         if let Some(entry) = self.channel(id) {
-            if ok {
-                entry.calls_succeeded.fetch_add(1, Ordering::Relaxed);
-            } else {
-                entry.calls_failed.fetch_add(1, Ordering::Relaxed);
-            }
+            entry.record_call_end(ok);
         }
     }
 
@@ -1163,6 +1157,9 @@ pub struct EntityCounts {
 pub struct ChannelHandle {
     registry: Arc<Registry>,
     id: ChannelId,
+    /// The registered entry. Calls increment this directly instead of
+    /// locking the channel map again.
+    entry: Arc<ChannelEntry>,
 }
 
 impl ChannelHandle {
@@ -1170,6 +1167,28 @@ impl ChannelHandle {
     #[must_use]
     pub fn id(&self) -> ChannelId {
         self.id
+    }
+
+    /// Clone of the registered entry for per-call counters.
+    #[must_use]
+    pub(crate) fn entry(&self) -> Arc<ChannelEntry> {
+        Arc::clone(&self.entry)
+    }
+}
+
+impl ChannelEntry {
+    pub(crate) fn record_call_started(&self) {
+        self.calls_started.fetch_add(1, Ordering::Relaxed);
+        self.last_call_started_ms
+            .store(coarse_now_ms(), Ordering::Relaxed);
+    }
+
+    pub(crate) fn record_call_end(&self, ok: bool) {
+        if ok {
+            self.calls_succeeded.fetch_add(1, Ordering::Relaxed);
+        } else {
+            self.calls_failed.fetch_add(1, Ordering::Relaxed);
+        }
     }
 }
 

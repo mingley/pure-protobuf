@@ -329,7 +329,7 @@ impl super::Channel {
                     observer.clone(),
                     owned_labels.clone(),
                     call_start,
-                    channel.inner.channelz.id(),
+                    channel.inner.channelz.entry(),
                 );
 
                 if let Err(status) = prepared {
