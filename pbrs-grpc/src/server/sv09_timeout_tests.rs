@@ -6,7 +6,7 @@
     reason = "explicit request-phase lifetime, timeout and panic assertions"
 )]
 
-use super::{notify_deadline, run_handler};
+use super::{CancelFlag, notify_deadline, run_handler};
 use crate::status::{Code, Status};
 use crate::transport::h2 as backend;
 use crate::transport::{
@@ -20,7 +20,6 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::task::{Context, Poll};
 use std::time::Duration;
-use tokio::sync::watch;
 
 #[expect(
     clippy::disallowed_types,
@@ -30,7 +29,7 @@ type Events = Arc<std::sync::Mutex<Vec<(&'static str, bool)>>>;
 
 #[derive(Clone)]
 struct State {
-    cancelled: watch::Receiver<bool>,
+    cancelled: Arc<CancelFlag>,
     events: Events,
     drops: Arc<AtomicUsize>,
 }
@@ -40,7 +39,7 @@ impl State {
         self.events
             .lock()
             .expect("events")
-            .push((name, *self.cancelled.borrow()));
+            .push((name, self.cancelled.is_cancelled()));
     }
 
     fn snapshot(&self) -> Vec<(&'static str, bool)> {
@@ -72,7 +71,7 @@ impl Future for Phase {
                 this.state.record("ready");
                 Poll::Ready(Ok(()))
             }
-            Mode::ReadyOnCancel if *this.state.cancelled.borrow() => {
+            Mode::ReadyOnCancel if this.state.cancelled.is_cancelled() => {
                 this.state.record("ready");
                 Poll::Ready(Ok(()))
             }
@@ -95,8 +94,9 @@ impl Drop for Phase {
     }
 }
 
-fn prepare(mode: Mode) -> (Phase, watch::Sender<bool>, State) {
-    let (cancel, cancelled) = watch::channel(false);
+fn prepare(mode: Mode) -> (Phase, Arc<CancelFlag>, State) {
+    let cancel = CancelFlag::new();
+    let cancelled = Arc::clone(&cancel);
     let state = State {
         cancelled,
         events: Events::default(),
@@ -137,7 +137,7 @@ async fn finish_phase(
     shape: Shape,
     timeout: Option<Duration>,
     phase: Phase,
-    cancel: watch::Sender<bool>,
+    cancel: Arc<CancelFlag>,
     state: State,
 ) -> Result<(), Status> {
     let outcome = through_timeout(shape, timeout, phase).await;

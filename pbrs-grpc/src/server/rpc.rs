@@ -35,7 +35,6 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::watch;
 
 /// One inbound RPC, before its call shape has been chosen.
 ///
@@ -1281,7 +1280,7 @@ struct InboundRpc {
     deadline: Option<tokio::time::Instant>,
     prefer_gzip: bool,
     limits: MessageLimits,
-    cancel_tx: watch::Sender<bool>,
+    cancel_tx: Arc<super::drain::CancelFlag>,
 }
 
 impl InboundRpc {
@@ -1355,7 +1354,7 @@ impl InboundRpc {
         let limits = config.limits();
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
         let prefer_gzip = config.compresses_outbound();
-        let (cancel_tx, _) = watch::channel(false);
+        let cancel_tx = super::drain::CancelFlag::new();
         Box::new(Self {
             respond,
             config,
@@ -1494,8 +1493,8 @@ impl InboundRpc {
         }
         let mut req = self.base_request(framed.message);
         req.set_compressed(framed.compressed);
-        req.set_cancel(self.cancel_tx.subscribe());
-        let on_reset = self.cancel_tx.clone();
+        req.set_cancel(Arc::clone(&self.cancel_tx));
+        let on_reset = Arc::clone(&self.cancel_tx);
         let handler = handler(req);
         run_handler_fut(self, on_reset, handler).await
     }
@@ -1546,8 +1545,8 @@ impl InboundRpc {
         ))
         .bind_channelz_socket_count_only(self.channelz_socket);
         let mut req = self.base_request(stream);
-        req.set_cancel(self.cancel_tx.subscribe());
-        let on_reset = self.cancel_tx.clone();
+        req.set_cancel(Arc::clone(&self.cancel_tx));
+        let on_reset = Arc::clone(&self.cancel_tx);
         let timeout = self.timeout;
         let handler = handler(req);
         wrap_timeout(timeout, run_handler_fut(self, on_reset, handler)).await
@@ -1613,7 +1612,7 @@ fn read_unary_frame_fut<'a, Req: CodecMessage + 'a>(
 
 fn run_handler_fut<'a, T: 'a>(
     inbound: &'a mut InboundRpc,
-    on_reset: watch::Sender<bool>,
+    on_reset: Arc<super::drain::CancelFlag>,
     handler: impl Future<Output = Result<T, Status>> + 'a,
 ) -> std::pin::Pin<Box<impl Future<Output = Result<T, Status>> + 'a>> {
     let tap = inbound.binlog.as_ref();

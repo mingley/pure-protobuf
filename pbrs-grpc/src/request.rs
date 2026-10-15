@@ -12,7 +12,6 @@ use std::fmt;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
-#[cfg(unix)]
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
@@ -177,7 +176,7 @@ pub struct Request<T> {
     concurrent_rpc_limit: Option<usize>,
     send_buffer_size: usize,
     encoding: Option<String>,
-    cancel: Option<watch::Receiver<bool>>,
+    cancel: Option<Arc<crate::server::drain::CancelFlag>>,
     extensions: http::Extensions,
     /// Call-site [`Request::set_user_agent`] / interceptor
     /// [`Outgoing::set_user_agent`] override. `None` uses the channel value.
@@ -773,7 +772,7 @@ impl<T> Request<T> {
     /// Spawned work should await [`Self::cancelled`] rather than polling this.
     #[must_use]
     pub fn is_cancelled(&self) -> bool {
-        self.cancel.as_ref().is_some_and(|rx| *rx.borrow())
+        self.cancel.as_ref().is_some_and(|flag| flag.is_cancelled())
     }
 
     /// Resolves when this inbound RPC is cancelled.
@@ -794,11 +793,11 @@ impl<T> Request<T> {
     /// request you built to send this never resolves.
     #[must_use = "cancelled does nothing unless awaited"]
     pub fn cancelled(&self) -> impl Future<Output = ()> + Send + 'static + use<T> {
-        when_cancelled(self.cancel.clone())
+        crate::server::drain::wait_cancel(self.cancel.clone())
     }
 
-    pub(crate) fn set_cancel(&mut self, rx: watch::Receiver<bool>) {
-        self.cancel = Some(rx);
+    pub(crate) fn set_cancel(&mut self, flag: Arc<crate::server::drain::CancelFlag>) {
+        self.cancel = Some(flag);
     }
 
     /// HTTP/2 `:authority` the peer sent, e.g. `127.0.0.1:50051`.
@@ -1693,7 +1692,7 @@ pub struct Parts {
     concurrent_rpc_limit: Option<usize>,
     send_buffer_size: usize,
     encoding: Option<String>,
-    cancel: Option<watch::Receiver<bool>>,
+    cancel: Option<Arc<crate::server::drain::CancelFlag>>,
     extensions: http::Extensions,
     user_agent: Option<http::HeaderValue>,
     diagnostic_config: Option<crate::telemetry::DiagnosticConfig>,
@@ -1997,14 +1996,14 @@ impl Parts {
     /// See [`Request::is_cancelled`].
     #[must_use]
     pub fn is_cancelled(&self) -> bool {
-        self.cancel.as_ref().is_some_and(|rx| *rx.borrow())
+        self.cancel.as_ref().is_some_and(|flag| flag.is_cancelled())
     }
 
     /// Resolves when this inbound RPC is cancelled.
     /// See [`Request::cancelled`].
     #[must_use = "cancelled does nothing unless awaited"]
     pub fn cancelled(&self) -> impl Future<Output = ()> + Send + 'static + use<> {
-        when_cancelled(self.cancel.clone())
+        crate::server::drain::wait_cancel(self.cancel.clone())
     }
 
     /// HTTP/2 `:authority` the peer sent. See [`Request::authority`].
@@ -3275,21 +3274,6 @@ impl CallHandle {
     }
 }
 
-async fn when_cancelled(rx: Option<watch::Receiver<bool>>) {
-    let Some(mut rx) = rx else {
-        std::future::pending::<()>().await;
-        return;
-    };
-    loop {
-        if *rx.borrow() {
-            return;
-        }
-        if rx.changed().await.is_err() {
-            return;
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::{Request, Response};
@@ -3488,11 +3472,11 @@ mod tests {
         assert!(inherit.user_agent().is_none());
         assert!(!inherit.user_agent_is_set());
         assert!(!Request::new(0u32).is_cancelled());
-        let (tx, rx) = tokio::sync::watch::channel(false);
+        let flag = crate::server::drain::CancelFlag::new();
         let mut flagged = Request::new(0u32);
-        flagged.set_cancel(rx);
+        flagged.set_cancel(std::sync::Arc::clone(&flag));
         assert!(!flagged.is_cancelled());
-        tx.send(true).expect("signal");
+        flag.signal();
         assert!(flagged.is_cancelled());
         let shown = format!("{flagged:?}");
         assert!(shown.contains("cancelled: true"), "{shown}");

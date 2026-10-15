@@ -16,15 +16,98 @@ use crate::wire::{
 };
 use std::future::{Future, poll_fn};
 use std::pin::Pin;
-use std::sync::Arc;
-use std::task::{Context, Poll};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::task::{Context, Poll, Waker};
 use std::time::Duration;
-use tokio::sync::watch;
+
+/// Server-side cancel signal.
+///
+/// A watch channel notifies when its last receiver is dropped. Handlers that
+/// never call [`Request::cancelled`] still paid that, so this flag only wakes
+/// tasks that have started waiting.
+pub(crate) struct CancelFlag {
+    value: AtomicBool,
+    waiters: Mutex<Vec<Waker>>,
+}
+
+impl CancelFlag {
+    pub(crate) fn new() -> Arc<Self> {
+        Arc::new(Self {
+            value: AtomicBool::new(false),
+            waiters: Mutex::new(Vec::new()),
+        })
+    }
+
+    pub(crate) fn is_cancelled(&self) -> bool {
+        self.value.load(Ordering::Acquire)
+    }
+
+    pub(crate) fn signal(&self) {
+        self.value.store(true, Ordering::Release);
+        let waiters = match self.waiters.lock() {
+            Ok(mut waiters) => std::mem::take(&mut *waiters),
+            Err(poisoned) => std::mem::take(&mut *poisoned.into_inner()),
+        };
+        for waiter in waiters {
+            waiter.wake();
+        }
+    }
+}
+
+/// Resolves when `flag` is signalled. `None` never resolves.
+pub(crate) fn wait_cancel(flag: Option<Arc<CancelFlag>>) -> WaitCancel {
+    WaitCancel { flag, slot: None }
+}
+
+/// [`wait_cancel`]'s state.
+pub(crate) struct WaitCancel {
+    flag: Option<Arc<CancelFlag>>,
+    slot: Option<usize>,
+}
+
+impl Future for WaitCancel {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        let this = self.get_mut();
+        let Some(flag) = this.flag.as_ref() else {
+            return Poll::Pending;
+        };
+        if flag.is_cancelled() {
+            return Poll::Ready(());
+        }
+        {
+            let mut waiters = match flag.waiters.lock() {
+                Ok(waiters) => waiters,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            if let Some(index) = this.slot {
+                if let Some(waiter) = waiters.get_mut(index) {
+                    if !waiter.will_wake(cx.waker()) {
+                        *waiter = cx.waker().clone();
+                    }
+                } else {
+                    this.slot = Some(waiters.len());
+                    waiters.push(cx.waker().clone());
+                }
+            } else {
+                this.slot = Some(waiters.len());
+                waiters.push(cx.waker().clone());
+            }
+        }
+        if flag.is_cancelled() {
+            Poll::Ready(())
+        } else {
+            Poll::Pending
+        }
+    }
+}
 
 /// Wake spawned work as soon as the server deadline wins, not after trailers.
-pub(crate) fn notify_deadline<T>(outcome: &Result<T, Status>, cancel: &watch::Sender<bool>) {
+pub(crate) fn notify_deadline<T>(outcome: &Result<T, Status>, cancel: &CancelFlag) {
     if matches!(outcome, Err(s) if s.code() == Code::DeadlineExceeded) {
-        cancel.send(true).ok();
+        cancel.signal();
     }
 }
 
@@ -46,7 +129,7 @@ pub(crate) async fn wait_client_reset(respond: &mut backend::SendResponse) -> St
 /// `Pending` and is dropped, the same as before.
 pub(crate) async fn run_handler<T>(
     respond: &mut backend::SendResponse,
-    on_reset: watch::Sender<bool>,
+    on_reset: Arc<CancelFlag>,
     handler: impl Future<Output = Result<T, Status>>,
     tap: Option<&crate::binlog::CallLogger>,
 ) -> Result<T, Status> {
@@ -55,7 +138,7 @@ pub(crate) async fn run_handler<T>(
         biased;
         result = &mut handler => result,
         gone = wait_client_reset(respond) => {
-            on_reset.send(true).ok();
+            on_reset.signal();
             if let Some(tap) = tap {
                 tap.log_cancel();
             }
@@ -72,11 +155,11 @@ pub(crate) async fn run_handler<T>(
 /// Lives until the response is on the wire so a streaming producer spawned
 /// before the handler returns is not cancelled at return — only when the
 /// stream drains, the client resets, or the deadline fires.
-pub(crate) struct CancelOnDrop(pub(crate) watch::Sender<bool>);
+pub(crate) struct CancelOnDrop(pub(crate) Arc<CancelFlag>);
 
 impl Drop for CancelOnDrop {
     fn drop(&mut self) {
-        self.0.send(true).ok();
+        self.0.signal();
     }
 }
 

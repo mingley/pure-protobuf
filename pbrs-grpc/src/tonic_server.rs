@@ -199,11 +199,13 @@ where
             return;
         }
         parts.extensions.extend(extensions);
-        let (cancel, cancelled) = watch::channel(false);
-        let request =
-            http::Request::from_parts(parts, TonicBody::new(IncomingBody::new(recv, cancelled)));
+        let cancel = crate::server::drain::CancelFlag::new();
+        let request = http::Request::from_parts(
+            parts,
+            TonicBody::new(IncomingBody::new(recv, Arc::clone(&cancel))),
+        );
         let mut service = self.inner.clone();
-        hold_cancel(CancelOnDrop(cancel.clone()), async {
+        hold_cancel(CancelOnDrop(Arc::clone(&cancel)), async {
             let handler = async {
                 poll_fn(|cx| service.poll_ready(cx))
                     .await
@@ -213,10 +215,10 @@ where
             let outcome = tokio::select! {
                 biased;
                 () = wait_deadline(deadline) => {
-                    cancel.send(true).ok();
+                    cancel.signal();
                     Err(Status::deadline_exceeded())
                 }
-                result = run_handler(&mut respond, cancel.clone(), handler, None) => result,
+                result = run_handler(&mut respond, Arc::clone(&cancel), handler, None) => result,
             };
             let response = match outcome {
                 Ok(response) => response,
@@ -239,7 +241,7 @@ where
             let result = tokio::select! {
                 biased;
                 () = wait_deadline(deadline) => {
-                    cancel.send(true).ok();
+                    cancel.signal();
                     Err(Status::deadline_exceeded())
                 }
                 result = drain_response(&mut send, body, config.send_buffer_size()) => result,
@@ -247,7 +249,7 @@ where
             match result {
                 Ok(ok) => accounting.ok = ok,
                 Err(status) => {
-                    cancel.send(true).ok();
+                    cancel.signal();
                     if let Ok(trailers) = crate::wire::grpc_trailers(&status) {
                         send.send_trailers(trailers).ok();
                     }
@@ -355,8 +357,8 @@ where
         parts.headers.remove("grpc-accept-encoding");
     }
     parts.extensions.extend(extensions);
-    let (cancel, cancelled) = watch::channel(false);
-    let incoming = IncomingBody::new(recv, cancelled);
+    let cancel = crate::server::drain::CancelFlag::new();
+    let incoming = IncomingBody::new(recv, Arc::clone(&cancel));
     let body = if let Some(max) = input_gzip {
         TonicBody::new(gzip::GzipBody::new(incoming, limits, max))
     } else if compression_disabled {
@@ -383,7 +385,7 @@ where
     };
     let request = http::Request::from_parts(parts, body);
     let mut service = server.inner.clone();
-    hold_cancel(CancelOnDrop(cancel.clone()), async {
+    hold_cancel(CancelOnDrop(Arc::clone(&cancel)), async {
         let handler = async {
             poll_fn(|cx| service.poll_ready(cx))
                 .await
@@ -393,10 +395,10 @@ where
         let outcome = tokio::select! {
             biased;
             () = wait_deadline(deadline) => {
-                cancel.send(true).ok();
+                cancel.signal();
                 Err(Status::deadline_exceeded())
             }
-            result = run_handler(&mut respond, cancel.clone(), handler, None) => result,
+            result = run_handler(&mut respond, Arc::clone(&cancel), handler, None) => result,
         };
         let response = match outcome {
             Ok(response) => response,
@@ -504,7 +506,7 @@ where
         let result = tokio::select! {
             biased;
             () = wait_deadline(deadline) => {
-                cancel.send(true).ok();
+                cancel.signal();
                 Err(Status::deadline_exceeded())
             }
             result = writer => result,
@@ -512,7 +514,7 @@ where
         match result {
             Ok(ok) => accounting.ok = ok,
             Err(status) => {
-                cancel.send(true).ok();
+                cancel.signal();
                 if let Ok(mut trailers) = crate::wire::grpc_trailers(&status) {
                     if compression_disabled {
                         opaque::identity_acceptance(&mut trailers);
@@ -565,17 +567,11 @@ struct IncomingBody {
 }
 
 impl IncomingBody {
-    fn new(recv: backend::RecvStream, mut cancelled: watch::Receiver<bool>) -> Self {
+    fn new(recv: backend::RecvStream, cancel: Arc<crate::server::drain::CancelFlag>) -> Self {
         Self {
             recv: Some(recv),
             data_done: false,
-            cancelled: Box::pin(async move {
-                while !*cancelled.borrow_and_update() {
-                    if cancelled.changed().await.is_err() {
-                        return;
-                    }
-                }
-            }),
+            cancelled: Box::pin(crate::server::drain::wait_cancel(Some(cancel))),
         }
     }
 }

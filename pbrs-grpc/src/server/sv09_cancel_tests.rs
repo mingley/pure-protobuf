@@ -6,12 +6,11 @@
     reason = "explicit completion, abandonment, and panic assertions"
 )]
 
-use super::{CancelOnDrop, hold_cancel};
+use super::{CancelFlag, CancelOnDrop, hold_cancel};
 use std::future::{Future, poll_fn};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use tokio::sync::watch;
 
 #[expect(
     clippy::disallowed_types,
@@ -28,7 +27,7 @@ enum Mode {
 
 struct Writer {
     mode: Mode,
-    cancelled: watch::Receiver<bool>,
+    cancelled: Arc<CancelFlag>,
     events: Events,
 }
 
@@ -44,7 +43,7 @@ impl Future for Writer {
         self.events
             .lock()
             .expect("events")
-            .push((name, *self.cancelled.borrow()));
+            .push((name, self.cancelled.is_cancelled()));
         match self.mode {
             Mode::Pending => Poll::Pending,
             Mode::Ready => Poll::Ready(()),
@@ -58,18 +57,18 @@ impl Drop for Writer {
         self.events
             .lock()
             .expect("events")
-            .push(("drop", *self.cancelled.borrow()));
+            .push(("drop", self.cancelled.is_cancelled()));
     }
 }
 
-fn prepare(mode: Mode) -> (CancelOnDrop, Writer, watch::Receiver<bool>, Events) {
-    let (tx, cancelled) = watch::channel(false);
+fn prepare(mode: Mode) -> (CancelOnDrop, Writer, Arc<CancelFlag>, Events) {
+    let cancelled = CancelFlag::new();
     let events = Events::default();
     (
-        CancelOnDrop(tx),
+        CancelOnDrop(Arc::clone(&cancelled)),
         Writer {
             mode,
-            cancelled: cancelled.clone(),
+            cancelled: Arc::clone(&cancelled),
             events: events.clone(),
         },
         cancelled,
@@ -81,9 +80,9 @@ fn prepare(mode: Mode) -> (CancelOnDrop, Writer, watch::Receiver<bool>, Events) 
 fn unpolled_drop_cancels_before_dropping_the_writer() {
     let (cancel, write, cancelled, events) = prepare(Mode::Pending);
     let held = hold_cancel(cancel, write);
-    assert!(!*cancelled.borrow());
+    assert!(!cancelled.is_cancelled());
     drop(held);
-    assert!(*cancelled.borrow());
+    assert!(cancelled.is_cancelled());
     assert_eq!(*events.lock().expect("events"), [("drop", true)]);
 }
 
@@ -96,9 +95,9 @@ async fn pending_drop_keeps_the_guard_until_abandonment() {
         Poll::Ready(())
     })
     .await;
-    assert!(!*cancelled.borrow());
+    assert!(!cancelled.is_cancelled());
     drop(held);
-    assert!(*cancelled.borrow());
+    assert!(cancelled.is_cancelled());
     assert_eq!(
         *events.lock().expect("events"),
         [("pending", false), ("drop", true)]
@@ -109,7 +108,7 @@ async fn pending_drop_keeps_the_guard_until_abandonment() {
 async fn ready_await_cancels_before_dropping_the_completed_writer() {
     let (cancel, write, cancelled, events) = prepare(Mode::Ready);
     hold_cancel(cancel, write).await;
-    assert!(*cancelled.borrow());
+    assert!(cancelled.is_cancelled());
     assert_eq!(
         *events.lock().expect("events"),
         [("ready", false), ("drop", true)]
@@ -121,7 +120,7 @@ async fn panicking_poll_cancels_before_dropping_the_writer() {
     let (cancel, write, cancelled, events) = prepare(Mode::Panic);
     let task = tokio::spawn(async move { hold_cancel(cancel, write).await });
     assert!(task.await.expect_err("writer panicked").is_panic());
-    assert!(*cancelled.borrow());
+    assert!(cancelled.is_cancelled());
     assert_eq!(
         *events.lock().expect("events"),
         [("panic", false), ("drop", true)]
