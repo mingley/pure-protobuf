@@ -34,7 +34,45 @@ pub struct Decoder {
 #[derive(Debug)]
 struct SavedBlock {
     raw: Vec<u8>,
+    kind: BlockKind,
     decoded: SavedHeaders,
+}
+
+/// Which fast path `cached_block` can take. Computed once, when the block is stored.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+enum BlockKind {
+    Response,
+    Trailers,
+    Request,
+    Other,
+}
+
+fn block_kind(decoded: &SavedHeaders) -> BlockKind {
+    if decoded.method.is_none()
+        && decoded.scheme.is_none()
+        && decoded.authority.is_none()
+        && decoded.path.is_none()
+        && decoded.protocol.is_none()
+        && decoded.status.is_some()
+        && decoded.fields.len() == 2
+        && decoded.stock_facts.is_some_and(|facts| facts.stock)
+    {
+        return BlockKind::Response;
+    }
+    if decoded.method.is_none()
+        && decoded.scheme.is_none()
+        && decoded.authority.is_none()
+        && decoded.path.is_none()
+        && decoded.protocol.is_none()
+        && decoded.status.is_none()
+        && crate::h2_backend::header_pool::is_bare_ok_trailer(&decoded.fields)
+    {
+        return BlockKind::Trailers;
+    }
+    if decoded.method.is_some() && decoded.protocol.is_none() && decoded.shared_fields.is_some() {
+        return BlockKind::Request;
+    }
+    BlockKind::Other
 }
 
 /// Decoded headers from a block that did not change the dynamic table.
@@ -282,15 +320,7 @@ impl Decoder {
         // A repeated stock response is two headers. Reuse the last received
         // map when the accept-encoding value matches; do not use `HeaderMap`
         // equality, which hashes.
-        if block.decoded.method.is_none()
-            && block.decoded.scheme.is_none()
-            && block.decoded.authority.is_none()
-            && block.decoded.path.is_none()
-            && block.decoded.protocol.is_none()
-            && block.decoded.status.is_some()
-            && block.decoded.fields.len() == 2
-            && block.decoded.stock_facts.is_some_and(|facts| facts.stock)
-        {
+        if block.kind == BlockKind::Response {
             let decoded = &block.decoded;
             let fields = match crate::h2_backend::header_pool::take_received_response() {
                 Some(spare)
@@ -320,14 +350,7 @@ impl Decoder {
         }
         // A repeated OK trailer is one header. Reuse the last received map
         // instead of cloning it. The encoder keeps its own trailer slot.
-        if block.decoded.method.is_none()
-            && block.decoded.scheme.is_none()
-            && block.decoded.authority.is_none()
-            && block.decoded.path.is_none()
-            && block.decoded.protocol.is_none()
-            && block.decoded.status.is_none()
-            && crate::h2_backend::header_pool::is_bare_ok_trailer(&block.decoded.fields)
-        {
+        if block.kind == BlockKind::Trailers {
             let decoded = &block.decoded;
             let fields =
                 crate::h2_backend::header_pool::take_received_ok_trailer(|| decoded.fields.clone());
@@ -346,7 +369,7 @@ impl Decoder {
         }
         // Only a request. A trailers-only error is also four stock headers,
         // and handing back an empty map would drop `grpc-status`.
-        if block.decoded.method.is_some() && block.decoded.protocol.is_none() {
+        if block.kind == BlockKind::Request {
             if let Some(shared) = &block.decoded.shared_fields {
                 crate::h2_backend::header_pool::publish_shared_request(Arc::clone(shared));
                 let decoded = &block.decoded;
@@ -372,7 +395,8 @@ impl Decoder {
         if raw.len() > 256 || self.saved.iter().any(|block| block.raw == raw) {
             return;
         }
-        let block = SavedBlock { raw, decoded };
+        let kind = block_kind(&decoded);
+        let block = SavedBlock { raw, decoded, kind };
         if self.saved.len() < 3 {
             self.saved.push(block);
             return;
