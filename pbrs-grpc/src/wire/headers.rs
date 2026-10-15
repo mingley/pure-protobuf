@@ -107,19 +107,25 @@ pub(crate) fn grpc_request(
     user_agent: &HeaderValue,
     https: bool,
 ) -> Result<Request<()>, Status> {
-    crate::h2_backend::header_pool::clear_pending_stock();
     let mut parts = http::uri::Parts::default();
     parts.scheme = Some(if https { Scheme::HTTPS } else { Scheme::HTTP });
     parts.authority = Some(authority.clone());
     parts.path_and_query = Some(cached_static_path(path));
-    let uri = http::Uri::from_parts(parts).map_err(|e| Status::internal(e.to_string()))?;
+    let uri = match http::Uri::from_parts(parts) {
+        Ok(uri) => uri,
+        Err(e) => {
+            crate::h2_backend::header_pool::clear_pending_stock();
+            return Err(Status::internal(e.to_string()));
+        }
+    };
     let mut req = Request::new(());
     *req.method_mut() = http::Method::POST;
     // `Request::new` installs `Uri::default()` (`/` plus empty scheme and
     // authority, all static). Forgetting it skips that drop; nothing is freed.
     std::mem::forget(std::mem::replace(req.uri_mut(), uri));
     // The benchmark and the default client repeat the same four headers.
-    // Cloning that block skips four hashed inserts.
+    // Cloning that block skips four hashed inserts. That path only sets the
+    // stock flag; clearing it first would write the thread slot twice.
     if md.is_empty()
         && timeout.is_none()
         && send_codec.is_none()
@@ -139,6 +145,7 @@ pub(crate) fn grpc_request(
         );
         return Ok(req);
     }
+    crate::h2_backend::header_pool::clear_pending_stock();
     // Exact sizing: the fixed headers plus user metadata. A minimal table
     // for the common no-metadata call, and never a rehash past it.
     let capacity =
