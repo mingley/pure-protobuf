@@ -688,7 +688,58 @@ impl Continuation {
 // ===== impl Pseudo =====
 
 impl Pseudo {
+    #[inline(never)]
     pub fn request(method: Method, uri: Uri, protocol: Option<Protocol>) -> Self {
+        // CONNECT and OPTIONS are rare. Keeping them out of this function
+        // leaves the POST path, which every RPC sends, with a smaller prologue.
+        if protocol.is_some() || method != Method::POST {
+            return Self::request_general(method, uri, protocol);
+        }
+        let parts = uri::Parts::from(uri);
+        let path = parts
+            .path_and_query
+            .map(|v| {
+                BytesStr::reused(
+                    crate::h2_backend::hpack::header::ReusedStr::Path,
+                    v.as_str(),
+                )
+            })
+            .unwrap_or_else(|| BytesStr::from_static(""));
+        let path = if path.is_empty() {
+            BytesStr::from_static("/")
+        } else {
+            path
+        };
+        let mut pseudo = Pseudo {
+            method: Some(Method::POST),
+            scheme: None,
+            authority: None,
+            path: Some(path),
+            protocol: None,
+            status: None,
+        };
+        if let Some(scheme) = parts.scheme {
+            // Standard schemes are a discriminant, not a string scan.
+            pseudo.scheme = Some(if scheme == uri::Scheme::HTTP {
+                BytesStr::from_static("http")
+            } else if scheme == uri::Scheme::HTTPS {
+                BytesStr::from_static("https")
+            } else {
+                BytesStr::from(scheme.as_str())
+            });
+        }
+        if let Some(authority) = parts.authority {
+            pseudo.set_authority(BytesStr::reused(
+                crate::h2_backend::hpack::header::ReusedStr::Authority,
+                authority.as_str(),
+            ));
+        }
+        pseudo
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn request_general(method: Method, uri: Uri, protocol: Option<Protocol>) -> Self {
         let parts = uri::Parts::from(uri);
 
         let (scheme, path) = if method == Method::CONNECT && protocol.is_none() {
@@ -696,7 +747,12 @@ impl Pseudo {
         } else {
             let path = parts
                 .path_and_query
-                .map(|v| BytesStr::reused(crate::h2_backend::hpack::header::ReusedStr::Path, v.as_str()))
+                .map(|v| {
+                    BytesStr::reused(
+                        crate::h2_backend::hpack::header::ReusedStr::Path,
+                        v.as_str(),
+                    )
+                })
                 .unwrap_or(BytesStr::from_static(""));
 
             let path = if !path.is_empty() {
@@ -719,13 +775,10 @@ impl Pseudo {
             status: None,
         };
 
-        // If the URI includes a scheme component, add it to the pseudo headers
         if let Some(scheme) = scheme {
             pseudo.set_scheme(scheme);
         }
 
-        // If the URI includes an authority component, add it to the pseudo
-        // headers
         if let Some(authority) = parts.authority {
             pseudo.set_authority(BytesStr::reused(
                 crate::h2_backend::hpack::header::ReusedStr::Authority,
