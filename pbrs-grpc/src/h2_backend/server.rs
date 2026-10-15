@@ -117,6 +117,7 @@
 
 use crate::h2_backend::codec::{Codec, UserError};
 use crate::h2_backend::frame::{self, Pseudo, PushPromiseHeaderError, Reason, Settings, StreamId};
+use crate::h2_backend::hpack::BytesStr;
 use crate::h2_backend::proto::{self, Config, Error, Prioritized};
 use crate::h2_backend::{FlowControl, PingPong, RecvStream, SendStream};
 
@@ -1647,41 +1648,48 @@ impl Peer {
     }
 }
 
-fn cached_authority(raw: Bytes) -> Result<http::uri::Authority, http::uri::InvalidUri> {
+fn cached_authority(raw: &BytesStr) -> Result<http::uri::Authority, http::uri::InvalidUri> {
     use std::cell::RefCell;
-    // One repeated authority per worker. A miss still parses.
+    // One repeated authority per worker. The hit path borrows `raw` and only
+    // clones the already-parsed value. A miss still parses.
     thread_local! {
-        static LAST: RefCell<Option<(Bytes, http::uri::Authority)>> = const { RefCell::new(None) };
+        static LAST: RefCell<Option<(usize, usize, Bytes, http::uri::Authority)>> =
+            const { RefCell::new(None) };
     }
     LAST.with(|slot| {
         let mut slot = slot.borrow_mut();
-        if let Some((prev, parsed)) = slot.as_ref() {
-            // Repeated frames share the decoded authority allocation.
-            if (prev.len() == raw.len() && prev.as_ptr() == raw.as_ptr()) || prev == &raw {
+        let ptr = raw.as_ref().as_ptr() as usize;
+        let len = raw.len();
+        if let Some((prev_ptr, prev_len, prev, parsed)) = slot.as_ref() {
+            if (*prev_ptr == ptr && *prev_len == len) || prev.as_ref() == raw.as_ref() {
                 return Ok(parsed.clone());
             }
         }
-        let parsed = http::uri::Authority::from_maybe_shared(raw.clone())?;
-        *slot = Some((raw, parsed.clone()));
+        let bytes = raw.clone().into_inner();
+        let parsed = http::uri::Authority::from_maybe_shared(bytes.clone())?;
+        *slot = Some((ptr, len, bytes, parsed.clone()));
         Ok(parsed)
     })
 }
 
-fn cached_path_and_query(raw: Bytes) -> Result<http::uri::PathAndQuery, http::uri::InvalidUri> {
+fn cached_path_and_query(raw: &BytesStr) -> Result<http::uri::PathAndQuery, http::uri::InvalidUri> {
     use std::cell::RefCell;
     thread_local! {
-        static LAST: RefCell<Option<(Bytes, http::uri::PathAndQuery)>> = const { RefCell::new(None) };
+        static LAST: RefCell<Option<(usize, usize, Bytes, http::uri::PathAndQuery)>> =
+            const { RefCell::new(None) };
     }
     LAST.with(|slot| {
         let mut slot = slot.borrow_mut();
-        if let Some((prev, parsed)) = slot.as_ref() {
-            // Repeated frames share the decoded path allocation.
-            if (prev.len() == raw.len() && prev.as_ptr() == raw.as_ptr()) || prev == &raw {
+        let ptr = raw.as_ref().as_ptr() as usize;
+        let len = raw.len();
+        if let Some((prev_ptr, prev_len, prev, parsed)) = slot.as_ref() {
+            if (*prev_ptr == ptr && *prev_len == len) || prev.as_ref() == raw.as_ref() {
                 return Ok(parsed.clone());
             }
         }
-        let parsed = http::uri::PathAndQuery::from_maybe_shared(raw.clone())?;
-        *slot = Some((raw, parsed.clone()));
+        let bytes = raw.clone().into_inner();
+        let parsed = http::uri::PathAndQuery::from_maybe_shared(bytes.clone())?;
+        *slot = Some((ptr, len, bytes, parsed.clone()));
         Ok(parsed)
     })
 }
@@ -1738,7 +1746,7 @@ impl proto::Peer for Peer {
         // A request translated from HTTP/1 must not include the :authority
         // header
         if let Some(authority) = pseudo.authority {
-            let maybe_authority = cached_authority(authority.clone().into_inner());
+            let maybe_authority = cached_authority(&authority);
             parts.authority = Some(maybe_authority.or_else(|why| {
                 malformed!(
                     "malformed headers: malformed authority ({:?}): {}",
@@ -1782,7 +1790,7 @@ impl proto::Peer for Peer {
                 malformed!("malformed headers: missing path");
             }
 
-            let maybe_path = cached_path_and_query(path.clone().into_inner());
+            let maybe_path = cached_path_and_query(&path);
             parts.path_and_query = Some(maybe_path.or_else(|why| {
                 malformed!("malformed headers: malformed path ({:?}): {}", path, why,)
             })?);
