@@ -9,7 +9,7 @@ use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_util::io::poll_write_buf;
 
-use std::io::{self, Cursor};
+use std::io::{self, Cursor, IoSlice};
 
 // A macro to get around a method needing to borrow &mut self
 macro_rules! limited_write_buf {
@@ -148,14 +148,57 @@ where
             while !self.encoder.is_empty() {
                 let n = match self.encoder.next {
                     Some(Next::Data(ref mut frame)) => {
-                        let mut buf = (&mut self.encoder.buf).chain(frame.payload_mut());
-                        ready!(poll_write_buf(Pin::new(&mut self.inner), cx, &mut buf))?
+                        // One contiguous payload is two slices: the encoded
+                        // head and the body. Building those directly skips the
+                        // cursor chain and its 64-slot vectored scratch.
+                        let pos = self.encoder.buf.position() as usize;
+                        let head_len = self.encoder.buf.get_ref().len().saturating_sub(pos);
+                        let body_all =
+                            frame.payload().chunk().len() == frame.payload().remaining();
+                        if body_all && self.inner.is_write_vectored() {
+                            let n = {
+                                let head = &self.encoder.buf.get_ref()[pos..pos + head_len];
+                                let body = frame.payload().chunk();
+                                if head.is_empty() {
+                                    ready!(Pin::new(&mut self.inner).poll_write(cx, body))?
+                                } else if body.is_empty() {
+                                    ready!(Pin::new(&mut self.inner).poll_write(cx, head))?
+                                } else {
+                                    let bufs = [IoSlice::new(head), IoSlice::new(body)];
+                                    ready!(Pin::new(&mut self.inner).poll_write_vectored(
+                                        cx, &bufs
+                                    ))?
+                                }
+                            };
+                            let head_wrote = n.min(head_len);
+                            if head_wrote > 0 {
+                                self.encoder.buf.set_position((pos + head_wrote) as u64);
+                            }
+                            let body_wrote = n - head_wrote;
+                            if body_wrote > 0 {
+                                frame.payload_mut().advance(body_wrote);
+                            }
+                            n
+                        } else {
+                            let mut buf = (&mut self.encoder.buf).chain(frame.payload_mut());
+                            ready!(poll_write_buf(Pin::new(&mut self.inner), cx, &mut buf))?
+                        }
                     }
-                    _ => ready!(poll_write_buf(
-                        Pin::new(&mut self.inner),
-                        cx,
-                        &mut self.encoder.buf
-                    ))?,
+                    _ => {
+                        let pos = self.encoder.buf.position() as usize;
+                        let n = {
+                            let rest = &self.encoder.buf.get_ref()[pos..];
+                            if rest.is_empty() {
+                                0
+                            } else {
+                                ready!(Pin::new(&mut self.inner).poll_write(cx, rest))?
+                            }
+                        };
+                        if n > 0 {
+                            self.encoder.buf.set_position((pos + n) as u64);
+                        }
+                        n
+                    }
                 };
                 if n == 0 {
                     // No progress is possible; retrying would busy-loop.
