@@ -124,6 +124,9 @@ fn calc_max_continuation_frames(header_max: usize, frame_max: usize) -> usize {
 /// Decodes a frame.
 ///
 /// This method is intentionally de-generified and outlined because it is very large.
+/// SETTINGS, PING, and the other control kinds stay in a cold function so the
+/// DATA and HEADERS path does not reserve their stack.
+#[inline(never)]
 fn decode_frame(
     hpack: &mut hpack::Decoder,
     max_header_list_size: usize,
@@ -135,8 +138,7 @@ fn decode_frame(
     let head = frame::Head::parse(&bytes);
 
     if partial_inout.is_some() && head.kind() != Kind::Continuation {
-        proto_err!(conn: "expected CONTINUATION, got {:?}", head.kind());
-        return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
+        return Err(expected_continuation(head.kind()));
     }
 
     let kind = head.kind();
@@ -203,9 +205,92 @@ fn decode_frame(
     }
 
     let frame = match kind {
+        Kind::Data => {
+            bytes.advance(frame::HEADER_LEN);
+            let res = frame::Data::load(head, bytes.freeze());
+
+            // TODO: Should this always be connection level? Probably not...
+            res.map_err(data_frame_load_failed)?.into()
+        }
+        Kind::Headers => header_block!(Headers, head, bytes),
+        _ => {
+            return decode_frame_other(
+                hpack,
+                max_header_list_size,
+                max_continuation_frames,
+                partial_inout,
+                head,
+                bytes,
+            );
+        }
+    };
+
+    Ok(Some(frame))
+}
+
+/// Control frames. A gRPC connection's steady state is DATA and HEADERS.
+#[cold]
+#[inline(never)]
+fn decode_frame_other(
+    hpack: &mut hpack::Decoder,
+    max_header_list_size: usize,
+    max_continuation_frames: usize,
+    partial_inout: &mut Option<Partial>,
+    head: frame::Head,
+    mut bytes: BytesMut,
+) -> Result<Option<Frame>, Error> {
+    macro_rules! header_block {
+        ($frame:ident, $head:ident, $bytes:ident) => ({
+            $bytes.advance(frame::HEADER_LEN);
+            let (mut frame, mut payload) = match frame::$frame::load($head, $bytes) {
+                Ok(res) => res,
+                Err(frame::Error::InvalidDependencyId) => {
+                    proto_err!(stream: "invalid HEADERS dependency ID");
+                    return Err(Error::library_reset($head.stream_id(), Reason::PROTOCOL_ERROR));
+                },
+                Err(e) => {
+                    proto_err!(conn: "failed to load frame; err={:?}", e);
+                    return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
+                }
+            };
+            let is_end_headers = frame.is_end_headers();
+            match frame.load_hpack(&mut payload, max_header_list_size, hpack) {
+                Ok(_) => {},
+                Err(frame::Error::Hpack(hpack::DecoderError::NeedMore(_))) if !is_end_headers => {},
+                Err(frame::Error::MalformedMessage) => {
+                    let id = $head.stream_id();
+                    proto_err!(stream: "malformed header block; stream={:?}", id);
+                    return Err(Error::library_reset(id, Reason::PROTOCOL_ERROR));
+                },
+                Err(frame::Error::HeaderListWayTooLarge) => {
+                    proto_err!(conn: "decoded header list size over abuse limit");
+                    return Err(Error::library_go_away_data(
+                        Reason::ENHANCE_YOUR_CALM,
+                        "header_list_way_too_large",
+                    ));
+                },
+                Err(e) => {
+                    proto_err!(conn: "failed HPACK decoding; err={:?}", e);
+                    return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
+                }
+            }
+            if is_end_headers {
+                frame.into()
+            } else {
+                tracing::trace!("loaded partial header block");
+                *partial_inout = Some(Partial {
+                    frame: Continuable::$frame(frame),
+                    buf: payload,
+                    continuation_frames_count: 0,
+                });
+                return Ok(None);
+            }
+        });
+    }
+
+    let frame = match head.kind() {
         Kind::Settings => {
             let res = frame::Settings::load(head, &bytes[frame::HEADER_LEN..]);
-
             res.map_err(|e| {
                 proto_err!(conn: "failed to load SETTINGS frame; err={:?}", e);
                 Error::library_go_away(Reason::PROTOCOL_ERROR)
@@ -214,7 +299,6 @@ fn decode_frame(
         }
         Kind::Ping => {
             let res = frame::Ping::load(head, &bytes[frame::HEADER_LEN..]);
-
             res.map_err(|e| {
                 proto_err!(conn: "failed to load PING frame; err={:?}", e);
                 Error::library_go_away(Reason::PROTOCOL_ERROR)
@@ -223,25 +307,12 @@ fn decode_frame(
         }
         Kind::WindowUpdate => {
             let res = frame::WindowUpdate::load(head, &bytes[frame::HEADER_LEN..]);
-
             res.map_err(|e| {
                 proto_err!(conn: "failed to load WINDOW_UPDATE frame; err={:?}", e);
                 Error::library_go_away(Reason::PROTOCOL_ERROR)
             })?
             .into()
         }
-        Kind::Data => {
-            bytes.advance(frame::HEADER_LEN);
-            let res = frame::Data::load(head, bytes.freeze());
-
-            // TODO: Should this always be connection level? Probably not...
-            res.map_err(|e| {
-                proto_err!(conn: "failed to load DATA frame; err={:?}", e);
-                Error::library_go_away(Reason::PROTOCOL_ERROR)
-            })?
-            .into()
-        }
-        Kind::Headers => header_block!(Headers, head, bytes),
         Kind::Reset => {
             let res = frame::Reset::load(head, &bytes[frame::HEADER_LEN..]);
             res.map_err(|e| {
@@ -376,9 +447,26 @@ fn decode_frame(
             // Unknown frames are ignored
             return Ok(None);
         }
+        Kind::Data | Kind::Headers => {
+            unreachable!("DATA and HEADERS are decoded before the control-frame path");
+        }
     };
 
     Ok(Some(frame))
+}
+
+#[cold]
+#[inline(never)]
+fn expected_continuation(kind: Kind) -> Error {
+    proto_err!(conn: "expected CONTINUATION, got {:?}", kind);
+    Error::library_go_away(Reason::PROTOCOL_ERROR)
+}
+
+#[cold]
+#[inline(never)]
+fn data_frame_load_failed(err: frame::Error) -> Error {
+    proto_err!(conn: "failed to load DATA frame; err={:?}", err);
+    Error::library_go_away(Reason::PROTOCOL_ERROR)
 }
 
 impl<T> Stream for FramedRead<T>
