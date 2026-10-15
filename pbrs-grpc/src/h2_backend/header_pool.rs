@@ -62,26 +62,22 @@ pub(crate) fn recycle_received_ok_trailer(map: HeaderMap) {
 }
 
 /// Content-type plus `grpc-accept-encoding`, and nothing else.
+///
+/// Our encoder writes content-type first. A reversed pair is not stock here;
+/// it stays an owned map and still hides those names from user metadata.
+#[inline(never)]
 pub(crate) fn is_stock_response(fields: &HeaderMap) -> bool {
     if fields.len() != 2 {
         return false;
     }
-    let mut saw_type = false;
-    let mut saw_accept = false;
-    for (name, value) in fields {
-        if name == http::header::CONTENT_TYPE {
-            let bytes = value.as_bytes();
-            if bytes != b"application/grpc" && bytes != b"application/grpc+proto" {
-                return false;
-            }
-            saw_type = true;
-        } else if name.as_str() == "grpc-accept-encoding" {
-            saw_accept = true;
-        } else {
-            return false;
-        }
-    }
-    saw_type && saw_accept
+    let mut headers = fields.iter();
+    let (Some((name, value)), Some((accept, _))) = (headers.next(), headers.next()) else {
+        return false;
+    };
+    let bytes = value.as_bytes();
+    name == http::header::CONTENT_TYPE
+        && (bytes == b"application/grpc" || bytes == b"application/grpc+proto")
+        && accept.as_str() == "grpc-accept-encoding"
 }
 
 /// Both maps are two-header stock responses in the same order.
