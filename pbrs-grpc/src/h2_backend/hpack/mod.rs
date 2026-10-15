@@ -11,7 +11,7 @@ mod table;
 mod test;
 
 pub use self::decoder::{
-    block_leaves_table_unchanged, Decoder, DecoderError, NeedMore, SavedHeaders,
+    block_leaves_table_unchanged, CachedHit, Decoder, DecoderError, NeedMore, SavedHeaders,
 };
 pub use self::encoder::Encoder;
 pub use self::header::{BytesStr, Header};

@@ -83,6 +83,24 @@ fn block_kind(decoded: &SavedHeaders) -> BlockKind {
     BlockKind::Other
 }
 
+/// A cache hit. Stock responses and OK trailers carry no request pseudos,
+/// so those paths do not build or drop empty `:method` / `:path` values.
+#[derive(Debug)]
+pub enum CachedHit {
+    Response {
+        fields: HeaderMap,
+        status: Option<StatusCode>,
+        field_size: usize,
+        stock_facts: Option<crate::wire::headers::StockFacts>,
+    },
+    Trailers {
+        fields: HeaderMap,
+        field_size: usize,
+        stock_facts: Option<crate::wire::headers::StockFacts>,
+    },
+    Other(SavedHeaders),
+}
+
 /// Decoded headers from a block that did not change the dynamic table.
 #[derive(Clone, Debug)]
 pub struct SavedHeaders {
@@ -323,7 +341,7 @@ impl Decoder {
     }
 
     /// Headers from an identical block that did not change the dynamic table.
-    pub(crate) fn cached_block(&self, raw: &[u8]) -> Option<SavedHeaders> {
+    pub(crate) fn cached_block(&self, raw: &[u8]) -> Option<CachedHit> {
         let block = self.saved.iter().find(|block| block.raw == raw)?;
         // A repeated stock response is two headers. Reuse the last received
         // map when the accept-encoding value matches; do not use `HeaderMap`
@@ -339,17 +357,11 @@ impl Decoder {
                 None => decoded.fields.clone(),
             };
             // The guard already proved every pseudo except `:status` is absent.
-            return Some(SavedHeaders {
+            return Some(CachedHit::Response {
                 fields,
-                method: None,
-                scheme: None,
-                authority: None,
-                path: None,
-                protocol: None,
                 status: decoded.status,
                 field_size: decoded.field_size,
                 stock_facts: decoded.stock_facts,
-                shared_fields: None,
             });
         }
         // A repeated OK trailer is one header. Reuse the last received map
@@ -358,17 +370,10 @@ impl Decoder {
             let decoded = &block.decoded;
             let fields =
                 crate::h2_backend::header_pool::take_received_ok_trailer(|| decoded.fields.clone());
-            return Some(SavedHeaders {
+            return Some(CachedHit::Trailers {
                 fields,
-                method: None,
-                scheme: None,
-                authority: None,
-                path: None,
-                protocol: None,
-                status: None,
                 field_size: decoded.field_size,
                 stock_facts: decoded.stock_facts,
-                shared_fields: None,
             });
         }
         // Only a request. A trailers-only error is also four stock headers,
@@ -377,7 +382,7 @@ impl Decoder {
             if let Some(shared) = &block.decoded.shared_fields {
                 crate::h2_backend::header_pool::publish_shared_request(Arc::clone(shared));
                 let decoded = &block.decoded;
-                return Some(SavedHeaders {
+                return Some(CachedHit::Other(SavedHeaders {
                     fields: HeaderMap::new(),
                     method: decoded.method.clone(),
                     scheme: decoded.scheme.clone(),
@@ -388,10 +393,10 @@ impl Decoder {
                     field_size: decoded.field_size,
                     stock_facts: decoded.stock_facts,
                     shared_fields: None,
-                });
+                }));
             }
         }
-        Some(block.decoded.clone())
+        Some(CachedHit::Other(block.decoded.clone()))
     }
 
     /// Remember `decoded` for a later identical `raw` block.

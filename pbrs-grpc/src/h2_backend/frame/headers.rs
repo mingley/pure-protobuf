@@ -1239,16 +1239,40 @@ impl HeaderBlock {
         // the same headers. The saved bytes were checked when stored, so a
         // hit does not walk the block again.
         if fresh {
-            if let Some(saved) = decoder.cached_block(src) {
-                crate::h2_backend::header_pool::replace_map(&mut self.fields, saved.fields);
-                self.pseudo.method = saved.method;
-                self.pseudo.scheme = saved.scheme;
-                self.pseudo.authority = saved.authority;
-                self.pseudo.path = saved.path;
-                self.pseudo.protocol = saved.protocol;
-                self.pseudo.status = saved.status;
-                self.field_size = saved.field_size;
-                self.stock_facts = saved.stock_facts;
+            if let Some(hit) = decoder.cached_block(src) {
+                match hit {
+                    hpack::CachedHit::Response {
+                        fields,
+                        status,
+                        field_size,
+                        stock_facts,
+                    } => {
+                        crate::h2_backend::header_pool::replace_map(&mut self.fields, fields);
+                        self.pseudo.status = status;
+                        self.field_size = field_size;
+                        self.stock_facts = stock_facts;
+                    }
+                    hpack::CachedHit::Trailers {
+                        fields,
+                        field_size,
+                        stock_facts,
+                    } => {
+                        crate::h2_backend::header_pool::replace_map(&mut self.fields, fields);
+                        self.field_size = field_size;
+                        self.stock_facts = stock_facts;
+                    }
+                    hpack::CachedHit::Other(saved) => {
+                        crate::h2_backend::header_pool::replace_map(&mut self.fields, saved.fields);
+                        self.pseudo.method = saved.method;
+                        self.pseudo.scheme = saved.scheme;
+                        self.pseudo.authority = saved.authority;
+                        self.pseudo.path = saved.path;
+                        self.pseudo.protocol = saved.protocol;
+                        self.pseudo.status = saved.status;
+                        self.field_size = saved.field_size;
+                        self.stock_facts = saved.stock_facts;
+                    }
+                }
                 self.pristine = false;
                 src.clear();
                 return Ok(());
