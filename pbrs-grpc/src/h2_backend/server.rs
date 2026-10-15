@@ -1689,7 +1689,8 @@ fn simple_post_request(pseudo: &Pseudo, fields: HeaderMap) -> Result<Request<()>
     };
     let mut request = Request::new(());
     *request.method_mut() = Method::POST;
-    *request.uri_mut() = uri;
+    // Same static `Uri::default()` as the client stamp. Nothing to free.
+    std::mem::forget(std::mem::replace(request.uri_mut(), uri));
     *request.version_mut() = http::Version::HTTP_2;
     crate::h2_backend::header_pool::replace_map(request.headers_mut(), fields);
     Ok(request)
