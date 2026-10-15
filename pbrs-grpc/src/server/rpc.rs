@@ -638,8 +638,8 @@ impl Rpc {
                 None => CallLabels::UNLABELED_SERVER,
             };
             match outcome.and_then(|response| {
-                crate::interceptor::intercept_response(
-                    response
+                {
+                    let response = response
                         .with_path(path)
                         .with_gzip_level(gzip_level)
                         .with_compresses_outbound(prefer_gzip)
@@ -650,9 +650,15 @@ impl Rpc {
                         .with_peer_timeout(peer_timeout)
                         .with_rpc_timeout(rpc_timeout)
                         .with_limits(Some(wire.limits))
-                        .with_send_buffer_size(Some(wire.send_buffer)),
-                    hook.as_deref(),
-                )
+                        .with_send_buffer_size(Some(wire.send_buffer));
+                    // No hook: keep the response in place. The call would only
+                    // move it in and return it.
+                    if hook.is_none() {
+                        Ok(response)
+                    } else {
+                        crate::interceptor::intercept_response(response, hook.as_deref())
+                    }
+                }
             }) {
                 Err(status) => {
                     if let Some(obs) = &observer {
@@ -802,8 +808,8 @@ impl Rpc {
                 None => CallLabels::UNLABELED_SERVER,
             };
             match outcome.and_then(|response| {
-                crate::interceptor::intercept_response(
-                    response
+                {
+                    let response = response
                         .with_path(path)
                         .with_gzip_level(gzip_level)
                         .with_compresses_outbound(prefer_gzip)
@@ -814,9 +820,15 @@ impl Rpc {
                         .with_peer_timeout(peer_timeout)
                         .with_rpc_timeout(rpc_timeout)
                         .with_limits(Some(wire.limits))
-                        .with_send_buffer_size(Some(wire.send_buffer)),
-                    hook.as_deref(),
-                )
+                        .with_send_buffer_size(Some(wire.send_buffer));
+                    // No hook: keep the response in place. The call would only
+                    // move it in and return it.
+                    if hook.is_none() {
+                        Ok(response)
+                    } else {
+                        crate::interceptor::intercept_response(response, hook.as_deref())
+                    }
+                }
             }) {
                 Err(status) => {
                     if let Some(obs) = &observer {
@@ -921,8 +933,8 @@ impl Rpc {
                 None => CallLabels::UNLABELED_SERVER,
             };
             match outcome.and_then(|response| {
-                crate::interceptor::intercept_response(
-                    response
+                {
+                    let response = response
                         .with_path(path)
                         .with_gzip_level(gzip_level)
                         .with_compresses_outbound(prefer_gzip)
@@ -933,9 +945,15 @@ impl Rpc {
                         .with_peer_timeout(peer_timeout)
                         .with_rpc_timeout(rpc_timeout)
                         .with_limits(Some(wire.limits))
-                        .with_send_buffer_size(Some(wire.send_buffer)),
-                    hook.as_deref(),
-                )
+                        .with_send_buffer_size(Some(wire.send_buffer));
+                    // No hook: keep the response in place. The call would only
+                    // move it in and return it.
+                    if hook.is_none() {
+                        Ok(response)
+                    } else {
+                        crate::interceptor::intercept_response(response, hook.as_deref())
+                    }
+                }
             }) {
                 Err(status) => {
                     if let Some(obs) = &observer {
@@ -1122,8 +1140,8 @@ impl Rpc {
                 None => CallLabels::UNLABELED_SERVER,
             };
             match outcome.and_then(|response| {
-                crate::interceptor::intercept_response(
-                    response
+                {
+                    let response = response
                         .with_path(path)
                         .with_gzip_level(gzip_level)
                         .with_compresses_outbound(prefer_gzip)
@@ -1134,9 +1152,15 @@ impl Rpc {
                         .with_peer_timeout(peer_timeout)
                         .with_rpc_timeout(rpc_timeout)
                         .with_limits(Some(wire.limits))
-                        .with_send_buffer_size(Some(wire.send_buffer)),
-                    hook.as_deref(),
-                )
+                        .with_send_buffer_size(Some(wire.send_buffer));
+                    // No hook: keep the response in place. The call would only
+                    // move it in and return it.
+                    if hook.is_none() {
+                        Ok(response)
+                    } else {
+                        crate::interceptor::intercept_response(response, hook.as_deref())
+                    }
+                }
             }) {
                 Err(status) => {
                     if let Some(obs) = &observer {
