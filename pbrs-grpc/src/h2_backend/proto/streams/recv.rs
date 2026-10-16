@@ -514,15 +514,17 @@ impl Recv {
 
         self.release_connection_capacity(capacity, task);
 
-        // Decrement in-flight data
-        stream.in_flight_recv_data -= capacity;
-
-        // Assign capacity to stream
-        // TODO: proper error handling
-        let _res = stream.recv_flow.assign_capacity(capacity);
-        debug_assert!(_res.is_ok());
-
-        if stream.recv_flow.unclaimed_capacity().is_some() {
+        // One slab lookup for the three stream updates. Each field access
+        // otherwise re-checks the key.
+        let queue_update = {
+            let stream = &mut **stream;
+            stream.in_flight_recv_data -= capacity;
+            // TODO: proper error handling
+            let _res = stream.recv_flow.assign_capacity(capacity);
+            debug_assert!(_res.is_ok());
+            stream.recv_flow.unclaimed_capacity().is_some()
+        };
+        if queue_update {
             // Queue the stream for sending the WINDOW_UPDATE frame.
             self.pending_window_updates.push(stream);
 
