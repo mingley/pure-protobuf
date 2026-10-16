@@ -10,6 +10,7 @@ use crate::telemetry::LifecycleObserver;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 
 /// A gRPC service that can be served.
 ///
@@ -135,8 +136,29 @@ pub(crate) struct Single<S> {
     pub(crate) channelz: Option<crate::channelz::ServerHandle>,
 }
 
+/// Handler future for one [`Single`] dispatch.
+///
+/// [`Rpc`] is consumed before this exists, so the accepted-call state
+/// machine does not reserve space for the call record. The handler itself
+/// stays in the box from [`start_service_call`].
+enum SingleDispatch<'a> {
+    Done,
+    Call(Pin<Box<dyn Future<Output = ()> + Send + 'a>>),
+}
+
+impl Future for SingleDispatch<'_> {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        match self.get_mut() {
+            SingleDispatch::Done => Poll::Ready(()),
+            SingleDispatch::Call(fut) => Pin::new(fut).poll(cx),
+        }
+    }
+}
+
 impl<S: Service> Dispatch for Single<S> {
-    async fn dispatch(&self, mut rpc: Rpc) {
+    fn dispatch(&self, mut rpc: Rpc) -> impl Future<Output = ()> + Send {
         rpc.response_interceptor = self.response_interceptor.clone();
         rpc.observer = self.observer.clone();
         if let Some(tap) = self
@@ -157,13 +179,14 @@ impl<S: Service> Dispatch for Single<S> {
         }
         if let Some(interceptor) = &self.interceptor {
             if let Err(status) = interceptor.intercept(&mut rpc) {
-                return rpc.reject(status);
+                rpc.reject(status);
+                return SingleDispatch::Done;
             }
         }
         // Box one method future. Awaiting `Service::call` here would embed
         // every method's state in this connection-task future and copy it
         // onto the heap on each RPC.
-        start_service_call(self.service.as_ref(), rpc).await;
+        SingleDispatch::Call(start_service_call(self.service.as_ref(), rpc))
     }
 
     fn observer(&self) -> Option<&Arc<dyn LifecycleObserver>> {
