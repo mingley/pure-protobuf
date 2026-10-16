@@ -786,23 +786,42 @@ impl Registry {
     ///
     /// The three separate notes each lock the socket map.
     pub(crate) fn note_local_stream_finished(&self, id: SocketId, ok: bool, received: u64) {
-        let Some(entry) = self.socket(id) else {
-            return;
+        // Touch the entry under the map lock. Cloning the `Arc` and
+        // dropping it after the atomics costs more than holding the
+        // read guard across those updates. The parent subchannel is a
+        // different map, so copy the parent out before taking it.
+        let parent = {
+            let Ok(map) = self.sockets.read() else {
+                return;
+            };
+            let Some(entry) = map.get(&id.0) else {
+                return;
+            };
+            entry.streams_started.fetch_add(1, Ordering::Relaxed);
+            entry
+                .last_local_stream_ms
+                .store(coarse_now_ms(), Ordering::Relaxed);
+            if ok {
+                entry.streams_succeeded.fetch_add(1, Ordering::Relaxed);
+            } else {
+                entry.streams_failed.fetch_add(1, Ordering::Relaxed);
+            }
+            if received > 0 {
+                entry.add_messages(false, received);
+            }
+            entry.parent
         };
-        entry.streams_started.fetch_add(1, Ordering::Relaxed);
-        entry
-            .last_local_stream_ms
-            .store(coarse_now_ms(), Ordering::Relaxed);
-        if let SocketParent::Subchannel(parent) = entry.parent {
+        if let SocketParent::Subchannel(parent) = parent {
             if let Some(sub) = self.subchannel(parent) {
                 sub.calls_started.fetch_add(1, Ordering::Relaxed);
                 sub.last_call_started_ms
                     .store(coarse_now_ms(), Ordering::Relaxed);
+                if ok {
+                    sub.calls_succeeded.fetch_add(1, Ordering::Relaxed);
+                } else {
+                    sub.calls_failed.fetch_add(1, Ordering::Relaxed);
+                }
             }
-        }
-        entry.add_stream_end(self, ok);
-        if received > 0 {
-            entry.add_messages(false, received);
         }
     }
 
@@ -810,18 +829,26 @@ impl Registry {
     /// subchannel's call counters when there is one (each attempt is
     /// one stream). `local` marks locally-initiated streams.
     pub fn note_stream_started(&self, id: SocketId, local: bool) {
-        let Some(entry) = self.socket(id) else { return };
-        entry.streams_started.fetch_add(1, Ordering::Relaxed);
-        if local {
-            entry
-                .last_local_stream_ms
-                .store(coarse_now_ms(), Ordering::Relaxed);
-        } else {
-            entry
-                .last_remote_stream_ms
-                .store(coarse_now_ms(), Ordering::Relaxed);
-        }
-        if let SocketParent::Subchannel(parent) = entry.parent {
+        let parent = {
+            let Ok(map) = self.sockets.read() else {
+                return;
+            };
+            let Some(entry) = map.get(&id.0) else {
+                return;
+            };
+            entry.streams_started.fetch_add(1, Ordering::Relaxed);
+            if local {
+                entry
+                    .last_local_stream_ms
+                    .store(coarse_now_ms(), Ordering::Relaxed);
+            } else {
+                entry
+                    .last_remote_stream_ms
+                    .store(coarse_now_ms(), Ordering::Relaxed);
+            }
+            entry.parent
+        };
+        if let SocketParent::Subchannel(parent) = parent {
             if let Some(sub) = self.subchannel(parent) {
                 sub.calls_started.fetch_add(1, Ordering::Relaxed);
                 sub.last_call_started_ms
@@ -833,22 +860,52 @@ impl Registry {
     /// Count one stream completed on a socket, cascading to the
     /// parent subchannel's call counters when there is one.
     pub fn note_stream_end(&self, id: SocketId, ok: bool) {
-        let Some(entry) = self.socket(id) else { return };
-        entry.add_stream_end(self, ok);
+        let parent = {
+            let Ok(map) = self.sockets.read() else {
+                return;
+            };
+            let Some(entry) = map.get(&id.0) else {
+                return;
+            };
+            if ok {
+                entry.streams_succeeded.fetch_add(1, Ordering::Relaxed);
+            } else {
+                entry.streams_failed.fetch_add(1, Ordering::Relaxed);
+            }
+            entry.parent
+        };
+        if let SocketParent::Subchannel(parent) = parent {
+            if let Some(sub) = self.subchannel(parent) {
+                if ok {
+                    sub.calls_succeeded.fetch_add(1, Ordering::Relaxed);
+                } else {
+                    sub.calls_failed.fetch_add(1, Ordering::Relaxed);
+                }
+            }
+        }
     }
 
-    /// Count messages on a socket (lock-free). `sent` selects the
-    /// direction; `count` is usually 1.
+    /// Count messages on a socket. `sent` selects the direction;
+    /// `count` is usually 1.
     pub fn note_messages(&self, id: SocketId, sent: bool, count: u64) {
-        let Some(entry) = self.socket(id) else { return };
+        let Ok(map) = self.sockets.read() else {
+            return;
+        };
+        let Some(entry) = map.get(&id.0) else {
+            return;
+        };
         entry.add_messages(sent, count);
     }
 
-    /// Count one keepalive sent on a socket (lock-free).
+    /// Count one keepalive sent on a socket.
     pub fn note_keepalive(&self, id: SocketId) {
-        if let Some(entry) = self.socket(id) {
-            entry.keep_alives_sent.fetch_add(1, Ordering::Relaxed);
-        }
+        let Ok(map) = self.sockets.read() else {
+            return;
+        };
+        let Some(entry) = map.get(&id.0) else {
+            return;
+        };
+        entry.keep_alives_sent.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Live entity counts, for bound tests and debugging.
