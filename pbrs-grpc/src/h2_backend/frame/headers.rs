@@ -182,6 +182,44 @@ fn box_empty_headers(
     }
 }
 
+/// A built header block, initialized in the heap allocation.
+///
+/// `Box::new` copies the finished 288-byte frame. The pseudo block and map
+/// are moved once, into the allocation.
+#[allow(
+    unsafe_code,
+    reason = "initialize a Headers value directly in its heap allocation"
+)]
+fn box_filled_headers(
+    stream_id: StreamId,
+    stream_dep: Option<StreamDependency>,
+    flags: HeadersFlag,
+    pseudo: Pseudo,
+    fields: HeaderMap,
+    stock: StandardMap,
+    pristine: bool,
+) -> Box<Headers> {
+    let mut uninit = Box::<Headers>::new_uninit();
+    let ptr = uninit.as_mut_ptr();
+    // SAFETY: every field is written before `assume_init`. Moving `pseudo`
+    // and `fields` in does not panic, so a partial value is never dropped.
+    unsafe {
+        std::ptr::addr_of_mut!((*ptr).stream_id).write(stream_id);
+        std::ptr::addr_of_mut!((*ptr).stream_dep).write(stream_dep);
+        std::ptr::addr_of_mut!((*ptr).flags).write(flags);
+        let block = std::ptr::addr_of_mut!((*ptr).header_block);
+        std::ptr::addr_of_mut!((*block).fields).write(fields);
+        std::ptr::addr_of_mut!((*block).field_size).write(0);
+        std::ptr::addr_of_mut!((*block).is_over_size).write(false);
+        std::ptr::addr_of_mut!((*block).has_content_length).write(false);
+        std::ptr::addr_of_mut!((*block).stock).write(stock);
+        std::ptr::addr_of_mut!((*block).stock_facts).write(None);
+        std::ptr::addr_of_mut!((*block).pristine).write(pristine);
+        std::ptr::addr_of_mut!((*block).pseudo).write(pseudo);
+        uninit.assume_init()
+    }
+}
+
 impl Headers {
     /// Create a new HEADERS frame
     pub fn new(stream_id: StreamId, pseudo: Pseudo, fields: HeaderMap) -> Self {
@@ -207,23 +245,17 @@ impl Headers {
     /// [`new`](Self::new) with the frame already in its queue box.
     ///
     /// Returning `Headers` and boxing at `send_headers` copies the 288-byte
-    /// frame. The response path builds it in the allocation.
+    /// frame. The response path writes it into the allocation.
     pub fn new_boxed(stream_id: StreamId, pseudo: Pseudo, fields: HeaderMap) -> Box<Self> {
-        Box::new(Headers {
+        box_filled_headers(
             stream_id,
-            stream_dep: None,
-            header_block: HeaderBlock {
-                field_size: 0,
-                fields,
-                is_over_size: false,
-                has_content_length: false,
-                stock: StandardMap::None,
-                stock_facts: None,
-                pristine: false,
-                pseudo,
-            },
-            flags: HeadersFlag::default(),
-        })
+            None,
+            HeadersFlag::default(),
+            pseudo,
+            fields,
+            StandardMap::None,
+            false,
+        )
     }
 
     pub fn trailers(stream_id: StreamId, fields: HeaderMap) -> Self {
