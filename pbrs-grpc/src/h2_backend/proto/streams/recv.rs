@@ -717,46 +717,52 @@ impl Recv {
         // on the stream.
         self.consume_connection_window(sz)?;
 
-        if stream.recv_flow.window_size() < sz {
-            // http://httpwg.org/specs/rfc7540.html#WINDOW_UPDATE
-            // > A receiver MAY respond with a stream error (Section 5.4.2) or
-            // > connection error (Section 5.4.1) of type FLOW_CONTROL_ERROR if
-            // > it is unable to accept a frame.
-            //
-            // So, for violating the **stream** window, we can send either a
-            // stream or connection error. We've opted to send a stream
-            // error.
-            return Err(Error::library_reset(stream.id, Reason::FLOW_CONTROL_ERROR));
-        }
-
-        // use payload len, padding doesn't count for content-length
-        if stream.dec_content_length(payload_len).is_err() {
-            return Err(content_length_overflow(stream.id, payload_len));
-        }
-
-        if frame.is_end_stream() {
-            if stream.ensure_content_length_zero().is_err() {
-                return Err(content_length_underflow(stream.id, payload_len));
+        // One slab lookup for the window, content-length, and in-flight
+        // updates. Each field access otherwise re-checks the key.
+        {
+            let stream = &mut **stream;
+            if stream.recv_flow.window_size() < sz {
+                // http://httpwg.org/specs/rfc7540.html#WINDOW_UPDATE
+                // > A receiver MAY respond with a stream error (Section 5.4.2) or
+                // > connection error (Section 5.4.1) of type FLOW_CONTROL_ERROR if
+                // > it is unable to accept a frame.
+                //
+                // So, for violating the **stream** window, we can send either a
+                // stream or connection error. We've opted to send a stream
+                // error.
+                return Err(Error::library_reset(stream.id, Reason::FLOW_CONTROL_ERROR));
             }
 
-            if stream.state.recv_close().is_err() {
-                return Err(recv_close_failed(stream.id));
+            // use payload len, padding doesn't count for content-length
+            if stream.dec_content_length(payload_len).is_err() {
+                return Err(content_length_overflow(stream.id, payload_len));
             }
+
+            if frame.is_end_stream() {
+                if stream.ensure_content_length_zero().is_err() {
+                    return Err(content_length_underflow(stream.id, payload_len));
+                }
+
+                if stream.state.recv_close().is_err() {
+                    return Err(recv_close_failed(stream.id));
+                }
+            }
+
+            // Received a frame, but no one cared about it. fix issue#648
+            if !stream.is_recv {
+                let id = stream.id;
+                return self.release_unwatched_data(sz, id);
+            }
+
+            // Update stream level flow control
+            stream
+                .recv_flow
+                .send_data(sz)
+                .map_err(proto::Error::library_go_away)?;
+
+            // Track the data as in-flight
+            stream.in_flight_recv_data += sz;
         }
-
-        // Received a frame, but no one cared about it. fix issue#648
-        if !stream.is_recv {
-            return self.release_unwatched_data(sz, stream.id);
-        }
-
-        // Update stream level flow control
-        stream
-            .recv_flow
-            .send_data(sz)
-            .map_err(proto::Error::library_go_away)?;
-
-        // Track the data as in-flight
-        stream.in_flight_recv_data += sz;
 
         // Auto-release padding overhead (pad_len field + padding bytes),
         // since the user only sees the data payload via `payload()`.
