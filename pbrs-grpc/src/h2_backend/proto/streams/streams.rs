@@ -1442,9 +1442,10 @@ impl<B> StreamRef<B> {
     {
         let mut me = self.opaque.inner.lock().unwrap();
         let me = &mut *me;
-        let stream = me.store.resolve(self.opaque.key);
+        let mut stream = me.store.resolve(self.opaque.key);
         let actions = &mut me.actions;
-        if data.remaining()
+        let len = data.remaining();
+        if len
             > actions
                 .send
                 .max_buffer_size()
@@ -1453,6 +1454,27 @@ impl<B> StreamRef<B> {
             return Err(data);
         }
         let mut send_buffer = self.send_buffer.inner.lock().unwrap();
+        // A non-empty frame that does not end the stream adds buffered
+        // bytes, so the stream cannot be closed. The close check would
+        // look the stream up again and then do nothing.
+        if !end_stream && len > 0 {
+            let result = {
+                let frame = frame::Data::new(stream.id, data);
+                actions.send.send_data(
+                    frame,
+                    &mut send_buffer,
+                    &mut stream,
+                    &mut me.counts,
+                    &mut actions.task,
+                )
+            };
+            if result.is_ok() {
+                return Ok(Ok(()));
+            }
+            let pending = stream.is_pending_reset_expiration();
+            me.counts.transition_after(stream, pending);
+            return Ok(result);
+        }
         Ok(me.counts.transition(stream, |counts, stream| {
             let mut frame = frame::Data::new(stream.id, data);
             frame.set_end_stream(end_stream);
