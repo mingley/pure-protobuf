@@ -358,7 +358,7 @@ impl Send {
 
     pub fn send_trailers<B>(
         &mut self,
-        mut frame: frame::Headers,
+        mut frame: Box<frame::Headers>,
         buffer: &mut Buffer<Frame<B>>,
         stream: &mut store::Ptr,
         counts: &mut Counts,
@@ -385,7 +385,7 @@ impl Send {
         stream.state.send_close();
 
         self.prioritize
-            .queue_frame(frame.into(), buffer, stream, task);
+            .queue_frame(Frame::Headers(frame), buffer, stream, task);
 
         // Release any excess capacity
         self.prioritize.reserve_capacity(0, stream, counts);

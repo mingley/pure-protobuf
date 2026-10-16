@@ -1497,7 +1497,7 @@ impl<B> StreamRef<B> {
 
         me.counts.transition(stream, |counts, stream| {
             // Create the trailers frame
-            let frame = frame::Headers::trailers(stream.id, trailers);
+            let frame = frame::Headers::trailers_boxed(stream.id, trailers);
 
             // Send the trailers frame
             actions
