@@ -398,51 +398,57 @@ impl Prioritize {
 
     /// Request capacity to send data
     fn try_assign_capacity(&mut self, stream: &mut store::Ptr) {
-        // Streams over the max concurrent count should not have capacity assign to avoid starving the connection
-        // capacity for open streams
-        if stream.is_pending_open {
-            return;
-        }
+        // One slab lookup covers the open check, the window math, and the
+        // capacity store. The queue predicates below stay on `Ptr` so each
+        // `push` still shares that lookup with its `is_queued` test.
+        {
+            let stream = &mut **stream;
+            // Streams over the max concurrent count should not have capacity assign to avoid starving the connection
+            // capacity for open streams
+            if stream.is_pending_open {
+                return;
+            }
 
-        let total_requested = stream.requested_send_capacity;
+            let total_requested = stream.requested_send_capacity;
 
-        // Total requested should never go below actual assigned
-        // (Note: the window size can go lower than assigned)
-        debug_assert!(stream.send_flow.available() <= total_requested as usize);
+            // Total requested should never go below actual assigned
+            // (Note: the window size can go lower than assigned)
+            debug_assert!(stream.send_flow.available() <= total_requested as usize);
 
-        // The amount of additional capacity that the stream requests.
-        // Don't assign more than the window has available!
-        let additional = cmp::min(
-            total_requested - stream.send_flow.available().as_size(),
-            // Can't assign more than what is available
-            stream.send_flow.window_size() - stream.send_flow.available().as_size(),
-        );
-        if additional == 0 {
-            // Nothing more to do
-            return;
-        }
+            // The amount of additional capacity that the stream requests.
+            // Don't assign more than the window has available!
+            let additional = cmp::min(
+                total_requested - stream.send_flow.available().as_size(),
+                // Can't assign more than what is available
+                stream.send_flow.window_size() - stream.send_flow.available().as_size(),
+            );
+            if additional == 0 {
+                // Nothing more to do
+                return;
+            }
 
-        // The stream may have been reset or closed since capacity was requested.
-        if !stream.state.is_send_streaming() && stream.buffered_send_data == 0 {
-            return;
-        }
+            // The stream may have been reset or closed since capacity was requested.
+            if !stream.state.is_send_streaming() && stream.buffered_send_data == 0 {
+                return;
+            }
 
-        // The amount of currently available capacity on the connection
-        let conn_available = self.flow.available().as_size();
+            // The amount of currently available capacity on the connection
+            let conn_available = self.flow.available().as_size();
 
-        // First check if capacity is immediately available
-        if conn_available > 0 {
-            // The amount of capacity to assign to the stream
-            // TODO: Should prioritization factor into this?
-            let assign = cmp::min(conn_available, additional);
+            // First check if capacity is immediately available
+            if conn_available > 0 {
+                // The amount of capacity to assign to the stream
+                // TODO: Should prioritization factor into this?
+                let assign = cmp::min(conn_available, additional);
 
-            // Assign the capacity to the stream
-            stream.assign_capacity(assign, self.max_buffer_size);
+                // Assign the capacity to the stream
+                stream.assign_capacity(assign, self.max_buffer_size);
 
-            // Claim the capacity from the connection
-            // TODO: proper error handling
-            let _res = self.flow.claim_capacity(assign);
-            debug_assert!(_res.is_ok());
+                // Claim the capacity from the connection
+                // TODO: proper error handling
+                let _res = self.flow.claim_capacity(assign);
+                debug_assert!(_res.is_ok());
+            }
         }
 
         if stream.send_flow.available() < stream.requested_send_capacity as usize
