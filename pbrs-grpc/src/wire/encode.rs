@@ -206,11 +206,9 @@ impl SegFrame {
 /// Large shared bytes fields are retained as extra segments instead of
 /// being copied (PK-11); the concatenated bytes are identical.
 pub(crate) fn frame_from_msg<T: CodecMessage>(msg: &T, len: usize) -> Result<SegFrame, Status> {
-    let prefix = u32::try_from(len).map_err(|_| Status::internal("message too large"))?;
     let mut sink = SegSink::new();
     sink.reserve(codec::HEADER_LEN + len);
-    sink.put_u8(0);
-    sink.put_slice(&prefix.to_be_bytes());
+    write_uncompressed_prefix(&mut sink, len)?;
     msg.encode_payload(&mut sink)?;
     let shared = sink.shared_len();
     let frame = sink.finish();
@@ -300,7 +298,6 @@ pub(crate) fn append_frame<T: CodecMessage>(
         sink.note_head_wrote(wrote);
         return Ok(());
     }
-    let prefix = u32::try_from(len).map_err(|_| Status::internal("message too large"))?;
     let need = codec::HEADER_LEN + len;
     // A batch of equal frames otherwise reallocates and copies the prefix on
     // every message. The first small frame reserves room for three more.
@@ -310,9 +307,18 @@ pub(crate) fn append_frame<T: CodecMessage>(
     } else {
         sink.reserve(need);
     }
-    sink.put_u8(0);
-    sink.put_slice(&prefix.to_be_bytes());
+    write_uncompressed_prefix(sink, len)?;
     msg.encode_payload(sink)?;
+    Ok(())
+}
+
+/// Compression flag plus the 4-byte length, in one write.
+#[inline(always)]
+fn write_uncompressed_prefix(sink: &mut SegSink, len: usize) -> Result<(), Status> {
+    let prefix = u32::try_from(len).map_err(|_| Status::internal("message too large"))?;
+    let mut hdr = [0u8; 5];
+    hdr[1..5].copy_from_slice(&prefix.to_be_bytes());
+    sink.put_slice(&hdr);
     Ok(())
 }
 
