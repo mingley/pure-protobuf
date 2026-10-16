@@ -142,6 +142,46 @@ fn bare_ok_trailer(fields: &HeaderMap) -> bool {
     name == GRPC_STATUS_NAME && bytes.len() == 1 && bytes[0] == b'0'
 }
 
+/// Empty receive block, initialized in the heap allocation.
+///
+/// A stack `Headers` is 288 bytes. `Box::new` copies that temporary into the
+/// box. Each field write is a store into the allocation.
+#[allow(
+    unsafe_code,
+    reason = "initialize an empty Headers directly in its heap allocation"
+)]
+fn box_empty_headers(
+    stream_id: StreamId,
+    stream_dep: Option<StreamDependency>,
+    flags: HeadersFlag,
+) -> Box<Headers> {
+    let mut uninit = Box::<Headers>::new_uninit();
+    let ptr = uninit.as_mut_ptr();
+    // SAFETY: every field is written before `assume_init`. None of the writes
+    // can panic, so a partially initialized value is never dropped.
+    unsafe {
+        std::ptr::addr_of_mut!((*ptr).stream_id).write(stream_id);
+        std::ptr::addr_of_mut!((*ptr).stream_dep).write(stream_dep);
+        std::ptr::addr_of_mut!((*ptr).flags).write(flags);
+        let block = std::ptr::addr_of_mut!((*ptr).header_block);
+        std::ptr::addr_of_mut!((*block).fields).write(HeaderMap::new());
+        std::ptr::addr_of_mut!((*block).field_size).write(0);
+        std::ptr::addr_of_mut!((*block).is_over_size).write(false);
+        std::ptr::addr_of_mut!((*block).has_content_length).write(false);
+        std::ptr::addr_of_mut!((*block).stock).write(StandardMap::None);
+        std::ptr::addr_of_mut!((*block).stock_facts).write(None);
+        std::ptr::addr_of_mut!((*block).pristine).write(true);
+        let pseudo = std::ptr::addr_of_mut!((*block).pseudo);
+        std::ptr::addr_of_mut!((*pseudo).method).write(None);
+        std::ptr::addr_of_mut!((*pseudo).scheme).write(None);
+        std::ptr::addr_of_mut!((*pseudo).authority).write(None);
+        std::ptr::addr_of_mut!((*pseudo).path).write(None);
+        std::ptr::addr_of_mut!((*pseudo).protocol).write(None);
+        std::ptr::addr_of_mut!((*pseudo).status).write(None);
+        uninit.assume_init()
+    }
+}
+
 impl Headers {
     /// Create a new HEADERS frame
     pub fn new(stream_id: StreamId, pseudo: Pseudo, fields: HeaderMap) -> Self {
@@ -264,24 +304,10 @@ impl Headers {
             src.truncate(len);
         }
 
-        // Box beside the literal so the empty block is built in the
-        // allocation. Returning `Headers` by value and boxing at the
-        // caller copies the 288-byte frame.
-        let headers = Box::new(Headers {
-            stream_id: head.stream_id(),
-            stream_dep,
-            header_block: HeaderBlock {
-                fields: HeaderMap::new(),
-                field_size: 0,
-                is_over_size: false,
-                has_content_length: false,
-                stock: StandardMap::None,
-                stock_facts: None,
-                pristine: true,
-                pseudo: Pseudo::default(),
-            },
-            flags,
-        });
+        // `Box::new` of this value still materializes the 288-byte block on
+        // the stack and copies it into the allocation. Write the fields into
+        // the heap slot instead.
+        let headers = box_empty_headers(head.stream_id(), stream_dep, flags);
 
         Ok((headers, src))
     }
