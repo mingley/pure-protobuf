@@ -508,22 +508,23 @@ impl Recv {
     ) -> Result<(), UserError> {
         tracing::trace!("release_capacity; size={}", capacity);
 
-        if capacity > stream.in_flight_recv_data {
-            return Err(UserError::ReleaseCapacityTooBig);
-        }
-
-        self.release_connection_capacity(capacity, task);
-
-        // One slab lookup for the three stream updates. Each field access
-        // otherwise re-checks the key.
+        // The too-big check and the stream-window update share one slab
+        // lookup. Doing the update after the connection release looked the
+        // stream up again.
         let queue_update = {
             let stream = &mut **stream;
+            if capacity > stream.in_flight_recv_data {
+                return Err(UserError::ReleaseCapacityTooBig);
+            }
             stream.in_flight_recv_data -= capacity;
             // TODO: proper error handling
             let _res = stream.recv_flow.assign_capacity(capacity);
             debug_assert!(_res.is_ok());
             stream.recv_flow.unclaimed_capacity().is_some()
         };
+
+        self.release_connection_capacity(capacity, task);
+
         if queue_update {
             // Queue the stream for sending the WINDOW_UPDATE frame.
             self.pending_window_updates.push(stream);
