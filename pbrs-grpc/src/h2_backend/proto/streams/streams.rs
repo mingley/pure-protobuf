@@ -1979,14 +1979,18 @@ fn drop_stream_ref(inner: &Mutex<Inner>, key: store::Key) {
     me.refs -= 1;
     let mut stream = me.store.resolve(key);
 
-    // decrement the stream's ref count by 1.
-    stream.ref_dec();
+    // One slab lookup for the refcount and the early return. Each field
+    // access otherwise re-checks the key.
+    {
+        let stream = &mut *stream;
+        stream.ref_dec();
 
-    // Another handle still owns an open stream, or close cleanup already
-    // unlinked it. Cancel, wake, and final release only run for the last
-    // reference of a stream that is already closed.
-    if stream.ref_count > 0 && (stream.protocol_unlinked || !stream.is_closed()) {
-        return;
+        // Another handle still owns an open stream, or close cleanup already
+        // unlinked it. Cancel, wake, and final release only run for the last
+        // reference of a stream that is already closed.
+        if stream.ref_count > 0 && (stream.protocol_unlinked || !stream.is_closed()) {
+            return;
+        }
     }
 
     tracing::trace!("drop_stream_ref; stream={:?}", stream);
