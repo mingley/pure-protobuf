@@ -269,11 +269,14 @@ impl Recv {
                 .peer()
                 .convert_poll_message(pseudo, fields, stream_id)?;
 
-            // Push the frame onto the stream's recv buffer
-            stream
-                .pending_recv
-                .push_back(&mut self.buffer, Event::Headers(Box::new(message)));
-            stream.notify_recv();
+            // The queue link and the recv wakeup share one slab lookup.
+            {
+                let stream = &mut **stream;
+                stream
+                    .pending_recv
+                    .push_back(&mut self.buffer, Event::Headers(Box::new(message)));
+                stream.notify_recv();
+            }
 
             // Only servers can receive a headers frame that initiates the stream.
             // This is verified in `Streams` before calling this function.
@@ -296,11 +299,14 @@ impl Recv {
 
             // Push the informational response onto the stream's recv buffer
             // with a special event type so it can be polled separately
-            stream.pending_recv.push_back(
-                &mut self.buffer,
-                Event::InformationalHeaders(Box::new(message)),
-            );
-            stream.notify_recv();
+            {
+                let stream = &mut **stream;
+                stream.pending_recv.push_back(
+                    &mut self.buffer,
+                    Event::InformationalHeaders(Box::new(message)),
+                );
+                stream.notify_recv();
+            }
         }
 
         Ok(())
@@ -467,11 +473,14 @@ impl Recv {
 
         let trailers = frame.into_fields();
 
-        // Push the frame onto the stream's recv buffer
-        stream
-            .pending_recv
-            .push_back(&mut self.buffer, Event::Trailers(Box::new(trailers)));
-        stream.notify_recv();
+        // The queue link and the recv wakeup share one slab lookup.
+        {
+            let stream = &mut **stream;
+            stream
+                .pending_recv
+                .push_back(&mut self.buffer, Event::Trailers(Box::new(trailers)));
+            stream.notify_recv();
+        }
 
         Ok(())
     }
