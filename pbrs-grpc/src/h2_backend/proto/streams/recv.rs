@@ -713,24 +713,26 @@ impl Recv {
 
         let sz = flow_len as WindowSize;
 
-        let is_ignoring_frame = stream.state.is_local_error();
-
-        if !is_ignoring_frame && !stream.state.is_recv_streaming() {
-            return Err(unexpected_data(stream.id));
-        }
-
-        if is_ignoring_frame {
-            return self.ignore_reset_data(sz, stream.id);
-        }
-
-        // Ensure that there is enough capacity on the connection before acting
-        // on the stream.
-        self.consume_connection_window(sz)?;
-
-        // One slab lookup for the window, content-length, and in-flight
-        // updates. Each field access otherwise re-checks the key.
+        // The open check and the window update share one slab lookup.
+        // `consume_connection_window` only touches the connection flow, so
+        // the stream pointer stays valid across it.
         {
             let stream = &mut **stream;
+            let is_ignoring_frame = stream.state.is_local_error();
+
+            if !is_ignoring_frame && !stream.state.is_recv_streaming() {
+                return Err(unexpected_data(stream.id));
+            }
+
+            if is_ignoring_frame {
+                let id = stream.id;
+                return self.ignore_reset_data(sz, id);
+            }
+
+            // Ensure that there is enough capacity on the connection before acting
+            // on the stream.
+            self.consume_connection_window(sz)?;
+
             if stream.recv_flow.window_size() < sz {
                 // http://httpwg.org/specs/rfc7540.html#WINDOW_UPDATE
                 // > A receiver MAY respond with a stream error (Section 5.4.2) or
