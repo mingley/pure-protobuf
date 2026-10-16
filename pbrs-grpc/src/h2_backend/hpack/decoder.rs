@@ -38,9 +38,9 @@ struct SavedBlock {
     decoded: SavedHeaders,
 }
 
-/// Which fast path `cached_block` can take. Computed once, when the block is stored.
+/// Which fast path a stored block can take. Computed once, when the block is stored.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-enum BlockKind {
+pub(crate) enum BlockKind {
     /// `true` when content-type is `application/grpc+proto`.
     Response(bool),
     Trailers,
@@ -81,24 +81,6 @@ fn block_kind(decoded: &SavedHeaders) -> BlockKind {
         return BlockKind::Request;
     }
     BlockKind::Other
-}
-
-/// A cache hit. Stock responses and OK trailers carry no request pseudos,
-/// so those paths do not build or drop empty `:method` / `:path` values.
-#[derive(Debug)]
-pub enum CachedHit {
-    Response {
-        fields: HeaderMap,
-        status: Option<StatusCode>,
-        field_size: usize,
-        stock_facts: Option<crate::wire::headers::StockFacts>,
-    },
-    Trailers {
-        fields: HeaderMap,
-        field_size: usize,
-        stock_facts: Option<crate::wire::headers::StockFacts>,
-    },
-    Other(SavedHeaders),
 }
 
 /// Decoded headers from a block that did not change the dynamic table.
@@ -340,63 +322,13 @@ impl Decoder {
         }
     }
 
-    /// Headers from an identical block that did not change the dynamic table.
-    pub(crate) fn cached_block(&self, raw: &[u8]) -> Option<CachedHit> {
+    /// The stored block for an identical header block, if one was saved.
+    ///
+    /// The caller writes the fields into the frame. Returning the saved
+    /// headers by value copied the request pseudos into a temporary first.
+    pub(crate) fn lookup_saved(&self, raw: &[u8]) -> Option<(BlockKind, &SavedHeaders)> {
         let block = self.saved.iter().find(|block| block.raw == raw)?;
-        // A repeated stock response is two headers. Reuse the last received
-        // map when the accept-encoding value matches; do not use `HeaderMap`
-        // equality, which hashes.
-        if let BlockKind::Response(grpc_proto) = block.kind {
-            let decoded = &block.decoded;
-            let fields = match crate::h2_backend::header_pool::take_received_response() {
-                Some((spare, spare_proto)) if spare_proto == grpc_proto => spare,
-                Some((other, other_proto)) => {
-                    crate::h2_backend::header_pool::recycle_received_response(other, other_proto);
-                    decoded.fields.clone()
-                }
-                None => decoded.fields.clone(),
-            };
-            // The guard already proved every pseudo except `:status` is absent.
-            return Some(CachedHit::Response {
-                fields,
-                status: decoded.status,
-                field_size: decoded.field_size,
-                stock_facts: decoded.stock_facts,
-            });
-        }
-        // A repeated OK trailer is one header. Reuse the last received map
-        // instead of cloning it. The encoder keeps its own trailer slot.
-        if block.kind == BlockKind::Trailers {
-            let decoded = &block.decoded;
-            let fields =
-                crate::h2_backend::header_pool::take_received_ok_trailer(|| decoded.fields.clone());
-            return Some(CachedHit::Trailers {
-                fields,
-                field_size: decoded.field_size,
-                stock_facts: decoded.stock_facts,
-            });
-        }
-        // Only a request. A trailers-only error is also four stock headers,
-        // and handing back an empty map would drop `grpc-status`.
-        if block.kind == BlockKind::Request {
-            if let Some(shared) = &block.decoded.shared_fields {
-                crate::h2_backend::header_pool::publish_shared_request(Arc::clone(shared));
-                let decoded = &block.decoded;
-                return Some(CachedHit::Other(SavedHeaders {
-                    fields: HeaderMap::new(),
-                    method: decoded.method.clone(),
-                    scheme: decoded.scheme.clone(),
-                    authority: decoded.authority.clone(),
-                    path: decoded.path.clone(),
-                    protocol: None,
-                    status: decoded.status,
-                    field_size: decoded.field_size,
-                    stock_facts: decoded.stock_facts,
-                    shared_fields: None,
-                }));
-            }
-        }
-        Some(CachedHit::Other(block.decoded.clone()))
+        Some((block.kind, &block.decoded))
     }
 
     /// Remember `decoded` for a later identical `raw` block.

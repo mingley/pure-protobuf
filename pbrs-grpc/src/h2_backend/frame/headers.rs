@@ -1610,32 +1610,55 @@ impl HeaderBlock {
         // the same headers. The saved bytes were checked when stored, so a
         // hit does not walk the block again.
         if fresh {
-            if let Some(hit) = decoder.cached_block(src) {
-                match hit {
-                    hpack::CachedHit::Response {
-                        fields,
-                        status,
-                        field_size,
-                        stock_facts,
-                    } => {
+            if let Some((kind, decoded)) = decoder.lookup_saved(src) {
+                match kind {
+                    hpack::BlockKind::Response(grpc_proto) => {
+                        let fields = match crate::h2_backend::header_pool::take_received_response()
+                        {
+                            Some((spare, spare_proto)) if spare_proto == grpc_proto => spare,
+                            Some((other, other_proto)) => {
+                                crate::h2_backend::header_pool::recycle_received_response(
+                                    other,
+                                    other_proto,
+                                );
+                                decoded.fields.clone()
+                            }
+                            None => decoded.fields.clone(),
+                        };
                         crate::h2_backend::header_pool::replace_map(&mut self.fields, fields);
-                        self.pseudo.status = status;
-                        self.field_size = field_size;
-                        self.stock_facts = stock_facts;
+                        self.pseudo.status = decoded.status;
+                        self.field_size = decoded.field_size;
+                        self.stock_facts = decoded.stock_facts;
                     }
-                    hpack::CachedHit::Trailers {
-                        fields,
-                        field_size,
-                        stock_facts,
-                    } => {
+                    hpack::BlockKind::Trailers => {
+                        let fields = crate::h2_backend::header_pool::take_received_ok_trailer(
+                            || decoded.fields.clone(),
+                        );
                         crate::h2_backend::header_pool::replace_map(&mut self.fields, fields);
-                        self.field_size = field_size;
-                        self.stock_facts = stock_facts;
+                        self.field_size = decoded.field_size;
+                        self.stock_facts = decoded.stock_facts;
                     }
-                    hpack::CachedHit::Other(saved) => {
+                    hpack::BlockKind::Request => {
                         // Stock requests publish the real map separately and
-                        // leave this one empty. The block was just constructed
-                        // empty too, so the replace only moves two zero maps.
+                        // leave the frame's map empty. Clone the pseudos
+                        // straight into the frame instead of building a
+                        // temporary saved block and copying it here.
+                        if let Some(shared) = &decoded.shared_fields {
+                            crate::h2_backend::header_pool::publish_shared_request(
+                                std::sync::Arc::clone(shared),
+                            );
+                        }
+                        self.pseudo.method = decoded.method.clone();
+                        self.pseudo.scheme = decoded.scheme.clone();
+                        self.pseudo.authority = decoded.authority.clone();
+                        self.pseudo.path = decoded.path.clone();
+                        self.pseudo.protocol = None;
+                        self.pseudo.status = decoded.status;
+                        self.field_size = decoded.field_size;
+                        self.stock_facts = decoded.stock_facts;
+                    }
+                    hpack::BlockKind::Other => {
+                        let saved = decoded.clone();
                         if saved.fields.capacity() == 0 && self.fields.capacity() == 0 {
                             std::mem::forget(saved.fields);
                         } else {
