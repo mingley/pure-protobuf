@@ -149,11 +149,16 @@ impl Send {
 
         let end_stream = frame.is_end_stream();
 
-        // Update the state
-        stream.state.send_open(end_stream)?;
+        // Opening the send side and the push-promise flag share one slab
+        // lookup. The flag is read again after `send_open` returns otherwise.
+        let pending_push = {
+            let stream = &mut **stream;
+            stream.state.send_open(end_stream)?;
+            stream.is_pending_push
+        };
 
         let mut pending_open = false;
-        if counts.peer().is_local_init(frame.stream_id()) && !stream.is_pending_push {
+        if counts.peer().is_local_init(frame.stream_id()) && !pending_push {
             self.prioritize.queue_open(stream, counts);
             pending_open = true;
         }
@@ -194,10 +199,16 @@ impl Send {
         }
 
         let end_stream = frame.is_end_stream();
-        stream.state.send_open(end_stream)?;
+        // Opening the send side and the push-promise flag share one slab
+        // lookup. The flag is read again after `send_open` returns otherwise.
+        let pending_push = {
+            let stream = &mut **stream;
+            stream.state.send_open(end_stream)?;
+            stream.is_pending_push
+        };
 
         let mut pending_open = false;
-        if counts.peer().is_local_init(frame.stream_id()) && !stream.is_pending_push {
+        if counts.peer().is_local_init(frame.stream_id()) && !pending_push {
             self.prioritize.queue_open(stream, counts);
             pending_open = true;
         }
