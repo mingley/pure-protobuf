@@ -352,6 +352,11 @@ pub(crate) async fn open_in<R: Runtime>(
             first_of_in::<R, _>(guarded, cancel_rx.clone(), deadline).await
         }
     };
+    // No deadline: `prefer_deadline_in` returns the pair unchanged, and the
+    // move through that function is a copy of the response halves.
+    if deadline.is_none() {
+        return raced;
+    }
     prefer_deadline_in::<R, _>(raced, deadline)
 }
 
@@ -669,6 +674,11 @@ impl super::Channel {
             Some(result) => result,
             None => first_of_in::<R, _>(acquire, cancel_rx, deadline).await,
         };
+        // No deadline: the preference check and the second remaining-time
+        // check are identity. Skipping them keeps `LiveConn` out of both.
+        if deadline.is_none() {
+            return raced;
+        }
         let grabbed = prefer_deadline_in::<R, _>(raced, deadline)?;
         let _ = remaining_timeout(deadline)?;
         Ok(grabbed)
