@@ -305,7 +305,7 @@ impl ConnectionInfo {
 pub(crate) fn incoming_rpc(
     request: http::Request<RecvStream>,
     respond: SendResponse,
-    config: ServerConfig,
+    config: &ServerConfig,
     peer: ConnectionInfo,
     byte_budget: ByteBudgetTracker,
     channelz_server: Option<crate::channelz::ServerId>,
@@ -355,7 +355,7 @@ pub(crate) fn incoming_rpc(
     Rpc {
         request,
         respond,
-        config,
+        config: *config,
         remote_addr: peer.remote,
         local_addr: peer.local,
         peer_identity: peer.identity,
@@ -733,7 +733,7 @@ where
                         .dispatch(incoming_rpc(
                             request,
                             respond,
-                            *rpc_config,
+                            &rpc_config,
                             rpc_peer,
                             byte_budget,
                             channelz_server,
