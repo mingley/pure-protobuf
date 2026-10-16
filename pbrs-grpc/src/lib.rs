@@ -320,6 +320,8 @@ mod keepalive;
 mod lazy_ext;
 // `PathAndQuery::from_static` clone is a virtual call that only copies words.
 mod static_copy;
+// The uncompressed gRPC prefix is five bytes in a buffer that was just reserved.
+mod grpc_prefix;
 #[forbid(unsafe_code)]
 pub mod lb;
 #[forbid(unsafe_code)]

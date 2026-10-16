@@ -312,13 +312,12 @@ pub(crate) fn append_frame<T: CodecMessage>(
     Ok(())
 }
 
-/// Compression flag plus the 4-byte length, in one write.
+/// Compression flag plus the 4-byte length, written into the reserved head.
 #[inline(always)]
 fn write_uncompressed_prefix(sink: &mut SegSink, len: usize) -> Result<(), Status> {
     let prefix = u32::try_from(len).map_err(|_| Status::internal("message too large"))?;
-    let mut hdr = [0u8; 5];
-    hdr[1..5].copy_from_slice(&prefix.to_be_bytes());
-    sink.put_slice(&hdr);
+    crate::grpc_prefix::write_uncompressed(sink.head_mut(), prefix);
+    sink.note_head_wrote(codec::HEADER_LEN);
     Ok(())
 }
 
