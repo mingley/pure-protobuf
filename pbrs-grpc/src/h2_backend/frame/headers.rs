@@ -220,6 +220,50 @@ fn box_filled_headers(
     }
 }
 
+/// POST request frame, initialized in the heap allocation.
+///
+/// Writing the pseudo block as one value copies 160 bytes into the box.
+/// Each field is stored on its own.
+#[allow(
+    unsafe_code,
+    reason = "initialize a POST Headers value directly in its heap allocation"
+)]
+fn box_post_request(
+    stream_id: StreamId,
+    flags: HeadersFlag,
+    scheme: Option<BytesStr>,
+    authority: Option<BytesStr>,
+    path: BytesStr,
+    fields: HeaderMap,
+    stock: StandardMap,
+) -> Box<Headers> {
+    let mut uninit = Box::<Headers>::new_uninit();
+    let ptr = uninit.as_mut_ptr();
+    // SAFETY: every field is written before `assume_init`. None of the writes
+    // can panic, so a partially initialized value is never dropped.
+    unsafe {
+        std::ptr::addr_of_mut!((*ptr).stream_id).write(stream_id);
+        std::ptr::addr_of_mut!((*ptr).stream_dep).write(None);
+        std::ptr::addr_of_mut!((*ptr).flags).write(flags);
+        let block = std::ptr::addr_of_mut!((*ptr).header_block);
+        std::ptr::addr_of_mut!((*block).fields).write(fields);
+        std::ptr::addr_of_mut!((*block).field_size).write(0);
+        std::ptr::addr_of_mut!((*block).is_over_size).write(false);
+        std::ptr::addr_of_mut!((*block).has_content_length).write(false);
+        std::ptr::addr_of_mut!((*block).stock).write(stock);
+        std::ptr::addr_of_mut!((*block).stock_facts).write(None);
+        std::ptr::addr_of_mut!((*block).pristine).write(false);
+        let pseudo = std::ptr::addr_of_mut!((*block).pseudo);
+        std::ptr::addr_of_mut!((*pseudo).method).write(Some(Method::POST));
+        std::ptr::addr_of_mut!((*pseudo).scheme).write(scheme);
+        std::ptr::addr_of_mut!((*pseudo).authority).write(authority);
+        std::ptr::addr_of_mut!((*pseudo).path).write(Some(path));
+        std::ptr::addr_of_mut!((*pseudo).protocol).write(None);
+        std::ptr::addr_of_mut!((*pseudo).status).write(None);
+        uninit.assume_init()
+    }
+}
+
 /// A trailer block, initialized in the heap allocation.
 ///
 /// The pseudo-header set is empty. Writing those `None`s in place avoids
@@ -397,6 +441,56 @@ impl Headers {
             },
             flags,
         }
+    }
+
+    /// [`post_request`](Self::post_request) already in the queue box.
+    ///
+    /// `send_headers` boxes the returned frame and copies all 288 bytes.
+    /// The fields are stored into the allocation instead.
+    pub(crate) fn post_request_boxed(
+        stream_id: StreamId,
+        uri: Uri,
+        fields: HeaderMap,
+        end_of_stream: bool,
+        stock_request: bool,
+    ) -> Box<Self> {
+        let has_authority = uri.authority().is_some();
+        let path = if let Some(v) = uri.path_and_query() {
+            let raw = v.as_str();
+            if raw.is_empty() {
+                Pseudo::post_empty_path()
+            } else {
+                BytesStr::reused(crate::h2_backend::hpack::header::ReusedStr::Path, raw)
+            }
+        } else {
+            Pseudo::post_empty_path()
+        };
+        let scheme = match uri.scheme() {
+            Some(scheme) if *scheme == uri::Scheme::HTTP => Some(BytesStr::from_static("http")),
+            Some(scheme) => Some(Pseudo::post_scheme(scheme.clone())),
+            None if !has_authority => Some(BytesStr::from_static("http")),
+            None => None,
+        };
+        let authority = if has_authority {
+            uri.authority().map(|authority| {
+                BytesStr::reused(
+                    crate::h2_backend::hpack::header::ReusedStr::Authority,
+                    authority.as_str(),
+                )
+            })
+        } else {
+            None
+        };
+        let mut flags = HeadersFlag::default();
+        if end_of_stream {
+            flags.set_end_stream();
+        }
+        let stock = if stock_request {
+            StandardMap::Request
+        } else {
+            StandardMap::None
+        };
+        box_post_request(stream_id, flags, scheme, authority, path, fields, stock)
     }
 
     /// [`new`](Self::new) with the frame already in its queue box.

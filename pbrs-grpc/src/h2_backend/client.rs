@@ -1725,13 +1725,14 @@ impl Peer {
         request: Request<()>,
         protocol: Option<Protocol>,
         end_of_stream: bool,
-    ) -> Result<Headers, SendError> {
+    ) -> Result<Box<Headers>, SendError> {
         use http::request::Parts;
 
         // CONNECT and any non-POST method stay out of line. A gRPC RPC is
-        // POST with no `:protocol`, and that frame is built in the return slot.
+        // POST with no `:protocol`, and that frame is built in its queue box.
         if protocol.is_some() || request.method() != Method::POST {
-            return Self::convert_send_message_general(id, request, protocol, end_of_stream);
+            return Self::convert_send_message_general(id, request, protocol, end_of_stream)
+                .map(Box::new);
         }
 
         let (
@@ -1750,7 +1751,7 @@ impl Peer {
         let stock = crate::h2_backend::header_pool::take_next_stock(
             crate::h2_backend::header_pool::STOCK_REQUEST,
         );
-        Ok(Headers::post_request(
+        Ok(Headers::post_request_boxed(
             id,
             uri,
             headers,

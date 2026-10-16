@@ -183,9 +183,9 @@ impl Send {
 
     /// [`send_headers`](Self::send_headers) for a frame that is already boxed.
     ///
-    /// Kept out of line so the 288-byte header block is not copied into the
-    /// caller before the queue.
-    #[inline(never)]
+    /// The frame is already boxed, so this stays in the caller. Out of line,
+    /// the call cost more than the copy it avoided on a unary RPC.
+    #[inline(always)]
     pub fn send_headers_boxed<B>(
         &mut self,
         mut frame: Box<frame::Headers>,

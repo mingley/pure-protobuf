@@ -391,7 +391,7 @@ where
 
         let mut stream = me.store.insert(stream.id, stream);
 
-        let sent = me.actions.send.send_headers(
+        let sent = me.actions.send.send_headers_boxed(
             headers,
             send_buffer,
             &mut stream,
@@ -486,7 +486,7 @@ where
 
         let mut stream = me.store.insert(stream.id, stream);
 
-        let sent = me.actions.send.send_headers(
+        let sent = me.actions.send.send_headers_boxed(
             headers,
             send_buffer,
             &mut stream,
