@@ -256,7 +256,26 @@ impl Store {
         }
     }
 
+    /// The single-stream hit is the steady path. This stays a small
+    /// function so the hit does not pay the hash path's register saves,
+    /// and callers are not rewritten around the check.
+    #[inline(never)]
     pub fn find_entry(&mut self, id: StreamId) -> Entry<'_> {
+        if let Some((only, index)) = self.sole {
+            if only == id {
+                return Entry::Occupied(OccupiedEntry {
+                    kind: OccupiedKind::Cached(Key {
+                        index,
+                        stream_id: id,
+                    }),
+                });
+            }
+        }
+        self.find_entry_slow(id)
+    }
+
+    #[inline(never)]
+    fn find_entry_slow(&mut self, id: StreamId) -> Entry<'_> {
         use self::indexmap::map::Entry::*;
 
         if let Some(index) = self.sole_index(id) {
