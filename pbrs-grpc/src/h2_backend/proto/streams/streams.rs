@@ -1981,7 +1981,9 @@ fn drop_stream_ref(inner: &Mutex<Inner>, key: store::Key) {
 
     // One slab lookup for the refcount and the early return. Each field
     // access otherwise re-checks the key.
-    {
+    // The closed-and-unreferenced case wakes the connection. Read it with
+    // the refcount so that path does not look the stream up again.
+    let wake_conn = {
         let stream = &mut *stream;
         stream.ref_dec();
 
@@ -1991,7 +1993,8 @@ fn drop_stream_ref(inner: &Mutex<Inner>, key: store::Key) {
         if stream.ref_count > 0 && (stream.protocol_unlinked || !stream.is_closed()) {
             return;
         }
-    }
+        stream.ref_count == 0 && stream.is_closed()
+    };
 
     tracing::trace!("drop_stream_ref; stream={:?}", stream);
 
@@ -2001,7 +2004,7 @@ fn drop_stream_ref(inner: &Mutex<Inner>, key: store::Key) {
     // closed (does not have to go through logic below
     // of canceling the stream), we should notify the task
     // (connection) so that it can close properly
-    if stream.ref_count == 0 && stream.is_closed() {
+    if wake_conn {
         if let Some(task) = actions.task.take() {
             task.wake();
         }
