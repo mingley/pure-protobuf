@@ -205,7 +205,26 @@ impl Store {
         }
     }
 
+    /// Same split as `find_entry`: the steady hit must not pay for the
+    /// hash-map lookup's saved registers.
+    #[inline(never)]
     pub fn find_mut(&mut self, id: &StreamId) -> Option<Ptr<'_>> {
+        if let Some((only, index)) = self.sole {
+            if only == *id {
+                return Some(Ptr {
+                    key: Key {
+                        index,
+                        stream_id: *id,
+                    },
+                    store: self,
+                });
+            }
+        }
+        self.find_mut_slow(id)
+    }
+
+    #[inline(never)]
+    fn find_mut_slow(&mut self, id: &StreamId) -> Option<Ptr<'_>> {
         let index = if let Some(index) = self.sole_index(*id) {
             index
         } else {
