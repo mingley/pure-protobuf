@@ -12,6 +12,19 @@ impl super::Channel {
         state.config.method_config(service, method).cloned()
     }
 
+    /// Method entry from a state the caller already loaded.
+    ///
+    /// `prepare_outbound` and `wire_for` both need it. Loading the document
+    /// twice takes the service-config lock twice on every call.
+    pub(crate) fn method_entry<'a>(
+        state: Option<&'a crate::service_config::ServiceConfigState>,
+        path: &str,
+    ) -> Option<&'a MethodConfig> {
+        let state = state?;
+        let (service, method) = crate::telemetry::split_path(path);
+        state.config.method_config(service, method)
+    }
+
     /// Client-side health checking for LB subchannels (A17): the
     /// watched service name when the master switch is on and the
     /// attached document opts in with `healthCheckConfig`. Resolved
@@ -80,9 +93,13 @@ impl super::Channel {
     /// `maxRequestMessageBytes` tightens the encoding cap and
     /// `maxResponseMessageBytes` tightens the decoding cap; a method entry
     /// never loosens an explicit channel cap.
-    pub(crate) fn wire_for(&self, path: &str) -> Wire {
+    pub(crate) fn wire_for(
+        &self,
+        path: &str,
+        state: Option<&crate::service_config::ServiceConfigState>,
+    ) -> Wire {
         let mut wire = self.config.wire();
-        if let Some(method) = self.method_config_for(path) {
+        if let Some(method) = Self::method_entry(state, path) {
             if let Some(max) = method.max_request_message_bytes {
                 let tight = wire.limits.max_encoding().map_or(max, |base| base.min(max));
                 wire.limits = wire.limits.with_max_encoding(tight);

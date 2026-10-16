@@ -302,10 +302,11 @@ impl super::Channel {
         Req: CodecMessage + Send + 'static,
         Resp: CodecMessage + Send + 'static,
     {
-        let prepared = self.prepare_outbound(path, &mut req);
+        let state = self.service_config.get();
+        let prepared = self.prepare_outbound(path, &mut req, state.as_deref());
         let (cancel, cancel_rx) = watch::channel(false);
         let channel = self.clone();
-        let wire = self.wire_for(path);
+        let wire = self.wire_for(path, state.as_deref());
         let observer = self.observer.clone();
         // Destructure before the async block so the envelope is not stored
         // in the future; only the parts cross awaits.

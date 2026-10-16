@@ -1561,10 +1561,11 @@ impl super::Channel {
         Resp: CodecMessage + Send + 'static,
     {
         let channel = self.clone();
-        let prepared = channel.prepare_outbound(path, &mut req);
+        let state = channel.service_config.get();
+        let prepared = channel.prepare_outbound(path, &mut req, state.as_deref());
         let (cancel, cancel_rx) = watch::channel(false);
         let reset = cancel.clone();
-        let wire = channel.wire_for(path);
+        let wire = channel.wire_for(path, state.as_deref());
         let observer = channel.observer.clone();
         // Destructure before the async block so the envelope is not stored
         // in the future; only the parts cross awaits.
@@ -1993,8 +1994,9 @@ impl super::Channel {
         Req: CodecMessage + Send + 'static,
         Resp: CodecMessage + Send + 'static,
     {
-        let prepared = self.prepare_outbound(path, &mut req);
-        let wire = self.wire_for(path);
+        let state = self.service_config.get();
+        let prepared = self.prepare_outbound(path, &mut req, state.as_deref());
+        let wire = self.wire_for(path, state.as_deref());
         let (tx, rx) = Streaming::channel(self.config.stream_buffer_size());
         let tx = tx.with_limits(wire.limits).with_compress(req.compress());
         let (cancel, cancel_rx) = watch::channel(false);
@@ -2285,8 +2287,9 @@ impl super::Channel {
         Resp: CodecMessage + Send + 'static,
     {
         let channel = self.clone();
-        let prepared = channel.prepare_outbound(path, &mut req);
-        let wire = channel.wire_for(path);
+        let state = channel.service_config.get();
+        let prepared = channel.prepare_outbound(path, &mut req, state.as_deref());
+        let wire = channel.wire_for(path, state.as_deref());
         let buffer = channel.config.stream_buffer_size();
         let (tx, rx) = Streaming::channel(buffer);
         let tx = tx.with_limits(wire.limits).with_compress(req.compress());

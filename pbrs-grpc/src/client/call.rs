@@ -605,8 +605,9 @@ impl super::Channel {
         &self,
         path: &'static str,
         req: &mut Request<T>,
+        state: Option<&crate::service_config::ServiceConfigState>,
     ) -> Result<(), Status> {
-        if let Some(method) = self.method_config_for(path) {
+        if let Some(method) = super::Channel::method_entry(state, path) {
             if req.timeout().is_none() {
                 if let Some(timeout) = method.timeout {
                     req.set_timeout(timeout);
