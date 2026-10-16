@@ -770,6 +770,18 @@ impl Headers {
             }
         }
 
+        self.encode_unreplayed(encoder, dst, head)
+    }
+
+    /// A block that did not replay. Out of line so the hit path does not
+    /// reserve a copy of the header block.
+    #[inline(never)]
+    fn encode_unreplayed(
+        self,
+        encoder: &mut hpack::Encoder,
+        dst: &mut EncodeBuf<'_>,
+        head: Head,
+    ) -> Option<Continuation> {
         self.header_block
             .into_encoding(encoder)
             .encode(&head, dst, Some(encoder), 0, |_| {})
