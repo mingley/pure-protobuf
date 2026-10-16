@@ -1357,10 +1357,17 @@ fn coarse_now_ms() -> u64 {
             cell.set(clock);
             return clock.ms;
         }
-        let ms = now_ms();
+        // The wall read needs registers the reused stamp does not. Keep it
+        // out of this function so the hit path does not save them.
+        let ms = read_coarse_wall();
         cell.set(Coarse { tick: 1, ms });
         ms
     })
+}
+
+#[inline(never)]
+fn read_coarse_wall() -> u64 {
+    now_ms()
 }
 
 impl From<&crate::resolver::ResolvedAddress> for EndpointAddr {
