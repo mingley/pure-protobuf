@@ -41,6 +41,16 @@ impl SegSink {
         self.head.reserve(n);
     }
 
+    /// First buffer for a frame. An empty head has nothing to preserve, so
+    /// this allocates the `Vec` directly instead of going through `reserve`.
+    pub(crate) fn reserve_new(&mut self, n: usize) {
+        if self.head.capacity() == 0 {
+            self.head = BytesMut::with_capacity(n);
+        } else {
+            self.head.reserve(n);
+        }
+    }
+
     /// Total bytes sunk so far (copied + shared).
     pub(crate) fn len(&self) -> usize {
         self.total_len
@@ -207,7 +217,7 @@ impl SegFrame {
 /// being copied (PK-11); the concatenated bytes are identical.
 pub(crate) fn frame_from_msg<T: CodecMessage>(msg: &T, len: usize) -> Result<SegFrame, Status> {
     let mut sink = SegSink::new();
-    sink.reserve(codec::HEADER_LEN + len);
+    sink.reserve_new(codec::HEADER_LEN + len);
     write_uncompressed_prefix(&mut sink, len)?;
     msg.encode_payload(&mut sink)?;
     let shared = sink.shared_len();
@@ -303,7 +313,7 @@ pub(crate) fn append_frame<T: CodecMessage>(
     // every message. The first small frame reserves room for three more.
     // `frame_from_msg` keeps the exact size for a single message.
     if sink.is_empty() && need <= 8 * 1024 {
-        sink.reserve(need.saturating_mul(4));
+        sink.reserve_new(need.saturating_mul(4));
     } else {
         sink.reserve(need);
     }
