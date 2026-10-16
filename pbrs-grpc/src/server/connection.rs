@@ -530,7 +530,7 @@ where
                 }
                 match ServerConnection::poll_accept(&mut conn, cx) {
                     Poll::Ready(accepted) => {
-                        accepted_slot = Some(accepted);
+                        accepted_slot = accepted;
                         Poll::Ready(Wait::Accepted)
                     }
                     Poll::Pending => {
@@ -548,7 +548,7 @@ where
                 biased;
                 _ = std::future::poll_fn(|cx| poll_admitted(&mut admitted, cx)), if !admitted.is_empty() => Wait::Tick,
                 accepted = conn.accept() => {
-                    accepted_slot = Some(accepted);
+                    accepted_slot = accepted;
                     Wait::Accepted
                 },
                 _ = busy.notified(), if track_busy => Wait::Tick,
@@ -568,10 +568,7 @@ where
                 conn.graceful_shutdown();
             }
             Wait::Accepted => {
-                let Some(accepted) = accepted_slot.take() else {
-                    break;
-                };
-                let Some(Ok((request, mut respond))) = accepted else {
+                let Some(Ok((request, mut respond))) = accepted_slot.take() else {
                     break;
                 };
                 // Popped with this request, before the arm can park.
