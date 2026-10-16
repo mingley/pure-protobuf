@@ -728,10 +728,9 @@ impl Pseudo {
         if protocol.is_some() || method != Method::POST {
             return Self::request_general(method, uri, protocol);
         }
-        let parts = uri::Parts::from(uri);
-        // Missing and empty paths are not gRPC. The `/` substitute stays out
-        // of the POST prologue.
-        let path = if let Some(v) = parts.path_and_query {
+        // Borrow the URI. `Parts::from` moved the path and authority out and
+        // dropped them after the reused `Bytes` was cloned.
+        let path = if let Some(v) = uri.path_and_query() {
             let raw = v.as_str();
             if raw.is_empty() {
                 Self::post_empty_path()
@@ -741,23 +740,20 @@ impl Pseudo {
         } else {
             Self::post_empty_path()
         };
+        let scheme = match uri.scheme() {
+            Some(scheme) if *scheme == uri::Scheme::HTTP => Some(BytesStr::from_static("http")),
+            Some(scheme) => Some(Self::post_scheme(scheme.clone())),
+            None => None,
+        };
         let mut pseudo = Pseudo {
             method: Some(Method::POST),
-            scheme: None,
+            scheme,
             authority: None,
             path: Some(path),
             protocol: None,
             status: None,
         };
-        if let Some(scheme) = parts.scheme {
-            // `http` is a discriminant. https and custom schemes are rare.
-            pseudo.scheme = Some(if scheme == uri::Scheme::HTTP {
-                BytesStr::from_static("http")
-            } else {
-                Self::post_scheme(scheme)
-            });
-        }
-        if let Some(authority) = parts.authority {
+        if let Some(authority) = uri.authority() {
             pseudo.set_authority(BytesStr::reused(
                 crate::h2_backend::hpack::header::ReusedStr::Authority,
                 authority.as_str(),
