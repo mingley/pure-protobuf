@@ -10,13 +10,16 @@ use bytes::{BufMut, BytesMut};
 /// Write a cleartext gRPC prefix. The grow path stays out of line.
 #[inline(always)]
 pub(crate) fn write_uncompressed(head: &mut BytesMut, len: u32) {
-    if head.remaining_mut() >= crate::codec::HEADER_LEN {
-        // SAFETY: `remaining_mut` is the spare capacity `chunk_mut` exposes.
+    let len_now = head.len();
+    let spare = head.capacity() - len_now;
+    if spare >= crate::codec::HEADER_LEN {
+        // SAFETY: `spare` is `capacity - len`, so five bytes at `len` are in
+        // the allocation. `set_len` publishes them after the stores.
         unsafe {
-            let dst = head.chunk_mut().as_mut_ptr();
+            let dst = head.spare_capacity_mut().as_mut_ptr().cast::<u8>();
             dst.write(0);
             dst.add(1).cast::<u32>().write_unaligned(len.to_be());
-            head.advance_mut(crate::codec::HEADER_LEN);
+            head.set_len(len_now + crate::codec::HEADER_LEN);
         }
     } else {
         write_uncompressed_slow(head, len);
