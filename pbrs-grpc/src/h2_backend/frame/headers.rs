@@ -261,6 +261,47 @@ fn box_trailer_headers(
     }
 }
 
+/// A response block with only `:status` set, initialized in the heap allocation.
+///
+/// `Pseudo::response` is a 160-byte value that is mostly empty. Storing the
+/// status directly avoids copying that temporary into the box.
+#[allow(
+    unsafe_code,
+    reason = "initialize a response Headers value directly in its heap allocation"
+)]
+fn box_response_headers(
+    stream_id: StreamId,
+    status: http::StatusCode,
+    fields: HeaderMap,
+    flags: HeadersFlag,
+) -> Box<Headers> {
+    let mut uninit = Box::<Headers>::new_uninit();
+    let ptr = uninit.as_mut_ptr();
+    // SAFETY: every field is written before `assume_init`. Moving `fields`
+    // in does not panic, so a partial value is never dropped.
+    unsafe {
+        std::ptr::addr_of_mut!((*ptr).stream_id).write(stream_id);
+        std::ptr::addr_of_mut!((*ptr).stream_dep).write(None);
+        std::ptr::addr_of_mut!((*ptr).flags).write(flags);
+        let block = std::ptr::addr_of_mut!((*ptr).header_block);
+        std::ptr::addr_of_mut!((*block).fields).write(fields);
+        std::ptr::addr_of_mut!((*block).field_size).write(0);
+        std::ptr::addr_of_mut!((*block).is_over_size).write(false);
+        std::ptr::addr_of_mut!((*block).has_content_length).write(false);
+        std::ptr::addr_of_mut!((*block).stock).write(StandardMap::None);
+        std::ptr::addr_of_mut!((*block).stock_facts).write(None);
+        std::ptr::addr_of_mut!((*block).pristine).write(false);
+        let pseudo = std::ptr::addr_of_mut!((*block).pseudo);
+        std::ptr::addr_of_mut!((*pseudo).method).write(None);
+        std::ptr::addr_of_mut!((*pseudo).scheme).write(None);
+        std::ptr::addr_of_mut!((*pseudo).authority).write(None);
+        std::ptr::addr_of_mut!((*pseudo).path).write(None);
+        std::ptr::addr_of_mut!((*pseudo).protocol).write(None);
+        std::ptr::addr_of_mut!((*pseudo).status).write(Some(status));
+        uninit.assume_init()
+    }
+}
+
 impl Headers {
     /// Create a new HEADERS frame
     pub fn new(stream_id: StreamId, pseudo: Pseudo, fields: HeaderMap) -> Self {
@@ -297,6 +338,15 @@ impl Headers {
             StandardMap::None,
             false,
         )
+    }
+
+    /// Response HEADERS with only `:status`, already in the queue box.
+    pub fn response_boxed(
+        stream_id: StreamId,
+        status: http::StatusCode,
+        fields: HeaderMap,
+    ) -> Box<Self> {
+        box_response_headers(stream_id, status, fields, HeadersFlag::default())
     }
 
     pub fn trailers(stream_id: StreamId, fields: HeaderMap) -> Self {

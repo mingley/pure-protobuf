@@ -1603,12 +1603,9 @@ impl Peer {
             _,
         ) = response.into_parts();
 
-        // Build the set pseudo header set. All requests will include `method`
-        // and `path`.
-        let pseudo = Pseudo::response(status);
-
-        // Create the HEADERS frame in the box it will be queued as.
-        let mut frame = frame::Headers::new_boxed(id, pseudo, headers);
+        // `:status` is the only pseudo-header. Writing it into the allocation
+        // skips the 160-byte `Pseudo::response` temporary.
+        let mut frame = frame::Headers::response_boxed(id, status, headers);
         if crate::h2_backend::header_pool::take_next_stock(
             crate::h2_backend::header_pool::STOCK_RESPONSE,
         ) {
