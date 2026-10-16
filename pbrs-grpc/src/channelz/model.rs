@@ -760,24 +760,32 @@ impl Registry {
         }
     }
 
-    /// Count one call started on a server (lock-free).
+    /// Count one call started on a server.
     pub fn note_server_call_started(&self, id: ServerId) {
-        if let Some(entry) = self.server(id) {
-            entry.calls_started.fetch_add(1, Ordering::Relaxed);
-            entry
-                .last_call_started_ms
-                .store(coarse_now_ms(), Ordering::Relaxed);
-        }
+        let Ok(map) = self.servers.read() else {
+            return;
+        };
+        let Some(entry) = map.get(&id.0) else {
+            return;
+        };
+        entry.calls_started.fetch_add(1, Ordering::Relaxed);
+        entry
+            .last_call_started_ms
+            .store(coarse_now_ms(), Ordering::Relaxed);
     }
 
-    /// Count one call completed on a server (lock-free).
+    /// Count one call completed on a server.
     pub fn note_server_call_end(&self, id: ServerId, ok: bool) {
-        if let Some(entry) = self.server(id) {
-            if ok {
-                entry.calls_succeeded.fetch_add(1, Ordering::Relaxed);
-            } else {
-                entry.calls_failed.fetch_add(1, Ordering::Relaxed);
-            }
+        let Ok(map) = self.servers.read() else {
+            return;
+        };
+        let Some(entry) = map.get(&id.0) else {
+            return;
+        };
+        if ok {
+            entry.calls_succeeded.fetch_add(1, Ordering::Relaxed);
+        } else {
+            entry.calls_failed.fetch_add(1, Ordering::Relaxed);
         }
     }
 
