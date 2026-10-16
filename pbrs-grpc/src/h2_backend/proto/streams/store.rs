@@ -496,10 +496,12 @@ impl<'a> Ptr<'a> {
         // The stream must have been unlinked before this point
         debug_assert!(!self.store.ids.contains_key(&self.key.stream_id));
 
-        // Remove the stream state
-        let stream = self.store.slab.remove(self.key.index.0 as usize);
-        assert_eq!(stream.id, self.key.stream_id);
-        stream.id
+        // Read the id before removal. Binding `slab.remove`'s return value
+        // copies all 328 bytes of the stream out of the slab just to drop
+        // them. Leaving that value unused lets the compiler drop it in place.
+        let id = self.store[self.key].id;
+        self.store.slab.remove(self.key.index.0 as usize);
+        id
     }
 
     /// Remove the StreamId -> stream state association.
