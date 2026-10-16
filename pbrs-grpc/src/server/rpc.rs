@@ -1398,6 +1398,7 @@ impl InboundRpc {
         })
     }
 
+    #[inline(always)]
     fn into_prepared<T>(self, outcome: Result<T, Status>) -> Prepared<T> {
         notify_deadline(&outcome, &self.cancel_tx);
         if matches!(&outcome, Err(status) if status.code() == Code::DeadlineExceeded) {
@@ -1591,7 +1592,7 @@ impl<F: Future<Output = ()>> Future for BidiDrive<F> {
     }
 }
 
-#[inline(never)]
+#[inline(always)]
 fn box_prepared<T>(inbound: Box<InboundRpc>, outcome: Result<T, Status>) -> Box<Prepared<T>> {
     Box::new((*inbound).into_prepared(outcome))
 }
