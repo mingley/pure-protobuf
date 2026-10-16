@@ -176,6 +176,44 @@ impl Send {
         Ok(())
     }
 
+    /// [`send_headers`](Self::send_headers) for a frame that is already boxed.
+    ///
+    /// Kept out of line so the 288-byte header block is not copied into the
+    /// caller before the queue.
+    #[inline(never)]
+    pub fn send_headers_boxed<B>(
+        &mut self,
+        mut frame: Box<frame::Headers>,
+        buffer: &mut Buffer<Frame<B>>,
+        stream: &mut store::Ptr,
+        counts: &mut Counts,
+        task: &mut Option<Waker>,
+    ) -> Result<(), UserError> {
+        if !frame.note_stock_fields() {
+            Self::check_headers(frame.fields())?;
+        }
+
+        let end_stream = frame.is_end_stream();
+        stream.state.send_open(end_stream)?;
+
+        let mut pending_open = false;
+        if counts.peer().is_local_init(frame.stream_id()) && !stream.is_pending_push {
+            self.prioritize.queue_open(stream, counts);
+            pending_open = true;
+        }
+
+        self.prioritize
+            .queue_frame(Frame::Headers(frame), buffer, stream, task);
+
+        if pending_open {
+            if let Some(task) = task.take() {
+                task.wake();
+            }
+        }
+
+        Ok(())
+    }
+
     /// Send interim informational headers (1xx responses) without changing stream state.
     /// This allows multiple interim informational responses to be sent before the final response.
     pub fn send_interim_informational_headers<B>(

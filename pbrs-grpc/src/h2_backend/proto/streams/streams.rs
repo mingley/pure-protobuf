@@ -1589,9 +1589,13 @@ impl<B> StreamRef<B> {
         me.counts.transition(stream, |counts, stream| {
             let frame = server::Peer::convert_send_message(stream.id, response, end_of_stream);
 
-            actions
-                .send
-                .send_headers(frame, send_buffer, stream, counts, &mut actions.task)
+            actions.send.send_headers_boxed(
+                frame,
+                send_buffer,
+                stream,
+                counts,
+                &mut actions.task,
+            )
         })
     }
 

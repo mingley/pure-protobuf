@@ -1221,7 +1221,7 @@ impl<B: Buf> SendResponse<B> {
             stream_id
         );
 
-        let frame = Peer::convert_send_message(
+        let frame = *Peer::convert_send_message(
             stream_id, response, false, // NOT end_of_stream for informational responses
         );
 
@@ -1592,7 +1592,7 @@ impl Peer {
         id: StreamId,
         response: Response<()>,
         end_of_stream: bool,
-    ) -> frame::Headers {
+    ) -> Box<frame::Headers> {
         use http::response::Parts;
 
         // Extract the components of the HTTP request
@@ -1607,8 +1607,8 @@ impl Peer {
         // and `path`.
         let pseudo = Pseudo::response(status);
 
-        // Create the HEADERS frame
-        let mut frame = frame::Headers::new(id, pseudo, headers);
+        // Create the HEADERS frame in the box it will be queued as.
+        let mut frame = frame::Headers::new_boxed(id, pseudo, headers);
         if crate::h2_backend::header_pool::take_next_stock(
             crate::h2_backend::header_pool::STOCK_RESPONSE,
         ) {

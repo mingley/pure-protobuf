@@ -164,6 +164,28 @@ impl Headers {
         }
     }
 
+    /// [`new`](Self::new) with the frame already in its queue box.
+    ///
+    /// Returning `Headers` and boxing at `send_headers` copies the 288-byte
+    /// frame. The response path builds it in the allocation.
+    pub fn new_boxed(stream_id: StreamId, pseudo: Pseudo, fields: HeaderMap) -> Box<Self> {
+        Box::new(Headers {
+            stream_id,
+            stream_dep: None,
+            header_block: HeaderBlock {
+                field_size: 0,
+                fields,
+                is_over_size: false,
+                has_content_length: false,
+                stock: StandardMap::None,
+                stock_facts: None,
+                pristine: false,
+                pseudo,
+            },
+            flags: HeadersFlag::default(),
+        })
+    }
+
     pub fn trailers(stream_id: StreamId, fields: HeaderMap) -> Self {
         let mut flags = HeadersFlag::default();
         flags.set_end_stream();
