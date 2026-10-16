@@ -1669,6 +1669,10 @@ impl Peer {
 ///
 /// Anything else, including a scheme or path the cache cannot parse, is
 /// returned unchanged for the general builder.
+///
+/// Inlined so the 224-byte request is built in the caller's return slot
+/// instead of being copied out of this function.
+#[inline(always)]
 fn simple_post_request(pseudo: &Pseudo, fields: HeaderMap) -> Result<Request<()>, HeaderMap> {
     let Some(method) = pseudo.method.as_ref() else {
         return Err(fields);
