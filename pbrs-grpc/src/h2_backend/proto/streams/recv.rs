@@ -267,7 +267,7 @@ impl Recv {
             });
             let message = counts
                 .peer()
-                .convert_poll_message(pseudo, fields, stream_id)?;
+                .convert_poll_message(&pseudo, fields, stream_id)?;
 
             // The queue link and the recv wakeup share one slab lookup.
             {
@@ -293,7 +293,7 @@ impl Recv {
             // Convert to response and store it for polling
             let message = counts
                 .peer()
-                .convert_poll_message(pseudo, fields, stream_id)?;
+                .convert_poll_message(&pseudo, fields, stream_id)?;
 
             tracing::trace!("Received informational response: stream_id={:?}", stream_id);
 
@@ -908,7 +908,7 @@ impl Recv {
         let promised_id = frame.promised_id();
         let (pseudo, fields) = frame.into_parts();
         let req =
-            crate::h2_backend::server::Peer::convert_poll_message(pseudo, fields, promised_id)?;
+            crate::h2_backend::server::Peer::convert_poll_message(&pseudo, fields, promised_id)?;
 
         if let Err(e) = frame::PushPromise::validate_request(&req) {
             use PushPromiseHeaderError::*;

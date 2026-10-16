@@ -1847,7 +1847,7 @@ impl proto::Peer for Peer {
 
     #[inline(always)]
     fn convert_poll_message(
-        pseudo: Pseudo,
+        pseudo: &Pseudo,
         fields: HeaderMap,
         _stream_id: StreamId,
     ) -> Result<Self::Poll, Error> {

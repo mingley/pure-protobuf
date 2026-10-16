@@ -17,7 +17,7 @@ pub(crate) trait Peer {
     //fn is_server() -> bool;
 
     fn convert_poll_message(
-        pseudo: Pseudo,
+        pseudo: &Pseudo,
         fields: HeaderMap,
         stream_id: StreamId,
     ) -> Result<Self::Poll, Error>;
@@ -62,7 +62,7 @@ impl Dyn {
     #[inline(always)]
     pub fn convert_poll_message(
         &self,
-        pseudo: Pseudo,
+        pseudo: &Pseudo,
         fields: HeaderMap,
         stream_id: StreamId,
     ) -> Result<PollMessage, Error> {

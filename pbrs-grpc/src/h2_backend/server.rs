@@ -1864,11 +1864,11 @@ impl proto::Peer for Peer {
 
     #[inline(always)]
     fn convert_poll_message(
-        pseudo: Pseudo,
+        pseudo: &Pseudo,
         fields: HeaderMap,
         stream_id: StreamId,
     ) -> Result<Self::Poll, Error> {
-        let fields = match simple_post_request(&pseudo, fields) {
+        let fields = match simple_post_request(pseudo, fields) {
             Ok(request) => return Ok(request),
             Err(fields) => fields,
         };
@@ -1879,7 +1879,7 @@ impl proto::Peer for Peer {
 #[cold]
 #[inline(never)]
 fn convert_poll_message_general(
-    pseudo: Pseudo,
+    pseudo: &Pseudo,
     fields: HeaderMap,
     stream_id: StreamId,
 ) -> Result<Request<()>, Error> {
@@ -1893,7 +1893,7 @@ fn convert_poll_message_general(
     }
 
     let is_connect;
-    let method = if let Some(method) = pseudo.method {
+    let method = if let Some(method) = pseudo.method.clone() {
         is_connect = method == Method::CONNECT;
         method
     } else {
@@ -1914,7 +1914,7 @@ fn convert_poll_message_general(
 
     // A request translated from HTTP/1 must not include the :authority
     // header
-    if let Some(authority) = pseudo.authority {
+    if let Some(authority) = pseudo.authority.as_ref() {
         let maybe_authority = cached_authority(&authority);
         parts.authority = Some(maybe_authority.or_else(|why| {
             malformed!(
@@ -1926,7 +1926,7 @@ fn convert_poll_message_general(
     }
 
     // A :scheme is required, except CONNECT.
-    if let Some(scheme) = pseudo.scheme {
+    if let Some(scheme) = pseudo.scheme.as_ref() {
         if is_connect && !has_protocol {
             malformed!("malformed headers: :scheme in CONNECT");
         }
@@ -1949,7 +1949,7 @@ fn convert_poll_message_general(
         malformed!("malformed headers: missing scheme");
     }
 
-    if let Some(path) = pseudo.path {
+    if let Some(path) = pseudo.path.as_ref() {
         if is_connect && !has_protocol {
             malformed!("malformed headers: :path in CONNECT");
         }
@@ -1980,7 +1980,7 @@ fn convert_poll_message_general(
     *request.method_mut() = method;
     *request.uri_mut() = uri;
     *request.version_mut() = Version::HTTP_2;
-    if let Some(protocol) = pseudo.protocol {
+    if let Some(protocol) = pseudo.protocol.clone() {
         request.extensions_mut().insert(protocol);
     }
     crate::h2_backend::header_pool::replace_map(request.headers_mut(), fields);
