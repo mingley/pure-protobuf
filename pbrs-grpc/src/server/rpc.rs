@@ -1355,6 +1355,10 @@ impl InboundRpc {
             channelz_socket: _,
             stock_facts: _,
         } = rpc;
+        // Take the body before the inbound struct is built. Leaving the
+        // request inside that literal copied all 248 bytes into the
+        // aggregate and then again into the box.
+        let recv = Some(request.into_body());
         let limits = config.limits();
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
         let prefer_gzip = config.compresses_outbound();
@@ -1362,7 +1366,7 @@ impl InboundRpc {
         Box::new(Self {
             respond,
             config,
-            recv: Some(request.into_body()),
+            recv,
             remote_addr,
             local_addr,
             peer_identity,
