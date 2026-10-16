@@ -297,12 +297,11 @@ impl super::Channel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn unary<Req, Resp>(&self, path: &'static str, req: Request<Req>) -> Call<Response<Resp>>
+    pub fn unary<Req, Resp>(&self, path: &'static str, mut req: Request<Req>) -> Call<Response<Resp>>
     where
         Req: CodecMessage + Send + 'static,
         Resp: CodecMessage + Send + 'static,
     {
-        let mut req = req;
         let prepared = self.prepare_outbound(path, &mut req);
         let (cancel, cancel_rx) = watch::channel(false);
         let channel = self.clone();

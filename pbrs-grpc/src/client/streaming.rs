@@ -1554,14 +1554,13 @@ impl super::Channel {
     pub fn server_streaming<Req, Resp>(
         &self,
         path: &'static str,
-        req: Request<Req>,
+        mut req: Request<Req>,
     ) -> Call<Response<Streaming<Resp>>>
     where
         Req: CodecMessage + Send + 'static,
         Resp: CodecMessage + Send + 'static,
     {
         let channel = self.clone();
-        let mut req = req;
         let prepared = channel.prepare_outbound(path, &mut req);
         let (cancel, cancel_rx) = watch::channel(false);
         let reset = cancel.clone();
@@ -1984,13 +1983,12 @@ impl super::Channel {
     pub fn client_streaming<Req, Resp>(
         &self,
         path: &'static str,
-        req: Request<()>,
+        mut req: Request<()>,
     ) -> (StreamSender<Req>, Call<Response<Resp>>)
     where
         Req: CodecMessage + Send + 'static,
         Resp: CodecMessage + Send + 'static,
     {
-        let mut req = req;
         let prepared = self.prepare_outbound(path, &mut req);
         let wire = self.wire_for(path);
         let (tx, rx) = Streaming::channel(self.config.stream_buffer_size());
@@ -2273,14 +2271,13 @@ impl super::Channel {
     pub fn bidi<Req, Resp>(
         &self,
         path: &'static str,
-        req: Request<()>,
+        mut req: Request<()>,
     ) -> (StreamSender<Req>, Call<Response<Streaming<Resp>>>)
     where
         Req: CodecMessage + Send + 'static,
         Resp: CodecMessage + Send + 'static,
     {
         let channel = self.clone();
-        let mut req = req;
         let prepared = channel.prepare_outbound(path, &mut req);
         let wire = channel.wire_for(path);
         let buffer = channel.config.stream_buffer_size();
