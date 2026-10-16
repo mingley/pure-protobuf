@@ -318,6 +318,8 @@ mod keepalive;
 // envelope does not grow. The mutation is the one `unsafe` block in
 // `lazy_ext`.
 mod lazy_ext;
+// `PathAndQuery::from_static` clone is a virtual call that only copies words.
+mod static_copy;
 #[forbid(unsafe_code)]
 pub mod lb;
 #[forbid(unsafe_code)]

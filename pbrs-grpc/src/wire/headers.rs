@@ -74,14 +74,14 @@ pub(crate) fn encoding_value(codec: CompressionAlgorithm) -> HeaderValue {
 pub(crate) const HEADER_CAPACITY: usize = 10;
 
 /// One `:path` per process. Callers pass a `'static` method path, so a hit
-/// is two atomics and a refcount bump. Parsing stays off this path.
+/// is two atomics and a copy of the static path. Parsing stays off this path.
 fn cached_static_path(path: &'static str) -> PathAndQuery {
     use std::sync::atomic::Ordering;
     let ptr = path.as_ptr();
     if static_path::PTR.load(Ordering::Acquire) == ptr as *mut u8
         && static_path::LEN.load(Ordering::Relaxed) == path.len()
     {
-        return static_path::PARSED.get().unwrap().clone();
+        return crate::static_copy::copy_static_path(static_path::PARSED.get().unwrap());
     }
     cached_static_path_miss(path)
 }
