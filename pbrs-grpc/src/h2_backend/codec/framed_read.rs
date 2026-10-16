@@ -148,11 +148,10 @@ fn decode_frame(
             // Drop the frame header
             $bytes.advance(frame::HEADER_LEN);
 
-            // Box before HPACK fills the block. `Frame` already stores
-            // `Box<Headers>`, and boxing after `load_hpack` copied the
-            // filled block a second time.
+            // `Headers::load` already boxes the empty block beside its
+            // literal. Boxing again would copy the 288-byte frame.
             let (mut frame, mut payload) = match frame::$frame::load($head, $bytes) {
-                Ok((headers, payload)) => (Box::new(headers), payload),
+                Ok((headers, payload)) => (headers, payload),
                 Err(frame::Error::InvalidDependencyId) => {
                     proto_err!(stream: "invalid HEADERS dependency ID");
                     // A stream cannot depend on itself. An endpoint MUST

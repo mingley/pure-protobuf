@@ -195,7 +195,7 @@ impl Headers {
     /// Loads the header frame but doesn't actually do HPACK decoding.
     ///
     /// HPACK decoding is done in the `load_hpack` step.
-    pub fn load(head: Head, mut src: BytesMut) -> Result<(Self, BytesMut), Error> {
+    pub fn load(head: Head, mut src: BytesMut) -> Result<(Box<Self>, BytesMut), Error> {
         let flags = HeadersFlag(head.flag());
         let mut pad = 0;
 
@@ -242,7 +242,10 @@ impl Headers {
             src.truncate(len);
         }
 
-        let headers = Headers {
+        // Box beside the literal so the empty block is built in the
+        // allocation. Returning `Headers` by value and boxing at the
+        // caller copies the 288-byte frame.
+        let headers = Box::new(Headers {
             stream_id: head.stream_id(),
             stream_dep,
             header_block: HeaderBlock {
@@ -256,7 +259,7 @@ impl Headers {
                 pseudo: Pseudo::default(),
             },
             flags,
-        };
+        });
 
         Ok((headers, src))
     }
