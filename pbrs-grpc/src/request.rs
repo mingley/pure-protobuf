@@ -124,6 +124,31 @@ impl<T> TlsConnectInfo<T> {
     }
 }
 
+fn insert_connect_info(
+    map: &mut http::Extensions,
+    scheme: Option<&str>,
+    remote_addr: Option<SocketAddr>,
+    local_addr: Option<SocketAddr>,
+    peer_identity: Option<&PeerIdentity>,
+) {
+    if remote_addr.is_none() && local_addr.is_none() {
+        return;
+    }
+    let tcp = TcpConnectInfo {
+        local_addr,
+        remote_addr,
+    };
+    if scheme == Some("https") {
+        if map.get::<TlsConnectInfo>().is_none() {
+            map.insert(TlsConnectInfo::new(tcp, peer_identity.cloned()));
+        }
+        return;
+    }
+    if map.get::<TcpConnectInfo>().is_none() {
+        map.insert(tcp);
+    }
+}
+
 /// A message plus the metadata, deadline, and compression choice around it.
 ///
 /// The same type is used to build an outbound request and to read an inbound
@@ -177,7 +202,7 @@ pub struct Request<T> {
     send_buffer_size: usize,
     encoding: Option<String>,
     cancel: Option<Arc<crate::server::drain::CancelFlag>>,
-    extensions: http::Extensions,
+    extensions: crate::lazy_ext::LazyExt,
     /// Call-site [`Request::set_user_agent`] / interceptor
     /// [`Outgoing::set_user_agent`] override. `None` uses the channel value.
     pub(crate) user_agent: Option<http::HeaderValue>,
@@ -215,7 +240,7 @@ impl<T> Request<T> {
             send_buffer_size: crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE,
             encoding: None,
             cancel: None,
-            extensions: http::Extensions::new(),
+            extensions: crate::lazy_ext::LazyExt::new(),
             user_agent: None,
             diagnostic_payload: false,
             diagnostic_config: None,
@@ -247,6 +272,8 @@ impl<T> Request<T> {
     /// compression choice, method path, and a [`Self::set_user_agent`] override.
     #[must_use]
     pub fn into_message_and_parts(self) -> (T, Parts) {
+        self.publish_connect_info();
+        let extensions = self.extensions.into_inner();
         (
             self.message,
             Parts {
@@ -274,7 +301,7 @@ impl<T> Request<T> {
                 send_buffer_size: self.send_buffer_size,
                 encoding: self.encoding,
                 cancel: self.cancel,
-                extensions: self.extensions,
+                extensions,
                 user_agent: self.user_agent,
                 diagnostic_config: self.diagnostic_config,
             },
@@ -314,7 +341,7 @@ impl<T> Request<T> {
             send_buffer_size: parts.send_buffer_size,
             encoding: parts.encoding,
             cancel: parts.cancel,
-            extensions: parts.extensions,
+            extensions: crate::lazy_ext::LazyExt::from_extensions(parts.extensions),
             user_agent: parts.user_agent,
             diagnostic_payload: false,
             diagnostic_config: parts.diagnostic_config,
@@ -484,13 +511,15 @@ impl<T> Request<T> {
     /// [`Self::into_message_and_parts`].
     #[must_use]
     pub fn extensions(&self) -> &http::Extensions {
-        &self.extensions
+        self.publish_connect_info();
+        self.extensions.get()
     }
 
     /// Insert typed values for later handlers or interceptors.
     ///
     pub fn extensions_mut(&mut self) -> &mut http::Extensions {
-        &mut self.extensions
+        self.publish_connect_info();
+        self.extensions.get_mut()
     }
 
     /// gzip this request's payload and set the Compressed-Flag.
@@ -900,7 +929,7 @@ impl<T> Request<T> {
             send_buffer_size: crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE,
             encoding: None,
             cancel: None,
-            extensions: http::Extensions::new(),
+            extensions: crate::lazy_ext::LazyExt::new(),
             user_agent: None,
             diagnostic_config: None,
             diagnostic_payload: false,
@@ -972,8 +1001,29 @@ impl<T> Request<T> {
     }
 
     pub(crate) fn with_extensions(mut self, extensions: http::Extensions) -> Self {
-        self.extensions = extensions;
+        self.extensions = crate::lazy_ext::LazyExt::from_extensions(extensions);
         self
+    }
+
+    /// TCP and TLS connect info are derived from the address fields. Handlers
+    /// that never read the map do not hash it.
+    fn publish_connect_info(&self) {
+        let remote_addr = self.remote_addr;
+        let local_addr = self.local_addr;
+        if remote_addr.is_none() && local_addr.is_none() {
+            return;
+        }
+        let https = self.scheme.as_deref() == Some("https");
+        let identity = self.peer_identity.clone();
+        self.extensions.with_mut(|map| {
+            insert_connect_info(
+                map,
+                https.then_some("https"),
+                remote_addr,
+                local_addr,
+                identity.as_ref(),
+            );
+        });
     }
 
     pub(crate) fn outgoing<'a>(
@@ -1003,7 +1053,7 @@ impl<T> Request<T> {
             timeout: &mut self.timeout,
             wait_for_ready: &mut self.wait_for_ready,
             compress: &mut self.compress,
-            extensions: &mut self.extensions,
+            extensions: self.extensions.get_mut(),
             connected: false,
         }
     }

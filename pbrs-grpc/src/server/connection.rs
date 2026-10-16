@@ -13,7 +13,6 @@ use crate::limits::ByteBudgetTracker;
 use crate::metadata::Metadata;
 #[cfg(unix)]
 use crate::request::UdsConnectInfo;
-use crate::request::{TcpConnectInfo, TlsConnectInfo};
 use crate::rt::{Runtime, TokioRuntime};
 use crate::status::{Code, Status};
 use crate::telemetry::{CallLabels, CallRole, LifecycleObserver, RejectionEvent, RejectionReason};
@@ -322,16 +321,9 @@ pub(crate) fn incoming_rpc(
     } else {
         Metadata::from_owned_headers(std::mem::take(request.headers_mut()))
     };
+    // TCP and TLS connect info are written when the handler reads the map.
+    // The addresses already live on the request.
     let mut extensions = http::Extensions::new();
-    let tcp_info = TcpConnectInfo {
-        local_addr: peer.local,
-        remote_addr: peer.remote,
-    };
-    if peer.scheme == Some("https") {
-        extensions.insert(TlsConnectInfo::new(tcp_info, peer.identity.clone()));
-    } else if peer.remote.is_some() || peer.local.is_some() {
-        extensions.insert(tcp_info);
-    }
     #[cfg(feature = "tonic")]
     if let Some(tls_info) = peer.tonic_tls {
         extensions.insert(tls_info);

@@ -313,6 +313,11 @@ mod config;
 mod interceptor;
 #[forbid(unsafe_code)]
 mod keepalive;
+// Transparent cell around `http::Extensions`. Accept leaves connect info
+// unhashed until a caller reads it. Same size as the map, so the RPC
+// envelope does not grow. The mutation is the one `unsafe` block in
+// `lazy_ext`.
+mod lazy_ext;
 #[forbid(unsafe_code)]
 pub mod lb;
 #[forbid(unsafe_code)]
