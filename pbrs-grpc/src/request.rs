@@ -152,10 +152,10 @@ impl<T> TlsConnectInfo<T> {
 /// defaults.
 #[derive(Clone)]
 pub struct Request<T> {
-    message: T,
-    metadata: Metadata,
+    pub(crate) message: T,
+    pub(crate) metadata: Metadata,
     timeout: Option<Duration>,
-    compress: Option<bool>,
+    pub(crate) compress: Option<bool>,
     compressed: bool,
     remote_addr: Option<SocketAddr>,
     local_addr: Option<SocketAddr>,
@@ -180,7 +180,7 @@ pub struct Request<T> {
     extensions: http::Extensions,
     /// Call-site [`Request::set_user_agent`] / interceptor
     /// [`Outgoing::set_user_agent`] override. `None` uses the channel value.
-    user_agent: Option<http::HeaderValue>,
+    pub(crate) user_agent: Option<http::HeaderValue>,
     diagnostic_payload: bool,
     diagnostic_config: Option<crate::telemetry::DiagnosticConfig>,
 }
@@ -865,25 +865,6 @@ impl<T> Request<T> {
     #[must_use]
     pub fn limits(&self) -> Option<MessageLimits> {
         self.limits
-    }
-
-    pub(crate) fn into_parts(
-        self,
-    ) -> (
-        T,
-        Metadata,
-        Option<Duration>,
-        bool,
-        Option<http::HeaderValue>,
-    ) {
-        let compress = self.compress.unwrap_or(false);
-        (
-            self.message,
-            self.metadata,
-            self.timeout,
-            compress,
-            self.user_agent,
-        )
     }
 
     pub(crate) fn from_metadata(

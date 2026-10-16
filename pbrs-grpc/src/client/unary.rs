@@ -311,7 +311,11 @@ impl super::Channel {
         // in the future; only the parts cross awaits.
         let wait = req.wait_for_ready();
         let req_timeout = req.timeout();
-        let (msg, md, _, compress, ua) = req.into_parts();
+        // Field moves, not `into_parts`: passing the envelope by value copies it.
+        let msg = req.message;
+        let md = req.metadata;
+        let compress = req.compress.unwrap_or(false);
+        let ua = req.user_agent;
         Call::new(
             cancel,
             Box::pin(async move {
