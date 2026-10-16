@@ -113,6 +113,11 @@ impl SegSink {
             // frame and no segment Vec was ever allocated.
             let first = std::mem::take(&mut self.head).freeze();
             let total_len = first.len();
+            // `Vec::new` and `BytesMut::new` own no heap. Dropping them is a
+            // kind check and a capacity check on every frame.
+            if self.segs.capacity() == 0 {
+                std::mem::forget(self);
+            }
             return SegFrame {
                 first,
                 rest: Vec::new(),
