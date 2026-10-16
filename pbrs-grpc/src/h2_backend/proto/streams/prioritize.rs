@@ -510,9 +510,14 @@ impl Prioritize {
                 return Ok(BufferStatus::CodecFull);
             }
 
-            if let Some(mut stream) = self.pop_pending_open(store, counts) {
-                self.pending_send.push_front(&mut stream);
-                self.try_assign_capacity(&mut stream);
+            // Steady streams never queue an open. The pop is a separate
+            // function so this loop does not pay its prologue when the queue
+            // is empty.
+            if !self.pending_open.is_empty() {
+                if let Some(mut stream) = self.pop_pending_open(store, counts) {
+                    self.pending_send.push_front(&mut stream);
+                    self.try_assign_capacity(&mut stream);
+                }
             }
 
             match self.pop_frame(buffer, store, max_frame_len, counts) {
