@@ -208,6 +208,25 @@ impl Store {
         }
     }
 
+    /// Insert a new stream written directly into a reused slab slot.
+    pub fn insert_new(
+        &mut self,
+        id: StreamId,
+        init_send_window: WindowSize,
+        init_recv_window: WindowSize,
+    ) -> Ptr<'_> {
+        let index = SlabIndex(self.slab.insert_new(id, init_send_window, init_recv_window) as u32);
+        assert!(self.ids.insert(id, index).is_none());
+
+        Ptr {
+            key: Key {
+                index,
+                stream_id: id,
+            },
+            store: self,
+        }
+    }
+
     pub fn find_entry(&mut self, id: StreamId) -> Entry<'_> {
         use self::indexmap::map::Entry::*;
 
@@ -303,6 +322,56 @@ impl StreamSlots {
             self.slots[key as usize] = Slot::Occupied(ManuallyDrop::new(value));
         }
         key
+    }
+
+    /// Same free-list as [`Self::insert`], but a reused slot is filled in place.
+    #[allow(
+        unsafe_code,
+        reason = "initialize a stream in a vacant slot without copying it in"
+    )]
+    fn insert_new(
+        &mut self,
+        id: StreamId,
+        init_send_window: WindowSize,
+        init_recv_window: WindowSize,
+    ) -> u32 {
+        let key = self.next;
+        self.len += 1;
+        if key as usize == self.slots.len() {
+            self.slots
+                .push(Slot::Occupied(ManuallyDrop::new(Stream::new(
+                    id,
+                    init_send_window,
+                    init_recv_window,
+                ))));
+            self.next = key.wrapping_add(1);
+        } else {
+            self.next = match self.slots.get(key as usize) {
+                Some(Slot::Vacant(next)) => *next,
+                _ => unreachable!("stream slab insert hit an occupied slot"),
+            };
+            // SAFETY: the match proved this slot is vacant, so overwriting it
+            // does not drop a live stream. `Slot` is the size of `Stream` and
+            // the occupied stream starts at the slot address; `init_at` writes
+            // a valid stream there.
+            unsafe { self.write_new_in_slot(key, id, init_send_window, init_recv_window) };
+        }
+        key
+    }
+
+    #[allow(
+        unsafe_code,
+        reason = "initialize a stream in a vacant slot without copying it in"
+    )]
+    unsafe fn write_new_in_slot(
+        &mut self,
+        key: u32,
+        id: StreamId,
+        init_send_window: WindowSize,
+        init_recv_window: WindowSize,
+    ) {
+        let slot = unsafe { self.slots.as_mut_ptr().add(key as usize) };
+        unsafe { Stream::init_at(slot.cast(), id, init_send_window, init_recv_window) };
     }
 
     fn get(&self, index: usize) -> Option<&Stream> {
@@ -670,5 +739,48 @@ impl<'a> VacantEntry<'a> {
         self.ids.insert(index);
 
         Key { index, stream_id }
+    }
+
+    pub fn insert_new(
+        self,
+        id: StreamId,
+        init_send_window: WindowSize,
+        init_recv_window: WindowSize,
+    ) -> Key {
+        let index = SlabIndex(self.slab.insert_new(id, init_send_window, init_recv_window) as u32);
+        self.ids.insert(index);
+        Key {
+            index,
+            stream_id: id,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reused_slot_stream_starts_at_the_slot_address() {
+        assert_eq!(std::mem::size_of::<Slot>(), std::mem::size_of::<Stream>());
+        let stream = Stream::new(StreamId::from(1), 0, 0);
+        let slot = Slot::Occupied(ManuallyDrop::new(stream));
+        let slot_addr = &slot as *const Slot as usize;
+        let stream_addr = match &slot {
+            Slot::Occupied(stream) => &**stream as *const Stream as usize,
+            Slot::Vacant(_) => unreachable!("occupied slot"),
+        };
+        assert_eq!(slot_addr, stream_addr);
+
+        let mut slots = StreamSlots::new();
+        let first = slots.insert(Stream::new(StreamId::from(1), 0, 0));
+        slots.remove_in_place(first, StreamId::from(1));
+        let reused = slots.insert_new(StreamId::from(3), 64, 128);
+        let Some(got) = slots.get(reused as usize) else {
+            panic!("reused slot holds a stream");
+        };
+        assert_eq!(got.id, StreamId::from(3));
+        assert_eq!(got.ref_count, 0);
+        assert!(got.is_recv);
     }
 }

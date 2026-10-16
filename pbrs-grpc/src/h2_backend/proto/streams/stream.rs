@@ -147,7 +147,34 @@ pub(super) struct NextOpen;
 pub(super) struct NextResetExpire;
 
 impl Stream {
+    #[allow(
+        unsafe_code,
+        reason = "read a stream that init_at just finished writing"
+    )]
     pub fn new(id: StreamId, init_send_window: WindowSize, init_recv_window: WindowSize) -> Stream {
+        let mut slot = std::mem::MaybeUninit::<Stream>::uninit();
+        // SAFETY: `init_at` writes every field of `Stream` before the read.
+        unsafe {
+            Self::init_at(slot.as_mut_ptr(), id, init_send_window, init_recv_window);
+            slot.assume_init()
+        }
+    }
+
+    /// Write a fresh stream at `slot`.
+    ///
+    /// The caller provides vacant memory the size of [`Stream`]. Windows are
+    /// checked before any field is written, so a bad initial window leaves
+    /// `slot` untouched.
+    #[allow(
+        unsafe_code,
+        reason = "write a stream into vacant slab memory field by field"
+    )]
+    pub unsafe fn init_at(
+        slot: *mut Stream,
+        id: StreamId,
+        init_send_window: WindowSize,
+        init_recv_window: WindowSize,
+    ) {
         let mut send_flow = FlowControl::new();
         let mut recv_flow = FlowControl::new();
 
@@ -162,43 +189,41 @@ impl Stream {
             .inc_window(init_send_window)
             .expect("invalid initial send window size");
 
-        Stream {
-            id,
-            state: State::default(),
-            ref_count: 0,
-            is_counted: false,
-            protocol_unlinked: false,
-
-            // ===== Fields related to sending =====
-            next_pending_send: None,
-            is_pending_send: false,
-            send_flow,
-            requested_send_capacity: 0,
-            buffered_send_data: 0,
-            send_task: None,
-            pending_send: buffer::Deque::new(),
-            is_pending_send_capacity: false,
-            next_pending_send_capacity: None,
-            send_capacity_inc: false,
-            is_pending_open: false,
-            next_open: None,
-            is_pending_push: false,
-
-            // ===== Fields related to receiving =====
-            next_pending_accept: None,
-            is_pending_accept: false,
-            recv_flow,
-            in_flight_recv_data: 0,
-            next_window_update: None,
-            is_pending_window_update: false,
-            reset_at: None,
-            next_reset_expire: None,
-            pending_recv: buffer::Deque::new(),
-            is_recv: true,
-            recv_task: None,
-            push_task: None,
-            pending_push_promises: store::Queue::new(),
-            content_length: ContentLength::Omitted,
+        // SAFETY: caller guarantees `slot` is vacant memory of the right size
+        // and alignment. Every field is written before a reference is formed.
+        unsafe {
+            std::ptr::addr_of_mut!((*slot).id).write(id);
+            std::ptr::addr_of_mut!((*slot).state).write(State::default());
+            std::ptr::addr_of_mut!((*slot).ref_count).write(0);
+            std::ptr::addr_of_mut!((*slot).is_counted).write(false);
+            std::ptr::addr_of_mut!((*slot).protocol_unlinked).write(false);
+            std::ptr::addr_of_mut!((*slot).next_pending_send).write(None);
+            std::ptr::addr_of_mut!((*slot).is_pending_send).write(false);
+            std::ptr::addr_of_mut!((*slot).send_flow).write(send_flow);
+            std::ptr::addr_of_mut!((*slot).requested_send_capacity).write(0);
+            std::ptr::addr_of_mut!((*slot).buffered_send_data).write(0);
+            std::ptr::addr_of_mut!((*slot).send_task).write(None);
+            std::ptr::addr_of_mut!((*slot).pending_send).write(buffer::Deque::new());
+            std::ptr::addr_of_mut!((*slot).is_pending_send_capacity).write(false);
+            std::ptr::addr_of_mut!((*slot).next_pending_send_capacity).write(None);
+            std::ptr::addr_of_mut!((*slot).send_capacity_inc).write(false);
+            std::ptr::addr_of_mut!((*slot).is_pending_open).write(false);
+            std::ptr::addr_of_mut!((*slot).next_open).write(None);
+            std::ptr::addr_of_mut!((*slot).is_pending_push).write(false);
+            std::ptr::addr_of_mut!((*slot).next_pending_accept).write(None);
+            std::ptr::addr_of_mut!((*slot).is_pending_accept).write(false);
+            std::ptr::addr_of_mut!((*slot).recv_flow).write(recv_flow);
+            std::ptr::addr_of_mut!((*slot).in_flight_recv_data).write(0);
+            std::ptr::addr_of_mut!((*slot).next_window_update).write(None);
+            std::ptr::addr_of_mut!((*slot).is_pending_window_update).write(false);
+            std::ptr::addr_of_mut!((*slot).reset_at).write(None);
+            std::ptr::addr_of_mut!((*slot).next_reset_expire).write(None);
+            std::ptr::addr_of_mut!((*slot).pending_recv).write(buffer::Deque::new());
+            std::ptr::addr_of_mut!((*slot).is_recv).write(true);
+            std::ptr::addr_of_mut!((*slot).recv_task).write(None);
+            std::ptr::addr_of_mut!((*slot).push_task).write(None);
+            std::ptr::addr_of_mut!((*slot).pending_push_promises).write(store::Queue::new());
+            std::ptr::addr_of_mut!((*slot).content_length).write(ContentLength::Omitted);
         }
     }
 

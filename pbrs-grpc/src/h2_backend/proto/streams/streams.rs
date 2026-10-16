@@ -374,22 +374,18 @@ where
         }
 
         let stream_id = me.actions.send.open()?;
-
-        let mut stream = Stream::new(
-            stream_id,
-            me.actions.send.init_window_sz(),
-            me.actions.recv.init_window_sz(),
-        );
-
-        if *request.method() == Method::HEAD {
-            stream.content_length = ContentLength::Head;
-        }
+        let head = *request.method() == Method::HEAD;
+        let send_window = me.actions.send.init_window_sz();
+        let recv_window = me.actions.recv.init_window_sz();
 
         // Convert the message
         let headers =
             client::Peer::convert_send_message(stream_id, request, protocol, end_of_stream)?;
 
-        let mut stream = me.store.insert(stream.id, stream);
+        let mut stream = me.store.insert_new(stream_id, send_window, recv_window);
+        if head {
+            stream.content_length = ContentLength::Head;
+        }
 
         let sent = me.actions.send.send_headers_boxed(
             headers,
@@ -469,22 +465,18 @@ where
         }
 
         let stream_id = me.actions.send.open()?;
-
-        let mut stream = Stream::new(
-            stream_id,
-            me.actions.send.init_window_sz(),
-            me.actions.recv.init_window_sz(),
-        );
-
-        if *request.method() == Method::HEAD {
-            stream.content_length = ContentLength::Head;
-        }
+        let head = *request.method() == Method::HEAD;
+        let send_window = me.actions.send.init_window_sz();
+        let recv_window = me.actions.recv.init_window_sz();
 
         // Convert the message
         let headers =
             client::Peer::convert_send_message(stream_id, request, protocol, end_of_stream)?;
 
-        let mut stream = me.store.insert(stream.id, stream);
+        let mut stream = me.store.insert_new(stream_id, send_window, recv_window);
+        if head {
+            stream.content_length = ContentLength::Head;
+        }
 
         let sent = me.actions.send.send_headers_boxed(
             headers,
@@ -698,13 +690,9 @@ impl Inner {
                     .open(id, Open::Headers, &mut self.counts)?
                 {
                     Some(stream_id) => {
-                        let stream = Stream::new(
-                            stream_id,
-                            self.actions.send.init_window_sz(),
-                            self.actions.recv.init_window_sz(),
-                        );
-
-                        e.insert(stream)
+                        let send_window = self.actions.send.init_window_sz();
+                        let recv_window = self.actions.recv.init_window_sz();
+                        e.insert_new(stream_id, send_window, recv_window)
                     }
                     None => {
                         self.refusal_pending.store(true, Ordering::Release);
