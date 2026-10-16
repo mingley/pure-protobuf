@@ -14,6 +14,9 @@ use std::ops;
 pub(super) struct Store {
     slab: StreamSlots,
     ids: IndexMap<StreamId, SlabIndex, StreamIdHasher>,
+    /// The only stream, when the id map is empty. Opening that stream does
+    /// not hash; a second stream moves this entry into `ids` first.
+    sole: Option<(StreamId, SlabIndex)>,
 }
 
 /// Stream storage with the same free list as `slab`, so a removed stream can
@@ -149,8 +152,15 @@ enum OccupiedKind<'a> {
 }
 
 pub(super) struct VacantEntry<'a> {
-    ids: indexmap::map::VacantEntry<'a, StreamId, SlabIndex>,
+    ids: VacantIds<'a>,
     slab: &'a mut StreamSlots,
+    sole: &'a mut Option<(StreamId, SlabIndex)>,
+}
+
+enum VacantIds<'a> {
+    /// The map is empty and nothing is cached, so the insert records `sole`.
+    Deferred(StreamId),
+    Map(indexmap::map::VacantEntry<'a, StreamId, SlabIndex>),
 }
 
 pub(super) trait Resolve {
@@ -164,16 +174,35 @@ impl Store {
         Store {
             slab: StreamSlots::new(),
             ids: IndexMap::with_hasher(StreamIdHasher::default()),
+            sole: None,
         }
     }
 
     /// The only stored stream, without hashing, when `id` is that stream.
     fn sole_index(&self, id: StreamId) -> Option<SlabIndex> {
+        if let Some((only, index)) = self.sole {
+            return (only == id).then_some(index);
+        }
         if self.ids.len() != 1 {
             return None;
         }
         let (only, index) = self.ids.get_index(0)?;
-        if *only == id { Some(*index) } else { None }
+        (*only == id).then_some(*index)
+    }
+
+    fn bind_id(&mut self, id: StreamId, index: SlabIndex) {
+        if self.sole.is_none() && self.ids.is_empty() {
+            self.sole = Some((id, index));
+            return;
+        }
+        self.flush_sole();
+        assert!(self.ids.insert(id, index).is_none());
+    }
+
+    fn flush_sole(&mut self) {
+        if let Some((id, index)) = self.sole.take() {
+            assert!(self.ids.insert(id, index).is_none());
+        }
     }
 
     pub fn find_mut(&mut self, id: &StreamId) -> Option<Ptr<'_>> {
@@ -197,7 +226,7 @@ impl Store {
 
     pub fn insert(&mut self, id: StreamId, val: Stream) -> Ptr<'_> {
         let index = SlabIndex(self.slab.insert(val) as u32);
-        assert!(self.ids.insert(id, index).is_none());
+        self.bind_id(id, index);
 
         Ptr {
             key: Key {
@@ -216,7 +245,7 @@ impl Store {
         init_recv_window: WindowSize,
     ) -> Ptr<'_> {
         let index = SlabIndex(self.slab.insert_new(id, init_send_window, init_recv_window) as u32);
-        assert!(self.ids.insert(id, index).is_none());
+        self.bind_id(id, index);
 
         Ptr {
             key: Key {
@@ -239,13 +268,25 @@ impl Store {
             });
         }
 
-        match self.ids.entry(id) {
+        if self.ids.is_empty() && self.sole.is_none() {
+            return Entry::Vacant(VacantEntry {
+                ids: VacantIds::Deferred(id),
+                slab: &mut self.slab,
+                sole: &mut self.sole,
+            });
+        }
+
+        self.flush_sole();
+
+        let Store { slab, ids, sole } = self;
+        match ids.entry(id) {
             Occupied(e) => Entry::Occupied(OccupiedEntry {
                 kind: OccupiedKind::Map(e),
             }),
             Vacant(e) => Entry::Vacant(VacantEntry {
-                ids: e,
-                slab: &mut self.slab,
+                ids: VacantIds::Map(e),
+                slab,
+                sole,
             }),
         }
     }
@@ -269,6 +310,18 @@ impl Store {
     where
         F: FnMut(Ptr) -> Result<(), E>,
     {
+        // A cached sole stream is not in the map. Yield it first, and skip
+        // it later if this callback moved it into the map.
+        let yielded = if let Some((stream_id, index)) = self.sole {
+            f(Ptr {
+                key: Key { index, stream_id },
+                store: self,
+            })?;
+            Some(stream_id)
+        } else {
+            None
+        };
+
         let mut len = self.ids.len();
         let mut i = 0;
 
@@ -278,6 +331,11 @@ impl Store {
                 let entry = self.ids.get_index(i).unwrap();
                 (*entry.0, *entry.1)
             };
+
+            if Some(stream_id) == yielded {
+                i += 1;
+                continue;
+            }
 
             f(Ptr {
                 key: Key { index, stream_id },
@@ -466,7 +524,7 @@ fn dangling_store_key(stream_id: StreamId) -> ! {
 impl Store {
     #[cfg(any())]
     pub fn num_active_streams(&self) -> usize {
-        self.ids.len()
+        self.ids.len() + usize::from(self.sole.is_some())
     }
 
     #[cfg(any())]
@@ -671,6 +729,10 @@ impl<'a> Ptr<'a> {
     /// concerned.
     pub fn unlink(&mut self) {
         let id = self.key.stream_id;
+        if self.store.sole.is_some_and(|(only, _)| only == id) {
+            self.store.sole = None;
+            return;
+        }
         let ids = &mut self.store.ids;
         // One live stream is the steady case. Clearing it skips the hash
         // lookup and the index fixup that `swap_remove` does for a larger map.
@@ -731,14 +793,9 @@ impl<'a> OccupiedEntry<'a> {
 
 impl<'a> VacantEntry<'a> {
     pub fn insert(self, value: Stream) -> Key {
-        // Insert the value in the slab
         let stream_id = value.id;
         let index = SlabIndex(self.slab.insert(value) as u32);
-
-        // Insert the handle in the ID map
-        self.ids.insert(index);
-
-        Key { index, stream_id }
+        self.record(stream_id, index)
     }
 
     pub fn insert_new(
@@ -748,11 +805,20 @@ impl<'a> VacantEntry<'a> {
         init_recv_window: WindowSize,
     ) -> Key {
         let index = SlabIndex(self.slab.insert_new(id, init_send_window, init_recv_window) as u32);
-        self.ids.insert(index);
-        Key {
-            index,
-            stream_id: id,
+        self.record(id, index)
+    }
+
+    fn record(self, stream_id: StreamId, index: SlabIndex) -> Key {
+        match self.ids {
+            VacantIds::Deferred(id) => {
+                debug_assert_eq!(id, stream_id);
+                *self.sole = Some((stream_id, index));
+            }
+            VacantIds::Map(entry) => {
+                entry.insert(index);
+            }
         }
+        Key { index, stream_id }
     }
 }
 
@@ -782,5 +848,33 @@ mod tests {
         assert_eq!(got.id, StreamId::from(3));
         assert_eq!(got.ref_count, 0);
         assert!(got.is_recv);
+    }
+
+    #[test]
+    fn one_live_stream_is_not_hashed_until_a_second_arrives() {
+        let mut store = Store::new();
+        {
+            let _ = store.insert_new(StreamId::from(1), 0, 0);
+        }
+        assert!(store.ids.is_empty());
+        assert!(store.sole.is_some());
+        let Some(mut found) = store.find_mut(&StreamId::from(1)) else {
+            panic!("sole stream is reachable by id");
+        };
+        found.unlink();
+        assert!(store.sole.is_none());
+        assert!(store.find_mut(&StreamId::from(1)).is_none());
+
+        {
+            let _ = store.insert_new(StreamId::from(3), 0, 0);
+        }
+        assert!(store.ids.is_empty());
+        {
+            let _ = store.insert(StreamId::from(5), Stream::new(StreamId::from(5), 0, 0));
+        }
+        assert!(store.sole.is_none());
+        assert_eq!(store.ids.len(), 2);
+        assert!(store.find_mut(&StreamId::from(3)).is_some());
+        assert!(store.find_mut(&StreamId::from(5)).is_some());
     }
 }
