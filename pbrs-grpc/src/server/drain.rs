@@ -12,7 +12,8 @@ use crate::telemetry::{CallLabels, LifecycleObserver};
 use crate::transport::{SendResponse, SendStream, h2 as backend};
 use crate::wire::{
     OutBatch, encode_msg, grpc_trailers, let_producer_catch_up, preferred_codec,
-    select_outbound_codec, select_stream_codec, send_frame, send_ok_headers, send_trailers_only,
+    select_outbound_codec, select_stream_codec, send_frame, send_frame_if_ready, send_ok_headers,
+    send_trailers_only, ImmediateSend,
 };
 use std::future::{Future, poll_fn};
 use std::pin::Pin;
@@ -344,9 +345,16 @@ pub(crate) async fn send_unary_response<Resp: CodecMessage>(
     if let Some(socket) = channelz_socket {
         crate::channelz::Registry::global().note_messages(socket, true, 1);
     }
-    send_frame(&mut send, frame, false, wire.send_buffer)
-        .await
-        .ok();
+    match send_frame_if_ready(&mut send, frame, false, wire.send_buffer) {
+        ImmediateSend::Done(result) => {
+            result.ok();
+        }
+        ImmediateSend::Blocked(frame) => {
+            send_frame(&mut send, frame, false, wire.send_buffer)
+                .await
+                .ok();
+        }
+    }
     drop(permit);
     let mut status = Status::ok();
     if !trailers.is_empty() {

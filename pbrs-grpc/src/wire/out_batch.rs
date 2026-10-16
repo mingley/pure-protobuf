@@ -1,7 +1,7 @@
 //! Batched stream output: OutBatch.
 
 use super::encode::{STREAM_BATCH_BYTES, SegSink, append_frame};
-use super::send::send_frame;
+use super::send::{ImmediateSend, send_frame, send_frame_if_ready};
 use crate::binlog::CallLogger;
 use crate::codec::CodecMessage;
 use crate::config::Wire;
@@ -86,7 +86,13 @@ impl OutBatch {
             return Ok(());
         }
         let sink = std::mem::replace(&mut self.sink, SegSink::new());
-        send_frame(send, sink.finish(), false, self.wire.send_buffer).await
+        let frame = sink.finish();
+        match send_frame_if_ready(send, frame, false, self.wire.send_buffer) {
+            ImmediateSend::Done(result) => result,
+            ImmediateSend::Blocked(frame) => {
+                send_frame(send, frame, false, self.wire.send_buffer).await
+            }
+        }
     }
 }
 

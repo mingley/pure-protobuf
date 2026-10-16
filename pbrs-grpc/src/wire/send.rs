@@ -79,6 +79,45 @@ pub(crate) async fn send_bytes(
     Ok(())
 }
 
+/// A frame that fit in the send buffer, or one that still has to wait.
+pub(crate) enum ImmediateSend {
+    /// `try_send_data` accepted the only segment, or the frame was empty.
+    Done(Result<(), Status>),
+    /// More than one segment, or the buffer could not take the bytes.
+    Blocked(SegFrame),
+}
+
+/// Send a one-segment frame without building the async send future.
+///
+/// The async path polls that future even when the peer already has window.
+/// A frame that fits is the steady case; anything else is returned untouched
+/// so the caller can wait.
+pub(crate) fn send_frame_if_ready(
+    send: &mut backend::SendStream,
+    frame: SegFrame,
+    end: bool,
+    send_buffer: usize,
+) -> ImmediateSend {
+    if send_buffer == 0 {
+        return ImmediateSend::Done(Err(Status::invalid_argument(
+            "HTTP/2 send buffer size must be nonzero",
+        )));
+    }
+    if frame.seg_count() != 1 || frame.total_len() > send_buffer {
+        return ImmediateSend::Blocked(frame);
+    }
+    let Some(bytes) = frame.into_segments().next() else {
+        return ImmediateSend::Done(Ok(()));
+    };
+    if bytes.is_empty() {
+        return ImmediateSend::Done(send.send_data(bytes, end).map_err(Status::from_h2_send));
+    }
+    match send.try_send_data(bytes, end) {
+        Ok(result) => ImmediateSend::Done(result.map_err(Status::from_h2_send)),
+        Err(unsent) => ImmediateSend::Blocked(SegFrame::single(unsent)),
+    }
+}
+
 /// Send one framed message segment by segment (PK-11).
 ///
 /// The concatenated bytes are exactly one gRPC frame; `end` applies to

@@ -8,7 +8,9 @@ use crate::timeout::remaining_timeout;
 use crate::transport::{
     Error as TransportError, Reason, RecvStream, SendRequest, SendStream, h2 as backend,
 };
-use crate::wire::{SegFrame, grpc_request, send_frame, status_from};
+use crate::wire::{
+    ImmediateSend, SegFrame, grpc_request, send_frame, send_frame_if_ready, status_from,
+};
 use futures_util::future::Either;
 use http::HeaderValue;
 use http::uri::Authority;
@@ -191,6 +193,12 @@ pub(crate) async fn send_request_frame_in<R: Runtime>(
         send.send_reset(Reason::CANCEL);
         return Err(Status::deadline_exceeded());
     }
+    let frame = match send_frame_if_ready(send, frame, true, send_buffer) {
+        ImmediateSend::Done(result) => {
+            return finish_request_send::<R>(send, result, deadline);
+        }
+        ImmediateSend::Blocked(frame) => frame,
+    };
     let raced = {
         let send_fut = send_frame(send, frame, true, send_buffer);
         tokio::pin!(send_fut);
@@ -226,7 +234,20 @@ pub(crate) async fn send_request_frame_in<R: Runtime>(
             }
         }
     };
-    let result = prefer_deadline_in::<R, _>(raced, deadline);
+    finish_request_send::<R>(send, raced, deadline)
+}
+
+/// Apply the deadline preference and reset the send half on cancel.
+fn finish_request_send<R: Runtime>(
+    send: &mut backend::SendStream,
+    raced: Result<(), Status>,
+    deadline: Option<tokio::time::Instant>,
+) -> Result<(), Status> {
+    let result = if deadline.is_none() {
+        raced
+    } else {
+        prefer_deadline_in::<R, _>(raced, deadline)
+    };
     if matches!(
         &result,
         Err(status) if matches!(status.code(), Code::Cancelled | Code::DeadlineExceeded)
