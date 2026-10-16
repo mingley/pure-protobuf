@@ -785,9 +785,14 @@ impl Recv {
             is_budgeted,
         });
 
-        // Push the frame onto the recv buffer
-        stream.pending_recv.push_back(&mut self.buffer, event);
-        stream.notify_recv();
+        // The queue link and the recv wakeup share one slab lookup.
+        // `push_back` inserts into the frame buffer, and waking afterwards
+        // otherwise re-checks the key.
+        {
+            let stream = &mut **stream;
+            stream.pending_recv.push_back(&mut self.buffer, event);
+            stream.notify_recv();
+        }
 
         Ok(())
     }
