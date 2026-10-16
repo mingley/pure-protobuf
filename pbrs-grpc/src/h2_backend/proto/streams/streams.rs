@@ -714,7 +714,7 @@ impl Inner {
             }
         };
 
-        let stream = self.store.resolve(key);
+        let mut stream = self.store.resolve(key);
 
         if stream.is_pending_open {
             proto_err!(conn: "recv_headers: received frame on idle stream {:?}", id);
@@ -729,68 +729,70 @@ impl Inner {
             return Ok(());
         }
 
+        // Inlined `Counts::transition`. A closure would store the header
+        // block by value and copy it again on the way into `recv_headers`.
+        let is_pending_reset = stream.is_pending_reset_expiration();
         let reset_pending = &self.reset_pending;
         let actions = &mut self.actions;
+        let counts = &mut self.counts;
+        tracing::trace!(
+            "recv_headers; stream={:?}; state={:?}",
+            stream.id,
+            stream.state
+        );
 
-        self.counts.transition(stream, |counts, stream| {
-            tracing::trace!(
-                "recv_headers; stream={:?}; state={:?}",
-                stream.id,
-                stream.state
-            );
+        let res = if stream.state.is_recv_headers() {
+            match actions.recv.recv_headers(frame, &mut stream, counts) {
+                Ok(()) => Ok(()),
+                Err(RecvHeaderBlockError::Oversize(resp)) => {
+                    if let Some(resp) = resp {
+                        let mut send_buffer = send_buffer.inner.lock().unwrap();
+                        let sent = actions.send.send_headers(
+                            resp, &mut *send_buffer, &mut stream, counts, &mut actions.task);
+                        debug_assert!(sent.is_ok(), "oversize response should not fail");
 
-            let res = if stream.state.is_recv_headers() {
-                match actions.recv.recv_headers(frame, stream, counts) {
-                    Ok(()) => Ok(()),
-                    Err(RecvHeaderBlockError::Oversize(resp)) => {
-                        if let Some(resp) = resp {
-                            let mut send_buffer = send_buffer.inner.lock().unwrap();
-                            let sent = actions.send.send_headers(
-                                resp, &mut *send_buffer, stream, counts, &mut actions.task);
-                            debug_assert!(sent.is_ok(), "oversize response should not fail");
+                        actions.send.schedule_implicit_reset(
+                            &mut stream,
+                            Reason::PROTOCOL_ERROR,
+                            counts,
+                            &mut actions.task);
 
-                            actions.send.schedule_implicit_reset(
-                                stream,
-                                Reason::PROTOCOL_ERROR,
-                                counts,
-                                &mut actions.task);
+                        actions
+                            .recv
+                            .enqueue_reset_expiration(&mut stream, counts, reset_pending);
 
-                            actions
-                                .recv
-                                .enqueue_reset_expiration(stream, counts, reset_pending);
-
-                            Ok(())
-                        } else {
-                            Err(Error::library_reset(stream.id, Reason::PROTOCOL_ERROR))
-                        }
-                    },
-                    Err(RecvHeaderBlockError::State(err)) => Err(err),
-                }
-            } else {
-                if !frame.is_end_stream() {
-                    // Receiving trailers that don't set EOS is a "malformed"
-                    // message. Malformed messages are a stream error.
-                    proto_err!(stream: "recv_headers: trailers frame was not EOS; stream={:?}", stream.id);
-                    return Err(Error::library_reset(stream.id, Reason::PROTOCOL_ERROR));
-                }
-
-                actions.recv.recv_trailers(frame, stream)
-            };
-
-            // The send buffer is only used to emit RST_STREAM. A delivered
-            // header block does not touch it.
-            if !matches!(res, Err(Error::Reset(..))) {
-                return res;
+                        Ok(())
+                    } else {
+                        Err(Error::library_reset(stream.id, Reason::PROTOCOL_ERROR))
+                    }
+                },
+                Err(RecvHeaderBlockError::State(err)) => Err(err),
             }
-            let mut send_buffer = send_buffer.inner.lock().unwrap();
+        } else if !frame.is_end_stream() {
+            // Receiving trailers that don't set EOS is a "malformed"
+            // message. Malformed messages are a stream error.
+            proto_err!(stream: "recv_headers: trailers frame was not EOS; stream={:?}", stream.id);
+            Err(Error::library_reset(stream.id, Reason::PROTOCOL_ERROR))
+        } else {
+            actions.recv.recv_trailers(frame, &mut stream)
+        };
+
+        // The send buffer is only used to emit RST_STREAM. A delivered
+        // header block does not touch it.
+        let res = if !matches!(res, Err(Error::Reset(..))) {
+            res
+        } else {
+            let mut locked = send_buffer.inner.lock().unwrap();
             actions.reset_on_recv_stream_err(
-                &mut *send_buffer,
-                stream,
+                &mut *locked,
+                &mut stream,
                 counts,
                 res,
                 reset_pending,
             )
-        })
+        };
+        counts.transition_after(stream, is_pending_reset);
+        res
     }
 
     fn recv_data<B>(
