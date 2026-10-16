@@ -148,9 +148,11 @@ fn decode_frame(
             // Drop the frame header
             $bytes.advance(frame::HEADER_LEN);
 
-            // Parse the header frame w/o parsing the payload
+            // Box before HPACK fills the block. `Frame` already stores
+            // `Box<Headers>`, and boxing after `load_hpack` copied the
+            // filled block a second time.
             let (mut frame, mut payload) = match frame::$frame::load($head, $bytes) {
-                Ok(res) => res,
+                Ok((headers, payload)) => (Box::new(headers), payload),
                 Err(frame::Error::InvalidDependencyId) => {
                     proto_err!(stream: "invalid HEADERS dependency ID");
                     // A stream cannot depend on itself. An endpoint MUST
@@ -189,12 +191,12 @@ fn decode_frame(
             }
 
             if is_end_headers {
-                frame.into()
+                Frame::$frame(frame)
             } else {
                 tracing::trace!("loaded partial header block");
                 // Defer returning the frame
                 *partial_inout = Some(Partial {
-                    frame: Continuable::$frame(frame),
+                    frame: Continuable::$frame(*frame),
                     buf: payload,
                     continuation_frames_count: 0,
                 });
