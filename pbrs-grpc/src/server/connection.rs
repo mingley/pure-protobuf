@@ -489,9 +489,12 @@ where
     // The steady connection has no idle timer, age, or keepalive. Those
     // branches stay out of the poll set so the accept loop does not check
     // them on every RPC.
-    enum Wait<T> {
+    //
+    // `Accepted` does not carry the request. `select` would store that
+    // 272-byte value in its output and then move it again into the match.
+    enum Wait {
         Tick,
-        Accepted(T),
+        Accepted,
         Shutdown,
         Stop,
     }
@@ -517,18 +520,37 @@ where
             None
         };
         let steady = age.is_none() && idle.is_none() && dead.is_none() && force_close.is_none();
+        // One slot for the accepted stream. The steady poll writes it here
+        // from `poll_accept` instead of returning it through `select`.
+        let mut accepted_slot = None;
         let wait = if steady {
-            tokio::select! {
-                biased;
-                _ = std::future::poll_fn(|cx| poll_admitted(&mut admitted, cx)), if !admitted.is_empty() => Wait::Tick,
-                accepted = conn.accept() => Wait::Accepted(accepted),
-                _ = &mut drain_fut, if !draining => Wait::Shutdown,
-            }
+            std::future::poll_fn(|cx| {
+                if !admitted.is_empty() && poll_admitted(&mut admitted, cx).is_ready() {
+                    return Poll::Ready(Wait::Tick);
+                }
+                match ServerConnection::poll_accept(&mut conn, cx) {
+                    Poll::Ready(accepted) => {
+                        accepted_slot = Some(accepted);
+                        Poll::Ready(Wait::Accepted)
+                    }
+                    Poll::Pending => {
+                        if !draining && drain_fut.as_mut().poll(cx).is_ready() {
+                            Poll::Ready(Wait::Shutdown)
+                        } else {
+                            Poll::Pending
+                        }
+                    }
+                }
+            })
+            .await
         } else {
             tokio::select! {
                 biased;
                 _ = std::future::poll_fn(|cx| poll_admitted(&mut admitted, cx)), if !admitted.is_empty() => Wait::Tick,
-                accepted = conn.accept() => Wait::Accepted(accepted),
+                accepted = conn.accept() => {
+                    accepted_slot = Some(accepted);
+                    Wait::Accepted
+                },
                 _ = busy.notified(), if track_busy => Wait::Tick,
                 _ = &mut drain_fut, if !draining => Wait::Shutdown,
                 _ = sleep_until_opt::<R>(age_at), if !draining && age_at.is_some() => Wait::Shutdown,
@@ -545,7 +567,10 @@ where
                 force_close = Some(R::now() + grace);
                 conn.graceful_shutdown();
             }
-            Wait::Accepted(accepted) => {
+            Wait::Accepted => {
+                let Some(accepted) = accepted_slot.take() else {
+                    break;
+                };
                 let Some(Ok((request, mut respond))) = accepted else {
                     break;
                 };
