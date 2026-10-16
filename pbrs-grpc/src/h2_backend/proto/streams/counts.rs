@@ -352,15 +352,27 @@ impl Counts {
     #[cold]
     #[inline(never)]
     fn finish_closed(&mut self, mut stream: store::Ptr, is_reset_counted: bool) {
-        if !stream.is_pending_reset_expiration() {
+        let unlinked = if !stream.is_pending_reset_expiration() {
             stream.unlink();
-            stream.protocol_unlinked = true;
             if is_reset_counted {
                 self.dec_num_reset_streams();
             }
-        }
+            true
+        } else {
+            false
+        };
 
-        if !stream.state.is_scheduled_reset() && stream.is_counted {
+        // The unlink flag and the counted check share one slab lookup.
+        // Writing the flag and then reading the state otherwise re-checks
+        // the key.
+        let should_dec = {
+            let stream = &mut *stream;
+            if unlinked {
+                stream.protocol_unlinked = true;
+            }
+            !stream.state.is_scheduled_reset() && stream.is_counted
+        };
+        if should_dec {
             tracing::trace!("dec_num_streams; stream={:?}", stream.id);
             // Decrement the number of active streams.
             self.dec_num_streams(&mut stream);
