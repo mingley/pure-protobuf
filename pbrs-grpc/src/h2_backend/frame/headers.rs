@@ -324,6 +324,81 @@ impl Headers {
         }
     }
 
+    /// POST request with no `:protocol`, written straight into the returned frame.
+    ///
+    /// `Pseudo::request_post` returned a 160-byte value that the client then
+    /// moved into `Headers::new` and again into the `Result`. Building the
+    /// frame here lets those fields land in the caller's return slot.
+    ///
+    /// The caller has already rejected HTTP/2 when both scheme and authority
+    /// are missing. A relative HTTP/1 URI still gets scheme `http`.
+    #[inline(always)]
+    pub(crate) fn post_request(
+        stream_id: StreamId,
+        uri: Uri,
+        fields: HeaderMap,
+        end_of_stream: bool,
+        stock_request: bool,
+    ) -> Self {
+        let has_authority = uri.authority().is_some();
+        let path = if let Some(v) = uri.path_and_query() {
+            let raw = v.as_str();
+            if raw.is_empty() {
+                Pseudo::post_empty_path()
+            } else {
+                BytesStr::reused(crate::h2_backend::hpack::header::ReusedStr::Path, raw)
+            }
+        } else {
+            Pseudo::post_empty_path()
+        };
+        let scheme = match uri.scheme() {
+            Some(scheme) if *scheme == uri::Scheme::HTTP => Some(BytesStr::from_static("http")),
+            Some(scheme) => Some(Pseudo::post_scheme(scheme.clone())),
+            None if !has_authority => Some(BytesStr::from_static("http")),
+            None => None,
+        };
+        let authority = if has_authority {
+            uri.authority().map(|authority| {
+                BytesStr::reused(
+                    crate::h2_backend::hpack::header::ReusedStr::Authority,
+                    authority.as_str(),
+                )
+            })
+        } else {
+            None
+        };
+        let mut flags = HeadersFlag::default();
+        if end_of_stream {
+            flags.set_end_stream();
+        }
+        Headers {
+            stream_id,
+            stream_dep: None,
+            header_block: HeaderBlock {
+                field_size: 0,
+                fields,
+                is_over_size: false,
+                has_content_length: false,
+                stock: if stock_request {
+                    StandardMap::Request
+                } else {
+                    StandardMap::None
+                },
+                stock_facts: None,
+                pristine: false,
+                pseudo: Pseudo {
+                    method: Some(Method::POST),
+                    scheme,
+                    authority,
+                    path: Some(path),
+                    protocol: None,
+                    status: None,
+                },
+            },
+            flags,
+        }
+    }
+
     /// [`new`](Self::new) with the frame already in its queue box.
     ///
     /// Returning `Headers` and boxing at `send_headers` copies the 288-byte

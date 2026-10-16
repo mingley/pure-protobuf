@@ -1728,6 +1728,47 @@ impl Peer {
     ) -> Result<Headers, SendError> {
         use http::request::Parts;
 
+        // CONNECT and any non-POST method stay out of line. A gRPC RPC is
+        // POST with no `:protocol`, and that frame is built in the return slot.
+        if protocol.is_some() || request.method() != Method::POST {
+            return Self::convert_send_message_general(id, request, protocol, end_of_stream);
+        }
+
+        let (
+            Parts {
+                uri,
+                headers,
+                version,
+                ..
+            },
+            _,
+        ) = request.into_parts();
+
+        if uri.scheme().is_none() && uri.authority().is_none() && version == Version::HTTP_2 {
+            return Err(UserError::MissingUriSchemeAndAuthority.into());
+        }
+        let stock = crate::h2_backend::header_pool::take_next_stock(
+            crate::h2_backend::header_pool::STOCK_REQUEST,
+        );
+        Ok(Headers::post_request(
+            id,
+            uri,
+            headers,
+            end_of_stream,
+            stock,
+        ))
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn convert_send_message_general(
+        id: StreamId,
+        request: Request<()>,
+        protocol: Option<Protocol>,
+        end_of_stream: bool,
+    ) -> Result<Headers, SendError> {
+        use http::request::Parts;
+
         let (
             Parts {
                 method,
@@ -1743,11 +1784,7 @@ impl Peer {
 
         // Build the set pseudo header set. All requests will include `method`
         // and `path`.
-        let mut pseudo = if protocol.is_none() && method == Method::POST {
-            Pseudo::request_post(uri)
-        } else {
-            Pseudo::request(method, uri, protocol)
-        };
+        let mut pseudo = Pseudo::request(method, uri, protocol);
 
         if pseudo.scheme.is_none() {
             // If the scheme is not set, then there are a two options.
