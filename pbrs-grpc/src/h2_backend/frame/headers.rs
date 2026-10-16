@@ -884,11 +884,18 @@ impl Continuation {
 impl Pseudo {
     #[inline(never)]
     pub fn request(method: Method, uri: Uri, protocol: Option<Protocol>) -> Self {
-        // CONNECT and OPTIONS are rare. Keeping them out of this function
-        // leaves the POST path, which every RPC sends, with a smaller prologue.
+        // CONNECT and OPTIONS are rare. The POST path is inlined at the
+        // client so this function stays the cold prologue.
         if protocol.is_some() || method != Method::POST {
             return Self::request_general(method, uri, protocol);
         }
+        Self::request_post(uri)
+    }
+
+    /// POST with no `:protocol`. Inlined into the client request builder so
+    /// the 160-byte value is created where `Headers::new` consumes it.
+    #[inline(always)]
+    pub(crate) fn request_post(uri: Uri) -> Self {
         // Borrow the URI. `Parts::from` moved the path and authority out and
         // dropped them after the reused `Bytes` was cloned.
         let path = if let Some(v) = uri.path_and_query() {
