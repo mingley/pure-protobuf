@@ -345,6 +345,11 @@ pub(crate) async fn open_in<R: Runtime>(
     let raced = match poll_now(guarded.as_mut()) {
         Some(result) => {
             crate::h2_backend::header_pool::clear_next_stock();
+            // No deadline: return the halves from this arm so they are not
+            // stored and moved again after the match.
+            if deadline.is_none() {
+                return result;
+            }
             result
         }
         None => {
@@ -352,8 +357,8 @@ pub(crate) async fn open_in<R: Runtime>(
             first_of_in::<R, _>(guarded, cancel_rx.clone(), deadline).await
         }
     };
-    // No deadline: `prefer_deadline_in` returns the pair unchanged, and the
-    // move through that function is a copy of the response halves.
+    // The warm poll above already returned. This is the path that waited,
+    // still with no deadline, so `prefer_deadline_in` would only move the pair.
     if deadline.is_none() {
         return raced;
     }
@@ -671,11 +676,13 @@ impl super::Channel {
         let acquire = inner.acquire(wait_for_ready, obs.as_deref(), health, hash);
         tokio::pin!(acquire);
         let raced = match poll_now(acquire.as_mut()) {
+            // No deadline: return the connection from this arm so it is not
+            // stored and moved again after the match.
+            Some(result) if deadline.is_none() => return result,
             Some(result) => result,
             None => first_of_in::<R, _>(acquire, cancel_rx, deadline).await,
         };
-        // No deadline: the preference check and the second remaining-time
-        // check are identity. Skipping them keeps `LiveConn` out of both.
+        // The warm poll above already returned. This is the path that waited.
         if deadline.is_none() {
             return raced;
         }
