@@ -236,8 +236,11 @@ pub struct Connection<T, B: Buf = Bytes> {
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct ResponseFuture {
-    inner: proto::OpaqueStreamRef,
+    /// Stream handle. Moved into the response body when headers arrive, so
+    /// the ready poll does not clone it and drop the leftover.
+    inner: std::mem::ManuallyDrop<proto::OpaqueStreamRef>,
     push_promise_consumed: bool,
+    taken: bool,
 }
 
 /// A future of a pushed HTTP response.
@@ -530,8 +533,9 @@ where
                 }
 
                 let response = ResponseFuture {
-                    inner: stream.clone_to_opaque(),
+                    inner: std::mem::ManuallyDrop::new(stream.clone_to_opaque()),
                     push_promise_consumed: false,
+                    taken: false,
                 };
 
                 let stream = SendStream::new(stream);
@@ -659,8 +663,9 @@ impl<B: Buf> Future for SendRequestWhenReady<'_, B> {
         this.waiter = None;
         Poll::Ready(Ok((
             ResponseFuture {
-                inner: stream.clone_to_opaque(),
+                inner: std::mem::ManuallyDrop::new(stream.clone_to_opaque()),
                 push_promise_consumed: false,
+                taken: false,
             },
             SendStream::new(stream),
         )))
@@ -1555,14 +1560,37 @@ where
 
 // ===== impl ResponseFuture =====
 
+#[allow(
+    unsafe_code,
+    reason = "move the stream handle into the response body once headers are ready"
+)]
 impl Future for ResponseFuture {
     type Output = Result<Response<RecvStream>, crate::h2_backend::Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let (parts, _) = ready!(self.inner.poll_response(cx))?.into_parts();
-        let body = RecvStream::new(FlowControl::new(self.inner.clone()));
+        // Headers are ready. The body owns the only remaining handle, so
+        // move it instead of cloning under the connection lock.
+        self.taken = true;
+        // SAFETY: `taken` stops Drop from releasing this handle. `poll`
+        // after `Ready` is not required, and this future holds no other copy.
+        let inner = unsafe { std::mem::ManuallyDrop::take(&mut self.inner) };
+        let body = RecvStream::new(FlowControl::new(inner));
 
         Poll::Ready(Ok(Response::from_parts(parts, body)))
+    }
+}
+
+#[allow(
+    unsafe_code,
+    reason = "drop the stream handle unless poll already moved it into the body"
+)]
+impl Drop for ResponseFuture {
+    fn drop(&mut self) {
+        if !self.taken {
+            // SAFETY: the handle has not been moved into a response body.
+            unsafe { std::mem::ManuallyDrop::drop(&mut self.inner) };
+        }
     }
 }
 
@@ -1603,7 +1631,7 @@ impl ResponseFuture {
         }
         self.push_promise_consumed = true;
         PushPromises {
-            inner: self.inner.clone(),
+            inner: proto::OpaqueStreamRef::clone(&self.inner),
         }
     }
 }
@@ -1625,8 +1653,9 @@ impl PushPromises {
             Poll::Ready(Some(Ok((request, response)))) => {
                 let response = PushedResponseFuture {
                     inner: ResponseFuture {
-                        inner: response,
+                        inner: std::mem::ManuallyDrop::new(response),
                         push_promise_consumed: false,
+                        taken: false,
                     },
                 };
                 Poll::Ready(Some(Ok(PushPromise { request, response })))
