@@ -6,13 +6,29 @@ use std::convert::Infallible;
 use std::fmt;
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::marker::PhantomData;
+use std::mem::ManuallyDrop;
 use std::ops;
 
 /// Storage for streams
 #[derive(Debug)]
 pub(super) struct Store {
-    slab: slab::Slab<Stream>,
+    slab: StreamSlots,
     ids: IndexMap<StreamId, SlabIndex, StreamIdHasher>,
+}
+
+/// Stream storage with the same free list as `slab`, so a removed stream can
+/// be dropped in its slot. `slab::Slab::remove` copies the value out first.
+#[derive(Debug)]
+struct StreamSlots {
+    slots: Vec<Slot>,
+    next: u32,
+    len: usize,
+}
+
+#[derive(Debug)]
+enum Slot {
+    Vacant(u32),
+    Occupied(ManuallyDrop<Stream>),
 }
 
 /// Identity hash for stream ids.
@@ -134,7 +150,7 @@ enum OccupiedKind<'a> {
 
 pub(super) struct VacantEntry<'a> {
     ids: indexmap::map::VacantEntry<'a, StreamId, SlabIndex>,
-    slab: &'a mut slab::Slab<Stream>,
+    slab: &'a mut StreamSlots,
 }
 
 pub(super) trait Resolve {
@@ -146,7 +162,7 @@ pub(super) trait Resolve {
 impl Store {
     pub fn new() -> Self {
         Store {
-            slab: slab::Slab::new(),
+            slab: StreamSlots::new(),
             ids: IndexMap::with_hasher(StreamIdHasher::default()),
         }
     }
@@ -261,6 +277,85 @@ impl Store {
         }
 
         Ok(())
+    }
+}
+
+impl StreamSlots {
+    fn new() -> Self {
+        Self {
+            slots: Vec::new(),
+            next: 0,
+            len: 0,
+        }
+    }
+
+    fn insert(&mut self, value: Stream) -> u32 {
+        let key = self.next;
+        self.len += 1;
+        if key as usize == self.slots.len() {
+            self.slots.push(Slot::Occupied(ManuallyDrop::new(value)));
+            self.next = key.wrapping_add(1);
+        } else {
+            self.next = match self.slots.get(key as usize) {
+                Some(Slot::Vacant(next)) => *next,
+                _ => unreachable!("stream slab insert hit an occupied slot"),
+            };
+            self.slots[key as usize] = Slot::Occupied(ManuallyDrop::new(value));
+        }
+        key
+    }
+
+    fn get(&self, index: usize) -> Option<&Stream> {
+        match self.slots.get(index) {
+            Some(Slot::Occupied(stream)) => Some(stream),
+            _ => None,
+        }
+    }
+
+    fn get_mut(&mut self, index: usize) -> Option<&mut Stream> {
+        match self.slots.get_mut(index) {
+            Some(Slot::Occupied(stream)) => Some(stream),
+            _ => None,
+        }
+    }
+
+    /// Drop the stream where it sits, then link the slot onto the free list.
+    #[allow(
+        unsafe_code,
+        reason = "drop the occupied stream in place and overwrite the slot with Vacant"
+    )]
+    fn remove_in_place(&mut self, index: u32, stream_id: StreamId) -> StreamId {
+        let slot_index = index as usize;
+        let id = match self.slots.get(slot_index) {
+            Some(Slot::Occupied(stream)) if stream.id == stream_id => stream.id,
+            _ => dangling_store_key(stream_id),
+        };
+        let next = self.next;
+        let slot = unsafe { self.slots.get_unchecked_mut(slot_index) as *mut Slot };
+        // SAFETY: the match above proved this slot is Occupied with `stream_id`.
+        // `ManuallyDrop::drop` runs `Stream`'s destructor once. `ptr::write`
+        // does not drop the old occupant, so the freed stream is not dropped
+        // again. The written `Vacant` is a valid slot.
+        unsafe {
+            match &mut *slot {
+                Slot::Occupied(stream) => ManuallyDrop::drop(stream),
+                Slot::Vacant(_) => unreachable!("occupied slot became vacant"),
+            }
+            std::ptr::write(slot, Slot::Vacant(next));
+        }
+        self.next = index;
+        self.len -= 1;
+        id
+    }
+
+    #[cfg(any())]
+    fn len(&self) -> usize {
+        self.len
+    }
+
+    #[cfg(any())]
+    fn is_empty(&self) -> bool {
+        self.len == 0
     }
 }
 
@@ -496,12 +591,9 @@ impl<'a> Ptr<'a> {
         // The stream must have been unlinked before this point
         debug_assert!(!self.store.ids.contains_key(&self.key.stream_id));
 
-        // Read the id before removal. Binding `slab.remove`'s return value
-        // copies all 328 bytes of the stream out of the slab just to drop
-        // them. Leaving that value unused lets the compiler drop it in place.
-        let id = self.store[self.key].id;
-        self.store.slab.remove(self.key.index.0 as usize);
-        id
+        self.store
+            .slab
+            .remove_in_place(self.key.index.0, self.key.stream_id)
     }
 
     /// Remove the StreamId -> stream state association.
