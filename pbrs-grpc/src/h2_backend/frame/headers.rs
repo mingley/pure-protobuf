@@ -385,8 +385,16 @@ impl Headers {
                 self.header_block.stock,
             ) {
                 if bytes.len() + head.encode_len() <= dst.remaining_mut() {
-                    head.encode(bytes.len(), dst);
-                    dst.put_slice(bytes);
+                    // `Limit`'s `put_slice` walks chunks. The inner buffer
+                    // copies the head and the cached block directly.
+                    let total = bytes.len() + head.encode_len();
+                    let lim = bytes::buf::Limit::limit(dst);
+                    {
+                        let inner = bytes::buf::Limit::get_mut(dst);
+                        encode_head_into(head, bytes.len(), inner);
+                        inner.extend_from_slice(bytes);
+                    }
+                    bytes::buf::Limit::set_limit(dst, lim - total);
                     if let Some(slot) = kind.slot() {
                         crate::h2_backend::header_pool::recycle(slot, self.header_block.fields);
                     }
@@ -1149,6 +1157,25 @@ fn fields_match(fields: &HeaderMap, expect_bits: u8, expect_count: usize) -> boo
         bits |= bit;
     }
     bits == expect_bits
+}
+
+/// Nine-byte frame head, written with `BytesMut`'s copy instead of `Limit`'s
+/// chunk walk.
+fn encode_head_into(head: Head, payload_len: usize, dst: &mut bytes::BytesMut) {
+    let len = payload_len as u32;
+    let id: u32 = head.stream_id().into();
+    let prefix = [
+        (len >> 16) as u8,
+        (len >> 8) as u8,
+        len as u8,
+        head.kind() as u8,
+        head.flag(),
+        (id >> 24) as u8,
+        (id >> 16) as u8,
+        (id >> 8) as u8,
+        id as u8,
+    ];
+    dst.extend_from_slice(&prefix);
 }
 
 /// A previously encoded stock block. The field walk runs only after the path,
