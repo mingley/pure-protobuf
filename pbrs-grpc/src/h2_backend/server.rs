@@ -283,7 +283,10 @@ pub struct Builder {
 /// [module]: index.html
 #[derive(Debug)]
 pub struct SendResponse<B: Buf> {
-    inner: proto::StreamRef<B>,
+    /// `None` after [`SendResponse::send_response`] moves the handle into
+    /// the [`SendStream`]. `StreamRef` starts with an `Arc`, so `Option`
+    /// does not grow this value.
+    inner: Option<proto::StreamRef<B>>,
 }
 
 /// Send a response to a promised request
@@ -441,7 +444,7 @@ where
             let body = RecvStream::new(FlowControl::new(inner.clone_to_opaque()));
 
             let request = Request::from_parts(head, body);
-            let respond = SendResponse { inner };
+            let respond = SendResponse { inner: Some(inner) };
 
             return Poll::Ready(Some(Ok((request, respond))));
         }
@@ -1189,7 +1192,10 @@ impl<B: Buf> SendResponse<B> {
     /// - The final response has already been sent
     /// - There is a connection-level error
     pub fn send_informational(&mut self, response: Response<()>) -> Result<(), crate::h2_backend::Error> {
-        let stream_id = self.inner.stream_id();
+        let Some(inner) = self.inner.as_mut() else {
+            return Err(UserError::PollResetAfterSendResponse.into());
+        };
+        let stream_id = inner.stream_id();
         let status = response.status();
 
         tracing::trace!(
@@ -1226,10 +1232,7 @@ impl<B: Buf> SendResponse<B> {
 
         // Use the proper H2 streams API for sending interim informational headers
         // This bypasses the normal response flow and allows multiple informational responses
-        let result = self
-            .inner
-            .send_informational_headers(frame)
-            .map_err(Into::into);
+        let result = inner.send_informational_headers(frame).map_err(Into::into);
 
         match &result {
             Ok(()) => tracing::trace!(
@@ -1268,9 +1271,14 @@ impl<B: Buf> SendResponse<B> {
         end_of_stream: bool,
     ) -> Result<SendStream<B>, crate::h2_backend::Error> {
         self.inner
+            .as_mut()
+            .ok_or(UserError::PollResetAfterSendResponse)?
             .send_response(response, end_of_stream)
-            .map(|_| SendStream::new(self.inner.clone()))
-            .map_err(Into::into)
+            .map_err(crate::h2_backend::Error::from)?;
+        // The caller keeps this `SendResponse`. The stream ref itself moves
+        // into the `SendStream`, so Drop does not release a second handle.
+        let inner = self.inner.take().expect("send handle still present");
+        Ok(SendStream::new(inner))
     }
 
     /// Push a request and response to the client
@@ -1283,9 +1291,11 @@ impl<B: Buf> SendResponse<B> {
         request: Request<()>,
     ) -> Result<SendPushedResponse<B>, crate::h2_backend::Error> {
         self.inner
+            .as_mut()
+            .ok_or(UserError::PollResetAfterSendResponse)?
             .send_push_promise(request)
             .map(|inner| SendPushedResponse {
-                inner: SendResponse { inner },
+                inner: SendResponse { inner: Some(inner) },
             })
             .map_err(Into::into)
     }
@@ -1306,7 +1316,9 @@ impl<B: Buf> SendResponse<B> {
     /// [`send_response`]: #method.send_response
     /// [`SendStream`]: ../struct.SendStream.html
     pub fn send_reset(&mut self, reason: Reason) {
-        self.inner.send_reset(reason)
+        if let Some(inner) = self.inner.as_mut() {
+            inner.send_reset(reason);
+        }
     }
 
     /// Polls to be notified when the client resets this stream.
@@ -1322,7 +1334,10 @@ impl<B: Buf> SendResponse<B> {
     /// Calling this method after having called `send_response` will return
     /// a user error.
     pub fn poll_reset(&mut self, cx: &mut Context) -> Poll<Result<Reason, crate::h2_backend::Error>> {
-        self.inner.poll_reset(cx, proto::PollReset::AwaitingHeaders)
+        let Some(inner) = self.inner.as_mut() else {
+            return Poll::Ready(Err(UserError::PollResetAfterSendResponse.into()));
+        };
+        inner.poll_reset(cx, proto::PollReset::AwaitingHeaders)
     }
 
     /// Returns the stream ID of the response stream.
@@ -1331,7 +1346,12 @@ impl<B: Buf> SendResponse<B> {
     ///
     /// If the lock on the stream store has been poisoned.
     pub fn stream_id(&self) -> crate::h2_backend::StreamId {
-        crate::h2_backend::StreamId::from_internal(self.inner.stream_id())
+        crate::h2_backend::StreamId::from_internal(
+            self.inner
+                .as_ref()
+                .expect("stream id after send_response")
+                .stream_id(),
+        )
     }
 }
 
