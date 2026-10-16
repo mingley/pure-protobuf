@@ -57,6 +57,9 @@ impl Dyn {
         self.is_server() == id.is_server_initiated()
     }
 
+    /// Inlined so a received header block is not copied into this call.
+    /// The hot path only borrows `pseudo`.
+    #[inline(always)]
     pub fn convert_poll_message(
         &self,
         pseudo: Pseudo,

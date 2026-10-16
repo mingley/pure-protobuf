@@ -1845,6 +1845,7 @@ impl proto::Peer for Peer {
     }
     */
 
+    #[inline(always)]
     fn convert_poll_message(
         pseudo: Pseudo,
         fields: HeaderMap,
