@@ -142,6 +142,10 @@ impl Prioritize {
     }
 
     /// Send a data frame
+    #[allow(
+        unsafe_code,
+        reason = "one slab lookup for the stream fields this send reads and writes"
+    )]
     pub fn send_data<B>(
         &mut self,
         frame: frame::Data<B>,
@@ -161,51 +165,57 @@ impl Prioritize {
 
         let sz = sz as WindowSize;
 
-        if !stream.state.is_send_streaming() {
-            if stream.state.is_closed() {
-                return Err(InactiveStreamId);
-            } else {
-                return Err(UnexpectedFrameType);
+        // SAFETY: the caller holds this stream for the whole send. Capacity
+        // assignment and queueing do not remove the slab slot, so `sp` stays
+        // valid until this function returns.
+        let sp = stream.stream_ptr();
+        unsafe {
+            if !(*sp).state.is_send_streaming() {
+                if (*sp).state.is_closed() {
+                    return Err(InactiveStreamId);
+                } else {
+                    return Err(UnexpectedFrameType);
+                }
             }
-        }
 
-        // Update the buffered data counter
-        stream.buffered_send_data += sz as usize;
+            // Update the buffered data counter
+            (*sp).buffered_send_data += sz as usize;
 
-        // Implicitly request more send capacity if not enough has been
-        // requested yet.
-        if (stream.requested_send_capacity as usize) < stream.buffered_send_data {
-            // Update the target requested capacity
-            stream.requested_send_capacity =
-                cmp::min(stream.buffered_send_data, WindowSize::MAX as usize) as WindowSize;
+            // Implicitly request more send capacity if not enough has been
+            // requested yet.
+            if ((*sp).requested_send_capacity as usize) < (*sp).buffered_send_data {
+                // Update the target requested capacity
+                (*sp).requested_send_capacity =
+                    cmp::min((*sp).buffered_send_data, WindowSize::MAX as usize) as WindowSize;
 
-            // `try_assign_capacity` will queue the stream to `pending_capacity` if the capcaity
-            // cannot be assigned at the time it is called.
-            self.try_assign_capacity(stream);
-        }
+                // `try_assign_capacity` will queue the stream to `pending_capacity` if the capcaity
+                // cannot be assigned at the time it is called.
+                self.try_assign_capacity(stream);
+            }
 
-        if frame.is_end_stream() {
-            stream.state.send_close();
-            self.reserve_capacity(0, stream, counts);
-        }
+            if frame.is_end_stream() {
+                (*sp).state.send_close();
+                self.reserve_capacity(0, stream, counts);
+            }
 
-        // The `stream.buffered_send_data == 0` check is here so that, if a zero
-        // length data frame is queued to the front (there is no previously
-        // queued data), it gets sent out immediately even if there is no
-        // available send window.
-        //
-        // Sending out zero length data frames can be done to signal
-        // end-of-stream.
-        //
-        if stream.send_flow.available() > 0 || stream.buffered_send_data == 0 {
-            // The stream currently has capacity to send the data frame, so
-            // queue it up and notify the connection task.
-            self.queue_frame(frame.into(), buffer, stream, task);
-        } else {
-            // The stream has no capacity to send the frame now, save it but
-            // don't notify the connection task. Once additional capacity
-            // becomes available, the frame will be flushed.
-            stream.pending_send.push_back(buffer, frame.into());
+            // The `buffered_send_data == 0` check is here so that, if a zero
+            // length data frame is queued to the front (there is no previously
+            // queued data), it gets sent out immediately even if there is no
+            // available send window.
+            //
+            // Sending out zero length data frames can be done to signal
+            // end-of-stream.
+            //
+            if (*sp).send_flow.available() > 0 || (*sp).buffered_send_data == 0 {
+                // The stream currently has capacity to send the data frame, so
+                // queue it up and notify the connection task.
+                self.queue_frame(frame.into(), buffer, stream, task);
+            } else {
+                // The stream has no capacity to send the frame now, save it but
+                // don't notify the connection task. Once additional capacity
+                // becomes available, the frame will be flushed.
+                (*sp).pending_send.push_back(buffer, frame.into());
+            }
         }
 
         Ok(())
