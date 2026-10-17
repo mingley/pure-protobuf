@@ -749,11 +749,12 @@ impl Headers {
                 &self.header_block.fields,
                 self.header_block.stock,
             ) {
-                if bytes.len() + head.encode_len() <= dst.remaining_mut() {
-                    // `Limit`'s `put_slice` walks chunks. The inner buffer
-                    // copies the head and the cached block directly.
-                    let total = bytes.len() + head.encode_len();
-                    let lim = bytes::buf::Limit::limit(dst);
+                // `BytesMut::remaining_mut` is `isize::MAX - len`, so the
+                // limit's remaining budget is just `limit`. The write still
+                // reserves when the buffer itself is short.
+                let total = bytes.len() + head.encode_len();
+                let lim = bytes::buf::Limit::limit(dst);
+                if total <= lim {
                     {
                         let inner = bytes::buf::Limit::get_mut(dst);
                         encode_head_into(head, bytes.len(), inner);
