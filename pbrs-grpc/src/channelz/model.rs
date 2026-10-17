@@ -27,7 +27,7 @@
 //! entity.
 
 use super::trace::{Trace, TraceChild, TraceSeverity};
-use std::cell::RefCell;
+use std::cell::UnsafeCell;
 use std::collections::BTreeMap;
 use std::sync::{
     Arc, Mutex, OnceLock, RwLock,
@@ -827,23 +827,27 @@ impl Registry {
     /// accepted server connection). A hit borrows the cached entry.
     #[cold]
     #[inline(never)]
+    #[allow(
+        unsafe_code,
+        reason = "the miss path fills the thread-local socket slots and does not re-enter them"
+    )]
     fn cache_socket(&self, id: SocketId) -> Option<Arc<SocketEntry>> {
         let entry = {
             let map = self.sockets.read().ok()?;
             map.get(&id.0).cloned()?
         };
         let registry = self as *const Registry;
-        HOT_SOCKETS.with(|cell| {
-            let mut slots = cell.borrow_mut();
-            for slot in slots.iter_mut() {
-                if slot.is_none() {
-                    *slot = Some((registry, id.0, Arc::clone(&entry)));
-                    return;
-                }
+        // SAFETY: the miss path is not inside a cache hit, so this thread
+        // has no other reference to the slot array.
+        let slots = unsafe { &mut *hot_socket_slots() };
+        for slot in slots.iter_mut() {
+            if slot.is_none() {
+                *slot = Some((registry, id.0, Arc::clone(&entry)));
+                return Some(entry);
             }
-            slots[0] = slots[1].take();
-            slots[1] = Some((registry, id.0, Arc::clone(&entry)));
-        });
+        }
+        slots[0] = slots[1].take();
+        slots[1] = Some((registry, id.0, Arc::clone(&entry)));
         Some(entry)
     }
 
@@ -1366,38 +1370,51 @@ pub(crate) fn now_ms() -> u64 {
 // Client and server sockets are noted from the same task. Two slots
 // cover that pair without cloning the `Arc` on a hit.
 thread_local! {
-    static HOT_SOCKETS: RefCell<[Option<(*const Registry, u64, Arc<SocketEntry>)>; 2]> =
-        const { RefCell::new([None, None]) };
+    static HOT_SOCKETS: UnsafeCell<[Option<(*const Registry, u64, Arc<SocketEntry>)>; 2]> =
+        const { UnsafeCell::new([None, None]) };
 }
 
 #[inline]
+fn hot_socket_slots() -> *mut [Option<(*const Registry, u64, Arc<SocketEntry>)>; 2] {
+    HOT_SOCKETS.with(UnsafeCell::get)
+}
+
+#[inline]
+#[allow(
+    unsafe_code,
+    reason = "the socket cache is thread-local and a hit body does not re-enter it"
+)]
 fn with_cached_socket<R>(
     registry: &Registry,
     id: SocketId,
     body: impl FnOnce(&SocketEntry) -> R,
 ) -> Option<R> {
     let registry = registry as *const Registry;
-    HOT_SOCKETS.with(|cell| {
-        let slots = cell.borrow();
-        for slot in slots.iter() {
-            let Some((cached_registry, cached_id, entry)) = slot else {
-                continue;
-            };
-            if *cached_registry == registry && *cached_id == id.0 {
-                return Some(body(entry));
-            }
+    // SAFETY: this thread owns the slots. `body` updates atomics and the
+    // coarse clock, which uses a different thread-local.
+    let slots = unsafe { &*hot_socket_slots() };
+    for slot in slots.iter() {
+        let Some((cached_registry, cached_id, entry)) = slot else {
+            continue;
+        };
+        if *cached_registry == registry && *cached_id == id.0 {
+            return Some(body(entry));
         }
-        None
-    })
+    }
+    None
 }
 
 impl Drop for Registry {
+    #[allow(
+        unsafe_code,
+        reason = "clearing this thread's socket slots while the registry drops"
+    )]
     fn drop(&mut self) {
         let me = self as *const Registry;
         let _ = HOT_SOCKETS.try_with(|cell| {
-            let Ok(mut slots) = cell.try_borrow_mut() else {
-                return;
-            };
+            // SAFETY: dropping a registry is not inside a cache hit on this
+            // thread. Another thread's slots are a different thread-local.
+            let slots = unsafe { &mut *cell.get() };
             for slot in slots.iter_mut() {
                 if matches!(slot, Some((registry, _, _)) if *registry == me) {
                     *slot = None;
