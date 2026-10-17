@@ -170,16 +170,12 @@ impl ByteBudgetTracker {
 
         let mut current = self.inner.allocated.load(Ordering::SeqCst);
         loop {
-            let next = current.checked_add(bytes).ok_or_else(|| {
-                Status::resource_exhausted(format!(
-                    "transport byte budget counter overflow: requested {bytes} bytes, current allocated {current}"
-                ))
-            })?;
+            let Some(next) = current.checked_add(bytes) else {
+                return Err(Self::budget_counter_overflow(bytes, current));
+            };
             if let Some(limit) = self.inner.limit {
                 if next > limit {
-                    return Err(Status::resource_exhausted(format!(
-                        "transport byte budget exceeded: requested {bytes} bytes, current allocated {current}, limit {limit}"
-                    )));
+                    return Err(Self::budget_limit_exceeded(bytes, current, limit));
                 }
             }
             match self.inner.allocated.compare_exchange_weak(
@@ -212,6 +208,24 @@ impl ByteBudgetTracker {
     /// Synonym for [`Self::try_acquire`].
     pub fn acquire(&self, bytes: usize) -> Result<BytePermit, Status> {
         self.try_acquire(bytes)
+    }
+
+    /// Overflow text stays out of the acquire loop. The hot path never formats.
+    #[cold]
+    #[inline(never)]
+    fn budget_counter_overflow(bytes: usize, current: usize) -> Status {
+        Status::resource_exhausted(format!(
+            "transport byte budget counter overflow: requested {bytes} bytes, current allocated {current}"
+        ))
+    }
+
+    /// Limit text stays out of the acquire loop. The hot path never formats.
+    #[cold]
+    #[inline(never)]
+    fn budget_limit_exceeded(bytes: usize, current: usize, limit: usize) -> Status {
+        Status::resource_exhausted(format!(
+            "transport byte budget exceeded: requested {bytes} bytes, current allocated {current}, limit {limit}"
+        ))
     }
 
     pub(crate) fn release(&self, bytes: usize) {
