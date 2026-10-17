@@ -629,11 +629,10 @@ fn endpoint_dns_bounds() -> Result<crate::resolver::DnsConfig, Status> {
 /// # Ok(())
 /// # }
 /// ```
+/// Per-clone overlays. Clones share this handle until a setter replaces it,
+/// so a channel value copied into an RPC future is two pointers.
 #[derive(Clone)]
-pub struct Channel {
-    pub(crate) inner: Arc<ChannelInner>,
-    /// Per-clone overlays. Shared until a setter replaces them, so cloning a
-    /// channel does not copy the configuration.
+pub(crate) struct ChannelLocal {
     pub(crate) config: Arc<ChannelConfig>,
     pub(crate) interceptors: Arc<[ClientHook]>,
     pub(crate) response_interceptors: Arc<[ResponseHook]>,
@@ -642,10 +641,10 @@ pub struct Channel {
     pub(crate) byte_budget: ByteBudgetTracker,
     pub(crate) user_agent: HeaderValue,
     /// `:scheme` this clone sends. TLS channels start `true`; [`Self::from_io`]
-    /// starts `false` until [`Self::https_scheme`].
+    /// starts `false` until [`Channel::https_scheme`].
     pub(crate) https: bool,
     /// `:authority` this clone sends. Defaults to the dial [`Target`];
-    /// [`Self::origin`] overrides it.
+    /// [`Channel::origin`] overrides it.
     pub(crate) authority: Authority,
     pub(crate) observer: Option<Arc<dyn LifecycleObserver>>,
     /// Attached JSON service config (A6/A21/A24), if any. Clones share it.
@@ -656,24 +655,187 @@ pub struct Channel {
     pub(crate) binlog: Option<Arc<crate::binlog::BinaryLogger>>,
 }
 
+/// A prior-knowledge HTTP/2 connection (or small pool) to a gRPC server.
+///
+/// Cloning is cheap and shares the underlying connections, so a `Channel` is
+/// meant to be cloned into every task that needs it. A received
+/// [`Streaming`] also holds the HTTP/2 driver, so dropping the last `Channel`
+/// clone after headers still lets you read the stream to the end, including
+/// over TLS, mTLS, Unix, and [`Self::from_io`].
+///
+/// If a connection dies — peer `GOAWAY`, TCP reset, keepalive timeout — the
+/// next RPC on that slot dials again, including over TLS, mTLS, and Unix.
+/// [`Self::from_io`] cannot redial. Unary and server-streaming calls that
+/// observe the death after the slot still looked live (a raced `GOAWAY`)
+/// retry that redial once on the same RPC, matching gRPC transparent retry.
+/// Client-streaming and bidi retry that same redial once when HEADERS never
+/// went out; after the stream is open they do not, because the caller already
+/// holds the send half.
+/// There is no grpc-go `WithDisableRetry` DialOption: that disables
+/// service-config retries and does not impact transparent retries.
+/// Service-config `retryPolicy`/`hedgingPolicy` attach with
+/// [`Self::service_config`]; omit the document (or the method's policy) for
+/// no policy retries, in which case application retries stay at the call
+/// site ([`Code::is_retryable`]). Transparent retry cannot be turned off.
+/// Distinct from [`Self::from_io`] (no transparent retry).
+/// There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging
+/// per call (default 5; values below 2 become 5). Here `maxAttempts` comes
+/// from the method's `retryPolicy`/`hedgingPolicy` (values above 5 count as
+/// 5); transparent retry is at most once on top and cannot be raised.
+/// Distinct from [`Code::is_retryable`] (application retries at the call
+/// site, unbounded by this kernel).
+/// A healthy connection that is only waiting for a free stream
+/// (`SETTINGS_MAX_CONCURRENT_STREAMS`) is not replaced. Redial is part of
+/// the RPC: it is cancelled if the [`Call`] is cancelled, and it fails with
+/// [`Code::DeadlineExceeded`] if the request deadline elapses while connecting.
+///
+/// A connection with no outstanding RPCs is closed after
+/// [`ChannelConfig::max_connection_idle`] when that is set. Keepalive PINGs
+/// do not keep it. The next RPC of every call shape redials, including over
+/// TLS, mTLS, and Unix. [`Self::from_io`] cannot redial and fails with
+/// [`Code::Unavailable`].
+/// A connection is also closed after
+/// [`ChannelConfig::max_connection_age`] when that is set, even while RPCs
+/// are in flight; in-flight RPCs get [`ChannelConfig::max_connection_age_grace`]
+/// to finish. Distinct from idle: a long-running stream is not idle, but it
+/// does not postpone age. The next RPC of every call shape redials, including over
+/// TLS, mTLS, and Unix. [`Self::from_io`] cannot redial and fails with
+/// [`Code::Unavailable`].
+/// Keepalive PINGs do not postpone age.
+/// [`Self::connected`] is whether any slot still holds that socket. Distinct
+/// from gRPC `GetState`: it does not dial, wait, or remember a failed attempt.
+///
+/// [`Self::connect_lazy`] skips the initial dial so a client can exist
+/// before its server. The first RPC fails fast with [`Code::Unavailable`]
+/// unless that request set [`Request::set_wait_for_ready`] or the channel
+/// was built with [`Self::wait_for_ready`] / [`ChannelConfig::wait_for_ready`],
+/// in which case it retries until connected, cancelled, or the deadline fires.
+///
+/// A dial is bounded by [`ChannelConfig::connect_timeout`] (default 20 s),
+/// covering TCP or Unix connect, optional TLS, and the peer's HTTP/2
+/// SETTINGS. A peer that accepts the socket and never speaks fails with
+/// [`Code::Unavailable`] instead of hanging forever. Connection refused
+/// still fails immediately.
+/// TCP sockets always set `TCP_NODELAY` (Nagle off) at connect; Unix and
+/// [`Self::from_io`] skip that. There is no `tcp_nodelay` setter. Distinct
+/// from tonic, which defaults Nagle off but lets you turn it back on.
+/// There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by
+/// default; that DialOption disables it. TCP dials consult `HTTPS_PROXY`
+/// / `NO_PROXY` and tunnel through HTTP CONNECT; there is no per-channel
+/// proxy disable. There is no
+/// `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT
+/// sees an IP. Distinct from [`Self::from_io`] (already-connected bytes,
+/// not a proxy bypass). Distinct from [`Self::connect_unix`] (filesystem
+/// path; this dialer is skipped). Distinct from
+/// [`ChannelConfig::local_address`] (source bind, not proxy).
+/// [`ChannelConfig::local_address`] binds the TCP source before connect
+/// (TLS and mTLS included). Unix and [`Self::from_io`] skip that bind.
+/// Distinct from [`crate::Rpc::local_addr`], which is the accepted
+/// interface after the handshake.
+///
+/// On Unix, [`Self::connect_unix`] / [`Self::connect_unix_lazy`] speak the
+/// same protocol over a domain socket. TLS is TCP-only.
+///
+/// [`Self::from_io`] speaks over an already-connected byte stream and cannot
+/// redial. Pair it with [`crate::Server::serve_connection`] for in-process
+/// tests.
+///
+/// Generated `FooClient` types wrap these constructors as `FooClient::connect`,
+/// `connect_tls`, `connect_unix`, and `from_io`, so a service crate rarely
+/// constructs a `Channel` by hand. `FooClient::authority`, `FooClient::scheme`,
+/// and `FooClient::grpc_user_agent` read the same values interceptors see on
+/// [`Outgoing`](crate::Outgoing).
+///
+/// [`Self::unary`], [`Self::server_streaming`], [`Self::client_streaming`],
+/// and [`Self::bidi`] are first-class for a hand-written [`crate::Service`];
+/// generated clients call the same methods.
+///
+/// [`Self::intercept`] runs on every outbound RPC when the method is
+/// called — before the stream opens and before the [`Call`] is polled —
+/// which is how a client injects auth metadata, a default deadline, or
+/// wait-for-ready without touching each call.
+///
+/// After connect, [`Self::timeout`], [`Self::wait_for_ready`],
+/// [`Self::send_compressed`], [`Self::gzip_compression_level`],
+/// [`Self::accept_compressed`], the two message-size caps /
+/// [`Self::message_limits`], [`Self::stream_buffer`],
+/// [`Self::max_send_buffer_size`], [`Self::max_concurrent_rpcs`],
+/// [`Self::https_scheme`] (for [`Self::from_io`]), and [`Self::origin`]
+/// overlay this clone.
+/// There is no grpc-go `WithDefaultCallOptions`: that is a DialOption bag of
+/// per-call options (`WaitForReady`, `MaxCallRecvMsgSize`, compressor, …)
+/// applied as channel defaults. These methods are typed overlays on this
+/// clone, not a `CallOption` list and not a DialOption. Distinct from
+/// grpc-go `WithDefaultServiceConfig` (JSON service config, not CallOptions).
+/// Distinct from [`ChannelConfig`] (handshake `Copy` fields). Distinct from
+/// [`Self::intercept`] (per-RPC mutation after connect).
+/// Read those overlays with [`Self::rpc_timeout`], [`Self::waits_for_ready`],
+/// [`Self::compresses_outbound`], [`Self::gzip_level`], [`Self::accepts_compressed`],
+/// [`Self::concurrent_rpc_limit`], [`Self::stream_buffer_size`],
+/// [`Self::send_buffer_size`], [`Self::limits`], and
+/// [`Self::config`]. Keepalive, idle, age, TCP
+/// keepalive, local bind, connection count, HTTP/2 windows, the HPACK table, the
+/// small-DATA budget, the rapid-reset cap, the locally-reset stream memory
+/// and duration, and the protocol-error RST cap are set at handshake ([`ChannelConfig`] /
+/// [`Self::connect_with`]).
+///
+/// [`Debug`] prints the authority, pool size, and config. It does not dump
+/// live HTTP/2 state.
+///
+/// ```no_run
+/// use pbrs_grpc::{Channel, ChannelConfig};
+///
+/// # async fn run() -> Result<(), pbrs_grpc::Status> {
+/// // One connection, 4 MiB inbound cap.
+/// let channel = Channel::connect("127.0.0.1:50051").await?;
+///
+/// // Four connections, so four cores can drive HTTP/2 framing.
+/// let pooled = Channel::connect_with(
+///     "127.0.0.1:50051",
+///     ChannelConfig::new().connections(4),
+/// )
+/// .await?;
+///
+/// // No dial until the first RPC. Pair with `Channel::wait_for_ready`
+/// // or `Request::set_wait_for_ready`.
+/// let late = Channel::connect_lazy("127.0.0.1:50051")?;
+/// # let _ = (channel, pooled, late);
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Clone)]
+pub struct Channel {
+    pub(crate) inner: Arc<ChannelInner>,
+    pub(crate) local: Arc<ChannelLocal>,
+}
+
+impl Channel {
+    /// A setter's private copy of the overlays. Other clones keep the previous
+    /// handle.
+    fn with_local(mut self, update: impl FnOnce(&mut ChannelLocal)) -> Self {
+        update(Arc::make_mut(&mut self.local));
+        self
+    }
+}
+
 impl fmt::Debug for Channel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Channel")
             .field(
                 "authority",
-                &diagnostic_identity(self.authority.as_str(), None),
+                &diagnostic_identity(self.local.authority.as_str(), None),
             )
             .field("endpoint", &"[REDACTED]")
             .field("connections", &self.inner.slots.len())
             .field("tls", &self.inner.tls.is_some())
-            .field("https", &self.https)
-            .field("interceptors", &self.interceptors.len())
-            .field("response_interceptors", &self.response_interceptors.len())
-            .field("config", &*self.config)
-            .field("byte_budget_allocated", &self.byte_budget.allocated())
+            .field("https", &self.local.https)
+            .field("interceptors", &self.local.interceptors.len())
+            .field("response_interceptors", &self.local.response_interceptors.len())
+            .field("config", &*self.local.config)
+            .field("byte_budget_allocated", &self.local.byte_budget.allocated())
             .field("user_agent", &"[REDACTED]")
-            .field("observer", &self.observer.is_some())
-            .field("binary_logger", &self.binlog.is_some())
+            .field("observer", &self.local.observer.is_some())
+            .field("binary_logger", &self.local.binlog.is_some())
             .finish()
     }
 }
@@ -959,11 +1121,12 @@ impl super::Channel {
     /// the channel was built with [`crate::ClientTls`]. Read the result with
     /// [`Self::scheme`]. Applies to every call shape on this clone.
     #[must_use]
-    pub fn https_scheme(mut self) -> Self {
+    pub fn https_scheme(self) -> Self {
         if matches!(self.inner.endpoint, PoolEndpoint::Once) {
-            self.https = true;
+            self.with_local(|local| local.https = true)
+        } else {
+            self
         }
-        self
     }
 
     /// Override the HTTP/2 `:authority` this clone sends.
@@ -997,12 +1160,12 @@ impl super::Channel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn origin(mut self, authority: impl Into<Target>) -> Result<Self, Status> {
+    pub fn origin(self, authority: impl Into<Target>) -> Result<Self, Status> {
         let target = authority.into();
-        self.authority = target.authority().parse().map_err(|e| {
+        let authority = target.authority().parse().map_err(|e| {
             Status::invalid_argument(format!("invalid origin {:?}: {e}", target.authority()))
         })?;
-        Ok(self)
+        Ok(self.with_local(|local| local.authority = authority))
     }
 
     /// [`Self::from_io`] with `config`. Applies to every call shape.
@@ -1047,7 +1210,7 @@ impl super::Channel {
     /// The configuration in effect. Applies to every call shape.
     #[must_use]
     pub fn config(&self) -> ChannelConfig {
-        *self.config
+        *self.local.config
     }
 
     /// Attach a JSON service-config document (gRPC A6/A21/A24).
@@ -1075,16 +1238,15 @@ impl super::Channel {
     /// # Ok(channel)
     /// # }
     /// ```
-    pub fn service_config(mut self, json: &str) -> Result<Self, Status> {
+    pub fn service_config(self, json: &str) -> Result<Self, Status> {
         let parsed = ServiceConfig::parse(json)?;
-        self.service_config = SharedServiceConfig::new(parsed);
-        Ok(self)
+        Ok(self.with_local(|local| local.service_config = SharedServiceConfig::new(parsed)))
     }
 
     /// The attached service-config document, if any.
     #[must_use]
     pub fn service_config_doc(&self) -> Option<ServiceConfig> {
-        self.service_config.get().map(|state| state.config.clone())
+        self.local.service_config.get().map(|state| state.config.clone())
     }
 
     /// A snapshot of this channel's retry statistics.
@@ -1105,7 +1267,7 @@ impl super::Channel {
     /// ```
     #[must_use]
     pub fn retry_stats(&self) -> RetryStats {
-        self.retry_stats.snapshot()
+        self.local.retry_stats.snapshot()
     }
 
     /// Whether any pool slot currently holds a live HTTP/2 connection.
@@ -1138,18 +1300,18 @@ impl super::Channel {
     /// Applies to every call shape, including over TLS, mTLS, Unix, and
     /// [`Self::from_io`].
     #[must_use]
-    pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
-        self.config = Arc::new(self.config.max_decoding_message_size(limit));
-        self
+    pub fn max_decoding_message_size(self, limit: usize) -> Self {
+        let config = Arc::new(self.local.config.max_decoding_message_size(limit));
+        self.with_local(|local| local.config = config)
     }
 
     /// Cap outbound messages at `limit` bytes. Default unlimited.
     /// Applies to every call shape, including over TLS, mTLS, Unix, and
     /// [`Self::from_io`].
     #[must_use]
-    pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
-        self.config = Arc::new(self.config.max_encoding_message_size(limit));
-        self
+    pub fn max_encoding_message_size(self, limit: usize) -> Self {
+        let config = Arc::new(self.local.config.max_encoding_message_size(limit));
+        self.with_local(|local| local.config = config)
     }
 
     /// Replace both message caps at once. See [`ChannelConfig::message_limits`].
@@ -1161,9 +1323,9 @@ impl super::Channel {
     /// [`Code::ResourceExhausted`], including over TLS, mTLS, Unix, and
     /// [`Self::from_io`].
     #[must_use]
-    pub fn message_limits(mut self, limits: crate::MessageLimits) -> Self {
-        self.config = Arc::new(self.config.message_limits(limits));
-        self
+    pub fn message_limits(self, limits: crate::MessageLimits) -> Self {
+        let config = Arc::new(self.local.config.message_limits(limits));
+        self.with_local(|local| local.config = config)
     }
 
     /// Configured message caps. See [`Self::message_limits`].
@@ -1172,7 +1334,7 @@ impl super::Channel {
     /// Same overlay as [`crate::Outgoing::limits`].
     #[must_use]
     pub fn limits(&self) -> crate::MessageLimits {
-        self.config.limits()
+        self.local.config.limits()
     }
 
     /// gzip every unary and server-streaming request payload, and every
@@ -1197,9 +1359,9 @@ impl super::Channel {
     /// [`crate::Outgoing::set_compress`] from [`Self::compresses_outbound`]
     /// reapplies this overlay.
     #[must_use]
-    pub fn send_compressed(mut self) -> Self {
-        self.config = Arc::new(self.config.send_compressed(true));
-        self
+    pub fn send_compressed(self) -> Self {
+        let config = Arc::new(self.local.config.send_compressed(true));
+        self.with_local(|local| local.config = config)
     }
 
     /// Deflate effort for outbound gzip. Default 1 (`flate2` fast).
@@ -1209,9 +1371,9 @@ impl super::Channel {
     /// 0 stores; 9 is best. Overlay: does not change how a dead slot is
     /// redialed.
     #[must_use]
-    pub fn gzip_compression_level(mut self, level: u32) -> Self {
-        self.config = Arc::new(self.config.gzip_compression_level(level));
-        self
+    pub fn gzip_compression_level(self, level: u32) -> Self {
+        let config = Arc::new(self.local.config.gzip_compression_level(level));
+        self.with_local(|local| local.config = config)
     }
 
     /// Inflate inbound gzip. Default `true`. Applies to every call shape,
@@ -1221,9 +1383,9 @@ impl super::Channel {
     /// [`Self::send_compressed`], which is outbound. See
     /// [`ChannelConfig::accept_compressed`].
     #[must_use]
-    pub fn accept_compressed(mut self, accept: bool) -> Self {
-        self.config = Arc::new(self.config.accept_compressed(accept));
-        self
+    pub fn accept_compressed(self, accept: bool) -> Self {
+        let config = Arc::new(self.local.config.accept_compressed(accept));
+        self.with_local(|local| local.config = config)
     }
 
     /// Default per-RPC deadline when the request omits one. Applies to every
@@ -1234,9 +1396,9 @@ impl super::Channel {
     /// alone. Interceptors run after this fill and can still set or
     /// [`crate::Outgoing::clear_timeout`].
     #[must_use]
-    pub fn timeout(mut self, timeout: Duration) -> Self {
-        self.config = Arc::new(self.config.timeout(timeout));
-        self
+    pub fn timeout(self, timeout: Duration) -> Self {
+        let config = Arc::new(self.local.config.timeout(timeout));
+        self.with_local(|local| local.config = config)
     }
 
     /// Wait for a connection instead of failing fast. See
@@ -1246,16 +1408,16 @@ impl super::Channel {
     /// is left alone. Interceptors run after this fill and can still set
     /// or clear it.
     #[must_use]
-    pub fn wait_for_ready(mut self) -> Self {
-        self.config = Arc::new(self.config.wait_for_ready(true));
-        self
+    pub fn wait_for_ready(self) -> Self {
+        let config = Arc::new(self.local.config.wait_for_ready(true));
+        self.with_local(|local| local.config = config)
     }
 
     /// Default per-RPC deadline when the request omits one. Applies to every
     /// call shape. Distinct from [`Self::timeout`], which sets it.
     #[must_use]
     pub fn rpc_timeout(&self) -> Option<Duration> {
-        self.config.rpc_timeout()
+        self.local.config.rpc_timeout()
     }
 
     /// Whether this clone waits for a connection instead of failing fast.
@@ -1263,7 +1425,7 @@ impl super::Channel {
     /// Distinct from [`Self::wait_for_ready`], which sets it.
     #[must_use]
     pub fn waits_for_ready(&self) -> bool {
-        self.config.waits_for_ready()
+        self.local.config.waits_for_ready()
     }
 
     /// Whether this clone gzips outbound payloads.
@@ -1271,7 +1433,7 @@ impl super::Channel {
     /// Distinct from [`Self::send_compressed`], which sets it.
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
-        self.config.compresses_outbound()
+        self.local.config.compresses_outbound()
     }
 
     /// Configured outbound gzip deflate level. See [`Self::gzip_compression_level`].
@@ -1279,7 +1441,7 @@ impl super::Channel {
     /// Distinct from [`Self::gzip_compression_level`], which sets it.
     #[must_use]
     pub fn gzip_level(&self) -> u32 {
-        self.config.gzip_level()
+        self.local.config.gzip_level()
     }
 
     /// Whether inbound gzip is inflated. Default `true`.
@@ -1289,7 +1451,7 @@ impl super::Channel {
     /// `grpc-accept-encoding`.
     #[must_use]
     pub fn accepts_compressed(&self) -> bool {
-        self.config.accepts_compressed()
+        self.local.config.accepts_compressed()
     }
 
     /// How many messages sit between a client-streaming caller and the wire.
@@ -1300,9 +1462,9 @@ impl super::Channel {
     /// Overlay: does not change already-open streams or how a dead slot is
     /// redialed.
     #[must_use]
-    pub fn stream_buffer(mut self, messages: usize) -> Self {
-        self.config = Arc::new(self.config.stream_buffer(messages));
-        self
+    pub fn stream_buffer(self, messages: usize) -> Self {
+        let config = Arc::new(self.local.config.stream_buffer(messages));
+        self.with_local(|local| local.config = config)
     }
 
     /// Configured outbound streaming queue depth. See [`Self::stream_buffer`].
@@ -1310,7 +1472,7 @@ impl super::Channel {
     /// Distinct from [`Self::stream_buffer`], which sets it.
     #[must_use]
     pub fn stream_buffer_size(&self) -> usize {
-        self.config.stream_buffer_size()
+        self.local.config.stream_buffer_size()
     }
 
     /// Write-time HTTP/2 send buffer threshold for outbound DATA on this clone.
@@ -1322,47 +1484,45 @@ impl super::Channel {
     /// redialed; the handshake h2 send buffer stays the dial-time value.
     /// Distinct from [`crate::Server::max_send_buffer_size`]: that is the server write buffer, not this client overlay.
     #[must_use]
-    pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
-        self.config = Arc::new(self.config.max_send_buffer_size(bytes));
-        self
+    pub fn max_send_buffer_size(self, bytes: usize) -> Self {
+        let config = Arc::new(self.local.config.max_send_buffer_size(bytes));
+        self.with_local(|local| local.config = config)
     }
 
     /// Set a transport byte budget for queued and in-flight buffers on this channel.
     #[must_use]
-    pub fn byte_budget(mut self, limit: usize) -> Self {
-        self.byte_budget = ByteBudgetTracker::with_limit(limit);
-        self
+    pub fn byte_budget(self, limit: usize) -> Self {
+        self.with_local(|local| local.byte_budget = ByteBudgetTracker::with_limit(limit))
     }
 
     /// Attach an existing [`crate::ByteBudgetTracker`] to this channel.
     #[must_use]
-    pub fn with_byte_budget_tracker(mut self, tracker: ByteBudgetTracker) -> Self {
-        self.byte_budget = tracker;
-        self
+    pub fn with_byte_budget_tracker(self, tracker: ByteBudgetTracker) -> Self {
+        self.with_local(|local| local.byte_budget = tracker)
     }
 
     /// Byte budget tracker in effect.
     #[must_use]
     pub fn byte_budget_tracker(&self) -> &ByteBudgetTracker {
-        &self.byte_budget
+        &self.local.byte_budget
     }
 
     /// Number of bytes currently allocated in transport buffers on this channel.
     #[must_use]
     pub fn byte_budget_allocated(&self) -> usize {
-        self.byte_budget.allocated()
+        self.local.byte_budget.allocated()
     }
 
     /// The configured byte budget limit, if any.
     #[must_use]
     pub fn byte_budget_limit(&self) -> Option<usize> {
-        self.byte_budget.limit()
+        self.local.byte_budget.limit()
     }
 
     /// Whether transport buffer allocation is currently zero.
     #[must_use]
     pub fn is_byte_budget_quiescent(&self) -> bool {
-        self.byte_budget.is_quiescent()
+        self.local.byte_budget.is_quiescent()
     }
 
     /// Configured write-time HTTP/2 send buffer. See [`Self::max_send_buffer_size`].
@@ -1370,7 +1530,7 @@ impl super::Channel {
     /// Distinct from [`Self::max_send_buffer_size`], which sets it.
     #[must_use]
     pub fn send_buffer_size(&self) -> usize {
-        self.config.send_buffer_size()
+        self.local.config.send_buffer_size()
     }
 
     /// Cap how many RPCs this clone's channel will run at once, across every
@@ -1389,10 +1549,13 @@ impl super::Channel {
     ///
     /// Equivalent to [`ChannelConfig::max_concurrent_rpcs`].
     #[must_use]
-    pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
-        self.config = Arc::new(self.config.max_concurrent_rpcs(n));
-        self.rpc_slots = pool::rpc_slots_from(*self.config);
-        self
+    pub fn max_concurrent_rpcs(self, n: usize) -> Self {
+        let config = Arc::new(self.local.config.max_concurrent_rpcs(n));
+        let rpc_slots = pool::rpc_slots_from(*config);
+        self.with_local(|local| {
+            local.config = config;
+            local.rpc_slots = rpc_slots;
+        })
     }
 
     /// Configured channel-wide RPC cap, if any. See [`Self::max_concurrent_rpcs`].
@@ -1400,7 +1563,7 @@ impl super::Channel {
     /// which sets it.
     #[must_use]
     pub fn concurrent_rpc_limit(&self) -> Option<usize> {
-        self.config.concurrent_rpc_limit()
+        self.local.config.concurrent_rpc_limit()
     }
 
     /// Prefix the kernel `user-agent`, matching grpc-go `WithUserAgent`.
@@ -1422,16 +1585,16 @@ impl super::Channel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn user_agent(mut self, prefix: impl AsRef<str>) -> Result<Self, Status> {
-        self.user_agent = crate::wire::user_agent_value(prefix.as_ref())?;
-        Ok(self)
+    pub fn user_agent(self, prefix: impl AsRef<str>) -> Result<Self, Status> {
+        let user_agent = crate::wire::user_agent_value(prefix.as_ref())?;
+        Ok(self.with_local(|local| local.user_agent = user_agent))
     }
 
     /// The `user-agent` sent on every RPC. Applies to every call shape,
     /// including over TLS, mTLS, Unix, and [`Self::from_io`].
     #[must_use]
     pub fn grpc_user_agent(&self) -> &str {
-        self.user_agent.to_str().unwrap_or(crate::wire::DEFAULT_UA)
+        self.local.user_agent.to_str().unwrap_or(crate::wire::DEFAULT_UA)
     }
 
     /// Run `interceptor` on every outbound RPC before the stream opens.
@@ -1524,12 +1687,10 @@ impl super::Channel {
     /// ```
     #[must_use]
     pub fn intercept(self, interceptor: impl ClientInterceptor) -> Self {
-        let mut hooks: Vec<ClientHook> = self.interceptors.iter().cloned().collect();
+        let mut hooks: Vec<ClientHook> = self.local.interceptors.iter().cloned().collect();
         hooks.push(Arc::new(interceptor));
-        Self {
-            interceptors: hooks.into(),
-            ..self
-        }
+        let interceptors = Arc::<[ClientHook]>::from(hooks);
+        self.with_local(|local| local.interceptors = interceptors)
     }
 
     /// Run `interceptor` after a successful receive, before the [`Call`] is
@@ -1596,12 +1757,10 @@ impl super::Channel {
     /// ```
     #[must_use]
     pub fn on_response(self, interceptor: impl crate::ResponseInterceptor) -> Self {
-        let mut hooks: Vec<ResponseHook> = self.response_interceptors.iter().cloned().collect();
+        let mut hooks: Vec<ResponseHook> = self.local.response_interceptors.iter().cloned().collect();
         hooks.push(Arc::new(interceptor));
-        Self {
-            response_interceptors: hooks.into(),
-            ..self
-        }
+        let response_interceptors = Arc::<[ResponseHook]>::from(hooks);
+        self.with_local(|local| local.response_interceptors = response_interceptors)
     }
 
     /// Register a lifecycle telemetry observer.
@@ -1616,13 +1775,11 @@ impl super::Channel {
     /// Calling this twice stacks observers: the first registered observer runs first.
     #[must_use]
     pub fn observer<O: LifecycleObserver>(self, observer: O) -> Self {
-        Self {
-            observer: Some(match self.observer {
-                None => Arc::new(observer),
-                Some(prev) => Arc::new(ObserverChain::new(prev, Arc::new(observer))),
-            }),
-            ..self
-        }
+        let observer: Option<Arc<dyn LifecycleObserver>> = Some(match &self.local.observer {
+            None => Arc::new(observer),
+            Some(prev) => Arc::new(ObserverChain::new(Arc::clone(prev), Arc::new(observer))),
+        });
+        self.with_local(|local| local.observer = observer)
     }
 
     /// Record RPCs as `grpc.binarylog.v1` entries via `logger`.
@@ -1635,10 +1792,7 @@ impl super::Channel {
     /// telemetry; this records wire-faithful RPC logs to a sink.
     #[must_use]
     pub fn binary_logger(self, logger: crate::binlog::BinaryLogger) -> Self {
-        Self {
-            binlog: Some(Arc::new(logger)),
-            ..self
-        }
+        self.with_local(|local| local.binlog = Some(Arc::new(logger)))
     }
 
     /// The `:authority` sent with every request.
@@ -1651,7 +1805,7 @@ impl super::Channel {
     /// Distinct from [`Self::origin`], which sets it.
     #[must_use]
     pub fn authority(&self) -> &str {
-        self.authority.as_str()
+        self.local.authority.as_str()
     }
 
     /// HTTP/2 `:scheme` this clone sends.
@@ -1661,7 +1815,7 @@ impl super::Channel {
     /// call shape.
     #[must_use]
     pub fn scheme(&self) -> &'static str {
-        if self.https { "https" } else { "http" }
+        if self.local.https { "https" } else { "http" }
     }
 }
 

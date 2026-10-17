@@ -302,12 +302,12 @@ impl super::Channel {
         Req: CodecMessage + Send + 'static,
         Resp: CodecMessage + Send + 'static,
     {
-        let state = self.service_config.get();
+        let state = self.local.service_config.get();
         let prepared = self.prepare_outbound(path, &mut req, state.as_deref());
         let (cancel, cancel_rx) = watch::channel(false);
         let channel = self.clone();
         let wire = self.wire_for(path, state.as_deref());
-        let observer = self.observer.clone();
+        let observer = self.local.observer.clone();
         // Destructure before the async block so the envelope is not stored
         // in the future; only the parts cross awaits.
         let wait = req.wait_for_ready();
@@ -323,7 +323,7 @@ impl super::Channel {
                 // Labels are built per use, only when observed, so an
                 // unobserved call neither constructs nor stores them.
                 let labels =
-                    || CallLabels::new(path, Some(channel.authority.as_str()), CallRole::Client);
+                    || CallLabels::new(path, Some(channel.local.authority.as_str()), CallRole::Client);
                 let call_start = crate::telemetry::call_started_at(observer.is_some());
                 if let Some(obs) = &observer {
                     obs.on_call_start(&labels());
@@ -364,8 +364,8 @@ impl super::Channel {
                 };
                 // The original message is no longer needed after encoding.
                 drop(msg);
-                let https = channel.https;
-                let ua = ua.unwrap_or_else(|| channel.user_agent.clone());
+                let https = channel.local.https;
+                let ua = ua.unwrap_or_else(|| channel.local.user_agent.clone());
                 let _permit = match channel.take_rpc_slot() {
                     Ok(p) => p,
                     Err(status) => {
@@ -373,9 +373,9 @@ impl super::Channel {
                         return Err(status);
                     }
                 };
-                channel.retry_stats.record_call();
+                channel.local.retry_stats.record_call();
                 let tap = channel
-                    .binlog
+                    .local.binlog
                     .as_ref()
                     .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
                 let (retry_policy, hedging_policy) = channel
@@ -410,14 +410,14 @@ impl super::Channel {
                 let mut policy_attempts = 1u32;
                 let mut policy_dispatch = retry_policy
                     .as_ref()
-                    .map(|_| PolicyRetryDispatch::new(&channel.retry_stats));
+                    .map(|_| PolicyRetryDispatch::new(&channel.local.retry_stats));
                 let mut retried = false;
                 loop {
                     let _ = match remaining_timeout(deadline) {
                         Ok(t) => t,
                         Err(status) => {
                             call_guard.cancel(CancellationReason::DeadlineExceeded);
-                            channel.retry_stats.record_committed(false);
+                            channel.local.retry_stats.record_committed(false);
                             return Err(status);
                         }
                     };
@@ -469,7 +469,7 @@ impl super::Channel {
                             if policy_attempts > 1 {
                                 channel.note_call_outcome(false).await;
                             }
-                            channel.retry_stats.record_committed(false);
+                            channel.local.retry_stats.record_committed(false);
                             finish_attempt(&mut attempt_guard, &status);
                             return Err(status);
                         }
@@ -482,7 +482,7 @@ impl super::Channel {
                     let _lr =
                         super::pool::track_least_request(&channel.inner.endpoint, rr_addr.as_ref())
                             .await;
-                    let byte_permit = match channel.byte_budget.acquire(replay.total_len()) {
+                    let byte_permit = match channel.local.byte_budget.acquire(replay.total_len()) {
                         Ok(p) => p,
                         Err(status) => {
                             reject_attempt(
@@ -494,7 +494,7 @@ impl super::Channel {
                             if policy_attempts > 1 {
                                 channel.note_call_outcome(false).await;
                             }
-                            channel.retry_stats.record_committed(false);
+                            channel.local.retry_stats.record_committed(false);
                             finish_attempt(&mut attempt_guard, &status);
                             return Err(status);
                         }
@@ -518,7 +518,7 @@ impl super::Channel {
                     }
                     let result = run_unary_frame(
                         live.send,
-                        &channel.authority,
+                        &channel.local.authority,
                         path,
                         &md,
                         req_timeout,
@@ -552,7 +552,7 @@ impl super::Channel {
                             finish_attempt(&mut attempt_guard, &status);
                             // The peer proved non-processing; replay the retained frame.
                             retried = true;
-                            channel.retry_stats.record_transparent_retry();
+                            channel.local.retry_stats.record_transparent_retry();
                             if let Some(socket) = live_socket {
                                 crate::channelz::Registry::global().note_stream_end(socket, false);
                             }
@@ -661,7 +661,7 @@ impl super::Channel {
                                                     .cancel(CancellationReason::DeadlineExceeded);
                                             }
                                             channel.note_call_outcome(false).await;
-                                            channel.retry_stats.record_committed(false);
+                                            channel.local.retry_stats.record_committed(false);
                                             call_guard.finish(&sleep_status);
                                             return Err(sleep_status);
                                         }
@@ -673,10 +673,10 @@ impl super::Channel {
                                         continue;
                                     }
                                     PolicyDecision::Throttled => {
-                                        channel.retry_stats.record_throttled();
+                                        channel.local.retry_stats.record_throttled();
                                     }
                                     PolicyDecision::PushbackRefused => {
-                                        channel.retry_stats.record_pushback_refusal();
+                                        channel.local.retry_stats.record_pushback_refusal();
                                     }
                                     PolicyDecision::Declined => {
                                         if !response_committed
@@ -689,7 +689,7 @@ impl super::Channel {
                                                 cancelled,
                                             )
                                         {
-                                            channel.retry_stats.record_exhausted();
+                                            channel.local.retry_stats.record_exhausted();
                                         }
                                     }
                                 }
@@ -732,7 +732,7 @@ impl super::Channel {
                                     call_guard.finish(status);
                                 }
                             }
-                            channel.retry_stats.record_committed(final_result.is_ok());
+                            channel.local.retry_stats.record_committed(final_result.is_ok());
                             return final_result;
                         }
                     }

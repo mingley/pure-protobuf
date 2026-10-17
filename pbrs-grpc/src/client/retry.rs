@@ -400,7 +400,7 @@ where
             // on hedged-task abort.
             let _lr =
                 super::pool::track_least_request(&channel.inner.endpoint, rr_addr.as_ref()).await;
-            let byte_permit = match channel.byte_budget.acquire(frame.total_len()) {
+            let byte_permit = match channel.local.byte_budget.acquire(frame.total_len()) {
                 Ok(permit) => permit,
                 Err(status) => break Err(status),
             };
@@ -414,7 +414,7 @@ where
             }
             match run_unary(
                 live.send,
-                &channel.authority,
+                &channel.local.authority,
                 path,
                 &md,
                 req_timeout,
@@ -436,7 +436,7 @@ where
                         && channel.inner.endpoint.can_redial() =>
                 {
                     redialed = true;
-                    channel.retry_stats.record_transparent_retry();
+                    channel.local.retry_stats.record_transparent_retry();
                     if let Some(socket) = live_socket {
                         crate::channelz::Registry::global().note_stream_end(socket, false);
                     }
@@ -566,12 +566,12 @@ impl super::Channel {
             None => {
                 while sent < max {
                     if !self.retry_allowed().await {
-                        self.retry_stats.record_throttled();
+                        self.local.retry_stats.record_throttled();
                         stop_sending = true;
                         break;
                     }
                     sent += 1;
-                    self.retry_stats.record_hedged_send();
+                    self.local.retry_stats.record_hedged_send();
                     handles.push(spawn_hedge_attempt(self.clone(), &req, sent, tx.clone()));
                     outstanding += 1;
                 }
@@ -586,7 +586,7 @@ impl super::Channel {
                     let status = Status::cancelled();
                     req.call_guard.finish(&status);
                     self.note_call_outcome(false).await;
-                    self.retry_stats.record_committed(false);
+                    self.local.retry_stats.record_committed(false);
                     return Err(status);
                 }
                 () = sleep_until_or_pending(req.deadline) => {
@@ -595,7 +595,7 @@ impl super::Channel {
                     let status = Status::deadline_exceeded();
                     req.call_guard.finish(&status);
                     self.note_call_outcome(false).await;
-                    self.retry_stats.record_committed(false);
+                    self.local.retry_stats.record_committed(false);
                     return Err(status);
                 }
                 () = sleep_until_or_pending(hedge_at),
@@ -604,14 +604,14 @@ impl super::Channel {
                     hedge_at = None;
                     if self.retry_allowed().await {
                         sent += 1;
-                        self.retry_stats.record_hedged_send();
+                        self.local.retry_stats.record_hedged_send();
                         handles.push(spawn_hedge_attempt(self.clone(), &req, sent, tx.clone()));
                         outstanding += 1;
                         if let Some(delay) = req.policy.hedging_delay {
                             hedge_at = Some(tokio::time::Instant::now() + delay);
                         }
                     } else {
-                        self.retry_stats.record_throttled();
+                        self.local.retry_stats.record_throttled();
                         stop_sending = true;
                     }
                 }
@@ -626,7 +626,7 @@ impl super::Channel {
                         });
                         req.call_guard.finish(&status);
                         self.note_call_outcome(false).await;
-                        self.retry_stats.record_committed(false);
+                        self.local.retry_stats.record_committed(false);
                         return Err(status);
                     };
                     outstanding = outstanding.saturating_sub(1);
@@ -645,7 +645,7 @@ impl super::Channel {
                                     self.note_call_outcome(false).await;
                                 }
                             }
-                            self.retry_stats.record_committed(final_result.is_ok());
+                            self.local.retry_stats.record_committed(final_result.is_ok());
                             return final_result;
                         }
                         Err(status) => {
@@ -663,14 +663,14 @@ impl super::Channel {
                                 abort_hedges(&handles);
                                 req.call_guard.finish(&status);
                                 self.note_call_outcome(false).await;
-                                self.retry_stats.record_committed(false);
+                                self.local.retry_stats.record_committed(false);
                                 return Err(status);
                             }
                             last_err = Some(status);
                             if outstanding == 0 {
                                 if !stop_sending && sent < max && self.retry_allowed().await {
                                     sent += 1;
-                                    self.retry_stats.record_hedged_send();
+                                    self.local.retry_stats.record_hedged_send();
                                     handles.push(spawn_hedge_attempt(
                                         self.clone(),
                                         &req,
@@ -683,12 +683,12 @@ impl super::Channel {
                                     }
                                 } else {
                                     if !stop_sending && sent < max {
-                                        self.retry_stats.record_throttled();
+                                        self.local.retry_stats.record_throttled();
                                     }
                                     if let Some(status) = last_err.take() {
                                         req.call_guard.finish(&status);
                                         self.note_call_outcome(false).await;
-                                        self.retry_stats.record_committed(false);
+                                        self.local.retry_stats.record_committed(false);
                                         return Err(status);
                                     }
                                 }

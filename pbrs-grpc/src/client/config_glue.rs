@@ -7,7 +7,7 @@ use crate::service_config::MethodConfig;
 impl super::Channel {
     /// The method entry covering `path`, if a document is attached and covers it.
     pub(crate) fn method_config_for(&self, path: &str) -> Option<MethodConfig> {
-        let state = self.service_config.get()?;
+        let state = self.local.service_config.get()?;
         let (service, method) = crate::telemetry::split_path(path);
         state.config.method_config(service, method).cloned()
     }
@@ -31,7 +31,7 @@ impl super::Channel {
     /// per acquire so live adoption and per-clone documents apply;
     /// subchannels snapshot it at dial.
     pub(crate) fn health_directive(&self) -> Option<HealthDirective> {
-        if !self.config.health_checking_enabled() {
+        if !self.local.config.health_checking_enabled() {
             return None;
         }
         self.health_directive_enabled()
@@ -42,7 +42,7 @@ impl super::Channel {
     #[cold]
     #[inline(never)]
     fn health_directive_enabled(&self) -> Option<HealthDirective> {
-        let state = self.service_config.get()?;
+        let state = self.local.service_config.get()?;
         if !state.config.health_check_config() {
             return None;
         }
@@ -74,7 +74,7 @@ impl super::Channel {
     /// refused interceptor, an unencodable message, a full concurrency
     /// semaphore) are not call outcomes and are not recorded.
     pub(crate) async fn note_call_outcome(&self, ok: bool) {
-        if let Some(state) = self.service_config.get() {
+        if let Some(state) = self.local.service_config.get() {
             if let Some(throttler) = &state.throttler {
                 if ok {
                     throttler.on_success().await;
@@ -89,7 +89,7 @@ impl super::Channel {
     ///
     /// `true` when no `retryThrottling` is configured.
     pub(crate) async fn retry_allowed(&self) -> bool {
-        let state = self.service_config.get();
+        let state = self.local.service_config.get();
         match state.as_ref().and_then(|state| state.throttler.as_ref()) {
             Some(throttler) => throttler.retry_allowed().await,
             None => true,
@@ -106,7 +106,7 @@ impl super::Channel {
         path: &str,
         state: Option<&crate::service_config::ServiceConfigState>,
     ) -> Wire {
-        let mut wire = self.config.wire();
+        let mut wire = self.local.config.wire();
         // No document: the channel wire is already final. Method tightening
         // builds a path split and a config walk that this call never uses.
         if state.is_some() {

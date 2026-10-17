@@ -595,10 +595,10 @@ impl super::Channel {
         response: Response<T>,
     ) -> Result<Response<T>, Status> {
         let response = response.with_static_path(path);
-        if self.response_interceptors.is_empty() {
+        if self.local.response_interceptors.is_empty() {
             return Ok(response);
         }
-        crate::interceptor::intercept_response_all(response, &self.response_interceptors)
+        crate::interceptor::intercept_response_all(response, &self.local.response_interceptors)
     }
 
     pub(crate) fn prepare_outbound<T>(
@@ -642,14 +642,14 @@ impl super::Channel {
         req: &mut Request<T>,
     ) -> Result<(), Status> {
         if req.timeout().is_none() {
-            if let Some(timeout) = self.config.rpc_timeout() {
+            if let Some(timeout) = self.local.config.rpc_timeout() {
                 req.set_timeout(timeout);
             }
         }
-        if !req.wait_for_ready_is_set() && self.config.waits_for_ready() {
+        if !req.wait_for_ready_is_set() && self.local.config.waits_for_ready() {
             req.set_wait_for_ready(true);
         }
-        if !req.compress_is_set() && self.config.compresses_outbound() {
+        if !req.compress_is_set() && self.local.config.compresses_outbound() {
             req.set_compress(true);
         }
         self.apply_interceptors(path, req)
@@ -660,15 +660,15 @@ impl super::Channel {
         path: &'static str,
         req: &mut Request<T>,
     ) -> Result<(), Status> {
-        for hook in self.interceptors.iter() {
+        for hook in self.local.interceptors.iter() {
             hook.intercept(
                 &mut req
                     .outgoing(
                         path,
                         self.authority(),
-                        self.https,
+                        self.local.https,
                         self.grpc_user_agent(),
-                        *self.config,
+                        *self.local.config,
                     )
                     .with_connected(self.connected()),
             )?;
@@ -677,7 +677,7 @@ impl super::Channel {
     }
 
     pub(crate) fn take_rpc_slot(&self) -> Result<Option<OwnedSemaphorePermit>, Status> {
-        match &self.rpc_slots {
+        match &self.local.rpc_slots {
             None => Ok(None),
             Some(slots) => match slots.clone().try_acquire_owned() {
                 Ok(permit) => Ok(Some(permit)),
@@ -716,7 +716,7 @@ impl super::Channel {
             return Err(Status::cancelled());
         }
         let inner = Arc::clone(&self.inner);
-        let obs = self.observer.clone();
+        let obs = self.local.observer.clone();
         let health = self.health_directive();
         let hash = md.and_then(|md| self.ring_request_hash(md));
         let acquire = inner.acquire(wait_for_ready, obs.as_deref(), health, hash);
@@ -795,16 +795,16 @@ impl super::Channel {
             let load = live.load;
             match open_in::<R>(
                 live.send,
-                &self.authority,
+                &self.local.authority,
                 path,
                 md,
                 timeout,
                 deadline,
                 cancel_rx.clone(),
-                compress.then_some(self.config.send_algorithm()),
-                self.config.accepts_compressed(),
+                compress.then_some(self.local.config.send_algorithm()),
+                self.local.config.accepts_compressed(),
                 user_agent,
-                self.https,
+                self.local.https,
             )
             .await
             {

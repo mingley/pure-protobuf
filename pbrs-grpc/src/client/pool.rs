@@ -619,18 +619,20 @@ pub(crate) fn finish_channel(
     }
     Channel {
         inner,
-        config: Arc::new(config),
-        interceptors: Arc::from([]),
-        response_interceptors: Arc::from([]),
-        rpc_slots: rpc_slots_from(config),
-        byte_budget: ByteBudgetTracker::default(),
-        user_agent: crate::wire::PBRS_GRPC_UA,
-        https,
-        authority,
-        observer: None,
-        service_config,
-        retry_stats: Arc::new(RetryStatsRecorder::new()),
-        binlog: None,
+        local: Arc::new(super::channel::ChannelLocal {
+            config: Arc::new(config),
+            interceptors: Arc::from([]),
+            response_interceptors: Arc::from([]),
+            rpc_slots: rpc_slots_from(config),
+            byte_budget: ByteBudgetTracker::default(),
+            user_agent: crate::wire::PBRS_GRPC_UA,
+            https,
+            authority,
+            observer: None,
+            service_config,
+            retry_stats: Arc::new(RetryStatsRecorder::new()),
+            binlog: None,
+        }),
     }
 }
 
