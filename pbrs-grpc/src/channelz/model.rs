@@ -178,6 +178,9 @@ pub(crate) struct ServerEntry {
 pub(crate) struct SocketEntry {
     pub id: SocketId,
     pub parent: SocketParent,
+    /// Server that owns this accepted socket. Call counters update here so a
+    /// dispatched RPC does not lock the server map again.
+    server: Option<Arc<ServerEntry>>,
     pub name: String,
     /// Locally bound address, when the transport reports one.
     pub local: Option<EndpointAddr>,
@@ -220,8 +223,13 @@ impl SocketEntry {
             self.last_local_stream_ms
                 .store(coarse_now_ms(), Ordering::Relaxed);
         } else {
-            self.last_remote_stream_ms
-                .store(coarse_now_ms(), Ordering::Relaxed);
+            let ms = coarse_now_ms();
+            self.last_remote_stream_ms.store(ms, Ordering::Relaxed);
+            // Remote streams on an accepted server socket are that server's calls.
+            if let Some(server) = &self.server {
+                server.calls_started.fetch_add(1, Ordering::Relaxed);
+                server.last_call_started_ms.store(ms, Ordering::Relaxed);
+            }
         }
         self.parent
     }
@@ -232,6 +240,13 @@ impl SocketEntry {
             self.streams_succeeded.fetch_add(1, Ordering::Relaxed);
         } else {
             self.streams_failed.fetch_add(1, Ordering::Relaxed);
+        }
+        if let Some(server) = &self.server {
+            if ok {
+                server.calls_succeeded.fetch_add(1, Ordering::Relaxed);
+            } else {
+                server.calls_failed.fetch_add(1, Ordering::Relaxed);
+            }
         }
         self.parent
     }
@@ -445,9 +460,20 @@ impl Registry {
                 .map(addr_text)
                 .unwrap_or_else(|| "-".to_owned())
         );
+        let server = if is_listen {
+            None
+        } else if let SocketParent::Server(server_id) = parent {
+            self.servers
+                .read()
+                .ok()
+                .and_then(|map| map.get(&server_id.0).cloned())
+        } else {
+            None
+        };
         let entry = Arc::new(SocketEntry {
             id,
             parent,
+            server,
             name: name.clone(),
             local,
             remote,
@@ -856,16 +882,16 @@ impl Registry {
     ///
     /// The three separate notes each lock the socket map.
     pub(crate) fn note_local_stream_finished(&self, id: SocketId, ok: bool, received: u64) {
-        let parent = match with_cached_socket(self, id, |entry| entry.record_local_finished(ok, received))
-        {
-            Some(parent) => parent,
-            None => {
-                let Some(entry) = self.cache_socket(id) else {
-                    return;
-                };
-                entry.record_local_finished(ok, received)
-            }
-        };
+        let parent =
+            match with_cached_socket(self, id, |entry| entry.record_local_finished(ok, received)) {
+                Some(parent) => parent,
+                None => {
+                    let Some(entry) = self.cache_socket(id) else {
+                        return;
+                    };
+                    entry.record_local_finished(ok, received)
+                }
+            };
         if let SocketParent::Subchannel(parent) = parent {
             if let Some(sub) = self.subchannel(parent) {
                 sub.calls_started.fetch_add(1, Ordering::Relaxed);
@@ -884,7 +910,8 @@ impl Registry {
     /// subchannel's call counters when there is one (each attempt is
     /// one stream). `local` marks locally-initiated streams.
     pub fn note_stream_started(&self, id: SocketId, local: bool) {
-        let parent = match with_cached_socket(self, id, |entry| entry.record_stream_started(local)) {
+        let parent = match with_cached_socket(self, id, |entry| entry.record_stream_started(local))
+        {
             Some(parent) => parent,
             None => {
                 let Some(entry) = self.cache_socket(id) else {

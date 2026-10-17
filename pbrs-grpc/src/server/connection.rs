@@ -377,13 +377,12 @@ fn note_rejected_call(
     socket: Option<crate::channelz::SocketId>,
 ) {
     let global = crate::channelz::Registry::global();
-    if let Some(server) = server {
-        global.note_server_call_started(server);
-        global.note_server_call_end(server, false);
-    }
     if let Some(socket) = socket {
         global.note_stream_started(socket, false);
         global.note_stream_end(socket, false);
+    } else if let Some(server) = server {
+        global.note_server_call_started(server);
+        global.note_server_call_end(server, false);
     }
 }
 

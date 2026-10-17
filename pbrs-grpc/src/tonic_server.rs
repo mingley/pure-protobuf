@@ -692,11 +692,10 @@ impl Accounting {
     ) -> Self {
         if server.is_some() || socket.is_some() {
             let registry = crate::channelz::Registry::global();
-            if let Some(server) = server {
-                registry.note_server_call_started(server);
-            }
             if let Some(socket) = socket {
                 registry.note_stream_started(socket, false);
+            } else if let Some(server) = server {
+                registry.note_server_call_started(server);
             }
         }
         Self {
@@ -711,11 +710,10 @@ impl Drop for Accounting {
     fn drop(&mut self) {
         if self.server.is_some() || self.socket.is_some() {
             let registry = crate::channelz::Registry::global();
-            if let Some(server) = self.server {
-                registry.note_server_call_end(server, self.ok);
-            }
             if let Some(socket) = self.socket {
                 registry.note_stream_end(socket, self.ok);
+            } else if let Some(server) = self.server {
+                registry.note_server_call_end(server, self.ok);
             }
         }
     }

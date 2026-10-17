@@ -1655,11 +1655,12 @@ fn channelz_start(
     socket: Option<crate::channelz::SocketId>,
 ) {
     let global = crate::channelz::Registry::global();
-    if let Some(server) = server {
-        global.note_server_call_started(server);
-    }
+    // An accepted socket carries its server entry, so the stream note updates
+    // the server counters without a second map lock.
     if let Some(socket) = socket {
         global.note_stream_started(socket, false);
+    } else if let Some(server) = server {
+        global.note_server_call_started(server);
     }
 }
 
@@ -1670,10 +1671,9 @@ fn channelz_end(
     ok: bool,
 ) {
     let global = crate::channelz::Registry::global();
-    if let Some(server) = server {
-        global.note_server_call_end(server, ok);
-    }
     if let Some(socket) = socket {
         global.note_stream_end(socket, ok);
+    } else if let Some(server) = server {
+        global.note_server_call_end(server, ok);
     }
 }
