@@ -1866,6 +1866,11 @@ impl HeaderBlock {
                             None => decoded.fields.clone(),
                         };
                         crate::h2_backend::header_pool::replace_map(&mut self.fields, fields);
+                        // Already a two-field gRPC response. The recv queue
+                        // can skip the stock-response pointer probe.
+                        if decoded.status == Some(http::StatusCode::OK) {
+                            self.stock = StandardMap::Response;
+                        }
                         self.pseudo.status = decoded.status;
                         self.field_size = decoded.field_size;
                         self.stock_facts = decoded.stock_facts;

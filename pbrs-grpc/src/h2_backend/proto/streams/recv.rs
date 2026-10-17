@@ -107,6 +107,7 @@ fn queued_header(
     pseudo: &frame::Pseudo,
     fields: HeaderMap,
     stream_id: StreamId,
+    known_stock: bool,
 ) -> Result<Event, Error> {
     if peer.is_server() {
         if let Some(https) = crate::h2_backend::header_pool::take_stock_https()
@@ -118,6 +119,9 @@ fn queued_header(
         }
         let message = peer.convert_poll_message(pseudo, fields, stream_id)?;
         return Ok(Event::Headers(Box::new(message)));
+    }
+    if known_stock && pseudo.status == Some(http::StatusCode::OK) {
+        return Ok(Event::StockResponse(Box::new(fields)));
     }
     let fields = match crate::h2_backend::client::stock_response_map(pseudo, fields) {
         Ok(fields) => return Ok(Event::StockResponse(Box::new(fields))),
@@ -282,6 +286,7 @@ impl Recv {
 
         let stream_id = frame.stream_id();
         let cached_facts = frame.stock_facts();
+        let known_stock = frame.is_known_stock();
         let (pseudo, fields) = frame::Headers::into_parts_box(frame);
 
         if pseudo.protocol.is_some()
@@ -301,7 +306,7 @@ impl Recv {
             let accept_facts = counts.peer().is_server().then(|| {
                 cached_facts.unwrap_or_else(|| crate::wire::headers::stock_facts(&fields))
             });
-            let event = queued_header(&counts.peer(), &pseudo, fields, stream_id)?;
+            let event = queued_header(&counts.peer(), &pseudo, fields, stream_id, known_stock)?;
 
             // The queue link and the recv wakeup share one slab lookup.
             {
