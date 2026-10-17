@@ -747,6 +747,16 @@ impl<'a> Ptr<'a> {
         self.key
     }
 
+    /// Address of this stream's slab slot.
+    ///
+    /// Indexing the store is a multiply by the stream stride. `pop_frame`
+    /// reads the same slot many times; one pointer replaces those indexes.
+    /// The stream stays put until [`Self::remove`] or a close transition.
+    #[inline(always)]
+    pub(super) fn stream_ptr(&mut self) -> *mut Stream {
+        &mut self.store[self.key] as *mut Stream
+    }
+
     pub fn store_mut(&mut self) -> &mut Store {
         self.store
     }

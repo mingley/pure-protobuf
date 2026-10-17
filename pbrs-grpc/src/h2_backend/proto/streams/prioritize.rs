@@ -711,6 +711,10 @@ impl Prioritize {
         }
     }
 
+    #[allow(
+        unsafe_code,
+        reason = "the popped stream's slab slot is read through one pointer instead of reindexing"
+    )]
     fn pop_frame<B>(
         &mut self,
         buffer: &mut Buffer<Frame<B>>,
@@ -729,11 +733,15 @@ impl Prioritize {
                     // to wait for "some time" after a reset.
                     //
                     // To be safe, we just always ask the stream.
-                    let is_pending_reset = stream.is_pending_reset_expiration();
+                    // SAFETY: `pop` resolved this occupied slot. This arm does not
+                    // insert into the slab or remove the stream until
+                    // `transition_after`, and `sp` is not used after that.
+                    let sp = stream.stream_ptr();
+                    let is_pending_reset = unsafe { (*sp).is_pending_reset_expiration() };
 
-                    let frame = match stream.pending_send.pop_front(buffer) {
+                    let frame = match unsafe { (*sp).pending_send.pop_front(buffer) } {
                         Some(Frame::Data(mut frame)) => {
-                            if let Some(reason) = stream.state.get_scheduled_reset() {
+                            if let Some(reason) = unsafe { (*sp).state.get_scheduled_reset() } {
                                 // If a reset is scheduled due to cancellation or
                                 // an error, discard buffered DATA and let the `None`
                                 // arm emit the RST_STREAM on the next iteration.
@@ -742,7 +750,7 @@ impl Prioritize {
                                 // stream reset may only be sent after a complete
                                 // response, which requires sending all queued DATA.
                                 if reason != Reason::NO_ERROR {
-                                    stream.pending_send.push_front(buffer, frame.into());
+                                    unsafe { (*sp).pending_send.push_front(buffer, frame.into()) };
                                     self.clear_queue(buffer, &mut stream);
                                     self.reclaim_all_capacity(&mut stream, counts);
                                     self.pending_send.push(&mut stream);
@@ -752,7 +760,7 @@ impl Prioritize {
 
                             // Get the amount of capacity remaining for stream's
                             // window.
-                            let stream_capacity = stream.send_flow.available();
+                            let stream_capacity = unsafe { (*sp).send_flow.available() };
                             let sz = frame.payload().remaining();
 
                             // Zero length data frames always have capacity to
@@ -768,7 +776,7 @@ impl Prioritize {
                                 // happen if the remote reduced the stream
                                 // window. In this case, we need to buffer the
                                 // frame and wait for a window update...
-                                stream.pending_send.push_front(buffer, frame.into());
+                                unsafe { (*sp).pending_send.push_front(buffer, frame.into()) };
 
                                 continue;
                             }
@@ -787,13 +795,13 @@ impl Prioritize {
                             // Check if the stream level window the peer knows is available. In some
                             // scenarios, maybe the window we know is available but the window which
                             // peer knows is not.
-                            if len > 0 && len > stream.send_flow.window_size() {
-                                stream.pending_send.push_front(buffer, frame.into());
+                            if len > 0 && unsafe { len > (*sp).send_flow.window_size() } {
+                                unsafe { (*sp).pending_send.push_front(buffer, frame.into()) };
                                 continue;
                             }
 
                             // Update the flow control
-                            stream.send_data(len, self.max_buffer_size);
+                            unsafe { (*sp).send_data(len, self.max_buffer_size) };
 
                             // Assign the capacity back to the connection that
                             // was just consumed from the stream in the previous
@@ -845,10 +853,10 @@ impl Prioritize {
                             )
                         }),
                         None => {
-                            if let Some(reason) = stream.state.get_scheduled_reset() {
-                                stream.set_reset(reason, Initiator::Library);
+                            if let Some(reason) = unsafe { (*sp).state.get_scheduled_reset() } {
+                                unsafe { (*sp).set_reset(reason, Initiator::Library) };
 
-                                let frame = frame::Reset::new(stream.id, reason);
+                                let frame = frame::Reset::new(unsafe { (*sp).id }, reason);
                                 Frame::Reset(frame)
                             } else {
                                 // If the stream receives a RESET from the peer, it may have
@@ -857,19 +865,21 @@ impl Prioritize {
                                 // to remove, lets just ignore the stream here.
                                 // Since this should only happen as a consequence of `clear_queue`,
                                 // we must be in a closed state of some kind.
-                                debug_assert!(stream.state.is_closed());
+                                debug_assert!(unsafe { (*sp).state.is_closed() });
                                 counts.transition_after(stream, is_pending_reset);
                                 continue;
                             }
                         }
                     };
 
-                    if cfg!(debug_assertions) && stream.state.is_idle() {
-                        debug_assert!(stream.id > self.last_opened_id);
-                        self.last_opened_id = stream.id;
+                    if cfg!(debug_assertions) && unsafe { (*sp).state.is_idle() } {
+                        debug_assert!(unsafe { (*sp).id } > self.last_opened_id);
+                        self.last_opened_id = unsafe { (*sp).id };
                     }
 
-                    if !stream.pending_send.is_empty() || stream.state.is_scheduled_reset() {
+                    if unsafe {
+                        !(*sp).pending_send.is_empty() || (*sp).state.is_scheduled_reset()
+                    } {
                         // TODO: Only requeue the sender IF it is ready to send
                         // the next frame. i.e. don't requeue it if the next
                         // frame is a data frame and the stream does not have
