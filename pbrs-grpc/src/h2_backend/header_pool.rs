@@ -76,8 +76,22 @@ pub(crate) fn take_received_ok_trailer(make: impl FnOnce() -> HeaderMap) -> Head
     RECEIVED_OK_TRAILER.take().unwrap_or_else(make)
 }
 
+#[allow(
+    unsafe_code,
+    reason = "an empty trailer slot is overwritten in place; a full slot is dropped first"
+)]
 pub(crate) fn recycle_received_ok_trailer(map: HeaderMap) {
-    RECEIVED_OK_TRAILER.set(Some(map));
+    // `Cell::set` copies the previous value out. After `take` that value is
+    // `None`, so the copy is only overhead.
+    let ptr = RECEIVED_OK_TRAILER.with(Cell::as_ptr);
+    unsafe {
+        if (*ptr).is_none() {
+            std::ptr::write(ptr, Some(map));
+        } else {
+            std::ptr::drop_in_place(ptr);
+            std::ptr::write(ptr, Some(map));
+        }
+    }
 }
 
 #[cfg(not(feature = "zstd"))]
@@ -145,14 +159,24 @@ pub(crate) fn take_received_response() -> Option<(HeaderMap, bool)> {
     RECEIVED_RESPONSE.take()
 }
 
+#[allow(
+    unsafe_code,
+    reason = "an empty response slot is overwritten in place; a full slot is dropped first"
+)]
 pub(crate) fn recycle_received_response(map: HeaderMap, grpc_proto: bool) {
-    RECEIVED_RESPONSE.set(Some((map, grpc_proto)));
+    let ptr = RECEIVED_RESPONSE.with(Cell::as_ptr);
+    unsafe {
+        if (*ptr).is_none() {
+            std::ptr::write(ptr, Some((map, grpc_proto)));
+        } else {
+            std::ptr::drop_in_place(ptr);
+            std::ptr::write(ptr, Some((map, grpc_proto)));
+        }
+    }
 }
 
 /// Return `map` to its slot.
 ///
-/// `Cell::set` copies the previous value out before dropping it. After
-/// `take`, that previous value is `None`, so the copy is pure overhead.
 /// The pointer is taken first so the map is not moved into the thread-local
 /// closure. An empty slot is overwritten in place. A slot that still holds
 /// a map drops that map first.
