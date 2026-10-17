@@ -97,6 +97,9 @@ pub struct SavedHeaders {
     pub stock_facts: Option<crate::wire::headers::StockFacts>,
     /// Stock request headers. A hit shares this handle instead of cloning.
     pub shared_fields: Option<Arc<HeaderMap>>,
+    /// 0 unknown, 1 not a cached POST, 2 http, 3 https. Filled on the first
+    /// hit after the authority cache is warm, then read on every later hit.
+    pub stock_https: std::cell::Cell<u8>,
 }
 
 /// Huffman input and the bytes it decoded to.

@@ -1889,12 +1889,26 @@ impl HeaderBlock {
                                 std::sync::Arc::clone(shared),
                             );
                         }
-                        if let Some(https) = crate::h2_backend::server::stock_https_of(
-                            decoded.method.as_ref(),
-                            decoded.scheme.as_ref(),
-                            decoded.authority.as_ref(),
-                            decoded.path.as_ref(),
-                        ) {
+                        let https = match decoded.stock_https.get() {
+                            2 => Some(false),
+                            3 => Some(true),
+                            1 => None,
+                            _ => {
+                                let https = crate::h2_backend::server::stock_https_of(
+                                    decoded.method.as_ref(),
+                                    decoded.scheme.as_ref(),
+                                    decoded.authority.as_ref(),
+                                    decoded.path.as_ref(),
+                                );
+                                decoded.stock_https.set(match https {
+                                    None => 1,
+                                    Some(false) => 2,
+                                    Some(true) => 3,
+                                });
+                                https
+                            }
+                        };
+                        if let Some(https) = https {
                             crate::h2_backend::header_pool::publish_stock_https(https);
                         } else {
                             self.pseudo.method = decoded.method.clone();
@@ -2020,6 +2034,7 @@ impl HeaderBlock {
                     field_size: self.field_size,
                     stock_facts: self.stock_facts,
                     shared_fields,
+                    stock_https: std::cell::Cell::new(0),
                 },
             );
         }
