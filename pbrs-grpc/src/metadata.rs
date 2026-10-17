@@ -105,9 +105,11 @@ pub struct Metadata {
 /// Owned headers, or one shared stock request block.
 ///
 /// The shared arm avoids cloning the four request headers on a cache hit.
-/// Every other map stays owned, so an empty trailer does not allocate.
+/// The owned map is boxed so a shared empty value is not the size of a
+/// `HeaderMap`. Every other map stays owned, so an empty trailer does not
+/// allocate.
 enum HeaderStore {
-    Owned(HeaderMap),
+    Owned(Box<HeaderMap>),
     Shared(Arc<HeaderMap>),
 }
 
@@ -151,7 +153,7 @@ impl Clone for Metadata {
     fn clone(&self) -> Self {
         // A clone must not observe later mutations of the original.
         Self {
-            map: HeaderStore::Owned(self.map.get().clone()),
+            map: HeaderStore::Owned(Box::new(self.map.get().clone())),
             sensitive_keys: self.sensitive_keys.clone(),
         }
     }
@@ -608,7 +610,7 @@ impl Metadata {
 
     pub(crate) fn from_owned_headers(map: HeaderMap) -> Self {
         Self {
-            map: HeaderStore::Owned(map),
+            map: HeaderStore::Owned(Box::new(map)),
             sensitive_keys: None,
         }
     }
@@ -623,7 +625,7 @@ impl Metadata {
 
     pub(crate) fn from_headers(map: &HeaderMap) -> Self {
         Self {
-            map: HeaderStore::Owned(map.clone()),
+            map: HeaderStore::Owned(Box::new(map.clone())),
             sensitive_keys: None,
         }
     }
