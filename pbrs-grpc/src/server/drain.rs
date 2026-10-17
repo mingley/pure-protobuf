@@ -11,9 +11,9 @@ use crate::stream::Streaming;
 use crate::telemetry::{CallLabels, LifecycleObserver};
 use crate::transport::{SendResponse, SendStream, h2 as backend};
 use crate::wire::{
-    OutBatch, encode_msg, grpc_trailers, let_producer_catch_up, preferred_codec,
+    ImmediateSend, OutBatch, encode_msg, grpc_trailers, let_producer_catch_up, preferred_codec,
     select_outbound_codec, select_stream_codec, send_frame, send_frame_if_ready, send_ok_headers,
-    send_trailers_only, ImmediateSend,
+    send_trailers_only,
 };
 use std::future::{Future, poll_fn};
 use std::pin::Pin;
@@ -356,10 +356,18 @@ pub(crate) async fn send_unary_response<Resp: CodecMessage>(
         }
     }
     drop(permit);
-    let mut status = Status::ok();
-    if !trailers.is_empty() {
-        *status.metadata_mut() = trailers;
+    // An empty OK trailer is the pooled map. Building a `Status` and then
+    // proving it is bare repeats that work on every successful RPC.
+    if trailers.is_empty() {
+        if let Some(tap) = tap {
+            let status = Status::ok();
+            tap.log_trailer(status.metadata(), &status);
+        }
+        send.send_trailers(crate::wire::bare_ok_trailer_map()).ok();
+        return;
     }
+    let mut status = Status::ok();
+    *status.metadata_mut() = trailers;
     if let Some(tap) = tap {
         tap.log_trailer(status.metadata(), &status);
     }
@@ -551,7 +559,14 @@ pub(crate) async fn send_stream_response<Resp: CodecMessage + Send>(
             status = Status::deadline_exceeded();
         }
     }
-    if status.is_ok() && !ok_trailers.is_empty() {
+    if status.is_ok() && ok_trailers.is_empty() {
+        if let Some(tap) = tap {
+            tap.log_trailer(status.metadata(), &status);
+        }
+        send.send_trailers(crate::wire::bare_ok_trailer_map()).ok();
+        return status;
+    }
+    if status.is_ok() {
         *status.metadata_mut() = ok_trailers;
     }
     if let Some(tap) = tap {

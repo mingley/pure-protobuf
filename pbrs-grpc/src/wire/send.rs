@@ -137,6 +137,15 @@ pub(crate) async fn send_frame(
     Ok(())
 }
 
+/// `grpc-status: 0` and nothing else, from the trailer pool.
+pub(crate) fn bare_ok_trailer_map() -> HeaderMap {
+    crate::h2_backend::header_pool::take(crate::h2_backend::header_pool::Slot::Trailers, || {
+        let mut map = HeaderMap::with_capacity(1);
+        map.insert(GRPC_STATUS, STATUS_OK);
+        map
+    })
+}
+
 pub(crate) fn grpc_trailers(status: &Status) -> Result<HeaderMap, Status> {
     if status.code() == Code::Ok
         && status.message().is_empty()
@@ -145,14 +154,7 @@ pub(crate) fn grpc_trailers(status: &Status) -> Result<HeaderMap, Status> {
         && status.retry_pushback().is_none()
     {
         // The overwhelmingly common case: one static header, no formatting.
-        return Ok(crate::h2_backend::header_pool::take(
-            crate::h2_backend::header_pool::Slot::Trailers,
-            || {
-                let mut map = HeaderMap::with_capacity(1);
-                map.insert(GRPC_STATUS, STATUS_OK);
-                map
-            },
-        ));
+        return Ok(bare_ok_trailer_map());
     }
     let mut map = HeaderMap::with_capacity(6);
     let code = HeaderValue::from_str(&status.code().to_i32().to_string())

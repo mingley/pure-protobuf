@@ -12,15 +12,15 @@ pub(crate) use frame_reader::{
     WireStream, finish_stream, finish_unary, read_one_message, status_from,
 };
 pub(crate) use headers::{
-    DEFAULT_UA, PBRS_GRPC_UA, RequestReject, accepts_gzip, check_request,
-    effective_timeout, grpc_encoding, grpc_request, inbound_codec_from_token, preferred_codec,
-    select_outbound_codec, select_stream_codec, soonest, timeout_from_headers, user_agent_value,
+    DEFAULT_UA, PBRS_GRPC_UA, RequestReject, accepts_gzip, check_request, effective_timeout,
+    grpc_encoding, grpc_request, inbound_codec_from_token, preferred_codec, select_outbound_codec,
+    select_stream_codec, soonest, timeout_from_headers, user_agent_value,
 };
 pub(crate) use out_batch::{OutBatch, let_producer_catch_up};
 pub(crate) use send::{
-    PumpEnd, grpc_trailers, hold_half_closed_send, pump_outbound, reject, reject_request,
-    reset_on_cancel, send_frame, send_frame_if_ready, send_ok_headers, send_trailers_only,
-    wrap_timeout, ImmediateSend,
+    ImmediateSend, PumpEnd, bare_ok_trailer_map, grpc_trailers, hold_half_closed_send,
+    pump_outbound, reject, reject_request, reset_on_cancel, send_frame, send_frame_if_ready,
+    send_ok_headers, send_trailers_only, wrap_timeout,
 };
 // Re-exported for the unit tests below, which drive internals directly.
 #[cfg(test)]
