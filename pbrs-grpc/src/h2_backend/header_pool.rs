@@ -247,3 +247,25 @@ pub(crate) fn publish_shared_request(map: Arc<HeaderMap>) {
 pub(crate) fn take_shared_request() -> Option<Arc<HeaderMap>> {
     SHARED_REQUEST.take()
 }
+
+thread_local! {
+    // 0 = none, 1 = http, 2 = https. Published by a stock request decode and
+    // taken by the same poll before the task can park.
+    static STOCK_HTTPS: Cell<u8> = const { Cell::new(0) };
+}
+
+pub(crate) fn clear_stock_https() {
+    STOCK_HTTPS.set(0);
+}
+
+pub(crate) fn publish_stock_https(https: bool) {
+    STOCK_HTTPS.set(if https { 2 } else { 1 });
+}
+
+pub(crate) fn take_stock_https() -> Option<bool> {
+    match STOCK_HTTPS.replace(0) {
+        1 => Some(false),
+        2 => Some(true),
+        _ => None,
+    }
+}

@@ -1849,6 +1849,7 @@ impl HeaderBlock {
         // the same headers. The saved bytes were checked when stored, so a
         // hit does not walk the block again.
         if fresh {
+            crate::h2_backend::header_pool::clear_stock_https();
             if let Some((kind, decoded)) = decoder.lookup_saved(src) {
                 match kind {
                     hpack::BlockKind::Response(grpc_proto) => {
@@ -1879,18 +1880,28 @@ impl HeaderBlock {
                     }
                     hpack::BlockKind::Request => {
                         // Stock requests publish the real map separately and
-                        // leave the frame's map empty. Clone the pseudos
-                        // straight into the frame instead of building a
-                        // temporary saved block and copying it here.
+                        // leave the frame's map empty. A cache-hit POST also
+                        // leaves the pseudos empty: the accept path rebuilds
+                        // them from the process cache, so cloning them here
+                        // only to drop them is wasted.
                         if let Some(shared) = &decoded.shared_fields {
                             crate::h2_backend::header_pool::publish_shared_request(
                                 std::sync::Arc::clone(shared),
                             );
                         }
-                        self.pseudo.method = decoded.method.clone();
-                        self.pseudo.scheme = decoded.scheme.clone();
-                        self.pseudo.authority = decoded.authority.clone();
-                        self.pseudo.path = decoded.path.clone();
+                        if let Some(https) = crate::h2_backend::server::stock_https_of(
+                            decoded.method.as_ref(),
+                            decoded.scheme.as_ref(),
+                            decoded.authority.as_ref(),
+                            decoded.path.as_ref(),
+                        ) {
+                            crate::h2_backend::header_pool::publish_stock_https(https);
+                        } else {
+                            self.pseudo.method = decoded.method.clone();
+                            self.pseudo.scheme = decoded.scheme.clone();
+                            self.pseudo.authority = decoded.authority.clone();
+                            self.pseudo.path = decoded.path.clone();
+                        }
                         self.pseudo.protocol = None;
                         self.pseudo.status = decoded.status;
                         self.field_size = decoded.field_size;

@@ -109,7 +109,9 @@ fn queued_header(
     stream_id: StreamId,
 ) -> Result<Event, Error> {
     if peer.is_server() {
-        if let Some(https) = crate::h2_backend::server::stock_post_https(pseudo, &fields) {
+        if let Some(https) = crate::h2_backend::header_pool::take_stock_https()
+            .or_else(|| crate::h2_backend::server::stock_post_https(pseudo, &fields))
+        {
             // Empty stock map. `Request::new` already has the same one.
             std::mem::forget(fields);
             return Ok(Event::StockRequest { https });

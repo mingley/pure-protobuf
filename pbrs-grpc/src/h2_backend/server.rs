@@ -1729,18 +1729,29 @@ fn simple_post_request(pseudo: &Pseudo, fields: HeaderMap) -> Result<Request<()>
 /// The request itself is built later, in the accept slot, so the 224-byte
 /// value is not copied into the receive queue.
 pub(crate) fn stock_post_https(pseudo: &Pseudo, fields: &HeaderMap) -> Option<bool> {
-    if fields.capacity() != 0 {
+    if fields.capacity() != 0 || pseudo.protocol.is_some() || pseudo.status.is_some() {
         return None;
     }
-    let method = pseudo.method.as_ref()?;
-    if method != Method::POST || pseudo.protocol.is_some() || pseudo.status.is_some() {
+    stock_https_of(
+        pseudo.method.as_ref(),
+        pseudo.scheme.as_ref(),
+        pseudo.authority.as_ref(),
+        pseudo.path.as_ref(),
+    )
+}
+
+/// Scheme of a saved stock POST, before its pseudo-headers are cloned.
+pub(crate) fn stock_https_of(
+    method: Option<&Method>,
+    scheme: Option<&BytesStr>,
+    authority: Option<&BytesStr>,
+    path: Option<&BytesStr>,
+) -> Option<bool> {
+    let method = method?;
+    if method != Method::POST {
         return None;
     }
-    let (authority, scheme, path) = (
-        pseudo.authority.as_ref()?,
-        pseudo.scheme.as_ref()?,
-        pseudo.path.as_ref()?,
-    );
+    let (scheme, authority, path) = (scheme?, authority?, path?);
     if path.is_empty() || !authority_cached(authority) || !path_cached(path) {
         return None;
     }
