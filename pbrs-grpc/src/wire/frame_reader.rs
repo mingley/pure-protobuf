@@ -13,6 +13,7 @@ use crate::status::{Code, Status, parse_pushback_value};
 use crate::stream::{Framed, Streaming};
 use crate::transport::{Error as TransportError, RecvStream, h2 as backend};
 use bytes::{Bytes, BytesMut};
+use futures_util::future::Either;
 use http::{HeaderMap, StatusCode};
 use std::future::{Future, poll_fn};
 use std::pin::Pin;
@@ -556,12 +557,19 @@ pub(crate) fn refuse_encoding_reply(token: Option<&str>, accept_gzip: bool) -> R
     Ok(())
 }
 
-pub(crate) async fn finish_unary<Resp: CodecMessage>(
+struct PreparedUnary {
+    parts: http::response::Parts,
+    body: backend::RecvStream,
+    codec: crate::compression::CompressionAlgorithm,
+    stock_response: Option<bool>,
+    encoding: Option<String>,
+}
+
+fn prepare_unary(
     response: http::Response<backend::RecvStream>,
-    limits: MessageLimits,
     accept_gzip: bool,
     tap: Option<&CallLogger>,
-) -> Result<crate::request::Response<Resp>, Status> {
+) -> Result<PreparedUnary, Status> {
     if response.status() != StatusCode::OK {
         let status = Status::unknown(format!("http {}", response.status()));
         if let Some(tap) = tap {
@@ -569,9 +577,8 @@ pub(crate) async fn finish_unary<Resp: CodecMessage>(
         }
         return Err(status);
     }
-    let (parts, mut body) = response.into_parts();
+    let (parts, body) = response.into_parts();
     if body.is_end_stream() {
-        // Trailers-Only: the status is in the headers and there is no message.
         let status = status_from(&parts.headers, None);
         if status.code() != Code::Ok {
             if let Some(tap) = tap {
@@ -583,27 +590,56 @@ pub(crate) async fn finish_unary<Resp: CodecMessage>(
             return Err(status);
         }
     }
-    // Headers are observed before the body is read; log them first so the
-    // message entries that read_one_message emits stay in wire order.
     if let Some(tap) = tap {
         tap.log_server_header(&Metadata::from_owned_headers(parts.headers.clone()));
     }
-    // A stock response is content-type plus accept-encoding. It has no
-    // grpc-encoding, so the hashed miss is skipped. The flag is reused
-    // when the header map becomes metadata.
     let stock_response = crate::h2_backend::header_pool::is_stock_response(&parts.headers);
-    let encoding_token = if stock_response.is_some() {
+    let encoding = if stock_response.is_some() {
         None
     } else {
-        grpc_encoding(&parts.headers)
+        grpc_encoding(&parts.headers).map(str::to_owned)
     };
-    if let Err(status) = refuse_encoding_reply(encoding_token, accept_gzip) {
+    if let Err(status) = refuse_encoding_reply(encoding.as_deref(), accept_gzip) {
         if let Some(tap) = tap {
             tap.log_trailer(&Metadata::new(), &status);
         }
         return Err(status);
     }
-    let codec = inbound_codec_from_token(encoding_token);
+    let codec = inbound_codec_from_token(encoding.as_deref());
+    Ok(PreparedUnary {
+        parts,
+        body,
+        codec,
+        stock_response,
+        encoding,
+    })
+}
+
+pub(crate) fn finish_unary<Resp: CodecMessage>(
+    response: http::Response<backend::RecvStream>,
+    limits: MessageLimits,
+    accept_gzip: bool,
+    tap: Option<&CallLogger>,
+) -> impl Future<Output = Result<crate::request::Response<Resp>, Status>> {
+    match prepare_unary(response, accept_gzip, tap) {
+        Err(status) => Either::Left(std::future::ready(Err(status))),
+        Ok(prepared) => Either::Right(complete_unary::<Resp>(prepared, limits, accept_gzip, tap)),
+    }
+}
+
+async fn complete_unary<Resp: CodecMessage>(
+    prepared: PreparedUnary,
+    limits: MessageLimits,
+    accept_gzip: bool,
+    tap: Option<&CallLogger>,
+) -> Result<crate::request::Response<Resp>, Status> {
+    let PreparedUnary {
+        parts,
+        mut body,
+        codec,
+        stock_response,
+        encoding,
+    } = prepared;
     let framed =
         match read_one_message::<Resp>(&mut body, limits, accept_gzip, codec, tap, true).await {
             Ok(framed) => framed,
@@ -625,8 +661,6 @@ pub(crate) async fn finish_unary<Resp: CodecMessage>(
     };
     let (status, trailers_md) = match trailers {
         Some(map) => {
-            // Same one-header block `status_from` would accept. Classify it
-            // once, then recycle, instead of walking it twice.
             let bare_ok = crate::h2_backend::header_pool::is_bare_ok_trailer(&map);
             let status = if bare_ok {
                 Status::ok()
@@ -643,7 +677,6 @@ pub(crate) async fn finish_unary<Resp: CodecMessage>(
         }
         None => (status_from(&parts.headers, None), Metadata::new()),
     };
-    let encoding = encoding_token.map(str::to_owned);
     let header_md = metadata_from_response(parts.headers, stock_response);
     if let Some(tap) = tap {
         tap.log_trailer(&trailers_md, &status);

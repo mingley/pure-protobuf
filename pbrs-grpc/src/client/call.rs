@@ -1,9 +1,10 @@
 //! Per-call machinery: attempts, commitment, and send/open races.
 
-use super::pool::LiveConn;
+use super::pool::{ChannelInner, HealthDirective, LiveConn};
 use crate::request::{Request, Response};
 use crate::rt::{Runtime, TokioRuntime};
 use crate::status::{Code, Status, TransportEvidence};
+use crate::telemetry::LifecycleObserver;
 use crate::timeout::remaining_timeout;
 use crate::transport::{
     Error as TransportError, Reason, RecvStream, SendRequest, SendStream, h2 as backend,
@@ -512,10 +513,16 @@ where
 
 async fn race_plain<T>(
     fut: impl Future<Output = Result<T, Status>> + Send,
-    cancel_rx: watch::Receiver<bool>,
+    mut cancel_rx: watch::Receiver<bool>,
     send: Option<&mut backend::SendStream>,
 ) -> Result<T, Status> {
-    let result = first_of_cancel(fut, cancel_rx).await;
+    // Inlined from `first_of_cancel`. Awaiting that helper stored `fut` here
+    // and again inside the helper.
+    let result = tokio::select! {
+        biased;
+        _ = cancel_rx.wait_for(|v| *v) => Err(Status::cancelled()),
+        r = fut => r,
+    };
     reset_send_on_cancel(send, &result);
     result
 }
@@ -534,6 +541,30 @@ where
     let result = first_of_deadline::<R, T, F>(fut, cancel_rx, at).await;
     reset_send_on_cancel(send, &result);
     prefer_deadline_in::<R, _>(result, Some(at))
+}
+
+async fn grab_wait<R: Runtime>(
+    inner: Arc<ChannelInner>,
+    obs: Option<Arc<dyn LifecycleObserver>>,
+    health: Option<HealthDirective>,
+    hash: Option<u64>,
+    cancel_rx: watch::Receiver<bool>,
+    deadline: Option<tokio::time::Instant>,
+    wait_for_ready: bool,
+) -> Result<LiveConn, Status> {
+    let acquire = inner.acquire(wait_for_ready, obs.as_deref(), health, hash);
+    tokio::pin!(acquire);
+    let raced = match poll_now(acquire.as_mut()) {
+        Some(result) if deadline.is_none() => return result,
+        Some(result) => result,
+        None => first_of_in::<R, _>(acquire, cancel_rx, deadline).await,
+    };
+    if deadline.is_none() {
+        return raced;
+    }
+    let grabbed = prefer_deadline_in::<R, _>(raced, deadline)?;
+    let _ = remaining_timeout(deadline)?;
+    Ok(grabbed)
 }
 
 fn reset_send_on_cancel<T>(send: Option<&mut backend::SendStream>, result: &Result<T, Status>) {
@@ -701,40 +732,48 @@ impl super::Channel {
     }
 
     /// [`grab`](Self::grab) on runtime `R`; production callers use Tokio.
-    pub(crate) async fn grab_in<R: Runtime>(
+    ///
+    /// Not inlined: the acquire state machine must not become part of the
+    /// caller's future. A warm pool hit returns a ready value.
+    #[inline(never)]
+    pub(crate) fn grab_in<R: Runtime + 'static>(
         &self,
         cancel_rx: watch::Receiver<bool>,
         deadline: Option<tokio::time::Instant>,
         wait_for_ready: bool,
         md: Option<&crate::metadata::Metadata>,
-    ) -> Result<LiveConn, Status> {
-        let _ = remaining_timeout(deadline)?;
-        // Optimistic: a pool hit completes without arming the race. The
-        // cancel pre-check mirrors `first_of_in`'s biased order (the deadline
-        // was just checked above) so an already-fired cancel still wins.
+    ) -> impl Future<Output = Result<LiveConn, Status>> + Send {
+        if let Err(status) = remaining_timeout(deadline) {
+            return Either::Left(std::future::ready(Err(status)));
+        }
         if cancel_requested(&cancel_rx) {
-            return Err(Status::cancelled());
+            return Either::Left(std::future::ready(Err(Status::cancelled())));
         }
         let inner = Arc::clone(&self.inner);
         let obs = self.local.observer.clone();
-        let health = self.health_directive();
         let hash = md.and_then(|md| self.ring_request_hash(md));
-        let acquire = inner.acquire(wait_for_ready, obs.as_deref(), health, hash);
-        tokio::pin!(acquire);
-        let raced = match poll_now(acquire.as_mut()) {
-            // No deadline: return the connection from this arm so it is not
-            // stored and moved again after the match.
-            Some(result) if deadline.is_none() => return result,
-            Some(result) => result,
-            None => first_of_in::<R, _>(acquire, cancel_rx, deadline).await,
-        };
-        // The warm poll above already returned. This is the path that waited.
         if deadline.is_none() {
-            return raced;
+            let acquire = inner.acquire(
+                wait_for_ready,
+                obs.as_deref(),
+                self.health_directive(),
+                hash,
+            );
+            let mut acquire = std::pin::pin!(acquire);
+            if let Some(result) = poll_now(acquire.as_mut()) {
+                return Either::Left(std::future::ready(result));
+            }
         }
-        let grabbed = prefer_deadline_in::<R, _>(raced, deadline)?;
-        let _ = remaining_timeout(deadline)?;
-        Ok(grabbed)
+        Either::Right(Box::pin(grab_wait::<R>(
+            inner,
+            obs,
+            self.health_directive(),
+            hash,
+            cancel_rx,
+            deadline,
+            wait_for_ready,
+        ))
+            as Pin<Box<dyn Future<Output = Result<LiveConn, Status>> + Send>>)
     }
 
     /// Grab a slot and send request HEADERS, retrying once on a raced
@@ -767,7 +806,7 @@ impl super::Channel {
         clippy::too_many_arguments,
         reason = "path, headers, timeout, encoding, and the grab race"
     )]
-    pub(crate) async fn open_retrying_in<R: Runtime>(
+    pub(crate) async fn open_retrying_in<R: Runtime + 'static>(
         &self,
         cancel_rx: watch::Receiver<bool>,
         timeout: Option<Duration>,
