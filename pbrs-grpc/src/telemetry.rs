@@ -66,24 +66,17 @@ pub struct CallLabels<'a> {
 /// Start time stored on a [`CallGuard`](CallGuard).
 ///
 /// Observers need a real reading. An unobserved call never reads it, so
-/// repeat calls on this thread share one instant and skip the clock.
+/// every unobserved call shares one instant and skips the clock.
 #[inline]
 pub(crate) fn call_started_at(observed: bool) -> std::time::Instant {
     if observed {
         return std::time::Instant::now();
     }
-    use std::cell::Cell;
-    thread_local! {
-        static CACHED: Cell<Option<std::time::Instant>> = const { Cell::new(None) };
+    static CACHED: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+    if let Some(cached) = CACHED.get() {
+        return *cached;
     }
-    CACHED.with(|cell| {
-        if let Some(cached) = cell.get() {
-            return cached;
-        }
-        let now = std::time::Instant::now();
-        cell.set(Some(now));
-        now
-    })
+    *CACHED.get_or_init(std::time::Instant::now)
 }
 
 impl<'a> CallLabels<'a> {

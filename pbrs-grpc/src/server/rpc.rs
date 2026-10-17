@@ -1645,18 +1645,11 @@ fn call_start_instant(observed: bool) -> tokio::time::Instant {
     if observed {
         return tokio::time::Instant::now();
     }
-    thread_local! {
-        static CACHED: std::cell::Cell<Option<tokio::time::Instant>> =
-            const { std::cell::Cell::new(None) };
+    static CACHED: std::sync::OnceLock<tokio::time::Instant> = std::sync::OnceLock::new();
+    if let Some(cached) = CACHED.get() {
+        return *cached;
     }
-    CACHED.with(|cell| {
-        if let Some(cached) = cell.get() {
-            return cached;
-        }
-        let now = tokio::time::Instant::now();
-        cell.set(Some(now));
-        now
-    })
+    *CACHED.get_or_init(tokio::time::Instant::now)
 }
 
 /// Channelz: a dispatched RPC started. The socket stream is
