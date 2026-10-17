@@ -546,7 +546,7 @@ impl<B> DynStreams<'_, B> {
         self.peer.is_server()
     }
 
-    pub fn recv_headers(&mut self, frame: frame::Headers) -> Result<(), Error> {
+    pub fn recv_headers(&mut self, frame: Box<frame::Headers>) -> Result<(), Error> {
         let mut me = self.inner.lock().unwrap();
 
         me.recv_headers(self.peer, self.send_buffer, frame)
@@ -649,7 +649,7 @@ impl Inner {
         &mut self,
         peer: peer::Dyn,
         send_buffer: &SendBuffer<B>,
-        frame: frame::Headers,
+        frame: Box<frame::Headers>,
     ) -> Result<(), Error> {
         let id = frame.stream_id();
 

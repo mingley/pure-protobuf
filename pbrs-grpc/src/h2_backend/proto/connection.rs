@@ -546,7 +546,7 @@ where
         use crate::h2_backend::frame::Frame::*;
         match frame {
             Some(Headers(frame)) => {
-                self.streams.recv_headers(*frame)?;
+                self.streams.recv_headers(frame)?;
             }
             Some(Data(frame)) => {
                 self.streams.recv_data(frame)?;

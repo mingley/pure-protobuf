@@ -707,6 +707,34 @@ impl Headers {
         (self.header_block.pseudo, self.header_block.fields)
     }
 
+    /// Move the pseudo-headers and the map out of a boxed frame.
+    ///
+    /// Dereferencing the box copies all 288 bytes onto the stack. The only
+    /// parts with destructors are the two values returned here.
+    #[allow(
+        unsafe_code,
+        reason = "move two fields out of a boxed header block without copying the rest"
+    )]
+    pub(crate) fn into_parts_box(this: Box<Self>) -> (Pseudo, HeaderMap) {
+        const _: () = {
+            assert!(!std::mem::needs_drop::<StreamId>());
+            assert!(!std::mem::needs_drop::<Option<StreamDependency>>());
+            assert!(!std::mem::needs_drop::<HeadersFlag>());
+            assert!(!std::mem::needs_drop::<StandardMap>());
+            assert!(!std::mem::needs_drop::<Option<crate::wire::headers::StockFacts>>());
+        };
+        let ptr = Box::into_raw(this);
+        // SAFETY: `ptr` came from `Box::into_raw`. `pseudo` and `fields` are
+        // moved to the caller. Every other field has no destructor, which
+        // the asserts above lock in.
+        unsafe {
+            let pseudo = std::ptr::read(std::ptr::addr_of!((*ptr).header_block.pseudo));
+            let fields = std::ptr::read(std::ptr::addr_of!((*ptr).header_block.fields));
+            std::alloc::dealloc(ptr.cast(), std::alloc::Layout::new::<Self>());
+            (pseudo, fields)
+        }
+    }
+
     #[cfg(any())]
     pub fn pseudo_mut(&mut self) -> &mut Pseudo {
         &mut self.header_block.pseudo

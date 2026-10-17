@@ -166,7 +166,7 @@ impl Recv {
     /// The caller ensures that the frame represents headers and not trailers.
     pub fn recv_headers(
         &mut self,
-        frame: frame::Headers,
+        frame: Box<frame::Headers>,
         stream: &mut store::Ptr,
         counts: &mut Counts,
     ) -> Result<(), RecvHeaderBlockError<Option<frame::Headers>>> {
@@ -246,7 +246,7 @@ impl Recv {
 
         let stream_id = frame.stream_id();
         let cached_facts = frame.stock_facts();
-        let (pseudo, fields) = frame.into_parts();
+        let (pseudo, fields) = frame::Headers::into_parts_box(frame);
 
         if pseudo.protocol.is_some()
             && counts.peer().is_server()
@@ -460,7 +460,7 @@ impl Recv {
     /// Transition the stream based on receiving trailers
     pub fn recv_trailers(
         &mut self,
-        frame: frame::Headers,
+        frame: Box<frame::Headers>,
         stream: &mut store::Ptr,
     ) -> Result<(), Error> {
         // Transition the state
@@ -471,7 +471,7 @@ impl Recv {
             return Err(Error::library_reset(stream.id, Reason::PROTOCOL_ERROR));
         }
 
-        let trailers = frame.into_fields();
+        let (_, trailers) = frame::Headers::into_parts_box(frame);
 
         // The queue link and the recv wakeup share one slab lookup.
         {
