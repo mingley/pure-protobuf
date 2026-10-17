@@ -661,8 +661,18 @@ impl Headers {
         }
     }
 
+    /// The gRPC layer already classified this block.
+    #[inline]
+    pub(crate) fn is_known_stock(&self) -> bool {
+        !matches!(self.header_block.stock, StandardMap::None)
+    }
+
     /// Remember a stock field set. `true` means those names are legal on the
     /// wire, so `Send::check_headers` can skip its walk.
+    ///
+    /// Stock blocks return from [`Self::is_known_stock`] and never enter here.
+    #[cold]
+    #[inline(never)]
     pub(crate) fn note_stock_fields(&mut self) -> bool {
         // The gRPC layer built this block from the stock pool and marked it.
         // The names and values are the ones `fields_match` would accept.

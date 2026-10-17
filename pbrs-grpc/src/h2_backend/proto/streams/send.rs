@@ -143,7 +143,7 @@ impl Send {
         counts: &mut Counts,
         task: &mut Option<Waker>,
     ) -> Result<(), UserError> {
-        if !frame.note_stock_fields() {
+        if !frame.is_known_stock() && !frame.note_stock_fields() {
             Self::check_headers(frame.fields())?;
         }
 
@@ -194,7 +194,7 @@ impl Send {
         counts: &mut Counts,
         task: &mut Option<Waker>,
     ) -> Result<(), UserError> {
-        if !frame.note_stock_fields() {
+        if !frame.is_known_stock() && !frame.note_stock_fields() {
             Self::check_headers(frame.fields())?;
         }
 
@@ -384,7 +384,7 @@ impl Send {
         // Checked before the state transition so a rejected call leaves the stream
         // untouched and still able to send valid trailers.
         // A stock `grpc-status: 0` block is already known to be legal.
-        if !frame.note_stock_fields() {
+        if !frame.is_known_stock() && !frame.note_stock_fields() {
             Self::check_headers(frame.fields())?;
         }
 
