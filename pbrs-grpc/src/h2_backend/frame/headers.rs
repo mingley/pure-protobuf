@@ -882,12 +882,12 @@ impl Headers {
                         } else {
                             std::ptr::drop_in_place(fields_ptr);
                         }
-                        let pseudo =
-                            std::ptr::read(std::ptr::addr_of!((*ptr).header_block.pseudo));
-                        if matches!(kind, StandardMap::Response | StandardMap::Trailers) {
-                            std::mem::forget(pseudo);
-                        } else {
-                            drop(pseudo);
+                        let pseudo_ptr = std::ptr::addr_of_mut!((*ptr).header_block.pseudo);
+                        if !matches!(kind, StandardMap::Response | StandardMap::Trailers) {
+                            // Request pseudos own the authority and path. Drop
+                            // them where they sit instead of copying the 152-byte
+                            // block out and dropping the copy.
+                            std::ptr::drop_in_place(pseudo_ptr);
                         }
                         std::alloc::dealloc(ptr.cast(), std::alloc::Layout::new::<Self>());
                     }
