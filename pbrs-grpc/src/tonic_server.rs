@@ -73,6 +73,7 @@ use http_body::{Body, Frame};
 use std::future::{Future, poll_fn};
 use std::marker::PhantomData;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::sync::watch;
 use tokio::time::Instant;
@@ -160,7 +161,7 @@ where
     async fn call(&self, rpc: Rpc) {
         if rpc.limits() != ServerConfig::default().limits()
             || !rpc.config.accepts_compressed()
-            || outbound::requested(rpc.config)
+            || outbound::requested(rpc.config.as_ref())
         {
             // Keep the framing state and cap-body boxes out of the default
             // path. Explicit caps or compression policies use the cold future.
@@ -261,7 +262,7 @@ where
 }
 
 fn unsupported_policy(rpc: &Rpc) -> Option<&'static str> {
-    if outbound::requested(rpc.config) && !outbound::supported(rpc) {
+    if outbound::requested(rpc.config.as_ref()) && !outbound::supported(rpc) {
         return Some("compression settings");
     }
     if rpc.byte_budget.limit().is_some() {
@@ -308,7 +309,7 @@ where
     let cap_input = limits.max_decoding() != defaults.max_decoding();
     let cap_output = limits.max_encoding() != defaults.max_encoding();
     // Capture real peer negotiation before forcing tonic identity encoding.
-    let outbound = outbound::requested(rpc.config).then(|| outbound::Settings::new(&rpc));
+    let outbound = outbound::requested(rpc.config.as_ref()).then(|| outbound::Settings::new(&rpc));
     let input_gzip = if cap_input {
         match (
             crate::wire::grpc_encoding(rpc.metadata.all_headers()),

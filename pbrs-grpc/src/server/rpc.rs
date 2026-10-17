@@ -50,7 +50,7 @@ use std::time::Duration;
 pub struct Rpc {
     pub(crate) request: http::Request<RecvStream>,
     pub(crate) respond: SendResponse,
-    pub(crate) config: ServerConfig,
+    pub(crate) config: Arc<ServerConfig>,
     pub(crate) remote_addr: Option<SocketAddr>,
     pub(crate) local_addr: Option<SocketAddr>,
     pub(crate) peer_identity: Option<PeerIdentity>,
@@ -1251,7 +1251,7 @@ impl Rpc {
 /// machine onto the heap for each call.
 struct InboundRpc {
     respond: SendResponse,
-    config: ServerConfig,
+    config: Arc<ServerConfig>,
     recv: Option<RecvStream>,
     remote_addr: Option<SocketAddr>,
     local_addr: Option<SocketAddr>,

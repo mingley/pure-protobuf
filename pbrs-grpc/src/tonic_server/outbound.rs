@@ -16,7 +16,7 @@ use std::task::{Context, Poll};
 
 const QUANTUM: usize = 8 * 1024;
 
-pub(super) fn requested(config: ServerConfig) -> bool {
+pub(super) fn requested(config: &ServerConfig) -> bool {
     let defaults = ServerConfig::default();
     config.compresses_outbound() != defaults.compresses_outbound()
         || config.gzip_level() != defaults.gzip_level()
