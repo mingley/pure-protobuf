@@ -1363,43 +1363,54 @@ impl InboundRpc {
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
         let prefer_gzip = config.compresses_outbound();
         let cancel_tx = super::drain::CancelFlag::new();
-        Box::new(Self {
-            respond,
-            config,
-            recv,
-            remote_addr,
-            local_addr,
-            peer_identity,
-            peer_cred,
-            extensions,
-            metadata,
-            diagnostic_config,
-            byte_budget,
-            binlog,
-            authority,
-            scheme,
-            path,
-            timeout,
-            peer_timeout,
-            rpc_timeout,
-            peer_accepts_gzip,
-            peer_accepts_deflate,
-            #[cfg(feature = "zstd")]
-            peer_accepts_zstd,
-            request_codec,
-            encoding,
-            observer,
-            channelz_server,
-            channelz_socket,
-            #[cfg(feature = "grpc-web")]
-            web,
-            call_start,
-            owned_labels,
-            deadline,
-            prefer_gzip,
-            limits,
-            cancel_tx,
-        })
+        // The record is 624 bytes. `Box::new` built it on the stack and
+        // copied it. Each field is written into the allocation instead.
+        #[allow(unsafe_code, reason = "initialize the call record in its allocation")]
+        let boxed = {
+            let mut boxed = Box::<Self>::new_uninit();
+            let ptr = std::mem::MaybeUninit::as_mut_ptr(&mut *boxed);
+            // SAFETY: every field is written before `assume_init`. The
+            // writes move initialized values; none of them panics.
+            unsafe {
+                std::ptr::addr_of_mut!((*ptr).respond).write(respond);
+                std::ptr::addr_of_mut!((*ptr).config).write(config);
+                std::ptr::addr_of_mut!((*ptr).recv).write(recv);
+                std::ptr::addr_of_mut!((*ptr).remote_addr).write(remote_addr);
+                std::ptr::addr_of_mut!((*ptr).local_addr).write(local_addr);
+                std::ptr::addr_of_mut!((*ptr).peer_identity).write(peer_identity);
+                std::ptr::addr_of_mut!((*ptr).peer_cred).write(peer_cred);
+                std::ptr::addr_of_mut!((*ptr).extensions).write(extensions);
+                std::ptr::addr_of_mut!((*ptr).metadata).write(metadata);
+                std::ptr::addr_of_mut!((*ptr).diagnostic_config).write(diagnostic_config);
+                std::ptr::addr_of_mut!((*ptr).byte_budget).write(byte_budget);
+                std::ptr::addr_of_mut!((*ptr).binlog).write(binlog);
+                std::ptr::addr_of_mut!((*ptr).authority).write(authority);
+                std::ptr::addr_of_mut!((*ptr).scheme).write(scheme);
+                std::ptr::addr_of_mut!((*ptr).path).write(path);
+                std::ptr::addr_of_mut!((*ptr).timeout).write(timeout);
+                std::ptr::addr_of_mut!((*ptr).peer_timeout).write(peer_timeout);
+                std::ptr::addr_of_mut!((*ptr).rpc_timeout).write(rpc_timeout);
+                std::ptr::addr_of_mut!((*ptr).peer_accepts_gzip).write(peer_accepts_gzip);
+                std::ptr::addr_of_mut!((*ptr).peer_accepts_deflate).write(peer_accepts_deflate);
+                #[cfg(feature = "zstd")]
+                std::ptr::addr_of_mut!((*ptr).peer_accepts_zstd).write(peer_accepts_zstd);
+                std::ptr::addr_of_mut!((*ptr).request_codec).write(request_codec);
+                std::ptr::addr_of_mut!((*ptr).encoding).write(encoding);
+                std::ptr::addr_of_mut!((*ptr).observer).write(observer);
+                std::ptr::addr_of_mut!((*ptr).channelz_server).write(channelz_server);
+                std::ptr::addr_of_mut!((*ptr).channelz_socket).write(channelz_socket);
+                #[cfg(feature = "grpc-web")]
+                std::ptr::addr_of_mut!((*ptr).web).write(web);
+                std::ptr::addr_of_mut!((*ptr).call_start).write(call_start);
+                std::ptr::addr_of_mut!((*ptr).owned_labels).write(owned_labels);
+                std::ptr::addr_of_mut!((*ptr).deadline).write(deadline);
+                std::ptr::addr_of_mut!((*ptr).prefer_gzip).write(prefer_gzip);
+                std::ptr::addr_of_mut!((*ptr).limits).write(limits);
+                std::ptr::addr_of_mut!((*ptr).cancel_tx).write(cancel_tx);
+                boxed.assume_init()
+            }
+        };
+        boxed
     }
 
     #[inline(always)]

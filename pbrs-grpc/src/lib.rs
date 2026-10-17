@@ -336,7 +336,9 @@ pub mod resolver;
 // `rt::per_core` pins threads with one Linux affinity syscall; the rest of
 // the seam stays safe-only (see the forbid on `mod manual`).
 mod rt;
-#[forbid(unsafe_code)]
+// `InboundRpc::from_rpc` writes one call record into its allocation.
+// The rest of the server stays safe; `deny` lets that function opt in.
+#[deny(unsafe_code)]
 mod server;
 #[forbid(unsafe_code)]
 pub mod service_config;
