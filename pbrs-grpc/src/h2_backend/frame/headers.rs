@@ -812,6 +812,66 @@ impl Headers {
         self.encode_unreplayed(encoder, dst, head)
     }
 
+    /// Encode a boxed block without copying it onto the stack.
+    ///
+    /// The stock replay path only needs the head and the saved bytes. Moving
+    /// the 288-byte frame out of the box first copies fields this path does
+    /// not read.
+    #[allow(
+        unsafe_code,
+        reason = "recycle the map out of a boxed header block without copying the frame"
+    )]
+    pub(crate) fn encode_box(
+        this: Box<Self>,
+        encoder: &mut hpack::Encoder,
+        dst: &mut EncodeBuf<'_>,
+    ) -> Option<Continuation> {
+        debug_assert!(this.flags.is_end_headers());
+        let head = this.head();
+        if !encoder.has_size_update() {
+            if let Some((kind, bytes)) = replayed_standard(
+                encoder,
+                &this.header_block.pseudo,
+                &this.header_block.fields,
+                this.header_block.stock,
+            ) {
+                let total = bytes.len() + head.encode_len();
+                let lim = bytes::buf::Limit::limit(dst);
+                if total <= lim {
+                    {
+                        let inner = bytes::buf::Limit::get_mut(dst);
+                        encode_head_into(head, bytes.len(), inner);
+                        inner.extend_from_slice(bytes);
+                    }
+                    bytes::buf::Limit::set_limit(dst, lim - total);
+                    let ptr = Box::into_raw(this);
+                    // SAFETY: same leftover fields as `into_parts_box`. The map
+                    // is recycled or dropped. Response and trailer pseudos are
+                    // empty and intentionally not dropped.
+                    unsafe {
+                        let fields =
+                            std::ptr::read(std::ptr::addr_of!((*ptr).header_block.fields));
+                        if let Some(slot) = kind.slot() {
+                            crate::h2_backend::header_pool::recycle(slot, fields);
+                        } else {
+                            drop(fields);
+                        }
+                        let pseudo =
+                            std::ptr::read(std::ptr::addr_of!((*ptr).header_block.pseudo));
+                        if matches!(kind, StandardMap::Response | StandardMap::Trailers) {
+                            std::mem::forget(pseudo);
+                        } else {
+                            drop(pseudo);
+                        }
+                        std::alloc::dealloc(ptr.cast(), std::alloc::Layout::new::<Self>());
+                    }
+                    return None;
+                }
+            }
+        }
+        (*this).encode_unreplayed(encoder, dst, head)
+    }
+
     /// A block that did not replay. Out of line so the hit path does not
     /// reserve a copy of the header block.
     #[inline(never)]

@@ -309,7 +309,9 @@ where
             }
             Frame::Headers(v) => {
                 let mut buf = limited_write_buf!(self);
-                if let Some(continuation) = (*v).encode(&mut self.hpack, &mut buf) {
+                if let Some(continuation) =
+                    frame::Headers::encode_box(v, &mut self.hpack, &mut buf)
+                {
                     self.next = Some(Next::Continuation(continuation));
                 }
             }
