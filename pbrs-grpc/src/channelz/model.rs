@@ -27,6 +27,7 @@
 //! entity.
 
 use super::trace::{Trace, TraceChild, TraceSeverity};
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::sync::{
     Arc, Mutex, OnceLock, RwLock,
@@ -210,6 +211,39 @@ impl SocketEntry {
             self.last_message_received_ms
                 .store(coarse_now_ms(), Ordering::Relaxed);
         }
+    }
+
+    #[inline]
+    fn record_stream_started(&self, local: bool) -> SocketParent {
+        self.streams_started.fetch_add(1, Ordering::Relaxed);
+        if local {
+            self.last_local_stream_ms
+                .store(coarse_now_ms(), Ordering::Relaxed);
+        } else {
+            self.last_remote_stream_ms
+                .store(coarse_now_ms(), Ordering::Relaxed);
+        }
+        self.parent
+    }
+
+    #[inline]
+    fn record_stream_end(&self, ok: bool) -> SocketParent {
+        if ok {
+            self.streams_succeeded.fetch_add(1, Ordering::Relaxed);
+        } else {
+            self.streams_failed.fetch_add(1, Ordering::Relaxed);
+        }
+        self.parent
+    }
+
+    #[inline]
+    fn record_local_finished(&self, ok: bool, received: u64) -> SocketParent {
+        self.record_stream_started(true);
+        let parent = self.record_stream_end(ok);
+        if received > 0 {
+            self.add_messages(false, received);
+        }
+        parent
     }
 
     /// Count one completed stream without looking the socket up again.
@@ -789,35 +823,44 @@ impl Registry {
         }
     }
 
+    /// Remember the two sockets a task notes (client connection and
+    /// accepted server connection). A hit borrows the cached entry.
+    #[cold]
+    #[inline(never)]
+    fn cache_socket(&self, id: SocketId) -> Option<Arc<SocketEntry>> {
+        let entry = {
+            let map = self.sockets.read().ok()?;
+            map.get(&id.0).cloned()?
+        };
+        let registry = self as *const Registry;
+        HOT_SOCKETS.with(|cell| {
+            let mut slots = cell.borrow_mut();
+            for slot in slots.iter_mut() {
+                if slot.is_none() {
+                    *slot = Some((registry, id.0, Arc::clone(&entry)));
+                    return;
+                }
+            }
+            slots[0] = slots[1].take();
+            slots[1] = Some((registry, id.0, Arc::clone(&entry)));
+        });
+        Some(entry)
+    }
+
     /// One lookup for a finished locally-initiated stream: it started,
     /// it ended, and `received` messages arrived (zero skips that count).
     ///
     /// The three separate notes each lock the socket map.
     pub(crate) fn note_local_stream_finished(&self, id: SocketId, ok: bool, received: u64) {
-        // Touch the entry under the map lock. Cloning the `Arc` and
-        // dropping it after the atomics costs more than holding the
-        // read guard across those updates. The parent subchannel is a
-        // different map, so copy the parent out before taking it.
-        let parent = {
-            let Ok(map) = self.sockets.read() else {
-                return;
-            };
-            let Some(entry) = map.get(&id.0) else {
-                return;
-            };
-            entry.streams_started.fetch_add(1, Ordering::Relaxed);
-            entry
-                .last_local_stream_ms
-                .store(coarse_now_ms(), Ordering::Relaxed);
-            if ok {
-                entry.streams_succeeded.fetch_add(1, Ordering::Relaxed);
-            } else {
-                entry.streams_failed.fetch_add(1, Ordering::Relaxed);
+        let parent = match with_cached_socket(self, id, |entry| entry.record_local_finished(ok, received))
+        {
+            Some(parent) => parent,
+            None => {
+                let Some(entry) = self.cache_socket(id) else {
+                    return;
+                };
+                entry.record_local_finished(ok, received)
             }
-            if received > 0 {
-                entry.add_messages(false, received);
-            }
-            entry.parent
         };
         if let SocketParent::Subchannel(parent) = parent {
             if let Some(sub) = self.subchannel(parent) {
@@ -837,24 +880,14 @@ impl Registry {
     /// subchannel's call counters when there is one (each attempt is
     /// one stream). `local` marks locally-initiated streams.
     pub fn note_stream_started(&self, id: SocketId, local: bool) {
-        let parent = {
-            let Ok(map) = self.sockets.read() else {
-                return;
-            };
-            let Some(entry) = map.get(&id.0) else {
-                return;
-            };
-            entry.streams_started.fetch_add(1, Ordering::Relaxed);
-            if local {
-                entry
-                    .last_local_stream_ms
-                    .store(coarse_now_ms(), Ordering::Relaxed);
-            } else {
-                entry
-                    .last_remote_stream_ms
-                    .store(coarse_now_ms(), Ordering::Relaxed);
+        let parent = match with_cached_socket(self, id, |entry| entry.record_stream_started(local)) {
+            Some(parent) => parent,
+            None => {
+                let Some(entry) = self.cache_socket(id) else {
+                    return;
+                };
+                entry.record_stream_started(local)
             }
-            entry.parent
         };
         if let SocketParent::Subchannel(parent) = parent {
             if let Some(sub) = self.subchannel(parent) {
@@ -868,19 +901,14 @@ impl Registry {
     /// Count one stream completed on a socket, cascading to the
     /// parent subchannel's call counters when there is one.
     pub fn note_stream_end(&self, id: SocketId, ok: bool) {
-        let parent = {
-            let Ok(map) = self.sockets.read() else {
-                return;
-            };
-            let Some(entry) = map.get(&id.0) else {
-                return;
-            };
-            if ok {
-                entry.streams_succeeded.fetch_add(1, Ordering::Relaxed);
-            } else {
-                entry.streams_failed.fetch_add(1, Ordering::Relaxed);
+        let parent = match with_cached_socket(self, id, |entry| entry.record_stream_end(ok)) {
+            Some(parent) => parent,
+            None => {
+                let Some(entry) = self.cache_socket(id) else {
+                    return;
+                };
+                entry.record_stream_end(ok)
             }
-            entry.parent
         };
         if let SocketParent::Subchannel(parent) = parent {
             if let Some(sub) = self.subchannel(parent) {
@@ -896,10 +924,10 @@ impl Registry {
     /// Count messages on a socket. `sent` selects the direction;
     /// `count` is usually 1.
     pub fn note_messages(&self, id: SocketId, sent: bool, count: u64) {
-        let Ok(map) = self.sockets.read() else {
+        if with_cached_socket(self, id, |entry| entry.add_messages(sent, count)).is_some() {
             return;
-        };
-        let Some(entry) = map.get(&id.0) else {
+        }
+        let Some(entry) = self.cache_socket(id) else {
             return;
         };
         entry.add_messages(sent, count);
@@ -1333,6 +1361,50 @@ pub(crate) fn now_ms() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|elapsed| u64::try_from(elapsed.as_millis()).unwrap_or(u64::MAX))
         .unwrap_or(0)
+}
+
+// Client and server sockets are noted from the same task. Two slots
+// cover that pair without cloning the `Arc` on a hit.
+thread_local! {
+    static HOT_SOCKETS: RefCell<[Option<(*const Registry, u64, Arc<SocketEntry>)>; 2]> =
+        const { RefCell::new([None, None]) };
+}
+
+#[inline]
+fn with_cached_socket<R>(
+    registry: &Registry,
+    id: SocketId,
+    body: impl FnOnce(&SocketEntry) -> R,
+) -> Option<R> {
+    let registry = registry as *const Registry;
+    HOT_SOCKETS.with(|cell| {
+        let slots = cell.borrow();
+        for slot in slots.iter() {
+            let Some((cached_registry, cached_id, entry)) = slot else {
+                continue;
+            };
+            if *cached_registry == registry && *cached_id == id.0 {
+                return Some(body(entry));
+            }
+        }
+        None
+    })
+}
+
+impl Drop for Registry {
+    fn drop(&mut self) {
+        let me = self as *const Registry;
+        let _ = HOT_SOCKETS.try_with(|cell| {
+            let Ok(mut slots) = cell.try_borrow_mut() else {
+                return;
+            };
+            for slot in slots.iter_mut() {
+                if matches!(slot, Some((registry, _, _)) if *registry == me) {
+                    *slot = None;
+                }
+            }
+        });
+    }
 }
 
 /// Channelz timestamps only need millisecond resolution. A burst reuses the
