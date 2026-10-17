@@ -44,6 +44,15 @@ impl Deque {
         self.indices.is_none()
     }
 
+    /// The front value, if the queue is non-empty.
+    ///
+    /// Callers that only need the kind of the next frame use this so a
+    /// rejected front is not removed and inserted again.
+    pub fn front<'a, T>(&self, buf: &'a Buffer<T>) -> Option<&'a T> {
+        let idxs = self.indices?;
+        buf.slab.get(idxs.head).map(|slot| &slot.value)
+    }
+
     pub fn push_back<T>(&mut self, buf: &mut Buffer<T>, value: T) {
         let key = buf.slab.insert(Slot { value, next: None });
 

@@ -1326,12 +1326,12 @@ impl Recv {
         cx: &Context,
         stream: &mut Stream,
     ) -> Poll<Option<Result<DataEvent, proto::Error>>> {
-        match stream.pending_recv.pop_front(&mut self.buffer) {
-            Some(Event::Data(data)) => Poll::Ready(Some(Ok(data))),
-            Some(event) => {
-                // Frame is trailer
-                stream.pending_recv.push_front(&mut self.buffer, event);
-
+        // Headers or trailers at the front are not data. Popping them and
+        // inserting them again only to return `None` allocates a slab slot
+        // for the same frame. Leave the queue alone.
+        match stream.pending_recv.front(&self.buffer) {
+            Some(Event::Data(_)) => {}
+            Some(_) => {
                 // Notify the recv task. This is done just in case
                 // `poll_trailers` was called.
                 //
@@ -1341,8 +1341,17 @@ impl Recv {
                 // state to see if `poll_trailers` was called before `poll_data`
                 // returned `None`.
                 stream.notify_recv();
-
-                // No more data frames
+                return Poll::Ready(None);
+            }
+            None => return self.schedule_recv(cx, stream),
+        }
+        match stream.pending_recv.pop_front(&mut self.buffer) {
+            Some(Event::Data(data)) => Poll::Ready(Some(Ok(data))),
+            // `front` just observed Data. A different value means the queue
+            // changed; put it back rather than dropping a frame.
+            Some(event) => {
+                stream.pending_recv.push_front(&mut self.buffer, event);
+                stream.notify_recv();
                 Poll::Ready(None)
             }
             None => self.schedule_recv(cx, stream),
