@@ -130,8 +130,32 @@ pub(crate) fn recycle_received_response(map: HeaderMap, grpc_proto: bool) {
     RECEIVED_RESPONSE.set(Some((map, grpc_proto)));
 }
 
+/// Return `map` to its slot.
+///
+/// `Cell::set` copies the previous value out before dropping it. After
+/// `take`, that previous value is `None`, so the copy is pure overhead.
+/// The pointer is taken first so the map is not moved into the thread-local
+/// closure. An empty slot is overwritten in place. A slot that still holds
+/// a map drops that map first.
+#[inline(always)]
+#[allow(
+    unsafe_code,
+    reason = "an empty header slot is overwritten in place; a full slot is dropped first"
+)]
 pub(crate) fn recycle(slot: Slot, map: HeaderMap) {
-    slot_map(slot).set(Some(map));
+    let ptr = match slot {
+        Slot::Request => REQUEST_MAP.with(Cell::as_ptr),
+        Slot::Response => RESPONSE_MAP.with(Cell::as_ptr),
+        Slot::Trailers => TRAILER_MAP.with(Cell::as_ptr),
+    };
+    unsafe {
+        if (*ptr).is_none() {
+            std::ptr::write(ptr, Some(map));
+        } else {
+            std::ptr::drop_in_place(ptr);
+            std::ptr::write(ptr, Some(map));
+        }
+    }
 }
 
 /// Replace `dst` with `src`.
