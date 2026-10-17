@@ -35,6 +35,25 @@ pub(crate) fn take(slot: Slot, make: impl FnOnce() -> HeaderMap) -> HeaderMap {
     slot_map(slot).take().unwrap_or_else(make)
 }
 
+/// The slot already holds the stock block.
+///
+/// A replayed frame does not read that map. Callers leave it parked and send
+/// an empty block instead of moving the map into the frame and back.
+#[inline]
+#[allow(
+    unsafe_code,
+    reason = "the header slot is a thread-local cell; the read does not re-enter it"
+)]
+pub(crate) fn is_parked(slot: Slot) -> bool {
+    let ptr = match slot {
+        Slot::Request => REQUEST_MAP.with(Cell::as_ptr),
+        Slot::Response => RESPONSE_MAP.with(Cell::as_ptr),
+        Slot::Trailers => TRAILER_MAP.with(Cell::as_ptr),
+    };
+    // SAFETY: the cell is thread-local and this read does not re-enter it.
+    unsafe { (*ptr).is_some() }
+}
+
 /// `grpc-status: 0` and nothing else.
 pub(crate) fn is_bare_ok_trailer(fields: &HeaderMap) -> bool {
     if fields.len() != 1 {

@@ -142,6 +142,20 @@ fn bare_ok_trailer(fields: &HeaderMap) -> bool {
     name == GRPC_STATUS_NAME && bytes.len() == 1 && bytes[0] == b'0'
 }
 
+/// Stock trailers, including the empty block left when the map stays parked.
+fn trailer_stock(fields: &HeaderMap) -> StandardMap {
+    if bare_ok_trailer(fields)
+        || (fields.is_empty()
+            && crate::h2_backend::header_pool::is_parked(
+                crate::h2_backend::header_pool::Slot::Trailers,
+            ))
+    {
+        StandardMap::Trailers
+    } else {
+        StandardMap::None
+    }
+}
+
 /// Empty receive block, initialized in the heap allocation.
 ///
 /// A stack `Headers` is 288 bytes. `Box::new` copies that temporary into the
@@ -523,11 +537,7 @@ impl Headers {
         flags.set_end_stream();
         // A bare OK trailer is the block we replay. Marking it here skips
         // the field walk at encode time.
-        let stock = if bare_ok_trailer(&fields) {
-            StandardMap::Trailers
-        } else {
-            StandardMap::None
-        };
+        let stock = trailer_stock(&fields);
 
         Headers {
             stream_id,
@@ -550,11 +560,7 @@ impl Headers {
     pub fn trailers_boxed(stream_id: StreamId, fields: HeaderMap) -> Box<Self> {
         let mut flags = HeadersFlag::default();
         flags.set_end_stream();
-        let stock = if bare_ok_trailer(&fields) {
-            StandardMap::Trailers
-        } else {
-            StandardMap::None
-        };
+        let stock = trailer_stock(&fields);
         box_trailer_headers(stream_id, flags, fields, stock)
     }
 
@@ -758,7 +764,7 @@ impl Headers {
     }
 
     pub fn encode(
-        self,
+        mut self,
         encoder: &mut hpack::Encoder,
         dst: &mut EncodeBuf<'_>,
     ) -> Option<Continuation> {
@@ -789,8 +795,15 @@ impl Headers {
                         inner.extend_from_slice(bytes);
                     }
                     bytes::buf::Limit::set_limit(dst, lim - total);
-                    if let Some(slot) = kind.slot() {
-                        crate::h2_backend::header_pool::recycle(slot, self.header_block.fields);
+                    // An empty block was sent because the stock map is already
+                    // parked. Recycling it would replace that map with nothing.
+                    if !self.header_block.fields.is_empty() {
+                        if let Some(slot) = kind.slot() {
+                            crate::h2_backend::header_pool::recycle(
+                                slot,
+                                std::mem::take(&mut self.header_block.fields),
+                            );
+                        }
                     }
                     // Stock responses and trailers own no pseudo strings. Skipping
                     // the drop avoids five `None` checks on every replayed block.
@@ -809,6 +822,14 @@ impl Headers {
             }
         }
 
+        if self.header_block.fields.is_empty() {
+            if let Some(slot) = self.header_block.stock.slot() {
+                if crate::h2_backend::header_pool::is_parked(slot) {
+                    self.header_block.fields =
+                        crate::h2_backend::header_pool::take(slot, HeaderMap::new);
+                }
+            }
+        }
         self.encode_unreplayed(encoder, dst, head)
     }
 
@@ -822,7 +843,7 @@ impl Headers {
         reason = "recycle the map out of a boxed header block without copying the frame"
     )]
     pub(crate) fn encode_box(
-        this: Box<Self>,
+        mut this: Box<Self>,
         encoder: &mut hpack::Encoder,
         dst: &mut EncodeBuf<'_>,
     ) -> Option<Continuation> {
@@ -845,16 +866,21 @@ impl Headers {
                     }
                     bytes::buf::Limit::set_limit(dst, lim - total);
                     let ptr = Box::into_raw(this);
-                    // SAFETY: same leftover fields as `into_parts_box`. The map
-                    // is recycled or dropped. Response and trailer pseudos are
-                    // empty and intentionally not dropped.
+                    // SAFETY: same leftover fields as `into_parts_box`. A parked
+                    // stock map stays in its slot, so an empty frame map is not
+                    // written back. Response and trailer pseudos are empty and
+                    // intentionally not dropped.
                     unsafe {
-                        let fields =
-                            std::ptr::read(std::ptr::addr_of!((*ptr).header_block.fields));
-                        if let Some(slot) = kind.slot() {
+                        let fields_ptr = std::ptr::addr_of_mut!((*ptr).header_block.fields);
+                        if (*fields_ptr).is_empty() {
+                            if (*fields_ptr).capacity() != 0 {
+                                std::ptr::drop_in_place(fields_ptr);
+                            }
+                        } else if let Some(slot) = kind.slot() {
+                            let fields = std::ptr::read(fields_ptr);
                             crate::h2_backend::header_pool::recycle(slot, fields);
                         } else {
-                            drop(fields);
+                            std::ptr::drop_in_place(fields_ptr);
                         }
                         let pseudo =
                             std::ptr::read(std::ptr::addr_of!((*ptr).header_block.pseudo));
@@ -866,6 +892,14 @@ impl Headers {
                         std::alloc::dealloc(ptr.cast(), std::alloc::Layout::new::<Self>());
                     }
                     return None;
+                }
+            }
+        }
+        if this.header_block.fields.is_empty() {
+            if let Some(slot) = this.header_block.stock.slot() {
+                if crate::h2_backend::header_pool::is_parked(slot) {
+                    this.header_block.fields =
+                        crate::h2_backend::header_pool::take(slot, HeaderMap::new);
                 }
             }
         }

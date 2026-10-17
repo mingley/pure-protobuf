@@ -139,6 +139,11 @@ pub(crate) async fn send_frame(
 
 /// `grpc-status: 0` and nothing else, from the trailer pool.
 pub(crate) fn bare_ok_trailer_map() -> HeaderMap {
+    // The parked `grpc-status: 0` map stays in the slot. An empty block is
+    // marked stock at the frame and replayed from the encoder cache.
+    if crate::h2_backend::header_pool::is_parked(crate::h2_backend::header_pool::Slot::Trailers) {
+        return HeaderMap::new();
+    }
     crate::h2_backend::header_pool::take(crate::h2_backend::header_pool::Slot::Trailers, || {
         let mut map = HeaderMap::with_capacity(1);
         map.insert(GRPC_STATUS, STATUS_OK);
@@ -272,13 +277,19 @@ pub(crate) fn send_ok_headers(
     // Default responses repeat the same two headers. Clone that block
     // instead of hashing the names again.
     if md.is_empty() && send_codec.is_none() && accept_gzip {
-        crate::h2_backend::header_pool::replace_map(
-            res.headers_mut(),
-            crate::h2_backend::header_pool::take(
-                crate::h2_backend::header_pool::Slot::Response,
-                || crate::wire::headers::standard_response_headers().clone(),
-            ),
-        );
+        // A parked stock response is replayed from the encoder cache. The
+        // frame does not need its own copy of the map.
+        if !crate::h2_backend::header_pool::is_parked(
+            crate::h2_backend::header_pool::Slot::Response,
+        ) {
+            crate::h2_backend::header_pool::replace_map(
+                res.headers_mut(),
+                crate::h2_backend::header_pool::take(
+                    crate::h2_backend::header_pool::Slot::Response,
+                    || crate::wire::headers::standard_response_headers().clone(),
+                ),
+            );
+        }
         crate::h2_backend::header_pool::mark_next_stock(
             crate::h2_backend::header_pool::STOCK_RESPONSE,
         );

@@ -162,13 +162,19 @@ pub(crate) fn grpc_request(
         && (std::ptr::eq(user_agent.as_bytes(), PBRS_GRPC_UA.as_bytes())
             || user_agent == &PBRS_GRPC_UA)
     {
-        crate::h2_backend::header_pool::replace_map(
-            req.headers_mut(),
-            crate::h2_backend::header_pool::take(
-                crate::h2_backend::header_pool::Slot::Request,
-                || standard_request_headers().clone(),
-            ),
-        );
+        // Once the stock map is parked, replay does not read it. Moving it
+        // into this request and back on encode copies the map twice.
+        if !crate::h2_backend::header_pool::is_parked(
+            crate::h2_backend::header_pool::Slot::Request,
+        ) {
+            crate::h2_backend::header_pool::replace_map(
+                req.headers_mut(),
+                crate::h2_backend::header_pool::take(
+                    crate::h2_backend::header_pool::Slot::Request,
+                    || standard_request_headers().clone(),
+                ),
+            );
+        }
         crate::h2_backend::header_pool::set_pending_stock(
             crate::h2_backend::header_pool::STOCK_REQUEST,
         );
