@@ -713,6 +713,23 @@ impl Headers {
         (self.header_block.pseudo, self.header_block.fields)
     }
 
+    /// Free a boxed block whose map has no allocation and whose pseudos are empty.
+    ///
+    /// `Drop` would still walk those `None`s. The caller has checked the map.
+    #[allow(
+        unsafe_code,
+        reason = "free a header block that owns no heap allocation without walking its destructors"
+    )]
+    pub(crate) fn forget_empty_box(this: Box<Self>) {
+        debug_assert!(this.fields().is_empty() && this.fields().capacity() == 0);
+        let ptr = Box::into_raw(this);
+        // SAFETY: the map has no buffer. Pseudo strings were not installed on
+        // this stock POST, and every other field is `Copy`.
+        unsafe {
+            std::alloc::dealloc(ptr.cast(), std::alloc::Layout::new::<Self>());
+        }
+    }
+
     /// Move the pseudo-headers and the map out of a boxed frame.
     ///
     /// Dereferencing the box copies all 288 bytes onto the stack. The only

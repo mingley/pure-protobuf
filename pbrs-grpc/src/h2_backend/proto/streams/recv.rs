@@ -284,6 +284,31 @@ impl Recv {
             };
         }
 
+        // A cache-hit POST published `:scheme` and left the frame's pseudos
+        // and map empty. Moving those Nones out and dropping them is the
+        // rest of this function.
+        if counts.peer().is_server()
+            && frame.fields().is_empty()
+            && frame.fields().capacity() == 0
+        {
+            if let Some(https) = crate::h2_backend::header_pool::take_stock_https() {
+                let cached_facts = frame.stock_facts();
+                frame::Headers::forget_empty_box(frame);
+                {
+                    let stream = &mut **stream;
+                    stream
+                        .pending_recv
+                        .push_back(&mut self.buffer, Event::StockRequest { https });
+                    stream.notify_recv();
+                }
+                self.accept_facts.push_back(cached_facts.unwrap_or_else(|| {
+                    crate::wire::headers::stock_facts(&HeaderMap::new())
+                }));
+                self.pending_accept.push(stream);
+                return Ok(());
+            }
+        }
+
         let stream_id = frame.stream_id();
         let cached_facts = frame.stock_facts();
         let known_stock = frame.is_known_stock();
