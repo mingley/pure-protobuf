@@ -284,6 +284,19 @@ pub(crate) fn send_ok_headers(
             .send_response(res, false)
             .map_err(|e| Status::internal(e.to_string()));
     }
+    send_ok_headers_slow(respond, res, md, send_codec, accept_gzip)
+}
+
+/// Metadata or a compressed response. Out of line so the stock response
+/// does not reserve this header table.
+#[inline(never)]
+fn send_ok_headers_slow(
+    respond: &mut backend::SendResponse,
+    mut res: http::Response<()>,
+    md: &Metadata,
+    send_codec: Option<CompressionAlgorithm>,
+    accept_gzip: bool,
+) -> Result<backend::SendStream, Status> {
     // Exact sizing: the fixed headers plus response metadata. A minimal
     // table for the common no-metadata call, and never a rehash past it.
     let capacity = 2 + md.len() + usize::from(send_codec.is_some());
