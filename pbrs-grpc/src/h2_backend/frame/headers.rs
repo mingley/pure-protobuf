@@ -673,6 +673,16 @@ impl Headers {
         !matches!(self.header_block.stock, StandardMap::None)
     }
 
+    #[inline]
+    pub(crate) fn is_stock_response(&self) -> bool {
+        self.header_block.stock == StandardMap::Response
+    }
+
+    #[inline]
+    pub(crate) fn is_stock_trailers(&self) -> bool {
+        self.header_block.stock == StandardMap::Trailers
+    }
+
     /// Remember a stock field set. `true` means those names are legal on the
     /// wire, so `Send::check_headers` can skip its walk.
     ///
@@ -711,6 +721,24 @@ impl Headers {
 
     pub fn into_parts(self) -> (Pseudo, HeaderMap) {
         (self.header_block.pseudo, self.header_block.fields)
+    }
+
+    /// Move the map out and free the box without dropping pseudo-headers.
+    ///
+    /// Caller guarantees those strings are absent. `:status` is `Copy`.
+    #[allow(
+        unsafe_code,
+        reason = "move the map out of a boxed header block and free the rest without dropping empty pseudos"
+    )]
+    pub(crate) fn take_fields_box(this: Box<Self>) -> HeaderMap {
+        let ptr = Box::into_raw(this);
+        // SAFETY: `fields` is moved to the caller. Pseudo strings are absent
+        // on this stock response or trailer, and every other field is `Copy`.
+        unsafe {
+            let fields = std::ptr::read(std::ptr::addr_of!((*ptr).header_block.fields));
+            std::alloc::dealloc(ptr.cast(), std::alloc::Layout::new::<Self>());
+            fields
+        }
     }
 
     /// Free a boxed block whose map has no allocation and whose pseudos are empty.
@@ -1899,6 +1927,9 @@ impl HeaderBlock {
                         crate::h2_backend::header_pool::replace_map(&mut self.fields, fields);
                         self.field_size = decoded.field_size;
                         self.stock_facts = decoded.stock_facts;
+                        // Pseudos stay empty. The trailer receive path can
+                        // free the box without walking them.
+                        self.stock = StandardMap::Trailers;
                     }
                     hpack::BlockKind::Request => {
                         // Stock requests publish the real map separately and

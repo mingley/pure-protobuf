@@ -309,6 +309,24 @@ impl Recv {
             }
         }
 
+        // A stock response only stores `:status`, which is `Copy`. The map
+        // is the piece the client keeps.
+        if !counts.peer().is_server()
+            && frame.is_stock_response()
+            && frame.pseudo().status == Some(http::StatusCode::OK)
+        {
+            let fields = frame::Headers::take_fields_box(frame);
+            {
+                let stream = &mut **stream;
+                stream.pending_recv.push_back(
+                    &mut self.buffer,
+                    Event::StockResponse(Box::new(fields)),
+                );
+                stream.notify_recv();
+            }
+            return Ok(());
+        }
+
         let stream_id = frame.stream_id();
         let cached_facts = frame.stock_facts();
         let known_stock = frame.is_known_stock();
@@ -557,7 +575,11 @@ impl Recv {
             return Err(Error::library_reset(stream.id, Reason::PROTOCOL_ERROR));
         }
 
-        let (_, trailers) = frame::Headers::into_parts_box(frame);
+        let trailers = if frame.is_stock_trailers() {
+            frame::Headers::take_fields_box(frame)
+        } else {
+            frame::Headers::into_parts_box(frame).1
+        };
 
         // The queue link and the recv wakeup share one slab lookup.
         {
