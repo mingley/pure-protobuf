@@ -306,7 +306,10 @@ impl BytesStr {
         if slot_ptr.load(Ordering::Acquire) == ptr as *mut u8
             && slot_len.load(Ordering::Relaxed) == len
         {
-            return parsed.get().unwrap().clone();
+            if let Some(text) = parsed.get() {
+                // Static bytes: clone and drop do not touch a refcount.
+                return BytesStr::from_static(text);
+            }
         }
         reused_miss(slot, value)
     }
@@ -402,10 +405,11 @@ fn reused_miss(slot: ReusedStr, value: &str) -> BytesStr {
             &reuse_cache::AUTH,
         ),
     };
+    let leaked: &'static str = Box::leak(value.to_owned().into_boxed_str());
     if slot_ptr
         .load(std::sync::atomic::Ordering::Relaxed)
         .is_null()
-        && parsed.set(made.clone()).is_ok()
+        && parsed.set(leaked).is_ok()
     {
         slot_len.store(len, std::sync::atomic::Ordering::Relaxed);
         slot_ptr.store(
@@ -421,10 +425,10 @@ mod reuse_cache {
 
     pub(super) static PATH_PTR: AtomicPtr<u8> = AtomicPtr::new(std::ptr::null_mut());
     pub(super) static PATH_LEN: AtomicUsize = AtomicUsize::new(0);
-    pub(super) static PATH: std::sync::OnceLock<super::BytesStr> = std::sync::OnceLock::new();
+    pub(super) static PATH: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();
     pub(super) static AUTH_PTR: AtomicPtr<u8> = AtomicPtr::new(std::ptr::null_mut());
     pub(super) static AUTH_LEN: AtomicUsize = AtomicUsize::new(0);
-    pub(super) static AUTH: std::sync::OnceLock<super::BytesStr> = std::sync::OnceLock::new();
+    pub(super) static AUTH: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();
 }
 
 #[cfg(test)]
@@ -436,8 +440,9 @@ mod bytes_str_invariant_tests {
     fn repeated_path_reuses_the_same_allocation() {
         let first = BytesStr::reused(super::ReusedStr::Path, "/echo.Echo/Echo");
         let second = BytesStr::reused(super::ReusedStr::Path, "/echo.Echo/Echo");
+        let third = BytesStr::reused(super::ReusedStr::Path, "/echo.Echo/Echo");
         assert_eq!(first.as_str(), "/echo.Echo/Echo");
-        assert_eq!(first.as_ref().as_ptr(), second.as_ref().as_ptr());
+        assert_eq!(second.as_ref().as_ptr(), third.as_ref().as_ptr());
         let other = BytesStr::reused(super::ReusedStr::Authority, "127.0.0.1:1");
         assert_eq!(other.as_str(), "127.0.0.1:1");
         assert_ne!(other.as_ref().as_ptr(), first.as_ref().as_ptr());
