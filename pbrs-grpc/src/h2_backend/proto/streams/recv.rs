@@ -68,6 +68,16 @@ pub(super) struct Recv {
 pub(super) enum Event {
     /// Boxed so a queued DATA event is not copied at request size.
     Headers(Box<peer::PollMessage>),
+    /// Stock POST. Authority and path are the process cache; only the scheme varies.
+    ///
+    /// Built in `take_request` so the 224-byte request is not queued.
+    StockRequest {
+        https: bool,
+    },
+    /// HTTP 200 with the stock response header block.
+    ///
+    /// The map stays boxed. The response value is built when it is polled.
+    StockResponse(Box<HeaderMap>),
     Data(DataEvent),
     Trailers(Box<HeaderMap>),
     InformationalHeaders(Box<peer::PollMessage>),
@@ -89,6 +99,30 @@ pub(super) enum RecvHeaderBlockError<T> {
 pub(crate) enum Open {
     PushPromise,
     Headers,
+}
+
+/// Queue a received header block without copying a stock message.
+fn queued_header(
+    peer: &peer::Dyn,
+    pseudo: &frame::Pseudo,
+    fields: HeaderMap,
+    stream_id: StreamId,
+) -> Result<Event, Error> {
+    if peer.is_server() {
+        if let Some(https) = crate::h2_backend::server::stock_post_https(pseudo, &fields) {
+            // Empty stock map. `Request::new` already has the same one.
+            std::mem::forget(fields);
+            return Ok(Event::StockRequest { https });
+        }
+        let message = peer.convert_poll_message(pseudo, fields, stream_id)?;
+        return Ok(Event::Headers(Box::new(message)));
+    }
+    let fields = match crate::h2_backend::client::stock_response_map(pseudo, fields) {
+        Ok(fields) => return Ok(Event::StockResponse(Box::new(fields))),
+        Err(fields) => fields,
+    };
+    let message = peer.convert_poll_message(pseudo, fields, stream_id)?;
+    Ok(Event::Headers(Box::new(message)))
 }
 
 impl Recv {
@@ -265,16 +299,12 @@ impl Recv {
             let accept_facts = counts.peer().is_server().then(|| {
                 cached_facts.unwrap_or_else(|| crate::wire::headers::stock_facts(&fields))
             });
-            let message = counts
-                .peer()
-                .convert_poll_message(&pseudo, fields, stream_id)?;
+            let event = queued_header(&counts.peer(), &pseudo, fields, stream_id)?;
 
             // The queue link and the recv wakeup share one slab lookup.
             {
                 let stream = &mut **stream;
-                stream
-                    .pending_recv
-                    .push_back(&mut self.buffer, Event::Headers(Box::new(message)));
+                stream.pending_recv.push_back(&mut self.buffer, event);
                 stream.notify_recv();
             }
 
@@ -322,6 +352,9 @@ impl Recv {
         use super::peer::PollMessage::*;
 
         match stream.pending_recv.pop_front(&mut self.buffer) {
+            Some(Event::StockRequest { https }) => {
+                crate::h2_backend::server::cached_simple_post(https)
+            }
             Some(Event::Headers(message)) => match *message {
                 Server(request) => request,
                 Client(_) => unreachable!("server stream queue must start with Headers"),
@@ -341,6 +374,10 @@ impl Recv {
         let mut ppp = stream.pending_push_promises.take();
         let pushed = ppp.pop(stream.store_mut()).map(|mut pushed| {
             match pushed.pending_recv.pop_front(&mut self.buffer) {
+                Some(Event::StockRequest { https }) => (
+                    crate::h2_backend::server::cached_simple_post(https),
+                    pushed.key(),
+                ),
                 Some(Event::Headers(message)) => match *message {
                     Server(headers) => (headers, pushed.key()),
                     Client(_) => panic!("Headers not set on pushed stream"),
@@ -376,6 +413,11 @@ impl Recv {
         // Skip over any interim informational headers to find the main response
         loop {
             match stream.pending_recv.pop_front(&mut self.buffer) {
+                Some(Event::StockResponse(fields)) => {
+                    return Poll::Ready(Ok(crate::h2_backend::client::response_from_stock(
+                        *fields,
+                    )));
+                }
                 Some(Event::Headers(message)) => match *message {
                     Client(response) => return Poll::Ready(Ok(response)),
                     Server(_) => panic!("poll_response called after response returned"),
@@ -416,6 +458,18 @@ impl Recv {
         // If it's not, we put it back
         if let Some(event) = stream.pending_recv.pop_front(&mut self.buffer) {
             match event {
+                Event::StockResponse(fields) => {
+                    stream
+                        .pending_recv
+                        .push_front(&mut self.buffer, Event::StockResponse(fields));
+                    return Poll::Ready(None);
+                }
+                Event::StockRequest { https } => {
+                    stream
+                        .pending_recv
+                        .push_front(&mut self.buffer, Event::StockRequest { https });
+                    return Poll::Ready(None);
+                }
                 Event::Headers(message) => {
                     let is_final = matches!(message.as_ref(), Client(_));
                     // Final response stays at the front for poll_response.

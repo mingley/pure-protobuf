@@ -1724,6 +1724,87 @@ fn simple_post_request(pseudo: &Pseudo, fields: HeaderMap) -> Result<Request<()>
     Ok(request)
 }
 
+/// `Some(https)` when this is a cache-hit POST with an empty header map.
+///
+/// The request itself is built later, in the accept slot, so the 224-byte
+/// value is not copied into the receive queue.
+pub(crate) fn stock_post_https(pseudo: &Pseudo, fields: &HeaderMap) -> Option<bool> {
+    if fields.capacity() != 0 {
+        return None;
+    }
+    let method = pseudo.method.as_ref()?;
+    if method != Method::POST || pseudo.protocol.is_some() || pseudo.status.is_some() {
+        return None;
+    }
+    let (authority, scheme, path) = (
+        pseudo.authority.as_ref()?,
+        pseudo.scheme.as_ref()?,
+        pseudo.path.as_ref()?,
+    );
+    if path.is_empty() || !authority_cached(authority) || !path_cached(path) {
+        return None;
+    }
+    match scheme.as_str() {
+        "https" => Some(true),
+        "http" => Some(false),
+        _ => None,
+    }
+}
+
+/// POST built from the process-wide authority and path cache.
+pub(crate) fn cached_simple_post(https: bool) -> Request<()> {
+    // `stock_post_https` only returns after both caches are filled.
+    let (Some(authority), Some(path)) = (auth_cache::PARSED.get(), path_cache::PARSED.get())
+    else {
+        return Request::new(());
+    };
+    let scheme = if https {
+        http::uri::Scheme::HTTPS
+    } else {
+        http::uri::Scheme::HTTP
+    };
+    let mut parts = http::uri::Parts::default();
+    parts.scheme = Some(scheme);
+    parts.authority = Some(authority.clone());
+    parts.path_and_query = Some(path.clone());
+    let Ok(uri) = http::uri::Uri::from_parts(parts) else {
+        return Request::new(());
+    };
+    let mut request = Request::new(());
+    *request.method_mut() = Method::POST;
+    std::mem::forget(std::mem::replace(request.uri_mut(), uri));
+    *request.version_mut() = http::Version::HTTP_2;
+    request
+}
+
+fn authority_cached(raw: &BytesStr) -> bool {
+    use std::sync::atomic::Ordering;
+    auth_cache::PTR.load(Ordering::Acquire) == raw.as_ref().as_ptr() as *mut u8
+        && auth_cache::LEN.load(Ordering::Relaxed) == raw.len()
+        && auth_cache::PARSED.get().is_some()
+}
+
+fn path_cached(raw: &BytesStr) -> bool {
+    use std::sync::atomic::Ordering;
+    let bytes = raw.as_ref();
+    let len = bytes.len();
+    if path_cache::LEN.load(Ordering::Relaxed) != len || len == 0 {
+        return false;
+    }
+    let Some(parsed) = path_cache::PARSED.get() else {
+        return false;
+    };
+    let ptr = bytes.as_ptr() as *mut u8;
+    if path_cache::PTR.load(Ordering::Acquire) == ptr {
+        return true;
+    }
+    if parsed.as_str().as_bytes() == bytes {
+        path_cache::PTR.store(ptr, Ordering::Release);
+        return true;
+    }
+    false
+}
+
 fn cached_authority(raw: &BytesStr) -> Result<http::uri::Authority, http::uri::InvalidUri> {
     use std::sync::atomic::Ordering;
     let ptr = raw.as_ref().as_ptr();

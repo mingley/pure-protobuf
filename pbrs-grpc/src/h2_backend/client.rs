@@ -1831,6 +1831,31 @@ impl Peer {
     }
 }
 
+/// `Ok` when the block is HTTP 200 and the stock response map.
+///
+/// The miss returns the same map so the general builder can use it.
+pub(crate) fn stock_response_map(
+    pseudo: &Pseudo,
+    fields: HeaderMap,
+) -> Result<HeaderMap, HeaderMap> {
+    if pseudo.status == Some(http::StatusCode::OK)
+        && crate::h2_backend::header_pool::is_stock_response(&fields).is_some()
+    {
+        Ok(fields)
+    } else {
+        Err(fields)
+    }
+}
+
+/// Response built around a stock header map that was queued by itself.
+pub(crate) fn response_from_stock(fields: HeaderMap) -> Response<()> {
+    let mut response = Response::new(());
+    *response.version_mut() = Version::HTTP_2;
+    *response.status_mut() = http::StatusCode::OK;
+    crate::h2_backend::header_pool::replace_map(response.headers_mut(), fields);
+    response
+}
+
 impl proto::Peer for Peer {
     type Poll = Response<()>;
 
