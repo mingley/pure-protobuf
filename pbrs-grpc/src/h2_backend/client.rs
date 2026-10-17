@@ -652,7 +652,7 @@ impl<B: Buf> Future for SendRequestWhenReady<'_, B> {
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.get_mut();
-        let (stream, _is_full) = ready!(this.sender.inner.poll_send_request(
+        let (stream, response, _is_full) = ready!(this.sender.inner.poll_send_request(
             &mut this.request,
             this.end_of_stream,
             cx,
@@ -663,7 +663,7 @@ impl<B: Buf> Future for SendRequestWhenReady<'_, B> {
         this.waiter = None;
         Poll::Ready(Ok((
             ResponseFuture {
-                inner: std::mem::ManuallyDrop::new(stream.clone_to_opaque()),
+                inner: std::mem::ManuallyDrop::new(response),
                 push_promise_consumed: false,
                 taken: false,
             },

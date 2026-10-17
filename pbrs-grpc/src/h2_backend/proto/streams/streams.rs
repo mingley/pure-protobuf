@@ -427,7 +427,7 @@ where
         end_of_stream: bool,
         cx: &Context<'_>,
         waiter: &mut Option<std::sync::Arc<atomic_waker::AtomicWaker>>,
-    ) -> Poll<Result<(StreamRef<B>, bool), crate::h2_backend::Error>> {
+    ) -> Poll<Result<(StreamRef<B>, OpaqueStreamRef, bool), crate::h2_backend::Error>> {
         use super::stream::ContentLength;
         use http::Method;
 
@@ -503,16 +503,18 @@ where
         // closed state.
         debug_assert!(!stream.state.is_closed());
 
-        // TODO: ideally, OpaqueStreamRefs::new would do this, but we're holding
-        // the lock, so it can't.
-        me.refs += 1;
+        // The response future and the send stream each own a handle. Building
+        // both here avoids a second lock and slab lookup in `clone_to_opaque`.
+        me.refs += 2;
 
         let is_full = me.counts.next_send_stream_will_reach_capacity();
+        let response = OpaqueStreamRef::new(self.inner.clone(), &mut stream);
         Poll::Ready(Ok((
             StreamRef {
                 opaque: OpaqueStreamRef::new(self.inner.clone(), &mut stream),
                 send_buffer: self.send_buffer.clone(),
             },
+            response,
             is_full,
         )))
     }
