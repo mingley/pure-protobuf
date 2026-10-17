@@ -34,6 +34,14 @@ impl super::Channel {
         if !self.config.health_checking_enabled() {
             return None;
         }
+        self.health_directive_enabled()
+    }
+
+    /// Health checking is enabled. The document read and service-name copy
+    /// stay out of the disabled path, which is one config-byte check.
+    #[cold]
+    #[inline(never)]
+    fn health_directive_enabled(&self) -> Option<HealthDirective> {
         let state = self.service_config.get()?;
         if !state.config.health_check_config() {
             return None;
@@ -99,6 +107,20 @@ impl super::Channel {
         state: Option<&crate::service_config::ServiceConfigState>,
     ) -> Wire {
         let mut wire = self.config.wire();
+        // No document: the channel wire is already final. Method tightening
+        // builds a path split and a config walk that this call never uses.
+        if state.is_some() {
+            Self::tighten_wire_for_method(&mut wire, path, state);
+        }
+        wire
+    }
+
+    #[inline(never)]
+    fn tighten_wire_for_method(
+        wire: &mut Wire,
+        path: &str,
+        state: Option<&crate::service_config::ServiceConfigState>,
+    ) {
         if let Some(method) = Self::method_entry(state, path) {
             if let Some(max) = method.max_request_message_bytes {
                 let tight = wire.limits.max_encoding().map_or(max, |base| base.min(max));
@@ -109,6 +131,5 @@ impl super::Channel {
                 wire.limits = wire.limits.with_max_decoding(tight);
             }
         }
-        wire
     }
 }

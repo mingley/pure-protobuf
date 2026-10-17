@@ -607,6 +607,21 @@ impl super::Channel {
         req: &mut Request<T>,
         state: Option<&crate::service_config::ServiceConfigState>,
     ) -> Result<(), Status> {
+        // No document: there is no method entry. The lookup is its own call
+        // and a large frame; the channel defaults do not need either.
+        if state.is_some() {
+            return self.prepare_outbound_with_method(path, req, state);
+        }
+        self.finish_outbound_defaults(path, req)
+    }
+
+    #[inline(never)]
+    fn prepare_outbound_with_method<T>(
+        &self,
+        path: &'static str,
+        req: &mut Request<T>,
+        state: Option<&crate::service_config::ServiceConfigState>,
+    ) -> Result<(), Status> {
         if let Some(method) = super::Channel::method_entry(state, path) {
             if req.timeout().is_none() {
                 if let Some(timeout) = method.timeout {
@@ -617,6 +632,15 @@ impl super::Channel {
                 req.set_wait_for_ready(true);
             }
         }
+        self.finish_outbound_defaults(path, req)
+    }
+
+    #[inline(always)]
+    fn finish_outbound_defaults<T>(
+        &self,
+        path: &'static str,
+        req: &mut Request<T>,
+    ) -> Result<(), Status> {
         if req.timeout().is_none() {
             if let Some(timeout) = self.config.rpc_timeout() {
                 req.set_timeout(timeout);
