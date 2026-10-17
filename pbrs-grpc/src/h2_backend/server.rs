@@ -440,10 +440,11 @@ where
 
         if let Some(inner) = self.connection.next_incoming() {
             tracing::trace!("received incoming");
-            let (head, _) = inner.take_request().into_parts();
-            let body = RecvStream::new(FlowControl::new(inner.clone_to_opaque()));
-
-            let request = Request::from_parts(head, body);
+            // `map` moves the head once. `into_parts` then `from_parts`
+            // copied that head through two temporaries.
+            let request = inner.take_request().map(|()| {
+                RecvStream::new(FlowControl::new(inner.clone_to_opaque()))
+            });
             let respond = SendResponse { inner: Some(inner) };
 
             return Poll::Ready(Some(Ok((request, respond))));
