@@ -14,6 +14,8 @@ pub(crate) struct Settings {
     /// Whether the connection has received the initial SETTINGS frame from the
     /// remote peer.
     has_received_remote_initial_settings: bool,
+    /// Nothing is waiting to be written. `poll_ready` skips the settings send.
+    send_idle: bool,
 }
 
 #[derive(Debug)]
@@ -35,7 +37,18 @@ impl Settings {
             local: Local::WaitingAck(local),
             remote: None,
             has_received_remote_initial_settings: false,
+            // Waiting for the handshake ACK, with nothing queued to write.
+            send_idle: true,
         }
+    }
+
+    #[inline]
+    pub(crate) fn is_send_idle(&self) -> bool {
+        self.send_idle
+    }
+
+    fn note_settings_change(&mut self) {
+        self.send_idle = self.remote.is_none() && !matches!(self.local, Local::ToSend(_));
     }
 
     pub(crate) fn recv_settings<T, B, C, P>(
@@ -69,6 +82,7 @@ impl Settings {
 
                     streams.apply_local_settings(local)?;
                     self.local = Local::Synced;
+                    self.note_settings_change();
                     Ok(())
                 }
                 Local::ToSend(..) | Local::Synced => {
@@ -83,6 +97,7 @@ impl Settings {
             // always be none!
             assert!(self.remote.is_none());
             self.remote = Some(frame);
+            self.note_settings_change();
             Ok(())
         }
     }
@@ -94,6 +109,7 @@ impl Settings {
             Local::Synced => {
                 tracing::trace!("queue to send local settings: {:?}", frame);
                 self.local = Local::ToSend(frame);
+                self.note_settings_change();
                 Ok(())
             }
         }
@@ -128,7 +144,7 @@ impl Settings {
     {
         // After the handshake, remote ACK state is clear and local settings
         // are synced. Nothing to write.
-        if self.remote.is_none() && !matches!(self.local, Local::ToSend(_)) {
+        if self.send_idle {
             return Poll::Ready(Ok(()));
         }
         if let Some(settings) = self.remote.clone() {
@@ -174,6 +190,7 @@ impl Settings {
             Local::WaitingAck(..) | Local::Synced => {}
         }
 
+        self.note_settings_change();
         Poll::Ready(Ok(()))
     }
 }
