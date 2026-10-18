@@ -330,8 +330,25 @@ impl Decoder {
     /// The caller writes the fields into the frame. Returning the saved
     /// headers by value copied the request pseudos into a temporary first.
     pub(crate) fn lookup_saved(&self, raw: &[u8]) -> Option<(BlockKind, &SavedHeaders)> {
-        let block = self.saved.iter().find(|block| block.raw == raw)?;
-        Some((block.kind, &block.decoded))
+        // At most three saved blocks. An iterator for that walk costs more
+        // than comparing them directly.
+        let saved = self.saved.as_slice();
+        if let Some(block) = saved.first() {
+            if block.raw == raw {
+                return Some((block.kind, &block.decoded));
+            }
+        }
+        if let Some(block) = saved.get(1) {
+            if block.raw == raw {
+                return Some((block.kind, &block.decoded));
+            }
+        }
+        if let Some(block) = saved.get(2) {
+            if block.raw == raw {
+                return Some((block.kind, &block.decoded));
+            }
+        }
+        None
     }
 
     /// Remember `decoded` for a later identical `raw` block.
