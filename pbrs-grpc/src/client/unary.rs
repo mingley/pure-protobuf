@@ -25,7 +25,6 @@ use crate::wire::{SegFrame, encode_msg, finish_unary};
 use http::HeaderValue;
 use http::uri::Authority;
 use std::time::Duration;
-use tokio::sync::watch;
 
 // A configured retryable status cannot authorize replay after response
 // headers committed the call. Retain that state through the attempt error.
@@ -56,7 +55,7 @@ pub(crate) async fn run_unary<Resp>(
     deadline: Option<tokio::time::Instant>,
     compress: bool,
     frame: SegFrame,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     user_agent: HeaderValue,
     https: bool,
@@ -88,7 +87,7 @@ async fn run_unary_frame<Resp>(
     deadline: Option<tokio::time::Instant>,
     compress: bool,
     frame: SegFrame,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     user_agent: HeaderValue,
     https: bool,
@@ -138,7 +137,7 @@ async fn run_unary_inner<Resp>(
     deadline: Option<tokio::time::Instant>,
     compress: bool,
     frame: SegFrame,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     user_agent: HeaderValue,
     https: bool,
@@ -304,7 +303,8 @@ impl super::Channel {
     {
         let state = self.local.service_config.get();
         let prepared = self.prepare_outbound(path, &mut req, state.as_deref());
-        let (cancel, cancel_rx) = watch::channel(false);
+        let cancel = crate::rpc_cancel::RpcCancel::new();
+        let cancel_rx = cancel.clone();
         let channel = self.clone();
         let wire = self.wire_for(path, state.as_deref());
         let observer = self.local.observer.clone();
@@ -446,7 +446,7 @@ impl super::Channel {
                             live
                         }
                         Err(status) => {
-                            if *cancel_rx.borrow() {
+                            if cancel_rx.is_cancelled() {
                                 cancel_attempt(
                                     &mut attempt_guard,
                                     CancellationReason::CallerCancelled,
@@ -611,7 +611,7 @@ impl super::Channel {
                                 ),
                             }
                             if let Err(status) = &result {
-                                let cancelled = *cancel_rx.borrow();
+                                let cancelled = cancel_rx.is_cancelled();
                                 let per_attempt_timeout = status.code() == Code::DeadlineExceeded
                                     && retry_policy.as_ref().is_some_and(|policy| {
                                         policy.per_attempt_recv_timeout.is_some()
@@ -653,7 +653,7 @@ impl super::Channel {
                                         )
                                         .await;
                                         if let Err(sleep_status) = slept {
-                                            if *cancel_rx.borrow() {
+                                            if cancel_rx.is_cancelled() {
                                                 call_guard
                                                     .cancel(CancellationReason::CallerCancelled);
                                             } else {
@@ -714,7 +714,7 @@ impl super::Channel {
                                     call_guard.finish(&Status::ok());
                                 }
                                 Err(status) => {
-                                    if *cancel_rx.borrow() {
+                                    if cancel_rx.is_cancelled() {
                                         cancel_attempt(
                                             &mut attempt_guard,
                                             CancellationReason::CallerCancelled,

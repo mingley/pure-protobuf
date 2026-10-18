@@ -14,7 +14,7 @@ use http::HeaderValue;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
-use tokio::sync::{OwnedSemaphorePermit, mpsc, watch};
+use tokio::sync::{OwnedSemaphorePermit, mpsc};
 
 /// Retry statistics for one [`Channel`](super::Channel), A45-style.
 ///
@@ -326,7 +326,7 @@ pub(crate) struct HedgeUnary {
     pub(crate) wait: bool,
     pub(crate) compress: bool,
     pub(crate) frame: crate::wire::SegFrame,
-    pub(crate) cancel_rx: watch::Receiver<bool>,
+    pub(crate) cancel_rx: crate::rpc_cancel::RpcCancel,
     pub(crate) wire: Wire,
     pub(crate) ua: HeaderValue,
     pub(crate) https: bool,
@@ -519,9 +519,8 @@ async fn sleep_until_or_pending(at: Option<tokio::time::Instant>) {
 }
 
 /// Complete when the call's cancel flag is set.
-async fn cancel_fired(cancel_rx: watch::Receiver<bool>) {
-    let mut cancel_rx = cancel_rx;
-    drop(cancel_rx.wait_for(|flag| *flag).await);
+async fn cancel_fired(cancel_rx: crate::rpc_cancel::RpcCancel) {
+    cancel_rx.wait().await;
 }
 
 impl super::Channel {

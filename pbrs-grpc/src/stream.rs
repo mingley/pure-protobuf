@@ -120,7 +120,7 @@ pub struct Streaming<T> {
     /// Client cancel sender. Dropping a received stream before the end
     /// resets the RPC, including bidi while the send half is still held.
     /// `None` on application channels and server-inbound streams.
-    reset: Option<watch::Sender<bool>>,
+    reset: Option<crate::rpc_cancel::RpcCancel>,
     /// Ends a bidi request pump when its response ends or is dropped. Separate
     /// from caller cancellation so clean EOF leaves CallHandle state intact.
     outbound_completion: Option<tokio::sync::oneshot::Sender<()>>,
@@ -252,7 +252,7 @@ impl<T> Streaming<T> {
         mut self,
         lease: Option<crate::keepalive::Lease>,
         driver: Option<watch::Sender<bool>>,
-        reset: Option<watch::Sender<bool>>,
+        reset: Option<crate::rpc_cancel::RpcCancel>,
     ) -> Self {
         self.lease = lease;
         self.driver = driver;
@@ -519,7 +519,7 @@ impl<T> Drop for Streaming<T> {
     fn drop(&mut self) {
         if let Some(reset) = self.reset.take() {
             if !self.finished() {
-                reset.send(true).ok();
+                reset.signal();
             }
         }
         let clean = self.channelz.as_ref().is_some_and(|state| state.clean_end);

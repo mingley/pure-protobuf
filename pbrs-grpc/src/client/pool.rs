@@ -3180,26 +3180,29 @@ impl HealthWatch {
             return WatchEnd::Stopped;
         }
         let md = Metadata::new();
-        let response = run_server_stream::<HealthCheckResponse>(
-            self.send.clone(),
-            &self.authority,
-            "/grpc.health.v1.Health/Watch",
-            &md,
-            None,
-            None,
-            false,
-            self.frame.clone(),
-            self.stop.clone(),
-            self.wire,
-            crate::wire::PBRS_GRPC_UA,
-            self.https,
-            BytePermit::empty(),
-            None,
-            // Channelz: LB-internal maintenance stream, not attributed to
-            // the socket's data counters.
-            None,
-        )
-        .await;
+        // Channelz: LB-internal maintenance stream, not attributed to the
+        // socket's data counters. `stop` aborts the watch without sharing
+        // the per-RPC cancel flag.
+        let response = tokio::select! {
+            response = run_server_stream::<HealthCheckResponse>(
+                self.send.clone(),
+                &self.authority,
+                "/grpc.health.v1.Health/Watch",
+                &md,
+                None,
+                None,
+                false,
+                self.frame.clone(),
+                crate::rpc_cancel::RpcCancel::new(),
+                self.wire,
+                crate::wire::PBRS_GRPC_UA,
+                self.https,
+                BytePermit::empty(),
+                None,
+                None,
+            ) => response,
+            _ = self.stop.changed() => return WatchEnd::Stopped,
+        };
         let response = match response {
             Ok(response) => response,
             Err(status) if disables_health_check(&status) => return WatchEnd::Disabled,
@@ -3303,26 +3306,29 @@ impl OobWatch {
             return OobEnd::Stopped;
         }
         let md = Metadata::new();
-        let response = run_server_stream::<OrcaLoadReport>(
-            self.send.clone(),
-            &self.authority,
-            "/xds.service.orca.v3.OpenRcaService/StreamCoreMetrics",
-            &md,
-            None,
-            None,
-            false,
-            self.frame.clone(),
-            self.stop.clone(),
-            self.wire,
-            crate::wire::PBRS_GRPC_UA,
-            self.https,
-            BytePermit::empty(),
-            None,
-            // Channelz: LB-internal maintenance stream, not attributed to
-            // the socket's data counters.
-            None,
-        )
-        .await;
+        // Channelz: LB-internal maintenance stream, not attributed to the
+        // socket's data counters. `stop` aborts the stream without sharing
+        // the per-RPC cancel flag.
+        let response = tokio::select! {
+            response = run_server_stream::<OrcaLoadReport>(
+                self.send.clone(),
+                &self.authority,
+                "/xds.service.orca.v3.OpenRcaService/StreamCoreMetrics",
+                &md,
+                None,
+                None,
+                false,
+                self.frame.clone(),
+                crate::rpc_cancel::RpcCancel::new(),
+                self.wire,
+                crate::wire::PBRS_GRPC_UA,
+                self.https,
+                BytePermit::empty(),
+                None,
+                None,
+            ) => response,
+            _ = self.stop.changed() => return OobEnd::Stopped,
+        };
         let response = match response {
             Ok(response) => response,
             Err(status) if status.code() == Code::Unimplemented => return OobEnd::Disabled,
@@ -3618,7 +3624,7 @@ pub(crate) fn attach_conn<T>(
     response: crate::request::Response<Streaming<T>>,
     lease: Option<crate::keepalive::Lease>,
     driver: Option<watch::Sender<bool>>,
-    reset: Option<watch::Sender<bool>>,
+    reset: Option<crate::rpc_cancel::RpcCancel>,
     rpc_slot: Option<OwnedSemaphorePermit>,
     channelz_socket: Option<crate::channelz::SocketId>,
 ) -> crate::request::Response<Streaming<T>> {

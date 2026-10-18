@@ -331,6 +331,7 @@ mod metadata;
 mod proxy;
 #[forbid(unsafe_code)]
 mod request;
+mod rpc_cancel;
 #[forbid(unsafe_code)]
 pub mod resolver;
 // `rt::per_core` pins threads with one Linux affinity syscall; the rest of

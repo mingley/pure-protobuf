@@ -355,7 +355,7 @@ pub(crate) enum PumpEnd {
 pub(crate) async fn pump_outbound<T: CodecMessage>(
     send: &mut backend::SendStream,
     mut rx: Streaming<T>,
-    mut cancel_rx: tokio::sync::watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
 ) -> PumpEnd {
     let mut batch = OutBatch::new(wire);
@@ -365,7 +365,8 @@ pub(crate) async fn pump_outbound<T: CodecMessage>(
         items.clear();
         let taken = tokio::select! {
             cancelled = async {
-                cancel_rx.wait_for(|v| *v).await.is_ok()
+                cancel_rx.wait().await;
+                cancel_rx.is_cancelled()
             }, if watch_cancel => {
                 if cancelled {
                     send.send_reset(Reason::CANCEL);
@@ -429,7 +430,7 @@ pub(crate) async fn pump_outbound<T: CodecMessage>(
 /// or is dropped, and that must not RST. Cancel and the deadline still do.
 pub(crate) fn hold_half_closed_send(
     mut send: backend::SendStream,
-    mut cancel_rx: tokio::sync::watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     deadline: Option<tokio::time::Instant>,
     mut finished: tokio::sync::oneshot::Receiver<()>,
 ) {
@@ -443,8 +444,8 @@ pub(crate) fn hold_half_closed_send(
         tokio::select! {
             biased;
             _ = &mut finished => {}
-            result = cancel_rx.wait_for(|v| *v) => {
-                if result.is_ok() {
+            _ = cancel_rx.wait() => {
+                if cancel_rx.is_cancelled() {
                     send.send_reset(Reason::CANCEL);
                 }
             }
@@ -455,11 +456,14 @@ pub(crate) fn hold_half_closed_send(
 
 pub(crate) fn reset_on_cancel(
     mut send: backend::SendStream,
-    mut cancel_rx: tokio::sync::watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     deadline: Option<tokio::time::Instant>,
 ) {
-    // One process-wide parker, not a task per RPC. The watch still resets the
-    // send half if the caller is not currently reading.
+    // One process-wide parker, not a task per RPC. The flag still resets the
+    // send half if the caller is not currently reading. This task only
+    // waits; it must not keep the sender alive.
+    let mut wait = cancel_rx.wait();
+    drop(cancel_rx);
     park_cancel(async move {
         let until_deadline = async {
             match deadline {
@@ -469,8 +473,8 @@ pub(crate) fn reset_on_cancel(
         };
         tokio::select! {
             biased;
-            result = cancel_rx.wait_for(|v| *v) => {
-                if result.is_ok() {
+            _ = &mut wait => {
+                if wait.is_cancelled() {
                     send.send_reset(Reason::CANCEL);
                 }
             }

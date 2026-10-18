@@ -30,7 +30,6 @@ use http::uri::Authority;
 use std::future::Future;
 use std::pin::Pin;
 use std::time::Duration;
-use tokio::sync::watch;
 
 #[allow(
     clippy::too_many_arguments,
@@ -45,7 +44,7 @@ pub(crate) async fn run_server_stream<Resp>(
     deadline: Option<tokio::time::Instant>,
     compress: bool,
     frame: SegFrame,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     user_agent: HeaderValue,
     https: bool,
@@ -77,7 +76,7 @@ async fn run_server_stream_frame<Resp>(
     deadline: Option<tokio::time::Instant>,
     compress: bool,
     frame: SegFrame,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     user_agent: HeaderValue,
     https: bool,
@@ -129,7 +128,7 @@ async fn run_server_stream_inner<Resp>(
     deadline: Option<tokio::time::Instant>,
     compress: bool,
     frame: SegFrame,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     user_agent: HeaderValue,
     https: bool,
@@ -271,7 +270,7 @@ async fn run_client_stream<Req, Resp>(
     resp_fut: backend::ResponseFuture,
     send_stream: backend::SendStream,
     rx: Streaming<Req>,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     deadline: Option<tokio::time::Instant>,
     budget: ByteBudgetTracker,
@@ -312,13 +311,13 @@ where
                 }
             };
             tokio::pin!(until_deadline);
-            let mut cancelled = cancel_rx;
+            let cancelled = cancel_rx;
             let mut half_closed = false;
             loop {
                 tokio::select! {
                     biased;
                     () = &mut until_deadline => break Err(Status::deadline_exceeded()),
-                    _ = cancelled.wait_for(|v| *v) => break Err(Status::cancelled()),
+                    _ = cancelled.wait() => break Err(Status::cancelled()),
                     end = &mut pump, if !half_closed => {
                         match end {
                             PumpEnd::Failed(status) => {
@@ -359,7 +358,7 @@ where
 async fn pump_outbound_budget<T: CodecMessage>(
     send: &mut backend::SendStream,
     mut rx: Streaming<T>,
-    mut cancel_rx: tokio::sync::watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     budget: &ByteBudgetTracker,
     tap: Option<CallLogger>,
@@ -379,7 +378,8 @@ async fn pump_outbound_budget<T: CodecMessage>(
         items.clear();
         let taken = tokio::select! {
             cancelled = async {
-                cancel_rx.wait_for(|v| *v).await.is_ok()
+                cancel_rx.wait().await;
+                cancel_rx.is_cancelled()
             }, if watch_cancel => {
                 if cancelled {
                     send.send_reset(Reason::CANCEL);
@@ -484,7 +484,7 @@ async fn run_bidi_flushed<Req, Resp>(
     resp_fut: backend::ResponseFuture,
     send_stream: backend::SendStream,
     rx: Streaming<Req>,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     tap: Option<CallLogger>,
     deadline: Option<tokio::time::Instant>,
@@ -530,7 +530,7 @@ where
             }
         };
         tokio::pin!(until_deadline);
-        let mut cancelled = cancel_rx;
+        let cancelled = cancel_rx;
         let mut pump_done = false;
         let mut headers: Option<Result<Response<Streaming<Resp>>, Status>> = None;
         loop {
@@ -540,7 +540,7 @@ where
                     reset_after = true;
                     break None;
                 }
-                _ = cancelled.wait_for(|v| *v) => {
+                _ = cancelled.wait() => {
                     reset_after = true;
                     cancelled_call = true;
                     break None;
@@ -706,13 +706,13 @@ fn write_closed_upload<T: CodecMessage>(
 async fn await_closed_client_response<Resp: CodecMessage>(
     resp_fut: backend::ResponseFuture,
     send_stream: backend::SendStream,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     tap: Option<&CallLogger>,
     socket: Option<crate::channelz::SocketId>,
 ) -> Result<Response<Resp>, Status> {
     let mut send = ResetSend::new(send_stream);
-    let mut cancelled = cancel_rx;
+    let cancelled = cancel_rx;
     let fut = async {
         let response = resp_fut.await.map_err(Status::from_h2_post_dispatch)?;
         finish_unary::<Resp>(response, wire.limits, wire.accept_gzip, tap).await
@@ -720,7 +720,7 @@ async fn await_closed_client_response<Resp: CodecMessage>(
     tokio::pin!(fut);
     let result = tokio::select! {
         biased;
-        _ = cancelled.wait_for(|v| *v) => {
+        _ = cancelled.wait() => {
             send.stream_mut().send_reset(Reason::CANCEL);
             Err(Status::cancelled())
         }
@@ -742,14 +742,14 @@ async fn send_client_rest<Resp: CodecMessage>(
     resp_fut: backend::ResponseFuture,
     send_stream: backend::SendStream,
     mut rest: Vec<Bytes>,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     tap: Option<CallLogger>,
     socket: Option<crate::channelz::SocketId>,
 ) -> Result<Response<Resp>, Status> {
     let mut send = ResetSend::new(send_stream);
     let send_buffer = wire.send_buffer;
-    let mut cancelled = cancel_rx;
+    let cancelled = cancel_rx;
     let (send_failed, reset_after, headers) = {
         let send_fut = async {
             while !rest.is_empty() {
@@ -777,7 +777,7 @@ async fn send_client_rest<Resp: CodecMessage>(
         loop {
             tokio::select! {
                 biased;
-                _ = cancelled.wait_for(|v| *v) => {
+                _ = cancelled.wait() => {
                     reset_after = true;
                     break;
                 }
@@ -841,23 +841,23 @@ fn note_client_stream_end<T>(
 struct ReadyHttp {
     received: Result<http::Response<backend::RecvStream>, Status>,
     send: ResetSend,
-    later_cancel: watch::Receiver<bool>,
+    later_cancel: crate::rpc_cancel::RpcCancel,
 }
 
 async fn wait_ready_bidi_http(
     resp_fut: backend::ResponseFuture,
     send_stream: backend::SendStream,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     tap: Option<CallLogger>,
 ) -> ReadyHttp {
     let mut send = ResetSend::new(send_stream);
     let later_cancel = cancel_rx.clone();
-    let mut cancelled = cancel_rx;
+    let cancelled = cancel_rx;
     let response_fut = async { resp_fut.await.map_err(Status::from_h2_post_dispatch) };
     tokio::pin!(response_fut);
     let received = tokio::select! {
         biased;
-        _ = cancelled.wait_for(|v| *v) => {
+        _ = cancelled.wait() => {
             send.stream_mut().send_reset(Reason::CANCEL);
             Err(Status::cancelled())
         }
@@ -931,7 +931,7 @@ type BidiFut<Resp> =
 fn box_bidi_deadline<Resp>(
     resp_fut: backend::ResponseFuture,
     send_stream: backend::SendStream,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     tap: Option<CallLogger>,
     deadline: Option<tokio::time::Instant>,
@@ -957,7 +957,7 @@ fn box_bidi_rest<Resp>(
     resp_fut: backend::ResponseFuture,
     send_stream: backend::SendStream,
     rest: Vec<Bytes>,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     tap: Option<CallLogger>,
     deadline: Option<tokio::time::Instant>,
@@ -984,7 +984,7 @@ fn box_bidi_flushed<Req, Resp>(
     resp_fut: backend::ResponseFuture,
     send_stream: backend::SendStream,
     rx: Streaming<Req>,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     tap: Option<CallLogger>,
     deadline: Option<tokio::time::Instant>,
@@ -1014,7 +1014,7 @@ fn box_bidi_live<Req, Resp>(
     resp_fut: backend::ResponseFuture,
     send_stream: backend::SendStream,
     rx: Streaming<Req>,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     tap: Option<CallLogger>,
     deadline: Option<tokio::time::Instant>,
@@ -1046,7 +1046,7 @@ where
 async fn await_flushed_bidi_headers<Resp>(
     resp_fut: backend::ResponseFuture,
     send_stream: backend::SendStream,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     tap: Option<CallLogger>,
     deadline: Option<tokio::time::Instant>,
@@ -1057,7 +1057,7 @@ where
 {
     let mut send = ResetSend::new(send_stream);
     let later_cancel = cancel_rx.clone();
-    let mut cancelled = cancel_rx;
+    let cancelled = cancel_rx;
     let response_fut = async {
         let response = resp_fut.await.map_err(Status::from_h2_post_dispatch)?;
         finish_stream::<Resp>(
@@ -1082,7 +1082,7 @@ where
             send.stream_mut().send_reset(Reason::CANCEL);
             Err(Status::deadline_exceeded())
         }
-        _ = cancelled.wait_for(|v| *v) => {
+        _ = cancelled.wait() => {
             send.stream_mut().send_reset(Reason::CANCEL);
             Err(Status::cancelled())
         }
@@ -1133,7 +1133,7 @@ async fn send_rest_and_await_bidi_headers<Resp>(
     resp_fut: backend::ResponseFuture,
     send_stream: backend::SendStream,
     rest: Vec<Bytes>,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     tap: Option<CallLogger>,
     deadline: Option<tokio::time::Instant>,
@@ -1179,7 +1179,7 @@ where
             }
         };
         tokio::pin!(until_deadline);
-        let mut cancelled = cancel_rx;
+        let cancelled = cancel_rx;
         let mut send_done = false;
         let mut headers: Option<Result<Response<Streaming<Resp>>, Status>> = None;
         let mut reset_after = false;
@@ -1192,7 +1192,7 @@ where
                     reset_after = true;
                     break;
                 }
-                _ = cancelled.wait_for(|v| *v) => {
+                _ = cancelled.wait() => {
                     reset_after = true;
                     cancelled_call = true;
                     break;
@@ -1276,7 +1276,7 @@ async fn run_bidi<Req, Resp>(
     resp_fut: backend::ResponseFuture,
     mut send_stream: backend::SendStream,
     mut rx: Streaming<Req>,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     tap: Option<CallLogger>,
     deadline: Option<tokio::time::Instant>,
@@ -1360,7 +1360,7 @@ async fn run_bidi_live<Req, Resp>(
     resp_fut: backend::ResponseFuture,
     send_stream: backend::SendStream,
     rx: Streaming<Req>,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     tap: Option<CallLogger>,
     deadline: Option<tokio::time::Instant>,
@@ -1383,7 +1383,7 @@ where
     #[cfg(feature = "copy-counts")]
     crate::copy_counts::note_spawn(crate::copy_counts::SpawnSite::ClientBidiUpload);
     drop(tokio::spawn({
-        let mut cancel_rx = cancel_rx.clone();
+        let cancel_rx = cancel_rx.clone();
         async move {
             let mut send = send_stream;
             let tap = pump_tap;
@@ -1428,8 +1428,8 @@ where
                     tokio::select! {
                         biased;
                         _ = &mut completed_rx => {},
-                        result = cancel_rx.wait_for(|v| *v) => {
-                            if result.is_ok() {
+                        _ = cancel_rx.wait() => {
+                            if cancel_rx.is_cancelled() {
                                 send.send_reset(Reason::CANCEL);
                             }
                         }
@@ -1459,14 +1459,14 @@ where
             }
         };
         tokio::pin!(until_deadline);
-        let mut cancelled = cancel_rx;
+        let cancelled = cancel_rx;
         let mut fail_done = false;
         let mut hold_tx = Some(hold_tx);
         loop {
             tokio::select! {
                 biased;
                 () = &mut until_deadline => break Err(Status::deadline_exceeded()),
-                _ = cancelled.wait_for(|v| *v) => break Err(Status::cancelled()),
+                _ = cancelled.wait() => break Err(Status::cancelled()),
                 status = &mut fail_rx, if !fail_done => {
                     match status {
                         Ok(status) => {
@@ -1563,7 +1563,8 @@ impl super::Channel {
         let channel = self.clone();
         let state = channel.local.service_config.get();
         let prepared = channel.prepare_outbound(path, &mut req, state.as_deref());
-        let (cancel, cancel_rx) = watch::channel(false);
+        let cancel = crate::rpc_cancel::RpcCancel::new();
+        let cancel_rx = cancel.clone();
         let reset = cancel.clone();
         let wire = channel.wire_for(path, state.as_deref());
         let observer = channel.local.observer.clone();
@@ -1681,7 +1682,7 @@ impl super::Channel {
                             live
                         }
                         Err(status) => {
-                            if *cancel_rx.borrow() {
+                            if cancel_rx.is_cancelled() {
                                 cancel_attempt(
                                     &mut attempt_guard,
                                     CancellationReason::CallerCancelled,
@@ -1784,7 +1785,7 @@ impl super::Channel {
                                     ));
                                 }
                                 Err(status) => {
-                                    if *cancel_rx.borrow() {
+                                    if cancel_rx.is_cancelled() {
                                         cancel_attempt(
                                             &mut attempt_guard,
                                             CancellationReason::CallerCancelled,
@@ -1831,7 +1832,7 @@ impl super::Channel {
                             drop(_load);
                             drop(lease);
                             drop(driver);
-                            let cancelled = *cancel_rx.borrow();
+                            let cancelled = cancel_rx.is_cancelled();
                             let per_attempt_timeout = status.code() == Code::DeadlineExceeded
                                 && retry_policy.as_ref().is_some_and(|policy| {
                                     policy.per_attempt_recv_timeout.is_some()
@@ -1873,7 +1874,7 @@ impl super::Channel {
                                     )
                                     .await;
                                     if let Err(sleep_status) = slept {
-                                        if *cancel_rx.borrow() {
+                                        if cancel_rx.is_cancelled() {
                                             call_guard.cancel(CancellationReason::CallerCancelled);
                                         } else {
                                             call_guard.cancel(CancellationReason::DeadlineExceeded);
@@ -1916,7 +1917,7 @@ impl super::Channel {
                                     .discard_conn(slot, r#gen, rr_addr.as_ref())
                                     .await;
                             }
-                            if *cancel_rx.borrow() {
+                            if cancel_rx.is_cancelled() {
                                 cancel_attempt(
                                     &mut attempt_guard,
                                     CancellationReason::CallerCancelled,
@@ -1999,7 +2000,8 @@ impl super::Channel {
         let wire = self.wire_for(path, state.as_deref());
         let (tx, rx) = Streaming::channel(self.local.config.stream_buffer_size());
         let tx = tx.with_limits(wire.limits).with_compress(req.compress());
-        let (cancel, cancel_rx) = watch::channel(false);
+        let cancel = crate::rpc_cancel::RpcCancel::new();
+        let cancel_rx = cancel.clone();
         let channel = self.clone();
         let observer = self.local.observer.clone();
         // Destructure before the async block so the envelope is not stored
@@ -2095,7 +2097,7 @@ impl super::Channel {
                         opened
                     }
                     Err(status) => {
-                        if *cancel_rx.borrow() {
+                        if cancel_rx.is_cancelled() {
                             cancel_attempt(&mut attempt_guard, CancellationReason::CallerCancelled);
                             call_guard.cancel(CancellationReason::CallerCancelled);
                         } else if status.code() == Code::DeadlineExceeded {
@@ -2199,7 +2201,7 @@ impl super::Channel {
                 let response: Response<Resp> = match response {
                     Ok(r) => r,
                     Err(status) => {
-                        if *cancel_rx.borrow() {
+                        if cancel_rx.is_cancelled() {
                             cancel_attempt(&mut attempt_guard, CancellationReason::CallerCancelled);
                             call_guard.cancel(CancellationReason::CallerCancelled);
                         } else if status.code() == Code::DeadlineExceeded {
@@ -2293,7 +2295,8 @@ impl super::Channel {
         let buffer = channel.local.config.stream_buffer_size();
         let (tx, rx) = Streaming::channel(buffer);
         let tx = tx.with_limits(wire.limits).with_compress(req.compress());
-        let (cancel, cancel_rx) = watch::channel(false);
+        let cancel = crate::rpc_cancel::RpcCancel::new();
+        let cancel_rx = cancel.clone();
         let reset = cancel.clone();
         let observer = channel.local.observer.clone();
         // Destructure before the async block so the envelope is not stored
@@ -2389,7 +2392,7 @@ impl super::Channel {
                         opened
                     }
                     Err(status) => {
-                        if *cancel_rx.borrow() {
+                        if cancel_rx.is_cancelled() {
                             cancel_attempt(&mut attempt_guard, CancellationReason::CallerCancelled);
                             call_guard.cancel(CancellationReason::CallerCancelled);
                         } else if status.code() == Code::DeadlineExceeded {
@@ -2498,7 +2501,7 @@ impl super::Channel {
                 let response = match bidi_result {
                     Ok(resp) => resp,
                     Err(status) => {
-                        if *cancel_rx.borrow() {
+                        if cancel_rx.is_cancelled() {
                             cancel_attempt(&mut attempt_guard, CancellationReason::CallerCancelled);
                             call_guard.cancel(CancellationReason::CallerCancelled);
                         } else if status.code() == Code::DeadlineExceeded {

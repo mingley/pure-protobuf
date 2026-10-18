@@ -133,7 +133,7 @@ pub(crate) fn send_request_frame(
     send: &mut backend::SendStream,
     frame: SegFrame,
     send_buffer: usize,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     deadline: Option<tokio::time::Instant>,
     response: &mut backend::ResponseFuture,
     received: &mut Option<ResponseHead>,
@@ -167,18 +167,15 @@ pub(crate) fn poll_now<F: std::future::Future>(fut: Pin<&mut F>) -> Option<F::Ou
 /// An unchanged version is still the initial `false`, so the steady path is
 /// one atomic load. The value lock runs only after a send or a dropped sender.
 #[inline]
-pub(crate) fn cancel_requested(rx: &watch::Receiver<bool>) -> bool {
-    match rx.has_changed() {
-        Ok(false) => false,
-        _ => *rx.borrow(),
-    }
+pub(crate) fn cancel_requested(rx: &crate::rpc_cancel::RpcCancel) -> bool {
+    rx.is_cancelled()
 }
 
 pub(crate) async fn send_request_frame_in<R: Runtime>(
     send: &mut backend::SendStream,
     frame: SegFrame,
     send_buffer: usize,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     deadline: Option<tokio::time::Instant>,
     response: &mut backend::ResponseFuture,
     received: &mut Option<ResponseHead>,
@@ -269,7 +266,7 @@ pub(crate) fn open(
     md: &crate::metadata::Metadata,
     timeout: Option<Duration>,
     deadline: Option<tokio::time::Instant>,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     send_codec: Option<crate::compression::CompressionAlgorithm>,
     accept_gzip: bool,
     user_agent: &HeaderValue,
@@ -303,7 +300,7 @@ pub(crate) async fn open_in<R: Runtime>(
     md: &crate::metadata::Metadata,
     timeout: Option<Duration>,
     deadline: Option<tokio::time::Instant>,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     send_codec: Option<crate::compression::CompressionAlgorithm>,
     accept_gzip: bool,
     user_agent: &HeaderValue,
@@ -436,7 +433,7 @@ pub(crate) fn prefer_deadline_in<R: Runtime, T>(
 
 pub(crate) fn first_of<'a, T>(
     fut: impl Future<Output = Result<T, Status>> + Send + 'a,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     deadline: Option<tokio::time::Instant>,
 ) -> impl Future<Output = Result<T, Status>> + Send + 'a
 where
@@ -451,7 +448,7 @@ where
 /// boxed so a call with no deadline does not carry the timer.
 pub(crate) fn first_of_in<'a, R, T>(
     fut: impl Future<Output = Result<T, Status>> + Send + 'a,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     deadline: Option<tokio::time::Instant>,
 ) -> impl Future<Output = Result<T, Status>> + Send + 'a
 where
@@ -467,18 +464,18 @@ where
 
 async fn first_of_cancel<T>(
     fut: impl Future<Output = Result<T, Status>>,
-    mut cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
 ) -> Result<T, Status> {
     tokio::select! {
         biased;
-        _ = cancel_rx.wait_for(|v| *v) => Err(Status::cancelled()),
+        _ = cancel_rx.wait() => Err(Status::cancelled()),
         r = fut => r,
     }
 }
 
 async fn first_of_deadline<R, T, F>(
     fut: F,
-    mut cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     at: tokio::time::Instant,
 ) -> Result<T, Status>
 where
@@ -487,7 +484,7 @@ where
 {
     tokio::select! {
         biased;
-        _ = cancel_rx.wait_for(|v| *v) => Err(Status::cancelled()),
+        _ = cancel_rx.wait() => Err(Status::cancelled()),
         _ = R::sleep_until(at) => Err(Status::deadline_exceeded()),
         r = fut => r,
     }
@@ -495,7 +492,7 @@ where
 
 pub(crate) fn race<'a, T>(
     fut: impl Future<Output = Result<T, Status>> + Send + 'a,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     deadline: Option<tokio::time::Instant>,
     send: Option<&'a mut backend::SendStream>,
 ) -> impl Future<Output = Result<T, Status>> + Send + 'a
@@ -513,14 +510,14 @@ where
 
 async fn race_plain<T>(
     fut: impl Future<Output = Result<T, Status>> + Send,
-    mut cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     send: Option<&mut backend::SendStream>,
 ) -> Result<T, Status> {
     // Inlined from `first_of_cancel`. Awaiting that helper stored `fut` here
     // and again inside the helper.
     let result = tokio::select! {
         biased;
-        _ = cancel_rx.wait_for(|v| *v) => Err(Status::cancelled()),
+        _ = cancel_rx.wait() => Err(Status::cancelled()),
         r = fut => r,
     };
     reset_send_on_cancel(send, &result);
@@ -529,7 +526,7 @@ async fn race_plain<T>(
 
 async fn race_deadline<R, T, F>(
     fut: F,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     at: tokio::time::Instant,
     send: Option<&mut backend::SendStream>,
 ) -> Result<T, Status>
@@ -548,7 +545,7 @@ async fn grab_wait<R: Runtime>(
     obs: Option<Arc<dyn LifecycleObserver>>,
     health: Option<HealthDirective>,
     hash: Option<u64>,
-    cancel_rx: watch::Receiver<bool>,
+    cancel_rx: crate::rpc_cancel::RpcCancel,
     deadline: Option<tokio::time::Instant>,
     wait_for_ready: bool,
 ) -> Result<LiveConn, Status> {
@@ -723,7 +720,7 @@ impl super::Channel {
     /// a failed handshake until that race fires.
     pub(crate) fn grab(
         &self,
-        cancel_rx: watch::Receiver<bool>,
+        cancel_rx: crate::rpc_cancel::RpcCancel,
         deadline: Option<tokio::time::Instant>,
         wait_for_ready: bool,
         md: Option<&crate::metadata::Metadata>,
@@ -738,7 +735,7 @@ impl super::Channel {
     #[inline(never)]
     pub(crate) fn grab_in<R: Runtime + 'static>(
         &self,
-        cancel_rx: watch::Receiver<bool>,
+        cancel_rx: crate::rpc_cancel::RpcCancel,
         deadline: Option<tokio::time::Instant>,
         wait_for_ready: bool,
         md: Option<&crate::metadata::Metadata>,
@@ -786,7 +783,7 @@ impl super::Channel {
     )]
     pub(crate) fn open_retrying(
         &self,
-        cancel_rx: watch::Receiver<bool>,
+        cancel_rx: crate::rpc_cancel::RpcCancel,
         timeout: Option<Duration>,
         deadline: Option<tokio::time::Instant>,
         wait: bool,
@@ -808,7 +805,7 @@ impl super::Channel {
     )]
     pub(crate) async fn open_retrying_in<R: Runtime + 'static>(
         &self,
-        cancel_rx: watch::Receiver<bool>,
+        cancel_rx: crate::rpc_cancel::RpcCancel,
         timeout: Option<Duration>,
         deadline: Option<tokio::time::Instant>,
         wait: bool,

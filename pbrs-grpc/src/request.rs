@@ -15,7 +15,6 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use tokio::sync::watch;
 
 /// Connection info for standard TCP server transports.
 ///
@@ -3219,7 +3218,7 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
 #[must_use = "an RPC does nothing until awaited"]
 pub struct Call<T> {
     fut: Pin<Box<dyn Future<Output = Result<T, Status>> + Send>>,
-    cancel: watch::Sender<bool>,
+    cancel: crate::rpc_cancel::RpcCancel,
     /// Set when [`Future::poll`] returns `Ready`, so [`Drop`] does not RST a
     /// finished RPC.
     done: bool,
@@ -3227,7 +3226,7 @@ pub struct Call<T> {
 
 impl<T> Call<T> {
     pub(crate) fn new(
-        cancel: watch::Sender<bool>,
+        cancel: crate::rpc_cancel::RpcCancel,
         fut: Pin<Box<dyn Future<Output = Result<T, Status>> + Send>>,
     ) -> Self {
         Self {
@@ -3239,13 +3238,13 @@ impl<T> Call<T> {
 
     /// Reset the stream and resolve with [`Code::Cancelled`](crate::Code::Cancelled).
     pub fn cancel(&self) {
-        self.cancel.send(true).ok();
+        self.cancel.signal();
     }
 
     /// Whether [`Self::cancel`] has already fired.
     #[must_use]
     pub fn is_cancelled(&self) -> bool {
-        *self.cancel.borrow()
+        self.cancel.is_cancelled()
     }
 
     /// A cancel handle that can be moved to another task.
@@ -3300,7 +3299,7 @@ impl<T> Drop for Call<T> {
         if !self.done {
             // Wakes a client-streaming pump that still holds the send half;
             // unary RSTs when the boxed future (and its `SendStream`) drops.
-            self.cancel.send(true).ok();
+            self.cancel.signal();
         }
     }
 }
@@ -3308,7 +3307,7 @@ impl<T> Drop for Call<T> {
 impl<T> fmt::Debug for Call<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Call")
-            .field("cancelled", &*self.cancel.borrow())
+            .field("cancelled", &self.cancel.is_cancelled())
             .field("terminated", &self.done)
             .finish_non_exhaustive()
     }
@@ -3332,19 +3331,19 @@ impl<T> fmt::Debug for Call<T> {
 /// parked send half.
 #[derive(Clone, Debug)]
 pub struct CallHandle {
-    cancel: watch::Sender<bool>,
+    cancel: crate::rpc_cancel::RpcCancel,
 }
 
 impl CallHandle {
     /// Same as [`Call::cancel`].
     pub fn cancel(&self) {
-        self.cancel.send(true).ok();
+        self.cancel.signal();
     }
 
     /// Whether [`Self::cancel`] has already fired. See [`Call::is_cancelled`].
     #[must_use]
     pub fn is_cancelled(&self) -> bool {
-        *self.cancel.borrow()
+        self.cancel.is_cancelled()
     }
 }
 
@@ -4204,7 +4203,7 @@ mod tests {
 
     #[test]
     fn call_handle_observes_cancel() {
-        let (tx, _rx) = tokio::sync::watch::channel(false);
+        let tx = crate::rpc_cancel::RpcCancel::new();
         let call = super::Call::<u32>::new(tx, Box::pin(std::future::pending()));
         let handle = call.handle();
         assert!(!handle.is_cancelled());
@@ -4221,7 +4220,7 @@ mod tests {
         use std::pin::Pin;
         use std::task::{Context, Poll};
 
-        let (tx, _rx) = tokio::sync::watch::channel(false);
+        let tx = crate::rpc_cancel::RpcCancel::new();
         let mut call = super::Call::new(tx, Box::pin(async { Ok::<u32, crate::Status>(1) }));
         assert!(!call.is_terminated());
         let shown = format!("{call:?}");

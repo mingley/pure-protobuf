@@ -4,14 +4,13 @@
 use super::{Channel, handshake};
 use crate::rt::TokioRuntime;
 use std::mem::{size_of, size_of_val};
-use tokio::sync::watch;
 
 #[test]
 fn report_unpolled_future_sizes() {
     let channel = Channel::connect_lazy("127.0.0.1:9").expect("valid lazy target");
     let inner = &channel.inner;
     let acquire = inner.acquire(false, None, None, None);
-    let (_cancel, cancel_rx) = watch::channel(false);
+    let cancel_rx = crate::rpc_cancel::RpcCancel::new();
     let grab = channel.grab_in::<TokioRuntime>(cancel_rx, None, false, None);
     let cold = handshake(&inner.endpoint, inner.dial, inner.tls.as_ref());
     println!(
