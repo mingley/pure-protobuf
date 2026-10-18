@@ -156,6 +156,61 @@ fn trailer_stock(fields: &HeaderMap) -> StandardMap {
     }
 }
 
+/// One recycled `Headers` allocation per thread.
+///
+/// Stock frames allocate the box, move the map out, and free it. The next
+/// frame needs the same empty allocation. The pointer owns no header heap:
+/// callers move or forget those fields before recycling.
+struct SpareHeaders(std::cell::Cell<*mut Headers>);
+
+#[allow(unsafe_code, reason = "free the parked Headers allocation at thread exit")]
+impl Drop for SpareHeaders {
+    fn drop(&mut self) {
+        let ptr = self.0.get();
+        if !ptr.is_null() {
+            // SAFETY: the pointer was produced by Box::into_raw and its header
+            // fields were moved out before it was parked.
+            unsafe {
+                std::alloc::dealloc(ptr.cast(), std::alloc::Layout::new::<Headers>());
+            }
+        }
+    }
+}
+
+thread_local! {
+    static SPARE_HEADERS: SpareHeaders = SpareHeaders(std::cell::Cell::new(std::ptr::null_mut()));
+}
+
+#[allow(
+    unsafe_code,
+    reason = "reuse a Headers allocation whose fields were already moved out"
+)]
+fn alloc_headers_uninit() -> Box<std::mem::MaybeUninit<Headers>> {
+    let ptr = SPARE_HEADERS.with(|slot| slot.0.replace(std::ptr::null_mut()));
+    if ptr.is_null() {
+        Box::new_uninit()
+    } else {
+        // SAFETY: `ptr` came from `Box::<Headers>::into_raw`. `MaybeUninit<Headers>`
+        // matches that layout. Every field is written before `assume_init`.
+        unsafe { Box::from_raw(ptr.cast()) }
+    }
+}
+
+#[allow(
+    unsafe_code,
+    reason = "park a Headers allocation that no longer owns header memory"
+)]
+fn recycle_headers_box(ptr: *mut Headers) {
+    let prev = SPARE_HEADERS.with(|slot| slot.0.replace(ptr));
+    if !prev.is_null() {
+        // SAFETY: `prev` was produced by `Box::into_raw` and its fields were
+        // moved out before it was parked.
+        unsafe {
+            std::alloc::dealloc(prev.cast(), std::alloc::Layout::new::<Headers>());
+        }
+    }
+}
+
 /// Empty receive block, initialized in the heap allocation.
 ///
 /// A stack `Headers` is 288 bytes. `Box::new` copies that temporary into the
@@ -169,7 +224,7 @@ fn box_empty_headers(
     stream_dep: Option<StreamDependency>,
     flags: HeadersFlag,
 ) -> Box<Headers> {
-    let mut uninit = Box::<Headers>::new_uninit();
+    let mut uninit = alloc_headers_uninit();
     let ptr = uninit.as_mut_ptr();
     // SAFETY: every field is written before `assume_init`. None of the writes
     // can panic, so a partially initialized value is never dropped.
@@ -213,7 +268,7 @@ fn box_filled_headers(
     stock: StandardMap,
     pristine: bool,
 ) -> Box<Headers> {
-    let mut uninit = Box::<Headers>::new_uninit();
+    let mut uninit = alloc_headers_uninit();
     let ptr = uninit.as_mut_ptr();
     // SAFETY: every field is written before `assume_init`. Moving `pseudo`
     // and `fields` in does not panic, so a partial value is never dropped.
@@ -251,7 +306,7 @@ fn box_post_request(
     fields: HeaderMap,
     stock: StandardMap,
 ) -> Box<Headers> {
-    let mut uninit = Box::<Headers>::new_uninit();
+    let mut uninit = alloc_headers_uninit();
     let ptr = uninit.as_mut_ptr();
     // SAFETY: every field is written before `assume_init`. None of the writes
     // can panic, so a partially initialized value is never dropped.
@@ -292,7 +347,7 @@ fn box_trailer_headers(
     fields: HeaderMap,
     stock: StandardMap,
 ) -> Box<Headers> {
-    let mut uninit = Box::<Headers>::new_uninit();
+    let mut uninit = alloc_headers_uninit();
     let ptr = uninit.as_mut_ptr();
     // SAFETY: every field is written before `assume_init`. Moving `fields`
     // in does not panic, so a partial value is never dropped.
@@ -333,7 +388,7 @@ fn box_response_headers(
     fields: HeaderMap,
     flags: HeadersFlag,
 ) -> Box<Headers> {
-    let mut uninit = Box::<Headers>::new_uninit();
+    let mut uninit = alloc_headers_uninit();
     let ptr = uninit.as_mut_ptr();
     // SAFETY: every field is written before `assume_init`. Moving `fields`
     // in does not panic, so a partial value is never dropped.
@@ -736,7 +791,7 @@ impl Headers {
         // on this stock response or trailer, and every other field is `Copy`.
         unsafe {
             let fields = std::ptr::read(std::ptr::addr_of!((*ptr).header_block.fields));
-            std::alloc::dealloc(ptr.cast(), std::alloc::Layout::new::<Self>());
+            recycle_headers_box(ptr);
             fields
         }
     }
@@ -744,18 +799,12 @@ impl Headers {
     /// Free a boxed block whose map has no allocation and whose pseudos are empty.
     ///
     /// `Drop` would still walk those `None`s. The caller has checked the map.
-    #[allow(
-        unsafe_code,
-        reason = "free a header block that owns no heap allocation without walking its destructors"
-    )]
     pub(crate) fn forget_empty_box(this: Box<Self>) {
         debug_assert!(this.fields().is_empty() && this.fields().capacity() == 0);
         let ptr = Box::into_raw(this);
-        // SAFETY: the map has no buffer. Pseudo strings were not installed on
-        // this stock POST, and every other field is `Copy`.
-        unsafe {
-            std::alloc::dealloc(ptr.cast(), std::alloc::Layout::new::<Self>());
-        }
+        // The map has no buffer. Pseudo strings were not installed on this
+        // stock POST, and every other field is `Copy`.
+        recycle_headers_box(ptr);
     }
 
     /// Move the pseudo-headers and the map out of a boxed frame.
@@ -781,7 +830,7 @@ impl Headers {
         unsafe {
             let pseudo = std::ptr::read(std::ptr::addr_of!((*ptr).header_block.pseudo));
             let fields = std::ptr::read(std::ptr::addr_of!((*ptr).header_block.fields));
-            std::alloc::dealloc(ptr.cast(), std::alloc::Layout::new::<Self>());
+            recycle_headers_box(ptr);
             (pseudo, fields)
         }
     }
@@ -937,7 +986,7 @@ impl Headers {
                         {
                             std::ptr::drop_in_place(pseudo_ptr);
                         }
-                        std::alloc::dealloc(ptr.cast(), std::alloc::Layout::new::<Self>());
+                        recycle_headers_box(ptr);
                     }
                     return None;
                 }
