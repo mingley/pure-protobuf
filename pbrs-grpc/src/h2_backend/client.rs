@@ -1847,11 +1847,27 @@ pub(crate) fn stock_response_map(
     }
 }
 
+/// HTTP/2 200 with an empty map. Stock responses copy this, then install headers.
+#[allow(
+    unsafe_code,
+    reason = "a stock HTTP/2 200 holds an empty map and no extensions"
+)]
+fn copy_h2_ok() -> Response<()> {
+    static OK: std::sync::OnceLock<Response<()>> = std::sync::OnceLock::new();
+    let proto = OK.get_or_init(|| {
+        let mut response = Response::new(());
+        *response.version_mut() = Version::HTTP_2;
+        *response.status_mut() = http::StatusCode::OK;
+        response
+    });
+    // SAFETY: status and version are `Copy`. The header map is empty and
+    // extensions are absent, so a bitwise copy does not alias a heap buffer.
+    unsafe { std::ptr::read(proto) }
+}
+
 /// Response built around a stock header map that was queued by itself.
 pub(crate) fn response_from_stock(fields: HeaderMap) -> Response<()> {
-    let mut response = Response::new(());
-    *response.version_mut() = Version::HTTP_2;
-    *response.status_mut() = http::StatusCode::OK;
+    let mut response = copy_h2_ok();
     crate::h2_backend::header_pool::replace_map(response.headers_mut(), fields);
     response
 }
