@@ -1765,6 +1765,12 @@ pub(crate) fn stock_https_of(
 /// POST built from the process-wide authority and path cache.
 static HTTP_POST: std::sync::OnceLock<Request<()>> = std::sync::OnceLock::new();
 
+/// Authority text leaked for the plain HTTP stock request.
+static LEAKED_AUTHORITY: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();
+
+/// Path text leaked for the plain HTTP stock request.
+static LEAKED_PATH: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();
+
 /// Empty HTTP 200. Stock responses copy this instead of building it.
 static OK_RESPONSE: std::sync::OnceLock<http::Response<()>> = std::sync::OnceLock::new();
 
@@ -1804,12 +1810,16 @@ pub(crate) fn cached_simple_post(https: bool) -> Request<()> {
     let authority = if https {
         authority.clone()
     } else {
-        http::uri::Authority::from_static(Box::leak(authority.as_str().to_owned().into_boxed_str()))
+        let leaked: &'static str = Box::leak(authority.as_str().to_owned().into_boxed_str());
+        let _ = LEAKED_AUTHORITY.set(leaked);
+        http::uri::Authority::from_static(leaked)
     };
     let path = if https {
         path.clone()
     } else {
-        http::uri::PathAndQuery::from_static(Box::leak(path.as_str().to_owned().into_boxed_str()))
+        let leaked: &'static str = Box::leak(path.as_str().to_owned().into_boxed_str());
+        let _ = LEAKED_PATH.set(leaked);
+        http::uri::PathAndQuery::from_static(leaked)
     };
     let mut parts = http::uri::Parts::default();
     parts.scheme = Some(scheme);
@@ -1826,6 +1836,25 @@ pub(crate) fn cached_simple_post(https: bool) -> Request<()> {
         let _ = HTTP_POST.set(copy_static_request(&request));
     }
     request
+}
+
+/// `Some` when `s` is the leaked plain-HTTP authority.
+pub(crate) fn leaked_authority(s: &str) -> Option<&'static str> {
+    leaked_text(s, LEAKED_AUTHORITY.get().copied())
+}
+
+/// `Some` when `s` is the leaked plain-HTTP path.
+pub(crate) fn leaked_path(s: &str) -> Option<&'static str> {
+    leaked_text(s, LEAKED_PATH.get().copied())
+}
+
+fn leaked_text(s: &str, leaked: Option<&'static str>) -> Option<&'static str> {
+    let leaked = leaked?;
+    if s.len() == leaked.len() && (s.as_ptr() == leaked.as_ptr() || s == leaked) {
+        Some(leaked)
+    } else {
+        None
+    }
 }
 
 #[allow(

@@ -14,6 +14,7 @@ use super::drain::{
 };
 #[cfg(feature = "grpc-web")]
 use super::drain::{send_web_stream_response, send_web_unary_response};
+use super::http_name::HttpStr;
 use super::router::split_path;
 use crate::codec::CodecMessage;
 use crate::compression::CompressionAlgorithm;
@@ -1262,9 +1263,9 @@ struct InboundRpc {
     diagnostic_config: Option<DiagnosticConfig>,
     byte_budget: ByteBudgetTracker,
     binlog: Option<crate::binlog::CallLogger>,
-    authority: Option<String>,
-    scheme: Option<String>,
-    path: Option<String>,
+    authority: Option<HttpStr>,
+    scheme: Option<HttpStr>,
+    path: Option<HttpStr>,
     timeout: Option<Duration>,
     peer_timeout: Option<Duration>,
     rpc_timeout: Option<Duration>,
@@ -1300,9 +1301,15 @@ impl InboundRpc {
         let rpc_timeout = rpc.rpc_timeout();
         let timeout =
             crate::wire::soonest(crate::wire::soonest(peer_timeout, rpc_timeout), rpc.timeout);
-        let authority = rpc.authority().map(str::to_owned);
-        let scheme = rpc.scheme().map(str::to_owned);
-        let path = Some(rpc.path().to_owned());
+        let authority = rpc.authority().map(|value| {
+            HttpStr::adopt(value, crate::h2_backend::server::leaked_authority(value))
+        });
+        let scheme = rpc.scheme().map(HttpStr::from_scheme);
+        let path_text = rpc.path();
+        let path = Some(HttpStr::adopt(
+            path_text,
+            crate::h2_backend::server::leaked_path(path_text),
+        ));
         #[cfg(feature = "zstd")]
         let peer_accepts_zstd = if rpc.stock_facts.classified {
             rpc.stock_facts.zstd

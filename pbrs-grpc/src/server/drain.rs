@@ -3,6 +3,7 @@
 use crate::codec::CodecMessage;
 use crate::config::Wire;
 use crate::limits::ByteBudgetTracker;
+use super::http_name::HttpStr;
 use crate::metadata::Metadata;
 #[allow(unused_imports, reason = "intra-doc links resolve against these names")]
 use crate::request::{Request, Response};
@@ -265,7 +266,7 @@ pub(crate) struct Prepared<T> {
     pub(crate) peer_accepts_zstd: bool,
     pub(crate) cancel: CancelOnDrop,
     /// Kernel-stamped onto the handler [`Response`] before `on_response`.
-    pub(crate) path: Option<String>,
+    pub(crate) path: Option<HttpStr>,
     pub(crate) gzip_level: u32,
     pub(crate) timeout: Option<Duration>,
     pub(crate) peer_timeout: Option<Duration>,

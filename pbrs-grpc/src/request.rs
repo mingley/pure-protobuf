@@ -2,6 +2,7 @@
 
 use crate::limits::MessageLimits;
 use crate::metadata::Metadata;
+use crate::server::http_name::HttpStr;
 use crate::server::{PeerCred, split_path};
 use crate::status::Status;
 use crate::telemetry::{diagnostic_debug_value, diagnostic_identity};
@@ -185,9 +186,9 @@ pub struct Request<T> {
     local_addr: Option<SocketAddr>,
     peer_identity: Option<PeerIdentity>,
     peer_cred: Option<PeerCred>,
-    authority: Option<String>,
-    scheme: Option<String>,
-    path: Option<String>,
+    authority: Option<HttpStr>,
+    scheme: Option<HttpStr>,
+    path: Option<HttpStr>,
     deadline: Option<tokio::time::Instant>,
     wait_for_ready: Option<bool>,
     limits: Option<MessageLimits>,
@@ -937,9 +938,9 @@ impl<T> Request<T> {
 
     pub(crate) fn with_http(
         mut self,
-        authority: Option<String>,
-        scheme: Option<String>,
-        path: Option<String>,
+        authority: Option<HttpStr>,
+        scheme: Option<HttpStr>,
+        path: Option<HttpStr>,
     ) -> Self {
         self.authority = authority;
         self.scheme = scheme;
@@ -1707,9 +1708,9 @@ pub struct Parts {
     local_addr: Option<SocketAddr>,
     peer_identity: Option<PeerIdentity>,
     peer_cred: Option<PeerCred>,
-    authority: Option<String>,
-    scheme: Option<String>,
-    path: Option<String>,
+    authority: Option<HttpStr>,
+    scheme: Option<HttpStr>,
+    path: Option<HttpStr>,
     deadline: Option<tokio::time::Instant>,
     wait_for_ready: Option<bool>,
     limits: Option<MessageLimits>,
@@ -2758,7 +2759,7 @@ impl<T> Response<T> {
     #[inline]
     pub(crate) fn apply_outbound(
         &mut self,
-        path: Option<String>,
+        path: Option<HttpStr>,
         gzip_level: u32,
         compresses_outbound: bool,
         accepts_gzip: bool,
@@ -2770,7 +2771,7 @@ impl<T> Response<T> {
         limits: Option<MessageLimits>,
         send_buffer_size: Option<usize>,
     ) {
-        self.path = path.map(Cow::Owned);
+        self.path = path.map(HttpStr::into_cow);
         self.gzip_level = gzip_level;
         self.compresses_outbound = compresses_outbound;
         self.accepts_gzip = accepts_gzip;
@@ -3745,9 +3746,9 @@ mod tests {
         let path = "/tenant-secret.Service/SensitiveMethod";
         let authority = "credential@example.invalid";
         let mut request = Request::new("sensitive-payload").with_http(
-            Some(authority.to_string()),
-            Some("https".to_string()),
-            Some(path.to_string()),
+            Some(authority.into()),
+            Some("https".into()),
+            Some(path.into()),
         );
         let default_debug = format!("{request:?}");
         assert!(!default_debug.contains(path));

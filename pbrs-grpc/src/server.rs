@@ -9,6 +9,7 @@ pub(crate) mod accept;
 pub(crate) mod connection;
 pub(crate) mod dispatch;
 pub(crate) mod drain;
+pub(crate) mod http_name;
 pub(crate) mod router;
 pub(crate) mod rpc;
 
