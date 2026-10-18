@@ -165,13 +165,13 @@ impl FlowControl {
     pub fn send_data(&mut self, sz: WindowSize) -> Result<(), Reason> {
         // If send size is zero it's meaningless to update flow control window
         if sz > 0 {
-            // Ensure that the argument is correct
+            // Ensure that the argument is correct. The window subtract cannot
+            // overflow after this check, so it does not repeat it.
             if self.window_size.0 < sz as i32 {
                 window_smaller_than_send();
             }
 
-            // Update values
-            self.window_size.decrease_by(sz)?;
+            self.window_size.0 -= sz as i32;
             self.available.decrease_by(sz)?;
         }
         Ok(())
