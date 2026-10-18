@@ -625,7 +625,7 @@ pub(crate) fn finish_channel(
             response_interceptors: Arc::from([]),
             rpc_slots: rpc_slots_from(config),
             byte_budget: ByteBudgetTracker::default(),
-            user_agent: crate::wire::PBRS_GRPC_UA,
+            user_agent: crate::wire::STOCK_UA.clone(),
             https,
             authority,
             observer: None,

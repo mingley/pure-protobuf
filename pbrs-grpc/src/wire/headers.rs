@@ -38,6 +38,9 @@ pub(crate) const STATUS_OK: HeaderValue = HeaderValue::from_static("0");
 /// [`crate::Channel::user_agent`].
 pub(crate) const DEFAULT_UA: &str = concat!("pbrs-grpc/", env!("CARGO_PKG_VERSION"));
 pub(crate) const PBRS_GRPC_UA: HeaderValue = HeaderValue::from_static(DEFAULT_UA);
+// One address. A `const` HeaderValue is rebuilt per codegen unit, so the
+// channel's copy does not share bytes with the value `grpc_request` compares.
+pub(crate) static STOCK_UA: HeaderValue = HeaderValue::from_static(DEFAULT_UA);
 
 /// `"{prefix} pbrs-grpc/<version>"`, matching grpc-go `WithUserAgent`.
 pub(crate) fn user_agent_value(prefix: &str) -> Result<HeaderValue, Status> {
@@ -159,8 +162,8 @@ pub(crate) fn grpc_request(
         && timeout.is_none()
         && send_codec.is_none()
         && accept_gzip
-        && (std::ptr::eq(user_agent.as_bytes(), PBRS_GRPC_UA.as_bytes())
-            || user_agent == &PBRS_GRPC_UA)
+        && (std::ptr::eq(user_agent.as_bytes(), STOCK_UA.as_bytes())
+            || user_agent == &STOCK_UA)
     {
         // Once the stock map is parked, replay does not read it. Moving it
         // into this request and back on encode copies the map twice.
