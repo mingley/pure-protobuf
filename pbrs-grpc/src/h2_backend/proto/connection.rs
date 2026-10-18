@@ -289,13 +289,10 @@ where
 
     /// Advances the internal state of the connection.
     pub fn poll(&mut self, cx: &mut Context) -> Poll<Result<(), Error>> {
-        // XXX(eliza): cloning the span is unfortunately necessary here in
-        // order to placate the borrow checker — `self` is mutably borrowed by
-        // `poll2`, which means that we can't borrow `self.span` to enter it.
-        // The clone is just an atomic ref bump.
-        let span = self.inner.span.clone();
-        let _e = span.enter();
-        let span = tracing::trace_span!("poll");
+        // `poll2` needs `&mut self`, so the connection span cannot stay
+        // borrowed for an `enter` guard. The child records that parent
+        // without cloning it.
+        let span = tracing::trace_span!(parent: &self.inner.span, "poll");
         let _e = span.enter();
 
         loop {
