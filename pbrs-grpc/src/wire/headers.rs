@@ -124,6 +124,53 @@ mod static_path {
     pub(super) static PARSED: std::sync::OnceLock<super::PathAndQuery> = std::sync::OnceLock::new();
 }
 
+/// One `:authority` per process. The channel keeps its own `Authority`; a hit
+/// copies the leaked static one instead of cloning the `Bytes`.
+fn cached_authority(authority: &Authority) -> Authority {
+    use std::sync::atomic::Ordering;
+    let text = authority.as_str();
+    if static_authority::PTR.load(Ordering::Acquire) == text.as_ptr() as *mut u8
+        && static_authority::LEN.load(Ordering::Relaxed) == text.len()
+    {
+        return crate::static_copy::copy_static_authority(static_authority::PARSED.get().unwrap());
+    }
+    cached_authority_miss(authority)
+}
+
+#[cold]
+#[inline(never)]
+fn cached_authority_miss(authority: &Authority) -> Authority {
+    use std::sync::atomic::Ordering;
+    let caller = authority.as_str();
+    if static_authority::PTR.load(Ordering::Relaxed).is_null() {
+        let leaked: &'static str = Box::leak(caller.to_owned().into_boxed_str());
+        let parsed = Authority::from_static(leaked);
+        if static_authority::PARSED
+            .set(crate::static_copy::copy_static_authority(&parsed))
+            .is_ok()
+        {
+            static_authority::LEN.store(leaked.len(), Ordering::Relaxed);
+            // Key the caller's bytes, which stay put for the life of the channel.
+            static_authority::PTR.store(caller.as_ptr() as *mut u8, Ordering::Release);
+        }
+    }
+    if static_authority::PTR.load(Ordering::Acquire) == caller.as_ptr() as *mut u8
+        && static_authority::LEN.load(Ordering::Relaxed) == caller.len()
+    {
+        crate::static_copy::copy_static_authority(static_authority::PARSED.get().unwrap())
+    } else {
+        authority.clone()
+    }
+}
+
+mod static_authority {
+    use std::sync::atomic::{AtomicPtr, AtomicUsize};
+
+    pub(super) static PTR: AtomicPtr<u8> = AtomicPtr::new(std::ptr::null_mut());
+    pub(super) static LEN: AtomicUsize = AtomicUsize::new(0);
+    pub(super) static PARSED: std::sync::OnceLock<super::Authority> = std::sync::OnceLock::new();
+}
+
 #[allow(
     clippy::too_many_arguments,
     reason = "gRPC request headers: routing, timeout, gzip offer, identity"
@@ -141,7 +188,7 @@ pub(crate) fn grpc_request(
 ) -> Result<Request<()>, Status> {
     let mut parts = http::uri::Parts::default();
     parts.scheme = Some(if https { Scheme::HTTPS } else { Scheme::HTTP });
-    parts.authority = Some(authority.clone());
+    parts.authority = Some(cached_authority(authority));
     parts.path_and_query = Some(cached_static_path(path));
     let uri = match http::Uri::from_parts(parts) {
         Ok(uri) => uri,

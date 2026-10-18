@@ -15,3 +15,11 @@ pub(crate) fn copy_static_path(parsed: &http::uri::PathAndQuery) -> http::uri::P
     // those bytes is a no-op, so an extra bitwise copy does not free them.
     unsafe { std::ptr::read(parsed) }
 }
+
+/// Copy an authority that was built with [`http::uri::Authority::from_static`].
+#[inline(always)]
+pub(crate) fn copy_static_authority(parsed: &http::uri::Authority) -> http::uri::Authority {
+    // SAFETY: caller passes only `Authority::from_static` values. Drop of
+    // those bytes is a no-op, so an extra bitwise copy does not free them.
+    unsafe { std::ptr::read(parsed) }
+}
