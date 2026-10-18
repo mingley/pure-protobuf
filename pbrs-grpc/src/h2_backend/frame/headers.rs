@@ -211,6 +211,58 @@ fn recycle_headers_box(ptr: *mut Headers) {
     }
 }
 
+/// Trailers are built while the response box is still queued, so they never
+/// saw `SPARE_HEADERS`. Their own slot stays off the request and response path.
+struct SpareTrailer(std::cell::Cell<*mut Headers>);
+
+#[allow(unsafe_code, reason = "free the parked trailer allocation at thread exit")]
+impl Drop for SpareTrailer {
+    fn drop(&mut self) {
+        let ptr = self.0.get();
+        if !ptr.is_null() {
+            // SAFETY: the pointer was produced by Box::into_raw and its header
+            // fields were moved out before it was parked.
+            unsafe {
+                std::alloc::dealloc(ptr.cast(), std::alloc::Layout::new::<Headers>());
+            }
+        }
+    }
+}
+
+thread_local! {
+    static SPARE_TRAILER: SpareTrailer = SpareTrailer(std::cell::Cell::new(std::ptr::null_mut()));
+}
+
+#[allow(
+    unsafe_code,
+    reason = "reuse a trailer Headers allocation whose fields were already moved out"
+)]
+fn alloc_trailer_uninit() -> Box<std::mem::MaybeUninit<Headers>> {
+    let ptr = SPARE_TRAILER.with(|slot| slot.0.replace(std::ptr::null_mut()));
+    if ptr.is_null() {
+        Box::new_uninit()
+    } else {
+        // SAFETY: `ptr` came from `Box::<Headers>::into_raw`. `MaybeUninit<Headers>`
+        // matches that layout. Every field is written before `assume_init`.
+        unsafe { Box::from_raw(ptr.cast()) }
+    }
+}
+
+#[allow(
+    unsafe_code,
+    reason = "park a trailer Headers allocation that no longer owns header memory"
+)]
+fn recycle_trailer_box(ptr: *mut Headers) {
+    let prev = SPARE_TRAILER.with(|slot| slot.0.replace(ptr));
+    if !prev.is_null() {
+        // SAFETY: `prev` was produced by `Box::into_raw` and its fields were
+        // moved out before it was parked.
+        unsafe {
+            std::alloc::dealloc(prev.cast(), std::alloc::Layout::new::<Headers>());
+        }
+    }
+}
+
 /// Empty receive block, initialized in the heap allocation.
 ///
 /// A stack `Headers` is 288 bytes. `Box::new` copies that temporary into the
@@ -347,7 +399,7 @@ fn box_trailer_headers(
     fields: HeaderMap,
     stock: StandardMap,
 ) -> Box<Headers> {
-    let mut uninit = alloc_headers_uninit();
+    let mut uninit = alloc_trailer_uninit();
     let ptr = uninit.as_mut_ptr();
     // SAFETY: every field is written before `assume_init`. Moving `fields`
     // in does not panic, so a partial value is never dropped.
@@ -987,7 +1039,11 @@ impl Headers {
                         {
                             std::ptr::drop_in_place(pseudo_ptr);
                         }
-                        recycle_headers_box(ptr);
+                        if matches!(kind, StandardMap::Trailers) {
+                            recycle_trailer_box(ptr);
+                        } else {
+                            recycle_headers_box(ptr);
+                        }
                     }
                     return None;
                 }
