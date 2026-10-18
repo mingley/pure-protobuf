@@ -453,7 +453,7 @@ where
         let send_buffer = &mut *send_buffer;
 
         me.actions.ensure_no_conn_error()?;
-        me.actions.send.ensure_next_stream_id()?;
+        let stream_id = me.actions.send.ensure_next_stream_id()?;
 
         if !me.counts.can_reserve_send_stream() {
             me.counts.wait_send_capacity(cx, waiter);
@@ -471,7 +471,8 @@ where
             return Poll::Ready(Err(UserError::UnexpectedFrameType.into()));
         }
 
-        let stream_id = me.actions.send.open()?;
+        // The id was checked before the request was taken. Bump it once.
+        me.actions.send.commit_open_id(stream_id);
         let head = *request.method() == Method::HEAD;
         let send_window = me.actions.send.init_window_sz();
         let recv_window = me.actions.recv.init_window_sz();

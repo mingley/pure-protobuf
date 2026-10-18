@@ -71,8 +71,13 @@ impl Send {
 
     pub fn open(&mut self) -> Result<StreamId, UserError> {
         let stream_id = self.ensure_next_stream_id()?;
-        self.next_stream_id = stream_id.next_id();
+        self.commit_open_id(stream_id);
         Ok(stream_id)
+    }
+
+    /// `ensure_next_stream_id` already succeeded with `stream_id`.
+    pub(super) fn commit_open_id(&mut self, stream_id: StreamId) {
+        self.next_stream_id = stream_id.next_id();
     }
 
     pub fn reserve_local(&mut self) -> Result<StreamId, UserError> {
