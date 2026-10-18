@@ -226,34 +226,6 @@ impl Recv {
             counts.inc_num_recv_streams(stream);
         }
 
-        if !stream.content_length.is_head() {
-            use super::stream::ContentLength;
-
-            if let Some(content_length) = frame.content_length() {
-                let content_length = match frame::parse_u64(content_length.as_bytes()) {
-                    Ok(v) => v,
-                    Err(_) => {
-                        proto_err!(stream: "could not parse content-length; stream={:?}", stream.id);
-                        return Err(Error::library_reset(stream.id, Reason::PROTOCOL_ERROR).into());
-                    }
-                };
-
-                stream.content_length = ContentLength::Remaining(content_length);
-                // END_STREAM on headers frame with non-zero content-length is malformed.
-                // https://datatracker.ietf.org/doc/html/rfc9113#section-8.1.1
-                if frame.is_end_stream()
-                    && content_length > 0
-                    && frame
-                        .pseudo()
-                        .status
-                        .map_or(true, |status| status != 204 && status != 304)
-                {
-                    proto_err!(stream: "recv_headers with END_STREAM: content-length is not zero; stream={:?};", stream.id);
-                    return Err(Error::library_reset(stream.id, Reason::PROTOCOL_ERROR).into());
-                }
-            }
-        }
-
         if frame.is_over_size() {
             // A frame is over size if the decoded header block was bigger than
             // SETTINGS_MAX_HEADER_LIST_SIZE.
@@ -286,7 +258,8 @@ impl Recv {
 
         // A cache-hit POST published `:scheme` and left the frame's pseudos
         // and map empty. Moving those Nones out and dropping them is the
-        // rest of this function.
+        // rest of this function. That frame has no content-length and is
+        // not over size, so those checks stay on the general path.
         if counts.peer().is_server()
             && frame.fields().is_empty()
             && frame.fields().capacity() == 0
@@ -325,6 +298,34 @@ impl Recv {
                 stream.notify_recv();
             }
             return Ok(());
+        }
+
+        if !stream.content_length.is_head() {
+            use super::stream::ContentLength;
+
+            if let Some(content_length) = frame.content_length() {
+                let content_length = match frame::parse_u64(content_length.as_bytes()) {
+                    Ok(v) => v,
+                    Err(_) => {
+                        proto_err!(stream: "could not parse content-length; stream={:?}", stream.id);
+                        return Err(Error::library_reset(stream.id, Reason::PROTOCOL_ERROR).into());
+                    }
+                };
+
+                stream.content_length = ContentLength::Remaining(content_length);
+                // END_STREAM on headers frame with non-zero content-length is malformed.
+                // https://datatracker.ietf.org/doc/html/rfc9113#section-8.1.1
+                if frame.is_end_stream()
+                    && content_length > 0
+                    && frame
+                        .pseudo()
+                        .status
+                        .map_or(true, |status| status != 204 && status != 304)
+                {
+                    proto_err!(stream: "recv_headers with END_STREAM: content-length is not zero; stream={:?};", stream.id);
+                    return Err(Error::library_reset(stream.id, Reason::PROTOCOL_ERROR).into());
+                }
+            }
         }
 
         let stream_id = frame.stream_id();
