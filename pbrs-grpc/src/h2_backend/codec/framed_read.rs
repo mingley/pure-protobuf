@@ -582,11 +582,10 @@ fn read_total(src: &mut BytesMut, max_frame_len: usize) -> io::Result<Option<usi
         ));
     };
     // `num_skip` is 0, so the header stays in the returned buffer.
-    // A zero reserve never allocates; skip the call when the frame is
-    // already buffered.
-    let short = total.saturating_sub(src.len());
-    if short > 0 {
-        src.reserve(short);
+    // A finished frame is already buffered. Reserve only the missing tail,
+    // and the compare above proved `total - len` does not wrap.
+    if src.len() < total {
+        src.reserve(total - src.len());
     }
     Ok(Some(total))
 }
