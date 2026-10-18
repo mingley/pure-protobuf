@@ -38,11 +38,16 @@ impl Head {
 
     /// Parse an HTTP/2 frame header
     pub fn parse(header: &[u8]) -> Head {
-        let (stream_id, _) = StreamId::parse(&header[5..]);
+        // One length check. Indexing the 9-byte array does not check again.
+        let prefix: &[u8; super::HEADER_LEN] = match header.get(..super::HEADER_LEN) {
+            Some(prefix) => prefix.try_into().unwrap_or_else(|_| short_header()),
+            None => short_header(),
+        };
+        let (stream_id, _) = StreamId::parse(&prefix[5..9]);
 
         Head {
-            kind: Kind::new(header[3]),
-            flag: header[4],
+            kind: Kind::new(prefix[3]),
+            flag: prefix[4],
             stream_id,
         }
     }
@@ -92,6 +97,15 @@ impl Kind {
         match byte {
             0 => Kind::Data,
             1 => Kind::Headers,
+            n => Kind::from_byte_other(n),
+        }
+    }
+
+    /// Control-frame kinds. A gRPC connection's steady frames are DATA and HEADERS.
+    #[cold]
+    #[inline(never)]
+    fn from_byte_other(byte: u8) -> Kind {
+        match byte {
             2 => Kind::Priority,
             3 => Kind::Reset,
             4 => Kind::Settings,
@@ -103,4 +117,10 @@ impl Kind {
             _ => Kind::Unknown,
         }
     }
+}
+
+#[cold]
+#[inline(never)]
+fn short_header() -> &'static [u8; super::HEADER_LEN] {
+    panic!("HTTP/2 frame shorter than the 9-byte header");
 }
