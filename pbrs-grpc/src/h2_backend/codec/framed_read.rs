@@ -550,24 +550,33 @@ impl Decoder for H2FrameDecoder {
 
     fn decode(&mut self, src: &mut BytesMut) -> io::Result<Option<BytesMut>> {
         let total = match self.state {
-            ReadState::Data(n) => n,
+            ReadState::Data(n) => {
+                if src.len() < n {
+                    return Ok(None);
+                }
+                n
+            }
             ReadState::Head => match read_total(src, self.max_frame_len)? {
-                Some(n) => {
+                Some((n, false)) => {
+                    self.state = ReadState::Data(n);
+                    return Ok(None);
+                }
+                Some((n, true)) => {
+                    // Record the length before clearing it. A complete frame
+                    // still passes through `Data` so a short read and a
+                    // finished one share the same store.
                     self.state = ReadState::Data(n);
                     n
                 }
                 None => return Ok(None),
             },
         };
-        if src.len() < total {
-            return Ok(None);
-        }
         self.state = ReadState::Head;
         Ok(Some(src.split_to(total)))
     }
 }
 
-fn read_total(src: &mut BytesMut, max_frame_len: usize) -> io::Result<Option<usize>> {
+fn read_total(src: &mut BytesMut, max_frame_len: usize) -> io::Result<Option<(usize, bool)>> {
     let raw = match src.get(..HEAD_LEN) {
         Some([b0, b1, b2]) => ((*b0 as usize) << 16) | ((*b1 as usize) << 8) | (*b2 as usize),
         _ => return Ok(None),
@@ -582,12 +591,13 @@ fn read_total(src: &mut BytesMut, max_frame_len: usize) -> io::Result<Option<usi
         ));
     };
     // `num_skip` is 0, so the header stays in the returned buffer.
-    // A finished frame is already buffered. Reserve only the missing tail,
-    // and the compare above proved `total - len` does not wrap.
-    if src.len() < total {
+    // One compare both decides readiness and, when short, the reserve.
+    // The caller does not compare the length again.
+    let ready = src.len() >= total;
+    if !ready {
         src.reserve(total - src.len());
     }
-    Ok(Some(total))
+    Ok(Some((total, ready)))
 }
 
 #[derive(Debug)]
