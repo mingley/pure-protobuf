@@ -897,7 +897,16 @@ impl Prioritize {
                         self.pending_send.push(&mut stream);
                     }
 
-                    counts.transition_after(stream, is_pending_reset);
+                    // `transition_after` indexes the slab again. An open
+                    // stream only needs the closed check, and `sp` is still
+                    // the slot `pop` resolved. Close cleanup consumes `stream`.
+                    let closing = unsafe {
+                        (*sp).state.is_closed()
+                            && !((*sp).protocol_unlinked && (*sp).ref_count > 0)
+                    };
+                    if closing {
+                        counts.transition_after(stream, is_pending_reset);
+                    }
 
                     return Some(frame);
                 }
