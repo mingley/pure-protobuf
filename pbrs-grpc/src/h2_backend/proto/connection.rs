@@ -212,9 +212,12 @@ where
         // Entering it holds a borrow across the mutable field uses below.
         let span = tracing::trace_span!(parent: &self.inner.span, "poll_ready");
         let _e = span.enter();
-        // The order of these calls don't really matter too much
-        ready!(self.inner.ping_pong.send_pending_pong(cx, &mut self.codec))?;
-        ready!(self.inner.ping_pong.send_pending_ping(cx, &mut self.codec))?;
+        // The order of these calls don't really matter too much.
+        // A live connection with no ping handle has nothing to write.
+        if !self.inner.ping_pong.is_send_idle() {
+            ready!(self.inner.ping_pong.send_pending_pong(cx, &mut self.codec))?;
+            ready!(self.inner.ping_pong.send_pending_ping(cx, &mut self.codec))?;
+        }
         ready!(self
             .inner
             .settings

@@ -16,6 +16,8 @@ pub(crate) struct PingPong {
     pending_ping: Option<PendingPing>,
     pending_pong: Option<PingPayload>,
     user_pings: Option<UserPingsRx>,
+    /// No ping, pong, or user ping handle. `poll_ready` skips both sends.
+    send_idle: bool,
 }
 
 #[derive(Debug)]
@@ -66,7 +68,19 @@ impl PingPong {
             pending_ping: None,
             pending_pong: None,
             user_pings: None,
+            send_idle: true,
         }
+    }
+
+    #[inline]
+    pub(crate) fn is_send_idle(&self) -> bool {
+        self.send_idle
+    }
+
+    fn note_ping_change(&mut self) {
+        self.send_idle = self.pending_ping.is_none()
+            && self.pending_pong.is_none()
+            && self.user_pings.is_none();
     }
 
     /// Can only be called once. If called a second time, returns `None`.
@@ -81,6 +95,7 @@ impl PingPong {
             pong_task: AtomicWaker::new(),
         });
         self.user_pings = Some(UserPingsRx(user_pings.clone()));
+        self.note_ping_change();
         Some(UserPings(user_pings))
     }
 
@@ -91,6 +106,7 @@ impl PingPong {
             payload: Ping::SHUTDOWN,
             sent: false,
         });
+        self.note_ping_change();
     }
 
     /// Process a ping
@@ -108,6 +124,7 @@ impl PingPong {
                         "pending_ping should be for shutdown",
                     );
                     tracing::trace!("recv PING SHUTDOWN ack");
+                    self.note_ping_change();
                     return ReceivedPing::Shutdown;
                 }
 
@@ -118,6 +135,7 @@ impl PingPong {
             if let Some(ref users) = self.user_pings {
                 if ping.payload() == &Ping::USER && users.receive_pong() {
                     tracing::trace!("recv PING USER ack");
+                    self.note_ping_change();
                     return ReceivedPing::Unknown;
                 }
             }
@@ -126,10 +144,12 @@ impl PingPong {
             // The spec doesn't require us to do anything about this,
             // so for resiliency, just ignore it for now.
             tracing::warn!("recv PING ack that we never sent: {:?}", ping);
+            self.note_ping_change();
             ReceivedPing::Unknown
         } else {
             // Save the ping's payload to be sent as an acknowledgement.
             self.pending_pong = Some(ping.into_payload());
+            self.note_ping_change();
             ReceivedPing::MustAck
         }
     }
@@ -172,6 +192,7 @@ impl PingPong {
                 .expect("invalid pong frame");
         }
 
+        self.note_ping_change();
         Poll::Ready(Ok(()))
     }
 
@@ -212,6 +233,7 @@ impl PingPong {
             }
         }
 
+        self.note_ping_change();
         Poll::Ready(Ok(()))
     }
 }
