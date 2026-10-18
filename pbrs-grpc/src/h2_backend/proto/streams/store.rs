@@ -498,14 +498,18 @@ impl StreamSlots {
         let next = self.next;
         let slot = unsafe { self.slots.get_unchecked_mut(slot_index) as *mut Slot };
         // SAFETY: the match above proved this slot is Occupied with `stream_id`.
-        // `ManuallyDrop::drop` runs `Stream`'s destructor once. `ptr::write`
-        // does not drop the old occupant, so the freed stream is not dropped
-        // again. The written `Vacant` is a valid slot.
+        // `drop_is_nop` means the stream holds no waker and no error buffer,
+        // so overwriting it frees nothing. Otherwise `ManuallyDrop::drop` runs
+        // the destructor once. `ptr::write` does not drop the old occupant.
+        // The written `Vacant` is a valid slot.
         unsafe {
             match &mut *slot {
+                Slot::Occupied(stream) if stream.drop_is_nop() => {}
                 Slot::Occupied(stream) => ManuallyDrop::drop(stream),
                 Slot::Vacant(_) => unreachable!("occupied slot became vacant"),
             }
+            // A bare end-of-stream has no waker and no error buffer. Overwriting
+            // the slot does not free those, because they were never stored.
             std::ptr::write(slot, Slot::Vacant(next));
         }
         self.next = index;

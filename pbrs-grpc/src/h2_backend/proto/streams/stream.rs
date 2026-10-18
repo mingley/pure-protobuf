@@ -286,6 +286,17 @@ impl Stream {
         self.is_closed() && self.release_ready()
     }
 
+    /// True when dropping this stream would free nothing.
+    ///
+    /// The only heap in a stream is a parked waker or an error cause that
+    /// holds bytes. A bare end-of-stream with no wakers can be overwritten.
+    pub(super) fn drop_is_nop(&self) -> bool {
+        self.send_task.is_none()
+            && self.recv_task.is_none()
+            && self.push_task.is_none()
+            && self.state.is_bare_end()
+    }
+
     /// Queue and refcount checks for [`Self::is_released`], once `is_closed`
     /// is already known. `transition_after` uses this so a live stream does
     /// not test the closed state twice.

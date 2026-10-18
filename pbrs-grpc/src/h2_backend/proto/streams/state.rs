@@ -429,6 +429,11 @@ impl State {
         matches!(self.inner, Closed(_))
     }
 
+    /// Closed by end-of-stream. That cause owns no buffer or string.
+    pub(super) fn is_bare_end(&self) -> bool {
+        matches!(self.inner, Closed(Cause::EndStream))
+    }
+
     pub fn is_send_closed(&self) -> bool {
         matches!(
             self.inner,
