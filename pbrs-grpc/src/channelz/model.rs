@@ -181,6 +181,9 @@ pub(crate) struct SocketEntry {
     /// Server that owns this accepted socket. Call counters update here so a
     /// dispatched RPC does not lock the server map again.
     server: Option<Arc<ServerEntry>>,
+    /// Subchannel this client socket was opened under. Call counters update
+    /// here so a stream start does not lock the subchannel map again.
+    subchannel: Option<Arc<SubchannelEntry>>,
     pub name: String,
     /// Locally bound address, when the transport reports one.
     pub local: Option<EndpointAddr>,
@@ -217,11 +220,16 @@ impl SocketEntry {
     }
 
     #[inline]
-    fn record_stream_started(&self, local: bool) -> SocketParent {
+    fn record_stream_started(&self, local: bool) {
         self.streams_started.fetch_add(1, Ordering::Relaxed);
         if local {
-            self.last_local_stream_ms
-                .store(coarse_now_ms(), Ordering::Relaxed);
+            let ms = coarse_now_ms();
+            self.last_local_stream_ms.store(ms, Ordering::Relaxed);
+            // One clock read covers the socket and its subchannel.
+            if let Some(sub) = &self.subchannel {
+                sub.calls_started.fetch_add(1, Ordering::Relaxed);
+                sub.last_call_started_ms.store(ms, Ordering::Relaxed);
+            }
         } else {
             let ms = coarse_now_ms();
             self.last_remote_stream_ms.store(ms, Ordering::Relaxed);
@@ -231,11 +239,10 @@ impl SocketEntry {
                 server.last_call_started_ms.store(ms, Ordering::Relaxed);
             }
         }
-        self.parent
     }
 
     #[inline]
-    fn record_stream_end(&self, ok: bool) -> SocketParent {
+    fn record_stream_end(&self, ok: bool) {
         if ok {
             self.streams_succeeded.fetch_add(1, Ordering::Relaxed);
         } else {
@@ -248,36 +255,40 @@ impl SocketEntry {
                 server.calls_failed.fetch_add(1, Ordering::Relaxed);
             }
         }
-        self.parent
+        if let Some(sub) = &self.subchannel {
+            if ok {
+                sub.calls_succeeded.fetch_add(1, Ordering::Relaxed);
+            } else {
+                sub.calls_failed.fetch_add(1, Ordering::Relaxed);
+            }
+        }
     }
 
     #[inline]
-    fn record_local_finished(&self, ok: bool, received: u64) -> SocketParent {
+    fn record_local_finished(&self, ok: bool, received: u64) {
         self.record_stream_started(true);
-        let parent = self.record_stream_end(ok);
+        self.record_stream_end(ok);
         if received > 0 {
             self.add_messages(false, received);
         }
-        parent
     }
 
     /// Count one completed stream without looking the socket up again.
     ///
-    /// A parent subchannel's call counters still go through `registry`,
-    /// which is the registry that owns this entry.
-    pub(crate) fn add_stream_end(&self, registry: &Registry, ok: bool) {
+    /// The parent subchannel was stored when the socket was registered.
+    /// Server call counters stay on [`Self::record_stream_end`]; this path
+    /// is the client stream drop.
+    pub(crate) fn add_stream_end(&self, ok: bool) {
         if ok {
             self.streams_succeeded.fetch_add(1, Ordering::Relaxed);
         } else {
             self.streams_failed.fetch_add(1, Ordering::Relaxed);
         }
-        if let SocketParent::Subchannel(parent) = self.parent {
-            if let Some(sub) = registry.subchannel(parent) {
-                if ok {
-                    sub.calls_succeeded.fetch_add(1, Ordering::Relaxed);
-                } else {
-                    sub.calls_failed.fetch_add(1, Ordering::Relaxed);
-                }
+        if let Some(sub) = &self.subchannel {
+            if ok {
+                sub.calls_succeeded.fetch_add(1, Ordering::Relaxed);
+            } else {
+                sub.calls_failed.fetch_add(1, Ordering::Relaxed);
             }
         }
     }
@@ -460,20 +471,32 @@ impl Registry {
                 .map(addr_text)
                 .unwrap_or_else(|| "-".to_owned())
         );
-        let server = if is_listen {
-            None
-        } else if let SocketParent::Server(server_id) = parent {
-            self.servers
-                .read()
-                .ok()
-                .and_then(|map| map.get(&server_id.0).cloned())
+        let (server, subchannel) = if is_listen {
+            (None, None)
         } else {
-            None
+            match parent {
+                SocketParent::Server(server_id) => (
+                    self.servers
+                        .read()
+                        .ok()
+                        .and_then(|map| map.get(&server_id.0).cloned()),
+                    None,
+                ),
+                SocketParent::Subchannel(sub_id) => (
+                    None,
+                    self.subchannels
+                        .read()
+                        .ok()
+                        .and_then(|map| map.get(&sub_id.0).cloned()),
+                ),
+                SocketParent::Channel(_) => (None, None),
+            }
         };
         let entry = Arc::new(SocketEntry {
             id,
             parent,
             server,
+            subchannel,
             name: name.clone(),
             local,
             remote,
@@ -882,74 +905,39 @@ impl Registry {
     ///
     /// The three separate notes each lock the socket map.
     pub(crate) fn note_local_stream_finished(&self, id: SocketId, ok: bool, received: u64) {
-        let parent =
-            match with_cached_socket(self, id, |entry| entry.record_local_finished(ok, received)) {
-                Some(parent) => parent,
-                None => {
-                    let Some(entry) = self.cache_socket(id) else {
-                        return;
-                    };
-                    entry.record_local_finished(ok, received)
-                }
-            };
-        if let SocketParent::Subchannel(parent) = parent {
-            if let Some(sub) = self.subchannel(parent) {
-                sub.calls_started.fetch_add(1, Ordering::Relaxed);
-                sub.last_call_started_ms
-                    .store(coarse_now_ms(), Ordering::Relaxed);
-                if ok {
-                    sub.calls_succeeded.fetch_add(1, Ordering::Relaxed);
-                } else {
-                    sub.calls_failed.fetch_add(1, Ordering::Relaxed);
-                }
-            }
+        if with_cached_socket(self, id, |entry| entry.record_local_finished(ok, received)).is_some()
+        {
+            return;
         }
+        let Some(entry) = self.cache_socket(id) else {
+            return;
+        };
+        entry.record_local_finished(ok, received);
     }
 
     /// Count one stream started on a socket, cascading to the parent
     /// subchannel's call counters when there is one (each attempt is
     /// one stream). `local` marks locally-initiated streams.
     pub fn note_stream_started(&self, id: SocketId, local: bool) {
-        let parent = match with_cached_socket(self, id, |entry| entry.record_stream_started(local))
-        {
-            Some(parent) => parent,
-            None => {
-                let Some(entry) = self.cache_socket(id) else {
-                    return;
-                };
-                entry.record_stream_started(local)
-            }
-        };
-        if let SocketParent::Subchannel(parent) = parent {
-            if let Some(sub) = self.subchannel(parent) {
-                sub.calls_started.fetch_add(1, Ordering::Relaxed);
-                sub.last_call_started_ms
-                    .store(coarse_now_ms(), Ordering::Relaxed);
-            }
+        if with_cached_socket(self, id, |entry| entry.record_stream_started(local)).is_some() {
+            return;
         }
+        let Some(entry) = self.cache_socket(id) else {
+            return;
+        };
+        entry.record_stream_started(local);
     }
 
     /// Count one stream completed on a socket, cascading to the
     /// parent subchannel's call counters when there is one.
     pub fn note_stream_end(&self, id: SocketId, ok: bool) {
-        let parent = match with_cached_socket(self, id, |entry| entry.record_stream_end(ok)) {
-            Some(parent) => parent,
-            None => {
-                let Some(entry) = self.cache_socket(id) else {
-                    return;
-                };
-                entry.record_stream_end(ok)
-            }
-        };
-        if let SocketParent::Subchannel(parent) = parent {
-            if let Some(sub) = self.subchannel(parent) {
-                if ok {
-                    sub.calls_succeeded.fetch_add(1, Ordering::Relaxed);
-                } else {
-                    sub.calls_failed.fetch_add(1, Ordering::Relaxed);
-                }
-            }
+        if with_cached_socket(self, id, |entry| entry.record_stream_end(ok)).is_some() {
+            return;
         }
+        let Some(entry) = self.cache_socket(id) else {
+            return;
+        };
+        entry.record_stream_end(ok);
     }
 
     /// Count messages on a socket. `sent` selects the direction;

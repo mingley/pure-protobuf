@@ -318,7 +318,7 @@ impl<T> Streaming<T> {
             state.ended = true;
             state
                 .entry
-                .add_stream_end(crate::channelz::Registry::global(), ok);
+                .add_stream_end(ok);
         }
     }
 
