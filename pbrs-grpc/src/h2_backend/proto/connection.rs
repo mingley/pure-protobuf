@@ -208,8 +208,9 @@ where
     /// Returns `Error` as this may raise errors that are caused by delayed
     /// processing of received frames.
     fn poll_ready(&mut self, cx: &mut Context) -> Poll<Result<(), Error>> {
-        let _e = self.inner.span.enter();
-        let span = tracing::trace_span!("poll_ready");
+        // Record the connection span as the parent without entering it.
+        // Entering it holds a borrow across the mutable field uses below.
+        let span = tracing::trace_span!(parent: &self.inner.span, "poll_ready");
         let _e = span.enter();
         // The order of these calls don't really matter too much
         ready!(self.inner.ping_pong.send_pending_pong(cx, &mut self.codec))?;
