@@ -894,12 +894,13 @@ impl Headers {
     ) -> Option<Continuation> {
         debug_assert!(this.flags.is_end_headers());
         let head = this.head();
+        let stock = this.header_block.stock;
         if !encoder.has_size_update() {
             if let Some((kind, bytes)) = replayed_standard(
                 encoder,
                 &this.header_block.pseudo,
                 &this.header_block.fields,
-                this.header_block.stock,
+                stock,
             ) {
                 let total = bytes.len() + head.encode_len();
                 let lim = bytes::buf::Limit::limit(dst);
@@ -928,10 +929,12 @@ impl Headers {
                             std::ptr::drop_in_place(fields_ptr);
                         }
                         let pseudo_ptr = std::ptr::addr_of_mut!((*ptr).header_block.pseudo);
-                        if !matches!(kind, StandardMap::Response | StandardMap::Trailers) {
-                            // Request pseudos own the authority and path. Drop
-                            // them where they sit instead of copying the 152-byte
-                            // block out and dropping the copy.
+                        // Stock requests build `:path` and `:authority` with
+                        // `from_static`. Dropping them only runs Bytes glue.
+                        // A non-stock replay can still own those strings.
+                        if !matches!(kind, StandardMap::Response | StandardMap::Trailers)
+                            && stock != StandardMap::Request
+                        {
                             std::ptr::drop_in_place(pseudo_ptr);
                         }
                         std::alloc::dealloc(ptr.cast(), std::alloc::Layout::new::<Self>());
