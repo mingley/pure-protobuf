@@ -243,6 +243,7 @@ where
         &mut self,
         cx: &mut Context,
         dst: &mut Codec<T, Prioritized<B>>,
+        armed: bool,
     ) -> Poll<io::Result<()>>
     where
         T: AsyncWrite + Unpin,
@@ -258,8 +259,13 @@ where
                 // Register the task while holding the same lock used to
                 // observe that all pending frames have been buffered. A
                 // producer that queues another frame while the codec is being
-                // flushed will then take and wake this task.
-                if matches!(status, BufferStatus::Complete | BufferStatus::Idle) {
+                // flushed will then take and wake this task. The preface
+                // poll is not armed, so it does not keep the connector
+                // waker. The driver keeps the waker it already stored.
+                if armed
+                    && matches!(status, BufferStatus::Complete | BufferStatus::Idle)
+                    && me.actions.task.is_none()
+                {
                     me.actions.task = Some(cx.waker().clone());
                 }
 

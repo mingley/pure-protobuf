@@ -295,6 +295,9 @@ where
         // without cloning it.
         let span = tracing::trace_span!(parent: &self.inner.span, "poll");
         let _e = span.enter();
+        // The preface poll applies SETTINGS and must not keep this task's
+        // waker. Later polls are the connection driver.
+        let armed = self.inner.settings.received_remote_initial_settings();
 
         loop {
             tracing::trace!(connection.state = ?self.inner.state);
@@ -309,7 +312,7 @@ where
                             // Ensure all window updates have been sent.
                             //
                             // This will also handle flushing `self.codec`
-                            ready!(self.inner.streams.poll_complete(cx, &mut self.codec))?;
+                            ready!(self.inner.streams.poll_complete(cx, &mut self.codec, armed))?;
 
                             if (self.inner.error.is_some()
                                 || self.inner.go_away.should_close_on_idle())
