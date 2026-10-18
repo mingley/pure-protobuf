@@ -7,6 +7,7 @@
 use atomic_waker::AtomicWaker;
 use std::cell::Cell;
 use std::future::Future;
+use std::mem::ManuallyDrop;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -26,8 +27,11 @@ thread_local! {
 }
 
 /// Cloneable cancel handle for one client RPC.
+///
+/// The flag is always present. `ManuallyDrop` lets `Drop` move the `Arc`
+/// out without a discriminant check on every clone and drop.
 pub(crate) struct RpcCancel {
-    inner: Option<Arc<Inner>>,
+    inner: ManuallyDrop<Arc<Inner>>,
 }
 
 impl std::fmt::Debug for RpcCancel {
@@ -44,10 +48,12 @@ impl RpcCancel {
             inner.cancelled.store(false, Ordering::Release);
             inner.closed.store(false, Ordering::Release);
             inner.senders.store(1, Ordering::Release);
-            return Self { inner: Some(inner) };
+            return Self {
+                inner: ManuallyDrop::new(inner),
+            };
         }
         Self {
-            inner: Some(Arc::new(Inner {
+            inner: ManuallyDrop::new(Arc::new(Inner {
                 cancelled: AtomicBool::new(false),
                 closed: AtomicBool::new(false),
                 senders: AtomicUsize::new(1),
@@ -57,7 +63,7 @@ impl RpcCancel {
     }
 
     fn inner(&self) -> &Arc<Inner> {
-        self.inner.as_ref().expect("cancel handle")
+        &self.inner
     }
 
     /// Mark the call cancelled and wake whoever is waiting.
@@ -85,16 +91,17 @@ impl Clone for RpcCancel {
         let inner = self.inner();
         inner.senders.fetch_add(1, Ordering::Relaxed);
         Self {
-            inner: Some(Arc::clone(inner)),
+            inner: ManuallyDrop::new(Arc::clone(inner)),
         }
     }
 }
 
 impl Drop for RpcCancel {
+    #[allow(unsafe_code, reason = "move the flag out of ManuallyDrop exactly once")]
     fn drop(&mut self) {
-        let Some(inner) = self.inner.take() else {
-            return;
-        };
+        // SAFETY: `inner` is initialized by every constructor and this is the
+        // only place it is moved out. `ManuallyDrop` does not drop the `Arc`.
+        let inner = unsafe { ManuallyDrop::take(&mut self.inner) };
         if inner.senders.fetch_sub(1, Ordering::AcqRel) != 1 {
             return;
         }
