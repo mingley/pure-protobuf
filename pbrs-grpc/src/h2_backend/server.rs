@@ -1765,6 +1765,24 @@ pub(crate) fn stock_https_of(
 /// POST built from the process-wide authority and path cache.
 static HTTP_POST: std::sync::OnceLock<Request<()>> = std::sync::OnceLock::new();
 
+/// Empty HTTP 200. Stock responses copy this instead of building it.
+static OK_RESPONSE: std::sync::OnceLock<http::Response<()>> = std::sync::OnceLock::new();
+
+#[allow(
+    unsafe_code,
+    reason = "a stock OK response holds an empty map and no extensions"
+)]
+pub(crate) fn copy_stock_ok_response() -> http::Response<()> {
+    let proto = OK_RESPONSE.get_or_init(|| {
+        let mut res = http::Response::new(());
+        *res.status_mut() = http::StatusCode::OK;
+        res
+    });
+    // SAFETY: status and version are `Copy`. The header map is empty and
+    // extensions are absent, so a bitwise copy does not alias a heap buffer.
+    unsafe { std::ptr::read(proto) }
+}
+
 pub(crate) fn cached_simple_post(https: bool) -> Request<()> {
     if !https {
         if let Some(cached) = HTTP_POST.get() {

@@ -272,11 +272,10 @@ pub(crate) fn send_ok_headers(
     send_codec: Option<CompressionAlgorithm>,
     accept_gzip: bool,
 ) -> Result<backend::SendStream, Status> {
-    let mut res = Response::new(());
-    *res.status_mut() = StatusCode::OK;
     // Default responses repeat the same two headers. Clone that block
     // instead of hashing the names again.
     if md.is_empty() && send_codec.is_none() && accept_gzip {
+        let mut res = crate::h2_backend::server::copy_stock_ok_response();
         // A parked stock response is replayed from the encoder cache. The
         // frame does not need its own copy of the map.
         if !crate::h2_backend::header_pool::is_parked(
@@ -297,6 +296,8 @@ pub(crate) fn send_ok_headers(
             .send_response(res, false)
             .map_err(|e| Status::internal(e.to_string()));
     }
+    let mut res = Response::new(());
+    *res.status_mut() = StatusCode::OK;
     send_ok_headers_slow(respond, res, md, send_codec, accept_gzip)
 }
 
