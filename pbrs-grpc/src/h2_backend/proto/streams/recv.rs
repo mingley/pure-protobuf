@@ -294,7 +294,14 @@ impl Recv {
             && frame.is_stock_response()
             && frame.pseudo().status == Some(http::StatusCode::OK)
         {
-            let fields = frame::Headers::take_fields_box(frame);
+            let fields = if frame.fields().is_empty() && frame.fields().capacity() == 0 {
+                frame::Headers::forget_empty_box(frame);
+                crate::h2_backend::header_pool::take_received_response()
+                    .map(|(map, _)| map)
+                    .unwrap_or_else(HeaderMap::new)
+            } else {
+                frame::Headers::take_fields_box(frame)
+            };
             {
                 let stream = &mut **stream;
                 stream.pending_recv.push_back(
@@ -583,7 +590,12 @@ impl Recv {
         }
 
         let trailers = if frame.is_stock_trailers() {
-            frame::Headers::take_fields_box(frame)
+            if frame.fields().is_empty() && frame.fields().capacity() == 0 {
+                frame::Headers::forget_empty_box(frame);
+                crate::h2_backend::header_pool::take_received_ok_trailer(HeaderMap::new)
+            } else {
+                frame::Headers::take_fields_box(frame)
+            }
         } else {
             frame::Headers::into_parts_box(frame).1
         };

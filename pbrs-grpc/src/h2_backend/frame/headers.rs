@@ -1950,33 +1950,48 @@ impl HeaderBlock {
             if let Some((kind, decoded)) = decoder.lookup_saved(src) {
                 match kind {
                     hpack::BlockKind::Response(grpc_proto) => {
-                        let fields = match crate::h2_backend::header_pool::take_received_response()
-                        {
-                            Some((spare, spare_proto)) if spare_proto == grpc_proto => spare,
-                            Some((other, other_proto)) => {
-                                crate::h2_backend::header_pool::recycle_received_response(
-                                    other,
-                                    other_proto,
-                                );
-                                decoded.fields.clone()
-                            }
-                            None => decoded.fields.clone(),
-                        };
-                        crate::h2_backend::header_pool::replace_map(&mut self.fields, fields);
-                        // Already a two-field gRPC response. The recv queue
-                        // can skip the stock-response pointer probe.
-                        if decoded.status == Some(http::StatusCode::OK) {
+                        // An OK hit leaves the map parked. Installing it here
+                        // only to move it back out copies the header map.
+                        let parked = decoded.status == Some(http::StatusCode::OK)
+                            && crate::h2_backend::header_pool::received_response_matches(
+                                grpc_proto,
+                            );
+                        if parked {
                             self.stock = StandardMap::Response;
+                        } else {
+                            let fields =
+                                match crate::h2_backend::header_pool::take_received_response() {
+                                    Some((spare, spare_proto)) if spare_proto == grpc_proto => {
+                                        spare
+                                    }
+                                    Some((other, other_proto)) => {
+                                        crate::h2_backend::header_pool::recycle_received_response(
+                                            other,
+                                            other_proto,
+                                        );
+                                        decoded.fields.clone()
+                                    }
+                                    None => decoded.fields.clone(),
+                                };
+                            crate::h2_backend::header_pool::replace_map(&mut self.fields, fields);
+                            // Already a two-field gRPC response. The recv queue
+                            // can skip the stock-response pointer probe.
+                            if decoded.status == Some(http::StatusCode::OK) {
+                                self.stock = StandardMap::Response;
+                            }
                         }
                         self.pseudo.status = decoded.status;
                         self.field_size = decoded.field_size;
                         self.stock_facts = decoded.stock_facts;
                     }
                     hpack::BlockKind::Trailers => {
-                        let fields = crate::h2_backend::header_pool::take_received_ok_trailer(
-                            || decoded.fields.clone(),
-                        );
-                        crate::h2_backend::header_pool::replace_map(&mut self.fields, fields);
+                        // A parked OK trailer is taken when the frame is queued.
+                        if !crate::h2_backend::header_pool::received_ok_trailer_is_parked() {
+                            let fields = crate::h2_backend::header_pool::take_received_ok_trailer(
+                                || decoded.fields.clone(),
+                            );
+                            crate::h2_backend::header_pool::replace_map(&mut self.fields, fields);
+                        }
                         self.field_size = decoded.field_size;
                         self.stock_facts = decoded.stock_facts;
                         // Pseudos stay empty. The trailer receive path can

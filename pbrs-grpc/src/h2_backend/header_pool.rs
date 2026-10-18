@@ -76,6 +76,15 @@ pub(crate) fn take_received_ok_trailer(make: impl FnOnce() -> HeaderMap) -> Head
     RECEIVED_OK_TRAILER.take().unwrap_or_else(make)
 }
 
+/// `true` when an OK trailer map is already parked for this thread.
+#[inline]
+#[allow(unsafe_code, reason = "peek the parked trailer map without moving it")]
+pub(crate) fn received_ok_trailer_is_parked() -> bool {
+    let ptr = RECEIVED_OK_TRAILER.with(Cell::as_ptr);
+    // SAFETY: the cell is thread-local and this read does not re-enter it.
+    unsafe { (*ptr).is_some() }
+}
+
 #[allow(
     unsafe_code,
     reason = "an empty trailer slot is overwritten in place; a full slot is dropped first"
@@ -157,6 +166,21 @@ thread_local! {
 
 pub(crate) fn take_received_response() -> Option<(HeaderMap, bool)> {
     RECEIVED_RESPONSE.take()
+}
+
+/// `true` when the parked response map is the same protobuf flag.
+#[inline]
+#[allow(unsafe_code, reason = "peek the parked response map without moving it")]
+pub(crate) fn received_response_matches(grpc_proto: bool) -> bool {
+    let ptr = RECEIVED_RESPONSE.with(Cell::as_ptr);
+    // SAFETY: `as_ref` borrows the map. The cell is thread-local and this
+    // read does not re-enter it.
+    unsafe {
+        match (*ptr).as_ref() {
+            Some((_, proto)) => *proto == grpc_proto,
+            None => false,
+        }
+    }
 }
 
 /// One heap slot for the `HeaderMap` queued as a stock response.
