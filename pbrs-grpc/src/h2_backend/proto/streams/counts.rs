@@ -83,9 +83,14 @@ pub(super) struct Counts {
     num_recv_empty_data_frames: usize,
 
     /// Mirrors `has_streams` so the connection driver can skip the stream lock
-    /// while any stream is counted. Cleared when the last stream is released.
-    /// A connection with no open stream and `refs > 1` still takes the lock.
+    /// while any stream is counted. Also stays set while `owners > 1`, which
+    /// is the same answer as the locked `refs > 1` check between calls.
     streams_open: Arc<AtomicBool>,
+
+    /// `Streams` values alive for this connection, including the connection
+    /// itself. Stream handles are not counted. `1` means the connection is the
+    /// only owner, so an idle connection may clear `streams_open`.
+    pub(super) owners: usize,
 }
 
 impl Counts {
@@ -108,6 +113,15 @@ impl Counts {
             data_frame_budget: Budget::new(config.data_frame_budget),
             num_recv_empty_data_frames: 0,
             streams_open: Arc::new(AtomicBool::new(false)),
+            owners: 1,
+        }
+    }
+
+    /// Clear the fast-path flag once the connection is the only owner and no
+    /// stream is counted. A later poll then takes the lock and can GOAWAY.
+    pub(super) fn clear_open_if_idle(&self) {
+        if !self.has_streams() {
+            self.streams_open.store(false, Ordering::Release);
         }
     }
 
@@ -407,7 +421,7 @@ impl Counts {
             self.num_recv_streams -= 1;
             stream.is_counted = false;
         }
-        if self.num_send_streams == 0 && self.num_recv_streams == 0 {
+        if self.num_send_streams == 0 && self.num_recv_streams == 0 && self.owners <= 1 {
             self.streams_open.store(false, Ordering::Release);
         }
     }

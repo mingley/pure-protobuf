@@ -1389,7 +1389,10 @@ where
     P: Peer,
 {
     fn clone(&self) -> Self {
-        self.inner.lock().unwrap().refs += 1;
+        let mut inner = self.inner.lock().unwrap();
+        inner.refs += 1;
+        inner.counts.owners += 1;
+        drop(inner);
         Streams {
             inner: self.inner.clone(),
             send_buffer: self.send_buffer.clone(),
@@ -1408,6 +1411,10 @@ where
     fn drop(&mut self) {
         if let Ok(mut inner) = self.inner.lock() {
             inner.refs -= 1;
+            inner.counts.owners -= 1;
+            if inner.counts.owners <= 1 {
+                inner.counts.clear_open_if_idle();
+            }
             if inner.refs == 1 {
                 if let Some(task) = inner.actions.task.take() {
                     task.wake();
