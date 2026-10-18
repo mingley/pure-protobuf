@@ -465,7 +465,8 @@ where
         std::mem::swap(request.extensions_mut(), &mut deferred_extensions);
         let protocol = deferred_extensions.remove::<Protocol>();
 
-        if me.counts.peer().is_server() {
+        // The peer is a type parameter. The client build drops this branch.
+        if P::r#dyn().is_server() {
             // Servers cannot open streams. PushPromise must first be reserved.
             return Poll::Ready(Err(UserError::UnexpectedFrameType.into()));
         }

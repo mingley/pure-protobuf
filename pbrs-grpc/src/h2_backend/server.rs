@@ -2007,6 +2007,7 @@ impl proto::Peer for Peer {
     }
     */
 
+    #[inline]
     fn r#dyn() -> proto::DynPeer {
         proto::DynPeer::Server
     }

@@ -1877,6 +1877,7 @@ impl proto::Peer for Peer {
 
     const NAME: &'static str = "Client";
 
+    #[inline]
     fn r#dyn() -> proto::DynPeer {
         proto::DynPeer::Client
     }
