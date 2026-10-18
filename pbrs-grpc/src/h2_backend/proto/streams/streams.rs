@@ -1373,13 +1373,22 @@ where
         me.counts.has_streams()
     }
 
+    #[inline]
     pub fn has_streams_or_other_references(&self) -> bool {
         // While a stream is counted this is true regardless of `refs`.
         // The flag is updated under the stream lock and loaded with Acquire,
         // so a same-task close is visible to the check after `poll`.
+        // The lock stays out of line: a live connection takes this branch.
         if self.streams_open.load(Ordering::Acquire) {
             return true;
         }
+        self.locked_has_streams_or_refs()
+    }
+
+    /// Idle connection: no stream flag is set, so confirm under the lock.
+    #[cold]
+    #[inline(never)]
+    fn locked_has_streams_or_refs(&self) -> bool {
         let me = self.inner.lock().unwrap();
         me.counts.has_streams() || me.refs > 1
     }

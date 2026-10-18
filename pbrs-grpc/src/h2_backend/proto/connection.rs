@@ -264,12 +264,20 @@ where
     /// check. The open path returns the value already loaded. The close path
     /// re-reads after `go_away_now`, matching a caller that observed the
     /// post-close state.
+    #[inline]
     pub fn maybe_close_connection_if_no_streams(&mut self) -> bool {
         if !self.inner.streams.has_streams_or_other_references() {
-            self.inner.as_dyn().go_away_now(Reason::NO_ERROR);
-            return self.inner.streams.has_streams_or_other_references();
+            return self.close_now_for_idle();
         }
         true
+    }
+
+    /// No stream flag was set. GOAWAY, then read the flag again.
+    #[cold]
+    #[inline(never)]
+    fn close_now_for_idle(&mut self) -> bool {
+        self.inner.as_dyn().go_away_now(Reason::NO_ERROR);
+        self.inner.streams.has_streams_or_other_references()
     }
 
     /// Checks if there are any streams
@@ -278,6 +286,7 @@ where
     }
 
     /// Checks if there are any streams or references left
+    #[inline]
     pub fn has_streams_or_other_references(&self) -> bool {
         // If we poll() and realize that there are no streams or references
         // then we can close the connection by transitioning to GOAWAY
