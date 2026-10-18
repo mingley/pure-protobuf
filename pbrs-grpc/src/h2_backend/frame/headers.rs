@@ -959,7 +959,8 @@ impl Headers {
                         encode_head_into(head, bytes.len(), inner);
                         inner.extend_from_slice(bytes);
                     }
-                    bytes::buf::Limit::set_limit(dst, lim - total);
+                    // The caller's `Limit` is dropped after this write. The
+                    // remaining budget is not read again.
                     let ptr = Box::into_raw(this);
                     // SAFETY: same leftover fields as `into_parts_box`. A parked
                     // stock map stays in its slot, so an empty frame map is not
