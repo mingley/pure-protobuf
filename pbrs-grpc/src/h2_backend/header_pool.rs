@@ -159,6 +159,66 @@ pub(crate) fn take_received_response() -> Option<(HeaderMap, bool)> {
     RECEIVED_RESPONSE.take()
 }
 
+/// One heap slot for the `HeaderMap` queued as a stock response.
+///
+/// The receive path boxes that map and the client poll moves it back out.
+/// The slot stays; the next response writes into it.
+struct SpareMapBox(std::cell::Cell<*mut HeaderMap>);
+
+#[allow(unsafe_code, reason = "free the parked header-map box at thread exit")]
+impl Drop for SpareMapBox {
+    fn drop(&mut self) {
+        let ptr = self.0.get();
+        if !ptr.is_null() {
+            // SAFETY: the pointer came from Box::into_raw after the map was moved out.
+            unsafe {
+                std::alloc::dealloc(ptr.cast(), std::alloc::Layout::new::<HeaderMap>());
+            }
+        }
+    }
+}
+
+thread_local! {
+    static SPARE_MAP_BOX: SpareMapBox = SpareMapBox(std::cell::Cell::new(std::ptr::null_mut()));
+}
+
+#[allow(
+    unsafe_code,
+    reason = "write a header map into a recycled box without dropping the moved-out bits"
+)]
+pub(crate) fn box_header_map(fields: HeaderMap) -> Box<HeaderMap> {
+    let ptr = SPARE_MAP_BOX.with(|slot| slot.0.replace(std::ptr::null_mut()));
+    if ptr.is_null() {
+        Box::new(fields)
+    } else {
+        // SAFETY: `ptr` came from Box::into_raw. The previous map was moved
+        // out, so these bits own no heap. `write` installs `fields`.
+        unsafe {
+            std::ptr::write(ptr, fields);
+            Box::from_raw(ptr)
+        }
+    }
+}
+
+#[allow(
+    unsafe_code,
+    reason = "move a header map out of its box and keep the allocation"
+)]
+pub(crate) fn unbox_header_map(boxed: Box<HeaderMap>) -> HeaderMap {
+    let ptr = Box::into_raw(boxed);
+    // SAFETY: `ptr` owns the map. `read` moves it to the caller. The allocation
+    // is parked for the next stock response.
+    let fields = unsafe { std::ptr::read(ptr) };
+    let prev = SPARE_MAP_BOX.with(|slot| slot.0.replace(ptr));
+    if !prev.is_null() {
+        // SAFETY: `prev` was produced by Box::into_raw after its map was moved out.
+        unsafe {
+            std::alloc::dealloc(prev.cast(), std::alloc::Layout::new::<HeaderMap>());
+        }
+    }
+    fields
+}
+
 #[allow(
     unsafe_code,
     reason = "an empty response slot is overwritten in place; a full slot is dropped first"

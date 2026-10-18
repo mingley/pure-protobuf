@@ -121,10 +121,16 @@ fn queued_header(
         return Ok(Event::Headers(Box::new(message)));
     }
     if known_stock && pseudo.status == Some(http::StatusCode::OK) {
-        return Ok(Event::StockResponse(Box::new(fields)));
+        return Ok(Event::StockResponse(
+            crate::h2_backend::header_pool::box_header_map(fields),
+        ));
     }
     let fields = match crate::h2_backend::client::stock_response_map(pseudo, fields) {
-        Ok(fields) => return Ok(Event::StockResponse(Box::new(fields))),
+        Ok(fields) => {
+            return Ok(Event::StockResponse(
+                crate::h2_backend::header_pool::box_header_map(fields),
+            ));
+        }
         Err(fields) => fields,
     };
     let message = peer.convert_poll_message(pseudo, fields, stream_id)?;
@@ -293,7 +299,7 @@ impl Recv {
                 let stream = &mut **stream;
                 stream.pending_recv.push_back(
                     &mut self.buffer,
-                    Event::StockResponse(Box::new(fields)),
+                    Event::StockResponse(crate::h2_backend::header_pool::box_header_map(fields)),
                 );
                 stream.notify_recv();
             }
@@ -466,7 +472,7 @@ impl Recv {
             match stream.pending_recv.pop_front(&mut self.buffer) {
                 Some(Event::StockResponse(fields)) => {
                     return Poll::Ready(Ok(crate::h2_backend::client::response_from_stock(
-                        *fields,
+                        crate::h2_backend::header_pool::unbox_header_map(fields),
                     )));
                 }
                 Some(Event::Headers(message)) => match *message {
