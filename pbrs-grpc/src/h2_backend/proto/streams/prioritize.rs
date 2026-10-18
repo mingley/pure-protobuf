@@ -228,15 +228,6 @@ impl Prioritize {
         stream: &mut store::Ptr,
         counts: &mut Counts,
     ) {
-        let span = tracing::trace_span!(
-            "reserve_capacity",
-            ?stream.id,
-            requested = capacity,
-            effective = (capacity as usize) + stream.buffered_send_data,
-            curr = stream.requested_send_capacity
-        );
-        let _e = span.enter();
-
         // Actual capacity is `capacity` + the current amount of buffered data.
         // If it were less, then we could never send out the buffered data.
         let capacity = (capacity as usize) + stream.buffered_send_data;
