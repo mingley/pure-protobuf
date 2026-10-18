@@ -49,12 +49,15 @@ pub(crate) enum PollReset {
 
 impl Send {
     /// Create a new `Send`
-    pub fn new(config: &Config) -> Self {
+    pub fn new(
+        config: &Config,
+        buffer_idle: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    ) -> Self {
         Send {
             init_window_sz: config.remote_init_window_sz,
             max_stream_id: StreamId::MAX,
             next_stream_id: Ok(config.local_next_stream_id),
-            prioritize: Prioritize::new(config),
+            prioritize: Prioritize::new(config, buffer_idle),
             is_push_enabled: true,
             is_extended_connect_protocol_enabled: false,
         }

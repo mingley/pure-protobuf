@@ -47,6 +47,10 @@ where
     /// `has_streams_or_other_references` return without the stream lock.
     streams_open: Arc<AtomicBool>,
 
+    /// Set when `poll_complete` has observed an idle send side and stored
+    /// the driver waker. Cleared before a frame or window update is queued.
+    buffer_idle: Arc<AtomicBool>,
+
     _p: ::std::marker::PhantomData<P>,
 }
 
@@ -130,13 +134,15 @@ where
     pub fn new(config: Config) -> Self {
         let peer = P::r#dyn();
 
-        let (inner, refusal_pending, reset_pending, streams_open) = Inner::new(peer, config);
+        let (inner, refusal_pending, reset_pending, streams_open, buffer_idle) =
+            Inner::new(peer, config);
         Streams {
             inner,
             send_buffer: Arc::new(SendBuffer::new()),
             refusal_pending,
             reset_pending,
             streams_open,
+            buffer_idle,
             _p: ::std::marker::PhantomData,
         }
     }
@@ -248,6 +254,11 @@ where
     where
         T: AsyncWrite + Unpin,
     {
+        // Nothing queued since the last idle observation, and the codec is
+        // not holding a write. The driver waker was stored on that observation.
+        if self.buffer_idle.load(Ordering::Acquire) && !dst.has_pending_flush() {
+            return Poll::Ready(Ok(()));
+        }
         loop {
             // Make any required socket progress before taking stream locks.
             ready!(dst.poll_ready(cx))?;
@@ -267,6 +278,13 @@ where
                     && me.actions.task.is_none()
                 {
                     me.actions.task = Some(cx.waker().clone());
+                }
+                // Set while the lock is still held. A producer clears the
+                // flag before it wakes, so it cannot sneak in between the
+                // idle observation and this store. `has_pending_flush` keeps
+                // the next poll from skipping a write that is still buffered.
+                if armed && me.actions.task.is_some() && matches!(status, BufferStatus::Idle) {
+                    self.buffer_idle.store(true, Ordering::Release);
                 }
 
                 status
@@ -634,16 +652,19 @@ impl Inner {
         Arc<AtomicBool>,
         Arc<AtomicBool>,
         Arc<AtomicBool>,
+        Arc<AtomicBool>,
     ) {
         let refusal_pending = Arc::new(AtomicBool::new(false));
         let reset_pending = Arc::new(AtomicBool::new(false));
-        let counts = Counts::new(peer, &config);
+        // False until an armed poll has stored the driver waker.
+        let buffer_idle = Arc::new(AtomicBool::new(false));
+        let counts = Counts::new(peer, &config, buffer_idle.clone());
         let streams_open = counts.streams_open_flag();
         let inner = Arc::new(Mutex::new(Inner {
             counts,
             actions: Actions {
-                recv: Recv::new(peer, &config),
-                send: Send::new(&config),
+                recv: Recv::new(peer, &config, buffer_idle.clone()),
+                send: Send::new(&config, buffer_idle.clone()),
                 task: None,
                 conn_error: None,
             },
@@ -652,7 +673,13 @@ impl Inner {
             refusal_pending: refusal_pending.clone(),
             reset_pending: reset_pending.clone(),
         }));
-        (inner, refusal_pending, reset_pending, streams_open)
+        (
+            inner,
+            refusal_pending,
+            reset_pending,
+            streams_open,
+            buffer_idle,
+        )
     }
 
     fn recv_headers<B>(
@@ -1338,6 +1365,7 @@ where
             refusal_pending: _,
             reset_pending: _,
             streams_open: _,
+            buffer_idle: _,
             _p,
         } = self;
         DynStreams {
@@ -1416,6 +1444,7 @@ where
             refusal_pending: self.refusal_pending.clone(),
             reset_pending: self.reset_pending.clone(),
             streams_open: self.streams_open.clone(),
+            buffer_idle: self.buffer_idle.clone(),
             _p: ::std::marker::PhantomData,
         }
     }

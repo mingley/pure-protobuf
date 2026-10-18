@@ -91,11 +91,15 @@ pub(super) struct Counts {
     /// itself. Stream handles are not counted. `1` means the connection is the
     /// only owner, so an idle connection may clear `streams_open`.
     pub(super) owners: usize,
+
+    /// Mirrored on `Streams`. A freed stream slot may have a queued open
+    /// waiting, so the connection must not skip its send lock.
+    buffer_idle: Arc<AtomicBool>,
 }
 
 impl Counts {
     /// Create a new `Counts` using the provided configuration values.
-    pub fn new(peer: peer::Dyn, config: &Config) -> Self {
+    pub fn new(peer: peer::Dyn, config: &Config, buffer_idle: Arc<AtomicBool>) -> Self {
         Counts {
             send_capacity_waiters: Vec::new(),
             peer,
@@ -114,6 +118,7 @@ impl Counts {
             num_recv_empty_data_frames: 0,
             streams_open: Arc::new(AtomicBool::new(false)),
             owners: 1,
+            buffer_idle,
         }
     }
 
@@ -415,6 +420,9 @@ impl Counts {
             assert!(self.num_send_streams > 0);
             self.num_send_streams -= 1;
             stream.is_counted = false;
+            // A queued open can run now. Clear before the connection poll
+            // decides to skip the send lock.
+            super::clear_buffer_idle(&self.buffer_idle);
             self.wake_send_capacity();
         } else {
             assert!(self.num_recv_streams > 0);
@@ -464,6 +472,7 @@ mod tests {
                 local_max_error_reset_streams: None,
                 data_frame_budget: DEFAULT_DATA_FRAME_BUDGET,
             },
+            Arc::new(AtomicBool::new(false)),
         )
     }
 

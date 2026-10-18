@@ -130,6 +130,12 @@ where
         self.encoder.has_capacity()
     }
 
+    /// A previous `buffer` has not been flushed yet.
+    #[inline]
+    pub(crate) fn has_pending_flush(&self) -> bool {
+        self.needs_flush
+    }
+
     /// Buffer a frame.
     ///
     /// `poll_ready` must be called first to ensure that a frame may be

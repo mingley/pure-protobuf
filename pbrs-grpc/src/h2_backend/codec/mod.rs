@@ -153,6 +153,12 @@ where
         self.framed_write().flush(cx)
     }
 
+    /// Bytes are sitting in the write buffer.
+    #[inline]
+    pub fn has_pending_flush(&self) -> bool {
+        self.inner.get_ref().has_pending_flush()
+    }
+
     /// Shutdown the send half
     pub fn shutdown(&mut self, cx: &mut Context) -> Poll<io::Result<()>> {
         self.framed_write().shutdown(cx)

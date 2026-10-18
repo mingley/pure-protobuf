@@ -55,6 +55,10 @@ pub(super) struct Prioritize {
 
     /// The maximum amount of bytes a stream should buffer.
     max_buffer_size: usize,
+
+    /// Cleared when a frame is scheduled. The connection skips its send
+    /// lock while this stays set.
+    buffer_idle: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -82,7 +86,10 @@ pub(crate) struct Prioritized<B> {
 // ===== impl Prioritize =====
 
 impl Prioritize {
-    pub fn new(config: &Config) -> Prioritize {
+    pub fn new(
+        config: &Config,
+        buffer_idle: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    ) -> Prioritize {
         let mut flow = FlowControl::new();
 
         flow.inc_window(config.remote_init_window_sz)
@@ -102,6 +109,7 @@ impl Prioritize {
             last_opened_id: StreamId::ZERO,
             in_flight_data_frame: InFlightData::Nothing,
             max_buffer_size: config.local_max_buffer_size,
+            buffer_idle,
         }
     }
 
@@ -125,6 +133,8 @@ impl Prioritize {
     pub fn schedule_send(&mut self, stream: &mut store::Ptr, task: &mut Option<Waker>) {
         // If the stream is waiting to be opened, nothing more to do.
         if stream.is_send_ready() {
+            // Before the wake, so a connection poll cannot observe idle.
+            super::clear_buffer_idle(&self.buffer_idle);
             // Queue the stream
             self.pending_send.push(stream);
 
@@ -136,6 +146,7 @@ impl Prioritize {
     }
 
     pub fn queue_open(&mut self, stream: &mut store::Ptr, counts: &mut Counts) {
+        super::clear_buffer_idle(&self.buffer_idle);
         if self.pending_open.push(stream) {
             counts.inc_pending_send_streams();
         }
@@ -479,6 +490,7 @@ impl Prioritize {
             //
             // debug_assert!(!stream.pending_send.is_empty());
 
+            super::clear_buffer_idle(&self.buffer_idle);
             self.pending_send.push(stream);
         }
     }
@@ -543,7 +555,13 @@ impl Prioritize {
                     }
                 }
                 None => {
-                    return Ok(BufferStatus::Complete);
+                    // The queue is drained. Headers leave nothing in flight, so
+                    // this poll is idle and the connection can skip the next one.
+                    return Ok(if self.is_idle() {
+                        BufferStatus::Idle
+                    } else {
+                        BufferStatus::Complete
+                    });
                 }
             }
         }

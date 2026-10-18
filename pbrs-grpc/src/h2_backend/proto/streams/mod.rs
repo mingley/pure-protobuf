@@ -29,7 +29,19 @@ use crate::h2_backend::frame::{StreamId, StreamIdOverflow};
 use crate::h2_backend::proto::*;
 
 use bytes::Bytes;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
+
+/// A queued frame or window update is visible to the connection task.
+///
+/// The load is the cheap case: the flag is already clear while data is in
+/// flight. The store happens only on the idle-to-queued edge.
+#[inline]
+pub(super) fn clear_buffer_idle(flag: &AtomicBool) {
+    if flag.load(Ordering::Acquire) {
+        flag.store(false, Ordering::Release);
+    }
+}
 
 #[derive(Debug, Eq, PartialEq)]
 pub(super) enum BufferStatus {

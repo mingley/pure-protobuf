@@ -62,6 +62,9 @@ pub(super) struct Recv {
 
     /// If extended connect protocol is enabled.
     is_extended_connect_protocol_enabled: bool,
+
+    /// Cleared when a window update must be written.
+    buffer_idle: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 #[derive(Debug)]
@@ -138,7 +141,11 @@ fn queued_header(
 }
 
 impl Recv {
-    pub fn new(peer: peer::Dyn, config: &Config) -> Self {
+    pub fn new(
+        peer: peer::Dyn,
+        config: &Config,
+        buffer_idle: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    ) -> Self {
         let next_stream_id = if peer.is_server() { 1 } else { 2 };
 
         let mut flow = FlowControl::new();
@@ -165,6 +172,7 @@ impl Recv {
             refused: None,
             is_push_enabled: config.local_push_enabled,
             is_extended_connect_protocol_enabled: config.extended_connect_protocol_enabled,
+            buffer_idle,
         }
     }
 
@@ -629,6 +637,7 @@ impl Recv {
         debug_assert!(_res.is_ok());
 
         if self.flow.unclaimed_capacity().is_some() {
+            super::clear_buffer_idle(&self.buffer_idle);
             if let Some(task) = task.take() {
                 task.wake();
             }
@@ -663,6 +672,7 @@ impl Recv {
 
         if queue_update {
             // Queue the stream for sending the WINDOW_UPDATE frame.
+            super::clear_buffer_idle(&self.buffer_idle);
             self.pending_window_updates.push(stream);
 
             if let Some(task) = task.take() {
@@ -740,6 +750,7 @@ impl Recv {
         // enough that we went over the update threshold, then schedule sending
         // a connection WINDOW_UPDATE.
         if self.flow.unclaimed_capacity().is_some() {
+            super::clear_buffer_idle(&self.buffer_idle);
             if let Some(task) = task.take() {
                 task.wake();
             }
@@ -1586,7 +1597,11 @@ mod tests {
             local_max_error_reset_streams: None,
             data_frame_budget: DEFAULT_DATA_FRAME_BUDGET,
         };
-        let mut recv = Recv::new(peer::Dyn::Server, &config);
+        let mut recv = Recv::new(
+            peer::Dyn::Server,
+            &config,
+            std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        );
         let mut store = Store::new();
         let mut stream = store.insert(
             StreamId::from(1),
@@ -1606,7 +1621,11 @@ mod tests {
         stream.in_flight_recv_data = DEFAULT_INITIAL_WINDOW_SIZE;
         recv.in_flight_data = DEFAULT_INITIAL_WINDOW_SIZE;
 
-        let mut counts = Counts::new(peer::Dyn::Server, &config);
+        let mut counts = Counts::new(
+            peer::Dyn::Server,
+            &config,
+            std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        );
         recv.clear_recv_buffer(&mut stream, &mut None, &mut counts);
 
         assert!(stream.pending_recv.is_empty());
