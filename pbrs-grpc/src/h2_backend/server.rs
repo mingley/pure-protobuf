@@ -1763,7 +1763,14 @@ pub(crate) fn stock_https_of(
 }
 
 /// POST built from the process-wide authority and path cache.
+static HTTP_POST: std::sync::OnceLock<Request<()>> = std::sync::OnceLock::new();
+
 pub(crate) fn cached_simple_post(https: bool) -> Request<()> {
+    if !https {
+        if let Some(cached) = HTTP_POST.get() {
+            return copy_static_request(cached);
+        }
+    }
     // `stock_post_https` only returns after both caches are filled.
     let (Some(authority), Some(path)) = (auth_cache::PARSED.get(), path_cache::PARSED.get())
     else {
@@ -1774,10 +1781,22 @@ pub(crate) fn cached_simple_post(https: bool) -> Request<()> {
     } else {
         http::uri::Scheme::HTTP
     };
+    // The plain `http` request is copied bitwise after the first build.
+    // That copy is sound only when every URI byte is static.
+    let authority = if https {
+        authority.clone()
+    } else {
+        http::uri::Authority::from_static(Box::leak(authority.as_str().to_owned().into_boxed_str()))
+    };
+    let path = if https {
+        path.clone()
+    } else {
+        http::uri::PathAndQuery::from_static(Box::leak(path.as_str().to_owned().into_boxed_str()))
+    };
     let mut parts = http::uri::Parts::default();
     parts.scheme = Some(scheme);
-    parts.authority = Some(authority.clone());
-    parts.path_and_query = Some(path.clone());
+    parts.authority = Some(authority);
+    parts.path_and_query = Some(path);
     let Ok(uri) = http::uri::Uri::from_parts(parts) else {
         return Request::new(());
     };
@@ -1785,7 +1804,22 @@ pub(crate) fn cached_simple_post(https: bool) -> Request<()> {
     *request.method_mut() = Method::POST;
     std::mem::forget(std::mem::replace(request.uri_mut(), uri));
     *request.version_mut() = http::Version::HTTP_2;
+    if !https {
+        let _ = HTTP_POST.set(copy_static_request(&request));
+    }
     request
+}
+
+#[allow(
+    unsafe_code,
+    reason = "a stock http request holds only static URI bytes and an empty map"
+)]
+fn copy_static_request(request: &Request<()>) -> Request<()> {
+    // SAFETY: the cached request is `Method::POST`, HTTP/2, an empty header
+    // map, and a URI built from `Authority::from_static` and
+    // `PathAndQuery::from_static`. Dropping a bitwise copy does not free
+    // those bytes or a header allocation.
+    unsafe { std::ptr::read(request) }
 }
 
 fn authority_cached(raw: &BytesStr) -> bool {
