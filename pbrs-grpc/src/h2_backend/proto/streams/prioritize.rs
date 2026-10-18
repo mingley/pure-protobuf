@@ -751,10 +751,7 @@ impl Prioritize {
                                 // stream reset may only be sent after a complete
                                 // response, which requires sending all queued DATA.
                                 if reason != Reason::NO_ERROR {
-                                    unsafe { (*sp).pending_send.push_front(buffer, frame.into()) };
-                                    self.clear_queue(buffer, &mut stream);
-                                    self.reclaim_all_capacity(&mut stream, counts);
-                                    self.pending_send.push(&mut stream);
+                                    self.discard_reset_data(sp, buffer, &mut stream, counts, frame);
                                     continue;
                                 }
                             }
@@ -767,18 +764,10 @@ impl Prioritize {
                             // Zero length data frames always have capacity to
                             // be sent.
                             if sz > 0 && stream_capacity == 0 {
-                                // Ensure that the stream is waiting for
-                                // connection level capacity
-                                //
-                                // TODO: uncomment
-                                // debug_assert!(stream.is_pending_send_capacity);
-
                                 // The stream has no more capacity, this can
                                 // happen if the remote reduced the stream
-                                // window. In this case, we need to buffer the
-                                // frame and wait for a window update...
-                                unsafe { (*sp).pending_send.push_front(buffer, frame.into()) };
-
+                                // window. Buffer the frame and wait for an update.
+                                self.requeue_data(sp, buffer, frame);
                                 continue;
                             }
 
@@ -797,7 +786,7 @@ impl Prioritize {
                             // scenarios, maybe the window we know is available but the window which
                             // peer knows is not.
                             if len > 0 && unsafe { len > (*sp).send_flow.window_size() } {
-                                unsafe { (*sp).pending_send.push_front(buffer, frame.into()) };
+                                self.requeue_data(sp, buffer, frame);
                                 continue;
                             }
 
@@ -832,20 +821,7 @@ impl Prioritize {
                             }))
                         }
                         Some(Frame::PushPromise(pp)) => {
-                            let mut pushed =
-                                stream.store_mut().find_mut(&pp.promised_id()).unwrap();
-                            pushed.is_pending_push = false;
-                            // Transition stream from pending_push to pending_open
-                            // if possible
-                            if !pushed.pending_send.is_empty() {
-                                if counts.can_inc_num_send_streams() {
-                                    counts.inc_num_send_streams(&mut pushed);
-                                    self.pending_send.push(&mut pushed);
-                                } else {
-                                    self.queue_open(&mut pushed, counts);
-                                }
-                            }
-                            Frame::PushPromise(pp)
+                            self.open_push_promise(&mut stream, counts, pp)
                         }
                         Some(frame) => frame.map(|_| {
                             unreachable!(
@@ -855,19 +831,9 @@ impl Prioritize {
                         }),
                         None => {
                             if let Some(reason) = unsafe { (*sp).state.get_scheduled_reset() } {
-                                unsafe { (*sp).set_reset(reason, Initiator::Library) };
-
-                                let frame = frame::Reset::new(unsafe { (*sp).id }, reason);
-                                Frame::Reset(frame)
+                                self.emit_scheduled_reset(sp, reason)
                             } else {
-                                // If the stream receives a RESET from the peer, it may have
-                                // had data buffered to be sent, but all the frames are cleared
-                                // in clear_queue(). Instead of doing O(N) traversal through queue
-                                // to remove, lets just ignore the stream here.
-                                // Since this should only happen as a consequence of `clear_queue`,
-                                // we must be in a closed state of some kind.
-                                debug_assert!(unsafe { (*sp).state.is_closed() });
-                                counts.transition_after(stream, is_pending_reset);
+                                self.drop_empty_send(sp, counts, stream, is_pending_reset);
                                 continue;
                             }
                         }
@@ -904,6 +870,105 @@ impl Prioritize {
                 None => return None,
             }
         }
+    }
+
+    /// A reset is already scheduled. Put the data back and clear the queue.
+    #[cold]
+    #[inline(never)]
+    #[allow(
+        unsafe_code,
+        reason = "requeue a data frame through the stream pointer already resolved"
+    )]
+    fn discard_reset_data<B>(
+        &mut self,
+        sp: *mut Stream,
+        buffer: &mut Buffer<Frame<B>>,
+        stream: &mut store::Ptr,
+        counts: &mut Counts,
+        frame: frame::Data<B>,
+    ) where
+        B: Buf,
+    {
+        unsafe { (*sp).pending_send.push_front(buffer, frame.into()) };
+        self.clear_queue(buffer, stream);
+        self.reclaim_all_capacity(stream, counts);
+        self.pending_send.push(stream);
+    }
+
+    /// The stream window cannot take this data frame yet.
+    #[cold]
+    #[inline(never)]
+    #[allow(
+        unsafe_code,
+        reason = "requeue a data frame through the stream pointer already resolved"
+    )]
+    fn requeue_data<B>(
+        &mut self,
+        sp: *mut Stream,
+        buffer: &mut Buffer<Frame<B>>,
+        frame: frame::Data<B>,
+    ) where
+        B: Buf,
+    {
+        unsafe { (*sp).pending_send.push_front(buffer, frame.into()) };
+    }
+
+    /// A pushed stream is leaving `pending_push`.
+    #[cold]
+    #[inline(never)]
+    fn open_push_promise<B>(
+        &mut self,
+        stream: &mut store::Ptr,
+        counts: &mut Counts,
+        pp: Box<frame::PushPromise>,
+    ) -> Frame<Prioritized<B>>
+    where
+        B: Buf,
+    {
+        let mut pushed = stream.store_mut().find_mut(&pp.promised_id()).unwrap();
+        pushed.is_pending_push = false;
+        if !pushed.pending_send.is_empty() {
+            if counts.can_inc_num_send_streams() {
+                counts.inc_num_send_streams(&mut pushed);
+                self.pending_send.push(&mut pushed);
+            } else {
+                self.queue_open(&mut pushed, counts);
+            }
+        }
+        Frame::PushPromise(pp)
+    }
+
+    /// The send queue was empty. Emit a scheduled reset, or drop the stream.
+    #[cold]
+    #[inline(never)]
+    #[allow(
+        unsafe_code,
+        reason = "read the resolved stream slot to emit a scheduled reset"
+    )]
+    fn emit_scheduled_reset<B>(&mut self, sp: *mut Stream, reason: Reason) -> Frame<Prioritized<B>>
+    where
+        B: Buf,
+    {
+        unsafe { (*sp).set_reset(reason, Initiator::Library) };
+        Frame::Reset(frame::Reset::new(unsafe { (*sp).id }, reason))
+    }
+
+    /// No frames remain, and no reset is scheduled.
+    #[cold]
+    #[inline(never)]
+    #[allow(
+        unsafe_code,
+        reason = "the resolved stream slot is still the one pop selected"
+    )]
+    fn drop_empty_send(
+        &mut self,
+        sp: *mut Stream,
+        counts: &mut Counts,
+        stream: store::Ptr,
+        is_pending_reset: bool,
+    ) {
+        debug_assert!(unsafe { (*sp).state.is_closed() });
+        counts.transition_after(stream, is_pending_reset);
     }
 
     #[inline(never)]
