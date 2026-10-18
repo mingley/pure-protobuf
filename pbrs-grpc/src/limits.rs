@@ -160,6 +160,43 @@ impl ByteBudgetTracker {
     /// `Status::resource_exhausted`. Otherwise, returns an RAII [`BytePermit`]
     /// that will release the bytes back to this tracker when dropped.
     pub fn try_acquire(&self, bytes: usize) -> Result<BytePermit, Status> {
+        // The default tracker has no cap. A relaxed add is enough; the
+        // compare-exchange stays on the capped path.
+        if self.inner.limit.is_none() {
+            return self.acquire_unlimited(bytes);
+        }
+        self.acquire_limited(bytes)
+    }
+
+    fn acquire_unlimited(&self, bytes: usize) -> Result<BytePermit, Status> {
+        if bytes == 0 {
+            self.acquire_token_count()?;
+            return Ok(BytePermit {
+                tracker: Some(self.clone()),
+                bytes: 0,
+            });
+        }
+        let current = self.inner.allocated.fetch_add(bytes, Ordering::Relaxed);
+        let Some(next) = current.checked_add(bytes) else {
+            self.inner.allocated.fetch_sub(bytes, Ordering::Relaxed);
+            return Err(Self::budget_counter_overflow(bytes, current));
+        };
+        if let Err(error) = self.acquire_token_count() {
+            self.inner.allocated.fetch_sub(bytes, Ordering::Relaxed);
+            return Err(error);
+        }
+        if next > self.inner.peak_allocated.load(Ordering::Relaxed) {
+            self.inner.peak_allocated.fetch_max(next, Ordering::Relaxed);
+        }
+        Ok(BytePermit {
+            tracker: Some(self.clone()),
+            bytes,
+        })
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn acquire_limited(&self, bytes: usize) -> Result<BytePermit, Status> {
         if bytes == 0 {
             self.acquire_token_count()?;
             return Ok(BytePermit {
@@ -168,15 +205,14 @@ impl ByteBudgetTracker {
             });
         }
 
+        let limit = self.inner.limit.expect("capped budget");
         let mut current = self.inner.allocated.load(Ordering::SeqCst);
         loop {
             let Some(next) = current.checked_add(bytes) else {
                 return Err(Self::budget_counter_overflow(bytes, current));
             };
-            if let Some(limit) = self.inner.limit {
-                if next > limit {
-                    return Err(Self::budget_limit_exceeded(bytes, current, limit));
-                }
+            if next > limit {
+                return Err(Self::budget_limit_exceeded(bytes, current, limit));
             }
             match self.inner.allocated.compare_exchange_weak(
                 current,
@@ -237,6 +273,20 @@ impl ByteBudgetTracker {
         if bytes == 0 {
             return;
         }
+        if self.inner.limit.is_none() {
+            let current = self.inner.allocated.fetch_sub(bytes, Ordering::Relaxed);
+            assert!(
+                current >= bytes,
+                "byte permit released more than allocated"
+            );
+            return;
+        }
+        self.release_bytes_limited(bytes);
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn release_bytes_limited(&self, bytes: usize) {
         let mut current = self.inner.allocated.load(Ordering::SeqCst);
         loop {
             assert!(current >= bytes, "byte permit released more than allocated");
