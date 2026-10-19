@@ -212,13 +212,20 @@ impl Counts {
     /// # Panics
     ///
     /// Panics on failure as this should have been validated before hand.
-    pub fn inc_num_recv_streams(&mut self, stream: &mut store::Ptr) {
+    #[allow(
+        unsafe_code,
+        reason = "the counted flag is on the stream slot the caller already resolved"
+    )]
+    pub fn inc_num_recv_streams(&mut self, slot: *mut Stream) {
         assert!(self.can_inc_num_recv_streams());
-        assert!(!stream.is_counted);
+        // SAFETY: `slot` is the stream being opened and is not removed here.
+        unsafe {
+            assert!(!(*slot).is_counted);
+            (*slot).is_counted = true;
+        }
 
         // Increment the number of remote initiated streams
         self.num_recv_streams += 1;
-        stream.is_counted = true;
         self.streams_open.store(true, Ordering::Release);
     }
 

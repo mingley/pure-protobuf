@@ -218,6 +218,10 @@ impl Recv {
     /// Transition the stream state based on receiving headers
     ///
     /// The caller ensures that the frame represents headers and not trailers.
+    #[allow(
+        unsafe_code,
+        reason = "header receive updates the stream through the slot resolved on entry"
+    )]
     pub fn recv_headers(
         &mut self,
         frame: Box<frame::Headers>,
@@ -225,19 +229,23 @@ impl Recv {
         counts: &mut Counts,
     ) -> Result<(), RecvHeaderBlockError<Option<frame::Headers>>> {
         tracing::trace!("opening stream; init_window={}", self.init_window_sz);
-        let is_initial = stream.state.recv_open(&frame)?;
+        // One slot for the open transition, the counted flag, and the recv queue.
+        let sp = stream.stream_ptr();
+        // SAFETY: `sp` is this stream for the whole receive. Queuing the
+        // header does not remove the slab slot.
+        let is_initial = unsafe { (*sp).state.recv_open(&frame)? };
 
         // Informational responses do not transition a remotely reserved stream
         // out of `ReservedRemote`. As a result, `recv_open` reports each of them
         // as initial. Only account for the stream once.
-        if is_initial && !stream.is_counted {
+        if is_initial && unsafe { !(*sp).is_counted } {
             // TODO: be smarter about this logic
             if frame.stream_id() > self.last_processed_id {
                 self.last_processed_id = frame.stream_id();
             }
 
             // Increment the number of concurrent streams
-            counts.inc_num_recv_streams(stream);
+            counts.inc_num_recv_streams(sp);
         }
 
         if frame.is_over_size() {
@@ -281,17 +289,17 @@ impl Recv {
             if let Some(https) = crate::h2_backend::header_pool::take_stock_https() {
                 let cached_facts = frame.stock_facts();
                 frame::Headers::forget_empty_box(frame);
-                {
-                    let stream = &mut **stream;
-                    stream
+                // SAFETY: `sp` is still the stream resolved above.
+                unsafe {
+                    (*sp)
                         .pending_recv
                         .push_back(&mut self.buffer, Event::StockRequest { https });
-                    stream.notify_recv();
+                    (*sp).notify_recv();
                 }
                 self.accept_facts.push_back(cached_facts.unwrap_or_else(|| {
                     crate::wire::headers::stock_facts(&HeaderMap::new())
                 }));
-                self.pending_accept.push(stream);
+                self.pending_accept.push_resolved(stream, sp);
                 return Ok(());
             }
         }
@@ -310,13 +318,13 @@ impl Recv {
             } else {
                 frame::Headers::take_fields_box(frame)
             };
-            {
-                let stream = &mut **stream;
-                stream.pending_recv.push_back(
+            // SAFETY: `sp` is still the stream resolved above.
+            unsafe {
+                (*sp).pending_recv.push_back(
                     &mut self.buffer,
                     Event::StockResponse(crate::h2_backend::header_pool::box_header_map(fields)),
                 );
-                stream.notify_recv();
+                (*sp).notify_recv();
             }
             return Ok(());
         }
