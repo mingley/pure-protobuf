@@ -539,30 +539,23 @@ impl Prioritize {
                 }
             }
 
-            match self.pop_frame(buffer, store, max_frame_len, counts) {
-                Some(frame) => {
-                    debug_assert_eq!(self.in_flight_data_frame, InFlightData::Nothing);
-                    if let Frame::Data(ref frame) = frame {
-                        self.in_flight_data_frame = InFlightData::DataFrame(frame.payload().stream);
-                    }
-                    dst.buffer(frame).expect("invalid frame");
-
-                    // Only a fully encoded small DATA frame occupies the codec
-                    // slot. A larger payload stays in `next` and a header block
-                    // never sets it, so reclaim would only observe None.
-                    if dst.has_last_data_frame() {
-                        self.reclaim_frame(buffer, store, dst);
-                    }
+            // `pop_frame` writes the frame into the codec. Returning it
+            // copied the 56-byte enum just so this loop could match DATA.
+            if self.pop_frame(buffer, store, max_frame_len, counts, dst) {
+                // Only a fully encoded small DATA frame occupies the codec
+                // slot. A larger payload stays in `next` and a header block
+                // never sets it, so reclaim would only observe None.
+                if dst.has_last_data_frame() {
+                    self.reclaim_frame(buffer, store, dst);
                 }
-                None => {
-                    // The queue is drained. Headers leave nothing in flight, so
-                    // this poll is idle and the connection can skip the next one.
-                    return Ok(if self.is_idle() {
-                        BufferStatus::Idle
-                    } else {
-                        BufferStatus::Complete
-                    });
-                }
+            } else {
+                // The queue is drained. Headers leave nothing in flight, so
+                // this poll is idle and the connection can skip the next one.
+                return Ok(if self.is_idle() {
+                    BufferStatus::Idle
+                } else {
+                    BufferStatus::Complete
+                });
             }
         }
     }
@@ -734,14 +727,16 @@ impl Prioritize {
         unsafe_code,
         reason = "the popped stream's slab slot is read through one pointer instead of reindexing"
     )]
-    fn pop_frame<B>(
+    fn pop_frame<T, B>(
         &mut self,
         buffer: &mut Buffer<Frame<B>>,
         store: &mut Store,
         max_len: usize,
         counts: &mut Counts,
-    ) -> Option<Frame<Prioritized<B>>>
+        dst: &mut Codec<T, Prioritized<B>>,
+    ) -> bool
     where
+        T: AsyncWrite + Unpin,
         B: Buf,
     {
         loop {
@@ -886,9 +881,18 @@ impl Prioritize {
                         counts.transition_after(stream, is_pending_reset);
                     }
 
-                    return Some(frame);
+                    // The data key is recorded before the frame moves into the
+                    // codec. The caller used to match the returned enum to do
+                    // this, which copied the frame.
+                    if let Frame::Data(ref data) = frame {
+                        debug_assert_eq!(self.in_flight_data_frame, InFlightData::Nothing);
+                        self.in_flight_data_frame =
+                            InFlightData::DataFrame(data.payload().stream);
+                    }
+                    dst.buffer(frame).expect("invalid frame");
+                    return true;
                 }
-                None => return None,
+                None => return false,
             }
         }
     }
