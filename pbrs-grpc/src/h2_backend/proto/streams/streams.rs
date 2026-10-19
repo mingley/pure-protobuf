@@ -1513,19 +1513,23 @@ impl<B> StreamRef<B> {
         let mut stream = me.store.resolve(self.opaque.key);
         let actions = &mut me.actions;
         let len = data.remaining();
-        // The buffer check and the stream id share one slab lookup. Reading
-        // the id again after the send-buffer lock re-checks the key.
-        let stream_id = {
-            let stream = &mut *stream;
+        // The buffer check, the stream id, and an end-of-stream close share
+        // one slot. The close used to look the stream up again.
+        let slot = stream.stream_ptr();
+        #[allow(
+            unsafe_code,
+            reason = "the buffer check and the end-of-stream close share this slot"
+        )]
+        let stream_id = unsafe {
             if len
                 > actions
                     .send
                     .max_buffer_size()
-                    .saturating_sub(stream.buffered_send_data)
+                    .saturating_sub((*slot).buffered_send_data)
             {
                 return Err(data);
             }
-            stream.id
+            (*slot).id
         };
         let mut send_buffer = self.send_buffer.inner.lock().unwrap();
         // A non-empty frame that does not end the stream adds buffered
@@ -1545,11 +1549,15 @@ impl<B> StreamRef<B> {
             if result.is_ok() {
                 return Ok(Ok(()));
             }
-            let pending = stream.is_pending_reset_expiration();
-            me.counts.transition_after(stream, pending);
+            #[allow(
+                unsafe_code,
+                reason = "the reset flag is read from the slot the buffer check already resolved"
+            )]
+            let pending = unsafe { (*slot).is_pending_reset_expiration() };
+            me.counts.transition_after_at(stream, slot, pending);
             return Ok(result);
         }
-        Ok(me.counts.transition(stream, |counts, stream| {
+        Ok(me.counts.transition_at(stream, slot, |counts, stream| {
             let mut frame = frame::Data::new(stream_id, data);
             frame.set_end_stream(end_stream);
             actions
@@ -1565,14 +1573,21 @@ impl<B> StreamRef<B> {
         let mut me = self.opaque.inner.lock().unwrap();
         let me = &mut *me;
 
-        let stream = me.store.resolve(self.opaque.key);
+        let mut stream = me.store.resolve(self.opaque.key);
         let actions = &mut me.actions;
         let mut send_buffer = self.send_buffer.inner.lock().unwrap();
         let send_buffer = &mut *send_buffer;
+        // The id and the close check share the slot `transition` would look up twice.
+        let slot = stream.stream_ptr();
+        #[allow(
+            unsafe_code,
+            reason = "the frame id is read from the slot the close check reuses"
+        )]
+        let stream_id = unsafe { (*slot).id };
 
-        me.counts.transition(stream, |counts, stream| {
+        me.counts.transition_at(stream, slot, |counts, stream| {
             // Create the data frame
-            let mut frame = frame::Data::new(stream.id, data);
+            let mut frame = frame::Data::new(stream_id, data);
             frame.set_end_stream(end_stream);
 
             // Send the data frame
