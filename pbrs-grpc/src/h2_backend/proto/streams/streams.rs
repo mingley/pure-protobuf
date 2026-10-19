@@ -868,7 +868,10 @@ impl Inner {
     ) -> Result<(), Error> {
         let id = frame.stream_id();
 
-        let mut stream = match self.store.find_mut(&id) {
+        let mut stream = if let Some(stream) = self.store.sole_hit(id) {
+            stream
+        } else {
+            match self.store.find_mut(&id) {
             Some(stream) => stream,
             None => {
                 // The GOAWAY process has begun. All streams with a greater ID
@@ -904,6 +907,7 @@ impl Inner {
 
                 proto_err!(conn: "recv_data: stream not found; id={:?}", id);
                 return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
+            }
             }
         };
 

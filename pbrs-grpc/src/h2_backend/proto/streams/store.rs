@@ -205,6 +205,23 @@ impl Store {
         }
     }
 
+    /// The one-stream connection. `None` means the caller must use [`Self::find_mut`].
+    ///
+    /// Inlined at the DATA receive so that hit does not call the outlined lookup.
+    #[inline(always)]
+    pub fn sole_hit(&mut self, id: StreamId) -> Option<Ptr<'_>> {
+        match self.sole {
+            Some((only, index)) if only == id => Some(Ptr {
+                key: Key {
+                    index,
+                    stream_id: id,
+                },
+                store: self,
+            }),
+            _ => None,
+        }
+    }
+
     /// Same split as `find_entry`: the steady hit must not pay for the
     /// hash-map lookup's saved registers.
     #[inline(never)]
