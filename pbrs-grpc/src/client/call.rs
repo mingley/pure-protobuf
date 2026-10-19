@@ -334,21 +334,13 @@ pub(crate) async fn open_in<R: Runtime>(
         if cancel_requested(&cancel_rx) {
             return Poll::Ready(Err(Status::cancelled()));
         }
-        let remaining = match remaining_timeout(deadline) {
-            Ok(remaining) => outgoing_timeout(timeout, remaining),
-            Err(status) => return Poll::Ready(Err(status)),
-        };
-        if let Some(remaining) = remaining {
-            if last_timeout != Some(remaining) {
-                let value = match HeaderValue::from_str(&crate::timeout::encode_timeout(remaining))
-                {
-                    Ok(value) => value,
-                    Err(error) => return Poll::Ready(Err(Status::internal(error.to_string()))),
-                };
-                if let Some(request) = admission.request_mut() {
-                    request.headers_mut().insert("grpc-timeout", value);
-                    last_timeout = Some(remaining);
-                }
+        // A warm call has no deadline and no grpc-timeout. The refresh stays
+        // out of this poll.
+        if timeout.is_some() || deadline.is_some() {
+            if let Err(status) =
+                refresh_admission_timeout(&mut admission, &mut last_timeout, timeout, deadline)
+            {
+                return Poll::Ready(Err(status));
             }
         }
         Pin::new(&mut admission)
@@ -382,6 +374,31 @@ pub(crate) async fn open_in<R: Runtime>(
         return raced;
     }
     prefer_deadline_in::<R, _>(raced, deadline)
+}
+
+#[cold]
+#[inline(never)]
+fn refresh_admission_timeout(
+    admission: &mut backend::Admission<'_>,
+    last_timeout: &mut Option<Duration>,
+    timeout: Option<Duration>,
+    deadline: Option<tokio::time::Instant>,
+) -> Result<(), Status> {
+    let remaining = match remaining_timeout(deadline) {
+        Ok(remaining) => outgoing_timeout(timeout, remaining),
+        Err(status) => return Err(status),
+    };
+    if let Some(remaining) = remaining {
+        if *last_timeout != Some(remaining) {
+            let value = HeaderValue::from_str(&crate::timeout::encode_timeout(remaining))
+                .map_err(|error| Status::internal(error.to_string()))?;
+            if let Some(request) = admission.request_mut() {
+                request.headers_mut().insert("grpc-timeout", value);
+                *last_timeout = Some(remaining);
+            }
+        }
+    }
+    Ok(())
 }
 
 fn outgoing_timeout(initial: Option<Duration>, remaining: Option<Duration>) -> Option<Duration> {
