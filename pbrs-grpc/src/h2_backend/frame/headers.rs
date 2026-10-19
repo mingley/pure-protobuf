@@ -2047,6 +2047,7 @@ fn encode_head_into(head: Head, payload_len: usize, dst: &mut bytes::BytesMut) {
 
 /// A previously encoded stock block. The field walk runs only after the path,
 /// authority, or status already matches, so a miss does not scan.
+#[inline(always)]
 fn replayed_standard<'a>(
     encoder: &'a hpack::Encoder,
     pseudo: &Pseudo,
