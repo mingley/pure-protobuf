@@ -205,6 +205,15 @@ impl SegFrame {
         std::iter::once(self.first).chain(self.rest)
     }
 
+    /// The one-segment frame. The empty `rest` vec owns no heap.
+    pub(crate) fn into_first(self) -> Bytes {
+        let SegFrame { first, rest, .. } = self;
+        if rest.capacity() == 0 {
+            std::mem::forget(rest);
+        }
+        first
+    }
+
     #[cfg(test)]
     pub(crate) fn concat(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(self.total_len);

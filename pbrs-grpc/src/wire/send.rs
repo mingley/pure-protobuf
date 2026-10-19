@@ -106,9 +106,9 @@ pub(crate) fn send_frame_if_ready(
     if frame.seg_count() != 1 || frame.total_len() > send_buffer {
         return ImmediateSend::Blocked(frame);
     }
-    let Some(bytes) = frame.into_segments().next() else {
-        return ImmediateSend::Done(Ok(()));
-    };
+    // One segment has no tail iterator. `into_segments().next()` built one
+    // anyway.
+    let bytes = frame.into_first();
     if bytes.is_empty() {
         return ImmediateSend::Done(send.send_data(bytes, end).map_err(Status::from_h2_send));
     }
