@@ -758,17 +758,16 @@ impl Prioritize {
         B: Buf,
     {
         loop {
-            match self.pending_send.pop(store) {
-                Some(mut stream) => {
+            match self.pending_send.pop_slot(store) {
+                Some((mut stream, sp)) => {
                     // It's possible that this stream, besides having data to send,
                     // is also queued to send a reset, and thus is already in the queue
                     // to wait for "some time" after a reset.
                     //
                     // To be safe, we just always ask the stream.
-                    // SAFETY: `pop` resolved this occupied slot. This arm does not
+                    // SAFETY: `pop_slot` resolved this occupied slot. This arm does not
                     // insert into the slab or remove the stream until
                     // `transition_after`, and `sp` is not used after that.
-                    let sp = stream.stream_ptr();
                     let is_pending_reset = unsafe { (*sp).is_pending_reset_expiration() };
 
                     let frame = match unsafe { (*sp).pending_send.pop_front(buffer) } {

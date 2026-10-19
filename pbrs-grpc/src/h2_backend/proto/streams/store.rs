@@ -747,6 +747,43 @@ where
         Some(stream)
     }
 
+    /// Pop the head stream and return the slot `pop` would look up again.
+    ///
+    /// The queued flag, the link, and the slot address share one slab index.
+    #[inline(always)]
+    #[allow(
+        unsafe_code,
+        reason = "the popped stream's queued flag is updated through the slot just resolved"
+    )]
+    pub fn pop_slot<'a>(&mut self, store: &'a mut Store) -> Option<(store::Ptr<'a>, *mut Stream)> {
+        let Some(mut idxs) = self.indices else {
+            return None;
+        };
+        let key = idxs.head;
+        // One index. Later field reads use `slot` instead of `Ptr`'s lookup.
+        let slot = &mut store[key] as *mut Stream;
+        // SAFETY: `slot` is the occupied entry `key` just resolved. Updating
+        // the link and the queued flag does not remove the slot, and `Ptr`
+        // is built only after those writes.
+        unsafe {
+            if key == idxs.tail {
+                if N::next(&*slot).is_some() {
+                    broken_stream_queue();
+                }
+                self.indices = None;
+            } else {
+                let Some(head) = N::take_next(&mut *slot) else {
+                    broken_stream_queue();
+                };
+                idxs.head = head;
+                self.indices = Some(idxs);
+            }
+            debug_assert!(N::is_queued(&*slot));
+            N::set_queued(&mut *slot, false);
+        }
+        Some((store.resolve(key), slot))
+    }
+
     pub fn is_empty(&self) -> bool {
         self.indices.is_none()
     }
