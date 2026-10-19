@@ -491,14 +491,18 @@ where
                 max_continuation_frames,
                 ..
             } = *self;
-            if let Some(frame) = decode_frame(
+            // Move a decoded frame straight into the poll result. The `?`
+            // form parked it in a side slot and copied it again.
+            match decode_frame(
                 hpack,
                 max_header_list_size,
                 max_continuation_frames,
                 partial,
                 bytes,
-            )? {
-                return Poll::Ready(Some(Ok(frame)));
+            ) {
+                Ok(Some(frame)) => return Poll::Ready(Some(Ok(frame))),
+                Ok(None) => {}
+                Err(err) => return Poll::Ready(Some(Err(err))),
             }
         }
     }
