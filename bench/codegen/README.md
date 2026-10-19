@@ -24,9 +24,10 @@ below about unrun large reference cases apply only to the legacy
 `--reference-protoc` flow. No controlled-host comparative campaign is complete.
 
 Each run writes corpus inputs, `summary.json`, and raw per-phase logs to a new
-`target/codegen-bench/` directory. No existing evidence is deleted. See
-[`docs/benchmarks.md`](../../docs/benchmarks.md#codegen-and-downstream-compilation-cg-19-diagnostic)
-for measured phases, RSS limits, and reference qualification boundaries.
+`target/codegen-bench/` directory. No existing evidence is deleted. The
+recorded matrix is [SB-09](../../docs/evidence/sb09-codegen-matrix.md). The
+[benchmark report](../../docs/benchmarks.md) is the short results page, not
+this procedure.
 
 ## Reference opt-in
 

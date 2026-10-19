@@ -234,9 +234,9 @@ of **Protocol Buffers Edition 2024**.
 
 ## Performance and stack selection
 
-The [benchmark report](docs/benchmarks.md) compares workloads with prost,
-the Google Rust/upb wrapper, buffa, tonic, and grpc-go. Each result lists its
-versions, workload, and measurement limits. The
+The [benchmark report](docs/benchmarks.md) is the short results page: codec,
+message shapes, gRPC vs tonic, and gRPC vs grpc-go. Each section names its
+host and what was compared. The
 [roadmap scorecard](docs/ROADMAP.md#scorecard) tracks the remaining comparisons.
 
 For large payloads and copy behavior, also see
