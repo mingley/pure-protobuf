@@ -137,8 +137,9 @@ impl Send {
         Self::check_headers(frame.fields())?;
 
         // Queue the frame for sending
+        let sp = stream.stream_ptr();
         self.prioritize
-            .queue_frame(frame.into(), buffer, stream, task);
+            .queue_frame(frame.into(), buffer, stream, sp, task);
 
         Ok(())
     }
@@ -158,11 +159,15 @@ impl Send {
         let end_stream = frame.is_end_stream();
 
         // Opening the send side and the push-promise flag share one slab
-        // lookup. The flag is read again after `send_open` returns otherwise.
-        let pending_push = {
-            let stream = &mut **stream;
-            stream.state.send_open(end_stream)?;
-            stream.is_pending_push
+        // lookup. The queued frame uses that same slot.
+        let sp = stream.stream_ptr();
+        #[allow(
+            unsafe_code,
+            reason = "the send-open check and the queued frame share one slab slot"
+        )]
+        let pending_push = unsafe {
+            (*sp).state.send_open(end_stream)?;
+            (*sp).is_pending_push
         };
 
         let mut pending_open = false;
@@ -176,7 +181,7 @@ impl Send {
         // This call expects that, since new streams are in the open queue, new
         // streams won't be pushed on pending_send.
         self.prioritize
-            .queue_frame(frame.into(), buffer, stream, task);
+            .queue_frame(frame.into(), buffer, stream, sp, task);
 
         // Need to notify the connection when pushing onto pending_open since
         // queue_frame only notifies for pending_send.
@@ -208,11 +213,15 @@ impl Send {
 
         let end_stream = frame.is_end_stream();
         // Opening the send side and the push-promise flag share one slab
-        // lookup. The flag is read again after `send_open` returns otherwise.
-        let pending_push = {
-            let stream = &mut **stream;
-            stream.state.send_open(end_stream)?;
-            stream.is_pending_push
+        // lookup. The queued frame uses that same slot.
+        let sp = stream.stream_ptr();
+        #[allow(
+            unsafe_code,
+            reason = "the send-open check and the queued frame share one slab slot"
+        )]
+        let pending_push = unsafe {
+            (*sp).state.send_open(end_stream)?;
+            (*sp).is_pending_push
         };
 
         let mut pending_open = false;
@@ -222,7 +231,7 @@ impl Send {
         }
 
         self.prioritize
-            .queue_frame(Frame::Headers(frame), buffer, stream, task);
+            .queue_frame(Frame::Headers(frame), buffer, stream, sp, task);
 
         if pending_open {
             if let Some(task) = task.take() {
@@ -259,8 +268,9 @@ impl Send {
 
         // Queue the frame for sending WITHOUT changing stream state
         // This is the key difference from send_headers - we don't call stream.state.send_open()
+        let sp = stream.stream_ptr();
         self.prioritize
-            .queue_frame(frame.into(), buffer, stream, task);
+            .queue_frame(frame.into(), buffer, stream, sp, task);
 
         Ok(())
     }
@@ -337,8 +347,9 @@ impl Send {
         let frame = frame::Reset::new(stream.id, reason);
 
         tracing::trace!("send_reset -- queueing; frame={:?}", frame);
+        let sp = stream.stream_ptr();
         self.prioritize
-            .queue_frame(frame.into(), buffer, stream, task);
+            .queue_frame(frame.into(), buffer, stream, sp, task);
         self.prioritize.reclaim_all_capacity(stream, counts);
     }
 
@@ -397,14 +408,21 @@ impl Send {
         }
 
         // TODO: Should this logic be moved into state.rs?
-        if !stream.state.is_send_streaming() {
-            return Err(UserError::UnexpectedFrameType);
+        // The streaming check, the close, and the queued trailer share one slot.
+        let sp = stream.stream_ptr();
+        #[allow(
+            unsafe_code,
+            reason = "the trailer close and the queued frame share one slab slot"
+        )]
+        unsafe {
+            if !(*sp).state.is_send_streaming() {
+                return Err(UserError::UnexpectedFrameType);
+            }
+            (*sp).state.send_close();
         }
 
-        stream.state.send_close();
-
         self.prioritize
-            .queue_frame(Frame::Headers(frame), buffer, stream, task);
+            .queue_frame(Frame::Headers(frame), buffer, stream, sp, task);
 
         // Release any excess capacity
         self.prioritize.reserve_capacity(0, stream, counts);

@@ -127,12 +127,12 @@ impl Prioritize {
         frame: Frame<B>,
         buffer: &mut Buffer<Frame<B>>,
         stream: &mut store::Ptr,
+        sp: *mut Stream,
         task: &mut Option<Waker>,
     ) {
-        let sp = stream.stream_ptr();
-        // SAFETY: `stream_ptr` is the slot this `Ptr` already resolved, and
-        // this function does not remove it. The ready flags are the same
-        // ones `schedule_send` reads through a second slab index.
+        // SAFETY: `sp` is the slot the caller already resolved. Queuing the
+        // frame does not remove it. The ready flags are the same ones
+        // `schedule_send` reads through a second slab index.
         unsafe {
             (*sp).pending_send.push_back(buffer, frame);
             if (*sp).is_pending_open || (*sp).is_pending_push {
@@ -238,7 +238,7 @@ impl Prioritize {
             if (*sp).send_flow.available() > 0 || (*sp).buffered_send_data == 0 {
                 // The stream currently has capacity to send the data frame, so
                 // queue it up and notify the connection task.
-                self.queue_frame(frame.into(), buffer, stream, task);
+                self.queue_frame(frame.into(), buffer, stream, sp, task);
             } else {
                 // The stream has no capacity to send the frame now, save it but
                 // don't notify the connection task. Once additional capacity
