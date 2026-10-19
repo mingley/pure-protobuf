@@ -495,7 +495,11 @@ impl Recv {
         }
     }
 
-    /// Called by the client to get the response
+    /// Called by the client to get the response.
+    ///
+    /// The response future matches this head immediately. Out of line, the
+    /// response landed in this return slot and was copied out again.
+    #[inline(always)]
     pub fn poll_response(
         &mut self,
         cx: &Context,
