@@ -1063,8 +1063,7 @@ impl Headers {
                 if total <= lim {
                     {
                         let inner = bytes::buf::Limit::get_mut(dst);
-                        encode_head_into(head, bytes.len(), inner);
-                        inner.extend_from_slice(bytes);
+                        write_replayed_block(head, bytes, inner);
                     }
                     bytes::buf::Limit::set_limit(dst, lim - total);
                     // An empty block was sent because the stock map is already
@@ -1134,8 +1133,7 @@ impl Headers {
                 if total <= lim {
                     {
                         let inner = bytes::buf::Limit::get_mut(dst);
-                        encode_head_into(head, bytes.len(), inner);
-                        inner.extend_from_slice(bytes);
+                        write_replayed_block(head, bytes, inner);
                     }
                     // The caller's `Limit` is dropped after this write. The
                     // remaining budget is not read again.
@@ -1940,6 +1938,39 @@ fn fields_match(fields: &HeaderMap, expect_bits: u8, expect_count: usize) -> boo
         bits |= bit;
     }
     bits == expect_bits
+}
+
+/// Head plus a saved block. The buffer usually already holds both, so this
+/// skips a second reserve. The short buffer stays out of line.
+#[allow(
+    unsafe_code,
+    reason = "the capacity check proved room for the head and the saved block"
+)]
+fn write_replayed_block(head: Head, bytes: &[u8], dst: &mut bytes::BytesMut) {
+    let total = bytes.len() + head.encode_len();
+    if dst.capacity().wrapping_sub(dst.len()) >= total {
+        head.encode_spare(bytes.len(), dst);
+        if !bytes.is_empty() {
+            let len_now = dst.len();
+            // SAFETY: `capacity - len` covered the head and `bytes`. `encode_spare`
+            // published nine bytes, so `bytes.len()` spare bytes remain initialized
+            // by this copy. `set_len` does not reallocate.
+            unsafe {
+                let p = dst.spare_capacity_mut().as_mut_ptr().cast::<u8>();
+                std::ptr::copy_nonoverlapping(bytes.as_ptr(), p, bytes.len());
+                dst.set_len(len_now + bytes.len());
+            }
+        }
+    } else {
+        write_replayed_block_slow(head, bytes, dst);
+    }
+}
+
+#[cold]
+#[inline(never)]
+fn write_replayed_block_slow(head: Head, bytes: &[u8], dst: &mut bytes::BytesMut) {
+    encode_head_into(head, bytes.len(), dst);
+    dst.extend_from_slice(bytes);
 }
 
 /// Nine-byte frame head, written with `BytesMut`'s copy instead of `Limit`'s
