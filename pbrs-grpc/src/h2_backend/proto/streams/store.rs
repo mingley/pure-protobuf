@@ -572,22 +572,37 @@ impl Resolve for Store {
 impl ops::Index<Key> for Store {
     type Output = Stream;
 
+    /// A live key already names the occupied slot. Repeating the bounds, tag,
+    /// and id compares on every field read is the same fact.
     #[inline]
+    #[allow(
+        unsafe_code,
+        reason = "a live stream key addresses the occupied slot Index used to recheck"
+    )]
     fn index(&self, key: Key) -> &Self::Output {
-        match self.slab.get(key.index.0 as usize) {
-            Some(stream) if stream.id == key.stream_id => stream,
-            _ => dangling_store_key(key.stream_id),
-        }
+        let index = key.index.0 as usize;
+        debug_assert!(index < self.slab.slots.len());
+        // SAFETY: `index` comes from a `Ptr` key issued by this store. The
+        // occupied stream starts at the slot address, which is what the
+        // checked match returned. The slot stays occupied until `remove`.
+        let stream = unsafe { &*self.slab.slots.as_ptr().add(index).cast::<Stream>() };
+        debug_assert_eq!(stream.id, key.stream_id);
+        stream
     }
 }
 
 impl ops::IndexMut<Key> for Store {
     #[inline]
+    #[allow(
+        unsafe_code,
+        reason = "a live stream key addresses the occupied slot IndexMut used to recheck"
+    )]
     fn index_mut(&mut self, key: Key) -> &mut Self::Output {
-        match self.slab.get_mut(key.index.0 as usize) {
-            Some(stream) if stream.id == key.stream_id => stream,
-            _ => dangling_store_key(key.stream_id),
-        }
+        let stream = self.slab.occupied_ptr(key.index.0 as usize);
+        debug_assert_eq!(unsafe { (*stream).id }, key.stream_id);
+        // SAFETY: `occupied_ptr` is the occupied slot for this key, and the
+        // stream is not removed while the returned reference is live.
+        unsafe { &mut *stream }
     }
 }
 
