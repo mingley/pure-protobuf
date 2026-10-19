@@ -936,16 +936,27 @@ impl<T> Request<T> {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn with_http(
         mut self,
         authority: Option<HttpStr>,
         scheme: Option<HttpStr>,
         path: Option<HttpStr>,
     ) -> Self {
+        self.set_http(authority, scheme, path);
+        self
+    }
+
+    /// Install the HTTP target without moving the request.
+    pub(crate) fn set_http(
+        &mut self,
+        authority: Option<HttpStr>,
+        scheme: Option<HttpStr>,
+        path: Option<HttpStr>,
+    ) {
         self.authority = authority;
         self.scheme = scheme;
         self.path = path;
-        self
     }
 
     pub(crate) fn set_deadline(&mut self, at: tokio::time::Instant) {
@@ -1000,9 +1011,8 @@ impl<T> Request<T> {
         self.encoding = encoding;
     }
 
-    pub(crate) fn with_extensions(mut self, extensions: http::Extensions) -> Self {
+    pub(crate) fn set_extensions(&mut self, extensions: http::Extensions) {
         self.extensions = crate::lazy_ext::LazyExt::from_extensions(extensions);
-        self
     }
 
     /// TCP and TLS connect info are derived from the address fields. Handlers

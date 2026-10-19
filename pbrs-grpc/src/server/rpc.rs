@@ -1479,9 +1479,10 @@ impl InboundRpc {
             self.remote_addr,
             self.local_addr,
             self.peer_identity.take(),
-        )
-        .with_extensions(std::mem::take(&mut self.extensions))
-        .with_http(self.authority.take(), self.scheme.take(), path);
+        );
+        // Filling the target in place avoids moving the request twice.
+        req.set_extensions(std::mem::take(&mut self.extensions));
+        req.set_http(self.authority.take(), self.scheme.take(), path);
         if let Some(config) = self.diagnostic_config.take() {
             req.set_diagnostic_config(config);
         }
