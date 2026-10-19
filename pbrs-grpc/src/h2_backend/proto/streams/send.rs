@@ -172,7 +172,7 @@ impl Send {
 
         let mut pending_open = false;
         if counts.peer().is_local_init(frame.stream_id()) && !pending_push {
-            self.prioritize.queue_open(stream, counts);
+            self.prioritize.queue_open(stream, sp, counts);
             pending_open = true;
         }
 
@@ -226,7 +226,7 @@ impl Send {
 
         let mut pending_open = false;
         if counts.peer().is_local_init(frame.stream_id()) && !pending_push {
-            self.prioritize.queue_open(stream, counts);
+            self.prioritize.queue_open(stream, sp, counts);
             pending_open = true;
         }
 
@@ -425,7 +425,7 @@ impl Send {
             .queue_frame(Frame::Headers(frame), buffer, stream, sp, task);
 
         // Release any excess capacity
-        self.prioritize.reserve_capacity(0, stream, counts);
+        self.prioritize.reserve_capacity_at(0, stream, sp, counts);
 
         Ok(())
     }

@@ -163,9 +163,10 @@ impl Prioritize {
         }
     }
 
-    pub fn queue_open(&mut self, stream: &mut store::Ptr, counts: &mut Counts) {
+    pub fn queue_open(&mut self, stream: &mut store::Ptr, sp: *mut Stream, counts: &mut Counts) {
         super::clear_buffer_idle(&self.buffer_idle);
-        if self.pending_open.push(stream) {
+        // `push` would index the slot the caller already resolved.
+        if self.pending_open.push_resolved(stream, sp) {
             counts.inc_pending_send_streams();
         }
     }
@@ -224,7 +225,7 @@ impl Prioritize {
 
             if frame.is_end_stream() {
                 (*sp).state.send_close();
-                self.reserve_capacity(0, stream, counts);
+                self.reserve_capacity_at(0, stream, sp, counts);
             }
 
             // The `buffered_send_data == 0` check is here so that, if a zero
@@ -248,6 +249,30 @@ impl Prioritize {
         }
 
         Ok(())
+    }
+
+    /// [`Self::reserve_capacity`] when the caller already resolved the slot.
+    ///
+    /// An end-of-stream send has just made the requested capacity match the
+    /// buffered amount. That no-op used to look the stream up twice.
+    #[allow(
+        unsafe_code,
+        reason = "the buffered and requested capacities are read through the slot the caller already resolved"
+    )]
+    pub fn reserve_capacity_at(
+        &mut self,
+        capacity: WindowSize,
+        stream: &mut store::Ptr,
+        sp: *mut Stream,
+        counts: &mut Counts,
+    ) {
+        // SAFETY: `sp` is this stream. The equal case does not remove it.
+        // The other cases re-enter through `reserve_capacity`.
+        let total = unsafe { (capacity as usize) + (*sp).buffered_send_data };
+        if total == unsafe { (*sp).requested_send_capacity as usize } {
+            return;
+        }
+        self.reserve_capacity(capacity, stream, counts);
     }
 
     /// Request capacity to send data
@@ -994,7 +1019,8 @@ impl Prioritize {
                 counts.inc_num_send_streams(&mut pushed);
                 self.pending_send.push(&mut pushed);
             } else {
-                self.queue_open(&mut pushed, counts);
+                let sp = pushed.stream_ptr();
+                self.queue_open(&mut pushed, sp, counts);
             }
         }
         Frame::PushPromise(pp)
