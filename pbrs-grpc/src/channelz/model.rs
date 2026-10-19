@@ -1298,9 +1298,14 @@ impl ChannelHandle {
 
 impl ChannelEntry {
     pub(crate) fn record_call_started(&self) {
-        self.calls_started.fetch_add(1, Ordering::Relaxed);
-        self.last_call_started_ms
-            .store(coarse_now_ms(), Ordering::Relaxed);
+        // `coarse_now_ms` reuses one stamp for 16 events. The other 15 calls
+        // stored that same value.
+        const BURST: u64 = 16;
+        let prev = self.calls_started.fetch_add(1, Ordering::Relaxed);
+        if prev & (BURST - 1) == 0 {
+            self.last_call_started_ms
+                .store(coarse_now_ms(), Ordering::Relaxed);
+        }
     }
 
     pub(crate) fn record_call_end(&self, ok: bool) {
