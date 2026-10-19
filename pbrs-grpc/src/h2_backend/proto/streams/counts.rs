@@ -1,5 +1,6 @@
 use super::*;
 
+use crate::h2_backend::frame::StreamId;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -389,7 +390,7 @@ impl Counts {
             (*slot).is_closed() && !((*slot).protocol_unlinked && (*slot).ref_count > 0)
         };
         if closing {
-            self.finish_closed(stream, is_pending_reset);
+            self.finish_closed(stream, slot, is_pending_reset);
         }
         ret
     }
@@ -415,22 +416,38 @@ impl Counts {
             (*slot).is_closed() && !((*slot).protocol_unlinked && (*slot).ref_count > 0)
         };
         if closing {
-            self.finish_closed(stream, is_reset_counted);
+            self.finish_closed(stream, slot, is_reset_counted);
         }
     }
 
     /// The open-stream case is a closed-state check. Cleanup runs once, on close.
     #[inline]
-    pub fn transition_after(&mut self, stream: store::Ptr, is_reset_counted: bool) {
-        if stream.is_closed() && !(stream.protocol_unlinked && stream.ref_count > 0) {
-            self.finish_closed(stream, is_reset_counted);
+    #[allow(
+        unsafe_code,
+        reason = "the closed check and close cleanup share one slab slot"
+    )]
+    pub fn transition_after(&mut self, mut stream: store::Ptr, is_reset_counted: bool) {
+        let slot = stream.stream_ptr();
+        // SAFETY: `slot` is this stream. Close cleanup runs only after the
+        // check and does not read the pointer after the stream is removed.
+        let closing = unsafe {
+            (*slot).is_closed() && !((*slot).protocol_unlinked && (*slot).ref_count > 0)
+        };
+        if closing {
+            self.finish_closed(stream, slot, is_reset_counted);
         }
     }
 
     #[cold]
     #[inline(never)]
-    fn finish_closed(&mut self, mut stream: store::Ptr, is_reset_counted: bool) {
-        let unlinked = if !stream.is_pending_reset_expiration() {
+    #[allow(
+        unsafe_code,
+        reason = "close cleanup reads the stream through the slot the caller already resolved"
+    )]
+    fn finish_closed(&mut self, mut stream: store::Ptr, slot: *mut Stream, is_reset_counted: bool) {
+        // SAFETY: `slot` is this stream. Unlink updates the id map, not the
+        // slab entry. The entry is removed only after the last read below.
+        let unlinked = if unsafe { !(*slot).is_pending_reset_expiration() } {
             stream.unlink();
             if is_reset_counted {
                 self.dec_num_reset_streams();
@@ -440,22 +457,18 @@ impl Counts {
             false
         };
 
-        // The unlink flag and the counted check share one slab lookup.
-        // Writing the flag and then reading the state otherwise re-checks
-        // the key.
-        let should_dec = {
-            let stream = &mut *stream;
+        let should_dec = unsafe {
             if unlinked {
-                stream.protocol_unlinked = true;
+                (*slot).protocol_unlinked = true;
             }
-            !stream.state.is_scheduled_reset() && stream.is_counted
+            !(*slot).state.is_scheduled_reset() && (*slot).is_counted
         };
         if should_dec {
-            tracing::trace!("dec_num_streams; stream={:?}", stream.id);
-            // Decrement the number of active streams.
-            self.dec_num_streams(&mut stream);
+            let id = unsafe { (*slot).id };
+            tracing::trace!("dec_num_streams; stream={:?}", id);
+            self.dec_num_streams(slot, id);
         }
-        if stream.release_ready() {
+        if unsafe { (*slot).release_ready() } {
             stream.remove();
         }
     }
@@ -472,13 +485,19 @@ impl Counts {
         self.max_recv_streams
     }
 
-    fn dec_num_streams(&mut self, stream: &mut store::Ptr) {
-        assert!(stream.is_counted);
+    #[allow(
+        unsafe_code,
+        reason = "the counted flag is cleared through the slot close cleanup already holds"
+    )]
+    fn dec_num_streams(&mut self, slot: *mut Stream, id: StreamId) {
+        // SAFETY: `slot` is the stream `finish_closed` is releasing. The
+        // slab entry stays until `remove`.
+        assert!(unsafe { (*slot).is_counted });
 
-        if self.peer.is_local_init(stream.id) {
+        if self.peer.is_local_init(id) {
             assert!(self.num_send_streams > 0);
             self.num_send_streams -= 1;
-            stream.is_counted = false;
+            unsafe { (*slot).is_counted = false };
             // A queued open can run now. Clear before the connection poll
             // decides to skip the send lock.
             super::clear_buffer_idle(&self.buffer_idle);
@@ -486,7 +505,7 @@ impl Counts {
         } else {
             assert!(self.num_recv_streams > 0);
             self.num_recv_streams -= 1;
-            stream.is_counted = false;
+            unsafe { (*slot).is_counted = false };
         }
         if self.num_send_streams == 0 && self.num_recv_streams == 0 && self.owners <= 1 {
             self.streams_open.store(false, Ordering::Release);
