@@ -321,6 +321,18 @@ impl Recv {
             return Ok(());
         }
 
+        self.recv_headers_general(frame, stream, counts)
+    }
+
+    /// A header block that is not a stock gRPC request or OK response.
+    #[cold]
+    #[inline(never)]
+    fn recv_headers_general(
+        &mut self,
+        frame: Box<frame::Headers>,
+        stream: &mut store::Ptr,
+        counts: &mut Counts,
+    ) -> Result<(), RecvHeaderBlockError<Option<frame::Headers>>> {
         if !stream.content_length.is_head() {
             use super::stream::ContentLength;
 
