@@ -2137,13 +2137,20 @@ fn drop_stream_ref(inner: &Mutex<Inner>, key: store::Key) {
     let me = &mut *me;
     me.refs -= 1;
     let mut stream = me.store.resolve(key);
+    // The refcount, the early return, and the close check share this slot.
+    let slot = stream.stream_ptr();
 
     // One slab lookup for the refcount and the early return. Each field
     // access otherwise re-checks the key.
     // The closed-and-unreferenced case wakes the connection. Read it with
     // the refcount so that path does not look the stream up again.
+    #[allow(
+        unsafe_code,
+        reason = "the refcount and the close check share the slot just resolved"
+    )]
     let wake_conn = {
-        let stream = &mut *stream;
+        // SAFETY: `slot` is this stream. Updating the refcount does not remove it.
+        let stream = unsafe { &mut *slot };
         stream.ref_dec();
 
         // Another handle still owns an open stream, or close cleanup already
@@ -2170,7 +2177,7 @@ fn drop_stream_ref(inner: &Mutex<Inner>, key: store::Key) {
     }
 
     let reset_pending = &me.reset_pending;
-    me.counts.transition(stream, |counts, stream| {
+    me.counts.transition_at(stream, slot, |counts, stream| {
         maybe_cancel(stream, actions, counts, reset_pending);
 
         if stream.ref_count == 0 {
