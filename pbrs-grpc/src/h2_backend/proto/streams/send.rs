@@ -204,6 +204,7 @@ impl Send {
         mut frame: Box<frame::Headers>,
         buffer: &mut Buffer<Frame<B>>,
         stream: &mut store::Ptr,
+        sp: *mut Stream,
         counts: &mut Counts,
         task: &mut Option<Waker>,
     ) -> Result<(), UserError> {
@@ -212,9 +213,8 @@ impl Send {
         }
 
         let end_stream = frame.is_end_stream();
-        // Opening the send side and the push-promise flag share one slab
-        // lookup. The queued frame uses that same slot.
-        let sp = stream.stream_ptr();
+        // Opening the send side and the push-promise flag share the slot the
+        // caller already resolved. The queued frame uses that same slot.
         #[allow(
             unsafe_code,
             reason = "the send-open check and the queued frame share one slab slot"

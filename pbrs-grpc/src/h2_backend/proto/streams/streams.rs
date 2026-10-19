@@ -410,11 +410,14 @@ where
         if head {
             stream.content_length = ContentLength::Head;
         }
+        // Headers and the single handle share the slot the insert just wrote.
+        let slot = stream.stream_ptr();
 
         let sent = me.actions.send.send_headers_boxed(
             headers,
             send_buffer,
             &mut stream,
+            slot,
             &mut me.counts,
             &mut me.actions.task,
         );
@@ -434,11 +437,21 @@ where
         // TODO: ideally, OpaqueStreamRefs::new would do this, but we're holding
         // the lock, so it can't.
         me.refs += 1;
+        #[allow(
+            unsafe_code,
+            reason = "the new handle's refcount uses the slot the insert just wrote"
+        )]
+        unsafe {
+            (*slot).ref_inc();
+        }
 
         let is_full = me.counts.next_send_stream_will_reach_capacity();
         Ok((
             StreamRef {
-                opaque: OpaqueStreamRef::new(self.inner.clone(), &mut stream),
+                opaque: OpaqueStreamRef {
+                    inner: self.inner.clone(),
+                    key: stream.key(),
+                },
                 send_buffer: self.send_buffer.clone(),
             },
             is_full,
@@ -503,11 +516,14 @@ where
         if head {
             stream.content_length = ContentLength::Head;
         }
+        // Headers and both handles share the slot the insert just wrote.
+        let slot = stream.stream_ptr();
 
         let sent = me.actions.send.send_headers_boxed(
             headers,
             send_buffer,
             &mut stream,
+            slot,
             &mut me.counts,
             &mut me.actions.task,
         );
@@ -532,12 +548,27 @@ where
         // The response future and the send stream each own a handle. Building
         // both here avoids a second lock and slab lookup in `clone_to_opaque`.
         me.refs += 2;
+        #[allow(
+            unsafe_code,
+            reason = "both new handles share the slot the insert just wrote"
+        )]
+        unsafe {
+            (*slot).ref_inc();
+            (*slot).ref_inc();
+        }
+        let key = stream.key();
 
         let is_full = me.counts.next_send_stream_will_reach_capacity();
-        let response = OpaqueStreamRef::new(self.inner.clone(), &mut stream);
+        let response = OpaqueStreamRef {
+            inner: self.inner.clone(),
+            key,
+        };
         Poll::Ready(Ok((
             StreamRef {
-                opaque: OpaqueStreamRef::new(self.inner.clone(), &mut stream),
+                opaque: OpaqueStreamRef {
+                    inner: self.inner.clone(),
+                    key,
+                },
                 send_buffer: self.send_buffer.clone(),
             },
             response,
@@ -1692,18 +1723,26 @@ impl<B> StreamRef<B> {
         let mut me = self.opaque.inner.lock().unwrap();
         let me = &mut *me;
 
-        let stream = me.store.resolve(self.opaque.key);
+        let mut stream = me.store.resolve(self.opaque.key);
         let actions = &mut me.actions;
         let mut send_buffer = self.send_buffer.inner.lock().unwrap();
         let send_buffer = &mut *send_buffer;
+        // The id, the close, and the queued response share one slot.
+        let slot = stream.stream_ptr();
+        #[allow(
+            unsafe_code,
+            reason = "the response id is read from the slot the close and the frame share"
+        )]
+        let stream_id = unsafe { (*slot).id };
 
-        me.counts.transition(stream, |counts, stream| {
-            let frame = server::Peer::convert_send_message(stream.id, response, end_of_stream);
+        me.counts.transition_at(stream, slot, |counts, stream| {
+            let frame = server::Peer::convert_send_message(stream_id, response, end_of_stream);
 
             actions.send.send_headers_boxed(
                 frame,
                 send_buffer,
                 stream,
+                slot,
                 counts,
                 &mut actions.task,
             )
