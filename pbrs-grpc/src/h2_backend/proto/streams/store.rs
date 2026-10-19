@@ -645,6 +645,45 @@ where
         true
     }
 
+    /// Queue `stream` using a slot this caller already resolved.
+    ///
+    /// [`Self::push`] looks the stream up to read the queued flag. `queue_frame`
+    /// already holds that slot, and a second lookup is a multiply by the stream
+    /// stride.
+    #[inline(always)]
+    #[allow(
+        unsafe_code,
+        reason = "the queued flag is read through the slot the caller already resolved"
+    )]
+    pub fn push_resolved(&mut self, stream: &mut store::Ptr, slot: *mut Stream) -> bool {
+        // SAFETY: `slot` is `stream.stream_ptr()` and this call does not remove
+        // the stream. The tail lookup below borrows the store only after the
+        // flag update, so it does not alias `slot`.
+        unsafe {
+            if N::is_queued(&*slot) {
+                return false;
+            }
+            N::set_queued(&mut *slot, true);
+            debug_assert!(N::next(&*slot).is_none());
+        }
+
+        let key = stream.key();
+        match self.indices {
+            Some(ref mut idxs) => {
+                N::set_next(&mut stream.resolve(idxs.tail), Some(key));
+                idxs.tail = key;
+            }
+            None => {
+                self.indices = Some(store::Indices {
+                    head: key,
+                    tail: key,
+                });
+            }
+        }
+
+        true
+    }
+
     /// Queue the stream
     ///
     /// If the stream is already contained by the list, return `false`.

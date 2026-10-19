@@ -141,7 +141,8 @@ impl Prioritize {
         }
         // Before the wake, so a connection poll cannot observe idle.
         super::clear_buffer_idle(&self.buffer_idle);
-        self.pending_send.push(stream);
+        // `push` would index this same slot again for the queued flag.
+        self.pending_send.push_resolved(stream, sp);
         if let Some(task) = task.take() {
             task.wake();
         }
