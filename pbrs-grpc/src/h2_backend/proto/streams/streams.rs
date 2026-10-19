@@ -1370,6 +1370,19 @@ impl<B, P> Streams<B, P>
 where
     P: Peer,
 {
+    /// DATA on the steady path. Skips building a [`DynStreams`] just to pass
+    /// the peer and the send buffer into the lock.
+    pub(crate) fn recv_data(&mut self, frame: frame::Data) -> Result<(), Error> {
+        let mut me = self.inner.lock().unwrap();
+        me.recv_data(P::r#dyn(), &self.send_buffer, frame)
+    }
+
+    /// HEADERS on the steady path. Same as [`Self::recv_data`].
+    pub(crate) fn recv_headers(&mut self, frame: Box<frame::Headers>) -> Result<(), Error> {
+        let mut me = self.inner.lock().unwrap();
+        me.recv_headers(P::r#dyn(), &self.send_buffer, frame)
+    }
+
     pub fn as_dyn(&self) -> DynStreams<'_, B> {
         let Self {
             inner,

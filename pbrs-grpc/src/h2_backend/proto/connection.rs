@@ -389,22 +389,28 @@ where
             }
             ready!(self.poll_ready(cx))?;
 
-            match self
-                .inner
-                .as_dyn()
-                .recv_frame(ready!(Pin::new(&mut self.codec).poll_next(cx)?))?
-            {
-                ReceivedFrame::Settings(frame) => {
-                    self.inner.settings.recv_settings(
-                        frame,
-                        &mut self.codec,
-                        &mut self.inner.streams,
-                    )?;
+            // DATA and HEADERS do not touch GOAWAY, settings, or ping state.
+            // Building that view copied five references on every frame.
+            match ready!(Pin::new(&mut self.codec).poll_next(cx)?) {
+                Some(crate::h2_backend::frame::Frame::Data(frame)) => {
+                    self.inner.streams.recv_data(frame)?;
                 }
-                ReceivedFrame::Continue => (),
-                ReceivedFrame::Done => {
-                    return Poll::Ready(Ok(()));
+                Some(crate::h2_backend::frame::Frame::Headers(frame)) => {
+                    self.inner.streams.recv_headers(frame)?;
                 }
+                other => match self.inner.as_dyn().recv_frame(other)? {
+                    ReceivedFrame::Settings(frame) => {
+                        self.inner.settings.recv_settings(
+                            frame,
+                            &mut self.codec,
+                            &mut self.inner.streams,
+                        )?;
+                    }
+                    ReceivedFrame::Continue => (),
+                    ReceivedFrame::Done => {
+                        return Poll::Ready(Ok(()));
+                    }
+                },
             }
         }
     }
