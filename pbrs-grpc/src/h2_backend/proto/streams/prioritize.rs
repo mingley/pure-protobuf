@@ -759,6 +759,9 @@ impl Prioritize {
                     let is_pending_reset = unsafe { (*sp).is_pending_reset_expiration() };
 
                     let frame = match unsafe { (*sp).pending_send.pop_front(buffer) } {
+                        // Headers carry no payload. Moving the box here skips
+                        // the second match inside `Frame::map`.
+                        Some(Frame::Headers(frame)) => Frame::Headers(frame),
                         Some(Frame::Data(mut frame)) => {
                             if let Some(reason) = unsafe { (*sp).state.get_scheduled_reset() } {
                                 // If a reset is scheduled due to cancellation or
