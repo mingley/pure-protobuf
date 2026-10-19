@@ -83,19 +83,33 @@ impl<T> FrameSlab<T> {
             _ => None,
         }
     }
+}
 
-    fn remove(&mut self, key: usize) -> T {
-        let Some(entry) = self.entries.get_mut(key) else {
-            broken_frame_slab();
-        };
-        let prev = std::mem::replace(entry, Entry::Vacant(self.next));
-        match prev {
-            Entry::Occupied(val) => {
-                self.len -= 1;
-                self.next = key;
-                val
-            }
-            Entry::Vacant(_) => broken_frame_slab(),
+impl<T> FrameSlab<Slot<T>> {
+    /// Take the queued frame. It is read once; the slot becomes vacant in
+    /// place instead of copying the entry out and then the frame again.
+    #[inline(always)]
+    #[allow(
+        unsafe_code,
+        reason = "the occupied frame is moved out and the slot is overwritten with vacant"
+    )]
+    fn remove_frame(&mut self, key: usize) -> (T, Option<usize>) {
+        let free = self.next;
+        // SAFETY: `key` is a live deque index. A vacant slot is a corrupt
+        // queue. `ptr::read` takes the frame; `ptr::write` does not drop it.
+        unsafe {
+            let entry = self.entries.as_mut_ptr().add(key);
+            let (val, next) = match &mut *entry {
+                Entry::Occupied(slot) => {
+                    let val = std::ptr::read(&slot.value);
+                    (val, slot.next)
+                }
+                Entry::Vacant(_) => broken_frame_slab(),
+            };
+            std::ptr::write(entry, Entry::Vacant(free));
+            self.len -= 1;
+            self.next = key;
+            (val, next)
         }
     }
 }
@@ -196,22 +210,22 @@ impl Deque {
         let Some(mut idxs) = self.indices else {
             return None;
         };
-        let mut slot = buf.slab.remove(idxs.head);
+        let (value, next) = buf.slab.remove_frame(idxs.head);
 
         if idxs.head == idxs.tail {
-            if slot.next.is_some() {
+            if next.is_some() {
                 broken_frame_deque();
             }
             self.indices = None;
         } else {
-            let Some(head) = slot.next.take() else {
+            let Some(head) = next else {
                 broken_frame_deque();
             };
             idxs.head = head;
             self.indices = Some(idxs);
         }
 
-        Some(slot.value)
+        Some(value)
     }
 }
 
