@@ -881,12 +881,38 @@ impl Prioritize {
                                 frame.set_end_stream(false);
                             }
 
-                            Frame::Data(frame.map(|buf| Prioritized {
+                            // The requeue and close checks do not read this
+                            // payload. Building the prioritized frame before
+                            // them left a 56-byte value live across the calls,
+                            // and `buffer_data` then copied it again.
+                            let key = stream.key();
+                            if cfg!(debug_assertions) && unsafe { (*sp).state.is_idle() } {
+                                debug_assert!(unsafe { (*sp).id } > self.last_opened_id);
+                                self.last_opened_id = unsafe { (*sp).id };
+                            }
+                            if unsafe {
+                                !(*sp).pending_send.is_empty()
+                                    || (*sp).state.is_scheduled_reset()
+                            } {
+                                self.pending_send.push_resolved(&mut stream, sp);
+                            }
+                            let closing = unsafe {
+                                (*sp).state.is_closed()
+                                    && !((*sp).protocol_unlinked && (*sp).ref_count > 0)
+                            };
+                            if closing {
+                                counts.transition_after(stream, is_pending_reset);
+                            }
+                            debug_assert_eq!(self.in_flight_data_frame, InFlightData::Nothing);
+                            self.in_flight_data_frame = InFlightData::DataFrame(key);
+                            dst.buffer_data(frame.map(|buf| Prioritized {
                                 inner: buf,
                                 limit: len as u32,
                                 end_of_stream: eos,
-                                stream: stream.key(),
+                                stream: key,
                             }))
+                            .expect("invalid frame");
+                            return true;
                         }
                         Some(Frame::PushPromise(pp)) => {
                             self.open_push_promise(&mut stream, counts, pp)
