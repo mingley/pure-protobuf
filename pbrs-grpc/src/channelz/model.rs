@@ -229,22 +229,32 @@ impl SocketEntry {
 
     #[inline]
     fn record_stream_started(&self, local: bool) {
-        self.streams_started.fetch_add(1, Ordering::Relaxed);
+        // The coarse stamp is shared for 16 events. Stream counters still
+        // move on every stream; the timestamp is that same repeated value.
+        const BURST: u64 = 16;
+        let prev = self.streams_started.fetch_add(1, Ordering::Relaxed);
+        let ms = (prev & (BURST - 1) == 0).then(coarse_now_ms);
         if local {
-            let ms = coarse_now_ms();
-            self.last_local_stream_ms.store(ms, Ordering::Relaxed);
+            if let Some(ms) = ms {
+                self.last_local_stream_ms.store(ms, Ordering::Relaxed);
+            }
             // One clock read covers the socket and its subchannel.
             if let Some(sub) = &self.subchannel {
                 sub.calls_started.fetch_add(1, Ordering::Relaxed);
-                sub.last_call_started_ms.store(ms, Ordering::Relaxed);
+                if let Some(ms) = ms {
+                    sub.last_call_started_ms.store(ms, Ordering::Relaxed);
+                }
             }
         } else {
-            let ms = coarse_now_ms();
-            self.last_remote_stream_ms.store(ms, Ordering::Relaxed);
+            if let Some(ms) = ms {
+                self.last_remote_stream_ms.store(ms, Ordering::Relaxed);
+            }
             // Remote streams on an accepted server socket are that server's calls.
             if let Some(server) = &self.server {
                 server.calls_started.fetch_add(1, Ordering::Relaxed);
-                server.last_call_started_ms.store(ms, Ordering::Relaxed);
+                if let Some(ms) = ms {
+                    server.last_call_started_ms.store(ms, Ordering::Relaxed);
+                }
             }
         }
     }
