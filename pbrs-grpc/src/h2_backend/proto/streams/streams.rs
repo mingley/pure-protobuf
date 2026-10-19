@@ -828,7 +828,7 @@ impl Inner {
     ) -> Result<(), Error> {
         let id = frame.stream_id();
 
-        let stream = match self.store.find_mut(&id) {
+        let mut stream = match self.store.find_mut(&id) {
             Some(stream) => stream,
             None => {
                 // The GOAWAY process has begun. All streams with a greater ID
@@ -869,8 +869,11 @@ impl Inner {
 
         let reset_pending = &self.reset_pending;
         let actions = &mut self.actions;
+        // The reset flag and the closed check are the same slot. `transition`
+        // looks it up twice around this body.
+        let slot = stream.stream_ptr();
 
-        self.counts.transition(stream, |counts, stream| {
+        self.counts.transition_at(stream, slot, |counts, stream| {
             let sz = frame.flow_controlled_len();
             let is_end_stream = frame.is_end_stream();
             let payload_len = frame.payload().len();

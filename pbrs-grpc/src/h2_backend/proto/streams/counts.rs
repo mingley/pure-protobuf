@@ -360,6 +360,33 @@ impl Counts {
         ret
     }
 
+    /// [`Self::transition`] using a slot the caller already resolved.
+    ///
+    /// The reset flag and the closed check are the two lookups around the
+    /// action. The action may update this stream. It must not reallocate the
+    /// stream slab, or `slot` would dangle.
+    #[inline]
+    #[allow(
+        unsafe_code,
+        reason = "the reset flag and the closed check use the slot the caller already resolved"
+    )]
+    pub fn transition_at<F, U>(&mut self, mut stream: store::Ptr, slot: *mut Stream, f: F) -> U
+    where
+        F: FnOnce(&mut Self, &mut store::Ptr) -> U,
+    {
+        // SAFETY: `slot` is this stream's slab entry. The action does not
+        // remove it; close cleanup runs only after the check below.
+        let is_pending_reset = unsafe { (*slot).is_pending_reset_expiration() };
+        let ret = f(self, &mut stream);
+        let closing = unsafe {
+            (*slot).is_closed() && !((*slot).protocol_unlinked && (*slot).ref_count > 0)
+        };
+        if closing {
+            self.finish_closed(stream, is_pending_reset);
+        }
+        ret
+    }
+
     /// The open-stream case is a closed-state check. Cleanup runs once, on close.
     #[inline]
     pub fn transition_after(&mut self, stream: store::Ptr, is_reset_counted: bool) {
