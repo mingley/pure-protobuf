@@ -1662,10 +1662,16 @@ fn call_start_instant(observed: bool) -> tokio::time::Instant {
 
 /// Channelz: a dispatched RPC started. The socket stream is
 /// remote-initiated (`local: false`).
+#[inline]
 fn channelz_start(
     server: Option<crate::channelz::ServerId>,
     socket: Option<crate::channelz::SocketId>,
 ) {
+    // The steady server has no channelz ids. The registry lookup stays off
+    // that path.
+    if server.is_none() && socket.is_none() {
+        return;
+    }
     let global = crate::channelz::Registry::global();
     // An accepted socket carries its server entry, so the stream note updates
     // the server counters without a second map lock.
@@ -1677,11 +1683,15 @@ fn channelz_start(
 }
 
 /// Channelz: a dispatched RPC ended with `ok`.
+#[inline]
 fn channelz_end(
     server: Option<crate::channelz::ServerId>,
     socket: Option<crate::channelz::SocketId>,
     ok: bool,
 ) {
+    if server.is_none() && socket.is_none() {
+        return;
+    }
     let global = crate::channelz::Registry::global();
     if let Some(socket) = socket {
         global.note_stream_end(socket, ok);
