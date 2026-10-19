@@ -332,7 +332,7 @@ pub(crate) struct HedgeUnary {
     pub(crate) https: bool,
     pub(crate) policy: HedgingPolicy,
     pub(crate) call_guard: CallGuard,
-    pub(crate) owned_labels: Option<OwnedCallLabels>,
+    pub(crate) owned_labels: Option<Box<OwnedCallLabels>>,
     pub(crate) observer: Option<Arc<dyn LifecycleObserver>>,
     pub(crate) permit: Option<OwnedSemaphorePermit>,
     pub(crate) binlog: Option<crate::binlog::CallLogger>,

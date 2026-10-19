@@ -931,7 +931,7 @@ impl<O: LifecycleObserver + ?Sized> LifecycleObserver for Arc<O> {
 
 pub(crate) struct CallGuard {
     observer: Option<Arc<dyn LifecycleObserver>>,
-    labels: Option<OwnedCallLabels>,
+    labels: Option<Box<OwnedCallLabels>>,
     start: std::time::Instant,
     completed: bool,
     cancelled: bool,
@@ -941,7 +941,7 @@ pub(crate) struct CallGuard {
 impl CallGuard {
     pub(crate) fn new(
         observer: Option<Arc<dyn LifecycleObserver>>,
-        labels: Option<OwnedCallLabels>,
+        labels: Option<Box<OwnedCallLabels>>,
         start: std::time::Instant,
         channelz: Arc<crate::channelz::ChannelEntry>,
     ) -> Self {
@@ -1001,7 +1001,7 @@ impl Drop for CallGuard {
 
 pub(crate) struct AttemptGuard {
     observer: Option<Arc<dyn LifecycleObserver>>,
-    call: Option<OwnedCallLabels>,
+    call: Option<Box<OwnedCallLabels>>,
     attempt: u32,
     start: std::time::Instant,
     completed: bool,
@@ -1011,7 +1011,7 @@ pub(crate) struct AttemptGuard {
 impl AttemptGuard {
     pub(crate) fn new(
         observer: Option<Arc<dyn LifecycleObserver>>,
-        call: Option<OwnedCallLabels>,
+        call: Option<Box<OwnedCallLabels>>,
         attempt: u32,
         start: std::time::Instant,
     ) -> Self {

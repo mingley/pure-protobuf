@@ -1588,7 +1588,7 @@ impl super::Channel {
                 if let Some(obs) = &observer {
                     obs.on_call_start(&labels());
                 }
-                let owned_labels = observer.as_ref().map(|_| labels().to_owned());
+                let owned_labels = observer.as_ref().map(|_| Box::new(labels().to_owned()));
                 let mut call_guard = CallGuard::new(
                     observer.clone(),
                     owned_labels.clone(),
@@ -2023,7 +2023,7 @@ impl super::Channel {
                 if let Some(obs) = &observer {
                     obs.on_call_start(&labels());
                 }
-                let owned_labels = observer.as_ref().map(|_| labels().to_owned());
+                let owned_labels = observer.as_ref().map(|_| Box::new(labels().to_owned()));
                 let mut call_guard = CallGuard::new(
                     observer.clone(),
                     owned_labels.clone(),
@@ -2318,7 +2318,7 @@ impl super::Channel {
                 if let Some(obs) = &observer {
                     obs.on_call_start(&labels());
                 }
-                let owned_labels = observer.as_ref().map(|_| labels().to_owned());
+                let owned_labels = observer.as_ref().map(|_| Box::new(labels().to_owned()));
                 let mut call_guard = CallGuard::new(
                     observer.clone(),
                     owned_labels.clone(),
