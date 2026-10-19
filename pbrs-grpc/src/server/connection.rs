@@ -302,7 +302,7 @@ impl ConnectionInfo {
 }
 
 pub(crate) fn incoming_rpc(
-    request: http::Request<RecvStream>,
+    mut request: http::Request<RecvStream>,
     respond: SendResponse,
     config: Arc<ServerConfig>,
     peer: ConnectionInfo,
@@ -312,7 +312,7 @@ pub(crate) fn incoming_rpc(
     stock_facts: crate::wire::headers::StockFacts,
     shared_headers: Option<std::sync::Arc<http::HeaderMap>>,
 ) -> Rpc {
-    let mut request = request;
+    // Rebinding `request` copied all 248 bytes before the struct moved it.
     #[cfg(feature = "grpc-web")]
     let web = crate::web::Mode::from_headers(request.headers());
     // One map. The request keeps the body; protocol readers use metadata.
