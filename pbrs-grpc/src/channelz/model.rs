@@ -208,14 +208,22 @@ impl SocketEntry {
     /// Stream pumps resolve the entry once and call this per frame.
     #[inline]
     pub(crate) fn add_messages(&self, sent: bool, count: u64) {
+        // `coarse_now_ms` reuses one stamp for 16 events. The message counter
+        // is that burst: storing the same stamp on the other 15 messages was
+        // a thread-local read per frame.
+        const BURST: u64 = 16;
         if sent {
-            self.messages_sent.fetch_add(count, Ordering::Relaxed);
-            self.last_message_sent_ms
-                .store(coarse_now_ms(), Ordering::Relaxed);
+            let prev = self.messages_sent.fetch_add(count, Ordering::Relaxed);
+            if prev & (BURST - 1) == 0 {
+                self.last_message_sent_ms
+                    .store(coarse_now_ms(), Ordering::Relaxed);
+            }
         } else {
-            self.messages_received.fetch_add(count, Ordering::Relaxed);
-            self.last_message_received_ms
-                .store(coarse_now_ms(), Ordering::Relaxed);
+            let prev = self.messages_received.fetch_add(count, Ordering::Relaxed);
+            if prev & (BURST - 1) == 0 {
+                self.last_message_received_ms
+                    .store(coarse_now_ms(), Ordering::Relaxed);
+            }
         }
     }
 
