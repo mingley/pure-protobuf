@@ -218,8 +218,8 @@ impl Prioritize {
                     cmp::min((*sp).buffered_send_data, WindowSize::MAX as usize) as WindowSize;
 
                 // `try_assign_capacity` will queue the stream to `pending_capacity` if the capcaity
-                // cannot be assigned at the time it is called.
-                self.try_assign_capacity(stream);
+                // cannot be assigned at the time it is called. `sp` is that slot.
+                self.try_assign_capacity_at(stream, sp);
             }
 
             if frame.is_end_stream() {
@@ -428,29 +428,40 @@ impl Prioritize {
 
     /// Request capacity to send data
     fn try_assign_capacity(&mut self, stream: &mut store::Ptr) {
-        // One slab lookup covers the open check, the window math, and the
-        // capacity store. The queue predicates below stay on `Ptr` so each
-        // `push` still shares that lookup with its `is_queued` test.
-        {
-            let stream = &mut **stream;
+        let sp = stream.stream_ptr();
+        self.try_assign_capacity_at(stream, sp);
+    }
+
+    /// [`Self::try_assign_capacity`] through a slot the caller already resolved.
+    ///
+    /// The open check, the window store, and both queue links used to look
+    /// that slot up again.
+    #[allow(
+        unsafe_code,
+        reason = "capacity and the send-queue flags are updated through the slot the caller already resolved"
+    )]
+    fn try_assign_capacity_at(&mut self, stream: &mut store::Ptr, sp: *mut Stream) {
+        // SAFETY: `sp` is `stream.stream_ptr()`. Assigning capacity and linking
+        // the queues do not remove the slab slot.
+        unsafe {
             // Streams over the max concurrent count should not have capacity assign to avoid starving the connection
             // capacity for open streams
-            if stream.is_pending_open {
+            if (*sp).is_pending_open {
                 return;
             }
 
-            let total_requested = stream.requested_send_capacity;
+            let total_requested = (*sp).requested_send_capacity;
 
             // Total requested should never go below actual assigned
             // (Note: the window size can go lower than assigned)
-            debug_assert!(stream.send_flow.available() <= total_requested as usize);
+            debug_assert!((*sp).send_flow.available() <= total_requested as usize);
 
             // The amount of additional capacity that the stream requests.
             // Don't assign more than the window has available!
             let additional = cmp::min(
-                total_requested - stream.send_flow.available().as_size(),
+                total_requested - (*sp).send_flow.available().as_size(),
                 // Can't assign more than what is available
-                stream.send_flow.window_size() - stream.send_flow.available().as_size(),
+                (*sp).send_flow.window_size() - (*sp).send_flow.available().as_size(),
             );
             if additional == 0 {
                 // Nothing more to do
@@ -458,7 +469,7 @@ impl Prioritize {
             }
 
             // The stream may have been reset or closed since capacity was requested.
-            if !stream.state.is_send_streaming() && stream.buffered_send_data == 0 {
+            if !(*sp).state.is_send_streaming() && (*sp).buffered_send_data == 0 {
                 return;
             }
 
@@ -472,44 +483,44 @@ impl Prioritize {
                 let assign = cmp::min(conn_available, additional);
 
                 // Assign the capacity to the stream
-                stream.assign_capacity(assign, self.max_buffer_size);
+                (*sp).assign_capacity(assign, self.max_buffer_size);
 
                 // Claim the capacity from the connection
                 // TODO: proper error handling
                 let _res = self.flow.claim_capacity(assign);
                 debug_assert!(_res.is_ok());
             }
-        }
 
-        if stream.send_flow.available() < stream.requested_send_capacity as usize
-            && stream.send_flow.has_unavailable()
-        {
-            // The stream requires additional capacity and the stream's
-            // window has available capacity, but the connection window
-            // does not.
-            //
-            // In this case, the stream needs to be queued up for when the
-            // connection has more capacity.
-            self.pending_capacity.push(stream);
-        }
+            if (*sp).send_flow.available() < (*sp).requested_send_capacity as usize
+                && (*sp).send_flow.has_unavailable()
+            {
+                // The stream requires additional capacity and the stream's
+                // window has available capacity, but the connection window
+                // does not.
+                //
+                // In this case, the stream needs to be queued up for when the
+                // connection has more capacity.
+                self.pending_capacity.push_resolved(stream, sp);
+            }
 
-        // If data is buffered and the stream is send ready, then
-        // schedule the stream for execution
-        if stream.buffered_send_data > 0 && stream.is_send_ready() {
-            // TODO: This assertion isn't *exactly* correct. There can still be
-            // buffered send data while the stream's pending send queue is
-            // empty. This can happen when a large data frame is in the process
-            // of being **partially** sent. Once the window has been sent, the
-            // data frame will be returned to the prioritization layer to be
-            // re-scheduled.
-            //
-            // That said, it would be nice to figure out how to make this
-            // assertion correctly.
-            //
-            // debug_assert!(!stream.pending_send.is_empty());
+            // If data is buffered and the stream is send ready, then
+            // schedule the stream for execution
+            if (*sp).buffered_send_data > 0 && (*sp).is_send_ready() {
+                // TODO: This assertion isn't *exactly* correct. There can still be
+                // buffered send data while the stream's pending send queue is
+                // empty. This can happen when a large data frame is in the process
+                // of being **partially** sent. Once the window has been sent, the
+                // data frame will be returned to the prioritization layer to be
+                // re-scheduled.
+                //
+                // That said, it would be nice to figure out how to make this
+                // assertion correctly.
+                //
+                // debug_assert!(!stream.pending_send.is_empty());
 
-            super::clear_buffer_idle(&self.buffer_idle);
-            self.pending_send.push(stream);
+                super::clear_buffer_idle(&self.buffer_idle);
+                self.pending_send.push_resolved(stream, sp);
+            }
         }
     }
 
