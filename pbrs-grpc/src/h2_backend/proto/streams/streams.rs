@@ -577,6 +577,9 @@ where
     ///
     /// The caller already matched the saved pseudos. Taking a `Request<()>`
     /// here copied 216 bytes out of the admission future and then dropped it.
+    /// The admission poll wraps this result immediately. Out of line, the
+    /// stream handles were copied into the return slot and back out.
+    #[inline(always)]
     pub fn poll_send_stock(
         &mut self,
         _end_of_stream: bool,
