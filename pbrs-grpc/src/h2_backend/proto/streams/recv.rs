@@ -1507,6 +1507,9 @@ impl Recv {
         Some((stream.key(), remote_reset))
     }
 
+    /// The caller matches this event immediately. Out of line, the bytes
+    /// landed in this return slot and were copied out again.
+    #[inline(always)]
     pub fn poll_data(
         &mut self,
         cx: &Context,
