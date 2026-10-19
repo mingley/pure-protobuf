@@ -88,6 +88,39 @@ impl Head {
         ];
         dst.put_slice(&head);
     }
+
+    /// DATA head into a buffer that already holds nine spare bytes.
+    /// `put_slice` would reserve and advance-check capacity again.
+    #[allow(
+        unsafe_code,
+        reason = "the encoder capacity check proved nine spare bytes for this head"
+    )]
+    pub fn encode_spare(&self, payload_len: usize, dst: &mut bytes::BytesMut) {
+        debug_assert!(payload_len < (1 << 24));
+        debug_assert!(dst.capacity().wrapping_sub(dst.len()) >= super::HEADER_LEN);
+
+        let len = payload_len as u32;
+        let id: u32 = self.stream_id.into();
+        let head = [
+            (len >> 16) as u8,
+            (len >> 8) as u8,
+            len as u8,
+            self.kind as u8,
+            self.flag,
+            (id >> 24) as u8,
+            (id >> 16) as u8,
+            (id >> 8) as u8,
+            id as u8,
+        ];
+        let len_now = dst.len();
+        // SAFETY: the caller proved `capacity - len >= 9`. The copy initializes
+        // those bytes. `set_len` publishes them and does not reallocate.
+        unsafe {
+            let dstp = dst.spare_capacity_mut().as_mut_ptr().cast::<u8>();
+            std::ptr::copy_nonoverlapping(head.as_ptr(), dstp, super::HEADER_LEN);
+            dst.set_len(len_now + super::HEADER_LEN);
+        }
+    }
 }
 
 // ===== impl Kind =====

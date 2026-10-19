@@ -285,8 +285,8 @@ where
                 if len >= self.chain_threshold {
                     let head = v.head();
 
-                    // Encode the frame head to the buffer
-                    head.encode(len, self.buf.get_mut());
+                    // Room for this head was proved by `has_capacity`.
+                    head.encode_spare(len, self.buf.get_mut());
 
                     // A short header is padded up to `chain_threshold` only when
                     // the payload is several pieces. One contiguous payload is
