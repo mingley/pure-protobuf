@@ -886,7 +886,7 @@ impl Inner {
             let sz = frame.flow_controlled_len();
             let is_end_stream = frame.is_end_stream();
             let payload_len = frame.payload().len();
-            let mut res = actions.recv.recv_data(frame, stream);
+            let mut res = actions.recv.recv_data(frame, stream, slot);
             // A stream can receive at most one final DATA frame, so it cannot
             // be used to create unbounded framing overhead on that stream.
             if res.is_ok() && !is_end_stream {

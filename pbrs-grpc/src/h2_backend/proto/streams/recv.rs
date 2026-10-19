@@ -857,7 +857,16 @@ impl Recv {
     }
 
     #[inline(never)]
-    pub fn recv_data(&mut self, frame: frame::Data, stream: &mut store::Ptr) -> Result<(), Error> {
+    #[allow(
+        unsafe_code,
+        reason = "DATA receive updates the stream through the slot the caller already resolved"
+    )]
+    pub fn recv_data(
+        &mut self,
+        frame: frame::Data,
+        stream: &mut store::Ptr,
+        slot: *mut Stream,
+    ) -> Result<(), Error> {
         // One length for the window and the padding check. Padding is the
         // gap between the flow-controlled size and the payload the user sees.
         let payload_len = frame.payload().len();
@@ -871,11 +880,11 @@ impl Recv {
 
         let sz = flow_len as WindowSize;
 
-        // The open check and the window update share one slab lookup.
-        // `consume_connection_window` only touches the connection flow, so
-        // the stream pointer stays valid across it.
-        {
-            let stream = &mut **stream;
+        // The caller already resolved this slot. `consume_connection_window`
+        // only touches the connection flow, so the pointer stays valid.
+        // SAFETY: `slot` is the stream for this receive and is not removed here.
+        unsafe {
+            let stream = &mut *slot;
             let is_ignoring_frame = stream.state.is_local_error();
 
             if !is_ignoring_frame && !stream.state.is_recv_streaming() {
@@ -954,13 +963,10 @@ impl Recv {
             is_budgeted,
         });
 
-        // The queue link and the recv wakeup share one slab lookup.
-        // `push_back` inserts into the frame buffer, and waking afterwards
-        // otherwise re-checks the key.
-        {
-            let stream = &mut **stream;
-            stream.pending_recv.push_back(&mut self.buffer, event);
-            stream.notify_recv();
+        // SAFETY: `slot` is still the stream resolved by the caller.
+        unsafe {
+            (*slot).pending_recv.push_back(&mut self.buffer, event);
+            (*slot).notify_recv();
         }
 
         Ok(())
