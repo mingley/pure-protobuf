@@ -420,6 +420,16 @@ fn reused_miss(slot: ReusedStr, value: &str) -> BytesStr {
     made
 }
 
+/// Leaked `:path` text from the first repeated request, if one was saved.
+pub(crate) fn leaked_reused_path() -> Option<&'static str> {
+    reuse_cache::PATH.get().copied()
+}
+
+/// Leaked `:authority` text from the first repeated request, if one was saved.
+pub(crate) fn leaked_reused_authority() -> Option<&'static str> {
+    reuse_cache::AUTH.get().copied()
+}
+
 mod reuse_cache {
     use std::sync::atomic::{AtomicPtr, AtomicUsize};
 

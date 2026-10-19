@@ -385,6 +385,112 @@ fn box_post_request(
     }
 }
 
+struct PostKey {
+    https: bool,
+    path: usize,
+    path_len: usize,
+    auth: usize,
+    auth_len: usize,
+}
+
+struct StockPseudos {
+    key: PostKey,
+    scheme: BytesStr,
+    authority: BytesStr,
+    path: BytesStr,
+}
+
+fn stock_post_key(uri: &http::Uri) -> Option<PostKey> {
+    let path = uri.path();
+    let auth = uri.authority()?.as_str();
+    if path.is_empty() || auth.is_empty() {
+        return None;
+    }
+    let https = match uri.scheme_str() {
+        Some("https") => true,
+        Some("http") => false,
+        _ => return None,
+    };
+    Some(PostKey {
+        https,
+        path: path.as_ptr() as usize,
+        path_len: path.len(),
+        auth: auth.as_ptr() as usize,
+        auth_len: auth.len(),
+    })
+}
+
+#[allow(
+    unsafe_code,
+    reason = "copy static pseudo-header strings that do not own a heap buffer"
+)]
+fn copy_stock_pseudos(key: &PostKey) -> Option<(BytesStr, BytesStr, BytesStr)> {
+    let slot = STOCK_PSEUDOS.get()?;
+    if slot.key.https != key.https
+        || slot.key.path != key.path
+        || slot.key.path_len != key.path_len
+        || slot.key.auth != key.auth
+        || slot.key.auth_len != key.auth_len
+    {
+        return None;
+    }
+    // SAFETY: each string was built with `BytesStr::from_static`. Drop of a
+    // copy does not free those bytes.
+    unsafe {
+        Some((
+            std::ptr::read(&slot.scheme),
+            std::ptr::read(&slot.authority),
+            std::ptr::read(&slot.path),
+        ))
+    }
+}
+
+#[allow(
+    unsafe_code,
+    reason = "compare the live URI bytes, which stay static for a stock POST"
+)]
+fn remember_stock_pseudos(key: &PostKey) {
+    if STOCK_PSEUDOS.get().is_some() {
+        return;
+    }
+    let Some(path) = crate::h2_backend::hpack::header::leaked_reused_path() else {
+        return;
+    };
+    let Some(auth) = crate::h2_backend::hpack::header::leaked_reused_authority() else {
+        return;
+    };
+    // SAFETY: `key` records the stock request URI. Those bytes are
+    // `from_static` and are not freed when that URI is dropped.
+    let same = path.len() == key.path_len
+        && auth.len() == key.auth_len
+        && path.as_bytes()
+            == unsafe { std::slice::from_raw_parts(key.path as *const u8, key.path_len) }
+        && auth.as_bytes()
+            == unsafe { std::slice::from_raw_parts(key.auth as *const u8, key.auth_len) };
+    if !same {
+        return;
+    }
+    let scheme = if key.https {
+        BytesStr::from_static("https")
+    } else {
+        BytesStr::from_static("http")
+    };
+    let _ = STOCK_PSEUDOS.set(StockPseudos {
+        key: PostKey {
+            https: key.https,
+            path: key.path,
+            path_len: key.path_len,
+            auth: key.auth,
+            auth_len: key.auth_len,
+        },
+        scheme,
+        authority: BytesStr::from_static(auth),
+        path: BytesStr::from_static(path),
+    });
+}
+
+static STOCK_PSEUDOS: std::sync::OnceLock<StockPseudos> = std::sync::OnceLock::new();
+
 /// A trailer block, initialized in the heap allocation.
 ///
 /// The pseudo-header set is empty. Writing those `None`s in place avoids
@@ -575,6 +681,22 @@ impl Headers {
         end_of_stream: bool,
         stock_request: bool,
     ) -> Box<Self> {
+        let cacheable =
+            stock_request && !end_of_stream && fields.is_empty() && fields.capacity() == 0;
+        let key = if cacheable { stock_post_key(&uri) } else { None };
+        if let Some(key) = &key {
+            if let Some((scheme, authority, path)) = copy_stock_pseudos(key) {
+                return box_post_request(
+                    stream_id,
+                    HeadersFlag::default(),
+                    Some(scheme),
+                    Some(authority),
+                    path,
+                    fields,
+                    StandardMap::Request,
+                );
+            }
+        }
         let has_authority = uri.authority().is_some();
         let path = if let Some(v) = uri.path_and_query() {
             let raw = v.as_str();
@@ -611,7 +733,11 @@ impl Headers {
         } else {
             StandardMap::None
         };
-        box_post_request(stream_id, flags, scheme, authority, path, fields, stock)
+        let frame = box_post_request(stream_id, flags, scheme, authority, path, fields, stock);
+        if let Some(key) = &key {
+            remember_stock_pseudos(key);
+        }
+        frame
     }
 
     /// [`new`](Self::new) with the frame already in its queue box.
