@@ -683,60 +683,85 @@ impl Headers {
     ) -> Box<Self> {
         let cacheable =
             stock_request && !end_of_stream && fields.is_empty() && fields.capacity() == 0;
-        let key = if cacheable { stock_post_key(&uri) } else { None };
-        if let Some(key) = &key {
-            if let Some((scheme, authority, path)) = copy_stock_pseudos(key) {
-                return box_post_request(
+        if cacheable {
+            if let Some(key) = stock_post_key(&uri) {
+                if let Some((scheme, authority, path)) = copy_stock_pseudos(&key) {
+                    return box_post_request(
+                        stream_id,
+                        HeadersFlag::default(),
+                        Some(scheme),
+                        Some(authority),
+                        path,
+                        fields,
+                        StandardMap::Request,
+                    );
+                }
+                return Self::post_request_boxed_miss(
                     stream_id,
-                    HeadersFlag::default(),
-                    Some(scheme),
-                    Some(authority),
-                    path,
+                    uri,
                     fields,
-                    StandardMap::Request,
+                    end_of_stream,
+                    stock_request,
+                    Some(key),
                 );
             }
         }
-        let has_authority = uri.authority().is_some();
-        let path = if let Some(v) = uri.path_and_query() {
-            let raw = v.as_str();
-            if raw.is_empty() {
-                Pseudo::post_empty_path()
-            } else {
-                BytesStr::reused(crate::h2_backend::hpack::header::ReusedStr::Path, raw)
-            }
-        } else {
+        Self::post_request_boxed_miss(stream_id, uri, fields, end_of_stream, stock_request, None)
+    }
+}
+
+impl Headers {
+/// First POST, or a request that is not the cached stock block.
+#[cold]
+#[inline(never)]
+fn post_request_boxed_miss(
+    stream_id: StreamId,
+    uri: http::Uri,
+    fields: HeaderMap,
+    end_of_stream: bool,
+    stock_request: bool,
+    key: Option<PostKey>,
+) -> Box<Headers> {
+    let has_authority = uri.authority().is_some();
+    let path = if let Some(v) = uri.path_and_query() {
+        let raw = v.as_str();
+        if raw.is_empty() {
             Pseudo::post_empty_path()
-        };
-        let scheme = match uri.scheme() {
-            Some(scheme) if *scheme == uri::Scheme::HTTP => Some(BytesStr::from_static("http")),
-            Some(scheme) => Some(Pseudo::post_scheme(scheme.clone())),
-            None if !has_authority => Some(BytesStr::from_static("http")),
-            None => None,
-        };
-        let authority = if has_authority {
-            uri.authority().map(|authority| {
-                BytesStr::reused(
-                    crate::h2_backend::hpack::header::ReusedStr::Authority,
-                    authority.as_str(),
-                )
-            })
         } else {
-            None
-        };
-        let mut flags = HeadersFlag::default();
-        if end_of_stream {
-            flags.set_end_stream();
+            BytesStr::reused(crate::h2_backend::hpack::header::ReusedStr::Path, raw)
         }
-        let stock = if stock_request {
-            StandardMap::Request
-        } else {
-            StandardMap::None
-        };
-        let frame = box_post_request(stream_id, flags, scheme, authority, path, fields, stock);
-        if let Some(key) = &key {
-            remember_stock_pseudos(key);
-        }
+    } else {
+        Pseudo::post_empty_path()
+    };
+    let scheme = match uri.scheme() {
+        Some(scheme) if *scheme == uri::Scheme::HTTP => Some(BytesStr::from_static("http")),
+        Some(scheme) => Some(Pseudo::post_scheme(scheme.clone())),
+        None if !has_authority => Some(BytesStr::from_static("http")),
+        None => None,
+    };
+    let authority = if has_authority {
+        uri.authority().map(|authority| {
+            BytesStr::reused(
+                crate::h2_backend::hpack::header::ReusedStr::Authority,
+                authority.as_str(),
+            )
+        })
+    } else {
+        None
+    };
+    let mut flags = HeadersFlag::default();
+    if end_of_stream {
+        flags.set_end_stream();
+    }
+    let stock = if stock_request {
+        StandardMap::Request
+    } else {
+        StandardMap::None
+    };
+    let frame = box_post_request(stream_id, flags, scheme, authority, path, fields, stock);
+    if let Some(key) = &key {
+        remember_stock_pseudos(key);
+    }
         frame
     }
 
