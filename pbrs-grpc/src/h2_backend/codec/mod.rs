@@ -148,6 +148,14 @@ where
         self.framed_write().buffer(item)
     }
 
+    pub(crate) fn buffer_data(&mut self, item: frame::Data<B>) -> Result<(), UserError> {
+        self.framed_write().buffer_data(item)
+    }
+
+    pub(crate) fn buffer_headers(&mut self, item: Box<frame::Headers>) -> Result<(), UserError> {
+        self.framed_write().buffer_headers(item)
+    }
+
     /// Flush buffered data to the wire
     pub fn flush(&mut self, cx: &mut Context) -> Poll<io::Result<()>> {
         self.framed_write().flush(cx)

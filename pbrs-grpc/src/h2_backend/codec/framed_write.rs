@@ -145,6 +145,18 @@ where
         self.encoder.buffer(item)
     }
 
+    /// Buffer a DATA frame the caller already matched.
+    pub(crate) fn buffer_data(&mut self, item: frame::Data<B>) -> Result<(), UserError> {
+        self.needs_flush = true;
+        self.encoder.buffer_data(item)
+    }
+
+    /// Buffer a HEADERS frame the caller already matched.
+    pub(crate) fn buffer_headers(&mut self, item: Box<frame::Headers>) -> Result<(), UserError> {
+        self.needs_flush = true;
+        self.encoder.buffer_headers(item)
+    }
+
     /// Flush buffered data to the wire
     pub fn flush(&mut self, cx: &mut Context) -> Poll<io::Result<()>> {
         if !self.needs_flush {
@@ -274,53 +286,8 @@ where
         debug_assert!(self.has_capacity());
 
         match item {
-            Frame::Data(mut v) => {
-                // Ensure that the payload is not greater than the max frame.
-                let len = v.payload().remaining();
-
-                if len > self.max_frame_size() {
-                    return Err(PayloadTooBig);
-                }
-
-                if len >= self.chain_threshold {
-                    let head = v.head();
-
-                    // Room for this head was proved by `has_capacity`.
-                    head.encode_spare(len, self.buf.get_mut());
-
-                    // A short header is padded up to `chain_threshold` only when
-                    // the payload is several pieces. One contiguous payload is
-                    // already a single writev vector beside the header, so
-                    // copying its prefix into the header buffer does not
-                    // change the number of vectors.
-                    if self.buf.get_ref().remaining() < self.chain_threshold
-                        && v.payload().chunk().len() < v.payload().remaining()
-                    {
-                        let extra_bytes = self.chain_threshold - self.buf.remaining();
-                        self.buf.get_mut().put(v.payload_mut().take(extra_bytes));
-                    }
-
-                    // Save the data frame
-                    self.next = Some(Next::Data(v));
-                } else {
-                    v.encode_chunk(self.buf.get_mut());
-
-                    // The chunk has been fully encoded, so there is no need to
-                    // keep it around
-                    assert_eq!(v.payload().remaining(), 0, "chunk not fully encoded");
-
-                    // Save off the last frame...
-                    self.last_data_frame = Some(v);
-                }
-            }
-            Frame::Headers(v) => {
-                let mut buf = limited_write_buf!(self);
-                if let Some(continuation) =
-                    frame::Headers::encode_box(v, &mut self.hpack, &mut buf)
-                {
-                    self.next = Some(Next::Continuation(continuation));
-                }
-            }
+            Frame::Data(v) => self.buffer_data(v)?,
+            Frame::Headers(v) => self.buffer_headers(v)?,
             Frame::PushPromise(v) => {
                 let mut buf = limited_write_buf!(self);
                 if let Some(continuation) = (*v).encode(&mut self.hpack, &mut buf) {
@@ -357,6 +324,55 @@ where
             }
         }
 
+        Ok(())
+    }
+
+    fn buffer_data(&mut self, mut v: frame::Data<B>) -> Result<(), UserError> {
+        // Ensure that the payload is not greater than the max frame.
+        let len = v.payload().remaining();
+
+        if len > self.max_frame_size() {
+            return Err(PayloadTooBig);
+        }
+
+        if len >= self.chain_threshold {
+            let head = v.head();
+
+            // Room for this head was proved by `has_capacity`.
+            head.encode_spare(len, self.buf.get_mut());
+
+            // A short header is padded up to `chain_threshold` only when
+            // the payload is several pieces. One contiguous payload is
+            // already a single writev vector beside the header, so
+            // copying its prefix into the header buffer does not
+            // change the number of vectors.
+            if self.buf.get_ref().remaining() < self.chain_threshold
+                && v.payload().chunk().len() < v.payload().remaining()
+            {
+                let extra_bytes = self.chain_threshold - self.buf.remaining();
+                self.buf.get_mut().put(v.payload_mut().take(extra_bytes));
+            }
+
+            // Save the data frame
+            self.next = Some(Next::Data(v));
+        } else {
+            v.encode_chunk(self.buf.get_mut());
+
+            // The chunk has been fully encoded, so there is no need to
+            // keep it around
+            assert_eq!(v.payload().remaining(), 0, "chunk not fully encoded");
+
+            // Save off the last frame...
+            self.last_data_frame = Some(v);
+        }
+        Ok(())
+    }
+
+    fn buffer_headers(&mut self, v: Box<frame::Headers>) -> Result<(), UserError> {
+        let mut buf = limited_write_buf!(self);
+        if let Some(continuation) = frame::Headers::encode_box(v, &mut self.hpack, &mut buf) {
+            self.next = Some(Next::Continuation(continuation));
+        }
         Ok(())
     }
 

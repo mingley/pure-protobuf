@@ -881,15 +881,23 @@ impl Prioritize {
                         counts.transition_after(stream, is_pending_reset);
                     }
 
-                    // The data key is recorded before the frame moves into the
-                    // codec. The caller used to match the returned enum to do
-                    // this, which copied the frame.
-                    if let Frame::Data(ref data) = frame {
-                        debug_assert_eq!(self.in_flight_data_frame, InFlightData::Nothing);
-                        self.in_flight_data_frame =
-                            InFlightData::DataFrame(data.payload().stream);
+                    // DATA and HEADERS were already matched above. Encoding
+                    // them through `buffer` would match the same 56-byte
+                    // enum again.
+                    match frame {
+                        Frame::Data(data) => {
+                            debug_assert_eq!(self.in_flight_data_frame, InFlightData::Nothing);
+                            self.in_flight_data_frame =
+                                InFlightData::DataFrame(data.payload().stream);
+                            dst.buffer_data(data).expect("invalid frame");
+                        }
+                        Frame::Headers(headers) => {
+                            dst.buffer_headers(headers).expect("invalid frame");
+                        }
+                        other => {
+                            dst.buffer(other).expect("invalid frame");
+                        }
                     }
-                    dst.buffer(frame).expect("invalid frame");
                     return true;
                 }
                 None => return false,
