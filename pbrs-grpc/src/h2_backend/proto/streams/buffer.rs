@@ -86,6 +86,34 @@ impl<T> FrameSlab<T> {
 }
 
 impl<T> FrameSlab<Slot<T>> {
+    /// Queue a frame into a free slot. The frame is written once; a vacant
+    /// entry holds only a link, so it is overwritten in place.
+    #[inline(always)]
+    #[allow(
+        unsafe_code,
+        reason = "the frame is written over a vacant link without dropping a live frame"
+    )]
+    fn insert_frame(&mut self, value: T) -> usize {
+        let key = self.next;
+        self.len += 1;
+        if key == self.entries.len() {
+            self.insert_new(key, Slot { value, next: None });
+            return key;
+        }
+        // SAFETY: `key` came from the free list. A non-vacant entry is a
+        // corrupt slab. `ptr::write` does not drop the vacant link.
+        unsafe {
+            let entry = self.entries.as_mut_ptr().add(key);
+            let free_next = match &*entry {
+                Entry::Vacant(next) => *next,
+                Entry::Occupied(_) => broken_frame_slab(),
+            };
+            self.next = free_next;
+            std::ptr::write(entry, Entry::Occupied(Slot { value, next: None }));
+        }
+        key
+    }
+
     /// Take the queued frame. It is read once; the slot becomes vacant in
     /// place instead of copying the entry out and then the frame again.
     #[inline(always)]
@@ -172,7 +200,7 @@ impl Deque {
 
     #[inline(always)]
     pub fn push_back<T>(&mut self, buf: &mut Buffer<T>, value: T) {
-        let key = buf.slab.insert(Slot { value, next: None });
+        let key = buf.slab.insert_frame(value);
 
         match self.indices {
             Some(ref mut idxs) => {
