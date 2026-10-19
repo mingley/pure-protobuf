@@ -747,6 +747,32 @@ impl Headers {
         }
         Self::post_request_boxed_miss(stream_id, uri, fields, end_of_stream, stock_request, None)
     }
+
+    /// A repeated stock POST. The pseudos were saved with the first request,
+    /// so this does not rebuild them from a copied `http::Request`.
+    pub(crate) fn cached_stock_post(stream_id: StreamId) -> Option<Box<Self>> {
+        let slot = STOCK_PSEUDOS.get()?;
+        let (scheme, authority, path) = copy_stock_pseudos(&slot.key)?;
+        Some(box_post_request(
+            stream_id,
+            HeadersFlag::default(),
+            Some(scheme),
+            Some(authority),
+            path,
+            HeaderMap::new(),
+            StandardMap::Request,
+        ))
+    }
+
+    /// `true` when `cached_stock_post` can build this authority and path.
+    pub(crate) fn stock_post_cached(https: bool, path: &str, authority: &str) -> bool {
+        let Some(slot) = STOCK_PSEUDOS.get() else {
+            return false;
+        };
+        slot.key.https == https
+            && slot.path.as_str() == path
+            && slot.authority.as_str() == authority
+    }
 }
 
 impl Headers {

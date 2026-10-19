@@ -573,6 +573,98 @@ where
         )))
     }
 
+    /// [`poll_send_request`] for a repeated stock POST.
+    ///
+    /// The caller already matched the saved pseudos. Taking a `Request<()>`
+    /// here copied 216 bytes out of the admission future and then dropped it.
+    pub fn poll_send_stock(
+        &mut self,
+        _end_of_stream: bool,
+        cx: &Context<'_>,
+        waiter: &mut Option<std::sync::Arc<atomic_waker::AtomicWaker>>,
+    ) -> Poll<Result<(StreamRef<B>, OpaqueStreamRef, bool), crate::h2_backend::Error>> {
+        let mut me = self.inner.lock().unwrap();
+        let me = &mut *me;
+
+        let mut send_buffer = self.send_buffer.inner.lock().unwrap();
+        let send_buffer = &mut *send_buffer;
+
+        me.actions.ensure_no_conn_error()?;
+        let stream_id = me.actions.send.ensure_next_stream_id()?;
+
+        if !me.counts.can_reserve_send_stream() {
+            me.counts.wait_send_capacity(cx, waiter);
+            return Poll::Pending;
+        }
+
+        // The peer is a type parameter. The client build drops this branch.
+        if P::r#dyn().is_server() {
+            return Poll::Ready(Err(UserError::UnexpectedFrameType.into()));
+        }
+
+        me.actions.send.commit_open_id(stream_id);
+        // The mark must not leak onto a later non-stock send.
+        let _ = crate::h2_backend::header_pool::take_next_stock(
+            crate::h2_backend::header_pool::STOCK_REQUEST,
+        );
+        let Some(headers) = frame::Headers::cached_stock_post(stream_id) else {
+            return Poll::Ready(Err(UserError::MissingUriSchemeAndAuthority.into()));
+        };
+        // gRPC sends a body after the headers. END_STREAM would be a different frame.
+        debug_assert!(!_end_of_stream);
+        let send_window = me.actions.send.init_window_sz();
+        let recv_window = me.actions.recv.init_window_sz();
+
+        let mut stream = me.store.insert_new(stream_id, send_window, recv_window);
+        let slot = stream.stream_ptr();
+
+        let sent = me.actions.send.send_headers_boxed(
+            headers,
+            send_buffer,
+            &mut stream,
+            slot,
+            &mut me.counts,
+            &mut me.actions.task,
+        );
+
+        if let Err(err) = sent {
+            stream.unlink();
+            stream.remove();
+            return Poll::Ready(Err(err.into()));
+        }
+
+        debug_assert!(stream.is_pending_open);
+        debug_assert!(!stream.state.is_closed());
+
+        me.refs += 2;
+        #[allow(
+            unsafe_code,
+            reason = "both new handles share the slot the insert just wrote"
+        )]
+        unsafe {
+            (*slot).ref_inc();
+            (*slot).ref_inc();
+        }
+        let key = stream.key();
+
+        let is_full = me.counts.next_send_stream_will_reach_capacity();
+        let response = OpaqueStreamRef {
+            inner: self.inner.clone(),
+            key,
+        };
+        Poll::Ready(Ok((
+            StreamRef {
+                opaque: OpaqueStreamRef {
+                    inner: self.inner.clone(),
+                    key,
+                },
+                send_buffer: self.send_buffer.clone(),
+            },
+            response,
+            is_full,
+        )))
+    }
+
     pub(crate) fn is_extended_connect_protocol_enabled(&self) -> bool {
         self.inner
             .lock()

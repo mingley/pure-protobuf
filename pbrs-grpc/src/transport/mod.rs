@@ -93,6 +93,9 @@ pub(crate) trait SendRequest: Clone {
         request: Request<()>,
         end_of_stream: bool,
     ) -> backend::Admission<'_>;
+    /// Admit a repeated stock POST. The header frame is built from saved
+    /// pseudos, so the caller does not copy an `http::Request`.
+    fn send_stock_when_ready(&mut self, end_of_stream: bool) -> backend::Admission<'_>;
     /// Peer's current MAX_CONCURRENT_STREAMS style send-stream budget.
     fn current_max_send_streams(&self) -> usize;
 }

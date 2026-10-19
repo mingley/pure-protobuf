@@ -409,6 +409,13 @@ impl super::SendRequest for SendRequest {
             recorder: self.recorder.clone(),
         }
     }
+
+    fn send_stock_when_ready(&mut self, end_of_stream: bool) -> Admission<'_> {
+        Admission {
+            inner: self.inner.send_stock_when_ready(end_of_stream),
+            recorder: self.recorder.clone(),
+        }
+    }
 }
 
 /// Owned request headers awaiting authoritative connection-wide admission.

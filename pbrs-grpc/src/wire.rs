@@ -13,7 +13,8 @@ pub(crate) use frame_reader::{
 };
 pub(crate) use headers::{
     DEFAULT_UA, PBRS_GRPC_UA, RequestReject, STOCK_UA, accepts_gzip, check_request,
-    effective_timeout, grpc_encoding, grpc_request, inbound_codec_from_token, preferred_codec,
+    begin_stock_request, effective_timeout, grpc_encoding, grpc_request, inbound_codec_from_token,
+    preferred_codec,
     select_outbound_codec, select_stream_codec, soonest, timeout_from_headers, user_agent_value,
 };
 pub(crate) use out_batch::{OutBatch, let_producer_catch_up};

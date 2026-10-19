@@ -10,7 +10,8 @@ use crate::transport::{
     Error as TransportError, Reason, RecvStream, SendRequest, SendStream, h2 as backend,
 };
 use crate::wire::{
-    ImmediateSend, SegFrame, grpc_request, send_frame, send_frame_if_ready, status_from,
+    ImmediateSend, SegFrame, begin_stock_request, grpc_request, send_frame, send_frame_if_ready,
+    status_from,
 };
 use futures_util::future::Either;
 use http::HeaderValue;
@@ -313,17 +314,34 @@ pub(crate) async fn open_in<R: Runtime>(
         return Err(Status::cancelled());
     }
     let remaining = outgoing_timeout(timeout, remaining_timeout(deadline)?);
-    let http_req = grpc_request(
-        authority,
-        path,
-        md,
-        remaining,
-        send_codec,
-        accept_gzip,
-        user_agent,
-        https,
-    )?;
-    let mut admission = send_req.send_request_when_ready(http_req, false);
+    // No deadline: the stock block does not carry grpc-timeout, so the
+    // request head is not needed. Copying it only to throw it away costs
+    // two 216-byte moves.
+    let mut admission = if deadline.is_none()
+        && begin_stock_request(
+            authority,
+            path,
+            md,
+            remaining,
+            send_codec,
+            accept_gzip,
+            user_agent,
+            https,
+        ) {
+        send_req.send_stock_when_ready(false)
+    } else {
+        let http_req = grpc_request(
+            authority,
+            path,
+            md,
+            remaining,
+            send_codec,
+            accept_gzip,
+            user_agent,
+            https,
+        )?;
+        send_req.send_request_when_ready(http_req, false)
+    };
     // grpc_request already encoded this duration. In particular, the existing
     // sub-20ms policy leaves it unchanged on a warm call's first guarded poll.
     let mut last_timeout = remaining;

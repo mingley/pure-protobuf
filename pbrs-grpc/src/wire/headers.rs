@@ -186,11 +186,7 @@ pub(crate) fn grpc_request(
     user_agent: &HeaderValue,
     https: bool,
 ) -> Result<Request<()>, Status> {
-    let stock = md.is_empty()
-        && timeout.is_none()
-        && send_codec.is_none()
-        && accept_gzip
-        && (std::ptr::eq(user_agent.as_bytes(), STOCK_UA.as_bytes()) || user_agent == &STOCK_UA);
+    let stock = is_stock_request(md, timeout, send_codec, accept_gzip, user_agent);
     if stock
         && crate::h2_backend::header_pool::is_parked(
             crate::h2_backend::header_pool::Slot::Request,
@@ -214,6 +210,50 @@ pub(crate) fn grpc_request(
         https,
         stock,
     )
+}
+
+fn is_stock_request(
+    md: &Metadata,
+    timeout: Option<Duration>,
+    send_codec: Option<CompressionAlgorithm>,
+    accept_gzip: bool,
+    user_agent: &HeaderValue,
+) -> bool {
+    md.is_empty()
+        && timeout.is_none()
+        && send_codec.is_none()
+        && accept_gzip
+        && (std::ptr::eq(user_agent.as_bytes(), STOCK_UA.as_bytes()) || user_agent == &STOCK_UA)
+}
+
+/// A repeated stock POST whose pseudos are already saved.
+///
+/// Marks the header pool and returns `true` without copying the 216-byte
+/// request. A deadline still needs that request so a relative timeout can be
+/// written into it.
+pub(crate) fn begin_stock_request(
+    authority: &Authority,
+    path: &'static str,
+    md: &Metadata,
+    timeout: Option<Duration>,
+    send_codec: Option<CompressionAlgorithm>,
+    accept_gzip: bool,
+    user_agent: &HeaderValue,
+    https: bool,
+) -> bool {
+    if !is_stock_request(md, timeout, send_codec, accept_gzip, user_agent) {
+        return false;
+    }
+    if !crate::h2_backend::header_pool::is_parked(crate::h2_backend::header_pool::Slot::Request) {
+        return false;
+    }
+    if !crate::h2_backend::header_pool::stock_post_cached(https, path, authority.as_str()) {
+        return false;
+    }
+    crate::h2_backend::header_pool::set_pending_stock(
+        crate::h2_backend::header_pool::STOCK_REQUEST,
+    );
+    true
 }
 
 /// First request, or one that is not the cached stock POST.

@@ -556,6 +556,18 @@ where
         SendRequestWhenReady {
             sender: self,
             request: Some(request),
+            stock: false,
+            end_of_stream,
+            waiter: None,
+        }
+    }
+
+    /// Admit a repeated stock POST without copying its `http::Request`.
+    pub fn send_stock_when_ready(&mut self, end_of_stream: bool) -> SendRequestWhenReady<'_, B> {
+        SendRequestWhenReady {
+            sender: self,
+            request: None,
+            stock: true,
             end_of_stream,
             waiter: None,
         }
@@ -634,6 +646,8 @@ where
 pub struct SendRequestWhenReady<'a, B: Buf> {
     sender: &'a mut SendRequest<B>,
     request: Option<Request<()>>,
+    /// The header frame comes from the saved stock POST, not `request`.
+    stock: bool,
     end_of_stream: bool,
     waiter: Option<std::sync::Arc<atomic_waker::AtomicWaker>>,
 }
@@ -652,12 +666,20 @@ impl<B: Buf> Future for SendRequestWhenReady<'_, B> {
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.get_mut();
-        let (stream, response, _is_full) = ready!(this.sender.inner.poll_send_request(
-            &mut this.request,
-            this.end_of_stream,
-            cx,
-            &mut this.waiter,
-        ))?;
+        let (stream, response, _is_full) = if this.stock {
+            ready!(this.sender.inner.poll_send_stock(
+                this.end_of_stream,
+                cx,
+                &mut this.waiter,
+            ))?
+        } else {
+            ready!(this.sender.inner.poll_send_request(
+                &mut this.request,
+                this.end_of_stream,
+                cx,
+                &mut this.waiter,
+            ))?
+        };
         // This request owns quota in pending_open until the writer transfers
         // that quota to the active count. Preserve idle-stream reset handling.
         this.waiter = None;
