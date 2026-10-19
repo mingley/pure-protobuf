@@ -23,3 +23,12 @@ pub(crate) fn copy_static_authority(parsed: &http::uri::Authority) -> http::uri:
     // those bytes is a no-op, so an extra bitwise copy does not free them.
     unsafe { std::ptr::read(parsed) }
 }
+
+/// Copy a POST whose URI bytes are static and whose header map is empty.
+#[inline(always)]
+pub(crate) fn copy_static_http_request(parsed: &http::Request<()>) -> http::Request<()> {
+    // SAFETY: caller passes only requests built from `Scheme::HTTP`/`HTTPS`,
+    // `Authority::from_static`, `PathAndQuery::from_static`, and an empty map.
+    // Drop of that request does not free those bytes or a header allocation.
+    unsafe { std::ptr::read(parsed) }
+}

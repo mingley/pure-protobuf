@@ -186,6 +186,23 @@ pub(crate) fn grpc_request(
     user_agent: &HeaderValue,
     https: bool,
 ) -> Result<Request<()>, Status> {
+    let stock = md.is_empty()
+        && timeout.is_none()
+        && send_codec.is_none()
+        && accept_gzip
+        && (std::ptr::eq(user_agent.as_bytes(), STOCK_UA.as_bytes()) || user_agent == &STOCK_UA);
+    if stock
+        && crate::h2_backend::header_pool::is_parked(
+            crate::h2_backend::header_pool::Slot::Request,
+        )
+    {
+        if let Some(req) = cached_stock_post(https, path, authority) {
+            crate::h2_backend::header_pool::set_pending_stock(
+                crate::h2_backend::header_pool::STOCK_REQUEST,
+            );
+            return Ok(req);
+        }
+    }
     let mut parts = http::uri::Parts::default();
     parts.scheme = Some(if https { Scheme::HTTPS } else { Scheme::HTTP });
     parts.authority = Some(cached_authority(authority));
@@ -205,18 +222,13 @@ pub(crate) fn grpc_request(
     // The benchmark and the default client repeat the same four headers.
     // Cloning that block skips four hashed inserts. That path only sets the
     // stock flag; clearing it first would write the thread slot twice.
-    if md.is_empty()
-        && timeout.is_none()
-        && send_codec.is_none()
-        && accept_gzip
-        && (std::ptr::eq(user_agent.as_bytes(), STOCK_UA.as_bytes())
-            || user_agent == &STOCK_UA)
-    {
+    if stock {
         // Once the stock map is parked, replay does not read it. Moving it
         // into this request and back on encode copies the map twice.
-        if !crate::h2_backend::header_pool::is_parked(
+        let parked = crate::h2_backend::header_pool::is_parked(
             crate::h2_backend::header_pool::Slot::Request,
-        ) {
+        );
+        if !parked {
             crate::h2_backend::header_pool::replace_map(
                 req.headers_mut(),
                 crate::h2_backend::header_pool::take(
@@ -224,6 +236,9 @@ pub(crate) fn grpc_request(
                     || standard_request_headers().clone(),
                 ),
             );
+        } else {
+            // Empty map and a static URI. Later calls copy this request.
+            remember_stock_post(&req, https, path, authority);
         }
         crate::h2_backend::header_pool::set_pending_stock(
             crate::h2_backend::header_pool::STOCK_REQUEST,
@@ -256,6 +271,57 @@ pub(crate) fn grpc_request(
     headers.insert(USER_AGENT, user_agent.clone());
     Ok(req)
 }
+
+struct StockPost {
+    https: bool,
+    path: usize,
+    path_len: usize,
+    auth: usize,
+    auth_len: usize,
+    req: &'static http::Request<()>,
+}
+
+fn cached_stock_post(
+    https: bool,
+    path: &'static str,
+    authority: &Authority,
+) -> Option<http::Request<()>> {
+    let slot = STOCK_POST.get()?;
+    let auth = authority.as_str();
+    if slot.https == https
+        && slot.path == path.as_ptr() as usize
+        && slot.path_len == path.len()
+        && slot.auth == auth.as_ptr() as usize
+        && slot.auth_len == auth.len()
+    {
+        Some(crate::static_copy::copy_static_http_request(slot.req))
+    } else {
+        None
+    }
+}
+
+fn remember_stock_post(
+    req: &http::Request<()>,
+    https: bool,
+    path: &'static str,
+    authority: &Authority,
+) {
+    if STOCK_POST.get().is_some() {
+        return;
+    }
+    let auth = authority.as_str();
+    let leaked = Box::leak(Box::new(crate::static_copy::copy_static_http_request(req)));
+    let _ = STOCK_POST.set(StockPost {
+        https,
+        path: path.as_ptr() as usize,
+        path_len: path.len(),
+        auth: auth.as_ptr() as usize,
+        auth_len: auth.len(),
+        req: leaked,
+    });
+}
+
+static STOCK_POST: std::sync::OnceLock<StockPost> = std::sync::OnceLock::new();
 
 /// `content-type`, `te`, `grpc-accept-encoding`, and the default user-agent.
 fn standard_request_headers() -> &'static HeaderMap {
