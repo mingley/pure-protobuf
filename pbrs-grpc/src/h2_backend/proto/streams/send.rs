@@ -392,6 +392,7 @@ impl Send {
         mut frame: Box<frame::Headers>,
         buffer: &mut Buffer<Frame<B>>,
         stream: &mut store::Ptr,
+        sp: *mut Stream,
         counts: &mut Counts,
         task: &mut Option<Waker>,
     ) -> Result<(), UserError> {
@@ -409,8 +410,8 @@ impl Send {
         }
 
         // TODO: Should this logic be moved into state.rs?
-        // The streaming check, the close, and the queued trailer share one slot.
-        let sp = stream.stream_ptr();
+        // The streaming check, the close, and the queued trailer share the
+        // slot the caller already resolved.
         #[allow(
             unsafe_code,
             reason = "the trailer close and the queued frame share one slab slot"

@@ -1633,19 +1633,27 @@ impl<B> StreamRef<B> {
         let mut me = self.opaque.inner.lock().unwrap();
         let me = &mut *me;
 
-        let stream = me.store.resolve(self.opaque.key);
+        let mut stream = me.store.resolve(self.opaque.key);
         let actions = &mut me.actions;
         let mut send_buffer = self.send_buffer.inner.lock().unwrap();
         let send_buffer = &mut *send_buffer;
+        // The id and the close share the slot `transition` would look up again.
+        let slot = stream.stream_ptr();
+        #[allow(
+            unsafe_code,
+            reason = "the trailer id is read from the slot the close reuses"
+        )]
+        let frame = frame::Headers::trailers_boxed(unsafe { (*slot).id }, trailers);
 
-        me.counts.transition(stream, |counts, stream| {
-            // Create the trailers frame
-            let frame = frame::Headers::trailers_boxed(stream.id, trailers);
-
-            // Send the trailers frame
-            actions
-                .send
-                .send_trailers(frame, send_buffer, stream, counts, &mut actions.task)
+        me.counts.transition_at(stream, slot, |counts, stream| {
+            actions.send.send_trailers(
+                frame,
+                send_buffer,
+                stream,
+                slot,
+                counts,
+                &mut actions.task,
+            )
         })
     }
 
