@@ -1964,6 +1964,8 @@ impl<B> StreamRef<B> {
     /// # Panics
     ///
     /// This function panics if the request isn't present.
+    /// The accept poll maps this head immediately.
+    #[inline(always)]
     pub fn take_request(&self) -> Request<()> {
         let mut me = self.opaque.inner.lock().unwrap();
         let me = &mut *me;

@@ -440,6 +440,7 @@ impl Recv {
     ///
     /// Panics if `stream.pending_recv` has no `Event::Headers` queued.
     ///
+    #[inline(always)]
     pub fn take_request(&mut self, stream: &mut store::Ptr) -> Request<()> {
         use super::peer::PollMessage::*;
 

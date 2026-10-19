@@ -1807,12 +1807,21 @@ pub(crate) fn copy_stock_ok_response() -> http::Response<()> {
     unsafe { std::ptr::read(proto) }
 }
 
+/// The accept poll maps this head immediately. Keeping the copy out of line
+/// wrote it into a return slot and then copied it again.
+#[inline(always)]
 pub(crate) fn cached_simple_post(https: bool) -> Request<()> {
     if !https {
         if let Some(cached) = HTTP_POST.get() {
             return copy_static_request(cached);
         }
     }
+    cached_simple_post_miss(https)
+}
+
+#[cold]
+#[inline(never)]
+fn cached_simple_post_miss(https: bool) -> Request<()> {
     // `stock_post_https` only returns after both caches are filled.
     let (Some(authority), Some(path)) = (auth_cache::PARSED.get(), path_cache::PARSED.get())
     else {
