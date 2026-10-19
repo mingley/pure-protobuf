@@ -433,6 +433,19 @@ where
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Result<(Request<RecvStream>, SendResponse<B>), crate::h2_backend::Error>>> {
+        self.poll_accept_with(cx, RecvStream::new)
+    }
+
+    /// Accept the next request and attach `wrap`'s body in the same map.
+    ///
+    /// A second `Request::map` copied the head again. The transport body is
+    /// built here so that copy does not happen.
+    #[inline(always)]
+    pub(crate) fn poll_accept_with<R>(
+        &mut self,
+        cx: &mut Context<'_>,
+        wrap: impl FnOnce(FlowControl) -> R,
+    ) -> Poll<Option<Result<(Request<R>, SendResponse<B>), crate::h2_backend::Error>>> {
         // Always try to advance the internal state. Getting Pending also is
         // needed to allow this function to return Pending.
         if self.poll_closed(cx)?.is_ready() {
@@ -445,9 +458,9 @@ where
             tracing::trace!("received incoming");
             // `map` moves the head once. `into_parts` then `from_parts`
             // copied that head through two temporaries.
-            let request = inner.take_request().map(|()| {
-                RecvStream::new(FlowControl::new(inner.clone_to_opaque()))
-            });
+            let request = inner
+                .take_request()
+                .map(|()| wrap(FlowControl::new(inner.clone_to_opaque())));
             let respond = SendResponse { inner: Some(inner) };
 
             return Poll::Ready(Some(Ok((request, respond))));

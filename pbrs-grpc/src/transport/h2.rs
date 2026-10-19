@@ -798,20 +798,18 @@ impl<IO: AsyncRead + AsyncWrite + Unpin> super::ServerConnection for ServerConne
                 return Poll::Ready(Some(Err(error)));
             }
         }
-        match self.inner.poll_accept(cx) {
+        // One map, inside `poll_accept_with`. Mapping the finished request
+        // here copied the head a second time.
+        let recorder = self.recorder.clone();
+        match self.inner.poll_accept_with(cx, |flow| {
+            RecvStream::new(crate::h2_backend::RecvStream::new(flow), recorder)
+        }) {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(opt) => {
-                let recorder = self.recorder.clone();
-                Poll::Ready(opt.map(|r| {
-                    r.map(|(req, rsp)| {
-                        (
-                            req.map(|recv| RecvStream::new(recv, recorder)),
-                            SendResponse(rsp),
-                        )
-                    })
-                    .map_err(Error)
-                }))
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Ready(Some(Ok((request, respond)))) => {
+                Poll::Ready(Some(Ok((request, SendResponse(respond)))))
             }
+            Poll::Ready(Some(Err(error))) => Poll::Ready(Some(Err(Error(error)))),
         }
     }
 
