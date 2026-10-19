@@ -425,6 +425,9 @@ where
         crate::h2_backend::poll_fn(move |cx| self.poll_accept(cx)).await
     }
 
+    /// The transport maps this request immediately. Keeping the poll out of
+    /// line copied the head into this return slot and then out again.
+    #[inline(always)]
     #[doc(hidden)]
     pub fn poll_accept(
         &mut self,

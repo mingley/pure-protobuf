@@ -767,6 +767,9 @@ impl<IO> fmt::Debug for ServerConnection<IO> {
 }
 
 impl<IO: AsyncRead + AsyncWrite + Unpin> super::ServerConnection for ServerConnection<IO> {
+    /// The accept loop stores the stream in a side slot. Inlining lets that
+    /// slot be the return destination instead of a second copy of the head.
+    #[inline(always)]
     fn poll_accept(
         &mut self,
         cx: &mut Context<'_>,
