@@ -118,6 +118,10 @@ impl Prioritize {
     }
 
     /// Queue a frame to be sent to the remote
+    #[allow(
+        unsafe_code,
+        reason = "the stream pointer stays valid while this frame is queued"
+    )]
     pub fn queue_frame<B>(
         &mut self,
         frame: Frame<B>,
@@ -125,9 +129,22 @@ impl Prioritize {
         stream: &mut store::Ptr,
         task: &mut Option<Waker>,
     ) {
-        // Queue the frame in the buffer
-        stream.pending_send.push_back(buffer, frame);
-        self.schedule_send(stream, task);
+        let sp = stream.stream_ptr();
+        // SAFETY: `stream_ptr` is the slot this `Ptr` already resolved, and
+        // this function does not remove it. The ready flags are the same
+        // ones `schedule_send` reads through a second slab index.
+        unsafe {
+            (*sp).pending_send.push_back(buffer, frame);
+            if (*sp).is_pending_open || (*sp).is_pending_push {
+                return;
+            }
+        }
+        // Before the wake, so a connection poll cannot observe idle.
+        super::clear_buffer_idle(&self.buffer_idle);
+        self.pending_send.push(stream);
+        if let Some(task) = task.take() {
+            task.wake();
+        }
     }
 
     pub fn schedule_send(&mut self, stream: &mut store::Ptr, task: &mut Option<Waker>) {
