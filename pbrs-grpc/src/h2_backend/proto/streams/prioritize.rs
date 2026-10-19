@@ -885,7 +885,8 @@ impl Prioritize {
                         // the next frame. i.e. don't requeue it if the next
                         // frame is a data frame and the stream does not have
                         // any more capacity.
-                        self.pending_send.push(&mut stream);
+                        // `push` would index the slot `sp` already names.
+                        self.pending_send.push_resolved(&mut stream, sp);
                     }
 
                     // `transition_after` indexes the slab again. An open
