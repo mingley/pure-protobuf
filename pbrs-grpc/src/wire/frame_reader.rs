@@ -118,6 +118,10 @@ pub(crate) fn poll_data(
 }
 
 /// [`poll_data`] plus the immediate window release, under one stream lock.
+///
+/// The caller matches this chunk immediately. Out of line, the bytes
+/// landed in this return slot and were copied out again.
+#[inline(always)]
 pub(crate) fn poll_data_released(
     recv: &mut backend::RecvStream,
     cx: &mut Context<'_>,
