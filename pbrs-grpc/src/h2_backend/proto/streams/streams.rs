@@ -732,7 +732,12 @@ impl Inner {
             return Ok(());
         }
 
-        let key = match self.store.find_entry(id) {
+        // A response or trailer on the only stream is already in `sole`.
+        // `find_entry` stays for the first header, which opens the stream.
+        let key = if let Some(stream) = self.store.sole_hit(id) {
+            stream.key()
+        } else {
+            match self.store.find_entry(id) {
             Entry::Occupied(e) => e.key(),
             Entry::Vacant(e) => {
                 // Client: it's possible to send a request, and then send
@@ -767,6 +772,7 @@ impl Inner {
                         return Ok(());
                     }
                 }
+            }
             }
         };
 
