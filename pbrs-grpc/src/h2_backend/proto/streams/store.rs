@@ -501,6 +501,24 @@ impl StreamSlots {
         }
     }
 
+    /// Address of an occupied slot without the bounds, tag, and id checks.
+    ///
+    /// `IndexMut` returns this same address. Those checks already ran when the
+    /// key was created, and the slot stays occupied until `remove`.
+    #[inline(always)]
+    #[allow(
+        unsafe_code,
+        reason = "the live slab index already names this occupied stream"
+    )]
+    fn occupied_ptr(&mut self, index: usize) -> *mut Stream {
+        debug_assert!(index < self.slots.len());
+        // SAFETY: `index` is a live slab index from a `Ptr` key. The occupied
+        // stream starts at the slot address `IndexMut` returns; a vacant tag
+        // is a niche at that same address. The caller does not remove the
+        // slot before it finishes using the pointer.
+        unsafe { self.slots.as_mut_ptr().add(index).cast::<Stream>() }
+    }
+
     /// Drop the stream where it sits, then link the slot onto the free list.
     #[allow(
         unsafe_code,
@@ -884,7 +902,11 @@ impl<'a> Ptr<'a> {
     /// The stream stays put until [`Self::remove`] or a close transition.
     #[inline(always)]
     pub(super) fn stream_ptr(&mut self) -> *mut Stream {
-        &mut self.store[self.key] as *mut Stream
+        let index = self.key.index.0 as usize;
+        let ptr = self.store.slab.occupied_ptr(index);
+        // The unchecked address has to be the one indexing would return.
+        debug_assert_eq!(ptr, &mut self.store[self.key] as *mut Stream);
+        ptr
     }
 
     pub fn store_mut(&mut self) -> &mut Store {
