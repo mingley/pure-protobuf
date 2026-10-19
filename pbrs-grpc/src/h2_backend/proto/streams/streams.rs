@@ -756,7 +756,16 @@ impl Inner {
 
         // Inlined `Counts::transition`. A closure would store the header
         // block by value and copy it again on the way into `recv_headers`.
-        let is_pending_reset = stream.is_pending_reset_expiration();
+        // The reset flag and the closed check share this slot.
+        #[allow(
+            unsafe_code,
+            reason = "the reset flag is read from the slot the closed check reuses"
+        )]
+        let (slot, is_pending_reset) = {
+            let slot = stream.stream_ptr();
+            let is_pending_reset = unsafe { (*slot).is_pending_reset_expiration() };
+            (slot, is_pending_reset)
+        };
         let reset_pending = &self.reset_pending;
         let actions = &mut self.actions;
         let counts = &mut self.counts;
@@ -816,7 +825,7 @@ impl Inner {
                 reset_pending,
             )
         };
-        counts.transition_after(stream, is_pending_reset);
+        counts.transition_after_at(stream, slot, is_pending_reset);
         res
     }
 

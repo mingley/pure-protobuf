@@ -387,6 +387,31 @@ impl Counts {
         ret
     }
 
+    /// [`Self::transition_after`] through a slot the caller already resolved.
+    ///
+    /// Header receive reads the reset flag from this slot before the frame is
+    /// applied, so the closed check must not look the stream up again.
+    #[inline]
+    #[allow(
+        unsafe_code,
+        reason = "the closed check uses the slot the caller already resolved"
+    )]
+    pub fn transition_after_at(
+        &mut self,
+        stream: store::Ptr,
+        slot: *mut Stream,
+        is_reset_counted: bool,
+    ) {
+        // SAFETY: `slot` is this stream's slab entry and the header apply did
+        // not remove it. Close cleanup runs only after this check.
+        let closing = unsafe {
+            (*slot).is_closed() && !((*slot).protocol_unlinked && (*slot).ref_count > 0)
+        };
+        if closing {
+            self.finish_closed(stream, is_reset_counted);
+        }
+    }
+
     /// The open-stream case is a closed-state check. Cleanup runs once, on close.
     #[inline]
     pub fn transition_after(&mut self, stream: store::Ptr, is_reset_counted: bool) {
