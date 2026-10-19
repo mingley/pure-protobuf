@@ -257,28 +257,33 @@ impl<B> Encoder<B>
 where
     B: Buf,
 {
+    /// Clear the bytes just written. A finished DATA frame is parked for
+    /// reclaim; a header write leaves `next` empty. Continuation is the only
+    /// arm that encodes again, so it stays out of this call.
+    #[inline]
     fn unset_frame(&mut self) -> ControlFlow {
-        // Clear internal buffer
         self.buf.set_position(0);
         self.buf.get_mut().clear();
 
-        // The data frame has been written, so unset it
         match self.next.take() {
             Some(Next::Data(frame)) => {
                 self.last_data_frame = Some(frame);
                 debug_assert!(self.is_empty());
                 ControlFlow::Break
             }
-            Some(Next::Continuation(frame)) => {
-                // Buffer the continuation frame, then try to write again
-                let mut buf = limited_write_buf!(self);
-                if let Some(continuation) = frame.encode(&mut buf) {
-                    self.next = Some(Next::Continuation(continuation));
-                }
-                ControlFlow::Continue
-            }
+            Some(Next::Continuation(frame)) => self.queue_continuation(frame),
             None => ControlFlow::Break,
         }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn queue_continuation(&mut self, frame: frame::Continuation) -> ControlFlow {
+        let mut buf = limited_write_buf!(self);
+        if let Some(continuation) = frame.encode(&mut buf) {
+            self.next = Some(Next::Continuation(continuation));
+        }
+        ControlFlow::Continue
     }
 
     fn buffer(&mut self, item: Frame<B>) -> Result<(), UserError> {
