@@ -211,6 +211,45 @@ fn recycle_headers_box(ptr: *mut Headers) {
     }
 }
 
+/// A replayed block that still owns a map or pseudo strings.
+#[cold]
+#[inline(never)]
+#[allow(
+    unsafe_code,
+    reason = "drop header fields that the stock path does not own"
+)]
+unsafe fn recycle_replayed_box(ptr: *mut Headers, kind: StandardMap, stock: StandardMap) {
+    // SAFETY: `ptr` is a complete boxed header block. Fields are dropped or
+    // moved out before the allocation is parked.
+    unsafe {
+        let fields_ptr = std::ptr::addr_of_mut!((*ptr).header_block.fields);
+        if (*fields_ptr).is_empty() {
+            if (*fields_ptr).capacity() != 0 {
+                std::ptr::drop_in_place(fields_ptr);
+            }
+        } else if let Some(slot) = kind.slot() {
+            let fields = std::ptr::read(fields_ptr);
+            crate::h2_backend::header_pool::recycle(slot, fields);
+        } else {
+            std::ptr::drop_in_place(fields_ptr);
+        }
+        // Stock requests build `:path` and `:authority` with `from_static`.
+        // Dropping them only runs Bytes glue. A non-stock replay can still own
+        // those strings. Response and trailer pseudos are empty.
+        if !matches!(kind, StandardMap::Response | StandardMap::Trailers)
+            && stock != StandardMap::Request
+        {
+            let pseudo_ptr = std::ptr::addr_of_mut!((*ptr).header_block.pseudo);
+            std::ptr::drop_in_place(pseudo_ptr);
+        }
+        if matches!(kind, StandardMap::Trailers) {
+            recycle_trailer_box(ptr);
+        } else {
+            recycle_headers_box(ptr);
+        }
+    }
+}
+
 /// Trailers are built while the response box is still queued, so they never
 /// saw `SPARE_HEADERS`. Their own slot stays off the request and response path.
 struct SpareTrailer(std::cell::Cell<*mut Headers>);
@@ -1163,35 +1202,24 @@ fn post_request_boxed_miss(
                     // The caller's `Limit` is dropped after this write. The
                     // remaining budget is not read again.
                     let ptr = Box::into_raw(this);
-                    // SAFETY: same leftover fields as `into_parts_box`. A parked
-                    // stock map stays in its slot, so an empty frame map is not
-                    // written back. Response and trailer pseudos are empty and
-                    // intentionally not dropped.
+                    // SAFETY: the box came from `Box::into_raw` just above.
+                    // A stock gRPC block has an empty zero-capacity map and
+                    // pseudos that are either empty or `from_static`, so this
+                    // path only parks the allocation. Anything else is cold.
                     unsafe {
-                        let fields_ptr = std::ptr::addr_of_mut!((*ptr).header_block.fields);
-                        if (*fields_ptr).is_empty() {
-                            if (*fields_ptr).capacity() != 0 {
-                                std::ptr::drop_in_place(fields_ptr);
-                            }
-                        } else if let Some(slot) = kind.slot() {
-                            let fields = std::ptr::read(fields_ptr);
-                            crate::h2_backend::header_pool::recycle(slot, fields);
-                        } else {
-                            std::ptr::drop_in_place(fields_ptr);
-                        }
-                        let pseudo_ptr = std::ptr::addr_of_mut!((*ptr).header_block.pseudo);
-                        // Stock requests build `:path` and `:authority` with
-                        // `from_static`. Dropping them only runs Bytes glue.
-                        // A non-stock replay can still own those strings.
-                        if !matches!(kind, StandardMap::Response | StandardMap::Trailers)
-                            && stock != StandardMap::Request
+                        let fields = &*std::ptr::addr_of!((*ptr).header_block.fields);
+                        if fields.is_empty()
+                            && fields.capacity() == 0
+                            && (matches!(kind, StandardMap::Response | StandardMap::Trailers)
+                                || stock == StandardMap::Request)
                         {
-                            std::ptr::drop_in_place(pseudo_ptr);
-                        }
-                        if matches!(kind, StandardMap::Trailers) {
-                            recycle_trailer_box(ptr);
+                            if matches!(kind, StandardMap::Trailers) {
+                                recycle_trailer_box(ptr);
+                            } else {
+                                recycle_headers_box(ptr);
+                            }
                         } else {
-                            recycle_headers_box(ptr);
+                            recycle_replayed_box(ptr, kind, stock);
                         }
                     }
                     return None;
