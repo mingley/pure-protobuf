@@ -152,6 +152,16 @@ where
         self.framed_write().buffer_data(item)
     }
 
+    #[inline(always)]
+    pub(crate) fn wants_chain(&self, len: usize) -> bool {
+        self.inner.get_ref().wants_chain(len)
+    }
+
+    #[inline(always)]
+    pub(crate) fn buffer_chained_data(&mut self, item: frame::Data<B>) {
+        self.framed_write().buffer_chained_data(item);
+    }
+
     pub(crate) fn buffer_headers(&mut self, item: Box<frame::Headers>) -> Result<(), UserError> {
         self.framed_write().buffer_headers(item)
     }

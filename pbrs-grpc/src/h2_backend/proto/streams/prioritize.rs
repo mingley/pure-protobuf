@@ -926,13 +926,19 @@ impl Prioritize {
                             }
                             debug_assert_eq!(self.in_flight_data_frame, InFlightData::Nothing);
                             self.in_flight_data_frame = InFlightData::DataFrame(key);
-                            dst.buffer_data(frame.map(|buf| Prioritized {
+                            let data = frame.map(|buf| Prioritized {
                                 inner: buf,
                                 limit: len as u32,
                                 end_of_stream: eos,
                                 stream: key,
-                            }))
-                            .expect("invalid frame");
+                            });
+                            // A 1 KiB body is chained. Writing it here keeps
+                            // the frame out of `buffer_data`'s argument slot.
+                            if dst.wants_chain(len) {
+                                dst.buffer_chained_data(data);
+                            } else {
+                                dst.buffer_data(data).expect("invalid frame");
+                            }
                             return true;
                         }
                         Some(Frame::PushPromise(pp)) => {

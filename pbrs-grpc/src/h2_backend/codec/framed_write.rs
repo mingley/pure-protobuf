@@ -151,6 +151,32 @@ where
         self.encoder.buffer_data(item)
     }
 
+    /// One frame, at least `chain_threshold` bytes. The head is stored and
+    /// the body stays beside it for `writev`, so this does not take the
+    /// small-frame copy path.
+    #[inline(always)]
+    pub(crate) fn wants_chain(&self, len: usize) -> bool {
+        len >= self.encoder.chain_threshold && len <= self.max_frame_size()
+    }
+
+    /// Same bytes `buffer_data` would write for a chained payload. Inlined
+    /// so the frame is stored into `next` once.
+    #[inline(always)]
+    pub(crate) fn buffer_chained_data(&mut self, mut v: frame::Data<B>) {
+        self.needs_flush = true;
+        let len = v.payload().remaining();
+        debug_assert!(self.wants_chain(len));
+        let head = v.head();
+        head.encode_spare(len, self.encoder.buf.get_mut());
+        if self.encoder.buf.get_ref().remaining() < self.encoder.chain_threshold
+            && v.payload().chunk().len() < v.payload().remaining()
+        {
+            let extra_bytes = self.encoder.chain_threshold - self.encoder.buf.remaining();
+            self.encoder.buf.get_mut().put(v.payload_mut().take(extra_bytes));
+        }
+        self.encoder.next = Some(Next::Data(v));
+    }
+
     /// Buffer a HEADERS frame the caller already matched.
     pub(crate) fn buffer_headers(&mut self, item: Box<frame::Headers>) -> Result<(), UserError> {
         self.needs_flush = true;
