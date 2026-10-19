@@ -476,6 +476,9 @@ where
 {
     type Item = Result<Frame, Error>;
 
+    // The caller matches the frame immediately. Keeping this out of line
+    // copied the frame into the poll slot and then out again.
+    #[inline(always)]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {
             let bytes = match ready!(Pin::new(&mut self.inner).poll_next(cx)) {
