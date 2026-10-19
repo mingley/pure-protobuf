@@ -159,26 +159,23 @@ where
     pub fn next_incoming(&mut self) -> Option<StreamRef<B>> {
         let mut me = self.inner.lock().unwrap();
         let me = &mut *me;
-        me.actions.recv.next_incoming(&mut me.store).map(|key| {
-            let stream = &mut me.store.resolve(key);
-            tracing::trace!(
-                "next_incoming; id={:?}, state={:?}",
-                stream.id,
-                stream.state
-            );
-            // TODO: ideally, OpaqueStreamRefs::new would do this, but we're holding
-            // the lock, so it can't.
-            me.refs += 1;
+        let (key, remote_reset) = me.actions.recv.next_incoming(&mut me.store)?;
+        // TODO: ideally, OpaqueStreamRefs::new would do this, but we're holding
+        // the lock, so it can't.
+        me.refs += 1;
 
-            // Pending-accepted remotely-reset streams are counted.
-            if stream.state.is_remote_reset() {
-                me.counts.dec_num_remote_reset_streams();
-            }
+        // Pending-accepted remotely-reset streams are counted.
+        if remote_reset {
+            me.counts.dec_num_remote_reset_streams();
+        }
 
-            StreamRef {
-                opaque: OpaqueStreamRef::new(self.inner.clone(), stream),
-                send_buffer: self.send_buffer.clone(),
-            }
+        // The refcount was incremented through the slot `next_incoming` popped.
+        Some(StreamRef {
+            opaque: OpaqueStreamRef {
+                inner: self.inner.clone(),
+                key,
+            },
+            send_buffer: self.send_buffer.clone(),
         })
     }
 

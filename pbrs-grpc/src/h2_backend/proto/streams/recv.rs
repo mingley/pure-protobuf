@@ -1479,10 +1479,31 @@ impl Recv {
         }
     }
 
-    pub fn next_incoming(&mut self, store: &mut Store) -> Option<store::Key> {
-        let key = self.pending_accept.pop(store).map(|ptr| ptr.key())?;
+    pub fn next_incoming(&mut self, store: &mut Store) -> Option<(store::Key, bool)> {
+        // The accept queue already resolved the stream. The reset flag and the
+        // refcount use that slot, so the caller does not look it up again.
+        let Some((stream, sp)) = self.pending_accept.pop_slot(store) else {
+            return None;
+        };
         crate::wire::headers::publish_accept_facts(self.accept_facts.pop_front());
-        Some(key)
+        #[allow(
+            unsafe_code,
+            reason = "the accepted stream's reset flag and refcount share the popped slot"
+        )]
+        // SAFETY: `pop_slot` resolved this occupied slot. The flag read and
+        // refcount increment do not remove it.
+        let remote_reset = unsafe {
+            tracing::trace!(
+                "next_incoming; id={:?}, state={:?}",
+                (*sp).id,
+                (*sp).state
+            );
+            let remote_reset = (*sp).state.is_remote_reset();
+            assert!((*sp).ref_count < usize::MAX);
+            (*sp).ref_count += 1;
+            remote_reset
+        };
+        Some((stream.key(), remote_reset))
     }
 
     pub fn poll_data(
