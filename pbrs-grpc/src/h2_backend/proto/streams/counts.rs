@@ -285,12 +285,23 @@ impl Counts {
     ///
     /// Panics on failure as this should have been validated before hand.
     pub fn inc_num_send_streams(&mut self, stream: &mut store::Ptr) {
-        assert!(self.can_inc_num_send_streams());
-        assert!(!stream.is_counted);
+        let slot = stream.stream_ptr();
+        self.inc_num_send_streams_at(slot);
+    }
 
-        // Increment the number of remote initiated streams
+    /// [`Self::inc_num_send_streams`] through a slot the caller already resolved.
+    #[allow(
+        unsafe_code,
+        reason = "the counted flag is set through the slot the caller already resolved"
+    )]
+    pub fn inc_num_send_streams_at(&mut self, slot: *mut Stream) {
+        assert!(self.can_inc_num_send_streams());
+        // SAFETY: `slot` is the stream being counted. The flag write does not
+        // remove it.
+        assert!(unsafe { !(*slot).is_counted });
+
         self.num_send_streams += 1;
-        stream.is_counted = true;
+        unsafe { (*slot).is_counted = true };
         self.streams_open.store(true, Ordering::Release);
     }
 

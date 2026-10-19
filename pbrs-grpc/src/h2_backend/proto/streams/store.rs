@@ -718,6 +718,39 @@ where
         true
     }
 
+    /// [`Self::push_front`] through a slot the caller already resolved.
+    #[inline(always)]
+    #[allow(
+        unsafe_code,
+        reason = "the queued flag is written through the slot the caller already resolved"
+    )]
+    pub fn push_front_resolved(&mut self, stream: &mut store::Ptr, slot: *mut Stream) -> bool {
+        // SAFETY: `slot` is this stream. Linking it does not remove the slot.
+        // The head lookup borrows the store only after the flag update.
+        unsafe {
+            if N::is_queued(&*slot) {
+                return false;
+            }
+            N::set_queued(&mut *slot, true);
+            debug_assert!(N::next(&*slot).is_none());
+        }
+        match self.indices {
+            Some(ref mut idxs) => {
+                let head_key = stream.resolve(idxs.head).key();
+                unsafe { N::set_next(&mut *slot, Some(head_key)) };
+                idxs.head = stream.key();
+            }
+            None => {
+                let key = stream.key();
+                self.indices = Some(store::Indices {
+                    head: key,
+                    tail: key,
+                });
+            }
+        }
+        true
+    }
+
     #[inline]
     pub fn pop<'a, R>(&mut self, store: &'a mut R) -> Option<store::Ptr<'a>>
     where

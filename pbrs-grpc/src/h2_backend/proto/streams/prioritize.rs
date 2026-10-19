@@ -586,9 +586,9 @@ impl Prioritize {
             // function so this loop does not pay its prologue when the queue
             // is empty.
             if !self.pending_open.is_empty() {
-                if let Some(mut stream) = self.pop_pending_open(store, counts) {
-                    self.pending_send.push_front(&mut stream);
-                    self.try_assign_capacity(&mut stream);
+                if let Some((mut stream, sp)) = self.pop_pending_open(store, counts) {
+                    self.pending_send.push_front_resolved(&mut stream, sp);
+                    self.try_assign_capacity_at(&mut stream, sp);
                 }
             }
 
@@ -1059,21 +1059,27 @@ impl Prioritize {
     }
 
     #[inline(never)]
+    #[allow(
+        unsafe_code,
+        reason = "the opened stream is woken through the slot pop_slot just resolved"
+    )]
     fn pop_pending_open<'s>(
         &mut self,
         store: &'s mut Store,
         counts: &mut Counts,
-    ) -> Option<store::Ptr<'s>> {
+    ) -> Option<(store::Ptr<'s>, *mut Stream)> {
         // Steady state never queues an open. Skip the concurrency check.
         if self.pending_open.is_empty() {
             return None;
         }
         if counts.can_inc_num_send_streams() {
-            if let Some(mut stream) = self.pending_open.pop(store) {
+            if let Some((stream, sp)) = self.pending_open.pop_slot(store) {
                 counts.dec_pending_send_streams();
-                counts.inc_num_send_streams(&mut stream);
-                stream.notify_send();
-                return Some(stream);
+                counts.inc_num_send_streams_at(sp);
+                // SAFETY: `sp` is the stream `pop_slot` just resolved. Waking
+                // the sender does not remove it.
+                unsafe { (*sp).notify_send() };
+                return Some((stream, sp));
             }
         }
 
