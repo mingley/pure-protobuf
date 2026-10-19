@@ -376,6 +376,7 @@ impl Send {
         frame: frame::Data<B>,
         buffer: &mut Buffer<Frame<B>>,
         stream: &mut store::Ptr,
+        sp: *mut Stream,
         counts: &mut Counts,
         task: &mut Option<Waker>,
     ) -> Result<(), UserError>
@@ -383,7 +384,7 @@ impl Send {
         B: Buf,
     {
         self.prioritize
-            .send_data(frame, buffer, stream, counts, task)
+            .send_data(frame, buffer, stream, sp, counts, task)
     }
 
     pub fn send_trailers<B>(

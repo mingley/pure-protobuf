@@ -1573,6 +1573,7 @@ impl<B> StreamRef<B> {
                     frame,
                     &mut send_buffer,
                     &mut stream,
+                    slot,
                     &mut me.counts,
                     &mut actions.task,
                 )
@@ -1593,7 +1594,7 @@ impl<B> StreamRef<B> {
             frame.set_end_stream(end_stream);
             actions
                 .send
-                .send_data(frame, &mut send_buffer, stream, counts, &mut actions.task)
+                .send_data(frame, &mut send_buffer, stream, slot, counts, &mut actions.task)
         }))
     }
 
@@ -1624,7 +1625,7 @@ impl<B> StreamRef<B> {
             // Send the data frame
             actions
                 .send
-                .send_data(frame, send_buffer, stream, counts, &mut actions.task)
+                .send_data(frame, send_buffer, stream, slot, counts, &mut actions.task)
         })
     }
 

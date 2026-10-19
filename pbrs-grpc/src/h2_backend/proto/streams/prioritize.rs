@@ -181,6 +181,7 @@ impl Prioritize {
         frame: frame::Data<B>,
         buffer: &mut Buffer<Frame<B>>,
         stream: &mut store::Ptr,
+        sp: *mut Stream,
         counts: &mut Counts,
         task: &mut Option<Waker>,
     ) -> Result<(), UserError>
@@ -195,10 +196,8 @@ impl Prioritize {
 
         let sz = sz as WindowSize;
 
-        // SAFETY: the caller holds this stream for the whole send. Capacity
-        // assignment and queueing do not remove the slab slot, so `sp` stays
-        // valid until this function returns.
-        let sp = stream.stream_ptr();
+        // SAFETY: `sp` is the slot the caller already resolved. Capacity
+        // assignment and queueing do not remove it.
         unsafe {
             if !(*sp).state.is_send_streaming() {
                 if (*sp).state.is_closed() {
