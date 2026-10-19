@@ -710,6 +710,13 @@ impl super::SendResponse for SendResponse {
             .map_err(Error)
     }
 
+    fn send_stock_response(&mut self, end_of_stream: bool) -> Result<SendStream, Error> {
+        self.0
+            .send_stock_response(end_of_stream)
+            .map(SendStream)
+            .map_err(Error)
+    }
+
     fn send_reset(&mut self, reason: Reason) {
         self.0.send_reset(reason.0);
     }

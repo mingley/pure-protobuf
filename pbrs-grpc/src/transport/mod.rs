@@ -108,6 +108,9 @@ pub(crate) trait SendResponse {
         response: Response<()>,
         end_of_stream: bool,
     ) -> Result<backend::SendStream, Error>;
+    /// Stock HTTP 200 with an empty header map. The frame is replayed from
+    /// the saved block, so the caller does not copy an `http::Response`.
+    fn send_stock_response(&mut self, end_of_stream: bool) -> Result<backend::SendStream, Error>;
     /// Abort the stream with RST_STREAM. Idempotent; never fails.
     #[allow(
         dead_code,

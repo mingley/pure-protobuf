@@ -1285,6 +1285,21 @@ impl<B: Buf> SendResponse<B> {
         Ok(SendStream::new(inner))
     }
 
+    /// Stock HTTP 200. The header block is replayed, so there is no response
+    /// head to copy.
+    pub fn send_stock_response(
+        &mut self,
+        end_of_stream: bool,
+    ) -> Result<SendStream<B>, crate::h2_backend::Error> {
+        self.inner
+            .as_mut()
+            .ok_or(UserError::PollResetAfterSendResponse)?
+            .send_stock_response(end_of_stream)
+            .map_err(crate::h2_backend::Error::from)?;
+        let inner = self.inner.take().expect("send handle still present");
+        Ok(SendStream::new(inner))
+    }
+
     /// Push a request and response to the client
     ///
     /// On success, a [`SendResponse`] instance is returned.

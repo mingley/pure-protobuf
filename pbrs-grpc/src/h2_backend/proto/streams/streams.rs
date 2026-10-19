@@ -1857,6 +1857,46 @@ impl<B> StreamRef<B> {
         })
     }
 
+    /// Send the stock HTTP 200 without copying an `http::Response`.
+    ///
+    /// The parked response path only needs `:status` and the saved header
+    /// block. Moving a response into this call copied that head twice.
+    pub fn send_stock_response(&mut self, end_of_stream: bool) -> Result<(), UserError> {
+        let mut me = self.opaque.inner.lock().unwrap();
+        let me = &mut *me;
+
+        let mut stream = me.store.resolve(self.opaque.key);
+        let actions = &mut me.actions;
+        let mut send_buffer = self.send_buffer.inner.lock().unwrap();
+        let send_buffer = &mut *send_buffer;
+        let slot = stream.stream_ptr();
+        #[allow(
+            unsafe_code,
+            reason = "the response id is read from the slot the close and the frame share"
+        )]
+        let stream_id = unsafe { (*slot).id };
+        let mut frame = frame::Headers::response_boxed(
+            stream_id,
+            http::StatusCode::OK,
+            HeaderMap::new(),
+        );
+        frame.preset_stock_response();
+        if end_of_stream {
+            frame.set_end_stream();
+        }
+
+        me.counts.transition_at(stream, slot, |counts, stream| {
+            actions.send.send_headers_boxed(
+                frame,
+                send_buffer,
+                stream,
+                slot,
+                counts,
+                &mut actions.task,
+            )
+        })
+    }
+
     pub fn send_push_promise(
         &mut self,
         mut request: Request<()>,
