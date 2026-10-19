@@ -203,6 +203,33 @@ pub(crate) fn grpc_request(
             return Ok(req);
         }
     }
+    grpc_request_miss(
+        authority,
+        path,
+        md,
+        timeout,
+        send_codec,
+        accept_gzip,
+        user_agent,
+        https,
+        stock,
+    )
+}
+
+/// First request, or one that is not the cached stock POST.
+#[cold]
+#[inline(never)]
+fn grpc_request_miss(
+    authority: &Authority,
+    path: &'static str,
+    md: &Metadata,
+    timeout: Option<Duration>,
+    send_codec: Option<CompressionAlgorithm>,
+    accept_gzip: bool,
+    user_agent: &HeaderValue,
+    https: bool,
+    stock: bool,
+) -> Result<Request<()>, Status> {
     let mut parts = http::uri::Parts::default();
     parts.scheme = Some(if https { Scheme::HTTPS } else { Scheme::HTTP });
     parts.authority = Some(cached_authority(authority));
