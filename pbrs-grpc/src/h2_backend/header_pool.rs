@@ -183,27 +183,33 @@ pub(crate) fn received_response_matches(grpc_proto: bool) -> bool {
     }
 }
 
-/// One heap slot for the `HeaderMap` queued as a stock response.
+/// Two heap slots for `HeaderMap`s queued on one connection.
 ///
-/// The receive path boxes that map and the client poll moves it back out.
-/// The slot stays; the next response writes into it.
-struct SpareMapBox(std::cell::Cell<*mut HeaderMap>);
+/// A stock response and its trailers are both in the receive queue before
+/// either is polled. One slot was reused by the response, and the trailer
+/// allocated every time. The second slot keeps that trailer box.
+struct SpareMapBox(std::cell::Cell<*mut HeaderMap>, std::cell::Cell<*mut HeaderMap>);
 
-#[allow(unsafe_code, reason = "free the parked header-map box at thread exit")]
+#[allow(unsafe_code, reason = "free the parked header-map boxes at thread exit")]
 impl Drop for SpareMapBox {
     fn drop(&mut self) {
-        let ptr = self.0.get();
-        if !ptr.is_null() {
-            // SAFETY: the pointer came from Box::into_raw after the map was moved out.
-            unsafe {
-                std::alloc::dealloc(ptr.cast(), std::alloc::Layout::new::<HeaderMap>());
+        for cell in [&self.0, &self.1] {
+            let ptr = cell.get();
+            if !ptr.is_null() {
+                // SAFETY: the pointer came from Box::into_raw after the map was moved out.
+                unsafe {
+                    std::alloc::dealloc(ptr.cast(), std::alloc::Layout::new::<HeaderMap>());
+                }
             }
         }
     }
 }
 
 thread_local! {
-    static SPARE_MAP_BOX: SpareMapBox = SpareMapBox(std::cell::Cell::new(std::ptr::null_mut()));
+    static SPARE_MAP_BOX: SpareMapBox = SpareMapBox(
+        std::cell::Cell::new(std::ptr::null_mut()),
+        std::cell::Cell::new(std::ptr::null_mut()),
+    );
 }
 
 #[allow(
@@ -211,7 +217,14 @@ thread_local! {
     reason = "write a header map into a recycled box without dropping the moved-out bits"
 )]
 pub(crate) fn box_header_map(fields: HeaderMap) -> Box<HeaderMap> {
-    let ptr = SPARE_MAP_BOX.with(|slot| slot.0.replace(std::ptr::null_mut()));
+    let ptr = SPARE_MAP_BOX.with(|slot| {
+        let first = slot.0.replace(std::ptr::null_mut());
+        if !first.is_null() {
+            first
+        } else {
+            slot.1.replace(std::ptr::null_mut())
+        }
+    });
     if ptr.is_null() {
         Box::new(fields)
     } else {
@@ -233,13 +246,18 @@ pub(crate) fn unbox_header_map(boxed: Box<HeaderMap>) -> HeaderMap {
     // SAFETY: `ptr` owns the map. `read` moves it to the caller. The allocation
     // is parked for the next stock response.
     let fields = unsafe { std::ptr::read(ptr) };
-    let prev = SPARE_MAP_BOX.with(|slot| slot.0.replace(ptr));
-    if !prev.is_null() {
-        // SAFETY: `prev` was produced by Box::into_raw after its map was moved out.
-        unsafe {
-            std::alloc::dealloc(prev.cast(), std::alloc::Layout::new::<HeaderMap>());
+    SPARE_MAP_BOX.with(|slot| {
+        if slot.0.get().is_null() {
+            slot.0.set(ptr);
+        } else if slot.1.get().is_null() {
+            slot.1.set(ptr);
+        } else {
+            // SAFETY: `ptr` was produced by Box::into_raw after its map was moved out.
+            unsafe {
+                std::alloc::dealloc(ptr.cast(), std::alloc::Layout::new::<HeaderMap>());
+            }
         }
-    }
+    });
     fields
 }
 

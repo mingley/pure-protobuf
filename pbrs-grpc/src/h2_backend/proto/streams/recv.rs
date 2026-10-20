@@ -652,7 +652,10 @@ impl Recv {
             let stream = &mut **stream;
             stream
                 .pending_recv
-                .push_back(&mut self.buffer, Event::Trailers(Box::new(trailers)));
+                .push_back(
+                    &mut self.buffer,
+                    Event::Trailers(crate::h2_backend::header_pool::box_header_map(trailers)),
+                );
             stream.notify_recv();
         }
 
@@ -1571,7 +1574,11 @@ impl Recv {
         stream: &mut Stream,
     ) -> Poll<Option<Result<HeaderMap, proto::Error>>> {
         match stream.pending_recv.pop_front(&mut self.buffer) {
-            Some(Event::Trailers(trailers)) => Poll::Ready(Some(Ok(*trailers))),
+            Some(Event::Trailers(trailers)) => {
+                Poll::Ready(Some(Ok(crate::h2_backend::header_pool::unbox_header_map(
+                    trailers,
+                ))))
+            }
             Some(event) => {
                 // Frame is not trailers.. not ready to poll trailers yet.
                 stream.pending_recv.push_front(&mut self.buffer, event);
