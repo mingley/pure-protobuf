@@ -3636,7 +3636,7 @@ where
         }
     })
     .await?;
-    let (stop_tx, stop_rx) = watch::channel(false);
+    let (stop_tx, mut stop_rx) = watch::channel(false);
     let busy = (config.connection_idle().is_some() || config.connection_age().is_some())
         .then(crate::keepalive::Busy::new);
     #[cfg(feature = "copy-counts")]
@@ -3650,7 +3650,9 @@ where
             // Disabled keepalive is `pending()`. Leave it out of the poll
             // set so a connection wake does not touch it.
             _ = crate::keepalive::wait_opt(dead), if keepalive => {}
-            _ = crate::keepalive::wait(stop_rx) => {}
+            // `wait_for` locked the value and caught a panic on every poll
+            // to read a bool that stays false. A version change is the stop.
+            _ = stop_rx.changed() => {}
         }
     }));
     Ok(Dialed {
