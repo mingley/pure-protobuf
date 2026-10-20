@@ -608,10 +608,6 @@ where
         }
 
         me.actions.send.commit_open_id(stream_id);
-        // The mark must not leak onto a later non-stock send.
-        let _ = crate::h2_backend::header_pool::take_next_stock(
-            crate::h2_backend::header_pool::STOCK_REQUEST,
-        );
         let Some(headers) = frame::Headers::cached_stock_post(stream_id) else {
             return Poll::Ready(Err(UserError::MissingUriSchemeAndAuthority.into()));
         };

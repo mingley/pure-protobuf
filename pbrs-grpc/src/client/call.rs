@@ -317,7 +317,7 @@ pub(crate) async fn open_in<R: Runtime>(
     // No deadline: the stock block does not carry grpc-timeout, so the
     // request head is not needed. Copying it only to throw it away costs
     // two 216-byte moves.
-    let mut admission = if deadline.is_none()
+    let stock_admission = deadline.is_none()
         && begin_stock_request(
             authority,
             path,
@@ -327,7 +327,8 @@ pub(crate) async fn open_in<R: Runtime>(
             accept_gzip,
             user_agent,
             https,
-        ) {
+        );
+    let mut admission = if stock_admission {
         send_req.send_stock_when_ready(false)
     } else {
         let http_req = grpc_request(
@@ -368,12 +369,17 @@ pub(crate) async fn open_in<R: Runtime>(
     tokio::pin!(guarded);
     // Preserve the optimistic warm path, but never poll admission without the
     // cancellation/deadline/header checks above.
-    // The stock-pool request is marked only for this poll. A pending admission
-    // has not built the HEADERS frame, so the mark must not leak to a later send.
-    crate::h2_backend::header_pool::promote_pending_stock();
+    // A copied request is marked only for this poll. A pending admission has
+    // not built the HEADERS frame, so the mark must not leak to a later send.
+    // The stock frame is built from the saved pseudos and does not use it.
+    if !stock_admission {
+        crate::h2_backend::header_pool::promote_pending_stock();
+    }
     let raced = match poll_now(guarded.as_mut()) {
         Some(result) => {
-            crate::h2_backend::header_pool::clear_next_stock();
+            if !stock_admission {
+                crate::h2_backend::header_pool::clear_next_stock();
+            }
             // No deadline: return the halves from this arm so they are not
             // stored and moved again after the match.
             if deadline.is_none() {
@@ -382,7 +388,9 @@ pub(crate) async fn open_in<R: Runtime>(
             result
         }
         None => {
-            crate::h2_backend::header_pool::clear_next_stock();
+            if !stock_admission {
+                crate::h2_backend::header_pool::clear_next_stock();
+            }
             first_of_in::<R, _>(guarded, cancel_rx.clone(), deadline).await
         }
     };

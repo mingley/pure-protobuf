@@ -228,9 +228,9 @@ fn is_stock_request(
 
 /// A repeated stock POST whose pseudos are already saved.
 ///
-/// Marks the header pool and returns `true` without copying the 216-byte
-/// request. A deadline still needs that request so a relative timeout can be
-/// written into it.
+/// Returns `true` without copying the 216-byte request. The frame is built
+/// from the saved pseudos, so this does not mark the header pool. A deadline
+/// still needs that request so a relative timeout can be written into it.
 pub(crate) fn begin_stock_request(
     authority: &Authority,
     path: &'static str,
@@ -247,13 +247,7 @@ pub(crate) fn begin_stock_request(
     if !crate::h2_backend::header_pool::is_parked(crate::h2_backend::header_pool::Slot::Request) {
         return false;
     }
-    if !crate::h2_backend::header_pool::stock_post_cached(https, path, authority.as_str()) {
-        return false;
-    }
-    crate::h2_backend::header_pool::set_pending_stock(
-        crate::h2_backend::header_pool::STOCK_REQUEST,
-    );
-    true
+    crate::h2_backend::header_pool::stock_post_cached(https, path, authority.as_str())
 }
 
 /// First request, or one that is not the cached stock POST.
