@@ -151,7 +151,7 @@ where
         md,
         timeout,
         deadline,
-        cancel_rx.clone(),
+        &cancel_rx,
         compress.then_some(wire.send_codec),
         wire.accept_gzip,
         &user_agent,
@@ -173,7 +173,7 @@ where
         &mut send_stream,
         frame,
         wire.send_buffer,
-        cancel_rx.clone(),
+        &cancel_rx,
         deadline,
         &mut resp_fut,
         &mut received,
@@ -1672,7 +1672,7 @@ impl super::Channel {
                     });
                     let queue_start = observer.as_ref().map(|_| tokio::time::Instant::now());
                     let live = match channel
-                        .grab(cancel_rx.clone(), deadline, wait, Some(&md))
+                        .grab(&cancel_rx, deadline, wait, Some(&md))
                         .await
                     {
                         Ok(live) => {

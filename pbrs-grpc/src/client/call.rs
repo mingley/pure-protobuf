@@ -134,7 +134,7 @@ pub(crate) fn send_request_frame(
     send: &mut backend::SendStream,
     frame: SegFrame,
     send_buffer: usize,
-    cancel_rx: crate::rpc_cancel::RpcCancel,
+    cancel_rx: &crate::rpc_cancel::RpcCancel,
     deadline: Option<tokio::time::Instant>,
     response: &mut backend::ResponseFuture,
     received: &mut Option<ResponseHead>,
@@ -176,7 +176,7 @@ pub(crate) async fn send_request_frame_in<R: Runtime>(
     send: &mut backend::SendStream,
     frame: SegFrame,
     send_buffer: usize,
-    cancel_rx: crate::rpc_cancel::RpcCancel,
+    cancel_rx: &crate::rpc_cancel::RpcCancel,
     deadline: Option<tokio::time::Instant>,
     response: &mut backend::ResponseFuture,
     received: &mut Option<ResponseHead>,
@@ -229,7 +229,7 @@ pub(crate) async fn send_request_frame_in<R: Runtime>(
                     }
                     Poll::Pending
                 });
-                first_of_in::<R, _>(upload, cancel_rx, deadline).await
+                first_of_in::<R, _>(upload, cancel_rx.clone(), deadline).await
             }
         }
     };
@@ -267,7 +267,7 @@ pub(crate) fn open(
     md: &crate::metadata::Metadata,
     timeout: Option<Duration>,
     deadline: Option<tokio::time::Instant>,
-    cancel_rx: crate::rpc_cancel::RpcCancel,
+    cancel_rx: &crate::rpc_cancel::RpcCancel,
     send_codec: Option<crate::compression::CompressionAlgorithm>,
     accept_gzip: bool,
     user_agent: &HeaderValue,
@@ -301,7 +301,7 @@ pub(crate) async fn open_in<R: Runtime>(
     md: &crate::metadata::Metadata,
     timeout: Option<Duration>,
     deadline: Option<tokio::time::Instant>,
-    cancel_rx: crate::rpc_cancel::RpcCancel,
+    cancel_rx: &crate::rpc_cancel::RpcCancel,
     send_codec: Option<crate::compression::CompressionAlgorithm>,
     accept_gzip: bool,
     user_agent: &HeaderValue,
@@ -770,7 +770,7 @@ impl super::Channel {
     /// a failed handshake until that race fires.
     pub(crate) fn grab(
         &self,
-        cancel_rx: crate::rpc_cancel::RpcCancel,
+        cancel_rx: &crate::rpc_cancel::RpcCancel,
         deadline: Option<tokio::time::Instant>,
         wait_for_ready: bool,
         md: Option<&crate::metadata::Metadata>,
@@ -785,7 +785,7 @@ impl super::Channel {
     #[inline(never)]
     pub(crate) fn grab_in<R: Runtime + 'static>(
         &self,
-        cancel_rx: crate::rpc_cancel::RpcCancel,
+        cancel_rx: &crate::rpc_cancel::RpcCancel,
         deadline: Option<tokio::time::Instant>,
         wait_for_ready: bool,
         md: Option<&crate::metadata::Metadata>,
@@ -819,7 +819,7 @@ impl super::Channel {
             obs,
             self.health_directive(),
             hash,
-            cancel_rx,
+            cancel_rx.clone(),
             deadline,
             wait_for_ready,
         ))
@@ -871,7 +871,7 @@ impl super::Channel {
         loop {
             let _ = remaining_timeout(deadline)?;
             let live = self
-                .grab_in::<R>(cancel_rx.clone(), deadline, wait, Some(md))
+                .grab_in::<R>(&cancel_rx, deadline, wait, Some(md))
                 .await?;
             let (slot, r#gen, lease, driver, rr_addr, channelz_socket) = (
                 live.slot,
@@ -889,7 +889,7 @@ impl super::Channel {
                 md,
                 timeout,
                 deadline,
-                cancel_rx.clone(),
+                &cancel_rx,
                 compress.then_some(self.local.config.send_algorithm()),
                 self.local.config.accepts_compressed(),
                 user_agent,

@@ -381,7 +381,7 @@ where
         let outcome: Result<Response<Resp>, Status> = loop {
             let queue_start = tokio::time::Instant::now();
             let live = match channel
-                .grab(cancel_rx.clone(), deadline, wait, Some(&md))
+                .grab(&cancel_rx, deadline, wait, Some(&md))
                 .await
             {
                 Ok(live) => {
