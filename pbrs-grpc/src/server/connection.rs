@@ -789,5 +789,7 @@ pub(crate) fn connection_seed(peer: Option<SocketAddr>) -> u64 {
 
 pub(crate) async fn wait_for_drain(mut goaway: watch::Receiver<bool>) {
     // A dropped sender also means "stop accepting": the accept loop is gone.
-    goaway.wait_for(|v| *v).await.ok();
+    // `wait_for` locked the value and caught a panic on every poll to read a
+    // bool that stays false. A version change is the drain signal.
+    goaway.changed().await.ok();
 }
