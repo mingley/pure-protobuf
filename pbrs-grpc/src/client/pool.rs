@@ -101,6 +101,14 @@ impl SlotLoad {
     fn start(self: &Arc<Self>, max_streams: usize) -> SlotLoadGuard {
         self.max_streams
             .store(max_streams.max(1), Ordering::Relaxed);
+        self.start_inflight()
+    }
+
+    /// Count one in-flight RPC and leave the concurrency cap alone.
+    ///
+    /// A one-slot pool never reads that cap. Refreshing it locked the
+    /// connection on every warm RPC.
+    fn start_inflight(self: &Arc<Self>) -> SlotLoadGuard {
         self.in_flight.fetch_add(1, Ordering::Relaxed);
         SlotLoadGuard {
             load: Arc::clone(self),
@@ -862,7 +870,13 @@ impl ChannelInner {
         let waker = std::task::Waker::noop();
         let mut cx = std::task::Context::from_waker(waker);
         if let std::task::Poll::Ready(Ok(())) = handle.poll_ready(&mut cx) {
-            let load = Some(load.start(handle.current_max_send_streams()));
+            // One slot: `pick` returns it without the cap. The multi-slot
+            // path still publishes the peer's max concurrent streams.
+            let load = Some(if self.slots.len() == 1 {
+                load.start_inflight()
+            } else {
+                load.start(handle.current_max_send_streams())
+            });
             return Some(LiveConn {
                 send: handle,
                 load,
