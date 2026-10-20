@@ -13,7 +13,9 @@ use std::task::{Context, Poll, Waker};
 use tokio::io::AsyncWrite;
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+
+use super::lock::Mutex;
 use std::{fmt, io};
 
 #[derive(Debug)]
@@ -2241,8 +2243,6 @@ impl OpaqueStreamRef {
 
 impl fmt::Debug for OpaqueStreamRef {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        use std::sync::TryLockError::*;
-
         match self.inner.try_lock() {
             Ok(me) => {
                 let stream = &me.store[self.key];
@@ -2251,11 +2251,7 @@ impl fmt::Debug for OpaqueStreamRef {
                     .field("ref_count", &stream.ref_count)
                     .finish()
             }
-            Err(Poisoned(_)) => fmt
-                .debug_struct("OpaqueStreamRef")
-                .field("inner", &"<Poisoned>")
-                .finish(),
-            Err(WouldBlock) => fmt
+            Err(_) => fmt
                 .debug_struct("OpaqueStreamRef")
                 .field("inner", &"<Locked>")
                 .finish(),
