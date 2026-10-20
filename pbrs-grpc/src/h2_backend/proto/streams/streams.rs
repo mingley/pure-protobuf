@@ -825,9 +825,28 @@ impl Inner {
         }
 
         // A response or trailer on the only stream is already in `sole`.
-        // `find_entry` stays for the first header, which opens the stream.
+        // The first header on an empty connection opens a stream without
+        // building the id-map entry. `find_entry` stays for every other miss.
         let key = if let Some(stream) = self.store.sole_hit(id) {
             stream.key()
+        } else if peer.is_server() && self.store.has_no_ids() {
+            match self
+                .actions
+                .recv
+                .open(id, Open::Headers, &mut self.counts)?
+            {
+                Some(stream_id) => {
+                    let send_window = self.actions.send.init_window_sz();
+                    let recv_window = self.actions.recv.init_window_sz();
+                    self.store
+                        .insert_new(stream_id, send_window, recv_window)
+                        .key()
+                }
+                None => {
+                    self.refusal_pending.store(true, Ordering::Release);
+                    return Ok(());
+                }
+            }
         } else {
             match self.store.find_entry(id) {
             Entry::Occupied(e) => e.key(),

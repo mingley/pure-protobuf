@@ -178,6 +178,12 @@ impl Store {
         }
     }
 
+    /// No id is recorded. The next insert does not touch the id map.
+    #[inline]
+    pub(super) fn has_no_ids(&self) -> bool {
+        self.sole.is_none() && self.ids.is_empty()
+    }
+
     /// The only stored stream, without hashing, when `id` is that stream.
     fn sole_index(&self, id: StreamId) -> Option<SlabIndex> {
         if let Some((only, index)) = self.sole {
