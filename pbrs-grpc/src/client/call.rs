@@ -343,6 +343,13 @@ pub(crate) async fn open_in<R: Runtime>(
         )?;
         send_req.send_request_when_ready(http_req, false)
     };
+    // Stock admission has no deadline and no grpc-timeout, and cancel was
+    // checked above. A ready stream does not need the poll wrapper.
+    if stock_admission {
+        if let Some(result) = poll_now(std::pin::Pin::new(&mut admission)) {
+            return result.map_err(Status::from_h2_pre_headers);
+        }
+    }
     // grpc_request already encoded this duration. In particular, the existing
     // sub-20ms policy leaves it unchanged on a warm call's first guarded poll.
     let mut last_timeout = remaining;
