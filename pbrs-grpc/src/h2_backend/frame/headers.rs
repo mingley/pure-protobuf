@@ -530,6 +530,19 @@ fn remember_stock_pseudos(key: &PostKey) {
 
 static STOCK_PSEUDOS: std::sync::OnceLock<StockPseudos> = std::sync::OnceLock::new();
 
+#[derive(Clone, Copy)]
+struct StockCallerHit {
+    https: bool,
+    path: usize,
+    path_len: usize,
+    auth: usize,
+    auth_len: usize,
+}
+
+thread_local! {
+    static STOCK_CALLER: std::cell::Cell<Option<StockCallerHit>> = const { std::cell::Cell::new(None) };
+}
+
 /// A trailer block, initialized in the heap allocation.
 ///
 /// The pseudo-header set is empty. Writing those `None`s in place avoids
@@ -769,9 +782,39 @@ impl Headers {
         let Some(slot) = STOCK_PSEUDOS.get() else {
             return false;
         };
-        slot.key.https == https
-            && slot.path.as_str() == path
-            && slot.authority.as_str() == authority
+        if slot.key.https != https {
+            return false;
+        }
+        // The saved block is fixed for the process. A repeated caller passes
+        // the same path and authority objects, so the text compare runs once.
+        let path_ptr = path.as_ptr() as usize;
+        let auth_ptr = authority.as_ptr() as usize;
+        let path_len = path.len();
+        let auth_len = authority.len();
+        if STOCK_CALLER.with(|cell| {
+            cell.get().is_some_and(|hit| {
+                hit.https == https
+                    && hit.path == path_ptr
+                    && hit.path_len == path_len
+                    && hit.auth == auth_ptr
+                    && hit.auth_len == auth_len
+            })
+        }) {
+            return true;
+        }
+        if slot.path.as_str() == path && slot.authority.as_str() == authority {
+            STOCK_CALLER.with(|cell| {
+                cell.set(Some(StockCallerHit {
+                    https,
+                    path: path_ptr,
+                    path_len,
+                    auth: auth_ptr,
+                    auth_len,
+                }));
+            });
+            return true;
+        }
+        false
     }
 }
 
