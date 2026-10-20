@@ -1820,6 +1820,27 @@ pub(crate) fn copy_stock_ok_response() -> http::Response<()> {
     unsafe { std::ptr::read(proto) }
 }
 
+thread_local! {
+    // 0 = nothing popped, 1 = stock http, 2 = stock https.
+    static POPPED_STOCK: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
+}
+
+pub(crate) fn stash_popped_stock(https: Option<bool>) {
+    POPPED_STOCK.set(match https {
+        Some(false) => 1,
+        Some(true) => 2,
+        None => 0,
+    });
+}
+
+pub(crate) fn take_popped_stock() -> Option<bool> {
+    match POPPED_STOCK.replace(0) {
+        1 => Some(false),
+        2 => Some(true),
+        _ => None,
+    }
+}
+
 /// The accept poll maps this head immediately. Keeping the copy out of line
 /// wrote it into a return slot and then copied it again.
 #[inline(always)]

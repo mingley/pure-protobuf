@@ -165,6 +165,11 @@ where
         // TODO: ideally, OpaqueStreamRefs::new would do this, but we're holding
         // the lock, so it can't.
         me.refs += 1;
+        // The accept path reads this request immediately. Popping it here
+        // avoids a second stream lock for the stock POST.
+        let mut stream = me.store.resolve(key);
+        let stock = me.actions.recv.take_stock_request(&mut stream);
+        crate::h2_backend::server::stash_popped_stock(stock);
 
         // Pending-accepted remotely-reset streams are counted.
         if remote_reset {
@@ -1987,6 +1992,9 @@ impl<B> StreamRef<B> {
     /// The accept poll maps this head immediately.
     #[inline(always)]
     pub fn take_request(&self) -> Request<()> {
+        if let Some(https) = crate::h2_backend::server::take_popped_stock() {
+            return crate::h2_backend::server::cached_simple_post(https);
+        }
         let mut me = self.opaque.inner.lock().unwrap();
         let me = &mut *me;
 

@@ -455,6 +455,19 @@ impl Recv {
     /// Panics if `stream.pending_recv` has no `Event::Headers` queued.
     ///
     #[inline(always)]
+    /// Pop a stock POST while the caller already holds the stream lock.
+    /// Any other head stays queued for [`Self::take_request`].
+    pub fn take_stock_request(&mut self, stream: &mut store::Ptr) -> Option<bool> {
+        match stream.pending_recv.pop_front(&mut self.buffer) {
+            Some(Event::StockRequest { https }) => Some(https),
+            Some(event) => {
+                stream.pending_recv.push_front(&mut self.buffer, event);
+                None
+            }
+            None => None,
+        }
+    }
+
     pub fn take_request(&mut self, stream: &mut store::Ptr) -> Request<()> {
         use super::peer::PollMessage::*;
 
