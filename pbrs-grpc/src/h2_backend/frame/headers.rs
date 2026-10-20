@@ -777,8 +777,29 @@ impl Headers {
         ))
     }
 
+    /// The last successful caller. Does not touch the saved block.
+    pub(crate) fn stock_caller_hit(https: bool, path: &str, authority: &str) -> bool {
+        let path_ptr = path.as_ptr() as usize;
+        let auth_ptr = authority.as_ptr() as usize;
+        let path_len = path.len();
+        let auth_len = authority.len();
+        STOCK_CALLER.with(|cell| {
+            cell.get().is_some_and(|hit| {
+                hit.https == https
+                    && hit.path == path_ptr
+                    && hit.path_len == path_len
+                    && hit.auth == auth_ptr
+                    && hit.auth_len == auth_len
+            })
+        })
+    }
+
     /// `true` when `cached_stock_post` can build this authority and path.
     pub(crate) fn stock_post_cached(https: bool, path: &str, authority: &str) -> bool {
+        // A repeated caller is done before the saved-block load.
+        if Self::stock_caller_hit(https, path, authority) {
+            return true;
+        }
         let Some(slot) = STOCK_PSEUDOS.get() else {
             return false;
         };
@@ -791,17 +812,6 @@ impl Headers {
         let auth_ptr = authority.as_ptr() as usize;
         let path_len = path.len();
         let auth_len = authority.len();
-        if STOCK_CALLER.with(|cell| {
-            cell.get().is_some_and(|hit| {
-                hit.https == https
-                    && hit.path == path_ptr
-                    && hit.path_len == path_len
-                    && hit.auth == auth_ptr
-                    && hit.auth_len == auth_len
-            })
-        }) {
-            return true;
-        }
         if slot.path.as_str() == path && slot.authority.as_str() == authority {
             STOCK_CALLER.with(|cell| {
                 cell.set(Some(StockCallerHit {

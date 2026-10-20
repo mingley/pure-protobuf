@@ -362,6 +362,10 @@ pub(crate) fn clear_next_stock() {
 
 /// The saved stock POST matches this target. The caller can skip copying the
 /// `http::Request` and build the header frame from the saved pseudos.
+pub(crate) fn stock_caller_hit(https: bool, path: &str, authority: &str) -> bool {
+    super::frame::Headers::stock_caller_hit(https, path, authority)
+}
+
 pub(crate) fn stock_post_cached(https: bool, path: &str, authority: &str) -> bool {
     super::frame::Headers::stock_post_cached(https, path, authority)
 }

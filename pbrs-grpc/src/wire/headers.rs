@@ -244,10 +244,16 @@ pub(crate) fn begin_stock_request(
     if !is_stock_request(md, timeout, send_codec, accept_gzip, user_agent) {
         return false;
     }
+    let auth = authority.as_str();
+    // The pointer hit already passed the parked-map check. The stock frame
+    // is built from the saved pseudos and does not read that map.
+    if crate::h2_backend::header_pool::stock_caller_hit(https, path, auth) {
+        return true;
+    }
     if !crate::h2_backend::header_pool::is_parked(crate::h2_backend::header_pool::Slot::Request) {
         return false;
     }
-    crate::h2_backend::header_pool::stock_post_cached(https, path, authority.as_str())
+    crate::h2_backend::header_pool::stock_post_cached(https, path, auth)
 }
 
 /// First request, or one that is not the cached stock POST.
