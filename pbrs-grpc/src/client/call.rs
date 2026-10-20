@@ -796,13 +796,18 @@ impl super::Channel {
         if cancel_requested(&cancel_rx) {
             return Either::Left(std::future::ready(Err(Status::cancelled())));
         }
+        // A warm direct connection does not acquire. Cloning the pool, the
+        // observer, and the ring hash only to drop them was an atomic pair
+        // on every RPC.
+        if deadline.is_none() {
+            if let Some(conn) = self.inner.try_warm() {
+                return Either::Left(std::future::ready(Ok(conn)));
+            }
+        }
         let inner = Arc::clone(&self.inner);
         let obs = self.local.observer.clone();
         let hash = md.and_then(|md| self.ring_request_hash(md));
         if deadline.is_none() {
-            if let Some(conn) = inner.try_warm() {
-                return Either::Left(std::future::ready(Ok(conn)));
-            }
             let acquire = inner.acquire(
                 wait_for_ready,
                 obs.as_deref(),
