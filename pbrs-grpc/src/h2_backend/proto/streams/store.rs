@@ -196,11 +196,19 @@ impl Store {
         (*only == id).then_some(*index)
     }
 
+    #[inline]
     fn bind_id(&mut self, id: StreamId, index: SlabIndex) {
         if self.sole.is_none() && self.ids.is_empty() {
             self.sole = Some((id, index));
             return;
         }
+        self.bind_id_mapped(id, index);
+    }
+
+    /// The id map is only needed once a connection holds more than one stream.
+    #[cold]
+    #[inline(never)]
+    fn bind_id_mapped(&mut self, id: StreamId, index: SlabIndex) {
         self.flush_sole();
         assert!(self.ids.insert(id, index).is_none());
     }
