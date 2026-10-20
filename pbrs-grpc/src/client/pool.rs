@@ -835,6 +835,48 @@ impl ChannelInner {
             .ok_or_else(|| Status::unavailable("empty connection pool"))
     }
 
+    /// A live direct connection that can open a stream, without the acquire
+    /// state machine. `None` means the caller should poll [`Self::acquire`].
+    pub(crate) fn try_warm(&self) -> Option<LiveConn> {
+        if matches!(
+            &self.endpoint,
+            Endpoint::Resolved { lb: Some(_), .. }
+        ) {
+            return None;
+        }
+        let i = self.pick().ok()?;
+        let load = self.loads.get(i)?.clone();
+        let (mut handle, lease, r#gen, driver, channelz_socket) = {
+            let slot_mutex = self.slot(i).ok()?;
+            let slot = slot_mutex.try_lock().ok()?;
+            let handle = slot.send.clone()?;
+            let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+            (
+                handle,
+                lease,
+                slot.r#gen,
+                slot.stop.clone(),
+                socket_id_of(&slot),
+            )
+        };
+        let waker = std::task::Waker::noop();
+        let mut cx = std::task::Context::from_waker(waker);
+        if let std::task::Poll::Ready(Ok(())) = handle.poll_ready(&mut cx) {
+            let load = Some(load.start(handle.current_max_send_streams()));
+            return Some(LiveConn {
+                send: handle,
+                load,
+                lease,
+                driver,
+                slot: i,
+                r#gen,
+                rr_addr: None,
+                channelz_socket,
+            });
+        }
+        None
+    }
+
     /// Clone a live sender for this slot, redialing only when `ready` reports
     /// the connection is gone or the slot has never been dialed. `ready`
     /// waiting on stream capacity is not treated as death: that wait happens

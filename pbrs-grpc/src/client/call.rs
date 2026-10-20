@@ -785,6 +785,9 @@ impl super::Channel {
         let obs = self.local.observer.clone();
         let hash = md.and_then(|md| self.ring_request_hash(md));
         if deadline.is_none() {
+            if let Some(conn) = inner.try_warm() {
+                return Either::Left(std::future::ready(Ok(conn)));
+            }
             let acquire = inner.acquire(
                 wait_for_ready,
                 obs.as_deref(),

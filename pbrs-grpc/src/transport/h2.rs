@@ -363,6 +363,12 @@ impl SendRequest {
     fn set_recorder(&mut self, recorder: bdp::Recorder) {
         self.recorder = recorder;
     }
+
+    /// Same readiness check as [`super::SendRequest::ready`], without building
+    /// the ready future. `Pending` leaves `self` usable for a later poll.
+    pub(crate) fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), crate::transport::Error>> {
+        self.inner.poll_ready(cx).map_err(Error)
+    }
 }
 
 impl fmt::Debug for SendRequest {
