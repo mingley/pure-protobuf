@@ -188,9 +188,7 @@ pub(crate) fn grpc_request(
 ) -> Result<Request<()>, Status> {
     let stock = is_stock_request(md, timeout, send_codec, accept_gzip, user_agent);
     if stock
-        && crate::h2_backend::header_pool::is_parked(
-            crate::h2_backend::header_pool::Slot::Request,
-        )
+        && crate::h2_backend::header_pool::is_parked(crate::h2_backend::header_pool::Slot::Request)
     {
         if let Some(req) = cached_stock_post(https, path, authority) {
             crate::h2_backend::header_pool::set_pending_stock(

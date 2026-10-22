@@ -1004,7 +1004,7 @@ mod tests {
         let _guard = ManualGuard::install(now);
         // An already-expired deadline resolves on first poll, off the manual
         // clock rather than a wall wait.
-        let (_cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
+        let cancel_rx = crate::rpc_cancel::RpcCancel::new();
         let expired =
             first_of_in::<ManualRuntime, ()>(std::future::pending(), cancel_rx, Some(now)).await;
         assert_eq!(expired.unwrap_err().code(), Code::DeadlineExceeded);
@@ -1013,7 +1013,7 @@ mod tests {
             prefer_deadline_in::<ManualRuntime, ()>(Err(Status::unavailable("raced")), Some(now));
         assert_eq!(rewritten.unwrap_err().code(), Code::DeadlineExceeded);
         // A future deadline parks until the manual clock advances.
-        let (_cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
+        let cancel_rx = crate::rpc_cancel::RpcCancel::new();
         let (done_tx, mut done_rx) = tokio::sync::oneshot::channel();
         ManualRuntime::spawn(async move {
             let outcome = first_of_in::<ManualRuntime, ()>(

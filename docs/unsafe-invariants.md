@@ -545,10 +545,52 @@ The upcoming `pbrs-h2` crate (H2-04), `src/runtime/` kernel modules (UK-03/UK-04
 4. **Linux sanitizers stay scheduled.** The `compatibility.yml` `miri-sanitizers` lane runs weekly and on manual dispatch. It covers the new crates when they exist and remains the ASan/LSan proof. PRs are not gated on it because `-Zbuild-std` sanitizer builds are too slow for the PR path.
 5. **New `unsafe` needs a second pair of eyes.** At least one reviewer other than the author must approve the `SAFETY` argument. This relates to PB-07, which qualifies the invariants on additional targets.
 
-Until `pbrs-h2` exists, the job exercises in-crate kernel paths (`pbrs --lib`,
-`runtime` and `upb_kernel` tests). It runs on relevant direct pushes to `main`
-as well as PRs. The `pbrs-h2` steps activate automatically once the crate lands,
-using directory guards rather than hardcoded package lists.
+The shipping HTTP/2 backend is embedded in `pbrs-grpc/src/h2_backend`, rather
+than a separate `pbrs-h2` package. The Miri workflow selects its actual lock,
+stream-store, header, frame, cancellation, extension publication and HTTP
+helper tests and rejects an empty group. The scheduled
+sanitizer lane includes `pbrs-grpc --lib`. Configured jobs are not evidence of
+a successful run; qualification needs their results at the measured revision.
+
+### Embedded stream mutex and call ownership
+
+- `h2_backend::proto::streams::lock` uses an atomic state word and a Linux
+  futex. Successful acquisition has Acquire ordering; release publishes
+  writes before another guard acquires the value. `UnsafeCell<T>` is accessed
+  only through the exclusive guard. The mutex is Send/Sync for `T: Send`.
+- A shared guard exposes `&T`, so the guard must require `T: Sync` for Sync.
+  `PhantomData<&mut T>` carries that auto-trait constraint without changing
+  runtime storage. Moving a guard requires `T: Send` and is valid for the
+  owner-independent futex. Unit checks include a Send-but-not-Sync `Cell`,
+  contended updates, cross-thread guard transfer and unwind release.
+- The futex word is an aligned `AtomicU32` inside a live borrowed mutex;
+  callers cannot move or destroy it while a guard or waiter borrows it.
+  Linux private WAIT/WAKE operations use that address only during the syscall.
+  Non-Linux targets use the standard mutex and do not compile these syscalls.
+- `server::rpc::InboundRpc::from_rpc` allocates `MaybeUninit<Self>`, then
+  writes every field exactly once with an initialized value before
+  `assume_init`. Raw writes do not call user code or panic. Feature-gated
+  fields must be initialized under the same feature condition as their
+  declarations. Adding a field requires updating this initializer.
+- `rpc_cancel::RpcCancel` always initializes its `ManuallyDrop<Arc<_>>`.
+  Its Drop implementation extracts that Arc exactly once. Recycling requires
+  zero remaining sender handles and an Arc strong count of one, so no waiter
+  retains the recycled state. Waiters keep their own Arc. Thread-local
+  destruction drops an unrecycled Arc rather than leaking it. Each waiting
+  future owns its registration until drop. Cancellation and final-sender
+  closure wake every registered task, including concurrent upload and response
+  tasks. Secondary wakers are removed under a mutex and invoked outside it.
+- `lazy_ext::LazyExt` publishes a cloned map through `OnceLock`; it never
+  mutates the initial map through a shared borrow. Previously returned shared
+  references stay valid during publication. Mutation requires `&mut self`.
+- Static HTTP copies require process-lifetime URI storage and empty request
+  headers and extensions. `HttpStr` owns its allocation when capacity is
+  nonzero; otherwise it borrows static or empty bytes. The gRPC prefix helper
+  initializes all five bytes before extending the buffer length. Their focused
+  Miri tests cover valid inputs; they do not prove every caller invariant.
+
+These statements describe required invariants. Focused Miri passes do not
+replace independent review, protocol tests or sustained qualification.
 
 ---
 

@@ -121,13 +121,15 @@
 //!
 //! # Safety
 //!
-//! The protocol-facing modules keep peer input away from `unsafe`: gRPC
-//! framing, dispatch, transport, TLS, compression, codec, resolver,
+//! The protocol-facing modules restrict `unsafe`: gRPC
+//! framing, transport, TLS, compression, codec, resolver,
 //! load-balancing, authorization, binary logging, service-config, metadata,
 //! status, request, response, and stream code all carry
-//! `#[forbid(unsafe_code)]`. The private imported HTTP/2 backend retains one
-//! upstream HPACK UTF-8 view behind a documented constructor invariant and a
-//! function-local exemption; the transport module's forbid remains intact.
+//! `#[forbid(unsafe_code)]`. Server call-record initialization, cancellation
+//! flag recycling, HTTP name storage, static HTTP value copies, and the
+//! private HTTP/2 backend have scoped exceptions.
+//! Their allocation, synchronization and lifetime invariants need independent
+//! review and targeted safety checks; the transport seam's forbid remains intact.
 //! Resource limits additionally bound peer-controlled work and memory.
 //!
 //! ## Threat model
@@ -182,7 +184,7 @@
 //!
 //! ## `unsafe`
 //!
-//! The hand-written gRPC framing, dispatch, transport, TLS, compression,
+//! The hand-written gRPC framing, transport, TLS, compression,
 //! codec, resolver, load-balancing, authorization, binary-logging,
 //! service-config, metadata, status, request, response, and stream modules
 //! carry `#[forbid(unsafe_code)]`, which cannot be overridden from inside the
@@ -196,11 +198,14 @@
 //! - `rt::per_core` calls `sched_setaffinity` / `sched_getcpu` to pin
 //!   per-core runtime threads.
 //!
-//! The private imported HTTP/2 backend additionally retains upstream's
-//! `BytesStr::as_str` UTF-8 view. Its constructors validate UTF-8 or copy a
-//! Rust string, and its `Bytes` storage is immutable. That single access has
-//! a function-local exemption; the native transport module remains forbidden
-//! from using unsafe code.
+//! `server::rpc::InboundRpc::from_rpc` initializes a boxed call record field
+//! by field. `rpc_cancel::RpcCancel::drop` moves an initialized `Arc` out of
+//! `ManuallyDrop` exactly once. The embedded HTTP/2 backend uses a Linux
+//! futex mutex with guarded `UnsafeCell` access, plus upstream's validated
+//! `BytesStr::as_str` UTF-8 view. Other platforms use the standard mutex.
+//! Other scoped helpers store owned or static HTTP names and copy cached
+//! static HTTP values. Request extensions publish through `OnceLock` without
+//! unsafe code. These exceptions do not relax the transport seam's forbid.
 //!
 //! Modules that `include!` generated message code ([`hello`], [`testing`],
 //! [`health`], [`reflection`], [`pb`], [`channelz`], [`orca`]) are also outside
@@ -313,10 +318,8 @@ mod config;
 mod interceptor;
 #[forbid(unsafe_code)]
 mod keepalive;
-// Transparent cell around `http::Extensions`. Accept leaves connect info
-// unhashed until a caller reads it. Same size as the map, so the RPC
-// envelope does not grow. The mutation is the one `unsafe` block in
-// `lazy_ext`.
+// Connect info is published once without mutating an exposed map.
+#[forbid(unsafe_code)]
 mod lazy_ext;
 // `PathAndQuery::from_static` clone is a virtual call that only copies words.
 mod static_copy;
@@ -331,9 +334,9 @@ mod metadata;
 mod proxy;
 #[forbid(unsafe_code)]
 mod request;
-mod rpc_cancel;
 #[forbid(unsafe_code)]
 pub mod resolver;
+mod rpc_cancel;
 // `rt::per_core` pins threads with one Linux affinity syscall; the rest of
 // the seam stays safe-only (see the forbid on `mod manual`).
 mod rt;
@@ -353,8 +356,8 @@ mod tcp;
 mod tls;
 #[forbid(unsafe_code)]
 mod transport;
-// Pinned upstream backend, with one existing validated UTF-8 access scoped
-// inside the import. The transport seam retains its unsafe-code forbid.
+// Modified embedded upstream backend. Its synchronization and UTF-8 views
+// have scoped unsafe invariants; the transport seam remains safe-only.
 #[rustfmt::skip]
 mod h2_backend;
 #[forbid(unsafe_code)]

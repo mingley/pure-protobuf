@@ -10,6 +10,16 @@ on:
   pull_request:
     paths:
       - 'pbrs-h2/**'
+      - 'pbrs-grpc/src/h2_backend/**'
+      - 'pbrs-grpc/src/server/rpc.rs'
+      - 'pbrs-grpc/src/rpc_cancel.rs'
+      - 'pbrs-grpc/src/lazy_ext.rs'
+      - 'pbrs-grpc/src/static_copy.rs'
+      - 'pbrs-grpc/src/grpc_prefix.rs'
+      - 'pbrs-grpc/src/server/http_name.rs'
+      - 'pbrs-grpc/src/lib.rs'
+      - 'pbrs-grpc/Cargo.toml'
+      - 'scripts/miri-grpc-kernels.py'
       - 'src/runtime/**'
       - 'src/table.rs'
       - 'src/packed.rs'
@@ -25,6 +35,16 @@ on:
     branches: [main]
     paths:
       - 'pbrs-h2/**'
+      - 'pbrs-grpc/src/h2_backend/**'
+      - 'pbrs-grpc/src/server/rpc.rs'
+      - 'pbrs-grpc/src/rpc_cancel.rs'
+      - 'pbrs-grpc/src/lazy_ext.rs'
+      - 'pbrs-grpc/src/static_copy.rs'
+      - 'pbrs-grpc/src/grpc_prefix.rs'
+      - 'pbrs-grpc/src/server/http_name.rs'
+      - 'pbrs-grpc/src/lib.rs'
+      - 'pbrs-grpc/Cargo.toml'
+      - 'scripts/miri-grpc-kernels.py'
       - 'src/runtime/**'
       - 'src/table.rs'
       - 'src/packed.rs'
@@ -59,11 +79,9 @@ jobs:
           rustc --version
           cargo miri --version
           cargo miri test --locked -p pbrs --lib --test runtime --test upb_kernel
-      - name: Miri on pbrs-h2 unit tests
-        # Activates automatically once H2-04 lands the crate.
-        if: hashFiles('pbrs-h2/Cargo.toml') != ''
+      - name: Miri on the shipping embedded HTTP/2 kernels
         env:
           MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-strict-provenance"
         run: |
           set -euo pipefail
-          cargo miri test --locked -p pbrs-h2 --lib
+          python3 scripts/miri-grpc-kernels.py

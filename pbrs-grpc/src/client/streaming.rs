@@ -1582,8 +1582,13 @@ impl super::Channel {
             Box::pin(async move {
                 // Labels are built per use, only when observed, so an
                 // unobserved call neither constructs nor stores them.
-                let labels =
-                    || CallLabels::new(path, Some(channel.local.authority.as_str()), CallRole::Client);
+                let labels = || {
+                    CallLabels::new(
+                        path,
+                        Some(channel.local.authority.as_str()),
+                        CallRole::Client,
+                    )
+                };
                 let call_start = crate::telemetry::call_started_at(observer.is_some());
                 if let Some(obs) = &observer {
                     obs.on_call_start(&labels());
@@ -1635,7 +1640,8 @@ impl super::Channel {
                 };
                 channel.local.retry_stats.record_call();
                 let tap = channel
-                    .local.binlog
+                    .local
+                    .binlog
                     .as_ref()
                     .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
                 let retry_policy = channel
@@ -1671,10 +1677,7 @@ impl super::Channel {
                         )
                     });
                     let queue_start = observer.as_ref().map(|_| tokio::time::Instant::now());
-                    let live = match channel
-                        .grab(&cancel_rx, deadline, wait, Some(&md))
-                        .await
-                    {
+                    let live = match channel.grab(&cancel_rx, deadline, wait, Some(&md)).await {
                         Ok(live) => {
                             if let (Some(obs), Some(queue_start)) = (&observer, &queue_start) {
                                 obs.on_queue_wait(&labels(), queue_start.elapsed());
@@ -2017,8 +2020,13 @@ impl super::Channel {
             Box::pin(async move {
                 // Labels are built per use, only when observed, so an
                 // unobserved call neither constructs nor stores them.
-                let labels =
-                    || CallLabels::new(path, Some(channel.local.authority.as_str()), CallRole::Client);
+                let labels = || {
+                    CallLabels::new(
+                        path,
+                        Some(channel.local.authority.as_str()),
+                        CallRole::Client,
+                    )
+                };
                 let call_start = crate::telemetry::call_started_at(observer.is_some());
                 if let Some(obs) = &observer {
                     obs.on_call_start(&labels());
@@ -2066,7 +2074,8 @@ impl super::Channel {
                 });
                 let queue_start = observer.as_ref().map(|_| tokio::time::Instant::now());
                 let tap = channel
-                    .local.binlog
+                    .local
+                    .binlog
                     .as_ref()
                     .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
                 let opened = match channel
@@ -2312,8 +2321,13 @@ impl super::Channel {
             Box::pin(async move {
                 // Labels are built per use, only when observed, so an
                 // unobserved call neither constructs nor stores them.
-                let labels =
-                    || CallLabels::new(path, Some(channel.local.authority.as_str()), CallRole::Client);
+                let labels = || {
+                    CallLabels::new(
+                        path,
+                        Some(channel.local.authority.as_str()),
+                        CallRole::Client,
+                    )
+                };
                 let call_start = crate::telemetry::call_started_at(observer.is_some());
                 if let Some(obs) = &observer {
                     obs.on_call_start(&labels());
@@ -2361,7 +2375,8 @@ impl super::Channel {
                 });
                 let queue_start = observer.as_ref().map(|_| tokio::time::Instant::now());
                 let tap = channel
-                    .local.binlog
+                    .local
+                    .binlog
                     .as_ref()
                     .and_then(|binlog| binlog.start_call(path, crate::binlog::Logger::Client));
                 let opened = match channel

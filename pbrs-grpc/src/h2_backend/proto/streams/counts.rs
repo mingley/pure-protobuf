@@ -99,6 +99,12 @@ pub(super) struct Counts {
 }
 
 impl Counts {
+    /// A cleanup wake consumes the stored connection waker even when it
+    /// queues no frame. Force the next poll to register that waker again.
+    pub(super) fn mark_connection_work_pending(&self) {
+        super::clear_buffer_idle(&self.buffer_idle);
+    }
+
     /// Create a new `Counts` using the provided configuration values.
     pub fn new(peer: peer::Dyn, config: &Config, buffer_idle: Arc<AtomicBool>) -> Self {
         Counts {
@@ -397,9 +403,8 @@ impl Counts {
         // remove it; close cleanup runs only after the check below.
         let is_pending_reset = unsafe { (*slot).is_pending_reset_expiration() };
         let ret = f(self, &mut stream);
-        let closing = unsafe {
-            (*slot).is_closed() && !((*slot).protocol_unlinked && (*slot).ref_count > 0)
-        };
+        let closing =
+            unsafe { (*slot).is_closed() && !((*slot).protocol_unlinked && (*slot).ref_count > 0) };
         if closing {
             self.finish_closed(stream, slot, is_pending_reset);
         }
@@ -423,9 +428,8 @@ impl Counts {
     ) {
         // SAFETY: `slot` is this stream's slab entry and the header apply did
         // not remove it. Close cleanup runs only after this check.
-        let closing = unsafe {
-            (*slot).is_closed() && !((*slot).protocol_unlinked && (*slot).ref_count > 0)
-        };
+        let closing =
+            unsafe { (*slot).is_closed() && !((*slot).protocol_unlinked && (*slot).ref_count > 0) };
         if closing {
             self.finish_closed(stream, slot, is_reset_counted);
         }
@@ -441,9 +445,8 @@ impl Counts {
         let slot = stream.stream_ptr();
         // SAFETY: `slot` is this stream. Close cleanup runs only after the
         // check and does not read the pointer after the stream is removed.
-        let closing = unsafe {
-            (*slot).is_closed() && !((*slot).protocol_unlinked && (*slot).ref_count > 0)
-        };
+        let closing =
+            unsafe { (*slot).is_closed() && !((*slot).protocol_unlinked && (*slot).ref_count > 0) };
         if closing {
             self.finish_closed(stream, slot, is_reset_counted);
         }

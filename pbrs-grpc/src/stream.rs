@@ -316,9 +316,7 @@ impl<T> Streaming<T> {
             .filter(|state| !state.ended && !state.count_only)
         {
             state.ended = true;
-            state
-                .entry
-                .add_stream_end(ok);
+            state.entry.add_stream_end(ok);
         }
     }
 

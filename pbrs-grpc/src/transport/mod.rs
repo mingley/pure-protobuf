@@ -54,7 +54,10 @@ pub(crate) trait RecvStream {
     ///
     /// The steady read path uses [`crate::transport::h2::RecvStream::poll_data_released`]
     /// so this trait method is only for callers that release the window later.
-    #[allow(dead_code, reason = "delayed-release callers; the steady path releases in the same lock")]
+    #[allow(
+        dead_code,
+        reason = "delayed-release callers; the steady path releases in the same lock"
+    )]
     fn poll_data(&mut self, cx: &mut Context<'_>) -> Poll<Option<Result<Bytes, Error>>>;
     /// Poll for trailers once DATA is exhausted.
     fn poll_trailers(&mut self, cx: &mut Context<'_>) -> Poll<Result<Option<HeaderMap>, Error>>;
@@ -63,10 +66,12 @@ pub(crate) trait RecvStream {
     /// True once the peer closed its send side (headers-only or DATA done).
     fn is_end_stream(&self) -> bool;
     /// Handle to release consumed receive window back to the peer.
+    #[cfg(feature = "tonic")]
     fn flow_control(&mut self) -> backend::FlowControl;
 }
 
 /// Receive-window handle for one stream.
+#[cfg(feature = "tonic")]
 pub(crate) trait FlowControl {
     /// Grant the peer `sz` more bytes of window. Errors past the target.
     fn release_capacity(&mut self, sz: usize) -> Result<(), Error>;

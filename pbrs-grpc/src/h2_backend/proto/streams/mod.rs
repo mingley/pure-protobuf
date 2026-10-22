@@ -1,4 +1,8 @@
 mod buffer;
+#[cfg(target_os = "linux")]
+mod lock;
+#[cfg(not(target_os = "linux"))]
+#[path = "lock/fallback.rs"]
 mod lock;
 mod counts;
 mod flow_control;

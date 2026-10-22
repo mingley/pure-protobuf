@@ -1301,9 +1301,9 @@ impl InboundRpc {
         let rpc_timeout = rpc.rpc_timeout();
         let timeout =
             crate::wire::soonest(crate::wire::soonest(peer_timeout, rpc_timeout), rpc.timeout);
-        let authority = rpc.authority().map(|value| {
-            HttpStr::adopt(value, crate::h2_backend::server::leaked_authority(value))
-        });
+        let authority = rpc
+            .authority()
+            .map(|value| HttpStr::adopt(value, crate::h2_backend::server::leaked_authority(value)));
         let scheme = rpc.scheme().map(HttpStr::from_scheme);
         let path_text = rpc.path();
         let path = Some(HttpStr::adopt(

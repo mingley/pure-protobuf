@@ -12,10 +12,10 @@ pub(crate) use frame_reader::{
     WireStream, finish_stream, finish_unary, read_one_message, status_from,
 };
 pub(crate) use headers::{
-    DEFAULT_UA, PBRS_GRPC_UA, RequestReject, STOCK_UA, accepts_gzip, check_request,
-    begin_stock_request, effective_timeout, grpc_encoding, grpc_request, inbound_codec_from_token,
-    preferred_codec,
-    select_outbound_codec, select_stream_codec, soonest, timeout_from_headers, user_agent_value,
+    DEFAULT_UA, PBRS_GRPC_UA, RequestReject, STOCK_UA, accepts_gzip, begin_stock_request,
+    check_request, effective_timeout, grpc_encoding, grpc_request, inbound_codec_from_token,
+    preferred_codec, select_outbound_codec, select_stream_codec, soonest, timeout_from_headers,
+    user_agent_value,
 };
 pub(crate) use out_batch::{OutBatch, let_producer_catch_up};
 pub(crate) use send::{

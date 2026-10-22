@@ -12,8 +12,8 @@ use http::{HeaderMap, Request, Response};
 use std::task::{Context, Poll, Waker};
 use tokio::io::AsyncWrite;
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use super::lock::Mutex;
 use std::{fmt, io};
@@ -253,14 +253,19 @@ where
         &mut self,
         cx: &mut Context,
         dst: &mut Codec<T, Prioritized<B>>,
-        armed: bool,
+        same_task: bool,
     ) -> Poll<io::Result<()>>
     where
         T: AsyncWrite + Unpin,
     {
+        // A new task may first encounter socket backpressure below. Invalidate
+        // the old observation now so a later poll cannot skip registration.
+        if !same_task {
+            super::clear_buffer_idle(&self.buffer_idle);
+        }
         // Nothing queued since the last idle observation, and the codec is
         // not holding a write. The driver waker was stored on that observation.
-        if self.buffer_idle.load(Ordering::Acquire) && !dst.has_pending_flush() {
+        if same_task && self.buffer_idle.load(Ordering::Acquire) && !dst.has_pending_flush() {
             return Poll::Ready(Ok(()));
         }
         loop {
@@ -274,20 +279,20 @@ where
                 // Register the task while holding the same lock used to
                 // observe that all pending frames have been buffered. A
                 // producer that queues another frame while the codec is being
-                // flushed will then take and wake this task. The preface
-                // poll is not armed, so it does not keep the connector
-                // waker. The driver keeps the waker it already stored.
-                if armed
-                    && matches!(status, BufferStatus::Complete | BufferStatus::Idle)
-                    && me.actions.task.is_none()
-                {
-                    me.actions.task = Some(cx.waker().clone());
+                // flushed will then take and wake this task. Replace a
+                // handshake task's waker when the driver takes over, even
+                // before the peer's initial SETTINGS have arrived.
+                if matches!(status, BufferStatus::Complete | BufferStatus::Idle) {
+                    match me.actions.task.as_mut() {
+                        Some(waker) => waker.clone_from(cx.waker()),
+                        None => me.actions.task = Some(cx.waker().clone()),
+                    }
                 }
                 // Set while the lock is still held. A producer clears the
                 // flag before it wakes, so it cannot sneak in between the
                 // idle observation and this store. `has_pending_flush` keeps
                 // the next poll from skipping a write that is still buffered.
-                if armed && me.actions.task.is_some() && matches!(status, BufferStatus::Idle) {
+                if matches!(status, BufferStatus::Idle) {
                     self.buffer_idle.store(true, Ordering::Release);
                 }
 
@@ -782,7 +787,7 @@ impl Inner {
     ) {
         let refusal_pending = Arc::new(AtomicBool::new(false));
         let reset_pending = Arc::new(AtomicBool::new(false));
-        // False until an armed poll has stored the driver waker.
+        // False until a poll has stored the current driver's waker.
         let buffer_idle = Arc::new(AtomicBool::new(false));
         let counts = Counts::new(peer, &config, buffer_idle.clone());
         let streams_open = counts.streams_open_flag();
@@ -852,41 +857,41 @@ impl Inner {
             }
         } else {
             match self.store.find_entry(id) {
-            Entry::Occupied(e) => e.key(),
-            Entry::Vacant(e) => {
-                // Client: it's possible to send a request, and then send
-                // a RST_STREAM while the response HEADERS were in transit.
-                //
-                // Server: we can't reset a stream before having received
-                // the request headers, so don't allow.
-                if !peer.is_server() {
-                    // This may be response headers for a stream we've already
-                    // forgotten about...
-                    if self.actions.may_have_forgotten_stream(peer, id) {
-                        tracing::debug!(
-                            "recv_headers for old stream={:?}, sending STREAM_CLOSED",
-                            id,
-                        );
-                        return Err(Error::library_reset(id, Reason::STREAM_CLOSED));
+                Entry::Occupied(e) => e.key(),
+                Entry::Vacant(e) => {
+                    // Client: it's possible to send a request, and then send
+                    // a RST_STREAM while the response HEADERS were in transit.
+                    //
+                    // Server: we can't reset a stream before having received
+                    // the request headers, so don't allow.
+                    if !peer.is_server() {
+                        // This may be response headers for a stream we've already
+                        // forgotten about...
+                        if self.actions.may_have_forgotten_stream(peer, id) {
+                            tracing::debug!(
+                                "recv_headers for old stream={:?}, sending STREAM_CLOSED",
+                                id,
+                            );
+                            return Err(Error::library_reset(id, Reason::STREAM_CLOSED));
+                        }
                     }
-                }
 
-                match self
-                    .actions
-                    .recv
-                    .open(id, Open::Headers, &mut self.counts)?
-                {
-                    Some(stream_id) => {
-                        let send_window = self.actions.send.init_window_sz();
-                        let recv_window = self.actions.recv.init_window_sz();
-                        e.insert_new(stream_id, send_window, recv_window)
-                    }
-                    None => {
-                        self.refusal_pending.store(true, Ordering::Release);
-                        return Ok(());
+                    match self
+                        .actions
+                        .recv
+                        .open(id, Open::Headers, &mut self.counts)?
+                    {
+                        Some(stream_id) => {
+                            let send_window = self.actions.send.init_window_sz();
+                            let recv_window = self.actions.recv.init_window_sz();
+                            e.insert_new(stream_id, send_window, recv_window)
+                        }
+                        None => {
+                            self.refusal_pending.store(true, Ordering::Release);
+                            return Ok(());
+                        }
                     }
                 }
-            }
             }
         };
 
@@ -933,14 +938,20 @@ impl Inner {
                     if let Some(resp) = resp {
                         let mut send_buffer = send_buffer.inner.lock().unwrap();
                         let sent = actions.send.send_headers(
-                            resp, &mut *send_buffer, &mut stream, counts, &mut actions.task);
+                            resp,
+                            &mut *send_buffer,
+                            &mut stream,
+                            counts,
+                            &mut actions.task,
+                        );
                         debug_assert!(sent.is_ok(), "oversize response should not fail");
 
                         actions.send.schedule_implicit_reset(
                             &mut stream,
                             Reason::PROTOCOL_ERROR,
                             counts,
-                            &mut actions.task);
+                            &mut actions.task,
+                        );
 
                         actions
                             .recv
@@ -950,7 +961,7 @@ impl Inner {
                     } else {
                         Err(Error::library_reset(stream.id, Reason::PROTOCOL_ERROR))
                     }
-                },
+                }
                 Err(RecvHeaderBlockError::State(err)) => Err(err),
             }
         } else if !frame.is_end_stream() {
@@ -968,13 +979,7 @@ impl Inner {
             res
         } else {
             let mut locked = send_buffer.inner.lock().unwrap();
-            actions.reset_on_recv_stream_err(
-                &mut *locked,
-                &mut stream,
-                counts,
-                res,
-                reset_pending,
-            )
+            actions.reset_on_recv_stream_err(&mut *locked, &mut stream, counts, res, reset_pending)
         };
         counts.transition_after_at(stream, slot, is_pending_reset);
         res
@@ -992,42 +997,42 @@ impl Inner {
             stream
         } else {
             match self.store.find_mut(&id) {
-            Some(stream) => stream,
-            None => {
-                // The GOAWAY process has begun. All streams with a greater ID
-                // than specified as part of GOAWAY should be ignored.
-                if id > self.actions.recv.max_stream_id() {
-                    tracing::trace!(
-                        "id ({:?}) > max_stream_id ({:?}), ignoring DATA",
-                        id,
-                        self.actions.recv.max_stream_id()
-                    );
+                Some(stream) => stream,
+                None => {
+                    // The GOAWAY process has begun. All streams with a greater ID
+                    // than specified as part of GOAWAY should be ignored.
+                    if id > self.actions.recv.max_stream_id() {
+                        tracing::trace!(
+                            "id ({:?}) > max_stream_id ({:?}), ignoring DATA",
+                            id,
+                            self.actions.recv.max_stream_id()
+                        );
 
-                    // We still need to account for connection-level flow control.
-                    let sz = frame.flow_controlled_len();
-                    assert!(sz <= super::MAX_WINDOW_SIZE as usize);
-                    let sz = sz as WindowSize;
-                    self.actions.recv.ignore_data(sz)?;
+                        // We still need to account for connection-level flow control.
+                        let sz = frame.flow_controlled_len();
+                        assert!(sz <= super::MAX_WINDOW_SIZE as usize);
+                        let sz = sz as WindowSize;
+                        self.actions.recv.ignore_data(sz)?;
 
-                    return Ok(());
+                        return Ok(());
+                    }
+
+                    if self.actions.may_have_forgotten_stream(peer, id) {
+                        tracing::debug!("recv_data for old stream={:?}, sending STREAM_CLOSED", id,);
+
+                        let sz = frame.flow_controlled_len();
+                        // This should have been enforced at the codec::FramedRead layer, so
+                        // this is just a sanity check.
+                        assert!(sz <= super::MAX_WINDOW_SIZE as usize);
+                        let sz = sz as WindowSize;
+                        self.actions.recv.ignore_data(sz)?;
+
+                        return Err(Error::library_reset(id, Reason::STREAM_CLOSED));
+                    }
+
+                    proto_err!(conn: "recv_data: stream not found; id={:?}", id);
+                    return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
                 }
-
-                if self.actions.may_have_forgotten_stream(peer, id) {
-                    tracing::debug!("recv_data for old stream={:?}, sending STREAM_CLOSED", id,);
-
-                    let sz = frame.flow_controlled_len();
-                    // This should have been enforced at the codec::FramedRead layer, so
-                    // this is just a sanity check.
-                    assert!(sz <= super::MAX_WINDOW_SIZE as usize);
-                    let sz = sz as WindowSize;
-                    self.actions.recv.ignore_data(sz)?;
-
-                    return Err(Error::library_reset(id, Reason::STREAM_CLOSED));
-                }
-
-                proto_err!(conn: "recv_data: stream not found; id={:?}", id);
-                return Err(Error::library_go_away(Reason::PROTOCOL_ERROR));
-            }
             }
         };
 
@@ -1642,6 +1647,7 @@ where
                 inner.counts.clear_open_if_idle();
             }
             if inner.refs == 1 {
+                inner.counts.mark_connection_work_pending();
                 if let Some(task) = inner.actions.task.take() {
                     task.wake();
                 }
@@ -1716,9 +1722,14 @@ impl<B> StreamRef<B> {
         Ok(me.counts.transition_at(stream, slot, |counts, stream| {
             let mut frame = frame::Data::new(stream_id, data);
             frame.set_end_stream(end_stream);
-            actions
-                .send
-                .send_data(frame, &mut send_buffer, stream, slot, counts, &mut actions.task)
+            actions.send.send_data(
+                frame,
+                &mut send_buffer,
+                stream,
+                slot,
+                counts,
+                &mut actions.task,
+            )
         }))
     }
 
@@ -1770,14 +1781,9 @@ impl<B> StreamRef<B> {
         let frame = frame::Headers::trailers_boxed(unsafe { (*slot).id }, trailers);
 
         me.counts.transition_at(stream, slot, |counts, stream| {
-            actions.send.send_trailers(
-                frame,
-                send_buffer,
-                stream,
-                slot,
-                counts,
-                &mut actions.task,
-            )
+            actions
+                .send
+                .send_trailers(frame, send_buffer, stream, slot, counts, &mut actions.task)
         })
     }
 
@@ -1900,11 +1906,8 @@ impl<B> StreamRef<B> {
             reason = "the response id is read from the slot the close and the frame share"
         )]
         let stream_id = unsafe { (*slot).id };
-        let mut frame = frame::Headers::response_boxed(
-            stream_id,
-            http::StatusCode::OK,
-            HeaderMap::new(),
-        );
+        let mut frame =
+            frame::Headers::response_boxed(stream_id, http::StatusCode::OK, HeaderMap::new());
         frame.preset_stock_response();
         if end_of_stream {
             frame.set_end_stream();
@@ -2327,6 +2330,9 @@ fn drop_stream_ref(inner: &Mutex<Inner>, key: store::Key) {
 
     tracing::trace!("drop_stream_ref; stream={:?}", stream);
 
+    if wake_conn {
+        me.counts.mark_connection_work_pending();
+    }
     let actions = &mut me.actions;
 
     // If the stream is not referenced and it is already

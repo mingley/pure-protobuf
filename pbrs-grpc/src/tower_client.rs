@@ -356,7 +356,7 @@ mod tonic_transport {
                 .get("grpc-timeout")
                 .and_then(|value| value.to_str().ok())
                 .and_then(crate::timeout::parse_timeout);
-            let timeout = match (timeout, self.config.rpc_timeout()) {
+            let timeout = match (timeout, self.local.config.rpc_timeout()) {
                 (Some(a), Some(b)) => Some(a.min(b)),
                 (a, b) => a.or(b),
             };
@@ -377,15 +377,15 @@ mod tonic_transport {
 
     fn check_policies(channel: &Channel, path: &str) -> Result<(), Status> {
         let defaults = crate::ChannelConfig::default();
-        if !channel.interceptors.is_empty()
-            || !channel.response_interceptors.is_empty()
-            || channel.binlog.is_some()
-            || channel.byte_budget.limit().is_some()
-            || channel.config.limits() != defaults.limits()
-            || channel.config.compresses_outbound() != defaults.compresses_outbound()
-            || channel.config.accepts_compressed() != defaults.accepts_compressed()
-            || channel.config.send_codec() != defaults.send_codec()
-            || channel.config.gzip_level() != defaults.gzip_level()
+        if !channel.local.interceptors.is_empty()
+            || !channel.local.response_interceptors.is_empty()
+            || channel.local.binlog.is_some()
+            || channel.local.byte_budget.limit().is_some()
+            || channel.local.config.limits() != defaults.limits()
+            || channel.local.config.compresses_outbound() != defaults.compresses_outbound()
+            || channel.local.config.accepts_compressed() != defaults.accepts_compressed()
+            || channel.local.config.send_codec() != defaults.send_codec()
+            || channel.local.config.gzip_level() != defaults.gzip_level()
             || channel.method_config_for(path).is_some()
         {
             return Err(Status::failed_precondition(
@@ -403,6 +403,7 @@ mod tonic_transport {
         let (mut parts, body) = request.into_parts();
         check_policies(&channel, parts.uri.path())?;
         let rpc_permit = channel
+            .local
             .rpc_slots
             .as_ref()
             .map(|slots| {
@@ -416,8 +417,8 @@ mod tonic_transport {
         let mut live = channel
             .inner
             .acquire(
-                channel.config.waits_for_ready(),
-                channel.observer.as_deref(),
+                channel.local.config.waits_for_ready(),
+                channel.local.observer.as_deref(),
                 channel.health_directive(),
                 hash,
             )
@@ -426,7 +427,7 @@ mod tonic_transport {
         let load = track_least_request(&channel.inner.endpoint, live.rr_addr.as_ref()).await;
         parts.uri = Uri::builder()
             .scheme(channel.scheme())
-            .authority(channel.authority.clone())
+            .authority(channel.local.authority.clone())
             .path_and_query(parts.uri.path_and_query().cloned().ok_or_else(|| {
                 Status::invalid_argument("gRPC request URI requires a method path")
             })?)
@@ -436,7 +437,7 @@ mod tonic_transport {
         if !parts.headers.contains_key(http::header::USER_AGENT) {
             parts
                 .headers
-                .insert(http::header::USER_AGENT, channel.user_agent.clone());
+                .insert(http::header::USER_AGENT, channel.local.user_agent.clone());
         }
         let end_stream = body.is_end_stream();
         let mut admission = live
@@ -483,7 +484,7 @@ mod tonic_transport {
             body,
             send,
             end_stream,
-            channel.config.send_buffer_size(),
+            channel.local.config.send_buffer_size(),
             deadline,
             cancelled,
             upload_tx,

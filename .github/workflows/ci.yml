@@ -95,7 +95,7 @@ jobs:
           python3 -B -m unittest -q \
             tests.test_grpc_load_smoke tests.test_dominance_ledger \
             tests.test_grpc_resource_campaign tests.test_counter_campaign \
-            tests.test_counter_capsule
+            tests.test_counter_capsule tests.test_miri_grpc_kernels
       - name: Codegen cost harness contracts (no benchmark run)
         run: python3 -B -m unittest discover -s bench/codegen -p 'test_run.py' -q
       - name: Checked Edition 2024 CLOSED-enum oracle integrity (no protoc)

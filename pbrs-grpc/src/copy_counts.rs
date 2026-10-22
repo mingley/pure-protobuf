@@ -49,8 +49,6 @@ pub struct SchedulerCounts {
 pub(crate) enum SpawnSite {
     ClientConnectionDriver,
     ClientBidiUpload,
-    ClientServerStreamCancel,
-    ServerRpcDispatch,
 }
 
 #[cfg(feature = "copy-counts")]
@@ -60,31 +58,25 @@ mod scheduler_state {
 
     static CLIENT_CONNECTION_DRIVER: AtomicU64 = AtomicU64::new(0);
     static CLIENT_BIDI_UPLOAD: AtomicU64 = AtomicU64::new(0);
-    static CLIENT_SERVER_STREAM_CANCEL: AtomicU64 = AtomicU64::new(0);
-    static SERVER_RPC_DISPATCH: AtomicU64 = AtomicU64::new(0);
 
     pub(super) fn snapshot() -> SchedulerCounts {
         SchedulerCounts {
             client_connection_driver: CLIENT_CONNECTION_DRIVER.load(Ordering::Relaxed),
             client_bidi_upload: CLIENT_BIDI_UPLOAD.load(Ordering::Relaxed),
-            client_server_stream_cancel: CLIENT_SERVER_STREAM_CANCEL.load(Ordering::Relaxed),
-            server_rpc_dispatch: SERVER_RPC_DISPATCH.load(Ordering::Relaxed),
+            client_server_stream_cancel: 0,
+            server_rpc_dispatch: 0,
         }
     }
 
     pub(super) fn reset() {
         CLIENT_CONNECTION_DRIVER.store(0, Ordering::Relaxed);
         CLIENT_BIDI_UPLOAD.store(0, Ordering::Relaxed);
-        CLIENT_SERVER_STREAM_CANCEL.store(0, Ordering::Relaxed);
-        SERVER_RPC_DISPATCH.store(0, Ordering::Relaxed);
     }
 
     pub(super) fn note(site: SpawnSite) {
         let counter = match site {
             SpawnSite::ClientConnectionDriver => &CLIENT_CONNECTION_DRIVER,
             SpawnSite::ClientBidiUpload => &CLIENT_BIDI_UPLOAD,
-            SpawnSite::ClientServerStreamCancel => &CLIENT_SERVER_STREAM_CANCEL,
-            SpawnSite::ServerRpcDispatch => &SERVER_RPC_DISPATCH,
         };
         counter.fetch_add(1, Ordering::Relaxed);
     }

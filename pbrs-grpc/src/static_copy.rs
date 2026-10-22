@@ -32,3 +32,33 @@ pub(crate) fn copy_static_http_request(parsed: &http::Request<()>) -> http::Requ
     // Drop of that request does not free those bytes or a header allocation.
     unsafe { std::ptr::read(parsed) }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used, reason = "static HTTP copy regression")]
+    use super::*;
+
+    #[test]
+    fn static_copies_remain_valid_after_independent_drops() {
+        let path = http::uri::PathAndQuery::from_static("/svc/method?x=1");
+        let authority = http::uri::Authority::from_static("example.test:443");
+        let mut request = http::Request::new(());
+        *request.method_mut() = http::Method::POST;
+        *request.uri_mut() = http::Uri::builder()
+            .scheme(http::uri::Scheme::HTTPS)
+            .authority(copy_static_authority(&authority))
+            .path_and_query(copy_static_path(&path))
+            .build()
+            .expect("static URI");
+        for _ in 0..8 {
+            let copy = copy_static_http_request(&request);
+            assert_eq!(copy.uri().path(), "/svc/method");
+            assert_eq!(copy.uri().authority(), Some(&authority));
+            assert!(copy.headers().is_empty());
+            drop(copy);
+        }
+        drop(request);
+        assert_eq!(copy_static_path(&path), path);
+        assert_eq!(copy_static_authority(&authority), authority);
+    }
+}

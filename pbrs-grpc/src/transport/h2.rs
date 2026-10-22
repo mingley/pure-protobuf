@@ -281,7 +281,10 @@ impl RecvStream {
         reason = "delayed-release callers; the steady path releases in the same lock"
     )]
     pub(crate) fn release_capacity(&mut self, sz: usize) -> Result<(), Error> {
-        self.inner.flow_control().release_capacity(sz).map_err(Error)
+        self.inner
+            .flow_control()
+            .release_capacity(sz)
+            .map_err(Error)
     }
 }
 
@@ -320,6 +323,7 @@ impl super::RecvStream for RecvStream {
     /// Owned window handle. h2's handle is a shared refcounted reference to
     /// the stream's window, so cloning it here releases capacity against the
     /// same window as the borrowed `h2::RecvStream::flow_control`.
+    #[cfg(feature = "tonic")]
     fn flow_control(&mut self) -> FlowControl {
         FlowControl(self.inner.flow_control().clone())
     }
@@ -327,14 +331,17 @@ impl super::RecvStream for RecvStream {
 
 /// Receive-window handle for one stream.
 #[derive(Clone)]
+#[cfg(feature = "tonic")]
 pub(crate) struct FlowControl(crate::h2_backend::FlowControl);
 
+#[cfg(feature = "tonic")]
 impl fmt::Debug for FlowControl {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.0, f)
     }
 }
 
+#[cfg(feature = "tonic")]
 impl super::FlowControl for FlowControl {
     fn release_capacity(&mut self, sz: usize) -> Result<(), Error> {
         self.0.release_capacity(sz).map_err(Error)
@@ -366,7 +373,10 @@ impl SendRequest {
 
     /// Same readiness check as [`super::SendRequest::ready`], without building
     /// the ready future. `Pending` leaves `self` usable for a later poll.
-    pub(crate) fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), crate::transport::Error>> {
+    pub(crate) fn poll_ready(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), crate::transport::Error>> {
         self.inner.poll_ready(cx).map_err(Error)
     }
 }

@@ -275,9 +275,8 @@ pub(crate) fn send_ok_headers(
     // Default responses repeat the same two headers. Clone that block
     // instead of hashing the names again.
     if md.is_empty() && send_codec.is_none() && accept_gzip {
-        if crate::h2_backend::header_pool::is_parked(
-            crate::h2_backend::header_pool::Slot::Response,
-        ) {
+        if crate::h2_backend::header_pool::is_parked(crate::h2_backend::header_pool::Slot::Response)
+        {
             return respond
                 .send_stock_response(false)
                 .map_err(|e| Status::internal(e.to_string()));

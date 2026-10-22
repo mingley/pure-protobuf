@@ -1,8 +1,8 @@
 //! Per-RPC client cancel flag.
 //!
-//! A `watch` channel builds eight notify lists. This flag is one atomic and
-//! one waker, reused by the next call on the thread after the previous call
-//! has dropped every handle.
+//! One waiter uses the inline atomic waker. Concurrent upload, response and
+//! hedge tasks register additional wakers on a cold path. Finished flags can
+//! be reused after the previous call has dropped every handle.
 
 use atomic_waker::AtomicWaker;
 use std::cell::Cell;
@@ -10,7 +10,7 @@ use std::future::Future;
 use std::mem::ManuallyDrop;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 
 struct Inner {
@@ -19,6 +19,27 @@ struct Inner {
     closed: AtomicBool,
     senders: AtomicUsize,
     waker: AtomicWaker,
+    primary_claimed: AtomicBool,
+    additional: Mutex<Vec<Option<std::task::Waker>>>,
+}
+
+impl Inner {
+    fn wake_waiters(&self) {
+        self.waker.wake();
+        // Always synchronize with secondary registration. Skipping this lock
+        // using a relaxed waiter count could race a waiter's terminal check.
+        let wakers: Vec<_> = self
+            .additional
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .iter_mut()
+            .filter_map(Option::take)
+            .collect();
+        // Executor callbacks may reenter a future; never call them locked.
+        for waker in wakers {
+            waker.wake();
+        }
+    }
 }
 
 // One finished call's flag. A live call on this thread holds its own clone.
@@ -58,6 +79,8 @@ impl RpcCancel {
                 closed: AtomicBool::new(false),
                 senders: AtomicUsize::new(1),
                 waker: AtomicWaker::new(),
+                primary_claimed: AtomicBool::new(false),
+                additional: Mutex::new(Vec::new()),
             })),
         }
     }
@@ -70,7 +93,7 @@ impl RpcCancel {
     pub(crate) fn signal(&self) {
         let inner = self.inner();
         inner.cancelled.store(true, Ordering::Release);
-        inner.waker.wake();
+        inner.wake_waiters();
     }
 
     #[inline]
@@ -82,6 +105,7 @@ impl RpcCancel {
     pub(crate) fn wait(&self) -> Wait {
         Wait {
             inner: Arc::clone(self.inner()),
+            registration: Registration::None,
         }
     }
 }
@@ -122,13 +146,20 @@ impl Drop for RpcCancel {
             return;
         }
         inner.closed.store(true, Ordering::Release);
-        inner.waker.wake();
+        inner.wake_waiters();
     }
 }
 
 /// [`RpcCancel::wait`] future.
 pub(crate) struct Wait {
     inner: Arc<Inner>,
+    registration: Registration,
+}
+
+enum Registration {
+    None,
+    Primary,
+    Additional(usize),
 }
 
 impl Wait {
@@ -142,16 +173,255 @@ impl Future for Wait {
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        if self.inner.cancelled.load(Ordering::Acquire) || self.inner.closed.load(Ordering::Acquire)
+        let this = self.get_mut();
+        if this.inner.cancelled.load(Ordering::Acquire) || this.inner.closed.load(Ordering::Acquire)
         {
             return Poll::Ready(());
         }
-        self.inner.waker.register(cx.waker());
-        if self.inner.cancelled.load(Ordering::Acquire) || self.inner.closed.load(Ordering::Acquire)
+        if matches!(this.registration, Registration::None) {
+            if this
+                .inner
+                .primary_claimed
+                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+                .is_ok()
+            {
+                this.registration = Registration::Primary;
+            } else {
+                let mut waiters = this
+                    .inner
+                    .additional
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner());
+                let index = if let Some((index, slot)) = waiters
+                    .iter_mut()
+                    .enumerate()
+                    .find(|(_, slot)| slot.is_none())
+                {
+                    *slot = Some(cx.waker().clone());
+                    index
+                } else {
+                    waiters.push(Some(cx.waker().clone()));
+                    waiters.len() - 1
+                };
+                this.registration = Registration::Additional(index);
+            }
+        }
+        match this.registration {
+            Registration::Primary => this.inner.waker.register(cx.waker()),
+            Registration::Additional(index) => {
+                let mut waiters = this
+                    .inner
+                    .additional
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner());
+                if let Some(Some(waker)) = waiters.get_mut(index) {
+                    if !waker.will_wake(cx.waker()) {
+                        *waker = cx.waker().clone();
+                    }
+                }
+            }
+            Registration::None => {}
+        }
+        if this.inner.cancelled.load(Ordering::Acquire) || this.inner.closed.load(Ordering::Acquire)
         {
             Poll::Ready(())
         } else {
             Poll::Pending
+        }
+    }
+}
+
+impl Drop for Wait {
+    fn drop(&mut self) {
+        match self.registration {
+            Registration::None => {}
+            Registration::Primary => {
+                drop(self.inner.waker.take());
+                self.inner.primary_claimed.store(false, Ordering::Release);
+            }
+            Registration::Additional(index) => {
+                let waker = self
+                    .inner
+                    .additional
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner())
+                    .get_mut(index)
+                    .and_then(Option::take);
+                drop(waker);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        clippy::expect_used,
+        clippy::indexing_slicing,
+        reason = "cancellation regressions"
+    )]
+    use super::RpcCancel;
+    use std::future::Future;
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+    use std::task::{Context, Wake, Waker};
+
+    struct Count(AtomicUsize);
+    impl Wake for Count {
+        fn wake(self: Arc<Self>) {
+            self.0.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+    fn waker() -> (Arc<Count>, Waker) {
+        let count = Arc::new(Count(AtomicUsize::new(0)));
+        (count.clone(), Waker::from(count))
+    }
+
+    #[test]
+    fn cancellation_wakes_every_registered_task() {
+        let cancel = RpcCancel::new();
+        let (a, wa) = waker();
+        let (b, wb) = waker();
+        let mut first = Box::pin(cancel.wait());
+        let mut second = Box::pin(cancel.wait());
+        assert!(
+            first
+                .as_mut()
+                .poll(&mut Context::from_waker(&wa))
+                .is_pending()
+        );
+        assert!(
+            second
+                .as_mut()
+                .poll(&mut Context::from_waker(&wb))
+                .is_pending()
+        );
+        cancel.signal();
+        assert_eq!(a.0.load(Ordering::SeqCst), 1);
+        assert_eq!(b.0.load(Ordering::SeqCst), 1);
+        assert!(
+            first
+                .as_mut()
+                .poll(&mut Context::from_waker(&wa))
+                .is_ready()
+        );
+        assert!(
+            second
+                .as_mut()
+                .poll(&mut Context::from_waker(&wb))
+                .is_ready()
+        );
+    }
+
+    #[test]
+    fn dropping_primary_and_replacing_it_preserves_other_waiters() {
+        let cancel = RpcCancel::new();
+        let (a, wa) = waker();
+        let (b, wb) = waker();
+        let (c, wc) = waker();
+        let mut first = Box::pin(cancel.wait());
+        let mut second = Box::pin(cancel.wait());
+        assert!(
+            first
+                .as_mut()
+                .poll(&mut Context::from_waker(&wa))
+                .is_pending()
+        );
+        assert!(
+            second
+                .as_mut()
+                .poll(&mut Context::from_waker(&wb))
+                .is_pending()
+        );
+        drop(first);
+        let mut third = Box::pin(cancel.wait());
+        assert!(
+            third
+                .as_mut()
+                .poll(&mut Context::from_waker(&wc))
+                .is_pending()
+        );
+        cancel.signal();
+        assert_eq!(a.0.load(Ordering::SeqCst), 0);
+        assert_eq!(b.0.load(Ordering::SeqCst), 1);
+        assert_eq!(c.0.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn final_sender_closure_wakes_waiters_without_cancelling() {
+        let cancel = RpcCancel::new();
+        let (a, wa) = waker();
+        let (b, wb) = waker();
+        let mut first = Box::pin(cancel.wait());
+        let mut second = Box::pin(cancel.wait());
+        assert!(
+            first
+                .as_mut()
+                .poll(&mut Context::from_waker(&wa))
+                .is_pending()
+        );
+        assert!(
+            second
+                .as_mut()
+                .poll(&mut Context::from_waker(&wb))
+                .is_pending()
+        );
+        drop(cancel);
+        assert_eq!(a.0.load(Ordering::SeqCst), 1);
+        assert_eq!(b.0.load(Ordering::SeqCst), 1);
+        assert!(
+            first
+                .as_mut()
+                .poll(&mut Context::from_waker(&wa))
+                .is_ready()
+        );
+        assert!(!first.is_cancelled());
+        assert!(
+            second
+                .as_mut()
+                .poll(&mut Context::from_waker(&wb))
+                .is_ready()
+        );
+        assert!(!second.is_cancelled());
+    }
+
+    #[test]
+    fn racing_registration_with_signal_never_loses_a_pending_waiter() {
+        for additional in [false, true] {
+            for _ in 0..32 {
+                let cancel = RpcCancel::new();
+                let mut primary = additional.then(|| Box::pin(cancel.wait()));
+                if let Some(wait) = &mut primary {
+                    assert!(
+                        wait.as_mut()
+                            .poll(&mut Context::from_waker(Waker::noop()))
+                            .is_pending()
+                    );
+                }
+                let peer = cancel.clone();
+                let start = Arc::new(std::sync::Barrier::new(2));
+                let ready = start.clone();
+                let (count, wake) = waker();
+                let task = std::thread::spawn(move || {
+                    let mut wait = Box::pin(peer.wait());
+                    ready.wait();
+                    let pending = wait
+                        .as_mut()
+                        .poll(&mut Context::from_waker(&wake))
+                        .is_pending();
+                    // Keep the pending future alive until signal has finished.
+                    ready.wait();
+                    pending
+                });
+                start.wait();
+                cancel.signal();
+                start.wait();
+                if task.join().expect("waiter") {
+                    assert!(count.0.load(Ordering::SeqCst) > 0);
+                }
+            }
         }
     }
 }

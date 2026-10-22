@@ -75,7 +75,6 @@ use std::marker::PhantomData;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use tokio::sync::watch;
 use tokio::time::Instant;
 use tonic::body::Body as TonicBody;
 use tonic::server::NamedService;

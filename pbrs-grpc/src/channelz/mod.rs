@@ -30,11 +30,11 @@ mod model;
 mod service;
 mod trace;
 
+pub(crate) use model::{ChannelEntry, SocketEntry, socket_entry};
 pub use model::{
     ChannelHandle, ChannelId, Connectivity, EndpointAddr, EntityCounts, Registry, ServerHandle,
     ServerId, SocketHandle, SocketId, SocketParent, SocketSecurity, SubchannelHandle, SubchannelId,
 };
-pub(crate) use model::{ChannelEntry, SocketEntry, socket_entry};
 pub use service::{ChannelzService, DEFAULT_PAGE_SIZE};
 pub use trace::{
     DEFAULT_MAX_TRACE_EVENTS, MAX_DESCRIPTION_LEN, Trace, TraceChild, TraceEvent, TraceSeverity,

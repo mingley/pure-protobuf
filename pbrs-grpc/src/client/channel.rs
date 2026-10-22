@@ -830,7 +830,10 @@ impl fmt::Debug for Channel {
             .field("tls", &self.inner.tls.is_some())
             .field("https", &self.local.https)
             .field("interceptors", &self.local.interceptors.len())
-            .field("response_interceptors", &self.local.response_interceptors.len())
+            .field(
+                "response_interceptors",
+                &self.local.response_interceptors.len(),
+            )
             .field("config", &*self.local.config)
             .field("byte_budget_allocated", &self.local.byte_budget.allocated())
             .field("user_agent", &"[REDACTED]")
@@ -1246,7 +1249,10 @@ impl super::Channel {
     /// The attached service-config document, if any.
     #[must_use]
     pub fn service_config_doc(&self) -> Option<ServiceConfig> {
-        self.local.service_config.get().map(|state| state.config.clone())
+        self.local
+            .service_config
+            .get()
+            .map(|state| state.config.clone())
     }
 
     /// A snapshot of this channel's retry statistics.
@@ -1594,7 +1600,10 @@ impl super::Channel {
     /// including over TLS, mTLS, Unix, and [`Self::from_io`].
     #[must_use]
     pub fn grpc_user_agent(&self) -> &str {
-        self.local.user_agent.to_str().unwrap_or(crate::wire::DEFAULT_UA)
+        self.local
+            .user_agent
+            .to_str()
+            .unwrap_or(crate::wire::DEFAULT_UA)
     }
 
     /// Run `interceptor` on every outbound RPC before the stream opens.
@@ -1757,7 +1766,8 @@ impl super::Channel {
     /// ```
     #[must_use]
     pub fn on_response(self, interceptor: impl crate::ResponseInterceptor) -> Self {
-        let mut hooks: Vec<ResponseHook> = self.local.response_interceptors.iter().cloned().collect();
+        let mut hooks: Vec<ResponseHook> =
+            self.local.response_interceptors.iter().cloned().collect();
         hooks.push(Arc::new(interceptor));
         let response_interceptors = Arc::<[ResponseHook]>::from(hooks);
         self.with_local(|local| local.response_interceptors = response_interceptors)

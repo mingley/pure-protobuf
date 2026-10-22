@@ -846,10 +846,7 @@ impl ChannelInner {
     /// A live direct connection that can open a stream, without the acquire
     /// state machine. `None` means the caller should poll [`Self::acquire`].
     pub(crate) fn try_warm(&self) -> Option<LiveConn> {
-        if matches!(
-            &self.endpoint,
-            Endpoint::Resolved { lb: Some(_), .. }
-        ) {
+        if matches!(&self.endpoint, Endpoint::Resolved { lb: Some(_), .. }) {
             return None;
         }
         let i = self.pick().ok()?;

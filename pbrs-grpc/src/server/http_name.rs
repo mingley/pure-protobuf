@@ -164,3 +164,37 @@ fn free_name(ptr: NonNull<u8>, cap: usize) {
         );
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used, reason = "HTTP name ownership regression")]
+    use super::HttpStr;
+
+    #[test]
+    fn owned_static_and_empty_names_survive_clone_and_consumption() {
+        let mut reserved_empty = String::with_capacity(16);
+        reserved_empty.clear();
+        for name in [
+            HttpStr::from_static("/svc/method"),
+            HttpStr::from_string(String::from("example.test")),
+            HttpStr::from_string(String::new()),
+            HttpStr::from_string(reserved_empty),
+        ] {
+            let expected = name.as_str().to_owned();
+            let cloned = name.clone();
+            assert_eq!(name.into_cow(), expected);
+            assert_eq!(cloned.into_cow(), expected);
+        }
+    }
+
+    #[test]
+    fn owned_name_can_be_shared_and_transferred_between_threads() {
+        let name = HttpStr::from_string(String::from("example.test"));
+        std::thread::scope(|scope| {
+            scope.spawn(|| assert_eq!(name.as_str(), "example.test"));
+            scope.spawn(|| assert_eq!(name.as_str(), "example.test"));
+        });
+        let result = std::thread::spawn(move || name.into_cow());
+        assert_eq!(result.join().expect("name consumer"), "example.test");
+    }
+}

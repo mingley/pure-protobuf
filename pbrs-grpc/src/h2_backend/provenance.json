@@ -1,5 +1,8 @@
 {
-  "status": "isolated_prototype_not_shipping",
+  "status": "shipping_modified_backend",
+  "import_status_at_capture": "isolated_prototype_not_shipping",
+  "hash_scope": "Original import snapshot. Per-file embedded hashes are not attestations of subsequent edits; use the measured Git revision for current source.",
+  "shipping_module": "pbrs-grpc/src/h2_backend/mod.rs",
   "upstream": {
     "name": "h2",
     "version": "0.4.19",

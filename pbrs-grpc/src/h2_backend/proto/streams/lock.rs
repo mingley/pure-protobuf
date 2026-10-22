@@ -11,6 +11,7 @@
 
 use std::cell::UnsafeCell;
 use std::fmt;
+use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -38,6 +39,9 @@ pub(super) struct LockError;
 /// Hold on a [`Mutex`].
 pub(super) struct MutexGuard<'a, T> {
     mutex: &'a Mutex<T>,
+    // Sharing a guard shares `&T`, so require `T: Sync` for guard Sync.
+    // The mutex itself only needs `T: Send` because it grants exclusive access.
+    marker: PhantomData<&'a mut T>,
 }
 
 impl<T> Mutex<T> {
@@ -57,10 +61,16 @@ impl<T> Mutex<T> {
             .compare_exchange(UNLOCKED, LOCKED, Ordering::Acquire, Ordering::Relaxed)
             .is_ok()
         {
-            return Ok(MutexGuard { mutex: self });
+            return Ok(MutexGuard {
+                mutex: self,
+                marker: PhantomData,
+            });
         }
         self.lock_slow();
-        Ok(MutexGuard { mutex: self })
+        Ok(MutexGuard {
+            mutex: self,
+            marker: PhantomData,
+        })
     }
 
     /// Acquire the lock only when it is free.
@@ -71,7 +81,10 @@ impl<T> Mutex<T> {
             .compare_exchange(UNLOCKED, LOCKED, Ordering::Acquire, Ordering::Relaxed)
             .is_ok()
         {
-            Ok(MutexGuard { mutex: self })
+            Ok(MutexGuard {
+                mutex: self,
+                marker: PhantomData,
+            })
         } else {
             Err(LockError)
         }
@@ -163,5 +176,79 @@ impl<T> DerefMut for MutexGuard<'_, T> {
 impl<T> Drop for MutexGuard<'_, T> {
     fn drop(&mut self) {
         self.mutex.unlock();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used, clippy::panic, reason = "mutex regression checks")]
+
+    use super::{Mutex, MutexGuard};
+    use std::cell::Cell;
+    use std::sync::{Arc, Barrier};
+
+    #[test]
+    fn guard_sharing_requires_a_sync_value() {
+        // Two applicable impls would make inference ambiguous if this guard
+        // accidentally became Sync. Cell is Send but deliberately not Sync.
+        trait AmbiguousIfSync<A> {
+            fn check() {}
+        }
+        impl<T: ?Sized> AmbiguousIfSync<()> for T {}
+        struct SyncProbe;
+        impl<T: ?Sized + Sync> AmbiguousIfSync<SyncProbe> for T {}
+        let _ = <MutexGuard<'static, Cell<u8>> as AmbiguousIfSync<_>>::check;
+
+        fn require_sync<T: Sync>() {}
+        fn require_send<T: Send>() {}
+        require_sync::<Mutex<Cell<u8>>>();
+        require_sync::<MutexGuard<'static, u8>>();
+        require_send::<MutexGuard<'static, Cell<u8>>>();
+    }
+
+    #[test]
+    fn contended_mutations_are_exclusive_and_all_waiters_finish() {
+        let value = Arc::new(Mutex::new(0));
+        let ready = Arc::new(Barrier::new(5));
+        let workers: Vec<_> = (0..4)
+            .map(|_| {
+                let value = value.clone();
+                let ready = ready.clone();
+                std::thread::spawn(move || {
+                    ready.wait();
+                    for _ in 0..1000 {
+                        *value.lock().expect("lock") += 1;
+                    }
+                })
+            })
+            .collect();
+        ready.wait();
+        for worker in workers {
+            worker.join().expect("worker");
+        }
+        assert_eq!(*value.lock().expect("final lock"), 4000);
+    }
+
+    #[test]
+    fn a_guard_can_move_threads_without_sharing_the_value() {
+        let value = Mutex::new(Cell::new(7));
+        std::thread::scope(|scope| {
+            let guard = value.lock().expect("lock");
+            assert!(value.try_lock().is_err());
+            scope.spawn(move || guard.set(9)).join().expect("worker");
+        });
+        assert_eq!(value.lock().expect("released lock").get(), 9);
+    }
+
+    #[test]
+    fn unwinding_releases_the_lock_without_poisoning() {
+        let value = Mutex::new(0);
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let mut guard = value.lock().expect("lock");
+            *guard = 42;
+            panic!("exercise guard unwinding");
+        }));
+        assert!(result.is_err());
+        assert_eq!(*value.lock().expect("released lock"), 42);
     }
 }

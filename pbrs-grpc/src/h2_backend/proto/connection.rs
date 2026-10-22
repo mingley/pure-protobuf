@@ -10,7 +10,7 @@ use futures_core::Stream;
 use std::io;
 use std::marker::PhantomData;
 use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::task::{Context, Poll, Waker};
 use std::time::Duration;
 use tokio::io::AsyncRead;
 
@@ -24,6 +24,9 @@ where
     codec: Codec<T, Prioritized<B>>,
 
     inner: ConnectionInner<P, B>,
+
+    /// Identifies the task whose waker was registered with the streams.
+    driver_waker: Option<Waker>,
 }
 
 // Extracted part of `Connection` which does not depend on `T`. Reduces the amount of duplicated
@@ -152,6 +155,7 @@ where
         span.follows_from(tracing::Span::current());
         Connection {
             codec,
+            driver_waker: None,
             inner: ConnectionInner {
                 state: State::Open,
                 error: None,
@@ -220,10 +224,11 @@ where
         }
         // Synced settings have nothing to ACK or send.
         if !self.inner.settings.is_send_idle() {
-            ready!(self
-                .inner
-                .settings
-                .poll_send(cx, &mut self.codec, &mut self.inner.streams))?;
+            ready!(
+                self.inner
+                    .settings
+                    .poll_send(cx, &mut self.codec, &mut self.inner.streams)
+            )?;
         }
         ready!(self.inner.streams.send_pending_refusal(cx, &mut self.codec))?;
 
@@ -310,9 +315,16 @@ where
         // without cloning it.
         let span = tracing::trace_span!(parent: &self.inner.span, "poll");
         let _e = span.enter();
-        // The preface poll applies SETTINGS and must not keep this task's
-        // waker. Later polls are the connection driver.
-        let armed = self.inner.settings.received_remote_initial_settings();
+        // A connection can move from the handshake task to a driver task.
+        // The idle shortcut is valid only for the task already registered;
+        // peer SETTINGS do not tell us which task owns the connection.
+        let same_task = self
+            .driver_waker
+            .as_ref()
+            .is_some_and(|waker| waker.will_wake(cx.waker()));
+        if !same_task {
+            self.driver_waker = Some(cx.waker().clone());
+        }
 
         loop {
             tracing::trace!(connection.state = ?self.inner.state);
@@ -327,7 +339,11 @@ where
                             // Ensure all window updates have been sent.
                             //
                             // This will also handle flushing `self.codec`
-                            ready!(self.inner.streams.poll_complete(cx, &mut self.codec, armed))?;
+                            ready!(self.inner.streams.poll_complete(
+                                cx,
+                                &mut self.codec,
+                                same_task
+                            ))?;
 
                             if (self.inner.error.is_some()
                                 || self.inner.go_away.should_close_on_idle())

@@ -275,10 +275,7 @@ impl ByteBudgetTracker {
         }
         if self.inner.limit.is_none() {
             let current = self.inner.allocated.fetch_sub(bytes, Ordering::Relaxed);
-            assert!(
-                current >= bytes,
-                "byte permit released more than allocated"
-            );
+            assert!(current >= bytes, "byte permit released more than allocated");
             return;
         }
         self.release_bytes_limited(bytes);

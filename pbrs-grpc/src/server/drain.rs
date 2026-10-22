@@ -1,9 +1,9 @@
 //! Response draining: handler race, cancel guards, and wire writers.
 
+use super::http_name::HttpStr;
 use crate::codec::CodecMessage;
 use crate::config::Wire;
 use crate::limits::ByteBudgetTracker;
-use super::http_name::HttpStr;
 use crate::metadata::Metadata;
 #[allow(unused_imports, reason = "intra-doc links resolve against these names")]
 use crate::request::{Request, Response};
