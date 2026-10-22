@@ -158,7 +158,7 @@ mod tests {
                 out.put_slice(b"middle");
                 out.put_shared(&Bytes::from_static(b"shared-two"));
             }
-            out.put_slice(b"end");
+            out.put_slice(if self.fail { b"bad" } else { b"end" });
             if self.fail {
                 return Err(Status::internal("partial shared encode"));
             }

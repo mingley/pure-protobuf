@@ -796,6 +796,14 @@ mod tests {
         let limits = limits.with_max_zstd_window(64 * 1024);
         assert_eq!(limits.max_zstd_window(), Some(64 * 1024));
         assert_eq!(limits.max_decoding(), Some(4 * 1024 * 1024));
+        let lifted = limits.with_unlimited_decoding().with_unlimited_encoding();
+        assert_eq!(lifted.max_decoding(), None);
+        assert_eq!(lifted.max_encoding(), None);
+        assert_eq!(lifted.max_zstd_window(), Some(64 * 1024));
+        assert_eq!(
+            lifted,
+            MessageLimits::unlimited().with_max_zstd_window(64 * 1024)
+        );
         assert_eq!(MessageLimits::unlimited().max_zstd_window(), None);
     }
 
@@ -825,6 +833,13 @@ mod tests {
         assert_eq!(limits.max_decoding(), Some(7));
         assert_eq!(limits.max_encoding(), Some(9));
         let lifted = limits.with_unlimited_decoding().with_unlimited_encoding();
-        assert_eq!(lifted, MessageLimits::unlimited());
+        assert_eq!(lifted.max_decoding(), None);
+        assert_eq!(lifted.max_encoding(), None);
+        assert!(lifted.check_decode(usize::MAX).is_ok());
+        assert!(lifted.check_encode(usize::MAX).is_ok());
+        let expected = MessageLimits::unlimited();
+        #[cfg(feature = "zstd")]
+        let expected = expected.with_max_zstd_window(8 * 1024 * 1024);
+        assert_eq!(lifted, expected);
     }
 }
