@@ -46,12 +46,14 @@ impl HttpStr {
     /// Take `s`'s allocation. An empty string has no allocation.
     #[inline]
     pub(crate) fn from_string(s: String) -> Self {
-        let mut s = std::mem::ManuallyDrop::new(s);
-        let len = s.len();
-        let cap = s.capacity();
-        // SAFETY: `String::as_mut_ptr` is non-null. `ManuallyDrop` leaves the
-        // allocation (when `cap > 0`) for `Drop` to free.
-        let ptr = unsafe { NonNull::new_unchecked(s.as_mut_ptr()) };
+        let mut bytes = std::mem::ManuallyDrop::new(s.into_bytes());
+        let len = bytes.len();
+        let cap = bytes.capacity();
+        // SAFETY: Vec::as_mut_ptr is non-null and retains provenance for the
+        // entire allocation, including spare capacity in an empty string.
+        // Going through a str slice would only grant access to len bytes.
+        // ManuallyDrop leaves this allocation for our Drop to free.
+        let ptr = unsafe { NonNull::new_unchecked(bytes.as_mut_ptr()) };
         Self { ptr, len, cap }
     }
 
@@ -177,11 +179,14 @@ mod tests {
     fn owned_static_and_empty_names_survive_clone_and_consumption() {
         let mut reserved_empty = String::with_capacity(16);
         reserved_empty.clear();
+        let mut reserved_name = String::with_capacity(64);
+        reserved_name.push_str("example.test");
         for name in [
             HttpStr::from_static("/svc/method"),
             HttpStr::from_string(String::from("example.test")),
             HttpStr::from_string(String::new()),
             HttpStr::from_string(reserved_empty),
+            HttpStr::from_string(reserved_name),
         ] {
             let expected = name.as_str().to_owned();
             let cloned = name.clone();

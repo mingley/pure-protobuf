@@ -523,6 +523,7 @@ dependencies = [
  "fnv",
  "futures-core",
  "futures-sink",
+ "futures-util",
  "http",
  "indexmap",
  "libc",
