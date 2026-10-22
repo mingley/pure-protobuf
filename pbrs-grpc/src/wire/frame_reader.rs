@@ -307,6 +307,9 @@ pub(crate) async fn read_trailers(
     recv.trailers().await.map_err(h2_error)
 }
 
+type DecodeFrame<T> =
+    fn(Frame, MessageLimits, bool, Option<CompressionAlgorithm>) -> Result<Framed<T>, Status>;
+
 /// An inbound message stream, decoded straight off its HTTP/2 stream.
 ///
 /// There is no pump task and no intermediate queue: reading a message reads the
@@ -319,8 +322,7 @@ pub(crate) struct WireStream<T> {
     limits: MessageLimits,
     /// Bound at construction, where `T: CodecMessage` is known, so the public
     /// [`Streaming`] type needs no `Parse` bound of its own.
-    decode:
-        fn(Frame, MessageLimits, bool, Option<CompressionAlgorithm>) -> Result<Framed<T>, Status>,
+    decode: DecodeFrame<T>,
     accept_gzip: bool,
     codec: Option<CompressionAlgorithm>,
     /// When the RPC's deadline expires. A deadline has to reach the reads, not

@@ -74,8 +74,7 @@ fn output_request(sizes: &[i32]) -> Request<StreamingOutputCallRequest> {
     Request::new(request)
 }
 
-/// A mock server that ignores client cancellation and cleanly closes the
-/// stream after the first response message without signaling CANCELLED.
+/// Queues a response and clean EOF before the client can cancel.
 struct CleanEofAfterFirstResponseService;
 
 impl TestService for CleanEofAfterFirstResponseService {
@@ -96,8 +95,7 @@ impl TestService for CleanEofAfterFirstResponseService {
     }
 }
 
-/// A mock server that ignores client cancellation and continues sending
-/// subsequent messages after the first response.
+/// Queues two responses before the client can cancel.
 struct ExtraMessageAfterFirstResponseService;
 
 impl TestService for ExtraMessageAfterFirstResponseService {
@@ -182,61 +180,140 @@ async fn cancel_after_first_response_succeeds_with_propagating_server() {
 }
 
 #[tokio::test]
-async fn cancel_after_first_response_fails_on_clean_eof_server() {
+async fn cancel_after_first_response_precedes_queued_clean_eof() {
     let (addr, _guard) = spawn_test_server(CleanEofAfterFirstResponseService).await;
     let client = connect_client(addr).await;
 
     let res = cancel_after_first_response(&client).await;
+    // Peer completion can already be buffered when the client cancels. The
+    // locally cancelled reader must still return CANCELLED before observing EOF.
     assert!(
-        res.is_err(),
-        "expected cancel_after_first_response to fail when server cleanly closes stream"
-    );
-    let status = res.unwrap_err();
-    assert_eq!(status.code(), Code::Internal);
-    assert!(
-        status.message().contains("CANCELLED"),
-        "expected status message to explain CANCELLED was required, got: {:?}",
-        status.message()
-    );
-    assert!(
-        status.message().contains("clean EOF"),
-        "expected status message to note clean EOF, got: {:?}",
-        status.message()
+        res.is_ok(),
+        "local cancellation must precede queued EOF: {res:?}"
     );
 
     let client2 = connect_client(addr).await;
     let run_res = run_case(&client2, "cancel_after_first_response").await;
-    assert!(run_res.is_err());
-    assert_eq!(run_res.unwrap_err().code(), Code::Internal);
+    assert!(run_res.is_ok(), "run_case cancellation: {run_res:?}");
 }
 
 #[tokio::test]
-async fn cancel_after_first_response_fails_on_extra_message_server() {
+async fn cancel_after_first_response_precedes_queued_extra_messages() {
     let (addr, _guard) = spawn_test_server(ExtraMessageAfterFirstResponseService).await;
     let client = connect_client(addr).await;
 
     let res = cancel_after_first_response(&client).await;
     assert!(
-        res.is_err(),
-        "expected cancel_after_first_response to fail when server sends extra message"
-    );
-    let status = res.unwrap_err();
-    assert_eq!(status.code(), Code::Internal);
-    assert!(
-        status.message().contains("CANCELLED"),
-        "expected status message to explain CANCELLED was required, got: {:?}",
-        status.message()
-    );
-    assert!(
-        status.message().contains("extra message"),
-        "expected status message to note extra message, got: {:?}",
-        status.message()
+        res.is_ok(),
+        "local cancellation must precede queued messages: {res:?}"
     );
 
     let client2 = connect_client(addr).await;
     let run_res = run_case(&client2, "cancel_after_first_response").await;
-    assert!(run_res.is_err());
-    assert_eq!(run_res.unwrap_err().code(), Code::Internal);
+    assert!(run_res.is_ok(), "run_case cancellation: {run_res:?}");
+}
+
+#[tokio::test]
+async fn cancel_after_first_response_requires_a_first_response() {
+    let (addr, _guard) = spawn_test_server(DuplexMissingStatusService).await;
+    let client = connect_client(addr).await;
+    for result in [
+        cancel_after_first_response(&client).await,
+        run_case(&client, "cancel_after_first_response").await,
+    ] {
+        let status = result.expect_err("missing first response must fail the case");
+        assert_eq!(status.code(), Code::Internal);
+        assert!(status.message().contains("missing first response"));
+    }
+}
+
+#[tokio::test]
+async fn cancel_after_first_response_preserves_peer_errors_before_the_first_response() {
+    let (addr, _guard) = spawn_test_server(DuplexWrongStatusService).await;
+    let client = connect_client(addr).await;
+    for result in [
+        cancel_after_first_response(&client).await,
+        run_case(&client, "cancel_after_first_response").await,
+    ] {
+        let status = result.expect_err("peer failure must not pass as client cancellation");
+        assert_eq!(status.code(), Code::NotFound);
+        assert_eq!(status.message(), "nope");
+    }
+}
+
+#[tokio::test]
+async fn cancel_after_first_response_resets_the_peer_while_stream_handles_stay_alive() {
+    let (client_io, server_io) = tokio::io::duplex(64 * 1024);
+    let (reset_tx, mut reset_rx) = tokio::sync::oneshot::channel();
+    let peer = tokio::spawn(async move {
+        // Observe the wire with the independently locked registry h2 backend.
+        let mut connection = h2::server::handshake(server_io)
+            .await
+            .expect("raw peer handshake");
+        let (_request, mut respond) = connection
+            .accept()
+            .await
+            .expect("one request")
+            .expect("valid request");
+        let mut response = respond
+            .send_response(
+                http::Response::builder()
+                    .header("content-type", "application/grpc")
+                    .body(())
+                    .expect("response headers"),
+                false,
+            )
+            .expect("send headers");
+        // An empty protobuf response with its gRPC length prefix. Keep the
+        // response open: no trailers, half-close, or server completion can
+        // produce the cancellation acknowledgment below.
+        response
+            .send_data(bytes::Bytes::from_static(&[0; 5]), false)
+            .expect("first response message");
+        let reason = tokio::select! {
+            reason = std::future::poll_fn(|cx| response.poll_reset(cx)) => {
+                reason.expect("peer received RST_STREAM")
+            }
+            incoming = connection.accept() => {
+                panic!("connection ended or received another request before reset: {incoming:?}");
+            }
+        };
+        reset_tx.send(reason).expect("reset observer is waiting");
+    });
+    let _guard = ServerGuard(peer);
+    let channel = pbrs_grpc::Channel::from_io(client_io, "localhost")
+        .await
+        .expect("client handshake");
+    let client = TestServiceClient::new(channel);
+    let (sender, call) = client.full_duplex_call(Request::new(()));
+    let handle = call.handle();
+    sender
+        .send(StreamingOutputCallRequest::new())
+        .await
+        .expect("send request");
+    let mut responses = call.await.expect("response headers").into_inner();
+    assert!(responses.message().await.expect("first response").is_some());
+    assert!(matches!(
+        reset_rx.try_recv(),
+        Err(tokio::sync::oneshot::error::TryRecvError::Empty)
+    ));
+    handle.cancel();
+    let reason = tokio::time::timeout(Duration::from_secs(2), &mut reset_rx)
+        .await
+        .expect("explicit cancellation must reach the peer")
+        .expect("peer reset acknowledgment");
+    assert_eq!(reason, h2::Reason::CANCEL);
+    // Read only after the peer acknowledged RST. Dropping a handle or reading
+    // a terminal response must not be what makes the wire observer succeed.
+    assert_eq!(
+        responses
+            .message()
+            .await
+            .expect_err("cancelled response")
+            .code(),
+        Code::Cancelled
+    );
+    drop((responses, sender, client));
 }
 
 // --- Mock services for asserting failure modes ---

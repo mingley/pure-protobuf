@@ -293,7 +293,13 @@ async fn a_gzip_bomb_cannot_outgrow_the_cap() {
     );
     let mut peer = RawPeer::connect(addr).await;
     let body = frame_with_declared_len(1, bomb.len() as u32, &bomb);
-    peer.call(SAY_HELLO, body)
+    // Name the coding so this reaches bounded inflation, rather than the
+    // protocol check for a compressed flag without grpc-encoding.
+    let mut request = peer.request(SAY_HELLO, "application/grpc");
+    request
+        .headers_mut()
+        .insert("grpc-encoding", HeaderValue::from_static("gzip"));
+    peer.call_with(request, body)
         .await
         .expect_code(Code::ResourceExhausted);
 }
@@ -560,7 +566,13 @@ async fn a_compressed_flag_is_refused_when_inbound_gzip_is_off() {
     let compressed = gzip(&hello_request());
     let mut peer = RawPeer::connect(addr).await;
     let body = frame_with_declared_len(1, compressed.len() as u32, &compressed);
-    peer.call(SAY_HELLO, body)
+    // An advertised gzip coding tests the server's inbound compression policy.
+    // Omitting it would instead be an invalid compressed-flag protocol error.
+    let mut request = peer.request(SAY_HELLO, "application/grpc");
+    request
+        .headers_mut()
+        .insert("grpc-encoding", HeaderValue::from_static("gzip"));
+    peer.call_with(request, body)
         .await
         .expect_code(Code::Unimplemented);
 }
