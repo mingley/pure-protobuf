@@ -22,7 +22,7 @@ python3 scripts/plan-status.py --card BM-03
 > **2026-09-26:** The [world-class gRPC program](world-class/README.md) extends
 > this plan with a category scoreboard, a deterministic dev-loop evidence tier,
 > and lanes for codec, codegen, client, server, a sans-IO HTTP/2 engine, a
-> pure-Rust upb-replacement kernel, better-tonic adoption and gRFC/xDS work.
+> upb-compatible kernel, tonic adoption and gRFC/xDS work.
 > Its `reconciliation` table says which open cards here are carried by new
 > cards and which stay authoritative.
 

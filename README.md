@@ -12,6 +12,8 @@ gRPC over HTTP/2 and `protobuf-tonic` for using pbrs messages with tonic 0.14+.
 Edition 2024 generation supports a [defined subset](docs/edition-2024.md).
 The gRPC crates are previews; see the [support policy](docs/support-policy.md)
 for supported versions and deployment guidance.
+The [2026-10-22 validation](docs/evidence/grpc-validation-20261022/README.md)
+records the latest repairs and the remaining production and performance gates.
 For contributors, start with [what to work on next](TODO.md) and the
 [2026-09-29 repository audit](docs/audit-2026-09-29.md).
 

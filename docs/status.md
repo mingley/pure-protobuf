@@ -1,5 +1,11 @@
 # Implementation status
 
+The [2026-10-22 validation](evidence/grpc-validation-20261022/README.md) records
+new safety and correctness repairs, failed workspace checks and benchmark
+accounting defects. Production readiness and broad superiority over tonic/prost
+remain unproved. Its command records identify the source and scope of each
+result. The older records below retain their original qualification limits.
+
 Use this page to distinguish source features, recorded tests and missing
 qualification. The [2026-09-29 audit](audit-2026-09-29.md) reviewed
 `37683917`; [the queue](../TODO.md) names the next work.

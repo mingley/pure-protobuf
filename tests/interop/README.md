@@ -302,7 +302,7 @@ These cases cover official Protobuf v35.1 conformance and Rust application seman
 | `protobuf_text_conformance` | Text format conformance. | 909 tests. |
 | `protobuf_enforce_recommended` | Recommended conformance suite with `--enforce_recommended`. | Passed without `failure_list_rust_upb.txt` skips. |
 | `rust_shared_application_tests` | In-tree behavior ports in `tests/google_shared.rs` and the separate original-consumer runner `scripts/test-rust-out-shared.sh`. | At audited `37683917`, original `test_map_int32_enum` fails; see [compatibility status](../../docs/codegen-compatibility.md). A historical pass does not qualify the current revision. |
-| `upb_kernel_internals` | C upb arena layout internals. | Explicit `not_applicable`; they do not apply to the safe pure-Rust runtime. |
+| `upb_kernel_internals` | C upb arena layout internals. | Explicit `not_applicable`; they do not apply to the pbrs runtime. |
 
 ### 12. Performance Framework (`performance`, 8 cases)
 

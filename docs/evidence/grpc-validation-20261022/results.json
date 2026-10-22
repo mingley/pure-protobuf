@@ -1,0 +1,435 @@
+{
+  "schema": "pbrs.validation-summary.v1",
+  "source": "8fe0f8aeb41356ff427f44542947f36f6d2a2dae",
+  "qualified": false,
+  "production_readiness": "not_established",
+  "broad_superiority": "not_established",
+  "checks": {
+    "workspace-stable-final": {
+      "record": "workspace-stable-final.json",
+      "source": {
+        "head": "f6cec7a4d8db54ea657036cab1b27f48a67bc7c9",
+        "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "untracked": {}
+      },
+      "exit_code": 101,
+      "test_targets_with_results": 136,
+      "passed": 3629,
+      "failed": 16,
+      "ignored": 9,
+      "count_basis": "Rust libtest result lines; compile-only checks do not execute tests"
+    },
+    "workspace-followup": {
+      "record": "workspace-followup.json",
+      "source": {
+        "head": "8c1703afc7592b6ab5c1272a975fce5c0fcc0f39",
+        "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "untracked": {}
+      },
+      "exit_code": 101,
+      "test_targets_with_results": 136,
+      "passed": 3639,
+      "failed": 6,
+      "ignored": 9,
+      "count_basis": "Rust libtest result lines; compile-only checks do not execute tests"
+    },
+    "grpc-route-repaired": {
+      "record": "grpc-route-repaired.json",
+      "source": {
+        "head": "8fe0f8aeb41356ff427f44542947f36f6d2a2dae",
+        "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "untracked": {}
+      },
+      "exit_code": 101,
+      "test_targets_with_results": 62,
+      "passed": 2909,
+      "failed": 3,
+      "ignored": 3,
+      "count_basis": "Rust libtest result lines; compile-only checks do not execute tests"
+    },
+    "asan-route-followup": {
+      "record": "asan-route-followup.json",
+      "source": {
+        "head": "8fe0f8aeb41356ff427f44542947f36f6d2a2dae",
+        "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "untracked": {}
+      },
+      "exit_code": 0,
+      "test_targets_with_results": 1,
+      "passed": 619,
+      "failed": 0,
+      "ignored": 1,
+      "count_basis": "Rust libtest result lines; compile-only checks do not execute tests"
+    },
+    "miri-route-followup": {
+      "record": "miri-route-followup.json",
+      "source": {
+        "head": "8fe0f8aeb41356ff427f44542947f36f6d2a2dae",
+        "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "untracked": {}
+      },
+      "exit_code": 0,
+      "test_targets_with_results": 13,
+      "passed": 31,
+      "failed": 0,
+      "ignored": 0,
+      "count_basis": "Rust libtest result lines; compile-only checks do not execute tests"
+    },
+    "clippy-route-followup": {
+      "record": "clippy-route-followup.json",
+      "source": {
+        "head": "8fe0f8aeb41356ff427f44542947f36f6d2a2dae",
+        "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "untracked": {}
+      },
+      "exit_code": 101,
+      "test_targets_with_results": 0,
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "count_basis": "Rust libtest result lines; compile-only checks do not execute tests"
+    },
+    "msrv-route-followup": {
+      "record": "msrv-route-followup.json",
+      "source": {
+        "head": "8fe0f8aeb41356ff427f44542947f36f6d2a2dae",
+        "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "untracked": {}
+      },
+      "exit_code": 0,
+      "test_targets_with_results": 0,
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "count_basis": "Rust libtest result lines; compile-only checks do not execute tests"
+    },
+    "format-route-followup": {
+      "record": "format-route-followup.json",
+      "source": {
+        "head": "8fe0f8aeb41356ff427f44542947f36f6d2a2dae",
+        "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "untracked": {}
+      },
+      "exit_code": 0,
+      "test_targets_with_results": 0,
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "count_basis": "Rust libtest result lines; compile-only checks do not execute tests"
+    },
+    "documentation-followup": {
+      "record": "documentation-followup.json",
+      "source": {
+        "head": "6520fb7e7ba0d2037bc0ef6a45788d5eb3f0eea3",
+        "diff_sha256": "a601ab6158fad73332e18811e5e5597b4e06e64e241c451c6713b7b8e4a9edec",
+        "untracked": {
+          "docs/evidence/grpc-validation-20261022/README.md": "6f3d7b92fd3d9d60811cf06157af21747731662d32b7205e3c0af2680445e8c3",
+          "docs/evidence/grpc-validation-20261022/check.py": "0f43eea2bc74083230791d5724d14e619ba4cc6fb36743dd6b626bdf3fdbc096"
+        }
+      },
+      "exit_code": 0,
+      "test_targets_with_results": 1,
+      "passed": 25,
+      "failed": 0,
+      "ignored": 0,
+      "count_basis": "Rust libtest result lines; compile-only checks do not execute tests"
+    },
+    "rustdoc-followup": {
+      "record": "rustdoc-followup.json",
+      "source": {
+        "head": "6520fb7e7ba0d2037bc0ef6a45788d5eb3f0eea3",
+        "diff_sha256": "a601ab6158fad73332e18811e5e5597b4e06e64e241c451c6713b7b8e4a9edec",
+        "untracked": {
+          "docs/evidence/grpc-validation-20261022/README.md": "6f3d7b92fd3d9d60811cf06157af21747731662d32b7205e3c0af2680445e8c3",
+          "docs/evidence/grpc-validation-20261022/check.py": "0f43eea2bc74083230791d5724d14e619ba4cc6fb36743dd6b626bdf3fdbc096"
+        }
+      },
+      "exit_code": 0,
+      "test_targets_with_results": 0,
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "count_basis": "Rust libtest result lines; compile-only checks do not execute tests"
+    },
+    "contracts-route-followup": {
+      "record": "contracts-route-followup.json",
+      "source": {
+        "head": "8fe0f8aeb41356ff427f44542947f36f6d2a2dae",
+        "diff_sha256": "a601ab6158fad73332e18811e5e5597b4e06e64e241c451c6713b7b8e4a9edec",
+        "untracked": {
+          "docs/evidence/grpc-validation-20261022/README.md": "0a94ea4fa15bcf8a8c67c6df9fd75b82a088e93305652245fb2c8060d2acdfc4",
+          "docs/evidence/grpc-validation-20261022/check.py": "0f43eea2bc74083230791d5724d14e619ba4cc6fb36743dd6b626bdf3fdbc096"
+        }
+      },
+      "exit_code": 0,
+      "test_targets_with_results": 0,
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "count_basis": "Rust libtest result lines; compile-only checks do not execute tests",
+      "python_test_count": 46
+    },
+    "benchmark-accounting-followup": {
+      "record": "benchmark-accounting-followup.json",
+      "source": {
+        "head": "8c1703afc7592b6ab5c1272a975fce5c0fcc0f39",
+        "diff_sha256": "735c3212f3afd1811d11d79c6cc28c7f2e83a94a2e59cbbb724b98c54f9a5cc4",
+        "untracked": {}
+      },
+      "exit_code": 0,
+      "test_targets_with_results": 5,
+      "passed": 44,
+      "failed": 0,
+      "ignored": 0,
+      "count_basis": "Rust libtest result lines; compile-only checks do not execute tests"
+    }
+  },
+  "counter_campaign": {
+    "schema": "pbrs.counter-campaign.v1",
+    "source": "8fe0f8aeb41356ff427f44542947f36f6d2a2dae",
+    "binary_sha256": "5e273c73db8ba31efb28e7088eb5d9abaf79c9fe3cb61930dd6edaa3e000436b",
+    "controller_sha256": "ac9c7672139e5c1810bf628da85031cc5d44c257e71f447987adeb69f424b7f2",
+    "phase": "native",
+    "qualified": false,
+    "state": "finished",
+    "passed": true,
+    "groups": [
+      {
+        "path": "group-000",
+        "payload_bytes": 1024,
+        "tls": true,
+        "compression": "identity",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-001",
+        "payload_bytes": 1024,
+        "tls": false,
+        "compression": "identity",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-002",
+        "payload_bytes": 1024,
+        "tls": true,
+        "compression": "gzip",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      },
+      {
+        "path": "group-003",
+        "payload_bytes": 1024,
+        "tls": false,
+        "compression": "gzip",
+        "connections": 1,
+        "in_flight": 1,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "captures": [
+          {
+            "path": "n-200",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          },
+          {
+            "path": "n-400",
+            "passed": true,
+            "total": 75,
+            "passed_cells": 75
+          }
+        ],
+        "ledger_rows": 360
+      }
+    ],
+    "seed": 20261009,
+    "payloads": [
+      1024
+    ],
+    "load_levels": [
+      [
+        1,
+        1
+      ]
+    ],
+    "repeats": 3,
+    "expected_groups": 4,
+    "expected_captures": 600,
+    "limits": [
+      "shared-host diagnostics; wall time is not qualified",
+      "basic synthetic payloads; read-all corpora and lifecycle cells remain separate",
+      "no task wake counters or measured scheduling noise",
+      "per-RPC deadlines remain the benchmark defaults"
+    ]
+  },
+  "counter_dispositions": {
+    "instructions": {
+      "server": {
+        "not_run": 120
+      },
+      "client": {
+        "not_run": 120
+      }
+    },
+    "allocations": {
+      "server": {
+        "loss": 50,
+        "win": 69,
+        "tie": 1
+      },
+      "client": {
+        "loss": 24,
+        "win": 96
+      }
+    },
+    "requested_bytes": {
+      "server": {
+        "win": 84,
+        "loss": 36
+      },
+      "client": {
+        "win": 108,
+        "loss": 12
+      }
+    },
+    "context_switches": {
+      "server": {
+        "loss": 99,
+        "win": 21
+      },
+      "client": {
+        "win": 114,
+        "loss": 6
+      }
+    },
+    "syscalls": {
+      "server": {
+        "not_run": 120
+      },
+      "client": {
+        "not_run": 120
+      }
+    },
+    "task_wakeups": {
+      "server": {
+        "not_run": 120
+      },
+      "client": {
+        "not_run": 120
+      }
+    }
+  },
+  "resource_preview": {
+    "source": {
+      "commit": "8fe0f8aeb41356ff427f44542947f36f6d2a2dae",
+      "tree": "2c1247c0453758acd92b3b740f57bb401f729a82",
+      "dirty": false,
+      "cargo_lock_sha256": "c0555cb8feebcbf7aaaa53f028cdf05fb792575a3108733a129a99ce6fe36059"
+    },
+    "exit_code": 0,
+    "actual_seconds": 30.36197255300067,
+    "smoke": {
+      "status": "passed",
+      "failures": []
+    },
+    "qualification": {
+      "qualified": false,
+      "tier": "shared-host-resource-campaign",
+      "soak_24h": {
+        "status": "not_run",
+        "reason": "resource campaign duration; overall QG-06 acceptance remains separate"
+      },
+      "not_run": [
+        "independent-process resource attribution",
+        "allocator high-water",
+        "kernel socket memory",
+        "TLS RST_STREAM/GOAWAY frame injection",
+        "dedicated-host latency/goodput qualification",
+        "all feature and release gates"
+      ]
+    }
+  },
+  "day_snapshot": {
+    "state": "running",
+    "observed_utc": "2026-10-22T04:36:43.826180+00:00",
+    "qualified": false,
+    "elapsed_seconds_at_snapshot": 85.34208250045776,
+    "progress": {
+      "state": "running",
+      "pid": 136465,
+      "source": {
+        "commit": "8fe0f8aeb41356ff427f44542947f36f6d2a2dae",
+        "tree": "2c1247c0453758acd92b3b740f57bb401f729a82",
+        "dirty": false,
+        "cargo_lock_sha256": "c0555cb8feebcbf7aaaa53f028cdf05fb792575a3108733a129a99ce6fe36059"
+      },
+      "started_unix_seconds": 1792643718.4841166,
+      "duration_requested_seconds": 86400.0,
+      "binary_sha256": "1829f3074680b501147c8267eb81018cb3d1da47bc9d7b68efa66af0c9201eef",
+      "qualified": false
+    },
+    "process_start_ticks": "1923308"
+  },
+  "day_limit": "running at this snapshot; no completed 24-hour result"
+}

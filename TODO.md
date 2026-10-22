@@ -29,26 +29,29 @@ of eligible work, not an instruction to start every lane at once.
 
 ## Current priorities
 
-The latest [readiness records](docs/evidence/README.md) include fixes for
-queued peer rejections, stalled uploads and already-reset requests consuming
-bounded RPC slots. All 58 native test targets have recorded results. The
-mixed-load admission test still misses its bulk-progress threshold; the
-adapter's stale send-buffer expectation was corrected and its 19 tests pass.
-Resource attempts 006 and 007 failed, and 008 stopped at its native prerequisite.
-Attempt 009 is queued after disk recovery, with counter sweeps scheduled
-after its resource outcome. The 24-hour gate and client/server performance
-comparisons remain open.
+The [2026-10-22 validation](docs/evidence/grpc-validation-20261022/README.md)
+found and repaired memory-safety, cancellation, driver-wake, load-balancing and
+header-handoff defects. The mixed-load resource-bounds tests pass after the
+header repair. Production readiness and broad superiority remain unproved:
+the full workspace has failures, strict lint and release gates remain open,
+and the full per-side matrix and 24-hour soak are incomplete. Historical
+resource attempt 009 failed after about 2 hours 6 minutes; it is not queued.
+The latest release preview passes. An independent day diagnostic started on
+`8fe0f8ae` at 2026-10-22 04:35 UTC; it is incomplete at this snapshot.
+The benchmark also ignored its declared closed-loop concurrency and sometimes
+overshot fixed counts. Those captures are invalid for the declared matrix;
+repeat the comparisons with the repaired generator.
 
 | Work | Next result | Completion criterion |
 |---|---|---|
-| QG-06: resources and recovery | Diagnose the optimized streaming deadline failure; rerun the exact candidate after compile-heavy checks finish. | A full 24-hour run passes the original finite limits, deadlines, recovery and fairness checks. |
+| QG-06: resources and recovery | Resolve the cancellation and handler-start failures; retain the independent day diagnostic on `8fe0f8ae`. | A full 24-hour run passes the original finite limits, deadlines, recovery and fairness checks. |
 | SB-27: client/server matrix | Extend per-side counters beyond 1 KiB, h2c, identity and one in-flight call. | Include every payload, TLS/compression profile, read-all corpus, concurrency level and lifecycle; retain failures and assign each loss. |
 | SV-09, CL-08, CL-09, RX-10 | Reduce the measured streaming instruction, allocation, byte and scheduling costs. | Matched before/after runs meet the existing thresholds and do not regress the other RPC shapes. |
 | CH-12 and remaining integration cards | Complete external discovery/balancer runtimes and their churn tests. | An external consumer uses only supported public APIs and existing connections remain stable across updates. |
 | Remaining credential and codec cards | Complete the documented providers and broader typed-extension support. | Each feature passes its consumer, wire-compatibility and security checks. |
 | SB-28, SB-22 and SB-16 | Run the completed matrix on dedicated x86_64 and arm64 hosts. | Paired statistics, headroom and latency checks support the published comparisons. |
 
-Generated Router dispatch reduced instructions in the measured server cases,
+Historical Router dispatch measurements reduced instructions in their server cases,
 but those cases still lose to tonic. The 2,560-cell functional run checks
 completion and accounting; throughput and latency qualification need separate
 measurements. Numeric thresholds remain in the
