@@ -235,9 +235,12 @@ impl LoadConfig {
         }
     }
 
-    /// Set maximum in-flight cap (bounded queue).
+    /// Set closed-loop worker count or the open-loop admission cap.
     pub fn with_max_in_flight(mut self, cap: usize) -> Self {
         self.max_in_flight = cap.max(1);
+        if self.distribution == LoadDistribution::Closed {
+            self.concurrency = self.max_in_flight;
+        }
         self
     }
 
@@ -593,18 +596,28 @@ impl LoadGenerator {
 
             handles.spawn(async move {
                 while running.load(Ordering::Relaxed) {
-                    if let Some(max) = max_calls
-                        && state.offered_calls.load(Ordering::Relaxed) >= max
-                    {
-                        running.store(false, Ordering::Relaxed);
-                        break;
-                    }
                     if Instant::now() >= end_time {
                         running.store(false, Ordering::Relaxed);
                         break;
                     }
-
-                    state.offered_calls.fetch_add(1, Ordering::Relaxed);
+                    // Workers must reserve a count atomically. A separate
+                    // load followed by fetch_add can dispatch beyond N.
+                    let reserved = match max_calls {
+                        Some(max) => state
+                            .offered_calls
+                            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |count| {
+                                (count < max).then(|| count + 1)
+                            })
+                            .is_ok(),
+                        None => {
+                            state.offered_calls.fetch_add(1, Ordering::Relaxed);
+                            true
+                        }
+                    };
+                    if !reserved {
+                        running.store(false, Ordering::Relaxed);
+                        break;
+                    }
                     let t_sched = Instant::now();
                     let t_actual = t_sched;
                     if state.collect_samples {
@@ -979,6 +992,53 @@ mod tests {
                 .get("RESOURCE_EXHAUSTED"),
             Some(&1)
         );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn closed_loop_honors_configured_in_flight_limit() {
+        let active = Arc::new(AtomicUsize::new(0));
+        let peak = Arc::new(AtomicUsize::new(0));
+        let config = LoadConfig::closed(4, Duration::from_secs(2))
+            .with_max_in_flight(1)
+            .with_max_calls(32);
+        let record = LoadGenerator::new(config)
+            .run({
+                let peak = peak.clone();
+                move || {
+                    let active = active.clone();
+                    let peak = peak.clone();
+                    async move {
+                        let count = active.fetch_add(1, Ordering::SeqCst) + 1;
+                        let _guard = Active(active);
+                        peak.fetch_max(count, Ordering::SeqCst);
+                        tokio::time::sleep(Duration::from_millis(1)).await;
+                        Ok(())
+                    }
+                }
+            })
+            .await;
+        record.require_success().expect("bounded load succeeds");
+        assert_eq!(record.completed_calls, 32);
+        assert_eq!(peak.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn closed_loop_count_is_exact_under_contention() {
+        for limit in [0, 1, 7, 200] {
+            for _ in 0..32 {
+                let config = LoadConfig::closed(128, Duration::from_secs(2)).with_max_calls(limit);
+                let record = LoadGenerator::new(config)
+                    .run(|| async {
+                        tokio::task::yield_now().await;
+                        Ok(())
+                    })
+                    .await;
+                assert_eq!(record.offered_calls, limit);
+                assert_eq!(record.dispatched_calls, limit);
+                assert_eq!(record.completed_calls, limit);
+                assert_eq!(record.successful_calls, limit);
+            }
+        }
     }
 
     #[tokio::test]

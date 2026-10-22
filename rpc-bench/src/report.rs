@@ -33,7 +33,7 @@ pub const LATENCY_UNIT_NANOS: &str = "nanoseconds";
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TransportMode {
-    /// Pure-Rust `pbrs-grpc` native kernel transport.
+    /// Native `pbrs-grpc` transport.
     Native,
     /// `tonic` 0.14+ reference transport.
     Tonic,
