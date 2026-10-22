@@ -18675,17 +18675,30 @@ async fn incoming_peer_stamps_connection_facts() {
     server.abort();
 }
 
-/// Sleeps long enough that a cancelled caller would otherwise leave it running.
+/// A pending handler that reports both entry and destruction.
+#[derive(Default)]
+struct HangState {
+    started: tokio::sync::Notify,
+    dropped: tokio::sync::Notify,
+}
+
 struct Hang {
-    started: Arc<AtomicUsize>,
-    finished: Arc<AtomicUsize>,
+    state: Arc<HangState>,
+}
+
+struct HangGuard<'a>(&'a tokio::sync::Notify);
+
+impl Drop for HangGuard<'_> {
+    fn drop(&mut self) {
+        self.0.notify_one();
+    }
 }
 
 impl Hang {
     async fn hang(&self) {
-        self.started.fetch_add(1, Ordering::Relaxed);
-        tokio::time::sleep(Duration::from_millis(200)).await;
-        self.finished.fetch_add(1, Ordering::Relaxed);
+        let _guard = HangGuard(&self.state.dropped);
+        self.state.started.notify_one();
+        std::future::pending::<()>().await;
     }
 }
 
@@ -18810,81 +18823,55 @@ async fn from_io_cancel_after_begin_is_cancelled_not_ok() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_client_reset_drops_the_handler() {
-    let started = Arc::new(AtomicUsize::new(0));
-    let finished = Arc::new(AtomicUsize::new(0));
+    let state = Arc::new(HangState::default());
     let (addr, listener) = bind().await;
     let hang = Hang {
-        started: Arc::clone(&started),
-        finished: Arc::clone(&finished),
+        state: Arc::clone(&state),
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(hang).serve_listener(listener).await.ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    assert_reset_drops_handler(
-        client.say_hello(Request::new(req("ada"))),
-        &started,
-        &finished,
-    )
-    .await;
-    assert_reset_drops_handler(
-        client.server_hello(Request::new(req("ada"))),
-        &started,
-        &finished,
-    )
-    .await;
+    assert_reset_drops_handler(client.say_hello(Request::new(req("ada"))), &state).await;
+    assert_reset_drops_handler(client.server_hello(Request::new(req("ada"))), &state).await;
     let (tx, call) = client.client_hello(Request::new(()));
-    assert_reset_drops_handler(call, &started, &finished).await;
+    assert_reset_drops_handler(call, &state).await;
     drop(tx);
     let (tx, call) = client.stream_hello(Request::new(()));
-    assert_reset_drops_handler(call, &started, &finished).await;
+    assert_reset_drops_handler(call, &state).await;
     drop(tx);
     task.abort();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn dropping_a_call_drops_the_handler() {
-    let started = Arc::new(AtomicUsize::new(0));
-    let finished = Arc::new(AtomicUsize::new(0));
+    let state = Arc::new(HangState::default());
     let (addr, listener) = bind().await;
     let hang = Hang {
-        started: Arc::clone(&started),
-        finished: Arc::clone(&finished),
+        state: Arc::clone(&state),
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(hang).serve_listener(listener).await.ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    assert_drop_call_drops_handler(
-        client.say_hello(Request::new(req("ada"))),
-        &started,
-        &finished,
-    )
-    .await;
-    assert_drop_call_drops_handler(
-        client.server_hello(Request::new(req("ada"))),
-        &started,
-        &finished,
-    )
-    .await;
+    assert_drop_call_drops_handler(client.say_hello(Request::new(req("ada"))), &state).await;
+    assert_drop_call_drops_handler(client.server_hello(Request::new(req("ada"))), &state).await;
     let (tx, call) = client.client_hello(Request::new(()));
-    assert_drop_call_drops_handler(call, &started, &finished).await;
+    assert_drop_call_drops_handler(call, &state).await;
     drop(tx);
     let (tx, call) = client.stream_hello(Request::new(()));
-    assert_drop_call_drops_handler(call, &started, &finished).await;
+    assert_drop_call_drops_handler(call, &state).await;
     drop(tx);
     task.abort();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn tls_hanging_handler_drops_on_call_drop_and_reset() {
-    let started = Arc::new(AtomicUsize::new(0));
-    let finished = Arc::new(AtomicUsize::new(0));
+    let state = Arc::new(HangState::default());
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
     let hang = Hang {
-        started: Arc::clone(&started),
-        finished: Arc::clone(&finished),
+        state: Arc::clone(&state),
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(hang)
@@ -18893,19 +18880,17 @@ async fn tls_hanging_handler_drops_on_call_drop_and_reset() {
             .ok();
     });
     let client = GreeterClient::new(tls_channel(addr).await);
-    assert_hang_drop_and_reset_on_every_shape(&client, &started, &finished).await;
+    assert_hang_drop_and_reset_on_every_shape(&client, &state).await;
     task.abort();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mtls_hanging_handler_drops_on_call_drop_and_reset() {
-    let started = Arc::new(AtomicUsize::new(0));
-    let finished = Arc::new(AtomicUsize::new(0));
+    let state = Arc::new(HangState::default());
     let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
     let (addr, listener) = bind().await;
     let hang = Hang {
-        started: Arc::clone(&started),
-        finished: Arc::clone(&finished),
+        state: Arc::clone(&state),
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(hang)
@@ -18915,37 +18900,33 @@ async fn mtls_hanging_handler_drops_on_call_drop_and_reset() {
     });
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
-    assert_hang_drop_and_reset_on_every_shape(&client, &started, &finished).await;
+    assert_hang_drop_and_reset_on_every_shape(&client, &state).await;
     task.abort();
 }
 
 #[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unix_hanging_handler_drops_on_call_drop_and_reset() {
-    let started = Arc::new(AtomicUsize::new(0));
-    let finished = Arc::new(AtomicUsize::new(0));
+    let state = Arc::new(HangState::default());
     let (path, _guard) = unix_test_path();
     let sock = path.clone();
     let hang = Hang {
-        started: Arc::clone(&started),
-        finished: Arc::clone(&finished),
+        state: Arc::clone(&state),
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(hang).serve_unix(sock).await.ok();
     });
     let client = GreeterClient::new(unix_channel(&path).await);
-    assert_hang_drop_and_reset_on_every_shape(&client, &started, &finished).await;
+    assert_hang_drop_and_reset_on_every_shape(&client, &state).await;
     task.abort();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn from_io_hanging_handler_drops_on_call_drop_and_reset() {
-    let started = Arc::new(AtomicUsize::new(0));
-    let finished = Arc::new(AtomicUsize::new(0));
+    let state = Arc::new(HangState::default());
     let (client_io, server_io) = duplex_pair();
     let hang = Hang {
-        started: Arc::clone(&started),
-        finished: Arc::clone(&finished),
+        state: Arc::clone(&state),
     };
     let server = tokio::spawn(async move {
         GreeterServer::new(hang)
@@ -18958,105 +18939,63 @@ async fn from_io_hanging_handler_drops_on_call_drop_and_reset() {
             .await
             .expect("from_io"),
     );
-    assert_hang_drop_and_reset_on_every_shape(&client, &started, &finished).await;
+    assert_hang_drop_and_reset_on_every_shape(&client, &state).await;
     server.abort();
 }
 
-async fn assert_drop_call_drops_handler<T>(
-    mut call: Call<T>,
-    started: &AtomicUsize,
-    finished: &AtomicUsize,
-) {
-    started.store(0, Ordering::Relaxed);
+async fn wait_for_hanging_handler<T>(call: &mut Call<T>, state: &HangState) {
+    // Drive the lazy Call until the handler acknowledges entry. The watchdog
+    // bounds a stalled test even when integration tests share a busy machine.
     tokio::select! {
         biased;
-        _ = &mut call => panic!("Hang returned before drop"),
-        () = tokio::time::sleep(Duration::from_millis(40)) => {}
+        _ = call => panic!("Hang returned before cancellation"),
+        () = state.started.notified() => {},
+        () = tokio::time::sleep(Duration::from_secs(1)) => {
+            panic!("handler should have started");
+        }
     }
-    assert!(
-        started.load(Ordering::Relaxed) >= 1,
-        "handler should have started"
-    );
+}
+
+async fn assert_drop_call_drops_handler<T>(mut call: Call<T>, state: &HangState) {
+    wait_for_hanging_handler(&mut call, state).await;
     drop(call);
-    tokio::time::sleep(Duration::from_millis(250)).await;
-    assert_eq!(
-        finished.load(Ordering::Relaxed),
-        0,
-        "dropping the Call should RST the stream and drop the handler"
-    );
+    tokio::time::timeout(Duration::from_millis(250), state.dropped.notified())
+        .await
+        .expect("dropping the Call should RST the stream and destroy the handler");
 }
 
-async fn assert_reset_drops_handler<T>(
-    mut call: Call<T>,
-    started: &AtomicUsize,
-    finished: &AtomicUsize,
-) {
-    started.store(0, Ordering::Relaxed);
-    let handle = call.handle();
-    tokio::select! {
-        biased;
-        _ = &mut call => panic!("Hang returned before cancel"),
-        () = tokio::time::sleep(Duration::from_millis(40)) => {}
-    }
-    assert!(
-        started.load(Ordering::Relaxed) >= 1,
-        "handler should have started"
-    );
-    handle.cancel();
-    let err = match call.await {
-        Ok(_) => panic!("cancelled Call resolved Ok"),
-        Err(status) => status,
-    };
-    assert_eq!(err.code(), Code::Cancelled, "{err}");
-    tokio::time::sleep(Duration::from_millis(250)).await;
-    assert_eq!(
-        finished.load(Ordering::Relaxed),
-        0,
-        "CallHandle cancel should RST the stream and drop the handler"
-    );
+async fn assert_reset_drops_handler<T>(mut call: Call<T>, state: &HangState) {
+    wait_for_hanging_handler(&mut call, state).await;
+    call.handle().cancel();
+    tokio::time::timeout(Duration::from_millis(250), async {
+        let err = match call.await {
+            Ok(_) => panic!("cancelled Call resolved Ok"),
+            Err(status) => status,
+        };
+        assert_eq!(err.code(), Code::Cancelled, "{err}");
+        state.dropped.notified().await;
+    })
+    .await
+    .expect("CallHandle cancel should RST the stream and destroy the handler");
 }
 
-async fn assert_hang_drop_and_reset_on_every_shape(
-    client: &GreeterClient,
-    started: &AtomicUsize,
-    finished: &AtomicUsize,
-) {
-    assert_drop_call_drops_handler(
-        client.say_hello(Request::new(req("ada"))),
-        started,
-        finished,
-    )
-    .await;
-    assert_drop_call_drops_handler(
-        client.server_hello(Request::new(req("ada"))),
-        started,
-        finished,
-    )
-    .await;
+async fn assert_hang_drop_and_reset_on_every_shape(client: &GreeterClient, state: &HangState) {
+    assert_drop_call_drops_handler(client.say_hello(Request::new(req("ada"))), state).await;
+    assert_drop_call_drops_handler(client.server_hello(Request::new(req("ada"))), state).await;
     let (tx, call) = client.client_hello(Request::new(()));
-    assert_drop_call_drops_handler(call, started, finished).await;
+    assert_drop_call_drops_handler(call, state).await;
     drop(tx);
     let (tx, call) = client.stream_hello(Request::new(()));
-    assert_drop_call_drops_handler(call, started, finished).await;
+    assert_drop_call_drops_handler(call, state).await;
     drop(tx);
 
-    assert_reset_drops_handler(
-        client.say_hello(Request::new(req("ada"))),
-        started,
-        finished,
-    )
-    .await;
-    assert_reset_drops_handler(
-        client.server_hello(Request::new(req("ada"))),
-        started,
-        finished,
-    )
-    .await;
+    assert_reset_drops_handler(client.say_hello(Request::new(req("ada"))), state).await;
+    assert_reset_drops_handler(client.server_hello(Request::new(req("ada"))), state).await;
     let (tx, call) = client.client_hello(Request::new(()));
-    assert_reset_drops_handler(call, started, finished).await;
+    assert_reset_drops_handler(call, state).await;
     drop(tx);
     let (tx, call) = client.stream_hello(Request::new(()));
-    assert_reset_drops_handler(call, started, finished).await;
+    assert_reset_drops_handler(call, state).await;
     drop(tx);
 }
 

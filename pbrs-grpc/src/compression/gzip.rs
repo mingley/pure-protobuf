@@ -1,7 +1,6 @@
 //! `gzip` coding (RFC 1952) for [`Codec`](super::Codec).
 //!
-//! Backed by `miniz_oxide` through `flate2`'s `rust_backend`, so there is no
-//! C in the compression path.
+//! Backed by `miniz_oxide` through `flate2`.
 //!
 //! Inflation is always bounded. A gzip stream can expand by roughly 1000x, so
 //! an unbounded `read_to_end` turns a 4 KiB frame into a multi-gigabyte
@@ -12,17 +11,7 @@ use crate::status::Status;
 use flate2::Compression;
 use flate2::bufread::GzDecoder;
 use flate2::write::GzEncoder;
-use std::io::{Read, Write};
-
-/// Initial output reservation as a multiple of the compressed size.
-///
-/// Text-like protobuf typically inflates 3-5x, so this avoids the realloc
-/// chain for normal traffic without letting a peer dictate a large upfront
-/// allocation.
-const INFLATE_GUESS_RATIO: usize = 4;
-
-/// Never reserve more than this up front, however large the input.
-const INFLATE_GUESS_CAP: usize = 256 * 1024;
+use std::io::Write;
 
 /// gzip `payload` at the kernel default (deflate level 1, [`Compression::fast`]).
 pub fn encode(payload: &[u8]) -> Result<Vec<u8>, Status> {
@@ -61,32 +50,19 @@ pub fn decode(payload: &[u8]) -> Result<Vec<u8>, Status> {
 
 /// Inflate `payload`, refusing to allocate past the inbound cap in `limits`.
 ///
-/// Peak memory is the cap plus one byte, whatever the compression ratio.
+/// The output buffer capacity stays within the cap. A fixed 8 KiB stack
+/// chunk probes one extra decoded byte to detect overflow.
 /// Exceeding it is [`Code::ResourceExhausted`](crate::Code::ResourceExhausted),
 /// reported against the cap rather than the true inflated size, because
 /// learning the true size is exactly the work being refused.
 pub fn decode_limited(payload: &[u8], limits: MessageLimits) -> Result<Vec<u8>, Status> {
-    let budget = limits.inflate_budget();
-    // One byte past the cap distinguishes "fits exactly" from "overflows".
-    let read_cap = u64::try_from(budget.saturating_add(1)).unwrap_or(u64::MAX);
-    let guess = payload
-        .len()
-        .saturating_mul(INFLATE_GUESS_RATIO)
-        .min(INFLATE_GUESS_CAP)
-        .min(budget);
-    let mut out = Vec::with_capacity(guess);
-    // The frame payload already implements BufRead as a byte slice. Avoid
-    // read::GzDecoder's extra 32 KiB input buffer and compressed-byte copy.
-    GzDecoder::new(payload)
-        .take(read_cap)
-        .read_to_end(&mut out)
-        .map_err(|e| Status::internal(format!("gzip decode: {e}")))?;
-    if out.len() > budget {
-        return Err(Status::resource_exhausted(format!(
-            "decompressed message exceeds limit {budget}"
-        )));
-    }
-    Ok(out)
+    // Frame bytes already implement BufRead; no extra compressed-input buffer.
+    super::read_bounded(
+        GzDecoder::new(payload),
+        limits.inflate_budget(),
+        payload.len(),
+        "gzip",
+    )
 }
 
 #[cfg(test)]

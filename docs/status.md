@@ -6,6 +6,11 @@ accounting defects. Production readiness and broad superiority over tonic/prost
 remain unproved. Its command records identify the source and scope of each
 result. The older records below retain their original qualification limits.
 
+The [subsequent day diagnostic](evidence/grpc-resource-soak-20261022/README.md)
+failed after 4 hours 56 minutes when a raw reset probe observed success.
+The original event log and process samples are retained. Resource recovery
+had completed before that probe; the requested 24-hour gate remains open.
+
 Use this page to distinguish source features, recorded tests and missing
 qualification. The [2026-09-29 audit](audit-2026-09-29.md) reviewed
 `37683917`; [the queue](../TODO.md) names the next work.

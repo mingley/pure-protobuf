@@ -979,3 +979,236 @@ async fn tls_fault_recovery_replays_recorded_timeout_scenarios() {
         }
     }
 }
+
+#[test]
+fn fault_proxy_sniffs_only_accepted_write_bytes() {
+    use common::lifecycle::{FaultInjectingStream, ProxyState};
+    use std::io;
+    use std::pin::Pin;
+    use std::sync::{Arc, Mutex};
+    use std::task::{Context, Poll, Waker};
+    use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+
+    struct ShortWriter {
+        pending: bool,
+    }
+    impl AsyncRead for ShortWriter {
+        fn poll_read(
+            self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            _buf: &mut ReadBuf<'_>,
+        ) -> Poll<io::Result<()>> {
+            Poll::Pending
+        }
+    }
+    impl AsyncWrite for ShortWriter {
+        fn poll_write(
+            mut self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            bytes: &[u8],
+        ) -> Poll<io::Result<usize>> {
+            if self.pending {
+                self.pending = false;
+                Poll::Pending
+            } else {
+                Poll::Ready(Ok(bytes.len().min(3)))
+            }
+        }
+        fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+        fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    let state = Arc::new(Mutex::new(ProxyState::new()));
+    let mut stream = FaultInjectingStream::new(ShortWriter { pending: true }, state.clone(), true);
+    let mut bytes = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n".to_vec();
+    bytes.extend_from_slice(&[0, 0, 1, 1, 4, 0, 0, 0, 7, 0x82]);
+    let mut cx = Context::from_waker(Waker::noop());
+    assert!(
+        Pin::new(&mut stream)
+            .poll_write(&mut cx, &bytes)
+            .is_pending()
+    );
+    assert!(!state.lock().unwrap().headers_observed);
+    let mut accepted = 0;
+    while accepted < bytes.len() {
+        let Poll::Ready(Ok(n)) = Pin::new(&mut stream).poll_write(&mut cx, &bytes[accepted..])
+        else {
+            panic!("short write should complete");
+        };
+        accepted += n;
+        assert_eq!(
+            state.lock().unwrap().headers_observed,
+            accepted == bytes.len()
+        );
+    }
+    assert_eq!(state.lock().unwrap().active_stream_id, 7);
+}
+
+#[tokio::test]
+async fn fault_proxy_inserts_reset_between_complete_frames() {
+    use common::lifecycle::{FaultInjectingStream, ProxyState};
+    use std::sync::{Arc, Mutex};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    // A fragmented header and a fragmented payload must both be completed
+    // before inserting RST_STREAM. The following original frame must survive.
+    for split in [4, 10] {
+        let state = Arc::new(Mutex::new(ProxyState::new()));
+        {
+            let mut st = state.lock().unwrap();
+            st.headers_observed = true;
+            st.active_stream_id = 1;
+        }
+        let (mut peer, io) = tokio::io::duplex(128);
+        let mut stream = FaultInjectingStream::new(io, state.clone(), true);
+        let settings = [0, 0, 0, 4, 0, 0, 0, 0, 0];
+        peer.write_all(&settings).await.unwrap();
+        let mut received_settings = [0; 9];
+        stream.read_exact(&mut received_settings).await.unwrap();
+        assert_eq!(received_settings, settings);
+        let first = [0, 0, 3, 0, 0, 0, 0, 0, 1, 10, 11, 12];
+        let second = [0, 0, 1, 0, 0, 0, 0, 0, 1, 13];
+        peer.write_all(&first[..split]).await.unwrap();
+        let mut prefix = vec![0; split];
+        stream.read_exact(&mut prefix).await.unwrap();
+        assert_eq!(prefix, first[..split]);
+        state.lock().unwrap().inject_rst(8);
+        peer.write_all(&first[split..]).await.unwrap();
+        peer.write_all(&second).await.unwrap();
+        let reset = [0, 0, 4, 3, 0, 0, 0, 0, 1, 0, 0, 0, 8];
+        let mut expected = first[split..].to_vec();
+        expected.extend_from_slice(&reset);
+        expected.extend_from_slice(&second);
+        let mut received = vec![0; expected.len()];
+        tokio::time::timeout(Duration::from_secs(1), stream.read_exact(&mut received))
+            .await
+            .expect("forward complete frame, reset and subsequent bytes")
+            .unwrap();
+        assert_eq!(received, expected);
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn repeated_tcp_bidi_reset_at_body_started() {
+    // Replay the fault shape which terminated the day-long resource campaign
+    // after 5,418 completed cycles. Every injected reset must be observed.
+    for cycle in 0..256 {
+        LifecycleRunner::run_scenario(LifecycleScenario {
+            shape: CallShape::Bidi,
+            transport: TransportKind::Tcp,
+            boundary: LifecycleBoundary::BodyStarted,
+            fault: FaultKind::RstStream(RstReason::Cancel),
+            seed: 20261002 + 5419 + cycle,
+        })
+        .await;
+    }
+}
+
+#[tokio::test]
+async fn fault_proxy_finishes_header_block_before_reset() {
+    use common::lifecycle::{FaultInjectingStream, ProxyState};
+    use std::sync::{Arc, Mutex};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let state = Arc::new(Mutex::new(ProxyState::new()));
+    {
+        let mut st = state.lock().unwrap();
+        st.headers_observed = true;
+        st.active_stream_id = 1;
+    }
+    let (mut peer, io) = tokio::io::duplex(128);
+    let mut stream = FaultInjectingStream::new(io, state.clone(), true);
+    let settings = [0, 0, 0, 4, 0, 0, 0, 0, 0];
+    peer.write_all(&settings).await.unwrap();
+    let mut received_settings = [0; 9];
+    stream.read_exact(&mut received_settings).await.unwrap();
+    assert_eq!(received_settings, settings);
+    let headers = [0, 0, 1, 1, 0, 0, 0, 0, 1, 0x82];
+    let continuation = [0, 0, 1, 9, 4, 0, 0, 0, 1, 0x86];
+    let data = [0, 0, 1, 0, 0, 0, 0, 0, 1, 13];
+    peer.write_all(&headers).await.unwrap();
+    let mut received_headers = [0; 10];
+    stream.read_exact(&mut received_headers).await.unwrap();
+    assert_eq!(received_headers, headers);
+    state.lock().unwrap().inject_rst(8);
+    peer.write_all(&continuation).await.unwrap();
+    peer.write_all(&data).await.unwrap();
+    let reset = [0, 0, 4, 3, 0, 0, 0, 0, 1, 0, 0, 0, 8];
+    let mut expected = continuation.to_vec();
+    expected.extend_from_slice(&reset);
+    expected.extend_from_slice(&data);
+    let mut received = vec![0; expected.len()];
+    tokio::time::timeout(Duration::from_secs(1), stream.read_exact(&mut received))
+        .await
+        .expect("forward continuation before reset")
+        .unwrap();
+    assert_eq!(received, expected);
+}
+
+#[tokio::test]
+async fn fault_proxy_opens_server_stream_before_reset() {
+    use common::lifecycle::{FaultInjectingStream, ProxyState};
+    use std::sync::{Arc, Mutex};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let state = Arc::new(Mutex::new(ProxyState::new()));
+    {
+        let mut st = state.lock().unwrap();
+        st.headers_observed = true;
+        st.active_stream_id = 1;
+        st.inject_rst(8);
+    }
+    let (mut peer, io) = tokio::io::duplex(128);
+    let mut stream = FaultInjectingStream::new(io, state.clone(), false);
+    let mut opening = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n".to_vec();
+    opening.extend_from_slice(&[0, 0, 0, 4, 0, 0, 0, 0, 0]);
+    opening.extend_from_slice(&[0, 0, 1, 1, 4, 0, 0, 0, 1, 0x82]);
+    let data = [0, 0, 1, 0, 0, 0, 0, 0, 1, 13];
+    peer.write_all(&opening).await.unwrap();
+    peer.write_all(&data).await.unwrap();
+    let reset = [0, 0, 4, 3, 0, 0, 0, 0, 1, 0, 0, 0, 8];
+    let mut expected = opening;
+    expected.extend_from_slice(&reset);
+    expected.extend_from_slice(&data);
+    let mut received = vec![0; expected.len()];
+    tokio::time::timeout(Duration::from_secs(1), stream.read_exact(&mut received))
+        .await
+        .expect("open stream before injecting reset")
+        .unwrap();
+    assert_eq!(received, expected);
+}
+
+#[tokio::test]
+async fn fault_proxy_preserves_server_connection_preface() {
+    use common::lifecycle::{FaultInjectingStream, ProxyState};
+    use std::sync::{Arc, Mutex};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let state = Arc::new(Mutex::new(ProxyState::new()));
+    {
+        let mut st = state.lock().unwrap();
+        st.headers_observed = true;
+        st.active_stream_id = 1;
+        st.inject_rst(8);
+    }
+    let (mut peer, io) = tokio::io::duplex(128);
+    let mut stream = FaultInjectingStream::new(io, state, true);
+    let settings = [0, 0, 0, 4, 0, 0, 0, 0, 0];
+    let data = [0, 0, 1, 0, 0, 0, 0, 0, 1, 13];
+    peer.write_all(&settings).await.unwrap();
+    peer.write_all(&data).await.unwrap();
+    let reset = [0, 0, 4, 3, 0, 0, 0, 0, 1, 0, 0, 0, 8];
+    let mut expected = settings.to_vec();
+    expected.extend_from_slice(&reset);
+    expected.extend_from_slice(&data);
+    let mut received = vec![0; expected.len()];
+    tokio::time::timeout(Duration::from_secs(1), stream.read_exact(&mut received))
+        .await
+        .expect("forward SETTINGS before injected frame")
+        .unwrap();
+    assert_eq!(received, expected);
+}

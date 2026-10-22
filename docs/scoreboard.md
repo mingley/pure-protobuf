@@ -4,6 +4,12 @@ No performance category has passed qualification yet. The project has useful
 local results and working benchmark tools; it has not completed the controlled
 campaigns needed to establish comparative leadership.
 
+The [2026-10-22 validation](evidence/grpc-validation-20261022/README.md)
+adds corrected allocation comparisons and retains current-source failures.
+Its [day diagnostic](evidence/grpc-resource-soak-20261022/README.md) subsequently
+failed after 4 hours 56 minutes. Neither result changes the qualification
+standings below.
+
 This page was reconciled with the checked-in code and evidence on 2026-09-29.
 It is a manually maintained evidence index until SB-16 supplies the generated
 scoreboard. It does not certify the latest GitHub Actions run.
@@ -96,40 +102,20 @@ being measured.
 | F6 fuzz/Miri | QG-01 policy, targeted Miri workflow, QG-02 fuzz campaign tooling | Passing artifacts and sustained campaign coverage for the measured revision |
 | F7 dependency audit | QG-04 feature-resolved audit and CI job | Audit passes for each advertised shipping profile at the measured revision |
 
-## benchmarks.md claim mapping
+## Benchmark claims
 
-The main comparative statements in [benchmarks.md](benchmarks.md),
-mapped to a category and verdict under the contract. `valid` means
-the statement already carries its caveats and makes no leadership
-claim; `unqualified` means measured without enough evidence for a performance claim; `invalid` means the measurement cannot support the
-reading and must be rerun.
+The current [benchmark page](benchmarks.md) reports allocation diagnostics.
+These measurements describe their recorded source and workload; they do not
+qualify a latency, throughput or overall speed advantage.
 
-| Statement (benchmarks.md section) | Categories | Verdict |
+| Statement | Categories | Evidence limit |
 |---|---|---|
-| Gated kernel table: pbrs wins encode + owned decode (M4, 2 runs) | A1, A2, A3 | unqualified: one host, fixed order, no intervals; gates are smoke checks |
-| Extended table incl. person_generated | A1, A2, A3 | unqualified: same host limits |
-| `tat_populated`/person vs buffa view ~3% band, not gated | A3, A4 | valid: documented as non-gated band |
-| Large payload rows (1–5 MiB), v4/prost bands | A14 | unqualified: reported, not gated; no 64 MiB |
-| Retained Rust-heap snapshots | A13 | unqualified: C arenas/input-buffer retention excluded, single-message scope |
-| Holdout rows and topology table | A1–A5 | valid scope description; measured rows remain unqualified |
-| Codegen six-message pair, 8 losing cells for pbrs | B1–B8 | unqualified: one macOS pbrs-first pair, `qualified: false` |
-| B3/B8 single-pair byte wins | B3, B8 | unqualified: same pair |
-| 100/1,000-message byte digests without builds | B3 | valid: explicitly not a build/run claim |
-| SB-09 165-run generator/stub matrix | B1–B8 | unqualified: randomized repeats exist, but no qualified host campaign or paired 95% intervals |
-| tonic codec survey tables (hello + common shapes) | A1, A2, A3, A5 | unqualified: same-process, fixed order; fresh cells are derived estimates |
-| Person layout + extras diagnostics | A1, A3, A5 | valid: no winners declared |
-| Mutation diagnostic (4 rows) | A15 | valid: no speed claim follows |
-| `rpc_sparse`/`tags_32`/`name_4kib`/`blob_4kib` smoke gates | A3 | valid: process gates, not leadership evidence |
-| Unary latency vs tonic (p50 + 42 ms p99 gap) | C1 | invalid: mismatched socket/window settings; SB-01 identified Nagle, not tower buffering |
-| Sustained QPS vs tonic (73.6k vs 2.5–2.9k) | C2 | invalid: contended absolutes (SB-01) |
-| Server-streaming 1.15x median, 90% gate | C3 | invalid: same harness; gate is a band (SB-01) |
-| Bidi 1.50x / upload 2.61x loopback captures | C3 | invalid: one run, shared process (SB-01) |
-| SB-01 fair rerun, including empty-p99 and ping-pong losses | C1–C4 | unqualified: two local runs, no controlled-host paired intervals |
-| OutBatch/inline-decode/no-reservation/yield history (0.24x → 1.15x) | C3 | valid: internal progress log with mechanism, not a peer claim |
-| grpc-go server latency tables (~1.4–1.8x) | D1 | unqualified: separate processes but one host, best-of, no intervals |
-| grpc-go ping_pong/upload tables | D3 | unqualified: contended later rounds, best-of-three |
-| RT-07 mixed-load diagnostic | C6, D7 | valid: explicitly unqualified |
-| SB-10 QPS and SB-17 public-harness reproduction | E1, E2 | unqualified: short/shared-host runs; unresolved load accounting and client ceilings remain visible |
+| Unary allocation savings and gzip streaming allocation losses | C6, D4 | Corrected 1 KiB pilot, one in-flight RPC, shared Linux host |
+| Historical codec and RPC tables | A–E | Archived source and original host/ownership limits apply |
+| Historical 7,200-capture counter matrix | C5, C6, D4 | Invalid for its declared concurrency; the generator used four workers |
+
+The [previous claim mapping](https://github.com/mingley/pure-protobuf/blob/99eccf209fd4cda28c992b7b8855531a31c2d249/docs/scoreboard.md#benchmarksmd-claim-mapping)
+retains the detailed verdicts for the archived tables.
 
 ## Next evidence to produce
 

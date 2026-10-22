@@ -234,9 +234,14 @@ pub(crate) fn decode_frame<T: CodecMessage>(
     frame: Frame,
     limits: MessageLimits,
     accept_gzip: bool,
-    codec: CompressionAlgorithm,
+    codec: Option<CompressionAlgorithm>,
 ) -> Result<Framed<T>, Status> {
     let message = if frame.compressed {
+        // gRPC compression requires INTERNAL for flag one without a named,
+        // non-identity coding; accepting it as gzip hides a negotiation error.
+        let codec = codec.ok_or_else(|| {
+            Status::internal("compressed-flag set without a non-identity grpc-encoding")
+        })?;
         if !accept_gzip {
             return Err(encoding_not_supported(false));
         }
@@ -259,7 +264,7 @@ pub(crate) async fn read_one_message<T: CodecMessage>(
     recv: &mut backend::RecvStream,
     limits: MessageLimits,
     accept_gzip: bool,
-    codec: CompressionAlgorithm,
+    codec: Option<CompressionAlgorithm>,
     tap: Option<&CallLogger>,
     response: bool,
 ) -> Result<Framed<T>, Status> {
@@ -314,9 +319,10 @@ pub(crate) struct WireStream<T> {
     limits: MessageLimits,
     /// Bound at construction, where `T: CodecMessage` is known, so the public
     /// [`Streaming`] type needs no `Parse` bound of its own.
-    decode: fn(Frame, MessageLimits, bool, CompressionAlgorithm) -> Result<Framed<T>, Status>,
+    decode:
+        fn(Frame, MessageLimits, bool, Option<CompressionAlgorithm>) -> Result<Framed<T>, Status>,
     accept_gzip: bool,
-    codec: CompressionAlgorithm,
+    codec: Option<CompressionAlgorithm>,
     /// When the RPC's deadline expires. A deadline has to reach the reads, not
     /// just the call setup: a server that answers with headers and then goes
     /// quiet would otherwise hang the reader forever.
@@ -337,7 +343,7 @@ impl<T: CodecMessage> WireStream<T> {
         limits: MessageLimits,
         deadline: Option<tokio::time::Instant>,
         accept_gzip: bool,
-        codec: CompressionAlgorithm,
+        codec: Option<CompressionAlgorithm>,
         tap: Option<CallLogger>,
     ) -> Self {
         Self {
@@ -368,6 +374,19 @@ impl<T> WireStream<T> {
     /// not RST a finished RPC.
     pub(crate) fn finished(&self) -> bool {
         self.trailers_done
+    }
+
+    /// Preserve deadline precedence when a local cancellation bypasses the
+    /// asynchronous HTTP/2 reset that normally supplies the read error.
+    pub(crate) fn local_cancel_status(&self) -> Status {
+        if self
+            .deadline
+            .is_some_and(|at| tokio::time::Instant::now() >= at)
+        {
+            Status::deadline_exceeded()
+        } else {
+            Status::cancelled()
+        }
     }
 
     /// The next message, or `Ok(None)` once the stream has ended cleanly.
@@ -564,7 +583,7 @@ pub(crate) fn refuse_encoding_reply(token: Option<&str>, accept_gzip: bool) -> R
 struct PreparedUnary {
     parts: http::response::Parts,
     body: backend::RecvStream,
-    codec: crate::compression::CompressionAlgorithm,
+    codec: Option<crate::compression::CompressionAlgorithm>,
     stock_response: Option<bool>,
     encoding: Option<String>,
 }
@@ -822,6 +841,71 @@ mod tests {
         );
         buf.extend_from_slice(payload);
         buf
+    }
+
+    #[derive(Debug, PartialEq, Eq)]
+    struct RawMessage(Bytes);
+
+    impl CodecMessage for RawMessage {
+        fn encoded_len(&self) -> usize {
+            self.0.len()
+        }
+
+        fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status> {
+            out.put_slice(&self.0);
+            Ok(())
+        }
+
+        fn decode_payload(payload: Bytes) -> Result<Self, Status> {
+            Ok(Self(payload))
+        }
+
+        fn empty() -> Self {
+            Self(Bytes::new())
+        }
+    }
+
+    #[test]
+    fn compressed_frames_require_a_negotiated_encoding() {
+        let limits = MessageLimits::default();
+        let payload = Bytes::from_static(b"message");
+        for token in [None, Some("identity"), Some("")] {
+            let codec = inbound_codec_from_token(token);
+            assert!(codec.is_none());
+            let frame = Frame {
+                compressed: true,
+                payload: CompressionAlgorithm::Gzip
+                    .encode(&payload)
+                    .expect("gzip")
+                    .into(),
+            };
+            let status = decode_frame::<RawMessage>(frame, limits, true, codec)
+                .expect_err("flag one without a coding");
+            assert_eq!(status.code(), Code::Internal);
+        }
+        for codec in [CompressionAlgorithm::Gzip, CompressionAlgorithm::Deflate] {
+            let frame = Frame {
+                compressed: true,
+                payload: codec.encode(&payload).expect("compress").into(),
+            };
+            assert_eq!(
+                decode_frame::<RawMessage>(frame, limits, true, Some(codec))
+                    .expect("negotiated coding")
+                    .message,
+                RawMessage(payload.clone())
+            );
+            // A named coding does not require every message to be compressed.
+            let frame = Frame {
+                compressed: false,
+                payload: payload.clone(),
+            };
+            assert_eq!(
+                decode_frame::<RawMessage>(frame, limits, true, Some(codec))
+                    .expect("per-message identity")
+                    .message,
+                RawMessage(payload.clone())
+            );
+        }
     }
 
     #[test]

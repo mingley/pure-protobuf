@@ -535,25 +535,19 @@ pub(crate) fn accept_pair(headers: &HeaderMap) -> (bool, bool) {
     )
 }
 
-/// The coding compressed inbound frames on this RPC use.
+/// The coding named by the peer's `grpc-encoding`, after admission checks.
 ///
-/// Parsed from the peer's `grpc-encoding` token. Missing, empty, or
-/// `identity` is [`CompressionAlgorithm::Gzip`]: a Compressed-Flag with no usable token
-/// inflates as gzip, matching the pre-deflate behavior. Callers admit the
-/// token first ([`check_request`] on the server,
-/// [`super::frame_reader::refuse_encoding_reply`] on the client), so an
-/// unknown coding never reaches the decoder.
+/// Missing, empty, or `identity` means no compressed frames are permitted.
+/// Unknown codings are rejected by `check_request` or `refuse_encoding_reply`
+/// before reaching message decoding.
 #[allow(dead_code, reason = "one-lookup callers use inbound_codec_from_token")]
-pub(crate) fn inbound_codec(headers: &HeaderMap) -> CompressionAlgorithm {
+pub(crate) fn inbound_codec(headers: &HeaderMap) -> Option<CompressionAlgorithm> {
     inbound_codec_from_token(grpc_encoding(headers))
 }
 
-/// [`inbound_codec`] when the caller already fetched the token, so one
-/// header lookup serves the refuse check, the decode, and the envelope.
-pub(crate) fn inbound_codec_from_token(token: Option<&str>) -> CompressionAlgorithm {
-    token
-        .and_then(CompressionAlgorithm::parse)
-        .unwrap_or_default()
+/// [`inbound_codec`] when the caller has already fetched the token.
+pub(crate) fn inbound_codec_from_token(token: Option<&str>) -> Option<CompressionAlgorithm> {
+    token.and_then(CompressionAlgorithm::parse)
 }
 
 /// The best coding the peer accepts, preferring `configured`.

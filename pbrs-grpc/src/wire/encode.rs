@@ -95,8 +95,18 @@ impl SegSink {
     }
 
     pub(crate) fn rollback(&mut self, cp: &SinkCheckpoint) {
+        if let Some(first_added) = self.segs.get(cp.segs) {
+            // put_shared freezes the live head before adding its shared
+            // segment. Its first new segment therefore starts with the head
+            // from this checkpoint, followed by any partial message bytes.
+            // Recover that prefix before removing the failed message's
+            // segments. Copy only on this error path; checkpoints allocate
+            // nothing during successful encoding.
+            self.head = BytesMut::from(first_added.get(..cp.head).unwrap_or_default());
+        } else {
+            self.head.truncate(cp.head);
+        }
         self.segs.truncate(cp.segs);
-        self.head.truncate(cp.head);
         self.total_len = cp.total_len;
         self.shared_len = cp.shared_len;
     }
@@ -165,6 +175,59 @@ impl WireOut for SegSink {
 
     fn supports_shared(&self) -> bool {
         true
+    }
+}
+
+/// Reusable protobuf bytes for independently compressed stream messages.
+///
+/// This buffer belongs to one outbound stream, so concurrent RPCs never share
+/// mutable codec state. Large messages release their scratch allocation after
+/// compression instead of retaining a message-sized buffer for the RPC lifetime.
+pub(crate) struct EncodeScratch {
+    bytes: BytesMut,
+}
+
+const MAX_RETAINED_SCRATCH_BYTES: usize = 64 * 1024;
+
+impl EncodeScratch {
+    pub(crate) fn new() -> Self {
+        Self {
+            bytes: BytesMut::new(),
+        }
+    }
+
+    fn with_payload<T: CodecMessage, R>(
+        &mut self,
+        msg: &T,
+        len: usize,
+        use_payload: impl FnOnce(&[u8]) -> Result<R, Status>,
+    ) -> Result<R, Status> {
+        self.bytes.clear();
+        self.bytes.reserve(len);
+        let result = msg.encode_payload(self).and_then(|()| {
+            crate::copy_counts::note_serialize(self.bytes.len());
+            use_payload(&self.bytes)
+        });
+        if self.bytes.capacity() > MAX_RETAINED_SCRATCH_BYTES {
+            self.bytes = BytesMut::new();
+        } else {
+            self.bytes.clear();
+        }
+        result
+    }
+}
+
+impl WireOut for EncodeScratch {
+    fn put_u8(&mut self, byte: u8) {
+        BufMut::put_u8(&mut self.bytes, byte);
+    }
+
+    fn put_slice(&mut self, data: &[u8]) {
+        WireOut::put_slice(&mut self.bytes, data);
+    }
+
+    fn write_contiguous<R>(&mut self, write: impl FnOnce(&mut BytesMut) -> R) -> R {
+        write(&mut self.bytes)
     }
 }
 
@@ -296,6 +359,7 @@ pub(crate) const STREAM_BATCH_BYTES: usize = 32 * 1024;
 /// become segments of their own.
 pub(crate) fn append_frame<T: CodecMessage>(
     sink: &mut SegSink,
+    scratch: &mut EncodeScratch,
     msg: &T,
     codec: Option<CompressionAlgorithm>,
     limits: MessageLimits,
@@ -304,23 +368,23 @@ pub(crate) fn append_frame<T: CodecMessage>(
     let len = msg.encoded_len();
     limits.check_encode(len)?;
     if let Some(codec) = codec {
-        let body = msg.encode_to_vec()?;
-        crate::copy_counts::note_serialize(body.len());
-        let head = sink.head_mut();
-        head.reserve(codec::HEADER_LEN + body.len() / 2 + 32);
-        let at = head.len();
-        BufMut::put_u8(&mut *head, 1);
-        head.put_u32(0);
-        {
-            let mut writer = (&mut *head).writer();
-            codec.encode_into(&body, gzip_level, &mut writer)?;
-        }
-        let len = u32::try_from(head.len() - at - codec::HEADER_LEN)
-            .map_err(|_| Status::internal("message too large"))?;
-        patch_frame_len(head, at, len);
-        let wrote = head.len() - at;
-        sink.note_head_wrote(wrote);
-        return Ok(());
+        return scratch.with_payload(msg, len, |body| {
+            let head = sink.head_mut();
+            head.reserve(codec::HEADER_LEN + body.len() / 2 + 32);
+            let at = head.len();
+            BufMut::put_u8(&mut *head, 1);
+            head.put_u32(0);
+            {
+                let mut writer = (&mut *head).writer();
+                codec.encode_into(body, gzip_level, &mut writer)?;
+            }
+            let len = u32::try_from(head.len() - at - codec::HEADER_LEN)
+                .map_err(|_| Status::internal("message too large"))?;
+            patch_frame_len(head, at, len);
+            let wrote = head.len() - at;
+            sink.note_head_wrote(wrote);
+            Ok(())
+        });
     }
     let need = codec::HEADER_LEN + len;
     // A batch of equal frames otherwise reallocates and copies the prefix on
@@ -379,8 +443,17 @@ mod tests {
         p.set_body(vec![0xABu8; 32]);
         let len = pbrs::Serialize::serialized_len(&p);
         let mut sink = SegSink::new();
+        let mut scratch = EncodeScratch::new();
         for _ in 0..4 {
-            append_frame(&mut sink, &p, None, MessageLimits::default(), 0).expect("append");
+            append_frame(
+                &mut sink,
+                &mut scratch,
+                &p,
+                None,
+                MessageLimits::default(),
+                0,
+            )
+            .expect("append");
         }
         let batched = sink.finish();
         let mut expect = Vec::new();
@@ -389,6 +462,81 @@ mod tests {
         }
         assert_eq!(batched.concat(), expect);
         assert_eq!(batched.seg_count(), 1);
+    }
+
+    #[test]
+    fn compressed_batches_match_independent_message_encodes() {
+        for compression in [CompressionAlgorithm::Gzip, CompressionAlgorithm::Deflate] {
+            for level in [0, 1, 9] {
+                let mut scratch = EncodeScratch::new();
+                let mut sink = SegSink::new();
+                let mut expected = Vec::new();
+                // Reuse after both growth and a large-message allocation release.
+                for size in [0, 1, 1024, 70 * 1024, 2, 0] {
+                    let mut message = Payload::new();
+                    message.set_body(vec![0xAB; size]);
+                    append_frame(
+                        &mut sink,
+                        &mut scratch,
+                        &message,
+                        Some(compression),
+                        MessageLimits::unlimited(),
+                        level,
+                    )
+                    .expect("batched frame");
+                    expected.extend(
+                        encode_msg(
+                            &message,
+                            Some(compression),
+                            MessageLimits::unlimited(),
+                            level,
+                        )
+                        .expect("independent frame")
+                        .concat(),
+                    );
+                }
+                assert_eq!(sink.finish().concat(), expected);
+                assert!(scratch.bytes.capacity() <= MAX_RETAINED_SCRATCH_BYTES);
+            }
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "prost")]
+    fn compressed_prost_batches_match_independent_message_encodes() {
+        #[derive(Clone, PartialEq, prost::Message)]
+        struct Sample {
+            #[prost(bytes = "vec", tag = "1")]
+            payload: Vec<u8>,
+        }
+        let mut scratch = EncodeScratch::new();
+        let mut sink = SegSink::new();
+        let mut expected = Vec::new();
+        for size in [1024, 0, 32, 4096] {
+            let message = crate::codec::prost::Message(Sample {
+                payload: vec![0xAB; size],
+            });
+            append_frame(
+                &mut sink,
+                &mut scratch,
+                &message,
+                Some(CompressionAlgorithm::Gzip),
+                MessageLimits::unlimited(),
+                1,
+            )
+            .expect("batched prost frame");
+            expected.extend(
+                encode_msg(
+                    &message,
+                    Some(CompressionAlgorithm::Gzip),
+                    MessageLimits::unlimited(),
+                    1,
+                )
+                .expect("independent prost frame")
+                .concat(),
+            );
+        }
+        assert_eq!(sink.finish().concat(), expected);
     }
 
     #[test]

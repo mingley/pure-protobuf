@@ -338,7 +338,7 @@ pub(crate) async fn read_one_text_message<T: CodecMessage>(
     recv: &mut backend::RecvStream,
     limits: MessageLimits,
     accept_gzip: bool,
-    codec: CompressionAlgorithm,
+    codec: Option<CompressionAlgorithm>,
     tap: Option<&CallLogger>,
 ) -> Result<Framed<T>, Status> {
     let mut encoded = BytesMut::new();

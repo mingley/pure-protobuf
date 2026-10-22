@@ -1273,7 +1273,7 @@ struct InboundRpc {
     peer_accepts_deflate: bool,
     #[cfg(feature = "zstd")]
     peer_accepts_zstd: bool,
-    request_codec: CompressionAlgorithm,
+    request_codec: Option<CompressionAlgorithm>,
     encoding: Option<String>,
     observer: Option<Arc<dyn LifecycleObserver>>,
     channelz_server: Option<crate::channelz::ServerId>,

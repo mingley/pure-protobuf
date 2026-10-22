@@ -1,8 +1,9 @@
 //! Resource caps applied to every RPC.
 //!
-//! Every limit here is enforced *before* the memory it guards is committed:
-//! a frame length is rejected from the 5-byte header, and a compressed frame
-//! is inflated through a bounded reader that stops one byte past the cap.
+//! Frame lengths are checked from the 5-byte header before allocating carry
+//! buffers. Decompression bounds output reservations and probes one extra
+//! byte for overflow. Decoder workspace, codec scratch and allocator overhead
+//! are separate costs; these caps do not bound total process memory.
 //! See [the threat model](crate#threat-model).
 
 use crate::status::Status;
@@ -385,10 +386,12 @@ impl Drop for BytePermit {
     }
 }
 
-/// Per-message size caps. `None` means unlimited.
+/// Message-size caps and optional decoder history limits.
 ///
-/// Both caps count *uncompressed* protobuf bytes, so a compressed frame is
-/// measured by what it inflates to, not by what arrived on the wire.
+/// Inbound limits apply to both wire payloads and decompressed protobuf bytes.
+/// Outbound limits count uncompressed protobuf bytes. `None` removes the
+/// corresponding message-size cap. With Zstd enabled, the history window has
+/// a separate 8 MiB default cap, configurable with `with_max_zstd_window`.
 ///
 /// ```
 /// # use pbrs_grpc::MessageLimits;
@@ -403,10 +406,12 @@ impl Drop for BytePermit {
 pub struct MessageLimits {
     max_decoding: Option<usize>,
     max_encoding: Option<usize>,
+    #[cfg(feature = "zstd")]
+    max_zstd_window: Option<u64>,
 }
 
 impl Default for MessageLimits {
-    /// 4 MiB inbound, unlimited outbound.
+    /// 4 MiB inbound, unlimited outbound, and an 8 MiB Zstd window when enabled.
     ///
     /// Inbound is capped because a peer controls it; outbound is not because
     /// the local service does.
@@ -414,18 +419,23 @@ impl Default for MessageLimits {
         Self {
             max_decoding: Some(DEFAULT_MAX_DECODING_MESSAGE_SIZE),
             max_encoding: None,
+            #[cfg(feature = "zstd")]
+            max_zstd_window: Some(8 * 1024 * 1024),
         }
     }
 }
 
 impl MessageLimits {
-    /// Defaults: 4 MiB inbound, unlimited outbound.
+    /// Defaults: 4 MiB inbound, unlimited outbound, and an 8 MiB Zstd window.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// No caps in either direction.
+    /// No message-size caps in either direction.
+    ///
+    /// With Zstd enabled, this also leaves the history window at the backend's
+    /// 100 MiB cap. Use `with_max_zstd_window` to set a smaller cap.
     ///
     /// Only appropriate when every peer is trusted: a single hostile frame
     /// header can then ask for as much memory as `u32::MAX` allows.
@@ -434,10 +444,12 @@ impl MessageLimits {
         Self {
             max_decoding: None,
             max_encoding: None,
+            #[cfg(feature = "zstd")]
+            max_zstd_window: None,
         }
     }
 
-    /// Cap inbound messages at `limit` uncompressed bytes.
+    /// Cap inbound frame payloads and decompressed messages at `limit` bytes.
     /// Applies to every call shape.
     #[must_use]
     pub fn with_max_decoding(mut self, limit: usize) -> Self {
@@ -477,6 +489,29 @@ impl MessageLimits {
     #[must_use]
     pub fn max_encoding(self) -> Option<usize> {
         self.max_encoding
+    }
+
+    /// Cap the history window accepted from a Zstd frame, in bytes.
+    ///
+    /// The default is 8 MiB, independently of the decoded message limit.
+    /// A larger advertised window fails with `RESOURCE_EXHAUSTED` before
+    /// allocation, even when the message itself would be small. Raising this
+    /// permits more decoder memory; it does not raise the decoded message cap.
+    #[cfg(feature = "zstd")]
+    #[must_use]
+    pub fn with_max_zstd_window(mut self, limit: u64) -> Self {
+        self.max_zstd_window = Some(limit);
+        self
+    }
+
+    /// The configured Zstd window cap. `None` uses the backend's 100 MiB cap.
+    ///
+    /// Defaults to `Some(8 * 1024 * 1024)`. [`Self::unlimited`] uses `None`;
+    /// [`Self::with_unlimited_decoding`] preserves this independent window cap.
+    #[cfg(feature = "zstd")]
+    #[must_use]
+    pub fn max_zstd_window(self) -> Option<u64> {
+        self.max_zstd_window
     }
 
     pub(crate) fn check_decode(self, n: usize) -> Result<(), Status> {
@@ -747,6 +782,21 @@ mod tests {
         drop(zero);
         assert_eq!(second.active_byte_permit_tokens(), 0);
         assert_eq!(second.allocated(), 0);
+    }
+
+    #[cfg(feature = "zstd")]
+    #[test]
+    fn zstd_window_is_separate_from_message_size_limits() {
+        let limits = MessageLimits::new();
+        assert_eq!(limits.max_zstd_window(), Some(8 * 1024 * 1024));
+        assert_eq!(
+            limits.with_unlimited_decoding().max_zstd_window(),
+            Some(8 * 1024 * 1024)
+        );
+        let limits = limits.with_max_zstd_window(64 * 1024);
+        assert_eq!(limits.max_zstd_window(), Some(64 * 1024));
+        assert_eq!(limits.max_decoding(), Some(4 * 1024 * 1024));
+        assert_eq!(MessageLimits::unlimited().max_zstd_window(), None);
     }
 
     #[test]

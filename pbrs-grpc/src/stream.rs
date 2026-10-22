@@ -343,15 +343,7 @@ impl<T> Streaming<T> {
         if self.terminated {
             return Poll::Ready(Ok(None));
         }
-        let poll = match &mut self.source {
-            Source::Channel(rx) => match rx.poll_recv(cx) {
-                Poll::Pending => Poll::Pending,
-                Poll::Ready(None) => Poll::Ready(Ok(None)),
-                Poll::Ready(Some(Ok(framed))) => Poll::Ready(Ok(Some(framed))),
-                Poll::Ready(Some(Err(status))) => Poll::Ready(Err(status)),
-            },
-            Source::Wire(wire) => wire.poll_next(cx),
-        };
+        let poll = self.poll_source(cx);
         if matches!(&poll, Poll::Ready(Ok(None) | Err(_))) {
             self.terminated = true;
             self.outbound_completion.take();
@@ -363,6 +355,9 @@ impl<T> Streaming<T> {
                 }
             }
             Poll::Ready(Ok(None)) => {
+                // A later CallHandle cancellation cannot reopen an end already
+                // observed by this reader. Other handles retain their flag.
+                self.reset.take();
                 if let Some(state) = self.channelz.as_mut() {
                     state.clean_end = true;
                 }
@@ -371,6 +366,38 @@ impl<T> Streaming<T> {
             Poll::Pending => {}
         }
         poll
+    }
+
+    /// Poll without counting messages: `trailers()` discards unread ones.
+    fn poll_source(&mut self, cx: &mut Context<'_>) -> Poll<Result<Option<Framed<T>>, Status>> {
+        match &mut self.source {
+            Source::Channel(rx) => match rx.poll_recv(cx) {
+                Poll::Pending => Poll::Pending,
+                Poll::Ready(None) => Poll::Ready(Ok(None)),
+                Poll::Ready(Some(Ok(framed))) => Poll::Ready(Ok(Some(framed))),
+                Poll::Ready(Some(Err(status))) => Poll::Ready(Err(status)),
+            },
+            Source::Wire(wire) => {
+                // Sending RST_STREAM happens on a background task. Observe the
+                // local flag here too: buffered messages and OK trailers can
+                // otherwise win before that task gets another poll. Clean EOF
+                // drops this binding, so an observed end remains final.
+                let cancelled = || {
+                    self.reset
+                        .as_ref()
+                        .is_some_and(crate::rpc_cancel::RpcCancel::is_cancelled)
+                };
+                if cancelled() {
+                    return Poll::Ready(Err(wire.local_cancel_status()));
+                }
+                let poll = wire.poll_next(cx);
+                if cancelled() {
+                    Poll::Ready(Err(wire.local_cancel_status()))
+                } else {
+                    poll
+                }
+            }
+        }
     }
 
     /// Collect the whole stream. Fails on the first error status.
@@ -401,20 +428,26 @@ impl<T> Streaming<T> {
     /// trailers: this returns empty metadata without consuming remaining
     /// messages.
     pub async fn trailers(&mut self) -> Result<Metadata, Status> {
-        let result = {
-            let Source::Wire(wire) = &mut self.source else {
-                return Ok(Metadata::new());
-            };
-            loop {
-                match wire.next().await {
-                    Ok(Some(_)) => {}
-                    Ok(None) => break Ok(wire.trailers().clone()),
-                    Err(status) => break Err(status),
+        if matches!(&self.source, Source::Channel(_)) {
+            return Ok(Metadata::new());
+        }
+        let result = loop {
+            match poll_fn(|cx| self.poll_source(cx)).await {
+                Ok(Some(_)) => {}
+                Ok(None) => {
+                    break Ok(match &self.source {
+                        Source::Wire(wire) => wire.trailers().clone(),
+                        Source::Channel(_) => Metadata::new(),
+                    });
                 }
+                Err(status) => break Err(status),
             }
         };
         self.terminated = true;
         self.outbound_completion.take();
+        if result.is_ok() {
+            self.reset.take();
+        }
         self.channelz_end(result.is_ok());
         result
     }
@@ -854,6 +887,129 @@ mod tests {
         assert!(!Framed::new(1u32).compressed);
         assert!(Framed::compressed(1u32).compressed);
         assert_eq!(Framed::new(7u32).into_inner(), 7);
+    }
+
+    /// Queue two messages in one DATA frame so the second read cannot yield
+    /// to the background task that sends RST_STREAM after local cancellation.
+    async fn buffered_wire_response(
+        timeout: Option<std::time::Duration>,
+    ) -> (
+        Streaming<HelloReply>,
+        crate::CallHandle,
+        tokio::task::JoinHandle<()>,
+    ) {
+        use crate::transport::{SendResponse, SendStream, ServerBuilder, ServerConnection};
+        let (client_io, server_io) = tokio::io::duplex(4096);
+        let server = tokio::spawn(async move {
+            let mut connection = crate::transport::h2::ServerBuilder::new()
+                .handshake(server_io)
+                .await
+                .expect("server handshake");
+            let (_request, mut response) = connection
+                .accept()
+                .await
+                .expect("request")
+                .expect("request headers");
+            let mut send = response
+                .send_response(
+                    http::Response::builder()
+                        .header("content-type", "application/grpc")
+                        .body(())
+                        .expect("response headers"),
+                    false,
+                )
+                .expect("send headers");
+            // Two empty protobuf messages, each with its own gRPC prefix.
+            send.send_data(bytes::Bytes::from_static(&[0; 10]), false)
+                .expect("send messages");
+            let mut trailers = http::HeaderMap::new();
+            trailers.insert("grpc-status", http::HeaderValue::from_static("0"));
+            trailers.insert("x-finished", http::HeaderValue::from_static("yes"));
+            send.send_trailers(trailers).expect("send trailers");
+            while connection.accept().await.is_some() {}
+        });
+        let channel = crate::Channel::from_io(client_io, "localhost")
+            .await
+            .expect("client handshake");
+        let client = crate::hello::GreeterClient::new(channel);
+        let mut request = crate::Request::new(crate::hello::HelloRequest::new());
+        if let Some(timeout) = timeout {
+            request.set_timeout(timeout);
+        }
+        let call = client.server_hello(request);
+        let handle = call.handle();
+        let mut stream = call.await.expect("response headers").into_inner();
+        assert!(stream.message().await.expect("first message").is_some());
+        (stream, handle, server)
+    }
+
+    #[tokio::test]
+    async fn local_cancel_precedes_a_buffered_response_message() {
+        let (mut stream, handle, server) = buffered_wire_response(None).await;
+        handle.cancel();
+        assert_eq!(
+            stream.message().await.expect_err("cancelled read").code(),
+            Code::Cancelled
+        );
+        assert!(stream.is_terminated());
+        assert!(stream.message().await.expect("fused read").is_none());
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn local_cancel_precedes_buffered_ok_trailers() {
+        let (mut stream, handle, server) = buffered_wire_response(None).await;
+        handle.cancel();
+        assert_eq!(
+            stream
+                .trailers()
+                .await
+                .expect_err("cancelled trailers")
+                .code(),
+            Code::Cancelled
+        );
+        assert!(stream.is_terminated());
+        assert!(stream.message().await.expect("fused read").is_none());
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn local_cancel_does_not_reopen_an_observed_clean_end() {
+        let (mut stream, handle, server) = buffered_wire_response(None).await;
+        assert!(stream.message().await.expect("second message").is_some());
+        assert!(stream.message().await.expect("clean end").is_none());
+        handle.cancel();
+        assert!(stream.message().await.expect("fused read").is_none());
+        let trailers = stream.trailers().await.expect("completed trailers");
+        assert_eq!(trailers.get("x-finished"), Some("yes"));
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn local_cancel_does_not_reopen_successfully_read_trailers() {
+        let (mut stream, handle, server) = buffered_wire_response(None).await;
+        let trailers = stream.trailers().await.expect("clean trailers");
+        assert_eq!(trailers.get("x-finished"), Some("yes"));
+        assert!(!handle.is_cancelled());
+        handle.cancel();
+        assert!(stream.message().await.expect("fused read").is_none());
+        let trailers = stream.trailers().await.expect("completed trailers");
+        assert_eq!(trailers.get("x-finished"), Some("yes"));
+        server.abort();
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn local_cancel_preserves_an_expired_response_deadline() {
+        let timeout = std::time::Duration::from_secs(1);
+        let (mut stream, handle, server) = buffered_wire_response(Some(timeout)).await;
+        tokio::time::advance(timeout).await;
+        handle.cancel();
+        assert_eq!(
+            stream.message().await.expect_err("expired read").code(),
+            Code::DeadlineExceeded
+        );
+        assert!(stream.message().await.expect("fused read").is_none());
+        server.abort();
     }
 
     #[tokio::test]

@@ -36,16 +36,18 @@ header repair. Production readiness and broad superiority remain unproved:
 the full workspace has failures, strict lint and release gates remain open,
 and the full per-side matrix and 24-hour soak are incomplete. Historical
 resource attempt 009 failed after about 2 hours 6 minutes; it is not queued.
-The latest release preview passes. An independent day diagnostic started on
-`8fe0f8ae` at 2026-10-22 04:35 UTC; it is incomplete at this snapshot.
+The latest release preview passes. The independent day diagnostic on
+`8fe0f8ae` [failed after 4 hours 56 minutes](docs/evidence/grpc-resource-soak-20261022/README.md)
+when a reset probe observed success. Resource recovery had completed before
+that probe; the run did not complete the requested 24 hours.
 The benchmark also ignored its declared closed-loop concurrency and sometimes
 overshot fixed counts. Those captures are invalid for the declared matrix;
 repeat the comparisons with the repaired generator.
 
 | Work | Next result | Completion criterion |
 |---|---|---|
-| QG-06: resources and recovery | Resolve the cancellation and handler-start failures; retain the independent day diagnostic on `8fe0f8ae`. | A full 24-hour run passes the original finite limits, deadlines, recovery and fairness checks. |
-| SB-27: client/server matrix | Extend per-side counters beyond 1 KiB, h2c, identity and one in-flight call. | Include every payload, TLS/compression profile, read-all corpus, concurrency level and lifecycle; retain failures and assign each loss. |
+| QG-06: resources and recovery | Resolve cancellation failures and validate fault-injection ordering, then repeat the resource campaign. | A full 24-hour run passes the original finite limits, deadlines, recovery and fairness checks. |
+| SB-27: client/server matrix | Extend the corrected 1 KiB pilot, which covers plaintext/TLS and identity/gzip at one in-flight call. | Include every payload, TLS/compression profile, read-all corpus, concurrency level and lifecycle; retain failures and assign each loss. |
 | SV-09, CL-08, CL-09, RX-10 | Reduce the measured streaming instruction, allocation, byte and scheduling costs. | Matched before/after runs meet the existing thresholds and do not regress the other RPC shapes. |
 | CH-12 and remaining integration cards | Complete external discovery/balancer runtimes and their churn tests. | An external consumer uses only supported public APIs and existing connections remain stable across updates. |
 | Remaining credential and codec cards | Complete the documented providers and broader typed-extension support. | Each feature passes its consumer, wire-compatibility and security checks. |

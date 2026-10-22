@@ -38,7 +38,10 @@ pub trait CodecMessage: Sized {
     /// Encode the uncompressed protobuf payload into `out`.
     fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status>;
 
-    /// Materialize the uncompressed protobuf payload for compressed sends.
+    /// Materialize the same uncompressed protobuf payload as [`Self::encode_payload`].
+    ///
+    /// This allocating convenience is used by single-message sends. Streaming
+    /// sends may call `encode_payload` directly into reusable scratch storage.
     fn encode_to_vec(&self) -> Result<Vec<u8>, Status> {
         let mut out = Vec::with_capacity(self.encoded_len());
         self.encode_payload(&mut out)?;
@@ -80,7 +83,7 @@ where
 /// One length-prefixed frame lifted off the wire.
 #[derive(Clone, Debug)]
 pub struct Frame {
-    /// Compressed-Flag: the payload is gzip of the protobuf bytes.
+    /// Compressed-Flag: the payload uses the RPC's `grpc-encoding` coding.
     pub compressed: bool,
     /// Frame payload, still compressed if [`Self::compressed`] is set.
     pub payload: Bytes,

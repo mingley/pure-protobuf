@@ -641,10 +641,9 @@ pub mod lifecycle {
 
         /// Deliver a deferred RST once the first HEADERS has been observed.
         ///
-        /// Both copies are injected, matching immediate injection: the client
-        /// has the stream open and resets it, while the server-side copy
-        /// (read before the forwarded HEADERS) ends the server handler so no
-        /// task or permit leaks.
+        /// Both copies are queued. The read adapter forwards the request's
+        /// complete HEADERS before delivering the server-side reset, so the
+        /// server never receives RST_STREAM for an idle stream.
         pub fn deliver_deferred_rst(&mut self, stream_id: u32) {
             if let Some(reason) = self.deferred_rst.take() {
                 let frame = Self::rst_frame(stream_id, reason);
@@ -706,6 +705,113 @@ pub mod lifecycle {
         is_client_side: bool,
         sniff_buf: Vec<u8>,
         sniff_skip: usize,
+        read_boundary: FrameBoundary,
+    }
+
+    /// Track the plaintext frame currently being forwarded. Fault frames may
+    /// only be inserted between complete frames, even when TCP splits a header.
+    struct FrameBoundary {
+        preface_remaining: usize,
+        header: [u8; 9],
+        header_len: usize,
+        payload_remaining: usize,
+        current_headers: Option<u32>,
+        last_headers: Option<u32>,
+        header_block_stream: Option<u32>,
+        current_settings: bool,
+        settings_forwarded: bool,
+    }
+
+    impl FrameBoundary {
+        fn new(is_client_side: bool) -> Self {
+            Self {
+                preface_remaining: if is_client_side { 0 } else { 24 },
+                header: [0; 9],
+                header_len: 0,
+                payload_remaining: 0,
+                current_headers: None,
+                last_headers: None,
+                header_block_stream: None,
+                current_settings: false,
+                settings_forwarded: false,
+            }
+        }
+
+        fn is_boundary(&self) -> bool {
+            self.preface_remaining == 0
+                && self.header_len == 0
+                && self.payload_remaining == 0
+                && self.header_block_stream.is_none()
+        }
+
+        fn remaining(&self) -> usize {
+            if self.preface_remaining > 0 {
+                self.preface_remaining
+            } else if self.payload_remaining > 0 {
+                self.payload_remaining
+            } else {
+                self.header.len() - self.header_len
+            }
+        }
+
+        fn complete_frame(&mut self) {
+            if let Some(id) = self.current_headers.take() {
+                self.last_headers = Some(id);
+            }
+            self.settings_forwarded |= self.current_settings;
+            self.current_settings = false;
+        }
+
+        fn forwarded(&mut self, mut bytes: &[u8]) {
+            while !bytes.is_empty() {
+                if self.preface_remaining > 0 {
+                    let n = self.preface_remaining.min(bytes.len());
+                    self.preface_remaining -= n;
+                    bytes = &bytes[n..];
+                } else if self.payload_remaining > 0 {
+                    let n = self.payload_remaining.min(bytes.len());
+                    self.payload_remaining -= n;
+                    bytes = &bytes[n..];
+                    if self.payload_remaining == 0 {
+                        self.complete_frame();
+                    }
+                } else {
+                    let n = (self.header.len() - self.header_len).min(bytes.len());
+                    self.header[self.header_len..self.header_len + n].copy_from_slice(&bytes[..n]);
+                    self.header_len += n;
+                    bytes = &bytes[n..];
+                    if self.header_len == self.header.len() {
+                        self.payload_remaining = (usize::from(self.header[0]) << 16)
+                            | (usize::from(self.header[1]) << 8)
+                            | usize::from(self.header[2]);
+                        let stream_id = u32::from_be_bytes([
+                            self.header[5] & 0x7f,
+                            self.header[6],
+                            self.header[7],
+                            self.header[8],
+                        ]);
+                        let end_headers = self.header[4] & 4 != 0;
+                        self.current_settings = self.header[3] == 4;
+                        self.current_headers = match self.header[3] {
+                            1 if end_headers => Some(stream_id),
+                            1 => {
+                                self.header_block_stream = Some(stream_id);
+                                None
+                            }
+                            9 if end_headers && self.header_block_stream == Some(stream_id) => {
+                                self.header_block_stream = None;
+                                Some(stream_id)
+                            }
+                            _ => None,
+                        };
+                        self.header_len = 0;
+                        if self.payload_remaining == 0 {
+                            self.complete_frame();
+                        }
+                    }
+                }
+            }
+        }
     }
 
     impl<S> FaultInjectingStream<S> {
@@ -720,6 +826,7 @@ pub mod lifecycle {
                 // Every h2 client opens with the 24-byte connection preface,
                 // which is not a frame and must not be frame-parsed.
                 sniff_skip: 24,
+                read_boundary: FrameBoundary::new(is_client_side),
             }
         }
     }
@@ -792,39 +899,39 @@ pub mod lifecycle {
             buf: &mut ReadBuf<'_>,
         ) -> Poll<io::Result<()>> {
             let this = self.get_mut();
-            let mut pending = Vec::new();
-            {
-                let mut st = this.state.lock().unwrap();
-                if st.is_reset {
-                    return Poll::Ready(Err(io::Error::new(
-                        io::ErrorKind::ConnectionReset,
-                        "connection reset by peer",
-                    )));
-                }
-                if st.is_disconnected {
-                    return Poll::Ready(Ok(()));
-                }
-
-                if this.is_client_side {
-                    if !st.pending_client_injections.is_empty() {
-                        pending = std::mem::take(&mut st.pending_client_injections);
-                    }
-                    st.client_read_waker = Some(cx.waker().clone());
-                } else {
-                    if !st.pending_server_injections.is_empty() {
-                        pending = std::mem::take(&mut st.pending_server_injections);
-                    }
-                    st.server_read_waker = Some(cx.waker().clone());
-                }
+            // Serialize the decision to forward bytes with fault injection.
+            // Otherwise a fault can be queued after the check but before a
+            // ready inner read, allowing OK trailers to overtake its reset.
+            let mut st = this.state.lock().unwrap();
+            if st.is_reset {
+                return Poll::Ready(Err(io::Error::new(
+                    io::ErrorKind::ConnectionReset,
+                    "connection reset by peer",
+                )));
             }
-
-            if !pending.is_empty() {
-                this.injected_buf.extend_from_slice(&pending);
+            if st.is_disconnected {
+                return Poll::Ready(Ok(()));
             }
-
+            // Preserve the connection preface as well as the stream state:
+            // a peer's first frame must be SETTINGS, never an injected reset.
+            let stream_open = if this.is_client_side {
+                this.read_boundary.settings_forwarded
+            } else {
+                this.read_boundary.last_headers == Some(st.active_stream_id)
+            };
+            let pending = if this.is_client_side {
+                st.client_read_waker = Some(cx.waker().clone());
+                &mut st.pending_client_injections
+            } else {
+                st.server_read_waker = Some(cx.waker().clone());
+                &mut st.pending_server_injections
+            };
+            if stream_open && this.read_boundary.is_boundary() && !pending.is_empty() {
+                this.injected_buf.append(pending);
+            }
             if this.injected_cursor < this.injected_buf.len() {
                 let remaining = &this.injected_buf[this.injected_cursor..];
-                let to_write = std::cmp::min(remaining.len(), buf.remaining());
+                let to_write = remaining.len().min(buf.remaining());
                 buf.put_slice(&remaining[..to_write]);
                 this.injected_cursor += to_write;
                 if this.injected_cursor >= this.injected_buf.len() {
@@ -833,8 +940,21 @@ pub mod lifecycle {
                 }
                 return Poll::Ready(Ok(()));
             }
-
-            Pin::new(&mut this.inner).poll_read(cx, buf)
+            // Finish an already forwarded frame before inserting a new one.
+            // Limit this read so it cannot consume the following frame too.
+            if pending.is_empty() {
+                let before = buf.filled().len();
+                let poll = Pin::new(&mut this.inner).poll_read(cx, buf);
+                this.read_boundary.forwarded(&buf.filled()[before..]);
+                return poll;
+            }
+            let limit = this.read_boundary.remaining().min(buf.remaining());
+            let mut read = ReadBuf::new(buf.initialize_unfilled_to(limit));
+            let poll = Pin::new(&mut this.inner).poll_read(cx, &mut read);
+            let n = read.filled().len();
+            this.read_boundary.forwarded(read.filled());
+            buf.advance(n);
+            poll
         }
     }
 
@@ -859,19 +979,22 @@ pub mod lifecycle {
                         "broken pipe",
                     )));
                 }
+            }
 
+            let poll = Pin::new(&mut this.inner).poll_write(cx, buf);
+            if let Poll::Ready(Ok(n)) = poll {
                 if this.is_client_side {
-                    drop(st);
+                    // Pending and unaccepted suffixes are retried by AsyncWrite
+                    // callers; parsing them here would duplicate frame bytes.
                     sniff_headers_frames(
                         &mut this.sniff_buf,
                         &mut this.sniff_skip,
-                        buf,
+                        &buf[..n],
                         &this.state,
                     );
                 }
             }
-
-            Pin::new(&mut this.inner).poll_write(cx, buf)
+            poll
         }
 
         fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {

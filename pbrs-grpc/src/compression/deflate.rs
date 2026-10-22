@@ -16,14 +16,7 @@ use crate::status::Status;
 use flate2::Compression;
 use flate2::bufread::ZlibDecoder;
 use flate2::write::ZlibEncoder;
-use std::io::{Read, Write};
-
-/// Initial output reservation as a multiple of the compressed size.
-/// Mirrors [`super::gzip`]; see there for the rationale.
-const INFLATE_GUESS_RATIO: usize = 4;
-
-/// Never reserve more than this up front, however large the input.
-const INFLATE_GUESS_CAP: usize = 256 * 1024;
+use std::io::Write;
 
 /// Compress `payload` at the kernel default (deflate level 1,
 /// [`Compression::fast`]).
@@ -60,30 +53,17 @@ pub(super) fn decode(payload: &[u8]) -> Result<Vec<u8>, Status> {
 
 /// Inflate `payload`, refusing to allocate past the inbound cap in `limits`.
 ///
-/// Peak memory is the cap plus one byte, whatever the compression ratio.
+/// The output buffer capacity stays within the cap. A fixed 8 KiB stack
+/// chunk probes one extra decoded byte to detect overflow.
 /// Exceeding it is [`Code::ResourceExhausted`](crate::Code::ResourceExhausted).
 pub(super) fn decode_limited(payload: &[u8], limits: MessageLimits) -> Result<Vec<u8>, Status> {
-    let budget = limits.inflate_budget();
-    // One byte past the cap distinguishes "fits exactly" from "overflows".
-    let read_cap = u64::try_from(budget.saturating_add(1)).unwrap_or(u64::MAX);
-    let guess = payload
-        .len()
-        .saturating_mul(INFLATE_GUESS_RATIO)
-        .min(INFLATE_GUESS_CAP)
-        .min(budget);
-    let mut out = Vec::with_capacity(guess);
-    // The complete frame is already buffered; the slice decoder avoids
-    // read::ZlibDecoder's additional 32 KiB input allocation and copy.
-    ZlibDecoder::new(payload)
-        .take(read_cap)
-        .read_to_end(&mut out)
-        .map_err(|e| Status::internal(format!("deflate decode: {e}")))?;
-    if out.len() > budget {
-        return Err(Status::resource_exhausted(format!(
-            "decompressed message exceeds limit {budget}"
-        )));
-    }
-    Ok(out)
+    // Frame bytes already implement BufRead; no extra compressed-input buffer.
+    super::read_bounded(
+        ZlibDecoder::new(payload),
+        limits.inflate_budget(),
+        payload.len(),
+        "deflate",
+    )
 }
 
 #[cfg(test)]

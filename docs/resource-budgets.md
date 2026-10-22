@@ -72,8 +72,10 @@ To construct a predictive memory model, memory allocations in `pbrs-grpc` are ca
 | **Reset Stream Tracking** | Transport (`h2`) | ~1 KiB – 10 KiB per conn | `max_concurrent_reset_streams`, `max_local_error_reset_streams` | Purged after `reset_stream_duration` (1s) |
 | **Uncompressed Header Block** | Transport (HPACK decoder) | Up to 16 KiB per RPC | `ServerConfig::max_header_list_size` (`DEFAULT_MAX_HEADER_LIST_SIZE`) | Freed after header parse |
 | **Inbound Frame Carry Buffer** | Transport (`wire::FrameReader`) | Up to 4 MiB (chunk-straddling) | `MessageLimits::max_decoding` (`DEFAULT_MAX_DECODING_MESSAGE_SIZE`) | Freed on frame yield |
-| **Decompression Expansion Buffer** | Transport (`gzip::decode_limited`) | Up to 4 MiB + 1 byte | `MessageLimits::inflate_budget` (`limits.max_decoding()`) | Freed after protobuf decode |
+| **Decompression Expansion Buffer** | Transport (`compression::read_bounded`) | Output reservation up to the decoding cap, plus an 8 KiB stack chunk and decoder state | `MessageLimits::inflate_budget` (`limits.max_decoding()`) | Output may be retained by the decoded message |
+| **Zstd History Window** | Optional Zstd decoder | 8 MiB default window cap, plus block/decoder overhead | `MessageLimits::with_max_zstd_window`; independent of the decoded message cap | End of each compressed message |
 | **Outbound Frame Serialization** | Transport (`wire::frame_from_msg`) | Serialized payload length | `MessageLimits::max_encoding` / application message size | Dropped after wire enqueue |
+| **Compressed Streaming Scratch** | Transport (`wire::OutBatch`) | Up to 64 KiB retained per outbound compressed stream; larger scratch is released after each encode | Finite encoding limits and admitted stream count; outside byte-budget permits | Stream destruction, or immediately after a large encode |
 | **Unconfigured Transparent Retry Replay Buffer** | Client unary/server-streaming executor | One segmented request frame, with no finite default outbound cap | `encode_msg` and existing outbound message limits | Held across a proven-unprocessed replacement; dropped on terminal outcome |
 | **Policy Retry Replay Buffer** | Client unary/server-streaming executor | Encoded payload up to the selected finite outbound cap, otherwise 4 MiB, plus five-byte framing | [Service-config §6.3](service-config.md#63-replay-byte-budget-rt-06); shared backing allocations and segment metadata are separate costs | Over-budget calls transfer ownership to the first upload and commit; eligible buffers survive backoff and release on terminal status |
 | **Streaming Channel Queue** | Transport / Application (`mpsc::channel`) | `buffer` $\times$ message size | `Streaming::channel(buffer)`, `ChannelConfig::stream_buffer` | Dropped as consumer reads |
@@ -155,7 +157,7 @@ made when a connection opens.
 | Connections | TLS state, HTTP/2 state, HPACK tables, timers, reset tracking, and connection tasks | Set `max_concurrent_connections`; measure memory per connection with the shipping TLS and allocator profile. |
 | HTTP/2 streams | Header maps, stream state, queued outbound DATA, and reset/cancellation state | Set `max_concurrent_streams`; multiply per-stream costs by admitted streams across all connections. |
 | Active RPCs | Handler/client futures, decoded messages, encoded frames, replay buffers, and stream queues | Set `max_concurrent_rpcs`, finite message limits, and bounded application queues. |
-| Accounted transport bytes | Frame carry, serialization, decompression, and other permit-backed allocations | Share a `ByteBudgetTracker`; inspect current and peak allocations after acquisitions settle. |
+| Accounted transport bytes | Allocations carrying `ByteBudgetTracker` permits | Share a tracker; inspect current and peak allocations after acquisitions settle. Codec scratch, decoder state and allocator overhead are separate costs. |
 | Application and allocator memory | Retained messages, shared backing allocations, handler work, caches, task locals, fragmentation | Application budgets plus measured process RSS under sustained mixed traffic. |
 | Kernel socket memory | TCP receive/send buffers and connection bookkeeping | Measure separately with platform tools; do not equate it with process RSS. |
 
@@ -324,10 +326,10 @@ Payload Data Received
        ▼
 [ Compressed Flag Set? ]
        ├── No ──► Parse Protobuf (T::parse)
-       └── Yes ─► Bounded Decompression (GzDecoder.take(budget + 1))
+       └── Yes ─► Check grpc-encoding, then bounded decompression
                        │
                        └──(Exceeds Budget)──► Immediate RESOURCE_EXHAUSTED
-                                               (Max memory: budget + 1 byte)
+                                               (Output reservation ≤ budget)
 ```
 
 ### 5.1 Connection Concurrency Limit (`max_concurrent_connections`)
@@ -374,20 +376,31 @@ Payload Data Received
   - If length exceeds `max_encoding`, encoding is refused with `Code::ResourceExhausted`.
   - **Invariant:** No oversized byte buffer is allocated or queued onto the HTTP/2 send stream.
 
-### 5.4 Inbound Gzip Decompression Expansion Budget
+### 5.4 Decompression output limit
 
-- **Enforcement Location:** `pbrs-grpc/src/gzip.rs` (`decode_limited`).
-- **Mechanism:**
-  - Inbound compressed frames are inflated through:
-    ```rust
-    GzDecoder::new(payload).take(read_cap).read_to_end(&mut out)
-    ```
-  - Where `read_cap = budget.saturating_add(1)` and `budget = limits.inflate_budget() = max_decoding`.
-- **Rejection Behavior:**
-  - If inflated output exceeds `budget`, decompression aborts immediately with `Code::ResourceExhausted("decompressed message exceeds limit {budget}")`.
-- **Invariant:**
-  - Peak memory allocated during decompression is strictly capped at $\min(\text{actual\_size}, \text{budget} + 1)$.
-  - Malicious "gzip bombs" (e.g. tiny 1 KiB payload inflating to 10 GiB of zeroes) are terminated at exactly 4 MiB + 1 byte, completely neutralizing memory exhaustion amplification attacks.
+`compression::read_bounded` limits gzip, deflate and optional zstd output to
+`limits.inflate_budget()`. It starts with an 8 KiB stack chunk, then reads into
+initialized output storage. It probes one byte before growing the buffer or
+exceeding the budget. Excess output returns `RESOURCE_EXHAUSTED`; an over-limit
+probe byte is never appended to the output buffer.
+
+Output grows after the decoder produces bytes. The buffered input length is
+an initial sizing hint capped at 256 KiB. Reservations request no more than
+the decoding cap, without trusting a gzip length trailer. Small inputs do not
+reserve the full configured maximum.
+
+This bounds decoded output, not total process memory. Include the compressed
+input, decoder state, stack chunk, allocator overhead and retained message
+backing when sizing a service. Configure finite connection and RPC limits
+alongside message limits, and verify recovery under sustained load.
+
+With the optional `zstd` feature, the history window has its own 8 MiB default
+cap. A larger advertised window returns `RESOURCE_EXHAUSTED` before its history
+buffer is allocated. Set `MessageLimits::with_max_zstd_window` explicitly when
+accepting larger windows. `MessageLimits::unlimited()` retains the backend's
+100 MiB window cap; lifting the decoded message limit alone leaves the window
+cap unchanged. Zstd content checksums and declared decoded lengths are checked
+before accepting a decoded message.
 
 ### 5.5 Summary Contract Matrix for RT-06
 
@@ -398,7 +411,7 @@ Payload Data Received
 | **Client RPC Cap** | `Call::poll()` / invoke | 0 bytes | Fail client future locally, no wire frames | `RESOURCE_EXHAUSTED` (8) |
 | **Inbound Msg Size** | 5-byte frame header | 0 bytes payload | Send Trailers-Only response or stream reset | `RESOURCE_EXHAUSTED` (8) |
 | **Outbound Msg Size** | `T::serialized_len()` | 0 bytes frame | Abort serialization, return error | `RESOURCE_EXHAUSTED` (8) |
-| **Gzip Bomb** | Decompression loop | Max `budget + 1` | Abort inflate, send Trailers-Only error | `RESOURCE_EXHAUSTED` (8) |
+| **Decompression Overflow** | Decompression loop | Output reservation up to `budget`; decoder and stack costs are separate | Abort inflate, send Trailers-Only error | `RESOURCE_EXHAUSTED` (8) |
 
 ---
 
