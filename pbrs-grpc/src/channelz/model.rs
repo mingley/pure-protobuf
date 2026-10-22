@@ -1593,7 +1593,7 @@ mod tests {
                 .expect("sockets")
                 .insert(old_entry.id.0, Arc::clone(&old_entry));
             registry.note_messages(old_entry.id, true, 1);
-            let old = std::mem::replace(registry.as_mut(), Registry::new());
+            let old = std::mem::take(registry.as_mut());
             std::thread::spawn(move || drop(old))
                 .join()
                 .expect("drop old registry");

@@ -1039,6 +1039,10 @@ mod cancel_flag_wait_tests {
             dropped: Arc<AtomicUsize>,
         }
 
+        #[allow(
+            clippy::manual_noop_waker,
+            reason = "the regression exercises cancellation from the waker owner's destructor"
+        )]
         impl Wake for SignalOnDrop {
             fn wake(self: Arc<Self>) {}
         }

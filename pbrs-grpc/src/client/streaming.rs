@@ -1088,10 +1088,14 @@ where
     let pump_tap = tap.clone();
     #[cfg(feature = "copy-counts")]
     crate::copy_counts::note_spawn(crate::copy_counts::SpawnSite::ClientBidiUpload);
+    // Capture an armed guard before spawning: task destruction before its
+    // first poll, an upload panic, or runtime shutdown must still reset the
+    // request while the response future/stream owns another HTTP/2 reference.
+    let send = ResetSend::new(send_stream);
     let pump_task = tokio::spawn({
         let cancel_rx = cancel_rx.clone();
         async move {
-            let mut send = send_stream;
+            let mut send = send;
             let tap = pump_tap;
             let until_deadline = async {
                 match deadline {
@@ -1105,7 +1109,7 @@ where
                     match upload {
                         BidiUpload::Messages { rx, budget } => {
                             pump_outbound_budget(
-                                &mut send,
+                                send.stream_mut(),
                                 rx,
                                 cancel_rx.clone(),
                                 wire,
@@ -1116,7 +1120,14 @@ where
                             .await
                         }
                         BidiUpload::Encoded(rest) => {
-                            pump_encoded_rest(&mut send, rest, &cancel_rx, wire, tap.as_ref()).await
+                            pump_encoded_rest(
+                                send.stream_mut(),
+                                rest,
+                                &cancel_rx,
+                                wire,
+                                tap.as_ref(),
+                            )
+                            .await
                         }
                     }
                 };
@@ -1129,14 +1140,14 @@ where
                 }
             };
             match end {
-                None => send.send_reset(Reason::CANCEL),
+                None => send.stream_mut().send_reset(Reason::CANCEL),
                 Some(PumpEnd::Failed(status)) => {
                     // Hold RST until the Call takes this status. RST first
                     // and resp_fut surfaces CANCEL as UNAVAILABLE
                     // ("stream no longer needed") on the same poll.
                     fail_tx.send(status).ok();
                     hold_rx.await.ok();
-                    send.send_reset(Reason::CANCEL);
+                    send.stream_mut().send_reset(Reason::CANCEL);
                 }
                 Some(PumpEnd::HalfClosed) => {
                     // Preserve cancellation before response completion, but
@@ -1146,14 +1157,17 @@ where
                         _ = &mut completed_rx => {},
                         _ = cancel_rx.wait() => {
                             if cancel_rx.is_cancelled() {
-                                send.send_reset(Reason::CANCEL);
+                                send.stream_mut().send_reset(Reason::CANCEL);
                             }
                         }
-                        () = &mut until_deadline => send.send_reset(Reason::CANCEL),
+                        () = &mut until_deadline => send.stream_mut().send_reset(Reason::CANCEL),
                     }
                 }
                 Some(PumpEnd::Reset) => {}
             }
+            // Normal completion has already handled cancellation/reset, or
+            // observed clean response completion after request half-close.
+            send.live = false;
         }
     });
     let result = {

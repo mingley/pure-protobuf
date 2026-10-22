@@ -1007,6 +1007,10 @@ mod tests {
         panic_once: bool,
     }
 
+    #[allow(
+        clippy::manual_noop_waker,
+        reason = "the regression requires a waker owner with an observable destructor"
+    )]
     impl std::task::Wake for DropWake {
         fn wake(self: std::sync::Arc<Self>) {}
     }
