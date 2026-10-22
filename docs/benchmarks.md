@@ -6,7 +6,8 @@ to the workload, versions, and host named in its section.
 **Time and memory:** lower is better. **Throughput:** higher is better.
 
 A public comparison has to meet the [benchmark contract](benchmark-contract.md).
-The tables here are the recorded runs, not that campaign.
+These tables lack complete dated source and raw captures. Treat them as
+historical diagnostics, not production or comparative performance qualification.
 
 ## At a glance
 

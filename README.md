@@ -220,8 +220,8 @@ of **Protocol Buffers Edition 2024**.
 | Crate | Declared MSRV | CI checks | `protoc` | Stub default |
 |---|---|---|---|---|
 | [`pbrs`](.) | 1.85 | `msrv-core` 1.85 `--lib`, stable Linux + macOS | Not required to build the crate (bundled FileDescriptorSet). Required for `compile_protos` / `protoc-gen-pbrs`. | Messages; `.proto` `service` blocks emit native `pbrs-grpc` stubs |
-| [`pbrs-grpc`](pbrs-grpc) | 1.85 | `msrv-core` 1.85 `--lib` and stalled-upload checks, stable Linux + macOS | Current source builds from checked FileDescriptorSets. Regenerating descriptors or compiling application `.proto` requires `protoc`; `0.1.0-alpha.1` also requires it to build. | Native kernel (`compile_protos` default) |
-| [`protobuf-tonic`](protobuf-tonic) | 1.88 | `msrv-tonic` 1.88 | Current source builds from the checked FileDescriptorSet. Direct `.proto` compilation requires `protoc`; `0.1.0-alpha.1` also requires it to build. | Call [`Config::emit_tonic_stubs(true)`](protobuf-tonic/README.md); not a `prost::Message` drop-in |
+| [`pbrs-grpc`](pbrs-grpc) | 1.85 | `msrv-core` 1.85 `--lib` and stalled-upload checks, stable Linux + macOS | Current source builds from checked FileDescriptorSets. Regenerating descriptors or compiling application `.proto` requires `protoc`; the older `0.1.0-alpha.1` release also requires it to build. | Native kernel (`compile_protos` default) |
+| [`protobuf-tonic`](protobuf-tonic) | 1.88 | `msrv-tonic` 1.88 | Current source builds from the checked FileDescriptorSet. Direct `.proto` compilation requires `protoc`; the older `0.1.0-alpha.1` release also requires it to build. | Call [`Config::emit_tonic_stubs(true)`](protobuf-tonic/README.md); not a `prost::Message` drop-in |
 | [`examples/greeter`](examples/greeter) | 1.85 | Stable Linux (`--workspace`) + macOS onboarding | Required | Native kernel default |
 
 **Untested / unsupported** (not a support commitment):

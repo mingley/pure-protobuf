@@ -592,7 +592,7 @@ a successful run; qualification needs their results at the measured revision.
   reused. HPACK string caches compare text and allocate process-lifetime
   storage only inside the winning `OnceLock` initializer. Recycling request
   frames drops owned pseudo-header strings even when their field map is stock.
-   `HttpStr` owns its allocation when capacity is
+  `HttpStr` owns its allocation when capacity is
   nonzero; otherwise it borrows static or empty bytes. The gRPC prefix helper
   initializes all five bytes before extending the buffer length. Their focused
   Miri tests cover valid inputs; they do not prove every caller invariant.
