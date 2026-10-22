@@ -432,7 +432,8 @@ where
     pub fn poll_accept(
         &mut self,
         cx: &mut Context<'_>,
-    ) -> Poll<Option<Result<(Request<RecvStream>, SendResponse<B>), crate::h2_backend::Error>>> {
+    ) -> Poll<Option<Result<(Request<RecvStream>, SendResponse<B>), crate::h2_backend::Error>>>
+    {
         self.poll_accept_with(cx, RecvStream::new)
     }
 
@@ -1208,7 +1209,10 @@ impl<B: Buf> SendResponse<B> {
     /// - The response status code is not in the 1xx range
     /// - The final response has already been sent
     /// - There is a connection-level error
-    pub fn send_informational(&mut self, response: Response<()>) -> Result<(), crate::h2_backend::Error> {
+    pub fn send_informational(
+        &mut self,
+        response: Response<()>,
+    ) -> Result<(), crate::h2_backend::Error> {
         let Some(inner) = self.inner.as_mut() else {
             return Err(UserError::PollResetAfterSendResponse.into());
         };
@@ -1365,7 +1369,10 @@ impl<B: Buf> SendResponse<B> {
     ///
     /// Calling this method after having called `send_response` will return
     /// a user error.
-    pub fn poll_reset(&mut self, cx: &mut Context) -> Poll<Result<Reason, crate::h2_backend::Error>> {
+    pub fn poll_reset(
+        &mut self,
+        cx: &mut Context,
+    ) -> Poll<Result<Reason, crate::h2_backend::Error>> {
         let Some(inner) = self.inner.as_mut() else {
             return Poll::Ready(Err(UserError::PollResetAfterSendResponse.into()));
         };
@@ -1445,7 +1452,10 @@ impl<B: Buf> SendPushedResponse<B> {
     ///
     /// Calling this method after having called `send_response` will return
     /// a user error.
-    pub fn poll_reset(&mut self, cx: &mut Context) -> Poll<Result<Reason, crate::h2_backend::Error>> {
+    pub fn poll_reset(
+        &mut self,
+        cx: &mut Context,
+    ) -> Poll<Result<Reason, crate::h2_backend::Error>> {
         self.inner.poll_reset(cx)
     }
 
@@ -1476,7 +1486,8 @@ where
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         // Flush the codec
-        ready!(self.codec.as_mut().unwrap().flush(cx)).map_err(crate::h2_backend::Error::from_io)?;
+        ready!(self.codec.as_mut().unwrap().flush(cx))
+            .map_err(crate::h2_backend::Error::from_io)?;
 
         // Return the codec
         Poll::Ready(Ok(self.codec.take().unwrap()))
@@ -1857,8 +1868,7 @@ pub(crate) fn cached_simple_post(https: bool) -> Request<()> {
 #[inline(never)]
 fn cached_simple_post_miss(https: bool) -> Request<()> {
     // `stock_post_https` only returns after both caches are filled.
-    let (Some(authority), Some(path)) = (auth_cache::PARSED.get(), path_cache::PARSED.get())
-    else {
+    let (Some(authority), Some(path)) = (auth_cache::PARSED.get(), path_cache::PARSED.get()) else {
         return Request::new(());
     };
     let scheme = if https {
@@ -1931,41 +1941,22 @@ fn copy_static_request(request: &Request<()>) -> Request<()> {
 }
 
 fn authority_cached(raw: &BytesStr) -> bool {
-    use std::sync::atomic::Ordering;
-    auth_cache::PTR.load(Ordering::Acquire) == raw.as_ref().as_ptr() as *mut u8
-        && auth_cache::LEN.load(Ordering::Relaxed) == raw.len()
-        && auth_cache::PARSED.get().is_some()
+    auth_cache::PARSED
+        .get()
+        .is_some_and(|parsed| parsed.as_str().as_bytes() == raw.as_ref())
 }
 
 fn path_cached(raw: &BytesStr) -> bool {
-    use std::sync::atomic::Ordering;
-    let bytes = raw.as_ref();
-    let len = bytes.len();
-    if path_cache::LEN.load(Ordering::Relaxed) != len || len == 0 {
-        return false;
-    }
-    let Some(parsed) = path_cache::PARSED.get() else {
-        return false;
-    };
-    let ptr = bytes.as_ptr() as *mut u8;
-    if path_cache::PTR.load(Ordering::Acquire) == ptr {
-        return true;
-    }
-    if parsed.as_str().as_bytes() == bytes {
-        path_cache::PTR.store(ptr, Ordering::Release);
-        return true;
-    }
-    false
+    path_cache::PARSED
+        .get()
+        .is_some_and(|parsed| parsed.as_str().as_bytes() == raw.as_ref())
 }
 
 fn cached_authority(raw: &BytesStr) -> Result<http::uri::Authority, http::uri::InvalidUri> {
-    use std::sync::atomic::Ordering;
-    let ptr = raw.as_ref().as_ptr();
-    let len = raw.len();
-    if auth_cache::PTR.load(Ordering::Acquire) == ptr as *mut u8
-        && auth_cache::LEN.load(Ordering::Relaxed) == len
-    {
-        return Ok(auth_cache::PARSED.get().unwrap().clone());
+    if let Some(parsed) = auth_cache::PARSED.get() {
+        if parsed.as_str().as_bytes() == raw.as_ref() {
+            return Ok(parsed.clone());
+        }
     }
     cached_authority_miss(raw)
 }
@@ -1975,65 +1966,35 @@ fn cached_authority(raw: &BytesStr) -> Result<http::uri::Authority, http::uri::I
 #[inline(never)]
 fn cached_authority_miss(raw: &BytesStr) -> Result<http::uri::Authority, http::uri::InvalidUri> {
     use std::cell::RefCell;
-    // One repeated authority per worker. The hit path borrows `raw` and only
-    // clones the already-parsed value. A miss still parses.
     thread_local! {
-        static LAST: RefCell<Option<(usize, usize, Bytes, http::uri::Authority)>> =
+        static LAST: RefCell<Option<(Bytes, http::uri::Authority)>> =
             const { RefCell::new(None) };
     }
     LAST.with(|slot| {
         let mut slot = slot.borrow_mut();
-        let ptr = raw.as_ref().as_ptr() as usize;
-        let len = raw.len();
-        if let Some((prev_ptr, prev_len, prev, parsed)) = slot.as_ref() {
-            if (*prev_ptr == ptr && *prev_len == len) || prev.as_ref() == raw.as_ref() {
+        if let Some((previous, parsed)) = slot.as_ref() {
+            if previous.as_ref() == raw.as_ref() {
                 return Ok(parsed.clone());
             }
         }
         let bytes = raw.clone().into_inner();
         let parsed = http::uri::Authority::from_maybe_shared(bytes.clone())?;
-        *slot = Some((ptr, len, bytes, parsed.clone()));
-        if auth_cache::PTR
-            .load(std::sync::atomic::Ordering::Relaxed)
-            .is_null()
-            && auth_cache::PARSED.set(parsed.clone()).is_ok()
-        {
-            auth_cache::LEN.store(len, std::sync::atomic::Ordering::Relaxed);
-            auth_cache::PTR.store(
-                raw.as_ref().as_ptr() as *mut u8,
-                std::sync::atomic::Ordering::Release,
-            );
-        }
+        *slot = Some((bytes, parsed.clone()));
+        let _ = auth_cache::PARSED.set(parsed.clone());
         Ok(parsed)
     })
 }
 
 mod auth_cache {
-    use std::sync::atomic::{AtomicPtr, AtomicUsize};
-
-    pub(super) static PTR: AtomicPtr<u8> = AtomicPtr::new(std::ptr::null_mut());
-    pub(super) static LEN: AtomicUsize = AtomicUsize::new(0);
     pub(super) static PARSED: std::sync::OnceLock<http::uri::Authority> =
         std::sync::OnceLock::new();
 }
 
 fn cached_path_and_query(raw: &BytesStr) -> Result<http::uri::PathAndQuery, http::uri::InvalidUri> {
-    use std::sync::atomic::Ordering;
-    // The decoded path is a fresh buffer each request, so the pointer does
-    // not stay put. Same length and same bytes still reuse the parsed value.
-    let bytes = raw.as_ref();
-    let len = bytes.len();
-    if path_cache::LEN.load(Ordering::Relaxed) == len && len != 0 {
-        let parsed = path_cache::PARSED.get().unwrap();
-        let ptr = bytes.as_ptr() as *mut u8;
-        // The first decoded buffer is not the one later requests clone.
-        // Remember the stable pointer once the bytes match, and skip the
-        // compare after that.
-        if path_cache::PTR.load(Ordering::Acquire) == ptr {
-            return Ok(parsed.clone());
-        }
-        if parsed.as_str().as_bytes() == bytes {
-            path_cache::PTR.store(ptr, Ordering::Release);
+    // Decoded buffers are released between calls and their addresses can be
+    // reused for a different method. Only the live text identifies a hit.
+    if let Some(parsed) = path_cache::PARSED.get() {
+        if parsed.as_str().as_bytes() == raw.as_ref() {
             return Ok(parsed.clone());
         }
     }
@@ -2047,41 +2008,25 @@ fn cached_path_and_query_miss(
 ) -> Result<http::uri::PathAndQuery, http::uri::InvalidUri> {
     use std::cell::RefCell;
     thread_local! {
-        static LAST: RefCell<Option<(usize, usize, Bytes, http::uri::PathAndQuery)>> =
+        static LAST: RefCell<Option<(Bytes, http::uri::PathAndQuery)>> =
             const { RefCell::new(None) };
     }
     LAST.with(|slot| {
         let mut slot = slot.borrow_mut();
-        let ptr = raw.as_ref().as_ptr() as usize;
-        let len = raw.len();
-        if let Some((prev_ptr, prev_len, prev, parsed)) = slot.as_ref() {
-            if (*prev_ptr == ptr && *prev_len == len) || prev.as_ref() == raw.as_ref() {
+        if let Some((previous, parsed)) = slot.as_ref() {
+            if previous.as_ref() == raw.as_ref() {
                 return Ok(parsed.clone());
             }
         }
         let bytes = raw.clone().into_inner();
         let parsed = http::uri::PathAndQuery::from_maybe_shared(bytes.clone())?;
-        *slot = Some((ptr, len, bytes, parsed.clone()));
-        if path_cache::PTR
-            .load(std::sync::atomic::Ordering::Relaxed)
-            .is_null()
-            && path_cache::PARSED.set(parsed.clone()).is_ok()
-        {
-            path_cache::LEN.store(len, std::sync::atomic::Ordering::Relaxed);
-            path_cache::PTR.store(
-                raw.as_ref().as_ptr() as *mut u8,
-                std::sync::atomic::Ordering::Release,
-            );
-        }
+        *slot = Some((bytes, parsed.clone()));
+        let _ = path_cache::PARSED.set(parsed.clone());
         Ok(parsed)
     })
 }
 
 mod path_cache {
-    use std::sync::atomic::{AtomicPtr, AtomicUsize};
-
-    pub(super) static PTR: AtomicPtr<u8> = AtomicPtr::new(std::ptr::null_mut());
-    pub(super) static LEN: AtomicUsize = AtomicUsize::new(0);
     pub(super) static PARSED: std::sync::OnceLock<http::uri::PathAndQuery> =
         std::sync::OnceLock::new();
 }
@@ -2123,7 +2068,7 @@ fn convert_poll_message_general(
     fields: HeaderMap,
     stream_id: StreamId,
 ) -> Result<Request<()>, Error> {
-    use http::{uri, Version};
+    use http::{Version, uri};
 
     macro_rules! malformed {
         ($($arg:tt)*) => {{
@@ -2241,5 +2186,44 @@ where
             Handshaking::ReadingPreface(_) => f.write_str("ReadingPreface(_)"),
             Handshaking::Done => f.write_str("Done"),
         }
+    }
+}
+
+#[cfg(test)]
+mod cache_tests {
+    #![allow(clippy::expect_used, reason = "request path cache regression")]
+    use super::*;
+
+    #[test]
+    fn reused_path_buffer_does_not_select_cached_method() {
+        let original = BytesStr::from_static("/cache/first");
+        assert_eq!(
+            cached_path_and_query(&original).expect("path").as_str(),
+            "/cache/first"
+        );
+        let mut buffer = bytes::BytesMut::from(original.as_str().as_bytes());
+        let repeated = BytesStr::try_from(buffer.split().freeze()).expect("UTF-8");
+        let address = repeated.as_ref().as_ptr();
+        assert_eq!(
+            cached_path_and_query(&repeated).expect("path").as_str(),
+            original.as_str()
+        );
+        drop(repeated);
+        assert!(buffer.try_reclaim(original.len()));
+        buffer.extend_from_slice(b"/cache/other");
+        let changed = BytesStr::try_from(buffer.freeze()).expect("UTF-8");
+        assert_eq!(
+            changed.as_ref().as_ptr(),
+            address,
+            "reuse the same allocation"
+        );
+        assert!(
+            !path_cached(&changed),
+            "a recycled address does not identify a method"
+        );
+        assert_eq!(
+            cached_path_and_query(&changed).expect("path").as_str(),
+            "/cache/other"
+        );
     }
 }
