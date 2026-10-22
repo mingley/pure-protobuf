@@ -290,6 +290,10 @@ fn has_flag(args: &[String], flag: &str) -> bool {
         .any(|a| a == flag || a.starts_with(&format!("{flag}=")))
 }
 
+// Keep application request-queue capacity equal across the native and tonic
+// load clients, including pipelined bidi sends.
+const LOAD_REQUEST_BUFFER: usize = 16;
+
 fn native_channel_config(
     connections: usize,
     mode: NativeWindowMode,
@@ -298,6 +302,7 @@ fn native_channel_config(
 ) -> pbrs_grpc::ChannelConfig {
     let config = pbrs_grpc::ChannelConfig::default()
         .connections(connections)
+        .stream_buffer(LOAD_REQUEST_BUFFER)
         .gzip_compression_level(6);
     match mode {
         NativeWindowMode::Default => config,
@@ -317,7 +322,11 @@ fn native_server_config(
     small_window_override: bool,
     max_message_size: Option<usize>,
 ) -> pbrs_grpc::ServerConfig {
-    let mut config = pbrs_grpc::ServerConfig::default().gzip_compression_level(6);
+    // Tonic 0.14.6 exposes no server send-buffer setter. Match its locked
+    // Hyper 1.11.0 default (proto/h2/server.rs: DEFAULT_MAX_SEND_BUF_SIZE).
+    let mut config = pbrs_grpc::ServerConfig::default()
+        .max_send_buffer_size(400 * 1024)
+        .gzip_compression_level(6);
     if let Some(n) = max_message_size {
         config = config.max_decoding_message_size(n);
     }
@@ -1719,7 +1728,7 @@ async fn run_load_tonic(
                     let template = template.clone();
                     async move {
                         let mut client = client;
-                        let (tx, rx) = tokio::sync::mpsc::channel(8);
+                        let (tx, rx) = tokio::sync::mpsc::channel(LOAD_REQUEST_BUFFER);
                         let send = async move {
                             for i in 0..stream_msgs {
                                 tx.send(template.clone()).await.map_err(|_| {
@@ -1758,7 +1767,7 @@ async fn run_load_tonic(
                     let template = template.clone();
                     async move {
                         let mut client = client;
-                        let (tx, rx) = tokio::sync::mpsc::channel(1);
+                        let (tx, rx) = tokio::sync::mpsc::channel(LOAD_REQUEST_BUFFER);
                         let tx = if stream_msgs == 0 {
                             drop(tx);
                             None
@@ -1982,7 +1991,7 @@ async fn run_load_prost(
                     let template = template.clone();
                     async move {
                         let mut client = client;
-                        let (tx, rx) = tokio::sync::mpsc::channel(8);
+                        let (tx, rx) = tokio::sync::mpsc::channel(LOAD_REQUEST_BUFFER);
                         let send = async move {
                             for i in 0..stream_msgs {
                                 tx.send(template.clone()).await.map_err(|_| {
@@ -2021,7 +2030,7 @@ async fn run_load_prost(
                     let template = template.clone();
                     async move {
                         let mut client = client;
-                        let (tx, rx) = tokio::sync::mpsc::channel(1);
+                        let (tx, rx) = tokio::sync::mpsc::channel(LOAD_REQUEST_BUFFER);
                         let tx = if stream_msgs == 0 {
                             drop(tx);
                             None
