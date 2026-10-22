@@ -4,15 +4,23 @@ No performance category has passed qualification yet. The project has useful
 local results and working benchmark tools; it has not completed the controlled
 campaigns needed to establish comparative leadership.
 
-The [2026-10-22 validation](evidence/grpc-validation-20261022/README.md)
-adds corrected allocation comparisons and retains current-source failures.
-Its [day diagnostic](evidence/grpc-resource-soak-20261022/README.md) subsequently
-failed after 4 hours 56 minutes. Neither result changes the qualification
-standings below.
+The [2026-10-22 streaming follow-up](evidence/grpc-streaming-20261022/README.md)
+records matched 2,400-capture native campaigns and a 144-capture instruction
+pilot. Selected 1 KiB gzip allocation counts fall, but 64 KiB gzip server bytes
+and allocations still exceed tonic/prost. Prost upload allocation bytes rise
+9.0% against the old source; pbrs rises 10.6%. Gzip server instructions are
+2.2–2.4% above tonic, and uncompressed source comparisons retain regressions.
+These are diagnostics, not qualified performance standings.
 
-This page was reconciled with the checked-in code and evidence on 2026-09-29.
-It is a manually maintained evidence index until SB-16 supplies the generated
-scoreboard. It does not certify the latest GitHub Actions run.
+The clean `6cd91911` workspace passes, but strict lint, native/adapter compressed
+concatenation and trailing-input handling, Zstd reserved-bit rejection and
+release gates remain open. A new 24-hour diagnostic is running. The
+[earlier day failed after 4 hours 56 minutes](evidence/grpc-resource-soak-20261022/README.md);
+its failure remains archived. Production readiness is not established.
+
+The table began with the 2026-09-29 audit; later source-scoped records above
+update specific findings. It remains a manual index until SB-16 supplies the
+generated scoreboard and does not certify the latest GitHub Actions run.
 
 The [2026-10-08 gRPC record](evidence/grpc-readiness-20261008/README.md) adds
 separate-process functional coverage and per-side N/2N counter measurements.
@@ -68,22 +76,22 @@ passing reports do not establish that an arbitrary current revision is green.
 | C2 QPS/core | unmeasured | Fair loopback QPS exists; controlled CPU budgets/scaling campaign remains open |
 | C3 streaming msgs/s | unmeasured | Fair rerun favors pbrs server-stream/upload, tonic ping-pong; still local diagnostic |
 | C4 large messages | unmeasured | SB-01/SB-13 diagnostics exist; no qualified network campaign |
-| C5 instructions/RPC | unmeasured | SB-03 harness and profiles exist; availability/variance depend on host counters |
-| C6 memory | unmeasured | RT-07 and SB-12 diagnostics; endpoint isolation and scale qualification remain open |
+| C5 instructions/RPC | unmeasured | Selected 144-capture server pilot retains gzip and uncompressed source regressions; 25/50-call diagnostics are not a qualified speed ranking |
+| C6 memory | unmeasured | Matched 2,400-capture campaigns measure per-side allocations/requested bytes; large gzip and identity byte losses remain; retained-memory qualification is separate |
 | C7 time to first RPC | unmeasured | SB-12 same-process diagnostic favors tonic; no qualified external-peer campaign |
 | C8 CPU/RPC matched load | unmeasured | SB-11 open-loop harness exists; smoke is not a controlled campaign |
 | D1 latency at load | unmeasured | grpc-go tables are separate-process but one host, best-of, no intervals |
 | D2 QPS (queries per second)/core in SLO | unmeasured | No measurements |
 | D3 streaming/core | unmeasured | grpc-go ping_pong/upload tables unqualified (contended, best-of) |
-| D4 CPU/allocs per RPC | unmeasured | Dev-loop and separate-process probes exist; no qualified cross-peer campaign |
+| D4 CPU/allocs per RPC | unmeasured | Native counter and selected instruction campaigns retain losses; native CPU and full cross-peer qualification remain open |
 | D5 memory per conn | unmeasured | SB-12 diagnostics and scale scenarios exist; 100k topology/OS limits need qualification |
 | D6 accept/TLS rate | unmeasured | Native TLS diagnostic and scale runner exist; required-peer comparisons remain open |
 | D7 overload fairness | unmeasured | RT-07 diagnostic explicitly unqualified |
 | D8 multi-core scaling | unmeasured | No stage-3 runs |
 | E1 grpc_bench-style | unmeasured | SB-17 diagnostic ran; emulated client and shared Docker host limit interpretation |
 | E2 WorkerService | unmeasured | SB-10 async scenarios ran; SB-21 claim definitions need full accounting and repeat-order integration |
-| E3 TLS | unmeasured | No campaign yet |
-| E4 compression | unmeasured | Dev-loop cells only (no peer campaign): `rpc.pbrs.unary_compressed` 85.3 allocs/RPC, `server_stream_compressed` 880.3 (-2.28%/-7.27% vs pre-RX-06 framing, allocs medians); C++ 8/8 compression interop both directions; Go gzip both directions. See `docs/decisions/compression.md`. |
+| E3 TLS | unmeasured | Plaintext/TLS counters cover 1/64 KiB and one/16 in-flight calls; qualified latency/CPU/network comparison remains open |
+| E4 compression | unmeasured | Matched identity/gzip counters and selected server instructions exist; complete compressed-input/adapter handling and Zstd reserved-bit rejection remain open |
 | E5 real-network RTT | unmeasured | No stage-3 runs |
 
 ## Correctness and delivery gates
@@ -95,7 +103,7 @@ being measured.
 | Category | What is delivered | What still needs proof |
 |---|---|---|
 | F1 conformance | Conformance and upstream-Rust compatibility harnesses | All required checks pass at the campaign source revision |
-| F2 interop | Go, C++, and tonic interop harnesses | Required directions/features pass with the campaign pins |
+| F2 interop | Go, C++, and tonic interop harnesses | Required directions/features pass with campaign pins; native/adapter compressed concatenation and trailing input remain gaps |
 | F3 HTTP/2 negatives | Negative tests and upstream HTTP/2 probes | Required negative/flow-control checks pass at the campaign revision |
 | F4 gRFC coverage | Implementations and tests tracked in GF/CH/XD task lanes | Claim only the implemented subset; check each required card |
 | F5 xDS interop | xDS contracts and implementation work | Independent control-plane coverage for the claimed behavior |
@@ -104,15 +112,17 @@ being measured.
 
 ## Benchmark claims
 
-The current [benchmark page](benchmarks.md) reports allocation diagnostics.
-These measurements describe their recorded source and workload; they do not
-qualify a latency, throughput or overall speed advantage.
+The current [benchmark page](benchmarks.md) reports scoped allocation and
+instruction diagnostics. It retains both source regressions and tonic losses;
+these measurements do not qualify native CPU, latency, throughput or overall speed.
 
 | Statement | Categories | Evidence limit |
 |---|---|---|
-| Unary allocation savings and gzip streaming allocation losses | C6, D4 | Corrected 1 KiB pilot, one in-flight RPC, shared Linux host |
+| Selected 1 KiB gzip allocation reductions | C6, D4 | Matched 2,400 captures per revision; selected 1 KiB, one-in-flight cases |
+| Large gzip allocation-byte regressions | C6, D4, E4 | 64 KiB upload server bytes rise 9.0% with prost and 10.6% with pbrs against the old source; shared-host cumulative requests |
+| Selected server instructions retain regressions | C5, D4 | 144 captures, 25/50-call samples and three-repeat ranges; full instruction scope not run |
 | Historical codec and RPC tables | A–E | Archived source and original host/ownership limits apply |
-| Historical 7,200-capture counter matrix | C5, C6, D4 | Invalid for its declared concurrency; the generator used four workers |
+| Historical 7,200-capture counter matrix | C5, C6, D4 | Invalid for declared concurrency; the generator used four workers |
 
 The [previous claim mapping](https://github.com/mingley/pure-protobuf/blob/99eccf209fd4cda28c992b7b8855531a31c2d249/docs/scoreboard.md#benchmarksmd-claim-mapping)
 retains the detailed verdicts for the archived tables.

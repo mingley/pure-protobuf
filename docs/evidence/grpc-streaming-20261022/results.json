@@ -1,0 +1,1677 @@
+{
+  "schema": "pbrs.grpc-streaming-validation.v1",
+  "candidate_source": "6cd91911afce24cceee6df3f60a945453e5b04da",
+  "baseline_source": "8fe0f8aeb41356ff427f44542947f36f6d2a2dae",
+  "qualified": false,
+  "claims": {
+    "production_readiness": false,
+    "complete_spec_compliance": false,
+    "broad_superiority_over_tonic_prost": false
+  },
+  "checks": {
+    "workspace": {
+      "source": "6cd91911afce24cceee6df3f60a945453e5b04da",
+      "status": "passed",
+      "passed_tests": 3677,
+      "failed_tests": 0,
+      "existing_ignored_tests": 9,
+      "targets": 137,
+      "record_prefix": "streaming-c3-workspace",
+      "exit_code": 0,
+      "duration_seconds": 2008.9429141359997
+    },
+    "msrv_default_libraries": {
+      "source": "6cd91911afce24cceee6df3f60a945453e5b04da",
+      "status": "passed",
+      "rust": "1.85.0",
+      "scope": [
+        "pbrs --lib",
+        "pbrs-grpc --lib"
+      ],
+      "record_prefix": "streaming-c3-msrv",
+      "exit_code": 0,
+      "duration_seconds": 19.83415936199981
+    },
+    "strict_clippy": {
+      "source": "6cd91911afce24cceee6df3f60a945453e5b04da",
+      "status": "failed",
+      "library_diagnostics": 115,
+      "baseline_library_diagnostics": 115,
+      "baseline_is_not_waiver": true,
+      "record_prefix": "streaming-c3-clippy",
+      "exit_code": 101,
+      "duration_seconds": 21.367311617999803
+    },
+    "warning_strict_rustdoc": {
+      "source": "6cd91911afce24cceee6df3f60a945453e5b04da",
+      "status": "passed",
+      "record_prefix": "streaming-c3-rustdoc",
+      "exit_code": 0,
+      "duration_seconds": 36.87514778299919
+    },
+    "format": {
+      "source": "6cd91911afce24cceee6df3f60a945453e5b04da",
+      "status": "passed",
+      "record_prefix": "streaming-c3-format",
+      "exit_code": 0,
+      "duration_seconds": 4.085318933999588
+    },
+    "campaign_contracts": {
+      "source": "6cd91911afce24cceee6df3f60a945453e5b04da",
+      "status": "passed",
+      "passed_tests": 44,
+      "record_prefix": "streaming-c3-contracts",
+      "exit_code": 0,
+      "duration_seconds": 0.41699324999990495
+    },
+    "plan_lint": {
+      "source": "6cd91911afce24cceee6df3f60a945453e5b04da",
+      "status": "passed",
+      "record_prefix": "streaming-c3-plan-lint",
+      "exit_code": 0,
+      "duration_seconds": 0.06533916399985173
+    },
+    "asan_library_all_features": {
+      "source": "7be4f29d504c9cae92907eeaaedfa4846a581332",
+      "status": "passed",
+      "passed_tests": 639,
+      "existing_ignored_tests": 1,
+      "exact_candidate_source": false,
+      "record_prefix": "streaming-asan",
+      "limit": "Later candidate changes a private type alias and fixtures; this is not a 6cd91911 ASAN run.",
+      "exit_code": 0,
+      "duration_seconds": 297.0736575179999
+    },
+    "resource_preview": {
+      "source": "6cd91911afce24cceee6df3f60a945453e5b04da",
+      "status": "passed",
+      "requested_seconds": 30.0,
+      "observed_seconds": 31.643413230999613,
+      "qualified": false,
+      "report": "resource-streaming-c3-preview/report.json"
+    },
+    "final_documentation": {
+      "status": "passed",
+      "record_prefix": "streaming-c3-final-docs",
+      "source_scope": "6cd91911 plus final documentation edits; dirty-state hashes retained",
+      "exit_code": 0
+    }
+  },
+  "retained_attempts": [
+    {
+      "source": "7be4f29d504c9cae92907eeaaedfa4846a581332",
+      "check": "workspace",
+      "status": "failed",
+      "passed_tests": 3670,
+      "failed_tests": 4,
+      "existing_ignored_tests": 9,
+      "record_prefix": "streaming-workspace"
+    },
+    {
+      "check": "focused regression replay",
+      "status": "passed",
+      "passed_tests": 87,
+      "source_scope": "dirty snapshot before candidate commit; do not assign to clean candidate"
+    },
+    {
+      "source": "7be4f29d504c9cae92907eeaaedfa4846a581332",
+      "check": "earlier lifecycle and handler replays",
+      "source_scope": "Own command records, separate from exact-source candidate workspace"
+    },
+    {
+      "source": "8fe0f8aeb41356ff427f44542947f36f6d2a2dae",
+      "check": "24-hour resource attempt",
+      "status": "failed",
+      "observed_seconds": 17748.395289456003,
+      "evidence": "../grpc-resource-soak-20261022/README.md"
+    }
+  ],
+  "performance": {
+    "baseline": {
+      "source": "8fe0f8aeb41356ff427f44542947f36f6d2a2dae",
+      "status": "passed",
+      "captures": 2400,
+      "expected_captures": 2400,
+      "binary_sha256": "5e273c73db8ba31efb28e7088eb5d9abaf79c9fe3cb61930dd6edaa3e000436b",
+      "qualified": false,
+      "scope": {
+        "payload_bytes": [
+          1024,
+          65536
+        ],
+        "in_flight": [
+          1,
+          16
+        ],
+        "connections": 1,
+        "repeats": 3,
+        "rpc_counts": [
+          200,
+          400
+        ]
+      },
+      "actual_rpc_totals": {
+        "offered_rpcs": 720000,
+        "dispatched_rpcs": 720000,
+        "completed_rpcs": 720000,
+        "successful_rpcs": 720000,
+        "failed_rpcs": 0,
+        "timeouts": 0,
+        "queue_overflows": 0,
+        "unstarted_rpcs": 0,
+        "unfinished_rpcs": 0
+      },
+      "status_errors": {},
+      "dispositions": {
+        "client:instructions": {
+          "not_run": 480
+        },
+        "client:allocations": {
+          "win": 335,
+          "loss": 144,
+          "tie": 1
+        },
+        "client:requested_bytes": {
+          "win": 370,
+          "loss": 110
+        },
+        "client:context_switches": {
+          "win": 341,
+          "loss": 124,
+          "not_run": 15
+        },
+        "client:syscalls": {
+          "not_run": 480
+        },
+        "client:task_wakeups": {
+          "not_run": 480
+        },
+        "server:instructions": {
+          "not_run": 480
+        },
+        "server:allocations": {
+          "win": 274,
+          "loss": 206
+        },
+        "server:requested_bytes": {
+          "loss": 204,
+          "win": 276
+        },
+        "server:context_switches": {
+          "loss": 371,
+          "win": 84,
+          "not_run": 24,
+          "tie": 1
+        },
+        "server:syscalls": {
+          "not_run": 480
+        },
+        "server:task_wakeups": {
+          "not_run": 480
+        }
+      },
+      "differential_counter_availability": {
+        "client:instructions": {
+          "rows": 480,
+          "native_delta_available": 0,
+          "tonic_delta_available": 0,
+          "ratio_available": 0
+        },
+        "client:allocations": {
+          "rows": 480,
+          "native_delta_available": 480,
+          "tonic_delta_available": 480,
+          "ratio_available": 480
+        },
+        "client:requested_bytes": {
+          "rows": 480,
+          "native_delta_available": 480,
+          "tonic_delta_available": 480,
+          "ratio_available": 480
+        },
+        "client:context_switches": {
+          "rows": 480,
+          "native_delta_available": 467,
+          "tonic_delta_available": 478,
+          "ratio_available": 465
+        },
+        "client:syscalls": {
+          "rows": 480,
+          "native_delta_available": 0,
+          "tonic_delta_available": 0,
+          "ratio_available": 0
+        },
+        "client:task_wakeups": {
+          "rows": 480,
+          "native_delta_available": 0,
+          "tonic_delta_available": 0,
+          "ratio_available": 0
+        },
+        "server:instructions": {
+          "rows": 480,
+          "native_delta_available": 0,
+          "tonic_delta_available": 0,
+          "ratio_available": 0
+        },
+        "server:allocations": {
+          "rows": 480,
+          "native_delta_available": 480,
+          "tonic_delta_available": 480,
+          "ratio_available": 480
+        },
+        "server:requested_bytes": {
+          "rows": 480,
+          "native_delta_available": 480,
+          "tonic_delta_available": 480,
+          "ratio_available": 480
+        },
+        "server:context_switches": {
+          "rows": 480,
+          "native_delta_available": 472,
+          "tonic_delta_available": 464,
+          "ratio_available": 456
+        },
+        "server:syscalls": {
+          "rows": 480,
+          "native_delta_available": 0,
+          "tonic_delta_available": 0,
+          "ratio_available": 0
+        },
+        "server:task_wakeups": {
+          "rows": 480,
+          "native_delta_available": 0,
+          "tonic_delta_available": 0,
+          "ratio_available": 0
+        }
+      },
+      "raw_counter_availability": {
+        "client": {
+          "instructions": 0,
+          "allocations": 2400,
+          "requested_bytes": 2400,
+          "context_switches": 2400,
+          "syscalls": 0,
+          "task_wakeups": 0
+        },
+        "server": {
+          "instructions": 0,
+          "allocations": 2400,
+          "requested_bytes": 2400,
+          "context_switches": 2400,
+          "syscalls": 0,
+          "task_wakeups": 0
+        }
+      },
+      "summary": "counter-streaming-c3-baseline-expanded-all-counters.json",
+      "historical_600_capture_baseline": {
+        "source": "8fe0f8aeb41356ff427f44542947f36f6d2a2dae",
+        "status": "retained_history",
+        "captures": 600,
+        "summary": "counter-streaming-baseline-summary.json",
+        "primary_before_result": false
+      },
+      "duration_seconds": 579.5457729089994,
+      "record_prefix": "counter-streaming-c3-baseline-expanded"
+    },
+    "preliminary": {
+      "source": "7be4f29d504c9cae92907eeaaedfa4846a581332",
+      "status": "retained_diagnostic",
+      "captures": 600,
+      "compiler_overlap": true,
+      "primary_final_result": false
+    },
+    "final_native": {
+      "source": "6cd91911afce24cceee6df3f60a945453e5b04da",
+      "status": "passed",
+      "scope": {
+        "payload_bytes": [
+          1024,
+          65536
+        ],
+        "in_flight": [
+          1,
+          16
+        ],
+        "repeats": 3,
+        "rpc_counts": [
+          200,
+          400
+        ],
+        "compression": [
+          "identity",
+          "gzip"
+        ],
+        "gzip_level": 6,
+        "tls": [
+          false,
+          true
+        ],
+        "payload_content": "zero-filled payloads; payload size is not encoded-message size",
+        "stream_messages_per_direction": {
+          "bidi": 4,
+          "client_stream_requests": 4,
+          "server_stream_responses": 4
+        }
+      },
+      "qualified": false,
+      "captures": 2400,
+      "expected_captures": 2400,
+      "duration_seconds": 563.8927126509998,
+      "binary_sha256": "ed550040d9dd2786ca876272722f7261dfffa62713563bedc9f5fb35f57ce841",
+      "actual_rpc_totals": {
+        "offered_rpcs": 720000,
+        "dispatched_rpcs": 720000,
+        "completed_rpcs": 720000,
+        "successful_rpcs": 720000,
+        "failed_rpcs": 0,
+        "timeouts": 0,
+        "queue_overflows": 0,
+        "unstarted_rpcs": 0,
+        "unfinished_rpcs": 0
+      },
+      "status_errors": {},
+      "record_prefix": "counter-streaming-c3-expanded",
+      "summary": "counter-streaming-c3-expanded-all-counters.json",
+      "comparisons_per_side_per_metric": 480,
+      "dispositions": {
+        "client:instructions": {
+          "not_run": 480
+        },
+        "client:allocations": {
+          "win": 393,
+          "loss": 86,
+          "tie": 1
+        },
+        "client:requested_bytes": {
+          "win": 371,
+          "loss": 109
+        },
+        "client:context_switches": {
+          "win": 369,
+          "loss": 105,
+          "not_run": 6
+        },
+        "client:syscalls": {
+          "not_run": 480
+        },
+        "client:task_wakeups": {
+          "not_run": 480
+        },
+        "server:instructions": {
+          "not_run": 480
+        },
+        "server:allocations": {
+          "win": 334,
+          "loss": 146
+        },
+        "server:requested_bytes": {
+          "loss": 206,
+          "win": 274
+        },
+        "server:context_switches": {
+          "loss": 391,
+          "win": 74,
+          "not_run": 15
+        },
+        "server:syscalls": {
+          "not_run": 480
+        },
+        "server:task_wakeups": {
+          "not_run": 480
+        }
+      },
+      "differential_counter_availability": {
+        "client:instructions": {
+          "rows": 480,
+          "native_delta_available": 0,
+          "tonic_delta_available": 0,
+          "ratio_available": 0
+        },
+        "client:allocations": {
+          "rows": 480,
+          "native_delta_available": 480,
+          "tonic_delta_available": 480,
+          "ratio_available": 480
+        },
+        "client:requested_bytes": {
+          "rows": 480,
+          "native_delta_available": 480,
+          "tonic_delta_available": 480,
+          "ratio_available": 480
+        },
+        "client:context_switches": {
+          "rows": 480,
+          "native_delta_available": 476,
+          "tonic_delta_available": 478,
+          "ratio_available": 474
+        },
+        "client:syscalls": {
+          "rows": 480,
+          "native_delta_available": 0,
+          "tonic_delta_available": 0,
+          "ratio_available": 0
+        },
+        "client:task_wakeups": {
+          "rows": 480,
+          "native_delta_available": 0,
+          "tonic_delta_available": 0,
+          "ratio_available": 0
+        },
+        "server:instructions": {
+          "rows": 480,
+          "native_delta_available": 0,
+          "tonic_delta_available": 0,
+          "ratio_available": 0
+        },
+        "server:allocations": {
+          "rows": 480,
+          "native_delta_available": 480,
+          "tonic_delta_available": 480,
+          "ratio_available": 480
+        },
+        "server:requested_bytes": {
+          "rows": 480,
+          "native_delta_available": 480,
+          "tonic_delta_available": 480,
+          "ratio_available": 480
+        },
+        "server:context_switches": {
+          "rows": 480,
+          "native_delta_available": 479,
+          "tonic_delta_available": 466,
+          "ratio_available": 465
+        },
+        "server:syscalls": {
+          "rows": 480,
+          "native_delta_available": 0,
+          "tonic_delta_available": 0,
+          "ratio_available": 0
+        },
+        "server:task_wakeups": {
+          "rows": 480,
+          "native_delta_available": 0,
+          "tonic_delta_available": 0,
+          "ratio_available": 0
+        }
+      },
+      "raw_counter_availability": {
+        "client": {
+          "instructions": 0,
+          "allocations": 2400,
+          "requested_bytes": 2400,
+          "context_switches": 2400,
+          "syscalls": 0,
+          "task_wakeups": 0
+        },
+        "server": {
+          "instructions": 0,
+          "allocations": 2400,
+          "requested_bytes": 2400,
+          "context_switches": 2400,
+          "syscalls": 0,
+          "task_wakeups": 0
+        }
+      },
+      "matched_baseline_subset": {
+        "payload_bytes": 1024,
+        "connections": 1,
+        "in_flight": 1,
+        "captures": 600
+      },
+      "selected_matched_allocations": [
+        {
+          "payload_bytes": 1024,
+          "connections": 1,
+          "in_flight": 1,
+          "tls": false,
+          "compression": "gzip",
+          "side": "client",
+          "codec": "pbrs",
+          "shape": "bidi",
+          "metric": "allocations",
+          "native_per_rpc": 101.225,
+          "tonic_per_rpc": 99.015,
+          "ratio": 1.0223198505276978,
+          "repeats": 3,
+          "before_native_per_rpc": 116.32,
+          "before_tonic_per_rpc": 99.03
+        },
+        {
+          "payload_bytes": 1024,
+          "connections": 1,
+          "in_flight": 1,
+          "tls": false,
+          "compression": "gzip",
+          "side": "client",
+          "codec": "prost",
+          "shape": "bidi",
+          "metric": "allocations",
+          "native_per_rpc": 83.17,
+          "tonic_per_rpc": 99.015,
+          "ratio": 0.8399737413523204,
+          "repeats": 3,
+          "before_native_per_rpc": 102.225,
+          "before_tonic_per_rpc": 99.03
+        },
+        {
+          "payload_bytes": 1024,
+          "connections": 1,
+          "in_flight": 1,
+          "tls": false,
+          "compression": "gzip",
+          "side": "server",
+          "codec": "pbrs",
+          "shape": "bidi",
+          "metric": "allocations",
+          "native_per_rpc": 107.09,
+          "tonic_per_rpc": 94.0,
+          "ratio": 1.1392553191489363,
+          "repeats": 3,
+          "before_native_per_rpc": 122.08,
+          "before_tonic_per_rpc": 94.03
+        },
+        {
+          "payload_bytes": 1024,
+          "connections": 1,
+          "in_flight": 1,
+          "tls": false,
+          "compression": "gzip",
+          "side": "server",
+          "codec": "prost",
+          "shape": "bidi",
+          "metric": "allocations",
+          "native_per_rpc": 88.06,
+          "tonic_per_rpc": 94.0,
+          "ratio": 0.9368085106382978,
+          "repeats": 3,
+          "before_native_per_rpc": 107.155,
+          "before_tonic_per_rpc": 94.03
+        },
+        {
+          "payload_bytes": 1024,
+          "connections": 1,
+          "in_flight": 1,
+          "tls": false,
+          "compression": "gzip",
+          "side": "client",
+          "codec": "pbrs",
+          "shape": "bidi_pipelined",
+          "metric": "allocations",
+          "native_per_rpc": 98.395,
+          "tonic_per_rpc": 99.015,
+          "ratio": 0.9937383224763924,
+          "repeats": 3,
+          "before_native_per_rpc": 113.53,
+          "before_tonic_per_rpc": 99.035
+        },
+        {
+          "payload_bytes": 1024,
+          "connections": 1,
+          "in_flight": 1,
+          "tls": false,
+          "compression": "gzip",
+          "side": "client",
+          "codec": "prost",
+          "shape": "bidi_pipelined",
+          "metric": "allocations",
+          "native_per_rpc": 80.28,
+          "tonic_per_rpc": 99.015,
+          "ratio": 0.8107862445084079,
+          "repeats": 3,
+          "before_native_per_rpc": 99.21,
+          "before_tonic_per_rpc": 99.035
+        },
+        {
+          "payload_bytes": 1024,
+          "connections": 1,
+          "in_flight": 1,
+          "tls": false,
+          "compression": "gzip",
+          "side": "server",
+          "codec": "pbrs",
+          "shape": "bidi_pipelined",
+          "metric": "allocations",
+          "native_per_rpc": 107.785,
+          "tonic_per_rpc": 94.015,
+          "ratio": 1.1464659894697655,
+          "repeats": 3,
+          "before_native_per_rpc": 121.28,
+          "before_tonic_per_rpc": 94.035
+        },
+        {
+          "payload_bytes": 1024,
+          "connections": 1,
+          "in_flight": 1,
+          "tls": false,
+          "compression": "gzip",
+          "side": "server",
+          "codec": "prost",
+          "shape": "bidi_pipelined",
+          "metric": "allocations",
+          "native_per_rpc": 88.8,
+          "tonic_per_rpc": 94.015,
+          "ratio": 0.9445301281710365,
+          "repeats": 3,
+          "before_native_per_rpc": 107.42,
+          "before_tonic_per_rpc": 94.035
+        }
+      ]
+    },
+    "callgrind": {
+      "status": "passed",
+      "qualified": false,
+      "source_pins": {
+        "baseline": "8fe0f8aeb41356ff427f44542947f36f6d2a2dae",
+        "candidate": "6cd91911afce24cceee6df3f60a945453e5b04da"
+      },
+      "captures": 144,
+      "expected_captures": 144,
+      "duration_seconds": 488.1165896519997,
+      "actual_rpc_totals": {
+        "offered_rpcs": 5400,
+        "dispatched_rpcs": 5400,
+        "completed_rpcs": 5400,
+        "successful_rpcs": 5400,
+        "failed_rpcs": 0,
+        "timeouts": 0,
+        "queue_overflows": 0,
+        "unstarted_rpcs": 0,
+        "unfinished_rpcs": 0
+      },
+      "per_version": {
+        "baseline": {
+          "captures": 72,
+          "actual_rpc_totals": {
+            "offered_rpcs": 2700,
+            "dispatched_rpcs": 2700,
+            "completed_rpcs": 2700,
+            "successful_rpcs": 2700,
+            "failed_rpcs": 0,
+            "timeouts": 0,
+            "queue_overflows": 0,
+            "unstarted_rpcs": 0,
+            "unfinished_rpcs": 0
+          },
+          "status_errors": {}
+        },
+        "candidate": {
+          "captures": 72,
+          "actual_rpc_totals": {
+            "offered_rpcs": 2700,
+            "dispatched_rpcs": 2700,
+            "completed_rpcs": 2700,
+            "successful_rpcs": 2700,
+            "failed_rpcs": 0,
+            "timeouts": 0,
+            "queue_overflows": 0,
+            "unstarted_rpcs": 0,
+            "unfinished_rpcs": 0
+          },
+          "status_errors": {}
+        }
+      },
+      "rpc_counts": [
+        25,
+        50
+      ],
+      "scope": "Selected server bidi and pipelined bidi cases; 1 KiB zero-filled payloads, h2c, one connection/in-flight RPC, identity/gzip, native pbrs/prost and tonic/prost; both endpoints instrumented.",
+      "repeats": 3,
+      "instruction_band": 0.02,
+      "instruction_table": [
+        {
+          "codec": "pbrs",
+          "compression": "identity",
+          "shape": "bidi",
+          "repeats_expected": 3,
+          "qualified": false,
+          "baseline_native_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 95236.0,
+            "median": 96021.48,
+            "maximum": 97690.92
+          },
+          "baseline_tonic_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 123432.32,
+            "median": 123829.12,
+            "maximum": 127322.76
+          },
+          "baseline_native_over_tonic": {
+            "available": 3,
+            "minimum": 0.7672698895311412,
+            "median": 0.7715645302624142,
+            "maximum": 0.7754353741672395
+          },
+          "baseline_repeat_dispositions": {
+            "2": "win",
+            "1": "win",
+            "0": "win"
+          },
+          "baseline_failed_captures": [],
+          "candidate_native_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 97018.96,
+            "median": 98938.96,
+            "maximum": 99772.84
+          },
+          "candidate_tonic_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 122786.84,
+            "median": 123150.64,
+            "maximum": 124099.8
+          },
+          "candidate_native_over_tonic": {
+            "available": 3,
+            "minimum": 0.7878071928818234,
+            "median": 0.7972531784902152,
+            "maximum": 0.8125694903460339
+          },
+          "candidate_repeat_dispositions": {
+            "2": "win",
+            "1": "win",
+            "0": "win"
+          },
+          "candidate_failed_captures": [],
+          "candidate_over_baseline": {
+            "available": 3,
+            "minimum": 0.9931215715851587,
+            "median": 1.030383618332065,
+            "maximum": 1.0476378680330967
+          },
+          "status": "complete_diagnostic"
+        },
+        {
+          "codec": "pbrs",
+          "compression": "identity",
+          "shape": "bidi_pipelined",
+          "repeats_expected": 3,
+          "qualified": false,
+          "baseline_native_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 76688.56,
+            "median": 78735.8,
+            "maximum": 79104.36
+          },
+          "baseline_tonic_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 106708.6,
+            "median": 109588.44,
+            "maximum": 111027.0
+          },
+          "baseline_native_over_tonic": {
+            "available": 3,
+            "minimum": 0.6907199149756366,
+            "median": 0.7218312442443747,
+            "maximum": 0.7378580545523041
+          },
+          "baseline_repeat_dispositions": {
+            "2": "win",
+            "0": "win",
+            "1": "win"
+          },
+          "baseline_failed_captures": [],
+          "candidate_native_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 76236.2,
+            "median": 76365.96,
+            "maximum": 81105.92
+          },
+          "candidate_tonic_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 102491.72,
+            "median": 109564.12,
+            "maximum": 109597.12
+          },
+          "candidate_native_over_tonic": {
+            "available": 3,
+            "minimum": 0.6967880177873288,
+            "median": 0.7402598587931889,
+            "maximum": 0.7438278916579798
+          },
+          "candidate_repeat_dispositions": {
+            "2": "win",
+            "0": "win",
+            "1": "win"
+          },
+          "candidate_failed_captures": [],
+          "candidate_over_baseline": {
+            "available": 3,
+            "minimum": 0.9699013663416134,
+            "median": 0.9941013366270015,
+            "maximum": 1.0253027772426198
+          },
+          "status": "complete_diagnostic"
+        },
+        {
+          "codec": "pbrs",
+          "compression": "gzip",
+          "shape": "bidi",
+          "repeats_expected": 3,
+          "qualified": false,
+          "baseline_native_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 2817890.24,
+            "median": 2818683.4,
+            "maximum": 2818741.24
+          },
+          "baseline_tonic_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 2773744.08,
+            "median": 2774570.16,
+            "maximum": 2775282.2
+          },
+          "baseline_native_over_tonic": {
+            "available": 3,
+            "minimum": 1.0153526873771612,
+            "median": 1.015899125794678,
+            "maximum": 1.0162225348489973
+          },
+          "baseline_repeat_dispositions": {
+            "2": "tie",
+            "1": "tie",
+            "0": "tie"
+          },
+          "baseline_failed_captures": [],
+          "candidate_native_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 2837324.28,
+            "median": 2838576.52,
+            "maximum": 2840735.76
+          },
+          "candidate_tonic_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 2773595.64,
+            "median": 2775035.76,
+            "maximum": 2775194.08
+          },
+          "candidate_native_over_tonic": {
+            "available": 3,
+            "minimum": 1.022387695494075,
+            "median": 1.0228972761057322,
+            "maximum": 1.024206888355218
+          },
+          "candidate_repeat_dispositions": {
+            "2": "loss",
+            "1": "loss",
+            "0": "loss"
+          },
+          "candidate_failed_captures": [],
+          "candidate_over_baseline": {
+            "available": 3,
+            "minimum": 1.0068966632284442,
+            "median": 1.0070575929173173,
+            "maximum": 1.0078029581743373
+          },
+          "status": "complete_diagnostic"
+        },
+        {
+          "codec": "pbrs",
+          "compression": "gzip",
+          "shape": "bidi_pipelined",
+          "repeats_expected": 3,
+          "qualified": false,
+          "baseline_native_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 2802088.96,
+            "median": 2802205.68,
+            "maximum": 2807885.72
+          },
+          "baseline_tonic_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 2756329.64,
+            "median": 2758319.52,
+            "maximum": 2761917.12
+          },
+          "baseline_native_over_tonic": {
+            "available": 3,
+            "minimum": 1.0145871719713297,
+            "median": 1.0166015411712512,
+            "maximum": 1.017969709325046
+          },
+          "baseline_repeat_dispositions": {
+            "1": "tie",
+            "0": "tie",
+            "2": "tie"
+          },
+          "baseline_failed_captures": [],
+          "candidate_native_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 2822596.96,
+            "median": 2823756.28,
+            "maximum": 2828659.04
+          },
+          "candidate_tonic_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 2757267.08,
+            "median": 2759285.76,
+            "maximum": 2762169.28
+          },
+          "candidate_native_over_tonic": {
+            "available": 3,
+            "minimum": 1.0222966059487852,
+            "median": 1.0236937076113788,
+            "maximum": 1.0251417526251432
+          },
+          "candidate_repeat_dispositions": {
+            "1": "loss",
+            "0": "loss",
+            "2": "loss"
+          },
+          "candidate_failed_captures": [],
+          "candidate_over_baseline": {
+            "available": 3,
+            "minimum": 1.0073188254522798,
+            "median": 1.0073982070751797,
+            "maximum": 1.0076905846540143
+          },
+          "status": "complete_diagnostic"
+        },
+        {
+          "codec": "prost",
+          "compression": "identity",
+          "shape": "bidi",
+          "repeats_expected": 3,
+          "qualified": false,
+          "baseline_native_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 93143.0,
+            "median": 93469.08,
+            "maximum": 94320.16
+          },
+          "baseline_tonic_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 123432.32,
+            "median": 123829.12,
+            "maximum": 127322.76
+          },
+          "baseline_native_over_tonic": {
+            "available": 3,
+            "minimum": 0.7407957540348639,
+            "median": 0.7521897918680195,
+            "maximum": 0.7572496409368308
+          },
+          "baseline_repeat_dispositions": {
+            "2": "win",
+            "0": "win",
+            "1": "win"
+          },
+          "baseline_failed_captures": [],
+          "candidate_native_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 93601.24,
+            "median": 93824.68,
+            "maximum": 94588.48
+          },
+          "candidate_tonic_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 122786.84,
+            "median": 123150.64,
+            "maximum": 124099.8
+          },
+          "candidate_native_over_tonic": {
+            "available": 3,
+            "minimum": 0.7542416667875371,
+            "median": 0.7641265138837354,
+            "maximum": 0.7680713636567378
+          },
+          "candidate_repeat_dispositions": {
+            "2": "win",
+            "0": "win",
+            "1": "win"
+          },
+          "candidate_failed_captures": [],
+          "candidate_over_baseline": {
+            "available": 3,
+            "minimum": 1.0028447788892638,
+            "median": 1.0038044666749688,
+            "maximum": 1.0049197470556028
+          },
+          "status": "complete_diagnostic"
+        },
+        {
+          "codec": "prost",
+          "compression": "identity",
+          "shape": "bidi_pipelined",
+          "repeats_expected": 3,
+          "qualified": false,
+          "baseline_native_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 69588.32,
+            "median": 76012.64,
+            "maximum": 81200.4
+          },
+          "baseline_tonic_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 106708.6,
+            "median": 109588.44,
+            "maximum": 111027.0
+          },
+          "baseline_native_over_tonic": {
+            "available": 3,
+            "minimum": 0.6267693443937061,
+            "median": 0.6936191445010076,
+            "maximum": 0.7609545997229838
+          },
+          "baseline_repeat_dispositions": {
+            "2": "win",
+            "1": "win",
+            "0": "win"
+          },
+          "baseline_failed_captures": [],
+          "candidate_native_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 71539.0,
+            "median": 74108.44,
+            "maximum": 81448.88
+          },
+          "candidate_tonic_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 102491.72,
+            "median": 109564.12,
+            "maximum": 109597.12
+          },
+          "candidate_native_over_tonic": {
+            "available": 3,
+            "minimum": 0.6527452546198295,
+            "median": 0.7230675804835747,
+            "maximum": 0.7433900806212838
+          },
+          "candidate_repeat_dispositions": {
+            "2": "win",
+            "1": "win",
+            "0": "win"
+          },
+          "candidate_failed_captures": [],
+          "candidate_over_baseline": {
+            "available": 3,
+            "minimum": 0.8810178274983868,
+            "median": 1.064955153393558,
+            "maximum": 1.0715175791815679
+          },
+          "status": "complete_diagnostic"
+        },
+        {
+          "codec": "prost",
+          "compression": "gzip",
+          "shape": "bidi",
+          "repeats_expected": 3,
+          "qualified": false,
+          "baseline_native_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 2812742.12,
+            "median": 2814166.32,
+            "maximum": 2815710.72
+          },
+          "baseline_tonic_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 2773744.08,
+            "median": 2774570.16,
+            "maximum": 2775282.2
+          },
+          "baseline_native_over_tonic": {
+            "available": 3,
+            "minimum": 1.0140108706783042,
+            "median": 1.014059710944926,
+            "maximum": 1.014827723801369
+          },
+          "baseline_repeat_dispositions": {
+            "1": "tie",
+            "2": "tie",
+            "0": "tie"
+          },
+          "baseline_failed_captures": [],
+          "candidate_native_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 2834577.88,
+            "median": 2835199.56,
+            "maximum": 2835657.6
+          },
+          "candidate_tonic_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 2773595.64,
+            "median": 2775035.76,
+            "maximum": 2775194.08
+          },
+          "candidate_native_over_tonic": {
+            "available": 3,
+            "minimum": 1.0216220841751003,
+            "median": 1.0218454265973136,
+            "maximum": 1.0219867089205548
+          },
+          "candidate_repeat_dispositions": {
+            "1": "loss",
+            "2": "loss",
+            "0": "loss"
+          },
+          "candidate_failed_captures": [],
+          "candidate_over_baseline": {
+            "available": 3,
+            "minimum": 1.0070841368249648,
+            "median": 1.0074740571836565,
+            "maximum": 1.007763157469978
+          },
+          "status": "complete_diagnostic"
+        },
+        {
+          "codec": "prost",
+          "compression": "gzip",
+          "shape": "bidi_pipelined",
+          "repeats_expected": 3,
+          "qualified": false,
+          "baseline_native_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 2800768.04,
+            "median": 2801272.32,
+            "maximum": 2802785.6
+          },
+          "baseline_tonic_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 2756329.64,
+            "median": 2758319.52,
+            "maximum": 2761917.12
+          },
+          "baseline_native_over_tonic": {
+            "available": 3,
+            "minimum": 1.0140666494728126,
+            "median": 1.016120713962826,
+            "maximum": 1.0163052631106924
+          },
+          "baseline_repeat_dispositions": {
+            "2": "tie",
+            "0": "tie",
+            "1": "tie"
+          },
+          "baseline_failed_captures": [],
+          "candidate_native_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 2819470.28,
+            "median": 2820354.84,
+            "maximum": 2821135.8
+          },
+          "candidate_tonic_instructions_per_rpc": {
+            "available": 3,
+            "minimum": 2757267.08,
+            "median": 2759285.76,
+            "maximum": 2762169.28
+          },
+          "candidate_native_over_tonic": {
+            "available": 3,
+            "minimum": 1.021065168026197,
+            "median": 1.021811629977752,
+            "maximum": 1.0231637770832123
+          },
+          "candidate_repeat_dispositions": {
+            "2": "loss",
+            "0": "loss",
+            "1": "loss"
+          },
+          "candidate_failed_captures": [],
+          "candidate_over_baseline": {
+            "available": 3,
+            "minimum": 1.0059528920085787,
+            "median": 1.0069933674335987,
+            "maximum": 1.00709087790508
+          },
+          "status": "complete_diagnostic"
+        }
+      ],
+      "source_ledger_dispositions": {
+        "baseline": {
+          "server:instructions": {
+            "tie": 12,
+            "win": 12
+          },
+          "server:allocations": {
+            "loss": 18,
+            "win": 6
+          },
+          "server:requested_bytes": {
+            "win": 12,
+            "loss": 12
+          },
+          "server:context_switches": {
+            "not_run": 24
+          },
+          "server:syscalls": {
+            "not_run": 24
+          },
+          "server:task_wakeups": {
+            "not_run": 24
+          }
+        },
+        "candidate": {
+          "server:instructions": {
+            "loss": 12,
+            "win": 12
+          },
+          "server:allocations": {
+            "loss": 12,
+            "win": 12
+          },
+          "server:requested_bytes": {
+            "win": 12,
+            "loss": 12
+          },
+          "server:context_switches": {
+            "not_run": 24
+          },
+          "server:syscalls": {
+            "not_run": 24
+          },
+          "server:task_wakeups": {
+            "not_run": 24
+          }
+        }
+      },
+      "source_ab_dispositions": {
+        "tonic_client_peer:instructions": {
+          "tie": 28,
+          "improvement": 4,
+          "regression": 4
+        },
+        "tonic_client_peer:allocations": {
+          "improvement": 10,
+          "regression": 21,
+          "tie": 5
+        },
+        "tonic_client_peer:requested_bytes": {
+          "regression": 22,
+          "improvement": 10,
+          "tie": 4
+        },
+        "tonic_client_peer:context_switches": {
+          "not_run": 36
+        },
+        "tonic_client_peer:syscalls": {
+          "not_run": 36
+        },
+        "tonic_client_peer:task_wakeups": {
+          "not_run": 36
+        },
+        "native_server:instructions": {
+          "tie": 17,
+          "regression": 5,
+          "improvement": 2
+        },
+        "native_server:allocations": {
+          "improvement": 18,
+          "regression": 6
+        },
+        "native_server:requested_bytes": {
+          "improvement": 14,
+          "regression": 10
+        },
+        "native_server:context_switches": {
+          "not_run": 24
+        },
+        "native_server:syscalls": {
+          "not_run": 24
+        },
+        "native_server:task_wakeups": {
+          "not_run": 24
+        },
+        "tonic_server_reference:instructions": {
+          "tie": 9,
+          "improvement": 2,
+          "regression": 1
+        },
+        "tonic_server_reference:allocations": {
+          "improvement": 6,
+          "regression": 5,
+          "tie": 1
+        },
+        "tonic_server_reference:requested_bytes": {
+          "improvement": 6,
+          "regression": 5,
+          "tie": 1
+        },
+        "tonic_server_reference:context_switches": {
+          "not_run": 12
+        },
+        "tonic_server_reference:syscalls": {
+          "not_run": 12
+        },
+        "tonic_server_reference:task_wakeups": {
+          "not_run": 12
+        }
+      },
+      "raw_counter_availability": {
+        "baseline": {
+          "client": {
+            "instructions": 72,
+            "allocations": 72,
+            "requested_bytes": 72,
+            "context_switches": 0,
+            "syscalls": 0,
+            "task_wakeups": 0
+          },
+          "server": {
+            "instructions": 72,
+            "allocations": 72,
+            "requested_bytes": 72,
+            "context_switches": 0,
+            "syscalls": 0,
+            "task_wakeups": 0
+          }
+        },
+        "candidate": {
+          "client": {
+            "instructions": 72,
+            "allocations": 72,
+            "requested_bytes": 72,
+            "context_switches": 0,
+            "syscalls": 0,
+            "task_wakeups": 0
+          },
+          "server": {
+            "instructions": 72,
+            "allocations": 72,
+            "requested_bytes": 72,
+            "context_switches": 0,
+            "syscalls": 0,
+            "task_wakeups": 0
+          }
+        }
+      },
+      "failed_captures": [],
+      "full360_status": "NOT_RUN; scope gap retained",
+      "limits": [
+        "shared-host separate-process diagnostics; qualified=false",
+        "process-lifetime Callgrind instructions, paired N/2N setup subtraction",
+        "both endpoints instrumented; profiler timings are not native latency or throughput",
+        "process CPU seconds include profiler overhead; instruction totals describe instrumented work",
+        "1 KiB zero-filled synthetic payloads, h2c, one connection/in-flight RPC, four streaming messages",
+        "per-RPC deadlines, readiness and teardown timeouts remain unchanged",
+        "no measured scheduling noise, independent host statistics or broad superiority proof",
+        "small-N diagnostic (25/50); setup subtraction and scheduling can dominate differences",
+        "focused scope omits unary and native-client pairs; tonic peers remain instrumented",
+        "three-repeat ranges retained; no qualified native speed ranking",
+        "before/current native and both tonic reference ranges are distinct",
+        "all nonpositive differentials and missing/failed rows stay unavailable"
+      ],
+      "summary": "callgrind-streaming-c3-server-small-summary.json",
+      "record_prefix": "callgrind-streaming-c3-server-small-run"
+    },
+    "native_measured_metrics": [
+      "allocations",
+      "requested_bytes",
+      "raw getrusage process context switches"
+    ],
+    "not_measured_in_native_phase": [
+      "instructions",
+      "syscalls",
+      "task wakeups"
+    ],
+    "unqualified_metrics": [
+      "latency",
+      "throughput",
+      "CPU",
+      "scheduling comparisons",
+      "real-network comparisons"
+    ],
+    "handler_scope": "The pbrs server uses the full InteropTestService response planner and status/delay/echo checks; native prost and tonic benchmark handlers use simpler loops. Compare native/prost with tonic/prost for transport attribution. Before/after retains the same handler.",
+    "residual_bytes": {
+      "payload_bytes": 1024,
+      "connections": 1,
+      "in_flight": 1,
+      "tls": false,
+      "compression": "identity",
+      "side": "server",
+      "codec": "prost",
+      "shape": "bidi",
+      "metric": "requested_bytes",
+      "native_per_rpc": 46935.2,
+      "tonic_per_rpc": 33740.15,
+      "ratio": 1.391078581452661,
+      "repeats": 3,
+      "native_kib_per_rpc": 45.83515625,
+      "tonic_kib_per_rpc": 32.949365234375,
+      "more_percent": 39.10785814526609,
+      "metric_definition": "cumulative allocation requests, not retained memory",
+      "status": "final_quiet_native_capture"
+    },
+    "residual_selected_rows": [
+      {
+        "payload_bytes": 65536,
+        "connections": 1,
+        "in_flight": 1,
+        "tls": false,
+        "compression": "gzip",
+        "side": "server",
+        "codec": "prost",
+        "shape": "bidi",
+        "metric": "allocations",
+        "native_per_rpc": 111.155,
+        "tonic_per_rpc": 99.025,
+        "ratio": 1.1224943196162585,
+        "repeats": 3
+      },
+      {
+        "payload_bytes": 65536,
+        "connections": 1,
+        "in_flight": 1,
+        "tls": false,
+        "compression": "gzip",
+        "side": "server",
+        "codec": "prost",
+        "shape": "client_stream",
+        "metric": "requested_bytes",
+        "native_per_rpc": 1816372.52,
+        "tonic_per_rpc": 1219185.0,
+        "ratio": 1.4898251864975374,
+        "repeats": 3
+      },
+      {
+        "payload_bytes": 1024,
+        "connections": 1,
+        "in_flight": 1,
+        "tls": false,
+        "compression": "identity",
+        "side": "server",
+        "codec": "prost",
+        "shape": "bidi",
+        "metric": "requested_bytes",
+        "native_per_rpc": 46935.2,
+        "tonic_per_rpc": 33740.15,
+        "ratio": 1.391078581452661,
+        "repeats": 3
+      }
+    ],
+    "design_followups": {
+      "status": "hypotheses_not_proven_causes",
+      "items": [
+        "A message carrying a 64 KiB payload exceeds the 64 KiB scratch-retention threshold.",
+        "Attribute decoder-output growth/ownership and fixed batch reservations."
+      ],
+      "required_before_cap_changes": [
+        "Cost attribution",
+        "Retained-memory checks",
+        "Bounded behavior under concurrent large streams"
+      ],
+      "raise_caps_without_evidence": false
+    },
+    "source_requested_byte_regressions": [
+      {
+        "side": "server",
+        "codec": "prost",
+        "shape": "client_stream",
+        "compression": "gzip",
+        "payload_bytes": 65536,
+        "connections": 1,
+        "in_flight": 1,
+        "tls": false,
+        "before_native_bytes_per_rpc": 1667216.6,
+        "current_native_bytes_per_rpc": 1816372.52,
+        "before_tonic_bytes_per_rpc": 1219185.0,
+        "current_tonic_bytes_per_rpc": 1219185.0,
+        "source_change_percent": 8.946403244785351,
+        "current_vs_tonic_percent": 48.982518649753736,
+        "scope": "Three-repeat medians; cumulative allocation requests, not retained memory."
+      },
+      {
+        "side": "server",
+        "codec": "pbrs",
+        "shape": "client_stream",
+        "compression": "gzip",
+        "payload_bytes": 65536,
+        "connections": 1,
+        "in_flight": 1,
+        "tls": false,
+        "before_native_bytes_per_rpc": 1405993.955,
+        "current_native_bytes_per_rpc": 1555147.56,
+        "before_tonic_bytes_per_rpc": 1219185.0,
+        "current_tonic_bytes_per_rpc": 1219185.0,
+        "source_change_percent": 10.608410119373524,
+        "current_vs_tonic_percent": 27.556323281536432,
+        "scope": "Three-repeat medians; cumulative allocation requests, not retained memory."
+      },
+      {
+        "side": "server",
+        "codec": "prost",
+        "shape": "bidi",
+        "compression": "gzip",
+        "payload_bytes": 65536,
+        "connections": 1,
+        "in_flight": 1,
+        "tls": false,
+        "before_native_bytes_per_rpc": 3421735.405,
+        "current_native_bytes_per_rpc": 3538219.68,
+        "before_tonic_bytes_per_rpc": 2663944.525,
+        "current_tonic_bytes_per_rpc": 2663946.37,
+        "source_change_percent": 3.4042455424749596,
+        "current_vs_tonic_percent": 32.81872787851956,
+        "scope": "Three-repeat medians; cumulative allocation requests, not retained memory."
+      },
+      {
+        "side": "server",
+        "codec": "pbrs",
+        "shape": "bidi",
+        "compression": "gzip",
+        "payload_bytes": 65536,
+        "connections": 1,
+        "in_flight": 1,
+        "tls": false,
+        "before_native_bytes_per_rpc": 4470487.385,
+        "current_native_bytes_per_rpc": 4586966.8,
+        "before_tonic_bytes_per_rpc": 2663944.525,
+        "current_tonic_bytes_per_rpc": 2663946.37,
+        "source_change_percent": 2.6055193756015838,
+        "current_vs_tonic_percent": 72.1869047986878,
+        "scope": "Three-repeat medians; cumulative allocation requests, not retained memory."
+      }
+    ],
+    "matched_expanded_ab": {
+      "source": "callgrind-streaming-c3-matched-expanded-ab.json",
+      "qualified": false,
+      "rows": 1920,
+      "source_comparison_median_dispositions": {
+        "client:allocations": {
+          "improvement": 115,
+          "regression": 38,
+          "tie": 7
+        },
+        "client:context_switches": {
+          "regression": 77,
+          "improvement": 61,
+          "unavailable_or_partial": 20,
+          "tie": 2
+        },
+        "client:instructions": {
+          "unavailable_or_partial": 160
+        },
+        "client:requested_bytes": {
+          "improvement": 78,
+          "regression": 81,
+          "tie": 1
+        },
+        "client:syscalls": {
+          "unavailable_or_partial": 160
+        },
+        "client:task_wakeups": {
+          "unavailable_or_partial": 160
+        },
+        "server:allocations": {
+          "improvement": 114,
+          "regression": 44,
+          "tie": 2
+        },
+        "server:context_switches": {
+          "improvement": 49,
+          "regression": 86,
+          "unavailable_or_partial": 25
+        },
+        "server:instructions": {
+          "unavailable_or_partial": 160
+        },
+        "server:requested_bytes": {
+          "improvement": 74,
+          "regression": 86
+        },
+        "server:syscalls": {
+          "unavailable_or_partial": 160
+        },
+        "server:task_wakeups": {
+          "unavailable_or_partial": 160
+        }
+      },
+      "limit": "Direction counts include negligible differences; they are not significance tests."
+    }
+  },
+  "soak_24h": {
+    "source": "6cd91911afce24cceee6df3f60a945453e5b04da",
+    "qualified": false,
+    "launch_record": "streaming-c3-day-launch.json",
+    "requested_seconds": 86400,
+    "status": "running_at_publication",
+    "started_utc": "2026-10-22T20:27:47.555424+00:00",
+    "pid": 87073,
+    "supervisor_pid": 87061,
+    "limits": {
+      "address_space": {
+        "soft": 1073741824,
+        "hard": 1073741824
+      },
+      "file_descriptors": {
+        "soft": 128,
+        "hard": 128
+      },
+      "same_uid_processes": {
+        "soft": 4096,
+        "hard": 4096
+      },
+      "cpu_seconds": {
+        "soft": 86430,
+        "hard": 86430
+      }
+    }
+  },
+  "blockers": [
+    "Native gzip/Zstd stops after the first member/frame and can silently omit protobuf fields in valid concatenated input.",
+    "Native gzip/deflate/Zstd does not fully validate trailing compressed input. First-frame size/checksum validation does not establish full-payload validation.",
+    "Opaque tonic adapter independently decodes the first gzip member and replays compressed views. A native-only fix leaves partial decoded protobuf data.",
+    "Zstd reserved descriptor bit 3 rejection remains missing; external compression-tail proposal is UNCOMPILED/UNTESTED, unapplied review material.",
+    "Strict lint, platform/release gates, full 24-hour resource test and complete performance qualification remain open.",
+    "External discovery/balancers, credential providers, typed extensions, ALTS qualification, xDS and full telemetry remain commitments."
+  ],
+  "archive": {
+    "path": "raw.tar.gz",
+    "manifest": "manifest.json",
+    "checker": "check.py",
+    "status": "packaged_and_integrity_checked",
+    "archive_sha256": "e884386e7ab87258ea335ac7db6c6f9a6b31dba99e70b2d6930e3083d9ff3e4d",
+    "integrity_is_qualification": false
+  },
+  "compression_runtime_scope": {
+    "source": "6cd91911afce24cceee6df3f60a945453e5b04da",
+    "zstd_default_history_window_bytes": 8388608,
+    "zstd_unlimited_backend_window_bytes": 104857600,
+    "validated_content_size_and_checksum_scope": "first Zstd frame only",
+    "memory_limit_caveat": "Decoded output cap does not bound all decoder work or total memory, including history/block/input/allocator state.",
+    "draft_inputs": [
+      "compression-tail-proposal.md",
+      "compression-doc-correction.md"
+    ],
+    "draft_status": "UNCOMPILED/UNTESTED; patch not applied"
+  },
+  "published_snapshot_utc": "2026-10-22T20:34:22.778039+00:00"
+}

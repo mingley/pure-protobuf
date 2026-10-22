@@ -10,7 +10,7 @@ remain within the base Rust 1.85 profile.
 
 ## Backend: miniz_oxide stays (flate2 1.1.10 + `runtime_detection`)
 
-The backend comparison used flate2's two pure-Rust backends with a throwaway
+The backend comparison used two flate2 backends with a throwaway
 harness (`/tmp/zbench`, since removed). The harness drove
 `GzEncoder`/`GzDecoder` over protobuf-like payloads: tags, varints, short
 strings, and zero runs. It tested 1 KiB / 32 KiB / 300 KiB payloads at levels
@@ -41,7 +41,7 @@ Two changes did ship:
   ~3-8% on the same harness.
 - The `zlib-rs` crate name now appears as an (inactive) edge in
   `Cargo.lock` because flate2 1.1.10 declares the optional backend. It is
-  not compiled (`cargo tree` shows no path to it) and the pure-Rust audit
+  not compiled (`cargo tree` shows no path to it) and the dependency audit
   reads the activated graph, so the gate is unaffected. An auditor seeing
   it in the lock should check `cargo tree`, not the lock edge list.
 
@@ -121,8 +121,8 @@ even optional. New dependencies now follow this provenance rule: do not add a
 crate younger than roughly 90 days, or with negligible downloads/adoption, or
 with a single unknown owner, unless the maintainer explicitly approves it.
 
-The shipped dependency is `ruzstd` 0.9.0 from KillingSpark/zstd-rs. It is pure
-Rust, established, and materially adopted. It declares `rust-version = 1.87`,
+The shipped dependency is `ruzstd` 0.9.0 from KillingSpark/zstd-rs.
+It declares `rust-version = 1.87`,
 so the `zstd` feature has a documented higher MSRV (1.87) than the default
 pbrs-grpc 1.85 profile. `ruzstd` 0.9 does provide an encoder:
 `ruzstd::encoding::compress_to_vec(source, CompressionLevel::Fastest)`.
@@ -133,23 +133,55 @@ to Fastest, roughly zstd level 1. The feature adds `CompressionAlgorithm::Zstd`,
 zstd through the same registry as gzip and deflate. A zstd-configured server
 still falls back to gzip or deflate when the peer does not advertise zstd.
 
-Decompression stays bounded by the existing message limit: the implementation
-uses `ruzstd::decoding::StreamingDecoder` and stops reading one byte past
-`MessageLimits::inflate_budget()`. Crossing the cap maps to
-`RESOURCE_EXHAUSTED`; it does not first inflate the whole message and then
-check its length. The hostile-peer test `a_zstd_bomb_cannot_outgrow_the_cap`
-sends a compressed 64 MiB zero payload whose frame length is below the 256 KiB
-frame cap; the server rejects it at the uncompressed message limit.
+Zstd decoding has separate limits for decoded output and decoder history.
+`MessageLimits::with_max_decoding` caps the wire payload and decoded message.
+`MessageLimits::with_max_zstd_window` caps the advertised history window at
+8 MiB by default; larger windows fail with `RESOURCE_EXHAUSTED` before history
+allocation. `MessageLimits::unlimited()` uses the backend's 100 MiB window cap.
+Lifting only the decoded message cap preserves the configured window limit.
+
+A declared content size above the message cap is rejected before decoding
+blocks. For an unknown content size, the backend may buffer a history window
+and block data before returning the first decoded byte. The output cap therefore
+does not bound all decoder work or total memory. Account for decoder state,
+block buffers, compressed input and allocator overhead separately. Decoded
+lengths and content checksums are validated for the first Zstd frame; complete
+concatenated-frame validation remains open. The hostile-peer test
+`a_zstd_bomb_cannot_outgrow_the_cap` checks the configured output limit.
 
 The C `zstd` crate is not in `pbrs-grpc`'s dev-dependencies. C-backed zstd
 interop proof lives in the standalone `tests/interop/tonic` workspace, which
 already allows tonic/C-backed peer tooling. Its test verifies `CompressionAlgorithm::Zstd`
 frames decode with the C zstd crate and C zstd frames decode with pbrs-grpc.
-`pbrs-grpc/tests/compression.rs` keeps the pure-Rust in-crate proof that a
-real unary RPC negotiates zstd in both directions.
+`pbrs-grpc/tests/compression.rs` checks that a real unary RPC negotiates zstd
+in both directions.
 
 Remaining limits: there is still no official gRPC interop procedure for zstd,
 so this is a tonic-compatible proof rather than an upstream interop case.
+
+## Compressed-input gaps
+
+The [2026-10-22 follow-up](../evidence/grpc-streaming-20261022/README.md)
+identifies unresolved format handling. Native gzip/Zstd decoding returns only
+the first member/frame and can silently omit protobuf fields in valid
+concatenated input. Gzip, deflate and Zstd do not fully validate trailing input.
+Zstd reserved descriptor bit 3 is not rejected. Passing the first frame's
+size/checksum checks does not establish complete compressed-message validation.
+
+The opaque tonic adapter has a separate gzip path: it decodes one member,
+discards the decoded scratch bytes and replays the original compressed views.
+The generated tonic decoder then also reads only the first member. Fixing the
+native decoder alone leaves this partial-data problem. The adapter must deliver
+complete decoded protobuf data or an explicit error, with aggregate limits and
+fragmented-input/cancellation checks. Supporting multipart gzip needs bounded
+normalization before replaying messages to generated tonic.
+
+An external proposal covers concatenated gzip members and Zstd standard/skippable
+frames, rejects bytes after a deflate zlib stream and checks the Zstd reserved
+bit. It is **uncompiled, untested and unapplied**. Aggregate output/window limits,
+malformed tails, checksums, adapter normalization, decoder-work bounds and matched
+performance still need validation. Complete compression-spec compliance is not
+established.
 
 ## Preserve the published compression selector (AD-03c)
 

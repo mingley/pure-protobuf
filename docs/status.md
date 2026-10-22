@@ -1,15 +1,31 @@
 # Implementation status
 
-The [2026-10-22 validation](evidence/grpc-validation-20261022/README.md) records
-new safety and correctness repairs, failed workspace checks and benchmark
-accounting defects. Production readiness and broad superiority over tonic/prost
-remain unproved. Its command records identify the source and scope of each
-result. The older records below retain their original qualification limits.
+The [streaming follow-up](evidence/grpc-streaming-20261022/README.md) fixes local
+cancellation, failed-batch rollback and compression handling. On `6cd91911`, the
+all-feature workspace passes 3,677 tests with nine existing ignores; strict
+Clippy still fails with 115 library diagnostics. ASAN passes 639 library tests
+at the earlier `7be4f29d` source. The 31.64-second resource preview passes; a new
+24-hour diagnostic is running, with completion still unproved.
 
-The [subsequent day diagnostic](evidence/grpc-resource-soak-20261022/README.md)
-failed after 4 hours 56 minutes when a raw reset probe observed success.
-The original event log and process samples are retained. Resource recovery
-had completed before that probe; the requested 24-hour gate remains open.
+Matched before/after native campaigns each complete 2,400 captures and 720,000
+successful RPCs. Selected 1 KiB streaming allocation counts improve, while
+64 KiB prost gzip upload allocation bytes remain 49% above tonic/prost and rise
+9.0% against the old source. The selected instruction pilot retains gzip and
+uncompressed regressions. These shared-host diagnostics do not prove native CPU,
+latency, throughput or overall superiority.
+
+Compression remains a production blocker: native gzip/Zstd can omit protobuf
+fields after the first member/frame of concatenated input. Gzip/deflate/Zstd
+trailing input is not fully validated, and Zstd reserved descriptor bit 3 is not
+rejected. The opaque tonic adapter has its own first-member gzip path, so a
+native-only fix leaves partial data. Zstd size/checksum validation currently
+covers the first frame. The external repair proposal is uncompiled, untested
+and unapplied. Full specification compliance is not established.
+
+The [earlier validation](evidence/grpc-validation-20261022/README.md) retains its
+source-scoped repairs and failures. Its [day diagnostic](evidence/grpc-resource-soak-20261022/README.md)
+failed after 4 hours 56 minutes; that failed attempt remains archived.
+Production readiness and broad superiority over tonic/prost remain unproved.
 
 Use this page to distinguish source features, recorded tests and missing
 qualification. The [2026-09-29 audit](audit-2026-09-29.md) reviewed

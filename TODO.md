@@ -29,34 +29,49 @@ of eligible work, not an instruction to start every lane at once.
 
 ## Current priorities
 
-The [2026-10-22 validation](docs/evidence/grpc-validation-20261022/README.md)
-found and repaired memory-safety, cancellation, driver-wake, load-balancing and
-header-handoff defects. The mixed-load resource-bounds tests pass after the
-header repair. Production readiness and broad superiority remain unproved:
-the full workspace has failures, strict lint and release gates remain open,
-and the full per-side matrix and 24-hour soak are incomplete. Historical
-resource attempt 009 failed after about 2 hours 6 minutes; it is not queued.
-The latest release preview passes. The independent day diagnostic on
-`8fe0f8ae` [failed after 4 hours 56 minutes](docs/evidence/grpc-resource-soak-20261022/README.md)
-when a reset probe observed success. Resource recovery had completed before
-that probe; the run did not complete the requested 24 hours.
-The benchmark also ignored its declared closed-loop concurrency and sometimes
-overshot fixed counts. Those captures are invalid for the declared matrix;
-repeat the comparisons with the repaired generator.
+The [streaming follow-up](docs/evidence/grpc-streaming-20261022/README.md) passes
+3,677 workspace tests on `6cd91911`, with nine existing ignores. Strict Clippy
+still has 115 library diagnostics. Matched native runs complete 2,400 captures
+and 720,000 successful RPCs per revision. Selected 1 KiB streaming allocations
+improve, but production readiness and broad superiority remain unproved.
+
+**Compression correctness comes first.** Native gzip/Zstd can omit fields after
+the first member/frame of valid concatenated input. Gzip, deflate and Zstd do
+not fully validate trailing input; Zstd reserved descriptor bit 3 is not rejected.
+The opaque tonic adapter has an independent first-member gzip path, so a
+native-only repair leaves partial protobuf data. The external proposal is
+uncompiled, untested and unapplied. Validate complete input, aggregate limits,
+fragmentation, checksums, cancellation and adapter behavior before accepting it.
 
 | Work | Next result | Completion criterion |
 |---|---|---|
-| QG-06: resources and recovery | Resolve cancellation failures and validate fault-injection ordering, then repeat the resource campaign. | A full 24-hour run passes the original finite limits, deadlines, recovery and fairness checks. |
-| SB-27: client/server matrix | Extend the corrected 1 KiB pilot, which covers plaintext/TLS and identity/gzip at one in-flight call. | Include every payload, TLS/compression profile, read-all corpus, concurrency level and lifecycle; retain failures and assign each loss. |
-| SV-09, CL-08, CL-09, RX-10 | Reduce the measured streaming instruction, allocation, byte and scheduling costs. | Matched before/after runs meet the existing thresholds and do not regress the other RPC shapes. |
-| CH-12 and remaining integration cards | Complete external discovery/balancer runtimes and their churn tests. | An external consumer uses only supported public APIs and existing connections remain stable across updates. |
-| Remaining credential and codec cards | Complete the documented providers and broader typed-extension support. | Each feature passes its consumer, wire-compatibility and security checks. |
-| SB-28, SB-22 and SB-16 | Run the completed matrix on dedicated x86_64 and arm64 hosts. | Paired statistics, headroom and latency checks support the published comparisons. |
+| Compression input correctness | Fix concatenation, trailing input, reserved-bit rejection and the separate tonic-adapter path. | Complete protobuf data or an explicit error; aggregate output/window limits and bounded resource checks pass. |
+| SV-09, CL-08, CL-09, RX-10 | Attribute the largest 64 KiB gzip allocation-byte costs, then identity bytes and instruction regressions. | Matched before/after gains retain message/budget safety, with retained-memory checks and all losses reported. |
+| QG-06: resources and recovery | Finish the running 24-hour diagnostic on `6cd91911`. | The actual day passes the original finite limits, deadlines, recovery and fairness checks. |
+| SB-27: client/server matrix | Extend the verified 1/64 KiB, one/16-in-flight comparison. | Cover every payload, TLS/compression profile, read-all corpus and lifecycle; retain failures and assign losses. |
+| CH-12 and remaining integration cards | Complete external discovery/balancer runtimes and churn tests. | An external consumer uses supported APIs and existing connections stay stable across updates. |
+| Remaining credential and codec cards | Complete providers and broader typed-extension support. | Consumer, wire-compatibility and security checks pass. |
+| SB-28, SB-22 and SB-16 | Run the complete matrix on dedicated x86_64 and arm64 hosts. | Paired statistics, headroom and latency checks support the comparisons. |
 
-Historical Router dispatch measurements reduced instructions in their server cases,
-but those cases still lose to tonic. The 2,560-cell functional run checks
-completion and accounting; throughput and latency qualification need separate
-measurements. Numeric thresholds remain in the
+The 64 KiB prost gzip upload server requests 1,773.8 KiB/RPC versus 1,190.6 KiB
+for tonic/prost (+49%), and **9.0% more than the old source**; pbrs grows 10.6%
+against its old source. The prost gzip bidi server uses 111.2 allocations versus
+99.0 (+12%). Uncompressed 1 KiB prost bidi requests 45.8 KiB versus 32.9 KiB
+(+39%). These are cumulative allocation requests, not retained memory.
+Selected gzip server instructions also remain 2.2–2.4% above tonic/prost;
+uncompressed source comparisons retain regressions too.
+
+A message containing a 64 KiB payload exceeds the 64 KiB scratch-retention
+threshold. Attribute scratch discard, decoder-output growth/copying and ownership,
+and fixed batch reservations before changing caps. These are design hypotheses,
+not proven causes. Measure retained memory and bounded behavior under concurrent
+large streams while preserving allocation-budget enforcement.
+
+The earlier [day attempt failed after 4 hours 56 minutes](docs/evidence/grpc-resource-soak-20261022/README.md).
+Its failed record remains archived. The new running day, the finite preview and
+passing workspace do not certify production readiness. Older counter captures
+with incorrect concurrency remain invalid; the final matched comparison uses
+the repaired generator. Numeric thresholds remain in the
 [benchmark contract](docs/benchmark-contract.md).
 
 ## Dominance program

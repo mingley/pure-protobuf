@@ -18,6 +18,7 @@ terminal resource outcome. Its recorded revision and qualification limits apply.
 
 | Record | What it contributes | How to read it |
 |---|---|---|
+| [Streaming fixes and measurements, 2026-10-22](grpc-streaming-20261022/README.md) | Cancellation, batch rollback and compression repairs; 3,677 workspace tests pass; matched 2,400-capture native runs and 144 instruction captures | Selected allocations improve; larger-message byte and instruction regressions remain. Compression-format gaps, strict lint and production/performance qualification remain open; the new 24-hour diagnostic is running at publication |
 | [2026-10-22 production and performance validation](grpc-validation-20261022/README.md) | Confirmed safety/correctness defects, repairs, full-workspace failures, resource preview and benchmark count/concurrency controls | Production readiness and broad superiority are unproved; invalid declared-load captures and failed checks remain visible |
 | [Current-source prerequisites](grpc-prerequisites-abeb-20261009/README.md) | Strict lint, formatting, campaign contracts, documentation retry and eight caller-rustls tests passed | Native admission stress, features, resource duration and performance remain open |
 | [Adapter send-buffer checks](grpc-adapter-buffer-20261009/README.md) | Corrected adapter expectation, real small-buffer forwarding and retained disk failure | Admission fairness, resource duration and performance gates remain open |
