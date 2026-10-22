@@ -4,7 +4,6 @@ use crate::h2_backend::ext::Protocol;
 use bytes::Bytes;
 use http::header::{HeaderName, HeaderValue};
 use http::{Method, StatusCode};
-use std::cell::UnsafeCell;
 use std::fmt;
 
 /// HTTP/2 Header
@@ -288,26 +287,12 @@ impl BytesStr {
         if value.len() > 128 {
             return BytesStr::from(value);
         }
-        use std::sync::atomic::Ordering;
-        let ptr = value.as_ptr();
-        let len = value.len();
-        let (slot_ptr, slot_len, parsed) = match slot {
-            ReusedStr::Path => (
-                &reuse_cache::PATH_PTR,
-                &reuse_cache::PATH_LEN,
-                &reuse_cache::PATH,
-            ),
-            ReusedStr::Authority => (
-                &reuse_cache::AUTH_PTR,
-                &reuse_cache::AUTH_LEN,
-                &reuse_cache::AUTH,
-            ),
+        let cached = match slot {
+            ReusedStr::Path => &reuse_cache::PATH,
+            ReusedStr::Authority => &reuse_cache::AUTH,
         };
-        if slot_ptr.load(Ordering::Acquire) == ptr as *mut u8
-            && slot_len.load(Ordering::Relaxed) == len
-        {
-            if let Some(text) = parsed.get() {
-                // Static bytes: clone and drop do not touch a refcount.
+        if let Some(text) = cached.get() {
+            if *text == value {
                 return BytesStr::from_static(text);
             }
         }
@@ -356,68 +341,35 @@ impl fmt::Debug for BytesStr {
 
 #[cold]
 #[inline(never)]
-#[allow(
-    unsafe_code,
-    reason = "the thread-local slot is only borrowed inside this function and the call does not re-enter"
-)]
 fn reused_miss(slot: ReusedStr, value: &str) -> BytesStr {
-    struct Saved {
-        ptr: usize,
-        len: usize,
-        value: BytesStr,
+    let first = match slot {
+        ReusedStr::Path => &reuse_cache::PATH,
+        ReusedStr::Authority => &reuse_cache::AUTH,
+    };
+    // Only the winning initializer allocates process-lifetime storage.
+    let text = first.get_or_init(|| Box::leak(value.to_owned().into_boxed_str()));
+    if *text == value {
+        return BytesStr::from_static(text);
     }
     thread_local! {
-        static SLOTS: [UnsafeCell<Option<Saved>>; 2] = [const { UnsafeCell::new(None) }; 2];
+        static PATH: std::cell::RefCell<Option<BytesStr>> = const { std::cell::RefCell::new(None) };
+        static AUTH: std::cell::RefCell<Option<BytesStr>> = const { std::cell::RefCell::new(None) };
     }
-    let ptr = value.as_ptr() as usize;
-    let len = value.len();
-    let made = SLOTS.with(|slots| {
-        // SAFETY: `SLOTS` is thread-local and this function does not call
-        // itself while `slot_ref` is alive, so the mutable borrow is unique.
-        let slot_ref = unsafe { &mut *slots[slot as usize].get() };
-        if let Some(existing) = slot_ref.as_mut() {
-            if existing.len == len && existing.ptr == ptr {
-                return existing.value.clone();
-            }
-            if existing.value.as_str() == value {
-                existing.ptr = ptr;
-                existing.len = len;
-                return existing.value.clone();
+    let previous = match slot {
+        ReusedStr::Path => &PATH,
+        ReusedStr::Authority => &AUTH,
+    };
+    previous.with(|previous| {
+        let mut previous = previous.borrow_mut();
+        if let Some(existing) = previous.as_ref() {
+            if existing.as_str() == value {
+                return existing.clone();
             }
         }
         let made = BytesStr::from(value);
-        *slot_ref = Some(Saved {
-            ptr,
-            len,
-            value: made.clone(),
-        });
+        *previous = Some(made.clone());
         made
-    });
-    let (slot_ptr, slot_len, parsed) = match slot {
-        ReusedStr::Path => (
-            &reuse_cache::PATH_PTR,
-            &reuse_cache::PATH_LEN,
-            &reuse_cache::PATH,
-        ),
-        ReusedStr::Authority => (
-            &reuse_cache::AUTH_PTR,
-            &reuse_cache::AUTH_LEN,
-            &reuse_cache::AUTH,
-        ),
-    };
-    let leaked: &'static str = Box::leak(value.to_owned().into_boxed_str());
-    if slot_ptr
-        .load(std::sync::atomic::Ordering::Relaxed)
-        .is_null()
-        && parsed.set(leaked).is_ok()
-    {
-        slot_len.store(len, std::sync::atomic::Ordering::Relaxed);
-        slot_ptr.store(
-            value.as_ptr() as *mut u8,
-            std::sync::atomic::Ordering::Release,
-        );
-    }
-    made
+    })
 }
 
 /// Leaked `:path` text from the first repeated request, if one was saved.
@@ -431,13 +383,7 @@ pub(crate) fn leaked_reused_authority() -> Option<&'static str> {
 }
 
 mod reuse_cache {
-    use std::sync::atomic::{AtomicPtr, AtomicUsize};
-
-    pub(super) static PATH_PTR: AtomicPtr<u8> = AtomicPtr::new(std::ptr::null_mut());
-    pub(super) static PATH_LEN: AtomicUsize = AtomicUsize::new(0);
     pub(super) static PATH: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();
-    pub(super) static AUTH_PTR: AtomicPtr<u8> = AtomicPtr::new(std::ptr::null_mut());
-    pub(super) static AUTH_LEN: AtomicUsize = AtomicUsize::new(0);
     pub(super) static AUTH: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();
 }
 
@@ -499,5 +445,28 @@ mod bytes_str_invariant_tests {
             cloned.into_inner(),
             Bytes::from_static("stable λ header".as_bytes())
         );
+    }
+    #[test]
+    fn reused_input_address_does_not_reuse_changed_text() {
+        for slot in [super::ReusedStr::Path, super::ReusedStr::Authority] {
+            let prefix = match slot {
+                super::ReusedStr::Path => "/",
+                _ => "",
+            };
+            let before = format!("{prefix}cache-before");
+            let after = format!("{prefix}cache-after!");
+            let third = format!("{prefix}cache-third!");
+            let mut text = String::with_capacity(64);
+            text.push_str(&before);
+            let address = text.as_ptr();
+            let first = BytesStr::reused(slot, &text);
+            text.replace_range(.., &after);
+            assert_eq!(text.as_ptr(), address);
+            assert_eq!(BytesStr::reused(slot, &text).as_str(), after);
+            text.replace_range(.., &third);
+            assert_eq!(text.as_ptr(), address);
+            assert_eq!(BytesStr::reused(slot, &text).as_str(), third);
+            assert_eq!(first.as_str(), before);
+        }
     }
 }

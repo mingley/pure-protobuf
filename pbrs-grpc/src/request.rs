@@ -315,7 +315,7 @@ impl<T> Request<T> {
     /// [`Self::set_user_agent`] override.
     #[must_use]
     pub fn from_message_and_parts<U>(message: U, parts: Parts) -> Request<U> {
-        Request {
+        let mut request = Request {
             message,
             metadata: parts.metadata,
             timeout: parts.timeout,
@@ -345,7 +345,9 @@ impl<T> Request<T> {
             user_agent: parts.user_agent,
             diagnostic_payload: false,
             diagnostic_config: parts.diagnostic_config,
-        }
+        };
+        request.publish_existing_connect_info();
+        request
     }
 
     /// Replace the message, keeping metadata, deadline, compression,
@@ -957,6 +959,7 @@ impl<T> Request<T> {
         self.authority = authority;
         self.scheme = scheme;
         self.path = path;
+        self.publish_existing_connect_info();
     }
 
     pub(crate) fn set_deadline(&mut self, at: tokio::time::Instant) {
@@ -1013,6 +1016,20 @@ impl<T> Request<T> {
 
     pub(crate) fn set_extensions(&mut self, extensions: http::Extensions) {
         self.extensions = crate::lazy_ext::LazyExt::from_extensions(extensions);
+    }
+
+    // Nonempty user context is moved into its final map. Add transport facts
+    // while exclusive, so the first shared lookup never clones user values.
+    fn publish_existing_connect_info(&mut self) {
+        if let Some(map) = self.extensions.initialized_mut() {
+            insert_connect_info(
+                map,
+                self.scheme.as_deref(),
+                self.remote_addr,
+                self.local_addr,
+                self.peer_identity.as_ref(),
+            );
+        }
     }
 
     /// TCP and TLS connect info are derived from the address fields. Handlers
@@ -3393,11 +3410,38 @@ impl CallHandle {
 
 #[cfg(test)]
 mod tests {
-    use super::{Request, Response};
+    use super::{Request, Response, TcpConnectInfo};
     use crate::server::PeerCred;
     use crate::telemetry::DiagnosticConfig;
     use crate::tls::PeerIdentity;
     use std::time::Duration;
+
+    #[test]
+    fn publishing_connect_info_does_not_clone_user_extensions() {
+        struct Context(std::sync::Arc<std::sync::atomic::AtomicUsize>);
+        impl Clone for Context {
+            fn clone(&self) -> Self {
+                self.0.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                Self(self.0.clone())
+            }
+        }
+        let clones = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let mut map = http::Extensions::new();
+        map.insert(Context(clones.clone()));
+        let mut request = Request::new(());
+        request.remote_addr = Some("127.0.0.1:12345".parse().expect("peer"));
+        request.set_extensions(map);
+        request.set_http(None, Some(super::HttpStr::from_static("http")), None);
+        assert!(request.extensions().get::<Context>().is_some());
+        assert!(request.extensions().get::<TcpConnectInfo>().is_some());
+        assert_eq!(clones.load(std::sync::atomic::Ordering::Relaxed), 0);
+        let (_, mut parts) = request.into_message_and_parts();
+        parts.extensions.remove::<TcpConnectInfo>();
+        let rebuilt = Request::<()>::from_message_and_parts((), parts);
+        assert!(rebuilt.extensions().get::<TcpConnectInfo>().is_some());
+        assert!(rebuilt.extensions().get::<Context>().is_some());
+        assert_eq!(clones.load(std::sync::atomic::Ordering::Relaxed), 0);
+    }
 
     #[test]
     fn envelope_survives_a_message_swap() {

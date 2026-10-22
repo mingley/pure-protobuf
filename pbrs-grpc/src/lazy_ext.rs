@@ -20,8 +20,12 @@ impl LazyExt {
 
     pub(crate) fn from_extensions(extensions: http::Extensions) -> Self {
         Self {
-            initial: extensions,
-            published: OnceLock::new(),
+            initial: http::Extensions::new(),
+            published: if extensions.is_empty() {
+                OnceLock::new()
+            } else {
+                OnceLock::from(extensions)
+            },
         }
     }
 
@@ -29,14 +33,24 @@ impl LazyExt {
         self.published.get().unwrap_or(&self.initial)
     }
 
+    #[allow(
+        clippy::expect_used,
+        reason = "publish initializes the cell before exclusive access"
+    )]
     pub(crate) fn get_mut(&mut self) -> &mut http::Extensions {
-        self.published.get_mut().unwrap_or(&mut self.initial)
+        self.publish(|_| {});
+        self.published.get_mut().expect("published extensions")
+    }
+
+    /// Existing user context can receive connect info while the request is exclusive.
+    pub(crate) fn initialized_mut(&mut self) -> Option<&mut http::Extensions> {
+        self.published.get_mut()
     }
 
     /// Build and publish a map without modifying any previously exposed map.
     pub(crate) fn publish(&self, initialize: impl FnOnce(&mut http::Extensions)) {
         self.published.get_or_init(|| {
-            let mut map = self.initial.clone();
+            let mut map = http::Extensions::new();
             initialize(&mut map);
             map
         });
@@ -64,14 +78,12 @@ mod tests {
 
     #[test]
     fn publication_preserves_preexisting_shared_references() {
-        let mut initial = http::Extensions::new();
-        initial.insert(7_u8);
-        let extensions = LazyExt::from_extensions(initial);
+        let extensions = LazyExt::new();
         let shared = extensions.get();
         extensions.publish(|map| {
             map.insert(42_u32);
         });
-        assert_eq!(shared.get::<u8>(), Some(&7));
+        assert!(shared.is_empty());
         assert_eq!(shared.get::<u32>(), None);
         assert_eq!(extensions.get().get::<u32>(), Some(&42));
     }
@@ -103,10 +115,10 @@ mod tests {
     #[test]
     fn exclusive_updates_and_consumption_use_the_published_map() {
         let mut extensions = LazyExt::new();
-        extensions.get_mut().insert(7_u8);
         extensions.publish(|map| {
             map.insert(42_u32);
         });
+        extensions.get_mut().insert(7_u8);
         extensions.get_mut().insert(9_u8);
         let cloned = extensions.clone().into_inner();
         let owned = extensions.into_inner();

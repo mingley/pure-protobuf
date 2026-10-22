@@ -132,7 +132,9 @@ fn cached_authority(authority: &Authority) -> Authority {
     if static_authority::PTR.load(Ordering::Acquire) == text.as_ptr() as *mut u8
         && static_authority::LEN.load(Ordering::Relaxed) == text.len()
     {
-        return crate::static_copy::copy_static_authority(static_authority::PARSED.get().unwrap());
+        return crate::static_copy::copy_static_authority(
+            &static_authority::ENTRY.get().unwrap().parsed,
+        );
     }
     cached_authority_miss(authority)
 }
@@ -141,23 +143,20 @@ fn cached_authority(authority: &Authority) -> Authority {
 #[inline(never)]
 fn cached_authority_miss(authority: &Authority) -> Authority {
     use std::sync::atomic::Ordering;
-    let caller = authority.as_str();
-    if static_authority::PTR.load(Ordering::Relaxed).is_null() {
-        let leaked: &'static str = Box::leak(caller.to_owned().into_boxed_str());
-        let parsed = Authority::from_static(leaked);
-        if static_authority::PARSED
-            .set(crate::static_copy::copy_static_authority(&parsed))
-            .is_ok()
-        {
-            static_authority::LEN.store(leaked.len(), Ordering::Relaxed);
-            // Key the caller's bytes, which stay put for the life of the channel.
-            static_authority::PTR.store(caller.as_ptr() as *mut u8, Ordering::Release);
+    let entry = static_authority::ENTRY.get_or_init(|| {
+        let leaked: &'static str = Box::leak(authority.as_str().to_owned().into_boxed_str());
+        static_authority::Entry {
+            original: authority.clone(),
+            parsed: Authority::from_static(leaked),
         }
-    }
-    if static_authority::PTR.load(Ordering::Acquire) == caller.as_ptr() as *mut u8
-        && static_authority::LEN.load(Ordering::Relaxed) == caller.len()
+    });
+    let original = entry.original.as_str();
+    static_authority::LEN.store(original.len(), Ordering::Relaxed);
+    static_authority::PTR.store(original.as_ptr() as *mut u8, Ordering::Release);
+    if std::ptr::eq(original.as_ptr(), authority.as_str().as_ptr())
+        && original.len() == authority.as_str().len()
     {
-        crate::static_copy::copy_static_authority(static_authority::PARSED.get().unwrap())
+        crate::static_copy::copy_static_authority(&entry.parsed)
     } else {
         authority.clone()
     }
@@ -168,7 +167,12 @@ mod static_authority {
 
     pub(super) static PTR: AtomicPtr<u8> = AtomicPtr::new(std::ptr::null_mut());
     pub(super) static LEN: AtomicUsize = AtomicUsize::new(0);
-    pub(super) static PARSED: std::sync::OnceLock<super::Authority> = std::sync::OnceLock::new();
+    pub(super) struct Entry {
+        // Retain the allocation used as the pointer key after channel drop.
+        pub(super) original: super::Authority,
+        pub(super) parsed: super::Authority,
+    }
+    pub(super) static ENTRY: std::sync::OnceLock<Entry> = std::sync::OnceLock::new();
 }
 
 #[allow(
@@ -359,7 +363,7 @@ fn cached_stock_post(
         && slot.auth == auth.as_ptr() as usize
         && slot.auth_len == auth.len()
     {
-        Some(crate::static_copy::copy_static_http_request(slot.req))
+        Some(crate::static_copy::clone_http_request(slot.req))
     } else {
         None
     }
@@ -371,18 +375,17 @@ fn remember_stock_post(
     path: &'static str,
     authority: &Authority,
 ) {
-    if STOCK_POST.get().is_some() {
-        return;
-    }
-    let auth = authority.as_str();
-    let leaked = Box::leak(Box::new(crate::static_copy::copy_static_http_request(req)));
-    let _ = STOCK_POST.set(StockPost {
-        https,
-        path: path.as_ptr() as usize,
-        path_len: path.len(),
-        auth: auth.as_ptr() as usize,
-        auth_len: auth.len(),
-        req: leaked,
+    STOCK_POST.get_or_init(|| {
+        let auth = authority.as_str();
+        let owned = Box::leak(Box::new(crate::static_copy::clone_http_request(req)));
+        StockPost {
+            https,
+            path: path.as_ptr() as usize,
+            path_len: path.len(),
+            auth: auth.as_ptr() as usize,
+            auth_len: auth.len(),
+            req: owned,
+        }
     });
 }
 

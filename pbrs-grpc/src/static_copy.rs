@@ -24,13 +24,10 @@ pub(crate) fn copy_static_authority(parsed: &http::uri::Authority) -> http::uri:
     unsafe { std::ptr::read(parsed) }
 }
 
-/// Copy a POST whose URI bytes are static and whose header map is empty.
+/// Clone a cached request, retaining any dynamically allocated URI storage.
 #[inline(always)]
-pub(crate) fn copy_static_http_request(parsed: &http::Request<()>) -> http::Request<()> {
-    // SAFETY: caller passes only requests built from `Scheme::HTTP`/`HTTPS`,
-    // `Authority::from_static`, `PathAndQuery::from_static`, and an empty map.
-    // Drop of that request does not free those bytes or a header allocation.
-    unsafe { std::ptr::read(parsed) }
+pub(crate) fn clone_http_request(parsed: &http::Request<()>) -> http::Request<()> {
+    parsed.clone()
 }
 
 #[cfg(test)]
@@ -51,7 +48,7 @@ mod tests {
             .build()
             .expect("static URI");
         for _ in 0..8 {
-            let copy = copy_static_http_request(&request);
+            let copy = clone_http_request(&request);
             assert_eq!(copy.uri().path(), "/svc/method");
             assert_eq!(copy.uri().authority(), Some(&authority));
             assert!(copy.headers().is_empty());
@@ -60,5 +57,22 @@ mod tests {
         drop(request);
         assert_eq!(copy_static_path(&path), path);
         assert_eq!(copy_static_authority(&authority), authority);
+    }
+    #[test]
+    fn cached_request_owns_dynamic_uri_after_original_is_dropped() {
+        let request = http::Request::builder()
+            .uri(String::from("http://owned.example.test:443/service/method"))
+            .body(())
+            .expect("owned URI");
+        let cloned = clone_http_request(&request);
+        drop(request);
+        assert_eq!(
+            cloned.uri().authority().expect("authority").as_str(),
+            "owned.example.test:443"
+        );
+        assert_eq!(cloned.uri().path(), "/service/method");
+        let second = clone_http_request(&cloned);
+        drop(cloned);
+        assert_eq!(second.uri().path(), "/service/method");
     }
 }

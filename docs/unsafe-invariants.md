@@ -580,11 +580,19 @@ a successful run; qualification needs their results at the measured revision.
   future owns its registration until drop. Cancellation and final-sender
   closure wake every registered task, including concurrent upload and response
   tasks. Secondary wakers are removed under a mutex and invoked outside it.
-- `lazy_ext::LazyExt` publishes a cloned map through `OnceLock`; it never
-  mutates the initial map through a shared borrow. Previously returned shared
-  references stay valid during publication. Mutation requires `&mut self`.
-- Static HTTP copies require process-lifetime URI storage and empty request
-  headers and extensions. `HttpStr` owns its allocation when capacity is
+- `lazy_ext::LazyExt` publishes through `OnceLock`; it never mutates an
+  exposed map through a shared borrow. Nonempty user context moves into its
+  final map, and transport facts are inserted while the request is exclusive.
+  Shared lookups do not clone user values. The unpublished empty map stays
+  immutable. Mutation requires `&mut self`.
+- Static path and authority copies require process-lifetime URI storage.
+  Whole cached HTTP requests use ordinary `Clone`, retaining dynamic URI
+  allocations. Durable pointer keys retain their original Authority or URI;
+  borrowed caller keys require content comparison because addresses can be
+  reused. HPACK string caches compare text and allocate process-lifetime
+  storage only inside the winning `OnceLock` initializer. Recycling request
+  frames drops owned pseudo-header strings even when their field map is stock.
+   `HttpStr` owns its allocation when capacity is
   nonzero; otherwise it borrows static or empty bytes. The gRPC prefix helper
   initializes all five bytes before extending the buffer length. Their focused
   Miri tests cover valid inputs; they do not prove every caller invariant.

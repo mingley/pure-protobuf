@@ -1,10 +1,10 @@
-use super::{util, StreamDependency, StreamId};
+use super::{StreamDependency, StreamId, util};
 use crate::h2_backend::ext::Protocol;
 use crate::h2_backend::frame::{Error, Frame, Head, Kind};
 use crate::h2_backend::hpack::{self, BytesStr};
 
 use http::header::{self, HeaderName, HeaderValue};
-use http::{uri, HeaderMap, Method, Request, StatusCode, Uri};
+use http::{HeaderMap, Method, Request, StatusCode, Uri, uri};
 
 use bytes::{Buf, BufMut, BytesMut};
 
@@ -163,7 +163,10 @@ fn trailer_stock(fields: &HeaderMap) -> StandardMap {
 /// callers move or forget those fields before recycling.
 struct SpareHeaders(std::cell::Cell<*mut Headers>);
 
-#[allow(unsafe_code, reason = "free the parked Headers allocation at thread exit")]
+#[allow(
+    unsafe_code,
+    reason = "free the parked Headers allocation at thread exit"
+)]
 impl Drop for SpareHeaders {
     fn drop(&mut self) {
         let ptr = self.0.get();
@@ -218,7 +221,7 @@ fn recycle_headers_box(ptr: *mut Headers) {
     unsafe_code,
     reason = "drop header fields that the stock path does not own"
 )]
-unsafe fn recycle_replayed_box(ptr: *mut Headers, kind: StandardMap, stock: StandardMap) {
+unsafe fn recycle_replayed_box(ptr: *mut Headers, kind: StandardMap) {
     // SAFETY: `ptr` is a complete boxed header block. Fields are dropped or
     // moved out before the allocation is parked.
     unsafe {
@@ -233,12 +236,9 @@ unsafe fn recycle_replayed_box(ptr: *mut Headers, kind: StandardMap, stock: Stan
         } else {
             std::ptr::drop_in_place(fields_ptr);
         }
-        // Stock requests build `:path` and `:authority` with `from_static`.
-        // Dropping them only runs Bytes glue. A non-stock replay can still own
-        // those strings. Response and trailer pseudos are empty.
-        if !matches!(kind, StandardMap::Response | StandardMap::Trailers)
-            && stock != StandardMap::Request
-        {
+        // A stock field map does not imply static URI storage. Requests for
+        // other authorities or paths can own their pseudo strings.
+        if !matches!(kind, StandardMap::Response | StandardMap::Trailers) {
             let pseudo_ptr = std::ptr::addr_of_mut!((*ptr).header_block.pseudo);
             std::ptr::drop_in_place(pseudo_ptr);
         }
@@ -254,7 +254,10 @@ unsafe fn recycle_replayed_box(ptr: *mut Headers, kind: StandardMap, stock: Stan
 /// saw `SPARE_HEADERS`. Their own slot stays off the request and response path.
 struct SpareTrailer(std::cell::Cell<*mut Headers>);
 
-#[allow(unsafe_code, reason = "free the parked trailer allocation at thread exit")]
+#[allow(
+    unsafe_code,
+    reason = "free the parked trailer allocation at thread exit"
+)]
 impl Drop for SpareTrailer {
     fn drop(&mut self) {
         let ptr = self.0.get();
@@ -433,6 +436,8 @@ struct PostKey {
 }
 
 struct StockPseudos {
+    // Own the URI storage addressed by key, even after the original is dropped.
+    _uri: http::Uri,
     key: PostKey,
     scheme: BytesStr,
     authority: BytesStr,
@@ -484,11 +489,7 @@ fn copy_stock_pseudos(key: &PostKey) -> Option<(BytesStr, BytesStr, BytesStr)> {
     }
 }
 
-#[allow(
-    unsafe_code,
-    reason = "compare the live URI bytes, which stay static for a stock POST"
-)]
-fn remember_stock_pseudos(key: &PostKey) {
+fn remember_stock_pseudos(key: &PostKey, uri: &http::Uri) {
     if STOCK_PSEUDOS.get().is_some() {
         return;
     }
@@ -498,15 +499,7 @@ fn remember_stock_pseudos(key: &PostKey) {
     let Some(auth) = crate::h2_backend::hpack::header::leaked_reused_authority() else {
         return;
     };
-    // SAFETY: `key` records the stock request URI. Those bytes are
-    // `from_static` and are not freed when that URI is dropped.
-    let same = path.len() == key.path_len
-        && auth.len() == key.auth_len
-        && path.as_bytes()
-            == unsafe { std::slice::from_raw_parts(key.path as *const u8, key.path_len) }
-        && auth.as_bytes()
-            == unsafe { std::slice::from_raw_parts(key.auth as *const u8, key.auth_len) };
-    if !same {
+    if path != uri.path() || uri.authority().map(|value| value.as_str()) != Some(auth) {
         return;
     }
     let scheme = if key.https {
@@ -515,6 +508,7 @@ fn remember_stock_pseudos(key: &PostKey) {
         BytesStr::from_static("http")
     };
     let _ = STOCK_PSEUDOS.set(StockPseudos {
+        _uri: uri.clone(),
         key: PostKey {
             https: key.https,
             path: key.path,
@@ -790,6 +784,9 @@ impl Headers {
                     && hit.path_len == path_len
                     && hit.auth == auth_ptr
                     && hit.auth_len == auth_len
+                    && STOCK_PSEUDOS.get().is_some_and(|slot| {
+                        slot.path.as_str() == path && slot.authority.as_str() == authority
+                    })
             })
         })
     }
@@ -829,57 +826,57 @@ impl Headers {
 }
 
 impl Headers {
-/// First POST, or a request that is not the cached stock block.
-#[cold]
-#[inline(never)]
-fn post_request_boxed_miss(
-    stream_id: StreamId,
-    uri: http::Uri,
-    fields: HeaderMap,
-    end_of_stream: bool,
-    stock_request: bool,
-    key: Option<PostKey>,
-) -> Box<Headers> {
-    let has_authority = uri.authority().is_some();
-    let path = if let Some(v) = uri.path_and_query() {
-        let raw = v.as_str();
-        if raw.is_empty() {
-            Pseudo::post_empty_path()
+    /// First POST, or a request that is not the cached stock block.
+    #[cold]
+    #[inline(never)]
+    fn post_request_boxed_miss(
+        stream_id: StreamId,
+        uri: http::Uri,
+        fields: HeaderMap,
+        end_of_stream: bool,
+        stock_request: bool,
+        key: Option<PostKey>,
+    ) -> Box<Headers> {
+        let has_authority = uri.authority().is_some();
+        let path = if let Some(v) = uri.path_and_query() {
+            let raw = v.as_str();
+            if raw.is_empty() {
+                Pseudo::post_empty_path()
+            } else {
+                BytesStr::reused(crate::h2_backend::hpack::header::ReusedStr::Path, raw)
+            }
         } else {
-            BytesStr::reused(crate::h2_backend::hpack::header::ReusedStr::Path, raw)
+            Pseudo::post_empty_path()
+        };
+        let scheme = match uri.scheme() {
+            Some(scheme) if *scheme == uri::Scheme::HTTP => Some(BytesStr::from_static("http")),
+            Some(scheme) => Some(Pseudo::post_scheme(scheme.clone())),
+            None if !has_authority => Some(BytesStr::from_static("http")),
+            None => None,
+        };
+        let authority = if has_authority {
+            uri.authority().map(|authority| {
+                BytesStr::reused(
+                    crate::h2_backend::hpack::header::ReusedStr::Authority,
+                    authority.as_str(),
+                )
+            })
+        } else {
+            None
+        };
+        let mut flags = HeadersFlag::default();
+        if end_of_stream {
+            flags.set_end_stream();
         }
-    } else {
-        Pseudo::post_empty_path()
-    };
-    let scheme = match uri.scheme() {
-        Some(scheme) if *scheme == uri::Scheme::HTTP => Some(BytesStr::from_static("http")),
-        Some(scheme) => Some(Pseudo::post_scheme(scheme.clone())),
-        None if !has_authority => Some(BytesStr::from_static("http")),
-        None => None,
-    };
-    let authority = if has_authority {
-        uri.authority().map(|authority| {
-            BytesStr::reused(
-                crate::h2_backend::hpack::header::ReusedStr::Authority,
-                authority.as_str(),
-            )
-        })
-    } else {
-        None
-    };
-    let mut flags = HeadersFlag::default();
-    if end_of_stream {
-        flags.set_end_stream();
-    }
-    let stock = if stock_request {
-        StandardMap::Request
-    } else {
-        StandardMap::None
-    };
-    let frame = box_post_request(stream_id, flags, scheme, authority, path, fields, stock);
-    if let Some(key) = &key {
-        remember_stock_pseudos(key);
-    }
+        let stock = if stock_request {
+            StandardMap::Request
+        } else {
+            StandardMap::None
+        };
+        let frame = box_post_request(stream_id, flags, scheme, authority, path, fields, stock);
+        if let Some(key) = &key {
+            remember_stock_pseudos(key, &uri);
+        }
         frame
     }
 
@@ -1073,9 +1070,7 @@ fn post_request_boxed_miss(
         }
         let kind = match self.header_block.fields.len() {
             4 if fields_match(&self.header_block.fields, REQUEST_BITS, 4) => StandardMap::Request,
-            2 if fields_match(&self.header_block.fields, RESPONSE_BITS, 2) => {
-                StandardMap::Response
-            }
+            2 if fields_match(&self.header_block.fields, RESPONSE_BITS, 2) => StandardMap::Response,
             1 if fields_match(&self.header_block.fields, STATUS, 1) => StandardMap::Trailers,
             _ => return false,
         };
@@ -1142,7 +1137,9 @@ fn post_request_boxed_miss(
             assert!(!std::mem::needs_drop::<Option<StreamDependency>>());
             assert!(!std::mem::needs_drop::<HeadersFlag>());
             assert!(!std::mem::needs_drop::<StandardMap>());
-            assert!(!std::mem::needs_drop::<Option<crate::wire::headers::StockFacts>>());
+            assert!(!std::mem::needs_drop::<
+                Option<crate::wire::headers::StockFacts>,
+            >());
         };
         let ptr = Box::into_raw(this);
         // SAFETY: `ptr` came from `Box::into_raw`. `pseudo` and `fields` are
@@ -1282,15 +1279,13 @@ fn post_request_boxed_miss(
                     // remaining budget is not read again.
                     let ptr = Box::into_raw(this);
                     // SAFETY: the box came from `Box::into_raw` just above.
-                    // A stock gRPC block has an empty zero-capacity map and
-                    // pseudos that are either empty or `from_static`, so this
-                    // path only parks the allocation. Anything else is cold.
+                    // Only response and trailer pseudos are empty. Request
+                    // pseudos may own dynamic strings even with a stock map.
                     unsafe {
                         let fields = &*std::ptr::addr_of!((*ptr).header_block.fields);
                         if fields.is_empty()
                             && fields.capacity() == 0
-                            && (matches!(kind, StandardMap::Response | StandardMap::Trailers)
-                                || stock == StandardMap::Request)
+                            && matches!(kind, StandardMap::Response | StandardMap::Trailers)
                         {
                             if matches!(kind, StandardMap::Trailers) {
                                 recycle_trailer_box(ptr);
@@ -1298,7 +1293,7 @@ fn post_request_boxed_miss(
                                 recycle_headers_box(ptr);
                             }
                         } else {
-                            recycle_replayed_box(ptr, kind, stock);
+                            recycle_replayed_box(ptr, kind);
                         }
                     }
                     return None;
@@ -2334,9 +2329,10 @@ impl HeaderBlock {
                     hpack::BlockKind::Trailers => {
                         // A parked OK trailer is taken when the frame is queued.
                         if !crate::h2_backend::header_pool::received_ok_trailer_is_parked() {
-                            let fields = crate::h2_backend::header_pool::take_received_ok_trailer(
-                                || decoded.fields.clone(),
-                            );
+                            let fields =
+                                crate::h2_backend::header_pool::take_received_ok_trailer(|| {
+                                    decoded.fields.clone()
+                                });
                             crate::h2_backend::header_pool::replace_map(&mut self.fields, fields);
                         }
                         self.field_size = decoded.field_size;
@@ -2586,10 +2582,7 @@ impl HeaderBlock {
                     tracing::trace!("load_hpack; connection level header");
                     *malformed = true;
                 } else if name == header::TE && value != "trailers" {
-                    tracing::trace!(
-                        "load_hpack; TE header not set to trailers; val={:?}",
-                        value
-                    );
+                    tracing::trace!("load_hpack; TE header not set to trailers; val={:?}", value);
                     *malformed = true;
                 } else {
                     *reg = true;
@@ -2641,12 +2634,7 @@ impl HeaderBlock {
             false
         } else {
             encoder.clear_key();
-            Self::fill_encoding_key(
-                encoder.key_buf(),
-                &self.pseudo,
-                &self.fields,
-                &mut recycle,
-            )
+            Self::fill_encoding_key(encoder.key_buf(), &self.pseudo, &self.fields, &mut recycle)
         };
         if keyed {
             if let Some(bytes) = encoder.cached_block() {
@@ -2722,10 +2710,16 @@ impl HeaderBlock {
         }
         let ok = push(
             key,
-            pseudo.method.as_ref().map(|value| value.as_str().as_bytes()),
+            pseudo
+                .method
+                .as_ref()
+                .map(|value| value.as_str().as_bytes()),
         ) && push(
             key,
-            pseudo.scheme.as_ref().map(|value| value.as_str().as_bytes()),
+            pseudo
+                .scheme
+                .as_ref()
+                .map(|value| value.as_str().as_bytes()),
         ) && push(
             key,
             pseudo
@@ -2743,7 +2737,10 @@ impl HeaderBlock {
                 .map(|value| value.as_str().as_bytes()),
         ) && push(
             key,
-            pseudo.status.as_ref().map(|value| value.as_str().as_bytes()),
+            pseudo
+                .status
+                .as_ref()
+                .map(|value| value.as_str().as_bytes()),
         );
         if !ok {
             return false;
@@ -2809,7 +2806,68 @@ fn decoded_header_size(name: usize, value: usize) -> usize {
 mod test {
     use super::*;
     use crate::h2_backend::frame;
-    use crate::h2_backend::hpack::{huffman, Encoder};
+    use crate::h2_backend::hpack::{Encoder, huffman};
+
+    #[test]
+    fn cache_caller_validates_text_after_input_address_reuse() {
+        use crate::h2_backend::hpack::header::{BytesStr, ReusedStr};
+        BytesStr::reused(ReusedStr::Path, "/cache.Service/Call");
+        BytesStr::reused(ReusedStr::Authority, "cache.example.test");
+        let path = crate::h2_backend::hpack::header::leaked_reused_path().unwrap();
+        let authority = crate::h2_backend::hpack::header::leaked_reused_authority().unwrap();
+        let uri: Uri = format!("http://{authority}{path}").parse().unwrap();
+        let key = stock_post_key(&uri).unwrap();
+        remember_stock_pseudos(&key, &uri);
+        let https = STOCK_PSEUDOS.get().unwrap().key.https;
+        let mut caller = String::with_capacity(authority.len() + 8);
+        caller.push_str(authority);
+        assert!(Headers::stock_post_cached(https, path, &caller));
+        let address = caller.as_ptr();
+        let replacement = if caller.starts_with('x') { "y" } else { "x" };
+        caller.replace_range(0..1, replacement);
+        assert_eq!(address, caller.as_ptr());
+        assert!(!Headers::stock_caller_hit(https, path, &caller));
+        assert!(!Headers::stock_post_cached(https, path, &caller));
+    }
+
+    #[test]
+    fn cache_owned_request_pseudos_survive_uri_drop_and_frame_recycling() {
+        let mut encoder = Encoder::default();
+        for index in 0..4 {
+            let authority = format!("owned-{index}.example.test");
+            let uri: Uri = format!("http://{authority}/owned.Service/Call")
+                .parse()
+                .unwrap();
+            let frame = Headers::post_request_boxed(
+                StreamId::from(1 + index * 2),
+                uri,
+                HeaderMap::new(),
+                false,
+                true,
+            );
+            assert_eq!(
+                frame
+                    .header_block
+                    .pseudo
+                    .authority
+                    .as_ref()
+                    .unwrap()
+                    .as_str(),
+                authority
+            );
+            assert_eq!(
+                frame.header_block.pseudo.path.as_ref().unwrap().as_str(),
+                "/owned.Service/Call"
+            );
+            let mut encoded = BytesMut::with_capacity(16384);
+            assert!(
+                frame
+                    .encode(&mut encoder, &mut (&mut encoded).limit(16384))
+                    .is_none()
+            );
+            assert!(!encoded.is_empty());
+        }
+    }
 
     #[test]
     fn test_nameless_header_at_resume() {
@@ -2849,9 +2907,11 @@ mod test {
 
         dst.clear();
 
-        assert!(continuation
-            .encode(&mut (&mut dst).limit(frame::HEADER_LEN + 16))
-            .is_none());
+        assert!(
+            continuation
+                .encode(&mut (&mut dst).limit(frame::HEADER_LEN + 16))
+                .is_none()
+        );
 
         world.extend_from_slice(&dst[9..12]);
         assert_eq!("world", huff_decode(&world));
@@ -3122,11 +3182,7 @@ mod test {
                 HeaderValue::from_static(value),
             )]),
         );
-        assert!(
-            frame
-                .encode(encoder, &mut (&mut dst).limit(1024))
-                .is_none()
-        );
+        assert!(frame.encode(encoder, &mut (&mut dst).limit(1024)).is_none());
         dst
     }
 
@@ -3150,11 +3206,7 @@ mod test {
 
     fn encode_frame(encoder: &mut Encoder, frame: Headers) {
         let mut dst = BytesMut::new();
-        assert!(
-            frame
-                .encode(encoder, &mut (&mut dst).limit(1024))
-                .is_none()
-        );
+        assert!(frame.encode(encoder, &mut (&mut dst).limit(1024)).is_none());
     }
 
     #[test]
@@ -3250,11 +3302,7 @@ mod test {
             Pseudo::request(Method::POST, Uri::from_static(path), None),
             standard_request_map(),
         );
-        assert!(
-            frame
-                .encode(encoder, &mut (&mut dst).limit(1024))
-                .is_none()
-        );
+        assert!(frame.encode(encoder, &mut (&mut dst).limit(1024)).is_none());
         dst
     }
 
@@ -3287,11 +3335,7 @@ mod test {
                 Pseudo::response(StatusCode::OK),
                 response_map.clone(),
             );
-            assert!(
-                frame
-                    .encode(encoder, &mut (&mut dst).limit(1024))
-                    .is_none()
-            );
+            assert!(frame.encode(encoder, &mut (&mut dst).limit(1024)).is_none());
             dst
         };
         let _ = encode_response(&mut response_encoder);
@@ -3301,15 +3345,14 @@ mod test {
 
         let mut trailer_encoder = Encoder::default();
         let mut trailers = HeaderMap::with_capacity(1);
-        trailers.insert(super::GRPC_STATUS_NAME.clone(), HeaderValue::from_static("0"));
+        trailers.insert(
+            super::GRPC_STATUS_NAME.clone(),
+            HeaderValue::from_static("0"),
+        );
         let encode_trailers = |encoder: &mut Encoder| {
             let mut dst = BytesMut::new();
             let frame = Headers::trailers(StreamId::from(1), trailers.clone());
-            assert!(
-                frame
-                    .encode(encoder, &mut (&mut dst).limit(1024))
-                    .is_none()
-            );
+            assert!(frame.encode(encoder, &mut (&mut dst).limit(1024)).is_none());
             dst
         };
         let _ = encode_trailers(&mut trailer_encoder);
