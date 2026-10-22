@@ -218,8 +218,7 @@ impl<S: Send + Sync + 'static, I: Interceptor> Intercepted<S, I> {
     /// #     I: pbrs_grpc::Interceptor,
     /// # {
     /// wrapped.intercept(|rpc: &mut pbrs_grpc::Rpc| {
-    ///     let _ = rpc.path();
-    ///     Ok(())
+        ///     Ok(())
     /// })
     /// # }
     /// ```
@@ -285,8 +284,7 @@ pub trait ServiceExt: Service + Sized {
     /// use pbrs_grpc::ServiceExt;
     /// # fn demo<S: pbrs_grpc::Service>(svc: S) -> pbrs_grpc::Intercepted<S, impl pbrs_grpc::Interceptor> {
     /// svc.intercept(|rpc: &mut pbrs_grpc::Rpc| {
-    ///     let _ = rpc.path();
-    ///     Ok(())
+        ///     Ok(())
     /// })
     /// # }
     /// ```
@@ -382,7 +380,6 @@ impl<S: Service> ServiceExt for S {}
 ///     if !call.compress_is_set() {
 ///         call.set_compress(true);
 ///     }
-///     let _ = rpc.path();
 ///     Ok(())
 /// }
 /// # let _ = stamp;
