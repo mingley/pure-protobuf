@@ -1,0 +1,68 @@
+{
+  "schema": "pbrs.resource-capsule.v1",
+  "source": "8fe0f8aeb41356ff427f44542947f36f6d2a2dae",
+  "qualified": false,
+  "archive": {
+    "name": "raw.tar.gz",
+    "bytes": 1261481,
+    "sha256": "9f9973b7569357ccd56354144fd2ad57104a3716554038edc8a2f4d12878b7b2"
+  },
+  "logical_bytes": 52204512,
+  "files": [
+    {
+      "path": "day-launch.json",
+      "bytes": 786,
+      "sha256": "b935d688b9c226e7d6241180b5a85f9102b62abc412787faf471849e0651e841"
+    },
+    {
+      "path": "day-supervisor.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "day-supervisor.stdout",
+      "bytes": 339,
+      "sha256": "c5b0304c81a4b3a2e8432b9aad480081da5c30f7b4a675c646f8f3a04c0de892"
+    },
+    {
+      "path": "resource-route-day/build.stderr.log",
+      "bytes": 62,
+      "sha256": "a70da5408e7a6da7efe97b23011504833b16a7875bda14543f2504b5b8c7d97a"
+    },
+    {
+      "path": "resource-route-day/build.stdout.jsonl",
+      "bytes": 90437,
+      "sha256": "1f1f5e4d96f50afea4bf0c39e8ac2a67ea27a4c0b78007bd5255c9f4ac857340"
+    },
+    {
+      "path": "resource-route-day/events.jsonl",
+      "bytes": 24665504,
+      "sha256": "2c8eec5de8254a0405a38e0a722f5febdb851243ca6675de824f544387a94dd6"
+    },
+    {
+      "path": "resource-route-day/progress.json",
+      "bytes": 203,
+      "sha256": "939e75f8b3ab18e5bf60642d374044a1b08f0f6fe1d4006869bb4d14c9c2cdcf"
+    },
+    {
+      "path": "resource-route-day/report.json",
+      "bytes": 27446527,
+      "sha256": "af794cb682ebcf8fcd2227a708972085d74521fd856510cd52541893180eb552"
+    },
+    {
+      "path": "resource-route-day/test.stderr.log",
+      "bytes": 237,
+      "sha256": "d2e317800ffc616a909d88bc7abe171fd3f8ca507c3d50404f534d5083349f85"
+    },
+    {
+      "path": "resource-route-day/test.stdout.log",
+      "bytes": 220,
+      "sha256": "9b852c7df0365d8da192911cbd3aefc7df3e3fe282d7707683092c499f54d5cb"
+    },
+    {
+      "path": "omitted-executables.json",
+      "bytes": 197,
+      "sha256": "d6baa182f24a4d31c56b1ee26a25de12c308405f6c964ce7e12212671fa7b8e3"
+    }
+  ]
+}
