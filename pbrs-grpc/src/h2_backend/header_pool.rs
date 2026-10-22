@@ -1,10 +1,8 @@
-//! Reused `HeaderMap`s for the three header blocks a gRPC connection repeats.
+//! Thread-local caches for canonical gRPC header maps.
 //!
-//! The benchmark and the default client send the same request headers, the
-//! same response headers, and `grpc-status: 0`. Encoding drops that map, and
-//! the next RPC allocates another. A hit on the encoded-block cache returns
-//! the map here instead. A different header set is not stored, so a later
-//! RPC cannot observe someone else's fields.
+//! Requests and trailers own their fields while queued. A frame with an
+//! explicit stock kind can reconstruct its fields on a cold encoder or a
+//! different worker. Pool availability changes allocation cost, not headers.
 
 use http::HeaderMap;
 use std::cell::Cell;
@@ -33,6 +31,40 @@ fn slot_map(slot: Slot) -> &'static std::thread::LocalKey<Cell<Option<HeaderMap>
 
 pub(crate) fn take(slot: Slot, make: impl FnOnce() -> HeaderMap) -> HeaderMap {
     slot_map(slot).take().unwrap_or_else(make)
+}
+
+/// Materialize a known gRPC block when a frame outlives its worker's pool.
+pub(crate) fn make_stock(slot: Slot) -> HeaderMap {
+    use http::{HeaderValue, header};
+    let mut map = HeaderMap::with_capacity(match slot {
+        Slot::Request => 4,
+        Slot::Response => 2,
+        Slot::Trailers => 1,
+    });
+    if matches!(slot, Slot::Trailers) {
+        map.insert("grpc-status", HeaderValue::from_static("0"));
+        return map;
+    }
+    map.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/grpc"),
+    );
+    map.insert(
+        "grpc-accept-encoding",
+        HeaderValue::from_static(if cfg!(feature = "zstd") {
+            "identity,gzip,deflate,zstd"
+        } else {
+            "identity,gzip,deflate"
+        }),
+    );
+    if matches!(slot, Slot::Request) {
+        map.insert(header::TE, HeaderValue::from_static("trailers"));
+        map.insert(
+            header::USER_AGENT,
+            HeaderValue::from_static(concat!("pbrs-grpc/", env!("CARGO_PKG_VERSION"))),
+        );
+    }
+    map
 }
 
 /// The slot already holds the stock block.
@@ -76,15 +108,6 @@ pub(crate) fn take_received_ok_trailer(make: impl FnOnce() -> HeaderMap) -> Head
     RECEIVED_OK_TRAILER.take().unwrap_or_else(make)
 }
 
-/// `true` when an OK trailer map is already parked for this thread.
-#[inline]
-#[allow(unsafe_code, reason = "peek the parked trailer map without moving it")]
-pub(crate) fn received_ok_trailer_is_parked() -> bool {
-    let ptr = RECEIVED_OK_TRAILER.with(Cell::as_ptr);
-    // SAFETY: the cell is thread-local and this read does not re-enter it.
-    unsafe { (*ptr).is_some() }
-}
-
 #[allow(
     unsafe_code,
     reason = "an empty trailer slot is overwritten in place; a full slot is dropped first"
@@ -115,13 +138,6 @@ const STOCK_ACCEPT: &[u8] = b"identity,gzip,deflate,zstd";
 /// accept-encoding value, stays an owned map.
 #[inline(never)]
 pub(crate) fn is_stock_response(fields: &HeaderMap) -> Option<bool> {
-    use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize, Ordering};
-    // The recycled stock map keeps the same content-type buffer. After the
-    // first full check, that pointer skips the second header and the compares.
-    static VALUE_PTR: AtomicPtr<u8> = AtomicPtr::new(std::ptr::null_mut());
-    static VALUE_LEN: AtomicUsize = AtomicUsize::new(0);
-    static PROTO: AtomicBool = AtomicBool::new(false);
-
     if fields.len() != 2 {
         return None;
     }
@@ -130,12 +146,6 @@ pub(crate) fn is_stock_response(fields: &HeaderMap) -> Option<bool> {
         return None;
     };
     let bytes = value.as_bytes();
-    if name == http::header::CONTENT_TYPE
-        && VALUE_PTR.load(Ordering::Acquire) == bytes.as_ptr() as *mut u8
-        && VALUE_LEN.load(Ordering::Relaxed) == bytes.len()
-    {
-        return Some(PROTO.load(Ordering::Relaxed));
-    }
     let Some((accept, accept_value)) = headers.next() else {
         return None;
     };
@@ -152,9 +162,6 @@ pub(crate) fn is_stock_response(fields: &HeaderMap) -> Option<bool> {
     } else {
         return None;
     };
-    VALUE_LEN.store(bytes.len(), Ordering::Relaxed);
-    PROTO.store(proto, Ordering::Relaxed);
-    VALUE_PTR.store(bytes.as_ptr() as *mut u8, Ordering::Release);
     Some(proto)
 }
 
@@ -168,29 +175,20 @@ pub(crate) fn take_received_response() -> Option<(HeaderMap, bool)> {
     RECEIVED_RESPONSE.take()
 }
 
-/// `true` when the parked response map is the same protobuf flag.
-#[inline]
-#[allow(unsafe_code, reason = "peek the parked response map without moving it")]
-pub(crate) fn received_response_matches(grpc_proto: bool) -> bool {
-    let ptr = RECEIVED_RESPONSE.with(Cell::as_ptr);
-    // SAFETY: `as_ref` borrows the map. The cell is thread-local and this
-    // read does not re-enter it.
-    unsafe {
-        match (*ptr).as_ref() {
-            Some((_, proto)) => *proto == grpc_proto,
-            None => false,
-        }
-    }
-}
-
 /// Two heap slots for `HeaderMap`s queued on one connection.
 ///
 /// A stock response and its trailers are both in the receive queue before
 /// either is polled. One slot was reused by the response, and the trailer
 /// allocated every time. The second slot keeps that trailer box.
-struct SpareMapBox(std::cell::Cell<*mut HeaderMap>, std::cell::Cell<*mut HeaderMap>);
+struct SpareMapBox(
+    std::cell::Cell<*mut HeaderMap>,
+    std::cell::Cell<*mut HeaderMap>,
+);
 
-#[allow(unsafe_code, reason = "free the parked header-map boxes at thread exit")]
+#[allow(
+    unsafe_code,
+    reason = "free the parked header-map boxes at thread exit"
+)]
 impl Drop for SpareMapBox {
     fn drop(&mut self) {
         for cell in [&self.0, &self.1] {
@@ -403,5 +401,26 @@ pub(crate) fn take_stock_https() -> Option<bool> {
         1 => Some(false),
         2 => Some(true),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stock_response_checks_accept_header_with_reused_content_type() {
+        let content_type = http::HeaderValue::from_static("application/grpc");
+        let mut standard = HeaderMap::new();
+        standard.insert(http::header::CONTENT_TYPE, content_type.clone());
+        standard.insert(
+            "grpc-accept-encoding",
+            http::HeaderValue::from_bytes(STOCK_ACCEPT).unwrap(),
+        );
+        assert_eq!(is_stock_response(&standard), Some(false));
+        let mut other = HeaderMap::new();
+        other.insert(http::header::CONTENT_TYPE, content_type);
+        other.insert("x-context", http::HeaderValue::from_static("private"));
+        assert_eq!(is_stock_response(&other), None);
     }
 }

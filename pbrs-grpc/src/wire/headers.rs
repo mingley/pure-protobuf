@@ -252,9 +252,6 @@ pub(crate) fn begin_stock_request(
     if crate::h2_backend::header_pool::stock_caller_hit(https, path, auth) {
         return true;
     }
-    if !crate::h2_backend::header_pool::is_parked(crate::h2_backend::header_pool::Slot::Request) {
-        return false;
-    }
     crate::h2_backend::header_pool::stock_post_cached(https, path, auth)
 }
 
@@ -292,23 +289,16 @@ fn grpc_request_miss(
     // Cloning that block skips four hashed inserts. That path only sets the
     // stock flag; clearing it first would write the thread slot twice.
     if stock {
-        // Once the stock map is parked, replay does not read it. Moving it
-        // into this request and back on encode copies the map twice.
-        let parked = crate::h2_backend::header_pool::is_parked(
-            crate::h2_backend::header_pool::Slot::Request,
+        // Cache the empty template, then give this request its own fields.
+        // Admission can suspend after the thread-local stock hint was cleared.
+        remember_stock_post(&req, https, path, authority);
+        crate::h2_backend::header_pool::replace_map(
+            req.headers_mut(),
+            crate::h2_backend::header_pool::take(
+                crate::h2_backend::header_pool::Slot::Request,
+                || standard_request_headers().clone(),
+            ),
         );
-        if !parked {
-            crate::h2_backend::header_pool::replace_map(
-                req.headers_mut(),
-                crate::h2_backend::header_pool::take(
-                    crate::h2_backend::header_pool::Slot::Request,
-                    || standard_request_headers().clone(),
-                ),
-            );
-        } else {
-            // Empty map and a static URI. Later calls copy this request.
-            remember_stock_post(&req, https, path, authority);
-        }
         crate::h2_backend::header_pool::set_pending_stock(
             crate::h2_backend::header_pool::STOCK_REQUEST,
         );
@@ -363,7 +353,15 @@ fn cached_stock_post(
         && slot.auth == auth.as_ptr() as usize
         && slot.auth_len == auth.len()
     {
-        Some(crate::static_copy::clone_http_request(slot.req))
+        let mut request = crate::static_copy::clone_http_request(slot.req);
+        crate::h2_backend::header_pool::replace_map(
+            request.headers_mut(),
+            crate::h2_backend::header_pool::take(
+                crate::h2_backend::header_pool::Slot::Request,
+                || standard_request_headers().clone(),
+            ),
+        );
+        Some(request)
     } else {
         None
     }

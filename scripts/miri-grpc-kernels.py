@@ -11,6 +11,7 @@ GROUPS = (
     "h2_backend::proto::streams::store::tests::",
     "h2_backend::hpack::header::",
     "h2_backend::frame::tests::",
+    "h2_backend::header_pool::tests::",
     "h2_backend::frame::headers::test::cache_",
     "rpc_cancel::tests::",
     "lazy_ext::tests::",

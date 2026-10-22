@@ -592,6 +592,10 @@ a successful run; qualification needs their results at the measured revision.
   reused. HPACK string caches compare text and allocate process-lifetime
   storage only inside the winning `OnceLock` initializer. Recycling request
   frames drops owned pseudo-header strings even when their field map is stock.
+  Queued frames must own their fields or retain an explicit kind that can
+  reconstruct them without a thread-local pool. Decoder replay attaches the
+  response/trailer map before the frame can move between workers. Stock
+  classification validates every required field, not a remembered pointer.
   `HttpStr` owns its allocation when capacity is
   nonzero; otherwise it borrows static or empty bytes. The gRPC prefix helper
   initializes all five bytes before extending the buffer length. Their focused

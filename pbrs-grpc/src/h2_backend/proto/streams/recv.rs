@@ -256,9 +256,7 @@ impl Recv {
         // and map empty. Moving those Nones out and dropping them is the
         // rest of this function. That frame has no content-length and is
         // not over size, so those checks stay on the general path.
-        if counts.peer().is_server()
-            && frame.fields().is_empty()
-            && frame.fields().capacity() == 0
+        if counts.peer().is_server() && frame.fields().is_empty() && frame.fields().capacity() == 0
         {
             if let Some(https) = crate::h2_backend::header_pool::take_stock_https() {
                 let cached_facts = frame.stock_facts();
@@ -270,9 +268,10 @@ impl Recv {
                         .push_back(&mut self.buffer, Event::StockRequest { https });
                     (*sp).notify_recv();
                 }
-                self.accept_facts.push_back(cached_facts.unwrap_or_else(|| {
-                    crate::wire::headers::stock_facts(&HeaderMap::new())
-                }));
+                self.accept_facts.push_back(
+                    cached_facts
+                        .unwrap_or_else(|| crate::wire::headers::stock_facts(&HeaderMap::new())),
+                );
                 self.pending_accept.push_resolved(stream, sp);
                 return Ok(());
             }
@@ -652,7 +651,11 @@ impl Recv {
         let trailers = if frame.is_stock_trailers() {
             if frame.fields().is_empty() && frame.fields().capacity() == 0 {
                 frame::Headers::forget_empty_box(frame);
-                crate::h2_backend::header_pool::take_received_ok_trailer(HeaderMap::new)
+                crate::h2_backend::header_pool::take_received_ok_trailer(|| {
+                    crate::h2_backend::header_pool::make_stock(
+                        crate::h2_backend::header_pool::Slot::Trailers,
+                    )
+                })
             } else {
                 frame::Headers::take_fields_box(frame)
             }
@@ -663,12 +666,10 @@ impl Recv {
         // The queue link and the recv wakeup share one slab lookup.
         {
             let stream = &mut **stream;
-            stream
-                .pending_recv
-                .push_back(
-                    &mut self.buffer,
-                    Event::Trailers(crate::h2_backend::header_pool::box_header_map(trailers)),
-                );
+            stream.pending_recv.push_back(
+                &mut self.buffer,
+                Event::Trailers(crate::h2_backend::header_pool::box_header_map(trailers)),
+            );
             stream.notify_recv();
         }
 
@@ -1528,11 +1529,7 @@ impl Recv {
         // SAFETY: `pop_slot` resolved this occupied slot. The flag read and
         // refcount increment do not remove it.
         let remote_reset = unsafe {
-            tracing::trace!(
-                "next_incoming; id={:?}, state={:?}",
-                (*sp).id,
-                (*sp).state
-            );
+            tracing::trace!("next_incoming; id={:?}, state={:?}", (*sp).id, (*sp).state);
             let remote_reset = (*sp).state.is_remote_reset();
             assert!((*sp).ref_count < usize::MAX);
             (*sp).ref_count += 1;
@@ -1587,11 +1584,9 @@ impl Recv {
         stream: &mut Stream,
     ) -> Poll<Option<Result<HeaderMap, proto::Error>>> {
         match stream.pending_recv.pop_front(&mut self.buffer) {
-            Some(Event::Trailers(trailers)) => {
-                Poll::Ready(Some(Ok(crate::h2_backend::header_pool::unbox_header_map(
-                    trailers,
-                ))))
-            }
+            Some(Event::Trailers(trailers)) => Poll::Ready(Some(Ok(
+                crate::h2_backend::header_pool::unbox_header_map(trailers),
+            ))),
             Some(event) => {
                 // Frame is not trailers.. not ready to poll trailers yet.
                 stream.pending_recv.push_front(&mut self.buffer, event);

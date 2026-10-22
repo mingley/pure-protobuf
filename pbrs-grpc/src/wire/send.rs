@@ -139,11 +139,7 @@ pub(crate) async fn send_frame(
 
 /// `grpc-status: 0` and nothing else, from the trailer pool.
 pub(crate) fn bare_ok_trailer_map() -> HeaderMap {
-    // The parked `grpc-status: 0` map stays in the slot. An empty block is
-    // marked stock at the frame and replayed from the encoder cache.
-    if crate::h2_backend::header_pool::is_parked(crate::h2_backend::header_pool::Slot::Trailers) {
-        return HeaderMap::new();
-    }
+    // The queued frame owns these fields across awaits and worker migration.
     crate::h2_backend::header_pool::take(crate::h2_backend::header_pool::Slot::Trailers, || {
         let mut map = HeaderMap::with_capacity(1);
         map.insert(GRPC_STATUS, STATUS_OK);

@@ -1235,10 +1235,9 @@ impl Headers {
 
         if self.header_block.fields.is_empty() {
             if let Some(slot) = self.header_block.stock.slot() {
-                if crate::h2_backend::header_pool::is_parked(slot) {
-                    self.header_block.fields =
-                        crate::h2_backend::header_pool::take(slot, HeaderMap::new);
-                }
+                self.header_block.fields = crate::h2_backend::header_pool::take(slot, || {
+                    crate::h2_backend::header_pool::make_stock(slot)
+                });
             }
         }
         self.encode_unreplayed(encoder, dst, head)
@@ -1302,10 +1301,9 @@ impl Headers {
         }
         if this.header_block.fields.is_empty() {
             if let Some(slot) = this.header_block.stock.slot() {
-                if crate::h2_backend::header_pool::is_parked(slot) {
-                    this.header_block.fields =
-                        crate::h2_backend::header_pool::take(slot, HeaderMap::new);
-                }
+                this.header_block.fields = crate::h2_backend::header_pool::take(slot, || {
+                    crate::h2_backend::header_pool::make_stock(slot)
+                });
             }
         }
         (*this).encode_unreplayed(encoder, dst, head)
@@ -2292,49 +2290,34 @@ impl HeaderBlock {
             if let Some((kind, decoded)) = decoder.lookup_saved(src) {
                 match kind {
                     hpack::BlockKind::Response(grpc_proto) => {
-                        // An OK hit leaves the map parked. Installing it here
-                        // only to move it back out copies the header map.
-                        let parked = decoded.status == Some(http::StatusCode::OK)
-                            && crate::h2_backend::header_pool::received_response_matches(
-                                grpc_proto,
-                            );
-                        if parked {
-                            self.stock = StandardMap::Response;
-                        } else {
-                            let fields =
-                                match crate::h2_backend::header_pool::take_received_response() {
-                                    Some((spare, spare_proto)) if spare_proto == grpc_proto => {
-                                        spare
-                                    }
-                                    Some((other, other_proto)) => {
-                                        crate::h2_backend::header_pool::recycle_received_response(
-                                            other,
-                                            other_proto,
-                                        );
-                                        decoded.fields.clone()
-                                    }
-                                    None => decoded.fields.clone(),
-                                };
-                            crate::h2_backend::header_pool::replace_map(&mut self.fields, fields);
-                            // Already a two-field gRPC response. The recv queue
-                            // can skip the stock-response pointer probe.
-                            if decoded.status == Some(http::StatusCode::OK) {
-                                self.stock = StandardMap::Response;
+                        let fields = match crate::h2_backend::header_pool::take_received_response()
+                        {
+                            Some((spare, spare_proto)) if spare_proto == grpc_proto => spare,
+                            Some((other, other_proto)) => {
+                                crate::h2_backend::header_pool::recycle_received_response(
+                                    other,
+                                    other_proto,
+                                );
+                                decoded.fields.clone()
                             }
+                            None => decoded.fields.clone(),
+                        };
+                        crate::h2_backend::header_pool::replace_map(&mut self.fields, fields);
+                        if decoded.status == Some(http::StatusCode::OK) {
+                            self.stock = StandardMap::Response;
                         }
                         self.pseudo.status = decoded.status;
                         self.field_size = decoded.field_size;
                         self.stock_facts = decoded.stock_facts;
                     }
                     hpack::BlockKind::Trailers => {
-                        // A parked OK trailer is taken when the frame is queued.
-                        if !crate::h2_backend::header_pool::received_ok_trailer_is_parked() {
-                            let fields =
-                                crate::h2_backend::header_pool::take_received_ok_trailer(|| {
-                                    decoded.fields.clone()
-                                });
-                            crate::h2_backend::header_pool::replace_map(&mut self.fields, fields);
-                        }
+                        // A decoded frame may be queued or moved to another worker.
+                        // Its fields must not depend on that worker's local pool.
+                        let fields =
+                            crate::h2_backend::header_pool::take_received_ok_trailer(|| {
+                                decoded.fields.clone()
+                            });
+                        crate::h2_backend::header_pool::replace_map(&mut self.fields, fields);
                         self.field_size = decoded.field_size;
                         self.stock_facts = decoded.stock_facts;
                         // Pseudos stay empty. The trailer receive path can
@@ -2807,6 +2790,108 @@ mod test {
     use super::*;
     use crate::h2_backend::frame;
     use crate::h2_backend::hpack::{Encoder, huffman};
+
+    #[test]
+    fn cache_stock_markers_survive_thread_handoff_without_warm_encoder() {
+        use crate::h2_backend::header_pool::{self, Slot};
+        for kind in [
+            StandardMap::Request,
+            StandardMap::Response,
+            StandardMap::Trailers,
+        ] {
+            let frame = std::thread::spawn(move || {
+                let mut fields = HeaderMap::new();
+                let slot = match kind {
+                    StandardMap::Request => {
+                        fields.insert(
+                            header::CONTENT_TYPE,
+                            HeaderValue::from_static("application/grpc"),
+                        );
+                        fields.insert(header::TE, HeaderValue::from_static("trailers"));
+                        fields.insert(
+                            GRPC_ACCEPT_NAME,
+                            HeaderValue::from_bytes(ACCEPT_VALUE).unwrap(),
+                        );
+                        fields.insert(
+                            header::USER_AGENT,
+                            HeaderValue::from_bytes(UA_VALUE).unwrap(),
+                        );
+                        Slot::Request
+                    }
+                    StandardMap::Response => {
+                        fields.insert(
+                            header::CONTENT_TYPE,
+                            HeaderValue::from_static("application/grpc"),
+                        );
+                        fields.insert(
+                            GRPC_ACCEPT_NAME,
+                            HeaderValue::from_bytes(ACCEPT_VALUE).unwrap(),
+                        );
+                        Slot::Response
+                    }
+                    _ => {
+                        fields.insert(GRPC_STATUS_NAME, HeaderValue::from_static("0"));
+                        Slot::Trailers
+                    }
+                };
+                header_pool::recycle(slot, fields);
+                let mut frame = match kind {
+                    StandardMap::Request => Headers::post_request_boxed(
+                        StreamId::from(1),
+                        "http://handoff.example.test/handoff.Service/Call"
+                            .parse()
+                            .unwrap(),
+                        HeaderMap::new(),
+                        false,
+                        true,
+                    ),
+                    StandardMap::Response => {
+                        Headers::response_boxed(StreamId::from(1), StatusCode::OK, HeaderMap::new())
+                    }
+                    _ => Headers::trailers_boxed(StreamId::from(1), HeaderMap::new()),
+                };
+                if kind == StandardMap::Response {
+                    frame.preset_stock_response();
+                }
+                frame
+            })
+            .join()
+            .unwrap();
+            for slot in [Slot::Request, Slot::Response, Slot::Trailers] {
+                drop(header_pool::take(slot, HeaderMap::new));
+            }
+            let mut encoded = BytesMut::with_capacity(16384);
+            assert!(
+                frame
+                    .encode(&mut Encoder::default(), &mut (&mut encoded).limit(16384))
+                    .is_none()
+            );
+            let mut payload = encoded.split_off(frame::HEADER_LEN);
+            let mut decoded = HeaderMap::new();
+            hpack::Decoder::new(4096)
+                .decode(&mut std::io::Cursor::new(&mut payload), |field| {
+                    if let hpack::Header::Field { name, value } = field {
+                        decoded.insert(name, value);
+                    }
+                    std::ops::ControlFlow::Continue(())
+                })
+                .unwrap();
+            match kind {
+                StandardMap::Request => {
+                    assert_eq!(decoded.len(), 4);
+                    assert_eq!(decoded[header::TE], "trailers");
+                }
+                StandardMap::Response => {
+                    assert_eq!(decoded.len(), 2);
+                    assert_eq!(decoded[header::CONTENT_TYPE], "application/grpc");
+                }
+                _ => {
+                    assert_eq!(decoded.len(), 1);
+                    assert_eq!(decoded[GRPC_STATUS_NAME], "0");
+                }
+            }
+        }
+    }
 
     #[test]
     fn cache_caller_validates_text_after_input_address_reuse() {
