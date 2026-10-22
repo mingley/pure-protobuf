@@ -1228,7 +1228,11 @@ async fn test_competing_small_rpcs_progress_under_bulk_stream_load() {
                 tokio::time::timeout(PROBE_TIMEOUT, stream.message())
                     .await
                     .expect("bulk stream trailers stalled")
-                    .expect("bulk trailers")
+                    .unwrap_or_else(|status| panic!(
+                        "bulk trailers: {}: {}",
+                        status.code(),
+                        status.message()
+                    ))
                     .is_none()
             );
         }));
@@ -1819,7 +1823,11 @@ async fn test_mixed_bulk_slow_idle_reset_fairness() {
                 tokio::time::timeout(PROBE_TIMEOUT, stream.message())
                     .await
                     .expect("bulk stream trailers stalled")
-                    .expect("bulk trailers")
+                    .unwrap_or_else(|status| panic!(
+                        "bulk trailers: {}: {}",
+                        status.code(),
+                        status.message()
+                    ))
                     .is_none()
             );
         }));

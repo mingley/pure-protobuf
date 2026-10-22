@@ -807,18 +807,9 @@ impl super::Channel {
         let inner = Arc::clone(&self.inner);
         let obs = self.local.observer.clone();
         let hash = md.and_then(|md| self.ring_request_hash(md));
-        if deadline.is_none() {
-            let acquire = inner.acquire(
-                wait_for_ready,
-                obs.as_deref(),
-                self.health_directive(),
-                hash,
-            );
-            let mut acquire = std::pin::pin!(acquire);
-            if let Some(result) = poll_now(acquire.as_mut()) {
-                return Either::Left(std::future::ready(result));
-            }
-        }
+        // A pending acquire may already have picked a backend or started a
+        // health/dial operation. Keep that same future in grab_wait instead
+        // of dropping a speculative poll and repeating those side effects.
         Either::Right(Box::pin(grab_wait::<R>(
             inner,
             obs,
