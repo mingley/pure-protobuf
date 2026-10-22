@@ -313,6 +313,10 @@ mod tests {
     #[test]
     fn replacing_secondary_waker_allows_its_drop_to_cancel() {
         struct CancelOnDrop(RpcCancel);
+        #[allow(
+            clippy::manual_noop_waker,
+            reason = "the waker's final owner must run a reentrant cancellation destructor"
+        )]
         impl Wake for CancelOnDrop {
             fn wake(self: Arc<Self>) {}
         }

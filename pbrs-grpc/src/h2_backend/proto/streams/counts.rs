@@ -307,6 +307,8 @@ impl Counts {
         assert!(unsafe { !(*slot).is_counted });
 
         self.num_send_streams += 1;
+        // SAFETY: the caller resolved this live slot under exclusive stream-store
+        // access; no insertion or removal occurs before this field access.
         unsafe { (*slot).is_counted = true };
         self.streams_open.store(true, Ordering::Release);
     }
@@ -404,6 +406,8 @@ impl Counts {
         let is_pending_reset = unsafe { (*slot).is_pending_reset_expiration() };
         let ret = f(self, &mut stream);
         let closing =
+            // SAFETY: the caller resolved this live slot under exclusive stream-store
+            // access; no insertion or removal occurs before this field access.
             unsafe { (*slot).is_closed() && !((*slot).protocol_unlinked && (*slot).ref_count > 0) };
         if closing {
             self.finish_closed(stream, slot, is_pending_reset);
@@ -471,6 +475,8 @@ impl Counts {
             false
         };
 
+        // SAFETY: the caller resolved this live slot under exclusive stream-store
+        // access; no insertion or removal occurs before this field access.
         let should_dec = unsafe {
             if unlinked {
                 (*slot).protocol_unlinked = true;
@@ -478,10 +484,14 @@ impl Counts {
             !(*slot).state.is_scheduled_reset() && (*slot).is_counted
         };
         if should_dec {
+            // SAFETY: the caller resolved this live slot under exclusive stream-store
+            // access; no insertion or removal occurs before this field access.
             let id = unsafe { (*slot).id };
             tracing::trace!("dec_num_streams; stream={:?}", id);
             self.dec_num_streams(slot, id);
         }
+        // SAFETY: the caller resolved this live slot under exclusive stream-store
+        // access; no insertion or removal occurs before this field access.
         if unsafe { (*slot).release_ready() } {
             stream.remove();
         }
@@ -511,6 +521,8 @@ impl Counts {
         if self.peer.is_local_init(id) {
             assert!(self.num_send_streams > 0);
             self.num_send_streams -= 1;
+            // SAFETY: the caller resolved this live slot under exclusive stream-store
+            // access; no insertion or removal occurs before this field access.
             unsafe { (*slot).is_counted = false };
             // A queued open can run now. Clear before the connection poll
             // decides to skip the send lock.
@@ -519,6 +531,8 @@ impl Counts {
         } else {
             assert!(self.num_recv_streams > 0);
             self.num_recv_streams -= 1;
+            // SAFETY: the caller resolved this live slot under exclusive stream-store
+            // access; no insertion or removal occurs before this field access.
             unsafe { (*slot).is_counted = false };
         }
         if self.num_send_streams == 0 && self.num_recv_streams == 0 && self.owners <= 1 {

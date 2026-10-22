@@ -108,22 +108,10 @@ pub(crate) fn take_received_ok_trailer(make: impl FnOnce() -> HeaderMap) -> Head
     RECEIVED_OK_TRAILER.take().unwrap_or_else(make)
 }
 
-#[allow(
-    unsafe_code,
-    reason = "an empty trailer slot is overwritten in place; a full slot is dropped first"
-)]
 pub(crate) fn recycle_received_ok_trailer(map: HeaderMap) {
-    // `Cell::set` copies the previous value out. After `take` that value is
-    // `None`, so the copy is only overhead.
-    let ptr = RECEIVED_OK_TRAILER.with(Cell::as_ptr);
-    unsafe {
-        if (*ptr).is_none() {
-            std::ptr::write(ptr, Some(map));
-        } else {
-            std::ptr::drop_in_place(ptr);
-            std::ptr::write(ptr, Some(map));
-        }
-    }
+    // Install the new owner before dropping the old map: a HeaderValue may
+    // own Bytes whose destructor re-enters this thread-local cache.
+    drop(RECEIVED_OK_TRAILER.replace(Some(map)));
 }
 
 #[cfg(not(feature = "zstd"))]
@@ -204,10 +192,10 @@ impl Drop for SpareMapBox {
 }
 
 thread_local! {
-    static SPARE_MAP_BOX: SpareMapBox = SpareMapBox(
+    static SPARE_MAP_BOX: SpareMapBox = const { SpareMapBox(
         std::cell::Cell::new(std::ptr::null_mut()),
         std::cell::Cell::new(std::ptr::null_mut()),
-    );
+    ) };
 }
 
 #[allow(
@@ -259,46 +247,17 @@ pub(crate) fn unbox_header_map(boxed: Box<HeaderMap>) -> HeaderMap {
     fields
 }
 
-#[allow(
-    unsafe_code,
-    reason = "an empty response slot is overwritten in place; a full slot is dropped first"
-)]
 pub(crate) fn recycle_received_response(map: HeaderMap, grpc_proto: bool) {
-    let ptr = RECEIVED_RESPONSE.with(Cell::as_ptr);
-    unsafe {
-        if (*ptr).is_none() {
-            std::ptr::write(ptr, Some((map, grpc_proto)));
-        } else {
-            std::ptr::drop_in_place(ptr);
-            std::ptr::write(ptr, Some((map, grpc_proto)));
-        }
-    }
+    drop(RECEIVED_RESPONSE.replace(Some((map, grpc_proto))));
 }
 
 /// Return `map` to its slot.
 ///
-/// The pointer is taken first so the map is not moved into the thread-local
-/// closure. An empty slot is overwritten in place. A slot that still holds
-/// a map drops that map first.
+/// Publish the new map before dropping the previous owner, so a header value's
+/// destructor can re-enter this cache without observing partially dropped data.
 #[inline(always)]
-#[allow(
-    unsafe_code,
-    reason = "an empty header slot is overwritten in place; a full slot is dropped first"
-)]
 pub(crate) fn recycle(slot: Slot, map: HeaderMap) {
-    let ptr = match slot {
-        Slot::Request => REQUEST_MAP.with(Cell::as_ptr),
-        Slot::Response => RESPONSE_MAP.with(Cell::as_ptr),
-        Slot::Trailers => TRAILER_MAP.with(Cell::as_ptr),
-    };
-    unsafe {
-        if (*ptr).is_none() {
-            std::ptr::write(ptr, Some(map));
-        } else {
-            std::ptr::drop_in_place(ptr);
-            std::ptr::write(ptr, Some(map));
-        }
-    }
+    drop(slot_map(slot).replace(Some(map)));
 }
 
 /// Replace `dst` with `src`.
@@ -309,7 +268,7 @@ pub(crate) fn recycle(slot: Slot, map: HeaderMap) {
 pub(crate) fn replace_map(dst: &mut HeaderMap, src: HeaderMap) {
     let old = std::mem::replace(dst, src);
     if old.capacity() == 0 {
-        std::mem::forget(old);
+        let _empty = std::mem::ManuallyDrop::new(old);
     }
 }
 
@@ -407,6 +366,78 @@ pub(crate) fn take_stock_https() -> Option<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[derive(Clone, Copy)]
+    enum Reenter {
+        Trailer,
+        Response,
+        Request,
+    }
+
+    struct ReentrantValue {
+        cache: Reenter,
+        drops: Arc<std::sync::atomic::AtomicUsize>,
+    }
+
+    impl AsRef<[u8]> for ReentrantValue {
+        fn as_ref(&self) -> &[u8] {
+            b"owned header value"
+        }
+    }
+
+    impl Drop for ReentrantValue {
+        fn drop(&mut self) {
+            use std::sync::atomic::Ordering;
+            // Bound recursion in the negative control with the old raw TLS
+            // replacement: a stale cache must not destroy this owner twice.
+            if self.drops.fetch_add(1, Ordering::SeqCst) == 0 {
+                let mut map = HeaderMap::new();
+                map.insert("x-reentered", http::HeaderValue::from_static("yes"));
+                match self.cache {
+                    Reenter::Trailer => recycle_received_ok_trailer(map),
+                    Reenter::Response => recycle_received_response(map, true),
+                    Reenter::Request => recycle(Slot::Request, map),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn replacing_a_cached_map_allows_its_value_destructor_to_reenter() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        for cache in [Reenter::Trailer, Reenter::Response, Reenter::Request] {
+            let drops = Arc::new(AtomicUsize::new(0));
+            let bytes = bytes::Bytes::from_owner(ReentrantValue {
+                cache,
+                drops: drops.clone(),
+            });
+            let value = http::HeaderValue::from_maybe_shared(bytes).expect("valid owned value");
+            let mut owned = HeaderMap::new();
+            owned.insert("x-owned", value);
+            match cache {
+                Reenter::Trailer => {
+                    recycle_received_ok_trailer(owned);
+                    recycle_received_ok_trailer(HeaderMap::new());
+                    let reentered = RECEIVED_OK_TRAILER.take().expect("reentered trailer");
+                    assert_eq!(reentered.get("x-reentered").expect("marker"), "yes");
+                }
+                Reenter::Response => {
+                    recycle_received_response(owned, false);
+                    recycle_received_response(HeaderMap::new(), false);
+                    let (reentered, proto) = RECEIVED_RESPONSE.take().expect("reentered response");
+                    assert!(proto);
+                    assert_eq!(reentered.get("x-reentered").expect("marker"), "yes");
+                }
+                Reenter::Request => {
+                    recycle(Slot::Request, owned);
+                    recycle(Slot::Request, HeaderMap::new());
+                    let reentered = REQUEST_MAP.take().expect("reentered request");
+                    assert_eq!(reentered.get("x-reentered").expect("marker"), "yes");
+                }
+            }
+            assert_eq!(drops.load(Ordering::SeqCst), 1);
+        }
+    }
 
     #[test]
     fn stock_response_checks_accept_header_with_reused_content_type() {

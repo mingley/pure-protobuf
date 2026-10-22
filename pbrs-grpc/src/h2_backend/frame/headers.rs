@@ -181,7 +181,7 @@ impl Drop for SpareHeaders {
 }
 
 thread_local! {
-    static SPARE_HEADERS: SpareHeaders = SpareHeaders(std::cell::Cell::new(std::ptr::null_mut()));
+    static SPARE_HEADERS: SpareHeaders = const { SpareHeaders(std::cell::Cell::new(std::ptr::null_mut())) };
 }
 
 #[allow(
@@ -272,7 +272,7 @@ impl Drop for SpareTrailer {
 }
 
 thread_local! {
-    static SPARE_TRAILER: SpareTrailer = SpareTrailer(std::cell::Cell::new(std::ptr::null_mut()));
+    static SPARE_TRAILER: SpareTrailer = const { SpareTrailer(std::cell::Cell::new(std::ptr::null_mut())) };
 }
 
 #[allow(
@@ -1226,7 +1226,7 @@ impl Headers {
                                 && self.header_block.pseudo.path.is_none()
                                 && self.header_block.pseudo.protocol.is_none()
                         );
-                        std::mem::forget(self.header_block.pseudo);
+                        let _empty = std::mem::ManuallyDrop::new(self.header_block.pseudo);
                     }
                     return None;
                 }
@@ -2370,7 +2370,7 @@ impl HeaderBlock {
                     hpack::BlockKind::Other => {
                         let saved = decoded.clone();
                         if saved.fields.capacity() == 0 && self.fields.capacity() == 0 {
-                            std::mem::forget(saved.fields);
+                            let _empty = std::mem::ManuallyDrop::new(saved.fields);
                         } else {
                             crate::h2_backend::header_pool::replace_map(
                                 &mut self.fields,
@@ -2428,8 +2428,7 @@ impl HeaderBlock {
                 &mut malformed,
                 &mut header_list_way_too_large,
                 &mut headers_size,
-                max_header_list_size,
-                max_header_list_abuse_size,
+                (max_header_list_size, max_header_list_abuse_size),
             )
         });
 
@@ -2510,10 +2509,10 @@ impl HeaderBlock {
         malformed: &mut bool,
         header_list_way_too_large: &mut bool,
         headers_size: &mut usize,
-        max_header_list_size: usize,
-        max_header_list_abuse_size: usize,
+        limits: (usize, usize),
     ) -> ControlFlow<()> {
         use crate::h2_backend::hpack::Header::*;
+        let (max_header_list_size, max_header_list_abuse_size) = limits;
 
         macro_rules! too_big {
             () => {{

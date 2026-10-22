@@ -8,12 +8,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::task::{Context, Poll, Wake, Waker};
-
-struct Noop;
-impl Wake for Noop {
-    fn wake(self: Arc<Self>) {}
-}
+use std::task::{Context, Poll, Waker};
 
 struct Gate {
     ready: AtomicBool,
@@ -65,8 +60,7 @@ fn unrelated_connection_activity_does_not_scan_idle_handlers() {
     for gate in &gates {
         handlers.push(Handler(Arc::clone(gate)));
     }
-    let waker = Waker::from(Arc::new(Noop));
-    let mut cx = Context::from_waker(&waker);
+    let mut cx = Context::from_waker(Waker::noop());
     for _ in 0..COUNT {
         assert!(poll_admitted(&mut handlers, &mut cx).is_pending());
         if gates.iter().all(|g| g.polls.load(Ordering::Relaxed) == 1) {
@@ -108,8 +102,7 @@ fn queued_wake_survives_other_completion_and_registration() {
     let mut handlers = FuturesUnordered::new();
     handlers.push(Handler(Arc::clone(&a)));
     handlers.push(Handler(Arc::clone(&b)));
-    let waker = Waker::from(Arc::new(Noop));
-    let mut cx = Context::from_waker(&waker);
+    let mut cx = Context::from_waker(Waker::noop());
     assert!(poll_admitted(&mut handlers, &mut cx).is_pending());
     a.release();
     b.release();

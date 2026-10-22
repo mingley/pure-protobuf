@@ -29,6 +29,10 @@ struct StreamSlots {
 }
 
 #[derive(Debug)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "inline stream slots avoid a heap allocation per HTTP/2 stream"
+)]
 enum Slot {
     Vacant(u32),
     Occupied(ManuallyDrop<Stream>),
@@ -275,7 +279,7 @@ impl Store {
     }
 
     pub fn insert(&mut self, id: StreamId, val: Stream) -> Ptr<'_> {
-        let index = SlabIndex(self.slab.insert(val) as u32);
+        let index = SlabIndex(self.slab.insert(val));
         self.bind_id(id, index);
 
         Ptr {
@@ -294,7 +298,7 @@ impl Store {
         init_send_window: WindowSize,
         init_recv_window: WindowSize,
     ) -> Ptr<'_> {
-        let index = SlabIndex(self.slab.insert_new(id, init_send_window, init_recv_window) as u32);
+        let index = SlabIndex(self.slab.insert_new(id, init_send_window, init_recv_window));
         self.bind_id(id, index);
 
         Ptr {
@@ -451,54 +455,14 @@ impl StreamSlots {
         key
     }
 
-    /// Same free-list as [`Self::insert`], but a reused slot is filled in place.
-    #[allow(
-        unsafe_code,
-        reason = "initialize a stream in a vacant slot without copying it in"
-    )]
+    /// Same free-list as [`Self::insert`], without assuming enum payload layout.
     fn insert_new(
         &mut self,
         id: StreamId,
         init_send_window: WindowSize,
         init_recv_window: WindowSize,
     ) -> u32 {
-        let key = self.next;
-        self.len += 1;
-        if key as usize == self.slots.len() {
-            self.slots
-                .push(Slot::Occupied(ManuallyDrop::new(Stream::new(
-                    id,
-                    init_send_window,
-                    init_recv_window,
-                ))));
-            self.next = key.wrapping_add(1);
-        } else {
-            self.next = match self.slots.get(key as usize) {
-                Some(Slot::Vacant(next)) => *next,
-                _ => unreachable!("stream slab insert hit an occupied slot"),
-            };
-            // SAFETY: the match proved this slot is vacant, so overwriting it
-            // does not drop a live stream. `Slot` is the size of `Stream` and
-            // the occupied stream starts at the slot address; `init_at` writes
-            // a valid stream there.
-            unsafe { self.write_new_in_slot(key, id, init_send_window, init_recv_window) };
-        }
-        key
-    }
-
-    #[allow(
-        unsafe_code,
-        reason = "initialize a stream in a vacant slot without copying it in"
-    )]
-    unsafe fn write_new_in_slot(
-        &mut self,
-        key: u32,
-        id: StreamId,
-        init_send_window: WindowSize,
-        init_recv_window: WindowSize,
-    ) {
-        let slot = unsafe { self.slots.as_mut_ptr().add(key as usize) };
-        unsafe { Stream::init_at(slot.cast(), id, init_send_window, init_recv_window) };
+        self.insert(Stream::new(id, init_send_window, init_recv_window))
     }
 
     fn get(&self, index: usize) -> Option<&Stream> {
@@ -515,54 +479,36 @@ impl StreamSlots {
         }
     }
 
-    /// Address of an occupied slot without the bounds, tag, and id checks.
-    ///
-    /// `IndexMut` returns this same address. Those checks already ran when the
-    /// key was created, and the slot stays occupied until `remove`.
+    /// Resolve the occupied enum payload without assuming its offset.
     #[inline(always)]
-    #[allow(
-        unsafe_code,
-        reason = "the live slab index already names this occupied stream"
-    )]
     fn occupied_ptr(&mut self, index: usize) -> *mut Stream {
-        debug_assert!(index < self.slots.len());
-        // SAFETY: `index` is a live slab index from a `Ptr` key. The occupied
-        // stream starts at the slot address `IndexMut` returns; a vacant tag
-        // is a niche at that same address. The caller does not remove the
-        // slot before it finishes using the pointer.
-        unsafe { self.slots.as_mut_ptr().add(index).cast::<Stream>() }
+        match self.slots.get_mut(index) {
+            Some(Slot::Occupied(stream)) => &mut **stream,
+            _ => panic!("stream pointer names a vacant or missing slab slot"),
+        }
     }
 
-    /// Drop the stream where it sits, then link the slot onto the free list.
-    #[allow(
-        unsafe_code,
-        reason = "drop the occupied stream in place and overwrite the slot with Vacant"
-    )]
+    /// Unlink the occupied owner before running user-provided waker drops.
     fn remove_in_place(&mut self, index: u32, stream_id: StreamId) -> StreamId {
         let slot_index = index as usize;
-        let id = match self.slots.get(slot_index) {
-            Some(Slot::Occupied(stream)) if stream.id == stream_id => stream.id,
+        let slot = match self.slots.get_mut(slot_index) {
+            Some(slot @ Slot::Occupied(_)) => slot,
             _ => dangling_store_key(stream_id),
         };
-        let next = self.next;
-        let slot = unsafe { self.slots.get_unchecked_mut(slot_index) as *mut Slot };
-        // SAFETY: the match above proved this slot is Occupied with `stream_id`.
-        // `drop_is_nop` means the stream holds no waker and no error buffer,
-        // so overwriting it frees nothing. Otherwise `ManuallyDrop::drop` runs
-        // the destructor once. `ptr::write` does not drop the old occupant.
-        // The written `Vacant` is a valid slot.
-        unsafe {
-            match &mut *slot {
-                Slot::Occupied(stream) if stream.drop_is_nop() => {}
-                Slot::Occupied(stream) => ManuallyDrop::drop(stream),
-                Slot::Vacant(_) => unreachable!("occupied slot became vacant"),
-            }
-            // A bare end-of-stream has no waker and no error buffer. Overwriting
-            // the slot does not free those, because they were never stored.
-            std::ptr::write(slot, Slot::Vacant(next));
-        }
+        let id = match slot {
+            Slot::Occupied(stream) if stream.id == stream_id => stream.id,
+            _ => dangling_store_key(stream_id),
+        };
+        let old = std::mem::replace(slot, Slot::Vacant(self.next));
         self.next = index;
         self.len -= 1;
+        if let Slot::Occupied(stream) = old {
+            // A waker destructor may panic. The slab/free-list already publish
+            // vacancy, so subsequent teardown cannot destroy this owner twice.
+            if !stream.drop_is_nop() {
+                drop(ManuallyDrop::into_inner(stream));
+            }
+        }
         id
     }
 
@@ -577,6 +523,19 @@ impl StreamSlots {
     }
 }
 
+impl Drop for StreamSlots {
+    fn drop(&mut self) {
+        // Vec<Slot> cannot drop Occupied's ManuallyDrop fields itself. Move
+        // every live owner out first; a panicking waker leaves no stale owner
+        // in that slot. Remaining entries can leak on unwind, never double-drop.
+        for slot in &mut self.slots {
+            if let Slot::Occupied(stream) = std::mem::replace(slot, Slot::Vacant(0)) {
+                drop(ManuallyDrop::into_inner(stream));
+            }
+        }
+    }
+}
+
 impl Resolve for Store {
     fn resolve(&mut self, key: Key) -> Ptr<'_> {
         Ptr { key, store: self }
@@ -586,37 +545,23 @@ impl Resolve for Store {
 impl ops::Index<Key> for Store {
     type Output = Stream;
 
-    /// A live key already names the occupied slot. Repeating the bounds, tag,
-    /// and id compares on every field read is the same fact.
+    /// Resolve a live key with its stream-id guard.
     #[inline]
-    #[allow(
-        unsafe_code,
-        reason = "a live stream key addresses the occupied slot Index used to recheck"
-    )]
     fn index(&self, key: Key) -> &Self::Output {
-        let index = key.index.0 as usize;
-        debug_assert!(index < self.slab.slots.len());
-        // SAFETY: `index` comes from a `Ptr` key issued by this store. The
-        // occupied stream starts at the slot address, which is what the
-        // checked match returned. The slot stays occupied until `remove`.
-        let stream = unsafe { &*self.slab.slots.as_ptr().add(index).cast::<Stream>() };
-        debug_assert_eq!(stream.id, key.stream_id);
-        stream
+        match self.slab.get(key.index.0 as usize) {
+            Some(stream) if stream.id == key.stream_id => stream,
+            _ => dangling_store_key(key.stream_id),
+        }
     }
 }
 
 impl ops::IndexMut<Key> for Store {
     #[inline]
-    #[allow(
-        unsafe_code,
-        reason = "a live stream key addresses the occupied slot IndexMut used to recheck"
-    )]
     fn index_mut(&mut self, key: Key) -> &mut Self::Output {
-        let stream = self.slab.occupied_ptr(key.index.0 as usize);
-        debug_assert_eq!(unsafe { (*stream).id }, key.stream_id);
-        // SAFETY: `occupied_ptr` is the occupied slot for this key, and the
-        // stream is not removed while the returned reference is live.
-        unsafe { &mut *stream }
+        match self.slab.get_mut(key.index.0 as usize) {
+            Some(stream) if stream.id == key.stream_id => stream,
+            _ => dangling_store_key(key.stream_id),
+        }
     }
 }
 
@@ -801,6 +746,8 @@ where
         match self.indices {
             Some(ref mut idxs) => {
                 let head_key = stream.resolve(idxs.head).key();
+                // SAFETY: head resolution changes no slab allocation or occupancy;
+                // slot still identifies the exclusively borrowed queued stream.
                 unsafe { N::set_next(&mut *slot, Some(head_key)) };
                 idxs.head = stream.key();
             }
@@ -1023,7 +970,7 @@ impl<'a> OccupiedEntry<'a> {
 impl<'a> VacantEntry<'a> {
     pub fn insert(self, value: Stream) -> Key {
         let stream_id = value.id;
-        let index = SlabIndex(self.slab.insert(value) as u32);
+        let index = SlabIndex(self.slab.insert(value));
         self.record(stream_id, index)
     }
 
@@ -1033,7 +980,7 @@ impl<'a> VacantEntry<'a> {
         init_send_window: WindowSize,
         init_recv_window: WindowSize,
     ) -> Key {
-        let index = SlabIndex(self.slab.insert_new(id, init_send_window, init_recv_window) as u32);
+        let index = SlabIndex(self.slab.insert_new(id, init_send_window, init_recv_window));
         self.record(id, index)
     }
 
@@ -1055,18 +1002,68 @@ impl<'a> VacantEntry<'a> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn reused_slot_stream_starts_at_the_slot_address() {
-        assert_eq!(std::mem::size_of::<Slot>(), std::mem::size_of::<Stream>());
-        let stream = Stream::new(StreamId::from(1), 0, 0);
-        let slot = Slot::Occupied(ManuallyDrop::new(stream));
-        let slot_addr = &slot as *const Slot as usize;
-        let stream_addr = match &slot {
-            Slot::Occupied(stream) => &**stream as *const Stream as usize,
-            Slot::Vacant(_) => unreachable!("occupied slot"),
-        };
-        assert_eq!(slot_addr, stream_addr);
+    struct DropWake {
+        drops: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+        panic_once: bool,
+    }
 
+    impl std::task::Wake for DropWake {
+        fn wake(self: std::sync::Arc<Self>) {}
+    }
+
+    impl Drop for DropWake {
+        fn drop(&mut self) {
+            let previous = self.drops.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            assert!(!self.panic_once || previous != 0, "waker destructor panic");
+        }
+    }
+
+    fn drop_waker(
+        drops: &std::sync::Arc<std::sync::atomic::AtomicUsize>,
+        panic_once: bool,
+    ) -> std::task::Waker {
+        std::task::Waker::from(std::sync::Arc::new(DropWake {
+            drops: drops.clone(),
+            panic_once,
+        }))
+    }
+
+    #[test]
+    fn live_stream_wakers_are_released_when_the_store_is_dropped() {
+        let drops = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let mut stream = Stream::new(StreamId::from(1), 0, 0);
+        stream.recv_task = Some(drop_waker(&drops, false));
+        let mut slots = StreamSlots::new();
+        slots.insert(stream);
+        drop(slots);
+        assert_eq!(drops.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn a_panicking_waker_drop_leaves_the_removed_slot_vacant_and_reusable() {
+        let drops = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let mut stream = Stream::new(StreamId::from(1), 0, 0);
+        stream.recv_task = Some(drop_waker(&drops, true));
+        let mut slots = StreamSlots::new();
+        let first = slots.insert(stream);
+        let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            slots.remove_in_place(first, StreamId::from(1));
+        }));
+        assert!(failure.is_err());
+        assert!(slots.get(first as usize).is_none());
+        assert_eq!(slots.len, 0);
+        let reused = slots.insert_new(StreamId::from(3), 64, 128);
+        assert_eq!(reused, first);
+        assert_eq!(
+            slots.get(reused as usize).expect("reused stream").id,
+            StreamId::from(3)
+        );
+        drop(slots);
+        assert_eq!(drops.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn reused_slot_initializes_a_complete_stream() {
         let mut slots = StreamSlots::new();
         let first = slots.insert(Stream::new(StreamId::from(1), 0, 0));
         slots.remove_in_place(first, StreamId::from(1));

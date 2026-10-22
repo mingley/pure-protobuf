@@ -1085,11 +1085,11 @@ impl Rpc {
             }
             let hook = self.response_interceptor.clone();
             let read = self.run_streaming_request(handler);
-            return BidiDrive::Run(Box::pin(async move {
+            BidiDrive::Run(Box::pin(async move {
                 if let Some(prepared) = read.await {
                     Self::write_bidi_response(prepared, hook).await;
                 }
-            }));
+            }))
         }
         #[cfg(not(feature = "grpc-web"))]
         {

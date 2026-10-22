@@ -2817,6 +2817,10 @@ impl<T> Response<T> {
     /// The chained `with_*` helpers each take `self` by value. On a reply
     /// that already owns maps, that is a full move per field.
     #[inline]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "stamp the existing outbound overlays in place without moving response maps"
+    )]
     pub(crate) fn apply_outbound(
         &mut self,
         path: Option<HttpStr>,

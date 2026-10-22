@@ -1,6 +1,6 @@
 use super::{
-    store, Buffer, BufferStatus, Codec, Config, Counts, Frame, Prioritize, Prioritized, Store,
-    Stream, StreamId, StreamIdOverflow, WindowSize,
+    Buffer, BufferStatus, Codec, Config, Counts, Frame, Prioritize, Prioritized, Store, Stream,
+    StreamId, StreamIdOverflow, WindowSize, store,
 };
 use crate::h2_backend::codec::UserError;
 use crate::h2_backend::frame::{self, Reason};
@@ -165,6 +165,8 @@ impl Send {
             unsafe_code,
             reason = "the send-open check and the queued frame share one slab slot"
         )]
+        // SAFETY: sp is the live stream resolved by the caller under the stream
+        // store lock; state/queue updates here neither insert nor remove slab slots.
         let pending_push = unsafe {
             (*sp).state.send_open(end_stream)?;
             (*sp).is_pending_push
@@ -219,6 +221,8 @@ impl Send {
             unsafe_code,
             reason = "the send-open check and the queued frame share one slab slot"
         )]
+        // SAFETY: sp is the live stream resolved by the caller under the stream
+        // store lock; state/queue updates here neither insert nor remove slab slots.
         let pending_push = unsafe {
             (*sp).state.send_open(end_stream)?;
             (*sp).is_pending_push
@@ -261,10 +265,14 @@ impl Send {
         // Validate headers
         Self::check_headers(frame.fields())?;
 
-        debug_assert!(frame.is_informational(),
-            "Frame must be informational (1xx status code) at this point. Validation should happen at the public API boundary.");
-        debug_assert!(!frame.is_end_stream(),
-            "Informational frames must not have end_stream flag set. Validation should happen at the internal send informational header streams.");
+        debug_assert!(
+            frame.is_informational(),
+            "Frame must be informational (1xx status code) at this point. Validation should happen at the public API boundary."
+        );
+        debug_assert!(
+            !frame.is_end_stream(),
+            "Informational frames must not have end_stream flag set. Validation should happen at the internal send informational header streams."
+        );
 
         // Queue the frame for sending WITHOUT changing stream state
         // This is the key difference from send_headers - we don't call stream.state.send_open()
@@ -416,6 +424,8 @@ impl Send {
             unsafe_code,
             reason = "the trailer close and the queued frame share one slab slot"
         )]
+        // SAFETY: sp is the live stream resolved by the caller under the stream
+        // store lock; state/queue updates here neither insert nor remove slab slots.
         unsafe {
             if !(*sp).state.is_send_streaming() {
                 return Err(UserError::UnexpectedFrameType);

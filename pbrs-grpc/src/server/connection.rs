@@ -304,6 +304,10 @@ impl ConnectionInfo {
     }
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "assemble an admitted RPC from connection state and parsed request facts"
+)]
 pub(crate) fn incoming_rpc(
     mut request: http::Request<RecvStream>,
     respond: SendResponse,

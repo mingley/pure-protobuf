@@ -227,6 +227,12 @@ pub fn streaming_response_from_native<T>(
     response.map(Streaming::from_native)
 }
 
+/// Apply encode limits before handing a prost message to a native sender.
+#[must_use]
+pub fn limits() -> MessageLimits {
+    MessageLimits::unlimited()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -250,10 +256,4 @@ mod tests {
         msg.encode_payload(&mut direct).expect("direct");
         assert_eq!(direct, buffered);
     }
-}
-
-/// Apply encode limits before handing a prost message to a native sender.
-#[must_use]
-pub fn limits() -> MessageLimits {
-    MessageLimits::unlimited()
 }

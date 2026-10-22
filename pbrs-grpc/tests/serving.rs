@@ -6180,7 +6180,7 @@ fn interceptor_set_timeout(call: &mut Outgoing<'_>) -> Result<(), Status> {
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test(start_paused = true)]
 async fn a_tls_client_interceptor_can_set_a_deadline() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
@@ -6199,7 +6199,26 @@ async fn a_tls_client_interceptor_can_set_a_deadline() {
             .ok();
     });
     let client = GreeterClient::new(tls_channel(addr).await).intercept(interceptor_set_timeout);
-    assert_deadline_on_every_shape(&client, &started, &finished, &child_done).await;
+    assert_paused_deadline_dropped_spawned(
+        client.say_hello(Request::new(req("ada"))),
+        &started,
+        &finished,
+        &child_done,
+    )
+    .await;
+    assert_paused_deadline_dropped_spawned(
+        client.server_hello(Request::new(req("ada"))),
+        &started,
+        &finished,
+        &child_done,
+    )
+    .await;
+    let (tx, call) = client.client_hello(Request::new(()));
+    assert_paused_deadline_dropped_spawned(call, &started, &finished, &child_done).await;
+    drop(tx);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert_paused_deadline_dropped_spawned(call, &started, &finished, &child_done).await;
+    drop(tx);
     task.abort();
 }
 
@@ -19140,15 +19159,79 @@ async fn assert_deadline_dropped_spawned<T>(
         Err(status) => status,
     };
     assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    assert!(
+        started.load(Ordering::Relaxed) >= 1,
+        "deadline preceded handler admission: started={}, child_done={}, finished={}",
+        started.load(Ordering::Relaxed),
+        child_done.load(Ordering::Relaxed),
+        finished.load(Ordering::Relaxed),
+    );
     wait_flag(child_done).await;
     assert_eq!(
         finished.load(Ordering::Relaxed),
         0,
         "handler should have been dropped, not run to completion"
     );
-    assert!(
-        started.load(Ordering::Relaxed) >= 1,
-        "handler should have started"
+}
+
+async fn assert_paused_deadline_dropped_spawned<T>(
+    mut call: Call<T>,
+    started: &AtomicUsize,
+    finished: &AtomicUsize,
+    child_done: &AtomicUsize,
+) {
+    started.store(0, Ordering::Relaxed);
+    child_done.store(0, Ordering::Relaxed);
+    let wall_deadline = Instant::now() + Duration::from_secs(5);
+    // Keep the real TLS/socket driver runnable while virtual time is frozen.
+    // A wall-clock bound still detects failed admission or cancellation.
+    let check_progress = |cx: &std::task::Context<'_>| {
+        assert!(
+            Instant::now() < wall_deadline,
+            "deadline test stalled: started={}, child_done={}, finished={}",
+            started.load(Ordering::Relaxed),
+            child_done.load(Ordering::Relaxed),
+            finished.load(Ordering::Relaxed),
+        );
+        cx.waker().wake_by_ref();
+    };
+    std::future::poll_fn(|cx| {
+        check_progress(cx);
+        assert!(
+            std::future::Future::poll(std::pin::Pin::new(&mut call), cx).is_pending(),
+            "call ended before the admitted handler's deadline"
+        );
+        if started.load(Ordering::Relaxed) >= 1 {
+            std::task::Poll::Ready(())
+        } else {
+            std::task::Poll::Pending
+        }
+    })
+    .await;
+    // The interceptor still sets 40ms. Advance only after a handler and its
+    // spawned cancellation waiter exist, rather than racing TLS scheduling.
+    tokio::time::advance(Duration::from_millis(41)).await;
+    let err = std::future::poll_fn(|cx| {
+        check_progress(cx);
+        std::future::Future::poll(std::pin::Pin::new(&mut call), cx)
+    })
+    .await
+    .err()
+    .expect("expected deadline");
+    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    std::future::poll_fn(|cx| {
+        check_progress(cx);
+        if child_done.load(Ordering::Relaxed) >= 1 {
+            std::task::Poll::Ready(())
+        } else {
+            std::task::Poll::Pending
+        }
+    })
+    .await;
+    assert_eq!(
+        finished.load(Ordering::Relaxed),
+        0,
+        "handler should have been dropped, not run to completion"
     );
 }
 

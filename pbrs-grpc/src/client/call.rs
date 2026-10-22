@@ -184,7 +184,7 @@ pub(crate) async fn send_request_frame_in<R: Runtime>(
     // Optimistic: a send with capacity completes without arming the race.
     // The pre-checks mirror `first_of_in`'s biased order (cancel, then
     // deadline) so an already-fired signal still wins, with the same reset.
-    if cancel_requested(&cancel_rx) {
+    if cancel_requested(cancel_rx) {
         send.send_reset(Reason::CANCEL);
         return Err(Status::cancelled());
     }
@@ -310,7 +310,7 @@ pub(crate) async fn open_in<R: Runtime>(
     if timeout.is_some_and(|d| d.is_zero()) {
         return Err(Status::deadline_exceeded());
     }
-    if cancel_requested(&cancel_rx) {
+    if cancel_requested(cancel_rx) {
         return Err(Status::cancelled());
     }
     let remaining = outgoing_timeout(timeout, remaining_timeout(deadline)?);
@@ -357,7 +357,7 @@ pub(crate) async fn open_in<R: Runtime>(
     // race. Request headers remain untouched by h2 while pending; refresh the
     // relative timeout here, outside its stream lock, immediately before poll.
     let guarded = poll_fn(|cx| {
-        if cancel_requested(&cancel_rx) {
+        if cancel_requested(cancel_rx) {
             return Poll::Ready(Err(Status::cancelled()));
         }
         // A warm call has no deadline and no grpc-timeout. The refresh stays
@@ -417,10 +417,7 @@ fn refresh_admission_timeout(
     timeout: Option<Duration>,
     deadline: Option<tokio::time::Instant>,
 ) -> Result<(), Status> {
-    let remaining = match remaining_timeout(deadline) {
-        Ok(remaining) => outgoing_timeout(timeout, remaining),
-        Err(status) => return Err(status),
-    };
+    let remaining = outgoing_timeout(timeout, remaining_timeout(deadline)?);
     if let Some(remaining) = remaining {
         if *last_timeout != Some(remaining) {
             let value = HeaderValue::from_str(&crate::timeout::encode_timeout(remaining))
@@ -793,7 +790,7 @@ impl super::Channel {
         if let Err(status) = remaining_timeout(deadline) {
             return Either::Left(std::future::ready(Err(status)));
         }
-        if cancel_requested(&cancel_rx) {
+        if cancel_requested(cancel_rx) {
             return Either::Left(std::future::ready(Err(Status::cancelled())));
         }
         // A warm direct connection does not acquire. Cloning the pool, the

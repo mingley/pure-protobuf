@@ -81,10 +81,12 @@ pub(crate) const HEADER_CAPACITY: usize = 10;
 fn cached_static_path(path: &'static str) -> PathAndQuery {
     use std::sync::atomic::Ordering;
     let ptr = path.as_ptr();
-    if static_path::PTR.load(Ordering::Acquire) == ptr as *mut u8
+    if std::ptr::eq(static_path::PTR.load(Ordering::Acquire), ptr)
         && static_path::LEN.load(Ordering::Relaxed) == path.len()
     {
-        return crate::static_copy::copy_static_path(static_path::PARSED.get().unwrap());
+        if let Some(parsed) = static_path::PARSED.get() {
+            return crate::static_copy::copy_static_path(parsed);
+        }
     }
     cached_static_path_miss(path)
 }
@@ -129,12 +131,12 @@ mod static_path {
 fn cached_authority(authority: &Authority) -> Authority {
     use std::sync::atomic::Ordering;
     let text = authority.as_str();
-    if static_authority::PTR.load(Ordering::Acquire) == text.as_ptr() as *mut u8
+    if std::ptr::eq(static_authority::PTR.load(Ordering::Acquire), text.as_ptr())
         && static_authority::LEN.load(Ordering::Relaxed) == text.len()
     {
-        return crate::static_copy::copy_static_authority(
-            &static_authority::ENTRY.get().unwrap().parsed,
-        );
+        if let Some(entry) = static_authority::ENTRY.get() {
+            return crate::static_copy::copy_static_authority(&entry.parsed);
+        }
     }
     cached_authority_miss(authority)
 }
@@ -225,7 +227,7 @@ fn is_stock_request(
         && timeout.is_none()
         && send_codec.is_none()
         && accept_gzip
-        && (std::ptr::eq(user_agent.as_bytes(), STOCK_UA.as_bytes()) || user_agent == &STOCK_UA)
+        && (std::ptr::eq(user_agent.as_bytes(), STOCK_UA.as_bytes()) || user_agent == STOCK_UA)
 }
 
 /// A repeated stock POST whose pseudos are already saved.
@@ -233,6 +235,10 @@ fn is_stock_request(
 /// Returns `true` without copying the 216-byte request. The frame is built
 /// from the saved pseudos, so this does not mark the header pool. A deadline
 /// still needs that request so a relative timeout can be written into it.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "check the complete outgoing request against the stock-header template"
+)]
 pub(crate) fn begin_stock_request(
     authority: &Authority,
     path: &'static str,
@@ -258,6 +264,10 @@ pub(crate) fn begin_stock_request(
 /// First request, or one that is not the cached stock POST.
 #[cold]
 #[inline(never)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "cold request construction mirrors grpc_request's wire options"
+)]
 fn grpc_request_miss(
     authority: &Authority,
     path: &'static str,
@@ -284,7 +294,7 @@ fn grpc_request_miss(
     *req.method_mut() = http::Method::POST;
     // `Request::new` installs `Uri::default()` (`/` plus empty scheme and
     // authority, all static). Forgetting it skips that drop; nothing is freed.
-    std::mem::forget(std::mem::replace(req.uri_mut(), uri));
+    let _empty_uri = std::mem::ManuallyDrop::new(std::mem::replace(req.uri_mut(), uri));
     // The benchmark and the default client repeat the same four headers.
     // Cloning that block skips four hashed inserts. That path only sets the
     // stock flag; clearing it first would write the thread slot twice.

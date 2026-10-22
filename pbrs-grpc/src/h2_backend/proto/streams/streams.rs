@@ -450,6 +450,8 @@ where
             unsafe_code,
             reason = "the new handle's refcount uses the slot the insert just wrote"
         )]
+        // SAFETY: slot was resolved from this live stream while its store mutex
+        // is held. No slab insertion or stream removal precedes this access.
         unsafe {
             (*slot).ref_inc();
         }
@@ -561,6 +563,8 @@ where
             unsafe_code,
             reason = "both new handles share the slot the insert just wrote"
         )]
+        // SAFETY: slot was resolved from this live stream while its store mutex
+        // is held. No slab insertion or stream removal precedes this access.
         unsafe {
             (*slot).ref_inc();
             (*slot).ref_inc();
@@ -652,6 +656,8 @@ where
             unsafe_code,
             reason = "both new handles share the slot the insert just wrote"
         )]
+        // SAFETY: slot was resolved from this live stream while its store mutex
+        // is held. No slab insertion or stream removal precedes this access.
         unsafe {
             (*slot).ref_inc();
             (*slot).ref_inc();
@@ -919,6 +925,8 @@ impl Inner {
         )]
         let (slot, is_pending_reset) = {
             let slot = stream.stream_ptr();
+            // SAFETY: slot was resolved from this live stream while its store mutex
+            // is held. No slab insertion or stream removal precedes this access.
             let is_pending_reset = unsafe { (*slot).is_pending_reset_expiration() };
             (slot, is_pending_reset)
         };
@@ -1681,6 +1689,8 @@ impl<B> StreamRef<B> {
             unsafe_code,
             reason = "the buffer check and the end-of-stream close share this slot"
         )]
+        // SAFETY: slot was resolved from this live stream while its store mutex
+        // is held. No slab insertion or stream removal precedes this access.
         let stream_id = unsafe {
             if len
                 > actions
@@ -1721,6 +1731,8 @@ impl<B> StreamRef<B> {
                 unsafe_code,
                 reason = "the reset flag is read from the slot the buffer check already resolved"
             )]
+            // SAFETY: slot was resolved from this live stream while its store mutex
+            // is held. No slab insertion or stream removal precedes this access.
             let pending = unsafe { (*slot).is_pending_reset_expiration() };
             me.counts.transition_after_at(stream, slot, pending);
             return Ok(result);
@@ -1764,6 +1776,8 @@ impl<B> StreamRef<B> {
             unsafe_code,
             reason = "the frame id is read from the slot the close check reuses"
         )]
+        // SAFETY: slot was resolved from this live stream while its store mutex
+        // is held. No slab insertion or stream removal precedes this access.
         let stream_id = unsafe { (*slot).id };
 
         me.counts.transition_at(stream, slot, |counts, stream| {
@@ -1798,6 +1812,8 @@ impl<B> StreamRef<B> {
             unsafe_code,
             reason = "the trailer id is read from the slot the close reuses"
         )]
+        // SAFETY: slot was resolved from this live stream while its store mutex
+        // is held. No slab insertion or stream removal precedes this access.
         let frame = frame::Headers::trailers_boxed(unsafe { (*slot).id }, trailers);
 
         me.counts.transition_at(stream, slot, |counts, stream| {
@@ -1898,6 +1914,8 @@ impl<B> StreamRef<B> {
             unsafe_code,
             reason = "the response id is read from the slot the close and the frame share"
         )]
+        // SAFETY: slot was resolved from this live stream while its store mutex
+        // is held. No slab insertion or stream removal precedes this access.
         let stream_id = unsafe { (*slot).id };
 
         me.counts.transition_at(stream, slot, |counts, stream| {
@@ -1931,6 +1949,8 @@ impl<B> StreamRef<B> {
             unsafe_code,
             reason = "the response id is read from the slot the close and the frame share"
         )]
+        // SAFETY: slot was resolved from this live stream while its store mutex
+        // is held. No slab insertion or stream removal precedes this access.
         let stream_id = unsafe { (*slot).id };
         let mut frame =
             frame::Headers::response_boxed(stream_id, http::StatusCode::OK, HeaderMap::new());

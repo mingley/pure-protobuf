@@ -163,10 +163,10 @@ impl ByteBudgetTracker {
     pub fn try_acquire(&self, bytes: usize) -> Result<BytePermit, Status> {
         // The default tracker has no cap. A relaxed add is enough; the
         // compare-exchange stays on the capped path.
-        if self.inner.limit.is_none() {
-            return self.acquire_unlimited(bytes);
+        match self.inner.limit {
+            None => self.acquire_unlimited(bytes),
+            Some(limit) => self.acquire_limited(bytes, limit),
         }
-        self.acquire_limited(bytes)
     }
 
     fn acquire_unlimited(&self, bytes: usize) -> Result<BytePermit, Status> {
@@ -197,7 +197,7 @@ impl ByteBudgetTracker {
 
     #[cold]
     #[inline(never)]
-    fn acquire_limited(&self, bytes: usize) -> Result<BytePermit, Status> {
+    fn acquire_limited(&self, bytes: usize, limit: usize) -> Result<BytePermit, Status> {
         if bytes == 0 {
             self.acquire_token_count()?;
             return Ok(BytePermit {
@@ -206,7 +206,6 @@ impl ByteBudgetTracker {
             });
         }
 
-        let limit = self.inner.limit.expect("capped budget");
         let mut current = self.inner.allocated.load(Ordering::SeqCst);
         loop {
             let Some(next) = current.checked_add(bytes) else {

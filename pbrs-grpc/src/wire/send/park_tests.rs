@@ -246,17 +246,13 @@ async fn wire_probe() -> WireProbe {
             .expect("response");
         let reset = poll_fn(|cx| send.poll_reset(cx));
         tokio::pin!(reset);
-        loop {
-            tokio::select! {
-                biased;
-                reason = &mut reset => {
-                    reset_tx.send(reason.expect("peer reset")).ok();
-                    break;
-                }
-                accepted = connection.accept() => {
-                    assert!(accepted.is_none(), "only one probe stream");
-                    break;
-                }
+        tokio::select! {
+            biased;
+            reason = &mut reset => {
+                reset_tx.send(reason.expect("peer reset")).ok();
+            }
+            accepted = connection.accept() => {
+                assert!(accepted.is_none(), "only one probe stream");
             }
         }
     });

@@ -1754,12 +1754,12 @@ fn simple_post_request(pseudo: &Pseudo, fields: HeaderMap) -> Result<Request<()>
     let mut request = Request::new(());
     *request.method_mut() = Method::POST;
     // Same static `Uri::default()` as the client stamp. Nothing to free.
-    std::mem::forget(std::mem::replace(request.uri_mut(), uri));
+    let _default_uri = std::mem::ManuallyDrop::new(std::mem::replace(request.uri_mut(), uri));
     *request.version_mut() = http::Version::HTTP_2;
     // A stock request carries its headers in the shared map. `fields` is the
     // empty map `Request::new` already installed, so swapping them is a copy.
     if fields.capacity() == 0 {
-        std::mem::forget(fields);
+        let _empty = std::mem::ManuallyDrop::new(fields);
     } else {
         crate::h2_backend::header_pool::replace_map(request.headers_mut(), fields);
     }
@@ -1901,7 +1901,7 @@ fn cached_simple_post_miss(https: bool) -> Request<()> {
     };
     let mut request = Request::new(());
     *request.method_mut() = Method::POST;
-    std::mem::forget(std::mem::replace(request.uri_mut(), uri));
+    let _default_uri = std::mem::ManuallyDrop::new(std::mem::replace(request.uri_mut(), uri));
     *request.version_mut() = http::Version::HTTP_2;
     if !https {
         let _ = HTTP_POST.set(copy_static_request(&request));
@@ -2100,7 +2100,7 @@ fn convert_poll_message_general(
     // A request translated from HTTP/1 must not include the :authority
     // header
     if let Some(authority) = pseudo.authority.as_ref() {
-        let maybe_authority = cached_authority(&authority);
+        let maybe_authority = cached_authority(authority);
         parts.authority = Some(maybe_authority.or_else(|why| {
             malformed!(
                 "malformed headers: malformed authority ({:?}): {}",
@@ -2144,7 +2144,7 @@ fn convert_poll_message_general(
             malformed!("malformed headers: missing path");
         }
 
-        let maybe_path = cached_path_and_query(&path);
+        let maybe_path = cached_path_and_query(path);
         parts.path_and_query = Some(maybe_path.or_else(|why| {
             malformed!("malformed headers: malformed path ({:?}): {}", path, why,)
         })?);

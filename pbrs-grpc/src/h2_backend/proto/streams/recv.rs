@@ -117,7 +117,7 @@ fn queued_header(
             .or_else(|| crate::h2_backend::server::stock_post_https(pseudo, &fields))
         {
             // Empty stock map. `Request::new` already has the same one.
-            std::mem::forget(fields);
+            let _empty = std::mem::ManuallyDrop::new(fields);
             return Ok(Event::StockRequest { https });
         }
         let message = peer.convert_poll_message(pseudo, fields, stream_id)?;
@@ -238,6 +238,8 @@ impl Recv {
         // Informational responses do not transition a remotely reserved stream
         // out of `ReservedRemote`. As a result, `recv_open` reports each of them
         // as initial. Only account for the stream once.
+        // SAFETY: sp is the live stream resolved for this receive operation;
+        // the store is exclusively borrowed and the slot has not been removed.
         if is_initial && unsafe { !(*sp).is_counted } {
             // TODO: be smarter about this logic
             if frame.stream_id() > self.last_processed_id {
@@ -287,7 +289,7 @@ impl Recv {
                 frame::Headers::forget_empty_box(frame);
                 crate::h2_backend::header_pool::take_received_response()
                     .map(|(map, _)| map)
-                    .unwrap_or_else(HeaderMap::new)
+                    .unwrap_or_default()
             } else {
                 frame::Headers::take_fields_box(frame)
             };

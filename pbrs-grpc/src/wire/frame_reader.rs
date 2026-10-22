@@ -27,7 +27,7 @@ pub(crate) fn status_from(headers: &HeaderMap, trailers: Option<&HeaderMap>) -> 
         if trailers.len() == 1 {
             if let Some((name, value)) = trailers.iter().next() {
                 let bytes = value.as_bytes();
-                if name == GRPC_STATUS && bytes.len() == 1 && bytes[0] == b'0' {
+                if name == GRPC_STATUS && bytes == b"0" {
                     return Status::ok();
                 }
             }

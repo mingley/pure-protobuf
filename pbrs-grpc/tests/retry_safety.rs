@@ -42,7 +42,89 @@ use pbrs_grpc::{
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{TcpListener, TcpStream};
+
+/// Observe a complete response HEADERS frame accepted by the TCP socket.
+/// Merely queueing HEADERS before send_reset can discard them inside h2.
+struct HeaderWriteWitness {
+    socket: TcpStream,
+    pending: Vec<u8>,
+    written: Option<tokio::sync::oneshot::Sender<()>>,
+}
+
+impl HeaderWriteWitness {
+    fn new(socket: TcpStream) -> (Self, tokio::sync::oneshot::Receiver<()>) {
+        let (written, received) = tokio::sync::oneshot::channel();
+        (
+            Self {
+                socket,
+                pending: Vec::new(),
+                written: Some(written),
+            },
+            received,
+        )
+    }
+
+    fn record(&mut self, bytes: &[u8]) {
+        if self.written.is_none() {
+            return;
+        }
+        self.pending.extend_from_slice(bytes);
+        while self.pending.len() >= 9 {
+            let length = (usize::from(self.pending[0]) << 16)
+                | (usize::from(self.pending[1]) << 8)
+                | usize::from(self.pending[2]);
+            if self.pending.len() < 9 + length {
+                break;
+            }
+            let stream = u32::from_be_bytes(self.pending[5..9].try_into().unwrap()) & 0x7fff_ffff;
+            if self.pending[3] == 1 && self.pending[4] & 4 != 0 && stream == 1 {
+                self.written.take().unwrap().send(()).unwrap();
+                self.pending.clear();
+                return;
+            }
+            self.pending.drain(..9 + length);
+        }
+        assert!(self.pending.len() < 64 * 1024, "unexpected peer frame size");
+    }
+}
+
+impl AsyncRead for HeaderWriteWitness {
+    fn poll_read(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        std::pin::Pin::new(&mut self.socket).poll_read(cx, buf)
+    }
+}
+
+impl AsyncWrite for HeaderWriteWitness {
+    fn poll_write(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        bytes: &[u8],
+    ) -> std::task::Poll<std::io::Result<usize>> {
+        let result = std::pin::Pin::new(&mut self.socket).poll_write(cx, bytes);
+        if let std::task::Poll::Ready(Ok(count)) = result {
+            self.record(&bytes[..count]);
+        }
+        result
+    }
+    fn poll_flush(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        std::pin::Pin::new(&mut self.socket).poll_flush(cx)
+    }
+    fn poll_shutdown(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        std::pin::Pin::new(&mut self.socket).poll_shutdown(cx)
+    }
+}
 
 /// Greeter implementation that tracks invocations with an atomic counter.
 struct CountingGreeter {
@@ -241,10 +323,13 @@ async fn request_send_window_stall_obeys_cancellation() {
     }
 }
 
-async fn read_request_body(
-    conn: &mut h2::server::Connection<TcpStream, Bytes>,
+async fn read_request_body<T>(
+    conn: &mut h2::server::Connection<T, Bytes>,
     body: &mut h2::RecvStream,
-) -> Vec<u8> {
+) -> Vec<u8>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
     let mut received = Vec::new();
     // RecvStream alone cannot read later DATA unless the connection is also polled.
     tokio::time::timeout(Duration::from_secs(5), async {
@@ -540,9 +625,12 @@ async fn caller_driven_streams_keep_method_retry_policy_inert_after_send() {
             tx.close();
             call.await.expect_err("reset is terminal")
         };
-        assert_eq!(status.code(), Code::Unavailable, "{shape}");
+        // A peer CANCEL is CANCELLED; it provides no proof that execution
+        // did not occur and must not enable a transparent or policy replay.
+        assert_eq!(status.code(), Code::Cancelled, "{shape}");
         assert_eq!(executions.load(Ordering::SeqCst), 1, "{shape}: no replay");
         assert_eq!(channel.retry_stats().policy_retries, 0);
+        assert_eq!(channel.retry_stats().transparent_retries, 0);
         assert_eq!(channel.byte_budget_allocated(), 0);
         let follow_up = tokio::time::timeout(
             Duration::from_secs(3),
@@ -1059,9 +1147,11 @@ async fn scenario_c_unary_response_headers_committed_no_retry_on_stream_error() 
     let addr = listener.local_addr().expect("local_addr");
     let executions = Arc::new(AtomicUsize::new(0));
     let executions_clone = Arc::clone(&executions);
+    let (committed_tx, committed_rx) = tokio::sync::oneshot::channel();
 
     let server_task = tokio::spawn(async move {
         let (socket, _) = listener.accept().await.expect("accept");
+        let (socket, headers_written) = HeaderWriteWitness::new(socket);
         let mut conn = h2::server::handshake(socket).await.expect("handshake");
         if let Some(Ok((req, mut respond))) = conn.accept().await {
             let mut body = req.into_body();
@@ -1076,18 +1166,42 @@ async fn scenario_c_unary_response_headers_committed_no_retry_on_stream_error() 
                 .expect("response");
             let mut send_stream = respond.send_response(response, false).expect("headers");
 
-            // Reset stream after response headers have been committed:
+            // Independently drive the connection until complete HEADERS
+            // actually reach TCP, then send the later cancellation reset.
+            tokio::time::timeout(Duration::from_secs(2), async {
+                tokio::select! {
+                    result = headers_written => result.expect("HEADERS write witness"),
+                    result = conn.accept() => panic!("unexpected second RPC: {result:?}"),
+                }
+            })
+            .await
+            .expect("response HEADERS must be written before reset");
+            committed_tx
+                .send(())
+                .expect("client observes commitment witness");
             send_stream.send_reset(h2::Reason::CANCEL);
         }
         while let Some(Ok(_)) = conn.accept().await {}
     });
 
-    let client = GreeterClient::connect(addr).await.expect("connect");
-    let result = client.say_hello(Request::new(req("test"))).await;
+    let channel = Channel::connect(addr).await.expect("connect");
+    let client = GreeterClient::new(channel.clone());
+    let result = tokio::time::timeout(
+        Duration::from_secs(3),
+        client.say_hello(Request::new(req("test"))),
+    )
+    .await
+    .expect("committed reset must terminate the call");
 
+    tokio::time::timeout(Duration::from_secs(2), committed_rx)
+        .await
+        .expect("peer must establish HEADERS commitment")
+        .expect("peer failed before the HEADERS commitment witness");
     assert!(result.is_err(), "Expected error after stream reset");
     let status = result.unwrap_err();
-    assert_eq!(status.code(), Code::Unavailable);
+    assert_eq!(status.code(), Code::Cancelled);
+    assert_eq!(channel.retry_stats().transparent_retries, 0);
+    assert_eq!(channel.retry_stats().policy_retries, 0);
 
     // CRITICAL ASSERTION: No transparent retry because response was committed!
     assert_eq!(

@@ -18,8 +18,13 @@ use crate::wire::{
 };
 use std::future::{Future, poll_fn};
 use std::pin::Pin;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+#[allow(
+    clippy::disallowed_types,
+    reason = "short waker-registry sections; no await under lock and wakers run after unlocking"
+)]
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::task::{Context, Poll, Waker};
 use std::time::Duration;
 
@@ -29,37 +34,45 @@ use std::time::Duration;
 /// never call [`Request::cancelled`] still paid that, so this flag only wakes
 /// tasks that have started waiting.
 pub(crate) struct CancelFlag {
-    value: AtomicBool,
-    /// A task has registered in `waiters`. `signal` skips that lock until then.
-    armed: AtomicBool,
+    /// Cancellation and waiter registration share one modification order.
+    state: AtomicU8,
+    #[allow(
+        clippy::disallowed_types,
+        reason = "short waker-registry sections; no await under lock and wakers run after unlocking"
+    )]
     waiters: Mutex<Vec<Waker>>,
 }
 
 impl CancelFlag {
+    const CANCELLED: u8 = 1;
+    const ARMED: u8 = 2;
+
     pub(crate) fn new() -> Arc<Self> {
         if let Some(flag) = take_spare_cancel() {
             // The slot may still be marked cancelled from the call that
             // finished. The next call has not been cancelled.
-            flag.value.store(false, Ordering::Release);
-            flag.armed.store(false, Ordering::Release);
+            flag.state.store(0, Ordering::Release);
             return flag;
         }
+        #[allow(
+            clippy::disallowed_types,
+            reason = "short waker-registry sections; no await under lock and wakers run after unlocking"
+        )]
+        let waiters = Mutex::new(Vec::new());
         Arc::new(Self {
-            value: AtomicBool::new(false),
-            armed: AtomicBool::new(false),
-            waiters: Mutex::new(Vec::new()),
+            state: AtomicU8::new(0),
+            waiters,
         })
     }
 
     pub(crate) fn is_cancelled(&self) -> bool {
-        self.value.load(Ordering::Acquire)
+        self.state.load(Ordering::Acquire) & Self::CANCELLED != 0
     }
 
     pub(crate) fn signal(&self) {
-        self.value.store(true, Ordering::Release);
-        // A waiter registers, then checks `value` again. If this load misses
-        // the registration, that second check still observes the store above.
-        if self.armed.load(Ordering::Acquire) {
+        // Either registration observes CANCELLED, or this operation observes
+        // ARMED and wakes it. Separate release/acquire flags could both miss.
+        if self.state.fetch_or(Self::CANCELLED, Ordering::AcqRel) & Self::ARMED != 0 {
             self.wake_waiters();
         }
     }
@@ -99,27 +112,38 @@ impl Future for WaitCancel {
         if flag.is_cancelled() {
             return Poll::Ready(());
         }
-        {
-            let mut waiters = match flag.waiters.lock() {
+        let needs_update = this.slot.is_none_or(|index| {
+            let waiters = match flag.waiters.lock() {
                 Ok(waiters) => waiters,
                 Err(poisoned) => poisoned.into_inner(),
             };
-            if let Some(index) = this.slot {
-                if let Some(waiter) = waiters.get_mut(index) {
-                    if !waiter.will_wake(cx.waker()) {
-                        *waiter = cx.waker().clone();
-                    }
+            waiters
+                .get(index)
+                .is_none_or(|waiter| !waiter.will_wake(cx.waker()))
+        });
+        if needs_update {
+            // RawWaker clone/drop callbacks may reenter signal. Neither runs
+            // under the registry lock; an unchanged waker needs no clone.
+            let replacement = cx.waker().clone();
+            let previous = {
+                let mut waiters = match flag.waiters.lock() {
+                    Ok(waiters) => waiters,
+                    Err(poisoned) => poisoned.into_inner(),
+                };
+                if let Some(waiter) = this.slot.and_then(|index| waiters.get_mut(index)) {
+                    Some(std::mem::replace(waiter, replacement))
                 } else {
                     this.slot = Some(waiters.len());
-                    waiters.push(cx.waker().clone());
+                    waiters.push(replacement);
+                    None
                 }
-            } else {
-                this.slot = Some(waiters.len());
-                waiters.push(cx.waker().clone());
-            }
+            };
+            drop(previous);
         }
-        flag.armed.store(true, Ordering::Release);
-        if flag.is_cancelled() {
+        if flag.state.fetch_or(CancelFlag::ARMED, Ordering::AcqRel) & CancelFlag::CANCELLED != 0 {
+            // A signal that preceded ARMED could not drain this registration.
+            // Release its waker too, including any references back to the flag.
+            flag.wake_waiters();
             Poll::Ready(())
         } else {
             Poll::Pending
@@ -195,10 +219,10 @@ impl Drop for CancelOnDrop {
         // need the signal. The last owner is the usual end of a call that
         // nobody waited on: keep the allocation for the next call.
         if Arc::strong_count(&flag) == 1 {
-            if flag.armed.load(Ordering::Acquire) {
+            if flag.state.load(Ordering::Acquire) & CancelFlag::ARMED != 0 {
                 flag.wake_waiters();
-                flag.armed.store(false, Ordering::Release);
             }
+            flag.state.store(0, Ordering::Release);
             stash_spare_cancel(flag);
             return;
         }
@@ -216,7 +240,7 @@ fn take_spare_cancel() -> Option<Arc<CancelFlag>> {
 
 fn stash_spare_cancel(flag: Arc<CancelFlag>) {
     // Thread shutdown drops the slot; the flag is freed with the closure.
-    let _ = SPARE_CANCEL.try_with(|cell| cell.set(Some(flag)));
+    let _thread_shutdown = SPARE_CANCEL.try_with(|cell| cell.set(Some(flag)));
 }
 
 /// Keep [`CancelOnDrop`] alive across `write`.
@@ -937,8 +961,22 @@ mod cancel_flag_wait_tests {
     use super::{CancelFlag, CancelOnDrop, wait_cancel};
     use std::future::poll_fn;
     use std::pin::Pin;
-    use std::sync::Arc;
-    use std::task::Poll;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc, Barrier};
+    use std::task::{Context, Poll, Wake, Waker};
+
+    #[derive(Default)]
+    struct WakeCount(AtomicUsize);
+
+    impl Wake for WakeCount {
+        fn wake(self: Arc<Self>) {
+            self.wake_by_ref();
+        }
+
+        fn wake_by_ref(self: &Arc<Self>) {
+            self.0.fetch_add(1, Ordering::Relaxed);
+        }
+    }
 
     #[tokio::test]
     async fn signal_wakes_a_task_that_is_already_waiting() {
@@ -967,13 +1005,138 @@ mod cancel_flag_wait_tests {
     }
 
     #[test]
+    fn signal_wakes_every_registered_waiter() {
+        let flag = CancelFlag::new();
+        let mut waiters = Vec::new();
+        for _ in 0..8 {
+            let count = Arc::new(WakeCount::default());
+            let waker = Waker::from(Arc::clone(&count));
+            let mut waiting = wait_cancel(Some(Arc::clone(&flag)));
+            assert!(
+                Pin::new(&mut waiting)
+                    .poll(&mut Context::from_waker(&waker))
+                    .is_pending()
+            );
+            waiters.push((waiting, count, waker));
+        }
+        std::thread::scope(|scope| {
+            scope.spawn(|| flag.signal());
+        });
+        for (mut waiting, count, waker) in waiters {
+            assert_eq!(count.0.load(Ordering::Relaxed), 1);
+            assert!(
+                Pin::new(&mut waiting)
+                    .poll(&mut Context::from_waker(&waker))
+                    .is_ready()
+            );
+        }
+    }
+
+    #[test]
+    fn replacing_a_waker_allows_its_drop_to_signal_cancellation() {
+        struct SignalOnDrop {
+            flag: Arc<CancelFlag>,
+            dropped: Arc<AtomicUsize>,
+        }
+
+        impl Wake for SignalOnDrop {
+            fn wake(self: Arc<Self>) {}
+        }
+
+        impl Drop for SignalOnDrop {
+            fn drop(&mut self) {
+                self.dropped.fetch_add(1, Ordering::Relaxed);
+                self.flag.signal();
+            }
+        }
+
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            let flag = CancelFlag::new();
+            let dropped = Arc::new(AtomicUsize::new(0));
+            let previous = Waker::from(Arc::new(SignalOnDrop {
+                flag: Arc::clone(&flag),
+                dropped: Arc::clone(&dropped),
+            }));
+            let mut waiting = wait_cancel(Some(Arc::clone(&flag)));
+            assert!(
+                Pin::new(&mut waiting)
+                    .poll(&mut Context::from_waker(&previous))
+                    .is_pending()
+            );
+            // Leave the registry as the last owner, so replacement runs Drop.
+            drop(previous);
+            let count = Arc::new(WakeCount::default());
+            let replacement = Waker::from(Arc::clone(&count));
+            assert!(
+                Pin::new(&mut waiting)
+                    .poll(&mut Context::from_waker(&replacement))
+                    .is_ready()
+            );
+            assert_eq!(dropped.load(Ordering::Relaxed), 1);
+            assert_eq!(count.0.load(Ordering::Relaxed), 1);
+            assert!(flag.is_cancelled());
+            done_tx.send(()).expect("test observer remains alive");
+        });
+        // A reentrant lock deadlock fails this test without hanging libtest.
+        done_rx
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .expect("waker replacement deadlocked while signaling cancellation");
+        worker.join().expect("waker replacement worker panicked");
+    }
+
+    #[test]
+    fn registration_racing_signal_is_ready_or_woken_for_every_waiter() {
+        for round in 0..512 {
+            let flag = CancelFlag::new();
+            let gate = Arc::new(Barrier::new(2));
+            let waiters = std::thread::scope(|scope| {
+                let gate_ref = &gate;
+                let flag_ref = &flag;
+                scope.spawn(move || {
+                    gate_ref.wait();
+                    if round % 2 == 0 {
+                        std::thread::yield_now();
+                    }
+                    flag_ref.signal();
+                });
+                let mut waiters = Vec::new();
+                gate.wait();
+                for _ in 0..8 {
+                    let count = Arc::new(WakeCount::default());
+                    let waker = Waker::from(Arc::clone(&count));
+                    let mut waiting = wait_cancel(Some(Arc::clone(&flag)));
+                    let pending = Pin::new(&mut waiting)
+                        .poll(&mut Context::from_waker(&waker))
+                        .is_pending();
+                    waiters.push((waiting, count, waker, pending));
+                }
+                waiters
+            });
+            for (mut waiting, count, waker, pending) in waiters {
+                if pending {
+                    assert!(
+                        count.0.load(Ordering::Relaxed) >= 1,
+                        "registered waiter was not woken in round {round}"
+                    );
+                }
+                assert!(
+                    Pin::new(&mut waiting)
+                        .poll(&mut Context::from_waker(&waker))
+                        .is_ready()
+                );
+            }
+        }
+    }
+
+    #[test]
     fn last_owner_is_reused_and_not_cancelled() {
         let first = CancelFlag::new();
         let ptr = Arc::as_ptr(&first);
         drop(CancelOnDrop::new(first));
         let second = CancelFlag::new();
         assert!(!second.is_cancelled());
-        assert!(!second.armed.load(std::sync::atomic::Ordering::Acquire));
+        assert_eq!(second.state.load(std::sync::atomic::Ordering::Acquire), 0);
         assert!(std::ptr::eq(Arc::as_ptr(&second), ptr));
     }
 

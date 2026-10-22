@@ -58,7 +58,7 @@ async fn parked_handler_does_not_block_the_next_unary() {
     let channel = Arc::new(channel);
     let blocked = channel
         .unary::<HelloRequest, HelloReply>("/park.Park/Block", Request::new(HelloRequest::new()));
-    let block_task = tokio::spawn(async move { blocked.await });
+    let block_task = tokio::spawn(blocked);
     tokio::time::timeout(Duration::from_secs(2), entered_rx.wait_for(|ready| *ready))
         .await
         .expect("blocked handler should start")

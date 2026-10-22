@@ -268,6 +268,7 @@ impl Prioritize {
         // SAFETY: `sp` is this stream. The equal case does not remove it.
         // The other cases re-enter through `reserve_capacity`.
         let total = unsafe { (capacity as usize) + (*sp).buffered_send_data };
+        // SAFETY: the same live resolved slot remains occupied after the read above.
         if total == unsafe { (*sp).requested_send_capacity as usize } {
             return;
         }
@@ -805,21 +806,32 @@ impl Prioritize {
                     // `transition_after`, and `sp` is not used after that.
                     let is_pending_reset = unsafe { (*sp).is_pending_reset_expiration() };
 
+                    // SAFETY: sp is the occupied slot resolved by the current send operation.
+                    // Queue/flow updates do not grow the stream slab; close cleanup is last.
                     let frame = match unsafe { (*sp).pending_send.pop_front(buffer) } {
                         // Headers are a pointer, but the frame enum is padded to
                         // the data variant. Holding that value across the
                         // requeue and close checks copied it into `buffer`.
                         Some(Frame::Headers(frame)) => {
+                            // SAFETY: sp is the occupied slot resolved by the current send operation.
+                            // Queue/flow updates do not grow the stream slab; close cleanup is last.
                             if cfg!(debug_assertions) && unsafe { (*sp).state.is_idle() } {
+                                // SAFETY: sp is the occupied slot resolved by the current send operation.
+                                // Queue/flow updates do not grow the stream slab; close cleanup is last.
                                 debug_assert!(unsafe { (*sp).id } > self.last_opened_id);
+                                // SAFETY: sp is the occupied slot resolved by the current send operation.
+                                // Queue/flow updates do not grow the stream slab; close cleanup is last.
                                 self.last_opened_id = unsafe { (*sp).id };
                             }
+                            // SAFETY: sp is the occupied slot resolved by the current send operation.
+                            // Queue/flow updates do not grow the stream slab; close cleanup is last.
                             if unsafe {
-                                !(*sp).pending_send.is_empty()
-                                    || (*sp).state.is_scheduled_reset()
+                                !(*sp).pending_send.is_empty() || (*sp).state.is_scheduled_reset()
                             } {
                                 self.pending_send.push_resolved(&mut stream, sp);
                             }
+                            // SAFETY: sp is the occupied slot resolved by the current send operation.
+                            // Queue/flow updates do not grow the stream slab; close cleanup is last.
                             let closing = unsafe {
                                 (*sp).state.is_closed()
                                     && !((*sp).protocol_unlinked && (*sp).ref_count > 0)
@@ -831,6 +843,8 @@ impl Prioritize {
                             return true;
                         }
                         Some(Frame::Data(mut frame)) => {
+                            // SAFETY: sp is the occupied slot resolved by the current send operation.
+                            // Queue/flow updates do not grow the stream slab; close cleanup is last.
                             if let Some(reason) = unsafe { (*sp).state.get_scheduled_reset() } {
                                 // If a reset is scheduled due to cancellation or
                                 // an error, discard buffered DATA and let the `None`
@@ -847,6 +861,8 @@ impl Prioritize {
 
                             // Get the amount of capacity remaining for stream's
                             // window.
+                            // SAFETY: sp is the occupied slot resolved by the current send operation.
+                            // Queue/flow updates do not grow the stream slab; close cleanup is last.
                             let stream_capacity = unsafe { (*sp).send_flow.available() };
                             let sz = frame.payload().remaining();
 
@@ -874,12 +890,16 @@ impl Prioritize {
                             // Check if the stream level window the peer knows is available. In some
                             // scenarios, maybe the window we know is available but the window which
                             // peer knows is not.
+                            // SAFETY: sp is the occupied slot resolved by the current send operation.
+                            // Queue/flow updates do not grow the stream slab; close cleanup is last.
                             if len > 0 && unsafe { len > (*sp).send_flow.window_size() } {
                                 self.requeue_data(sp, buffer, frame);
                                 continue;
                             }
 
                             // Update the flow control
+                            // SAFETY: sp is the occupied slot resolved by the current send operation.
+                            // Queue/flow updates do not grow the stream slab; close cleanup is last.
                             unsafe { (*sp).send_data(len, self.max_buffer_size) };
 
                             // Assign the capacity back to the connection that
@@ -907,16 +927,25 @@ impl Prioritize {
                             // them left a 56-byte value live across the calls,
                             // and `buffer_data` then copied it again.
                             let key = stream.key();
+                            // SAFETY: sp is the occupied slot resolved by the current send operation.
+                            // Queue/flow updates do not grow the stream slab; close cleanup is last.
                             if cfg!(debug_assertions) && unsafe { (*sp).state.is_idle() } {
+                                // SAFETY: sp is the occupied slot resolved by the current send operation.
+                                // Queue/flow updates do not grow the stream slab; close cleanup is last.
                                 debug_assert!(unsafe { (*sp).id } > self.last_opened_id);
+                                // SAFETY: sp is the occupied slot resolved by the current send operation.
+                                // Queue/flow updates do not grow the stream slab; close cleanup is last.
                                 self.last_opened_id = unsafe { (*sp).id };
                             }
+                            // SAFETY: sp is the occupied slot resolved by the current send operation.
+                            // Queue/flow updates do not grow the stream slab; close cleanup is last.
                             if unsafe {
-                                !(*sp).pending_send.is_empty()
-                                    || (*sp).state.is_scheduled_reset()
+                                !(*sp).pending_send.is_empty() || (*sp).state.is_scheduled_reset()
                             } {
                                 self.pending_send.push_resolved(&mut stream, sp);
                             }
+                            // SAFETY: sp is the occupied slot resolved by the current send operation.
+                            // Queue/flow updates do not grow the stream slab; close cleanup is last.
                             let closing = unsafe {
                                 (*sp).state.is_closed()
                                     && !((*sp).protocol_unlinked && (*sp).ref_count > 0)
@@ -951,6 +980,8 @@ impl Prioritize {
                             )
                         }),
                         None => {
+                            // SAFETY: sp is the occupied slot resolved by the current send operation.
+                            // Queue/flow updates do not grow the stream slab; close cleanup is last.
                             if let Some(reason) = unsafe { (*sp).state.get_scheduled_reset() } {
                                 self.emit_scheduled_reset(sp, reason)
                             } else {
@@ -960,14 +991,21 @@ impl Prioritize {
                         }
                     };
 
+                    // SAFETY: sp is the occupied slot resolved by the current send operation.
+                    // Queue/flow updates do not grow the stream slab; close cleanup is last.
                     if cfg!(debug_assertions) && unsafe { (*sp).state.is_idle() } {
+                        // SAFETY: sp is the occupied slot resolved by the current send operation.
+                        // Queue/flow updates do not grow the stream slab; close cleanup is last.
                         debug_assert!(unsafe { (*sp).id } > self.last_opened_id);
+                        // SAFETY: sp is the occupied slot resolved by the current send operation.
+                        // Queue/flow updates do not grow the stream slab; close cleanup is last.
                         self.last_opened_id = unsafe { (*sp).id };
                     }
 
-                    if unsafe {
-                        !(*sp).pending_send.is_empty() || (*sp).state.is_scheduled_reset()
-                    } {
+                    // SAFETY: sp is the occupied slot resolved by the current send operation.
+                    // Queue/flow updates do not grow the stream slab; close cleanup is last.
+                    if unsafe { !(*sp).pending_send.is_empty() || (*sp).state.is_scheduled_reset() }
+                    {
                         // TODO: Only requeue the sender IF it is ready to send
                         // the next frame. i.e. don't requeue it if the next
                         // frame is a data frame and the stream does not have
@@ -979,9 +1017,10 @@ impl Prioritize {
                     // `transition_after` indexes the slab again. An open
                     // stream only needs the closed check, and `sp` is still
                     // the slot `pop` resolved. Close cleanup consumes `stream`.
+                    // SAFETY: sp is the occupied slot resolved by the current send operation.
+                    // Queue/flow updates do not grow the stream slab; close cleanup is last.
                     let closing = unsafe {
-                        (*sp).state.is_closed()
-                            && !((*sp).protocol_unlinked && (*sp).ref_count > 0)
+                        (*sp).state.is_closed() && !((*sp).protocol_unlinked && (*sp).ref_count > 0)
                     };
                     if closing {
                         counts.transition_after(stream, is_pending_reset);
@@ -1028,6 +1067,8 @@ impl Prioritize {
     ) where
         B: Buf,
     {
+        // SAFETY: sp is the occupied slot resolved by the current send operation.
+        // Queue/flow updates do not grow the stream slab; close cleanup is last.
         unsafe { (*sp).pending_send.push_front(buffer, frame.into()) };
         self.clear_queue(buffer, stream);
         self.reclaim_all_capacity(stream, counts);
@@ -1049,6 +1090,8 @@ impl Prioritize {
     ) where
         B: Buf,
     {
+        // SAFETY: sp is the occupied slot resolved by the current send operation.
+        // Queue/flow updates do not grow the stream slab; close cleanup is last.
         unsafe { (*sp).pending_send.push_front(buffer, frame.into()) };
     }
 
@@ -1089,7 +1132,11 @@ impl Prioritize {
     where
         B: Buf,
     {
+        // SAFETY: sp is the occupied slot resolved by the current send operation.
+        // Queue/flow updates do not grow the stream slab; close cleanup is last.
         unsafe { (*sp).set_reset(reason, Initiator::Library) };
+        // SAFETY: sp is the occupied slot resolved by the current send operation.
+        // Queue/flow updates do not grow the stream slab; close cleanup is last.
         Frame::Reset(frame::Reset::new(unsafe { (*sp).id }, reason))
     }
 
@@ -1107,6 +1154,8 @@ impl Prioritize {
         stream: store::Ptr,
         is_pending_reset: bool,
     ) {
+        // SAFETY: sp is the occupied slot resolved by the current send operation.
+        // Queue/flow updates do not grow the stream slab; close cleanup is last.
         debug_assert!(unsafe { (*sp).state.is_closed() });
         counts.transition_after(stream, is_pending_reset);
     }

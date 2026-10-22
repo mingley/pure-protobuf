@@ -28,9 +28,7 @@ pub(crate) fn spawn_if(
     interval: Option<Duration>,
     timeout: Duration,
 ) -> Option<watch::Receiver<bool>> {
-    if interval.is_none() {
-        return None;
-    }
+    interval?;
     spawn(ping_pong(), interval, timeout)
 }
 
@@ -41,9 +39,7 @@ pub(crate) fn spawn_if_in<R: Runtime>(
     interval: Option<Duration>,
     timeout: Duration,
 ) -> Option<watch::Receiver<bool>> {
-    if interval.is_none() {
-        return None;
-    }
+    interval?;
     spawn_in::<R>(ping_pong(), interval, timeout)
 }
 

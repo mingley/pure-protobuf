@@ -323,13 +323,21 @@ pub(crate) fn socket_entry(id: SocketId) -> Option<Arc<SocketEntry>> {
 static GLOBAL: OnceLock<Arc<Registry>> = OnceLock::new();
 
 /// Entity registry. See the module docs for the memory and locking contracts.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Registry {
+    /// Cache identity stays allocated while any thread retains a socket slot.
+    cache_identity: Arc<()>,
     next_id: AtomicU64,
     channels: RwLock<BTreeMap<u64, Arc<ChannelEntry>>>,
     subchannels: RwLock<BTreeMap<u64, Arc<SubchannelEntry>>>,
     servers: RwLock<BTreeMap<u64, Arc<ServerEntry>>>,
     sockets: RwLock<BTreeMap<u64, Arc<SocketEntry>>>,
+}
+
+impl Default for Registry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Registry {
@@ -338,6 +346,7 @@ impl Registry {
     #[must_use]
     pub fn new() -> Self {
         Self {
+            cache_identity: Arc::new(()),
             next_id: AtomicU64::new(1),
             channels: RwLock::new(BTreeMap::new()),
             subchannels: RwLock::new(BTreeMap::new()),
@@ -896,25 +905,32 @@ impl Registry {
     #[inline(never)]
     #[allow(
         unsafe_code,
-        reason = "the miss path fills the thread-local socket slots and does not re-enter them"
+        reason = "the miss path mutates thread-local slots and drops evicted entries after ending the borrow"
     )]
     fn cache_socket(&self, id: SocketId) -> Option<Arc<SocketEntry>> {
         let entry = {
             let map = self.sockets.read().ok()?;
             map.get(&id.0).cloned()?
         };
-        let registry = self as *const Registry;
-        // SAFETY: the miss path is not inside a cache hit, so this thread
-        // has no other reference to the slot array.
-        let slots = unsafe { &mut *hot_socket_slots() };
-        for slot in slots.iter_mut() {
-            if slot.is_none() {
-                *slot = Some((registry, id.0, Arc::clone(&entry)));
-                return Some(entry);
+        let cached = Some((Arc::clone(&self.cache_identity), id.0, Arc::clone(&entry)));
+        let evicted = {
+            // SAFETY: the miss path is outside a cache hit. Moving entries
+            // into empty slots invokes no destructors while this borrow lives.
+            let slots = unsafe { &mut *hot_socket_slots() };
+            for slot in slots.iter_mut() {
+                if slot.is_none() {
+                    *slot = cached;
+                    return Some(entry);
+                }
             }
-        }
-        slots[0] = slots[1].take();
-        slots[1] = Some((registry, id.0, Arc::clone(&entry)));
+            let evicted = slots[0].take();
+            slots[0] = slots[1].take();
+            slots[1] = cached;
+            evicted
+        };
+        // Publish the replacement before an Arc destructor or allocator can
+        // re-enter the registry, and retain no reference to the TLS slots.
+        drop(evicted);
         Some(entry)
     }
 
@@ -1405,15 +1421,20 @@ pub(crate) fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
+type CachedSocket = (Arc<()>, u64, Arc<SocketEntry>);
+type HotSocketSlots = [Option<CachedSocket>; 2];
+
 // Client and server sockets are noted from the same task. Two slots
-// cover that pair without cloning the `Arc` on a hit.
+// cover that pair without cloning an `Arc` on a hit. Each slot retains its
+// registry identity, so a registry dropped on another thread cannot alias a
+// replacement registry that reuses its address and local socket ids.
 thread_local! {
-    static HOT_SOCKETS: UnsafeCell<[Option<(*const Registry, u64, Arc<SocketEntry>)>; 2]> =
+    static HOT_SOCKETS: UnsafeCell<HotSocketSlots> =
         const { UnsafeCell::new([None, None]) };
 }
 
 #[inline]
-fn hot_socket_slots() -> *mut [Option<(*const Registry, u64, Arc<SocketEntry>)>; 2] {
+fn hot_socket_slots() -> *mut HotSocketSlots {
     HOT_SOCKETS.with(UnsafeCell::get)
 }
 
@@ -1427,15 +1448,15 @@ fn with_cached_socket<R>(
     id: SocketId,
     body: impl FnOnce(&SocketEntry) -> R,
 ) -> Option<R> {
-    let registry = registry as *const Registry;
+    let identity = Arc::as_ptr(&registry.cache_identity);
     // SAFETY: this thread owns the slots. `body` updates atomics and the
     // coarse clock, which uses a different thread-local.
     let slots = unsafe { &*hot_socket_slots() };
     for slot in slots.iter() {
-        let Some((cached_registry, cached_id, entry)) = slot else {
+        let Some((cached_identity, cached_id, entry)) = slot else {
             continue;
         };
-        if *cached_registry == registry && *cached_id == id.0 {
+        if Arc::as_ptr(cached_identity) == identity && *cached_id == id.0 {
             return Some(body(entry));
         }
     }
@@ -1448,16 +1469,19 @@ impl Drop for Registry {
         reason = "clearing this thread's socket slots while the registry drops"
     )]
     fn drop(&mut self) {
-        let me = self as *const Registry;
-        let _ = HOT_SOCKETS.try_with(|cell| {
+        let me = Arc::as_ptr(&self.cache_identity);
+        // The thread-local cache may already have been destroyed at shutdown.
+        let _cache_cleanup = HOT_SOCKETS.try_with(|cell| {
             // SAFETY: dropping a registry is not inside a cache hit on this
-            // thread. Another thread's slots are a different thread-local.
+            // thread. Entries are moved out without running their destructors.
             let slots = unsafe { &mut *cell.get() };
-            for slot in slots.iter_mut() {
-                if matches!(slot, Some((registry, _, _)) if *registry == me) {
-                    *slot = None;
+            let mut removed: HotSocketSlots = [None, None];
+            for (slot, old) in slots.iter_mut().zip(removed.iter_mut()) {
+                if matches!(slot, Some((identity, _, _)) if Arc::as_ptr(identity) == me) {
+                    *old = slot.take();
                 }
             }
+            removed
         });
     }
 }
@@ -1528,6 +1552,75 @@ mod tests {
 
     fn tcp(port: u16) -> EndpointAddr {
         EndpointAddr::Tcp(format!("127.0.0.1:{port}").parse().expect("addr"))
+    }
+
+    #[test]
+    fn default_registry_ids_start_at_one() {
+        for registry in [Registry::default(), Registry::new()] {
+            let registry = Arc::new(registry);
+            let first = registry.register_channel("first", "test:///first");
+            let second = registry.register_channel("second", "test:///second");
+            assert_eq!(first.id().get(), 1);
+            assert_eq!(second.id().get(), 2);
+        }
+    }
+
+    #[test]
+    fn socket_cache_cannot_alias_replaced_registry_after_cross_thread_drop() {
+        // A dedicated thread starts with an empty TLS cache. The Box provides
+        // deterministic address reuse through safe in-place replacement.
+        std::thread::spawn(|| {
+            let make_entry = || {
+                let source = Arc::new(Registry::new());
+                let socket = source.register_socket(
+                    SocketParent::Channel(ChannelId(1)),
+                    None,
+                    None,
+                    None,
+                    SocketSecurity::None,
+                    false,
+                );
+                source.socket(socket.id()).expect("registered socket")
+            };
+            let old_entry = make_entry();
+            let new_entry = make_entry();
+            assert_eq!(old_entry.id, new_entry.id, "local ids intentionally repeat");
+            let mut registry = Box::new(Registry::new());
+            let address = std::ptr::from_ref(registry.as_ref());
+            registry
+                .sockets
+                .write()
+                .expect("sockets")
+                .insert(old_entry.id.0, Arc::clone(&old_entry));
+            registry.note_messages(old_entry.id, true, 1);
+            let old = std::mem::replace(registry.as_mut(), Registry::new());
+            std::thread::spawn(move || drop(old))
+                .join()
+                .expect("drop old registry");
+            assert_eq!(std::ptr::from_ref(registry.as_ref()), address);
+            registry
+                .sockets
+                .write()
+                .expect("sockets")
+                .insert(new_entry.id.0, Arc::clone(&new_entry));
+            registry.note_messages(new_entry.id, true, 3);
+            assert_eq!(
+                old_entry
+                    .messages_sent
+                    .load(std::sync::atomic::Ordering::Relaxed),
+                1,
+                "the old thread-local entry must not receive replacement events"
+            );
+            assert_eq!(
+                new_entry
+                    .messages_sent
+                    .load(std::sync::atomic::Ordering::Relaxed),
+                3,
+                "the replacement registry must receive its own events"
+            );
+        })
+        .join()
+        .expect("cache worker");
     }
 
     #[test]
