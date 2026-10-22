@@ -73,7 +73,7 @@ pub trait Service: Send + Sync + 'static {
     /// the method declares. Returning without consuming it resets the stream.
     fn call(&self, rpc: Rpc) -> impl Future<Output = ()> + Send;
 
-    /// Dispatch with a boxed future for a heterogeneous router.
+    /// Build the per-method future used by both server and router.
     ///
     /// The default boxes [`Self::call`]. Generated services select the method
     /// before boxing, so unrelated methods do not enlarge each RPC's future.
@@ -93,8 +93,8 @@ impl<S: Service> DynService for S {
     }
 }
 
-/// What the accept loop hands each stream. Monomorphic for [`Server`], boxed
-/// for [`Router`].
+/// What the accept loop hands each stream. A [`Server`] selects its service
+/// statically; a [`Router`] looks it up. Both use per-method boxed futures.
 pub(crate) trait Dispatch: Send + Sync + 'static {
     fn dispatch(&self, rpc: Rpc) -> impl Future<Output = ()> + Send;
     fn byte_budget(&self) -> ByteBudgetTracker {

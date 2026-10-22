@@ -319,7 +319,6 @@ mod interceptor;
 #[forbid(unsafe_code)]
 mod keepalive;
 // Connect info is published once without mutating an exposed map.
-#[forbid(unsafe_code)]
 mod lazy_ext;
 // `PathAndQuery::from_static` clone is a virtual call that only copies words.
 mod static_copy;

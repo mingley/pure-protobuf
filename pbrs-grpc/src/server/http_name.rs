@@ -1,4 +1,7 @@
-#![allow(unsafe_code)]
+#![allow(
+    unsafe_code,
+    reason = "own String allocations or borrow process-lifetime HTTP names"
+)]
 //! Owned or process-lifetime HTTP name.
 //!
 //! A stock request's path and authority are leaked once and then copied by

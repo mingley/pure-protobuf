@@ -90,8 +90,10 @@ async fn check_dispatch(router: bool) {
         .await
         .unwrap_err();
     assert_eq!(status.code(), Code::Unimplemented);
-    assert_eq!(direct.load(Ordering::Relaxed), if router { 0 } else { 2 });
-    assert_eq!(boxed.load(Ordering::Relaxed), if router { 2 } else { 0 });
+    // Both serving paths use the per-method boxed hook introduced in
+    // fead8317. The single-service path still skips the router lookup.
+    assert_eq!(direct.load(Ordering::Relaxed), 0);
+    assert_eq!(boxed.load(Ordering::Relaxed), 2);
     server.abort();
 }
 
@@ -101,6 +103,6 @@ async fn router_uses_selected_boxed_dispatch_and_preserves_unknown_methods() {
 }
 
 #[tokio::test]
-async fn monomorphic_server_keeps_direct_dispatch() {
+async fn single_service_server_uses_selected_boxed_dispatch() {
     check_dispatch(false).await;
 }

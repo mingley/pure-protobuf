@@ -164,7 +164,9 @@ pub(crate) fn peer_cred_of(io: &UnixStream) -> Option<PeerCred> {
     })
 }
 
-/// Serves exactly one [`Service`], with no per-RPC dynamic dispatch.
+/// Serves one [`Service`] without a router lookup.
+///
+/// Each call uses [`Service::call_boxed`] to select its method future.
 ///
 /// A hand-written [`Service`] is first-class. Unknown methods are
 /// [`crate::Code::Unimplemented`] on every call shape, including over TLS,
