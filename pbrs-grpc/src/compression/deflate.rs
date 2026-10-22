@@ -51,19 +51,29 @@ pub(super) fn decode(payload: &[u8]) -> Result<Vec<u8>, Status> {
     decode_limited(payload, MessageLimits::unlimited())
 }
 
-/// Inflate `payload`, refusing to allocate past the inbound cap in `limits`.
+/// Inflate one RFC 1950 zlib stream under the inbound cap.
+/// Bytes after its checksum are rejected rather than silently ignored.
 ///
 /// The output buffer capacity stays within the cap. A fixed 8 KiB stack
 /// chunk probes one extra decoded byte to detect overflow.
 /// Exceeding it is [`Code::ResourceExhausted`](crate::Code::ResourceExhausted).
 pub(super) fn decode_limited(payload: &[u8], limits: MessageLimits) -> Result<Vec<u8>, Status> {
-    // Frame bytes already implement BufRead; no extra compressed-input buffer.
-    super::read_bounded(
-        ZlibDecoder::new(payload),
+    if limits.max_compression_frames() == Some(0) {
+        return Err(Status::resource_exhausted(
+            "deflate frame count exceeds limit 0",
+        ));
+    }
+    let mut decoder = ZlibDecoder::new(payload);
+    let out = super::read_bounded(
+        &mut decoder,
         limits.inflate_budget(),
         payload.len(),
         "deflate",
-    )
+    )?;
+    if !decoder.get_ref().is_empty() {
+        return Err(Status::internal("trailing bytes after zlib stream"));
+    }
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -71,6 +81,48 @@ mod tests {
     use super::{decode, decode_limited, encode, encode_level};
     use crate::limits::MessageLimits;
     use crate::status::Code;
+
+    #[test]
+    fn a_zlib_stream_requires_one_compression_frame() {
+        let encoded = encode(b"hello").expect("zlib frame");
+        assert_eq!(
+            decode_limited(
+                &encoded,
+                MessageLimits::new().with_max_compression_frames(0)
+            )
+            .expect_err("no frame admitted")
+            .code(),
+            Code::ResourceExhausted
+        );
+        assert_eq!(
+            decode_limited(
+                &encoded,
+                MessageLimits::new().with_max_compression_frames(1)
+            )
+            .expect("one admitted frame"),
+            b"hello"
+        );
+    }
+
+    #[test]
+    fn a_zlib_stream_must_consume_the_entire_message_payload() {
+        let encoded = encode(b"hello").expect("encode");
+        for tail in [
+            vec![0],
+            b"junk".to_vec(),
+            encode(b"other").expect("second stream"),
+        ] {
+            let joined = [encoded.as_slice(), tail.as_slice()].concat();
+            assert_eq!(
+                decode(&joined).expect_err("trailing zlib bytes").code(),
+                Code::Internal
+            );
+        }
+        assert_eq!(
+            decode_limited(&encoded, MessageLimits::new().with_max_decoding(5)).expect("exact cap"),
+            b"hello"
+        );
+    }
 
     #[test]
     fn roundtrip() {

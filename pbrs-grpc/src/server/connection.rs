@@ -20,6 +20,7 @@ use crate::tls::PeerIdentity;
 use crate::transport::h2::{RecvStream, SendResponse};
 use crate::transport::{SendResponse as _, ServerBuilder, ServerConnection};
 use crate::wire::{check_request, reject, reject_request};
+use futures_util::stream::FuturesUnordered;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -31,6 +32,8 @@ use tokio::sync::{Semaphore, watch};
 
 #[cfg(test)]
 mod inline_dispatch_tests;
+#[cfg(test)]
+mod ready_set_tests;
 #[cfg(test)]
 mod reset_admission_tests;
 
@@ -466,10 +469,11 @@ where
     let mut occupied = false;
     let mut draining = false;
     let mut force_close: Option<tokio::time::Instant> = None;
-    // Admitted RPCs run on this connection task. A parked handler is polled
-    // again when its waker fires, so the accept loop keeps reading other
-    // streams. Fast handlers finish in the poll that accepted them.
-    let mut admitted: Vec<Pin<Box<dyn Future<Output = ()> + Send>>> = Vec::new();
+    // Admitted RPCs run on this connection task. Each gets its own wake
+    // registration: activity on one stream must not poll every idle handler.
+    // Store the concrete dispatch future in the ready-set node rather than
+    // boxing it separately and paying a second allocation / dynamic dispatch.
+    let mut admitted = FuturesUnordered::new();
     // Hoisted one-shot waits: re-creating them every round re-registers a
     // waiter per RPC. Each fires once (`drain` arms `draining`, `dead`
     // breaks), so they are never polled after completion.
@@ -708,7 +712,7 @@ where
                 let rpc_peer = peer.clone();
                 let byte_budget = dispatch.byte_budget();
                 let rpc_config = Arc::clone(&config);
-                admitted.push(Box::pin(async move {
+                admitted.push(async move {
                     let _lease = lease;
                     let _permit = permit;
                     if let (Some(obs), Some(queued_at)) = (dispatch.observer(), queued_at) {
@@ -730,33 +734,22 @@ where
                             shared_headers,
                         ))
                         .await;
-                }));
+                });
             }
         }
     }
     Ok(())
 }
 
-/// Poll every admitted RPC once. `Ready` means at least one finished, so the
-/// connection loop can refresh idle accounting before parking again.
-fn poll_admitted(
-    admitted: &mut Vec<Pin<Box<dyn Future<Output = ()> + Send>>>,
+/// Poll newly admitted or woken RPCs. Each completion returns to the connection
+/// loop to refresh idle accounting; unrelated parked handlers stay asleep.
+fn poll_admitted<F: Future<Output = ()>>(
+    admitted: &mut FuturesUnordered<F>,
     cx: &mut Context<'_>,
 ) -> Poll<()> {
-    let mut index = 0;
-    let mut finished = false;
-    while index < admitted.len() {
-        if admitted[index].as_mut().poll(cx).is_ready() {
-            drop(admitted.swap_remove(index));
-            finished = true;
-        } else {
-            index += 1;
-        }
-    }
-    if finished {
-        Poll::Ready(())
-    } else {
-        Poll::Pending
+    match futures_core::Stream::poll_next(Pin::new(admitted), cx) {
+        Poll::Ready(Some(())) => Poll::Ready(()),
+        Poll::Ready(None) | Poll::Pending => Poll::Pending,
     }
 }
 

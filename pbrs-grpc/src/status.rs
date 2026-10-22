@@ -1440,7 +1440,7 @@ impl Status {
         status.with_cause(err)
     }
 
-    /// Map an HTTP/2 error occurring after request data began transmitting onto [`Code::Unavailable`].
+    /// Map a stream reset by its reason, or a connection failure to [`Code::Unavailable`].
     ///
     /// If the remote peer explicitly resets with `REFUSED_STREAM` or sends `GOAWAY` with
     /// `last_stream_id < stream_id`, transparent retry is proven safe. Ambiguous connection
@@ -1448,6 +1448,9 @@ impl Status {
     /// must not be transparently retried.
     pub(crate) fn from_h2_post_dispatch(err: impl Into<TransportError>) -> Self {
         let err = err.into();
+        if err.is_reset() {
+            return Self::from_h2_reset(err);
+        }
         let mut status = Self::unavailable(err.to_string());
         if err.reason() == Some(Reason::REFUSED_STREAM) {
             status.mark_transport(TransportEvidence::RefusedStream);
@@ -1459,7 +1462,7 @@ impl Status {
         status.with_cause(err)
     }
 
-    /// Map an HTTP/2 error onto [`Code::Unavailable`].
+    /// Map an HTTP/2 reset or connection failure after dispatch.
     ///
     /// Explicit `REFUSED_STREAM` and `GOAWAY` are recognized as unexecuted; general
     /// connection drops default safely to [`TransportEvidence::AmbiguousLoss`].
@@ -1467,11 +1470,14 @@ impl Status {
         Self::from_h2_post_dispatch(err)
     }
 
-    /// Like [`Self::from_h2_post_dispatch`], but non-connection failures stay
-    /// [`Code::Internal`] so a flow-control `send_data` error is not
-    /// reported as a dead peer.
+    /// Like [`Self::from_h2_post_dispatch`], but local send errors stay
+    /// [`Code::Internal`]. A real reset keeps its reason; a local flow-control
+    /// error or a write after a clean half-close is not reported as a dead peer.
     pub(crate) fn from_h2_send(err: impl Into<TransportError>) -> Self {
         let err = err.into();
+        if err.is_reset() {
+            return Self::from_h2_reset(err);
+        }
         if h2_lost_connection(&err) {
             let mut status = Self::unavailable(err.to_string());
             if err.reason() == Some(Reason::REFUSED_STREAM) {
@@ -1485,6 +1491,35 @@ impl Status {
         } else {
             Self::internal(err.to_string()).with_cause(err)
         }
+    }
+
+    // gRPC PROTOCOL-HTTP2.md, Errors. Only actual RST_STREAM errors use
+    // this table; bare reasons, pre-header failures and GOAWAY retain their
+    // existing phase/retry handling. FRAME_SIZE_ERROR is explicitly INTERNAL
+    // in the protocol table (tonic 0.14.6 currently falls back to UNKNOWN).
+    fn from_h2_reset(err: TransportError) -> Self {
+        let code = match err.reason() {
+            Some(Reason::CANCEL) => Code::Cancelled,
+            Some(Reason::REFUSED_STREAM) => Code::Unavailable,
+            Some(Reason::ENHANCE_YOUR_CALM) => Code::ResourceExhausted,
+            Some(Reason::INADEQUATE_SECURITY) => Code::PermissionDenied,
+            Some(
+                Reason::NO_ERROR
+                | Reason::PROTOCOL_ERROR
+                | Reason::INTERNAL_ERROR
+                | Reason::FLOW_CONTROL_ERROR
+                | Reason::SETTINGS_TIMEOUT
+                | Reason::FRAME_SIZE_ERROR
+                | Reason::COMPRESSION_ERROR
+                | Reason::CONNECT_ERROR,
+            ) => Code::Internal,
+            _ => Code::Unknown,
+        };
+        let mut status = Self::new(code, err.to_string());
+        if err.reason() == Some(Reason::REFUSED_STREAM) {
+            status.mark_transport(TransportEvidence::RefusedStream);
+        }
+        status.with_cause(err)
     }
 
     /// [`Code::Unavailable`] for a send stream that vanished under us.
@@ -2773,3 +2808,7 @@ mod tests {
         assert!(unknown.retry_delay().is_none());
     }
 }
+
+#[cfg(test)]
+#[path = "status_reset_tests.rs"]
+mod reset_tests;

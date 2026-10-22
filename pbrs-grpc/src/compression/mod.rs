@@ -21,6 +21,8 @@ mod gzip;
 #[cfg(feature = "zstd")]
 mod zstd;
 
+#[cfg(feature = "tonic")]
+pub(crate) use gzip::GzipMembers;
 pub use gzip::{decode, decode_limited, encode, encode_level};
 
 use crate::limits::MessageLimits;
@@ -28,10 +30,10 @@ use crate::status::Status;
 
 /// Read at most the decoded message budget, probing one more byte for overflow.
 ///
-/// Allocate after the decoder produces bytes. The buffered compressed length is
-/// an initial hint capped at 256 KiB; gzip length trailers are never trusted.
-/// Exact reservations stay within the budget when normal Vec growth would
-/// double past it. Small messages use one output allocation.
+/// Decode a bounded chunk before allocating. A short final chunk reserves only
+/// the bytes it produced; full chunks retain geometric growth for large output.
+/// The buffered compressed length is an initial hint capped at 256 KiB. Neither
+/// gzip trailers nor other untrusted decoded-size fields drive reservations.
 fn read_bounded(
     mut decoder: impl std::io::Read,
     budget: usize,
@@ -52,61 +54,105 @@ fn read_bounded(
             }
         }
     }
+    // A short Read is not EOF. Fill the bounded lookahead so adversarial short
+    // reads cannot cause one reallocation per byte, or bypass trailer checks.
+    fn read_chunk(
+        decoder: &mut impl std::io::Read,
+        target: &mut [u8],
+        coding: &str,
+    ) -> Result<(usize, bool), Status> {
+        let mut used = 0;
+        while used < target.len() {
+            let tail = target
+                .get_mut(used..)
+                .ok_or_else(|| Status::internal("compression decode: short buffer"))?;
+            let n = read_retry(decoder, tail, coding)?;
+            if n == 0 {
+                return Ok((used, true));
+            }
+            used += n;
+        }
+        Ok((used, false))
+    }
+    fn reserve(out: &mut Vec<u8>, capacity: usize, budget: usize) -> Result<(), Status> {
+        out.try_reserve_exact(capacity - out.len())
+            .map_err(|_| Status::resource_exhausted("decompressed message allocation failed"))?;
+        if out.capacity() > budget {
+            return Err(Status::resource_exhausted(
+                "decompressed message allocation exceeds limit",
+            ));
+        }
+        Ok(())
+    }
     let exceeded =
         || Status::resource_exhausted(format!("decompressed message exceeds limit {budget}"));
-    let mut first = [0u8; 8192];
-    let want = budget.saturating_add(1).min(first.len());
-    let target = first
+    let mut chunk = [0u8; 8192];
+    let want = budget.saturating_add(1).min(chunk.len());
+    let target = chunk
         .get_mut(..want)
         .ok_or_else(|| Status::internal("compression decode: short buffer"))?;
-    let n = read_retry(&mut decoder, target, coding)?;
-    if n == 0 {
-        return Ok(Vec::new());
-    }
+    let (n, eof) = read_chunk(&mut decoder, target, coding)?;
     if n > budget {
         return Err(exceeded());
     }
+    if n == 0 {
+        return Ok(Vec::new());
+    }
     let mut out = Vec::new();
-    let capacity = n.max(compressed_length.min(256 * 1024)).min(budget);
-    out.try_reserve_exact(capacity)
-        .map_err(|_| Status::resource_exhausted("decompressed message allocation failed"))?;
-    // Initialize each new tail once, then read directly into it. Keeping the
-    // used length separately avoids repeated clearing and per-chunk copies.
+    let capacity = if eof {
+        n
+    } else {
+        n.max(compressed_length.min(256 * 1024)).min(budget)
+    };
+    reserve(&mut out, capacity, budget)?;
+    out.extend_from_slice(
+        chunk
+            .get(..n)
+            .ok_or_else(|| Status::internal("compression decode: short buffer"))?,
+    );
+    if eof {
+        return Ok(out);
+    }
+    // Keep used length separately and initialize each unread tail once. Reads
+    // between growths go directly into output, without per-chunk heap copies.
     out.resize(capacity, 0);
-    out.get_mut(..n)
-        .ok_or_else(|| Status::internal("compression decode: short output"))?
-        .copy_from_slice(
-            first
-                .get(..n)
-                .ok_or_else(|| Status::internal("compression decode: short buffer"))?,
-        );
     let mut used = n;
     loop {
         if used == out.len() {
-            // Probe before growing: exact fits need no spare heap capacity,
-            // and EOF must still validate the coding's checksum/trailer.
-            let probe = first
-                .get_mut(..1)
+            // Observe the final tail before growing. For output just beyond a
+            // capacity boundary (for example a 64 KiB protobuf plus headers),
+            // EOF gives an exact reservation instead of doubling the buffer.
+            // At the budget this is exactly the required one-byte probe.
+            let want = (budget - used).saturating_add(1).min(chunk.len());
+            let target = chunk
+                .get_mut(..want)
                 .ok_or_else(|| Status::internal("compression decode: short buffer"))?;
-            let n = read_retry(&mut decoder, probe, coding)?;
-            if n == 0 {
-                out.truncate(used);
-                return Ok(out);
-            }
-            if used == budget {
+            let (n, eof) = read_chunk(&mut decoder, target, coding)?;
+            if n > budget - used {
                 return Err(exceeded());
             }
-            let capacity = out.len().saturating_mul(2).max(used + 1).min(budget);
-            out.try_reserve_exact(capacity - out.len()).map_err(|_| {
-                Status::resource_exhausted("decompressed message allocation failed")
-            })?;
+            if n == 0 {
+                return Ok(out);
+            }
+            let decoded = used + n;
+            let capacity = if eof {
+                decoded
+            } else {
+                used.saturating_mul(2).max(decoded).min(budget)
+            };
+            reserve(&mut out, capacity, budget)?;
+            out.extend_from_slice(
+                chunk
+                    .get(..n)
+                    .ok_or_else(|| Status::internal("compression decode: short buffer"))?,
+            );
+            if eof {
+                return Ok(out);
+            }
             out.resize(capacity, 0);
-            *out.get_mut(used)
-                .ok_or_else(|| Status::internal("compression decode: short output"))? =
-                probe.first().copied().unwrap_or_default();
-            used += 1;
-            // A cap one byte past the previous capacity is now full. Loop
-            // back to probe it; reading an empty tail would falsely mean EOF.
+            used = decoded;
+            // A clipped budget may now be full. Loop back for the overflow /
+            // EOF probe; an empty read target would falsely prove completion.
             continue;
         }
         let target = out
@@ -318,8 +364,8 @@ mod tests {
     use crate::{Code, MessageLimits};
     use std::io::Read;
 
-    // The pre-RX-11 input-buffering path is an independent wrapper oracle.
-    // Preserve the production output reservation and cap/error precedence.
+    // Input-buffering wrappers provide an independent I/O wrapper oracle.
+    // Full member/stream consumption follows the new native format policy.
     fn buffered_decode(
         codec: CompressionAlgorithm,
         payload: &[u8],
@@ -329,19 +375,27 @@ mod tests {
         let read_cap = u64::try_from(budget.saturating_add(1)).unwrap_or(u64::MAX);
         let mut out =
             Vec::with_capacity(payload.len().saturating_mul(4).min(256 * 1024).min(budget));
-        let result = match codec {
-            CompressionAlgorithm::Gzip => flate2::read::GzDecoder::new(payload)
-                .take(read_cap)
-                .read_to_end(&mut out),
-            CompressionAlgorithm::Deflate => flate2::read::ZlibDecoder::new(payload)
-                .take(read_cap)
-                .read_to_end(&mut out),
+        let (result, consumed) = match codec {
+            CompressionAlgorithm::Gzip => (
+                flate2::read::MultiGzDecoder::new(payload)
+                    .take(read_cap)
+                    .read_to_end(&mut out),
+                None,
+            ),
+            CompressionAlgorithm::Deflate => {
+                let mut decoder = flate2::read::ZlibDecoder::new(payload);
+                let result = (&mut decoder).take(read_cap).read_to_end(&mut out);
+                (result, Some(decoder.total_in()))
+            }
             #[cfg(feature = "zstd")]
             CompressionAlgorithm::Zstd => return Err(Code::Unimplemented),
         };
         result.map_err(|_| Code::Internal)?;
         if out.len() > budget {
             return Err(Code::ResourceExhausted);
+        }
+        if consumed.is_some_and(|n| u64::try_from(payload.len()).ok() != Some(n)) {
+            return Err(Code::Internal);
         }
         Ok(out)
     }
@@ -391,6 +445,101 @@ mod tests {
     }
 
     #[test]
+    fn short_final_chunks_do_not_double_output_capacity() {
+        let budget = 4 * 1024 * 1024;
+        for codec in codecs() {
+            for length in [8191, 8192, 8193, 16385, 32769, 65536, 65539, 73727] {
+                let payload = vec![7; length];
+                let encoded = codec.encode(&payload).expect("encode");
+                let decoded = codec
+                    .decode_limited(
+                        &encoded,
+                        MessageLimits::unlimited().with_max_decoding(budget),
+                    )
+                    .expect("decode");
+                assert_eq!(decoded, payload);
+                assert_eq!(
+                    decoded.capacity(),
+                    length,
+                    "{codec:?}: a final partial chunk must reserve only decoded bytes"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn bounded_lookahead_handles_short_reads_at_large_growth_boundaries() {
+        struct ShortReader<'a>(&'a [u8]);
+        impl Read for ShortReader<'_> {
+            fn read(&mut self, target: &mut [u8]) -> std::io::Result<usize> {
+                assert!(!target.is_empty());
+                let n = self.0.len().min(target.len()).min(31);
+                target[..n].copy_from_slice(&self.0[..n]);
+                self.0 = &self.0[n..];
+                Ok(n)
+            }
+        }
+        let payload = vec![7; 65539];
+        let decoded =
+            read_bounded(ShortReader(&payload), 4 * 1024 * 1024, 0, "test").expect("short reads");
+        assert_eq!(decoded, payload);
+        assert_eq!(decoded.capacity(), payload.len());
+        for budget in [8192, 8193, 16385, 32769, 65538] {
+            assert_eq!(
+                read_bounded(ShortReader(&payload), budget, 0, "test")
+                    .expect_err("over limit")
+                    .code(),
+                Code::ResourceExhausted
+            );
+        }
+    }
+
+    #[test]
+    fn final_lookahead_preserves_decoder_errors_and_limit_precedence() {
+        struct ErrorAfter<'a>(&'a [u8]);
+        impl Read for ErrorAfter<'_> {
+            fn read(&mut self, target: &mut [u8]) -> std::io::Result<usize> {
+                assert!(!target.is_empty());
+                if self.0.is_empty() {
+                    return Err(std::io::ErrorKind::InvalidData.into());
+                }
+                self.0.read(target)
+            }
+        }
+        let payload = vec![7; 65539];
+        for budget in [payload.len(), payload.len() + 1, 4 * 1024 * 1024] {
+            assert_eq!(
+                read_bounded(ErrorAfter(&payload), budget, 0, "test")
+                    .expect_err("decoder error after final bytes")
+                    .code(),
+                Code::Internal
+            );
+        }
+        assert_eq!(
+            read_bounded(ErrorAfter(&payload), payload.len() - 1, 0, "test")
+                .expect_err("overflow before decoder trailer")
+                .code(),
+            Code::ResourceExhausted
+        );
+    }
+
+    #[test]
+    fn bounded_decode_rejects_invalid_reader_lengths() {
+        struct InvalidReader;
+        impl Read for InvalidReader {
+            fn read(&mut self, target: &mut [u8]) -> std::io::Result<usize> {
+                Ok(target.len() + 1)
+            }
+        }
+        assert_eq!(
+            read_bounded(InvalidReader, 100, 0, "test")
+                .expect_err("reader exceeded target length")
+                .code(),
+            Code::Internal
+        );
+    }
+
+    #[test]
     fn growth_clipped_to_budget_still_checks_the_compressed_trailer() {
         for codec in codecs() {
             let mut encoded = codec.encode(&vec![7; 8193]).expect("compress");
@@ -409,21 +558,73 @@ mod tests {
     #[test]
     fn compressed_length_hint_is_bounded_and_waits_for_decoded_bytes() {
         let budget = 4 * 1024 * 1024;
-        let limits = MessageLimits::unlimited().with_max_decoding(budget);
-        for codec in [CompressionAlgorithm::Gzip, CompressionAlgorithm::Deflate] {
-            for payload in [b"".as_slice(), b"x".as_slice()] {
-                let mut encoded = codec.encode(payload).expect("compress");
-                // The compatibility decoder stops after the first member.
-                // Padding must not turn a tiny result into a full-limit allocation.
-                encoded.resize(budget, 0);
-                let decoded = codec.decode_limited(&encoded, limits).expect("decode");
-                assert_eq!(decoded, payload);
-                if payload.is_empty() {
-                    assert_eq!(decoded.capacity(), 0, "empty output needs no buffer");
-                } else {
-                    assert!(decoded.capacity() <= 256 * 1024, "bounded input-size hint");
-                }
-            }
+        for payload in [b"".as_slice(), b"x".as_slice()] {
+            let decoded = read_bounded(payload, budget, budget, "hint").expect("decode");
+            assert_eq!(decoded, payload);
+            assert_eq!(
+                decoded.capacity(),
+                payload.len(),
+                "observed EOF must override a large compressed-size hint"
+            );
+        }
+    }
+
+    #[test]
+    fn gzip_consumes_all_members_and_rejects_nonmember_padding() {
+        let first = CompressionAlgorithm::Gzip.encode(b"hello").expect("first");
+        let second = CompressionAlgorithm::Gzip
+            .encode(b" world")
+            .expect("second");
+        let joined = [first.as_slice(), second.as_slice()].concat();
+        assert_eq!(
+            CompressionAlgorithm::Gzip
+                .decode_limited(&joined, MessageLimits::new().with_max_decoding(11))
+                .expect("members"),
+            b"hello world"
+        );
+        assert_eq!(
+            CompressionAlgorithm::Gzip
+                .decode_limited(&joined, MessageLimits::new().with_max_decoding(10))
+                .expect_err("aggregate cap")
+                .code(),
+            Code::ResourceExhausted
+        );
+        for tail in [
+            b"garbage".as_slice(),
+            &[0],
+            second.get(..second.len() - 1).expect("truncated"),
+        ] {
+            let joined = [first.as_slice(), tail].concat();
+            assert_eq!(
+                CompressionAlgorithm::Gzip
+                    .decode(&joined)
+                    .expect_err("invalid tail")
+                    .code(),
+                Code::Internal
+            );
+        }
+    }
+
+    #[test]
+    fn deflate_consumes_exactly_one_zlib_stream() {
+        let first = CompressionAlgorithm::Deflate
+            .encode(b"hello")
+            .expect("first");
+        for tail in [
+            vec![0],
+            b"garbage".to_vec(),
+            CompressionAlgorithm::Deflate
+                .encode(b" world")
+                .expect("second"),
+        ] {
+            let joined = [first.as_slice(), tail.as_slice()].concat();
+            assert_eq!(
+                CompressionAlgorithm::Deflate
+                    .decode(&joined)
+                    .expect_err("trailing bytes")
+                    .code(),
+                Code::Internal
+            );
         }
     }
 
@@ -472,13 +673,6 @@ mod tests {
                 changed[end] ^= 0x80;
                 inputs.push(changed);
             }
-            // Both wrappers decode the first member and ignore an encoded tail.
-            let mut members = compressed.clone();
-            members.extend_from_slice(&codec.encode(b"second member").expect("encode"));
-            inputs.push(members);
-            let mut garbage_tail = compressed;
-            garbage_tail.extend_from_slice(b"unrelated tail");
-            inputs.push(garbage_tail);
             for input in inputs {
                 for budget in [0, 1, payload.len() - 1, payload.len(), payload.len() + 1] {
                     let limits = MessageLimits::unlimited().with_max_decoding(budget);

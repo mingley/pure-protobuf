@@ -431,118 +431,174 @@ pub(crate) async fn pump_outbound<T: CodecMessage>(
 /// Half-closed bidi upload: `finished` fires when the response stream ends
 /// or is dropped, and that must not RST. Cancel and the deadline still do.
 pub(crate) fn hold_half_closed_send(
-    mut send: backend::SendStream,
+    send: backend::SendStream,
     cancel_rx: crate::rpc_cancel::RpcCancel,
     deadline: Option<tokio::time::Instant>,
-    mut finished: tokio::sync::oneshot::Receiver<()>,
+    finished: tokio::sync::oneshot::Receiver<()>,
 ) {
-    park_cancel(async move {
-        let until_deadline = async {
-            match deadline {
-                Some(at) => tokio::time::sleep_until(at).await,
-                None => std::future::pending().await,
-            }
-        };
-        tokio::select! {
-            biased;
-            _ = &mut finished => {}
-            _ = cancel_rx.wait() => {
-                if cancel_rx.is_cancelled() {
-                    send.send_reset(Reason::CANCEL);
-                }
-            }
-            () = until_deadline => send.send_reset(Reason::CANCEL),
-        }
-    });
+    park_cancel(CancelJob::new(
+        send,
+        cancel_rx,
+        deadline,
+        Some(finished),
+        true,
+    ));
 }
 
 pub(crate) fn reset_on_cancel(
-    mut send: backend::SendStream,
+    send: backend::SendStream,
     cancel_rx: crate::rpc_cancel::RpcCancel,
     deadline: Option<tokio::time::Instant>,
 ) {
-    // One process-wide parker, not a task per RPC. The flag still resets the
-    // send half if the caller is not currently reading. This task only
-    // waits; it must not keep the sender alive.
-    let mut wait = cancel_rx.wait();
-    drop(cancel_rx);
-    park_cancel(async move {
-        let until_deadline = async {
-            match deadline {
-                Some(at) => tokio::time::sleep_until(at).await,
-                None => std::future::pending().await,
-            }
-        };
-        tokio::select! {
-            biased;
-            _ = &mut wait => {
-                if wait.is_cancelled() {
-                    send.send_reset(Reason::CANCEL);
-                }
-            }
-            () = until_deadline => send.send_reset(Reason::CANCEL),
-        }
-    });
+    // Wait keeps the flag alive without keeping a sender alive. Closing every
+    // sender releases the parked send half without issuing a reset.
+    park_cancel(CancelJob::new(send, cancel_rx, deadline, None, false));
 }
 
-/// Park `fut` on a single background task. A dropped runtime closes the
-/// sender; the next park starts a new task on the runtime that is current
-/// then. The lock is not held across any await.
-fn park_cancel(fut: impl std::future::Future<Output = ()> + Send + 'static) {
-    use std::sync::{Mutex, OnceLock};
-    use tokio::sync::mpsc;
-
-    static PARK: OnceLock<
-        Mutex<Option<mpsc::UnboundedSender<Pin<Box<dyn Future<Output = ()> + Send>>>>>,
-    > = OnceLock::new();
-    let slot = PARK.get_or_init(|| Mutex::new(None));
-    let mut guard = slot.lock().unwrap_or_else(|err| err.into_inner());
-    if guard.as_ref().is_none_or(|tx| tx.is_closed()) {
-        let (tx, mut rx) = mpsc::unbounded_channel::<Pin<Box<dyn Future<Output = ()> + Send>>>();
-        drop(tokio::spawn(async move {
-            let mut parked: Vec<Pin<Box<dyn Future<Output = ()> + Send>>> = Vec::new();
-            loop {
-                tokio::select! {
-                    biased;
-                    incoming = rx.recv() => {
-                        match incoming {
-                            Some(next) => parked.push(next),
-                            None => break,
-                        }
-                    }
-                    _ = std::future::poll_fn(|cx| poll_parked(&mut parked, cx)), if !parked.is_empty() => {}
-                }
-            }
-        }));
-        *guard = Some(tx);
+pin_project_lite::pin_project! {
+    // FuturesUnordered owns this value in its wake-indexed node. A separate
+    // boxed future would add another allocation for every parked stream.
+    struct CancelJob {
+        send: backend::SendStream,
+        cancel: crate::rpc_cancel::Wait,
+        _sender: Option<crate::rpc_cancel::RpcCancel>,
+        finished: Option<tokio::sync::oneshot::Receiver<()>>,
+        #[pin]
+        deadline: Option<tokio::time::Sleep>,
     }
-    let Some(tx) = guard.as_ref().cloned() else {
-        return;
-    };
-    drop(guard);
-    tx.send(Box::pin(fut)).ok();
 }
 
-fn poll_parked(
-    parked: &mut Vec<Pin<Box<dyn Future<Output = ()> + Send>>>,
-    cx: &mut Context<'_>,
-) -> Poll<()> {
-    let mut index = 0;
-    let mut finished = false;
-    while index < parked.len() {
-        if parked[index].as_mut().poll(cx).is_ready() {
-            drop(parked.swap_remove(index));
-            finished = true;
-        } else {
-            index += 1;
+impl CancelJob {
+    fn new(
+        send: backend::SendStream,
+        cancel: crate::rpc_cancel::RpcCancel,
+        deadline: Option<tokio::time::Instant>,
+        finished: Option<tokio::sync::oneshot::Receiver<()>>,
+        keep_sender: bool,
+    ) -> Self {
+        let wait = cancel.wait();
+        Self {
+            send,
+            cancel: wait,
+            _sender: keep_sender.then_some(cancel),
+            finished,
+            deadline: deadline.map(tokio::time::sleep_until),
         }
     }
-    if finished {
-        Poll::Ready(())
-    } else {
+}
+
+impl Future for CancelJob {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        let mut this = self.project();
+        // A clean response completion releases a half-closed send stream even
+        // if cancellation becomes ready in the same poll.
+        if let Some(finished) = this.finished.as_mut() {
+            if Pin::new(finished).poll(cx).is_ready() {
+                return Poll::Ready(());
+            }
+        }
+        if Pin::new(&mut *this.cancel).poll(cx).is_ready() {
+            if this.cancel.is_cancelled() {
+                this.send.send_reset(Reason::CANCEL);
+            }
+            return Poll::Ready(());
+        }
+        if let Some(deadline) = this.deadline.as_mut().as_pin_mut() {
+            if deadline.poll(cx).is_ready() {
+                this.send.send_reset(Reason::CANCEL);
+                return Poll::Ready(());
+            }
+        }
         Poll::Pending
     }
 }
+
+const PARKER_CACHE_SIZE: usize = 4;
+const PARKER_QUEUE_SIZE: usize = 256;
+
+struct CachedParker {
+    runtime: tokio::runtime::Id,
+    sender: tokio::sync::mpsc::Sender<CancelJob>,
+}
+
+thread_local! {
+    // A bounded cache per calling thread avoids a process-global runtime
+    // registry and keeps registrations on the runtime that owns their timers.
+    static PARKERS: std::cell::RefCell<Vec<CachedParker>> = const {
+        std::cell::RefCell::new(Vec::new())
+    };
+}
+
+fn park_cancel(job: CancelJob) {
+    let runtime = tokio::runtime::Handle::current();
+    let id = runtime.id();
+    let sender = PARKERS.try_with(|slot| {
+        let mut cached = slot.borrow_mut();
+        cached.retain(|entry| !entry.sender.is_closed());
+        if let Some(index) = cached.iter().position(|entry| entry.runtime == id) {
+            let entry = cached.remove(index);
+            let sender = entry.sender.clone();
+            cached.push(entry);
+            return sender;
+        }
+        if cached.len() == PARKER_CACHE_SIZE {
+            // Closing registration retires this dispatcher only after its
+            // already queued and active jobs have completed.
+            cached.remove(0);
+        }
+        let (sender, receiver) = tokio::sync::mpsc::channel(PARKER_QUEUE_SIZE);
+        drop(runtime.spawn(run_parker(receiver)));
+        cached.push(CachedParker {
+            runtime: id,
+            sender: sender.clone(),
+        });
+        sender
+    });
+    let job = match sender {
+        Ok(sender) => match sender.try_send(job) {
+            Ok(()) => return,
+            Err(error) => error.into_inner(),
+        },
+        Err(_) => job,
+    };
+    // Registration is synchronous: a full queue cannot await capacity. The
+    // exceptional path gives ownership to this runtime rather than dropping
+    // cancellation or blocking its worker. Normal registrations share a task.
+    drop(runtime.spawn(job));
+}
+
+async fn run_parker(mut receiver: tokio::sync::mpsc::Receiver<CancelJob>) {
+    let mut parked = futures_util::stream::FuturesUnordered::new();
+    let mut receiving = true;
+    loop {
+        tokio::select! {
+            biased;
+            _ = std::future::poll_fn(|cx| poll_parked(&mut parked, cx)), if !parked.is_empty() => {},
+            incoming = receiver.recv(), if receiving => {
+                match incoming {
+                    Some(job) => parked.push(job),
+                    None => receiving = false,
+                }
+            }
+            else => break,
+        }
+    }
+}
+
+fn poll_parked<F: Future<Output = ()>>(
+    parked: &mut futures_util::stream::FuturesUnordered<F>,
+    cx: &mut Context<'_>,
+) -> Poll<()> {
+    match futures_core::Stream::poll_next(Pin::new(parked), cx) {
+        Poll::Ready(Some(())) => Poll::Ready(()),
+        Poll::Ready(None) | Poll::Pending => Poll::Pending,
+    }
+}
+
+#[cfg(test)]
+mod park_tests;
 
 /// No deadline polls `fut` directly. The sleep is boxed in the other arm, so a
 /// call without a timeout does not carry that state machine.

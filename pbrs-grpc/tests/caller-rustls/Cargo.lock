@@ -560,6 +560,7 @@ dependencies = [
  "indexmap",
  "libc",
  "pbrs",
+ "pin-project-lite",
  "rustls",
  "rustls-graviola",
  "rustls-pemfile",

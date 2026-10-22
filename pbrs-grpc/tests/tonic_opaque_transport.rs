@@ -1,8 +1,8 @@
-//! Configured native identity/gzip message caps on unchanged opaque tonic bodies.
+//! Opaque tonic transport: identity views and bounded complete gzip messages.
 
 #![cfg(feature = "tonic")]
 
-use bytes::{Bytes, BytesMut};
+use bytes::{Buf, Bytes, BytesMut};
 use http::{Request, Response};
 use http_body::{Body, Frame};
 use pbrs_grpc::tonic_server::TonicServerExt;
@@ -23,6 +23,7 @@ struct Probe {
     output: Vec<Bytes>,
     state: Arc<State>,
     read_input: bool,
+    decode_input: bool,
     encoding: Option<&'static str>,
     pending_tail: bool,
     disable_compression: bool,
@@ -36,6 +37,23 @@ struct State {
     calls: AtomicUsize,
     dropped: AtomicUsize,
     input_dropped: AtomicUsize,
+    input_content_length: AtomicUsize,
+    decoded_calls: AtomicUsize,
+}
+
+struct HelloDecoder;
+impl tonic::codec::Decoder for HelloDecoder {
+    type Item = pbrs_grpc::hello::HelloRequest;
+    type Error = tonic::Status;
+
+    fn decode(
+        &mut self,
+        input: &mut tonic::codec::DecodeBuf<'_>,
+    ) -> Result<Option<Self::Item>, Self::Error> {
+        pbrs::Parse::parse_bytes(input.copy_to_bytes(input.remaining()))
+            .map(Some)
+            .map_err(|error| tonic::Status::internal(error.to_string()))
+    }
 }
 
 struct InputDrop(Arc<State>);
@@ -61,10 +79,33 @@ impl Service<Request<TonicBody>> for Probe {
 
     fn call(&mut self, request: Request<TonicBody>) -> Self::Future {
         self.state.calls.fetch_add(1, Ordering::SeqCst);
+        self.state.input_content_length.store(
+            request
+                .headers()
+                .get("content-length")
+                .and_then(|value| value.to_str().ok())
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(0),
+            Ordering::SeqCst,
+        );
         let probe = self.clone();
         Box::pin(async move {
             let mut frames = VecDeque::new();
-            if probe.read_input {
+            if probe.decode_input {
+                let _guard = InputDrop(probe.state.clone());
+                let mut input = tonic::Streaming::new_request(
+                    HelloDecoder,
+                    request.into_body(),
+                    Some(tonic::codec::CompressionEncoding::Gzip),
+                    None,
+                );
+                while let Some(message) = input.message().await? {
+                    let encoded = pbrs::Serialize::serialize(&message)
+                        .map_err(|error| tonic::Status::internal(error.to_string()))?;
+                    frames.push_back(Ok(Frame::data(identity_wire(&encoded))));
+                    probe.state.decoded_calls.fetch_add(1, Ordering::SeqCst);
+                }
+            } else if probe.read_input {
                 let _guard = InputDrop(probe.state.clone());
                 let mut body = request.into_body();
                 while let Some(frame) = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await {
@@ -263,6 +304,7 @@ fn probe(output: Vec<Bytes>) -> Probe {
         output,
         state: Arc::new(State::default()),
         read_input: false,
+        decode_input: false,
         encoding: None,
         pending_tail: false,
         disable_compression: false,
@@ -282,6 +324,21 @@ fn gzip_wire(payload: &[u8]) -> Bytes {
     wire.extend_from_slice(&len.to_be_bytes());
     wire.extend_from_slice(&encoded);
     Bytes::from(wire)
+}
+
+fn gzip_members_wire(members: &[&[u8]]) -> Bytes {
+    let mut encoded = Vec::new();
+    for member in members {
+        encoded.extend(pbrs_grpc::gzip::encode(member).expect("gzip member"));
+    }
+    let mut bytes = vec![1];
+    bytes.extend_from_slice(
+        &u32::try_from(encoded.len())
+            .expect("small fixture")
+            .to_be_bytes(),
+    );
+    bytes.extend(encoded);
+    Bytes::from(bytes)
 }
 
 #[tokio::test]
@@ -690,26 +747,41 @@ async fn native_outbound_selected_zstd_stays_unsupported_before_readiness() {
 }
 
 #[test]
-fn native_gzip_decoder_uses_first_member_and_ignores_encoded_tail() {
+fn native_gzip_decoder_consumes_all_members_and_rejects_encoded_junk() {
     let first = pbrs_grpc::gzip::encode(b"one").expect("first");
-    for tail in [
-        pbrs_grpc::gzip::encode(b"two").expect("second"),
-        vec![255, 0, 123],
-    ] {
-        let joined = [first.as_slice(), tail.as_slice()].concat();
-        assert_eq!(
-            pbrs_grpc::gzip::decode_limited(
-                &joined,
-                pbrs_grpc::MessageLimits::default().with_max_decoding(3),
-            )
-            .expect("first member only"),
-            b"one"
-        );
-    }
+    let second = pbrs_grpc::gzip::encode(b"two").expect("second");
+    let joined = [first.as_slice(), second.as_slice()].concat();
+    assert_eq!(
+        pbrs_grpc::gzip::decode_limited(
+            &joined,
+            pbrs_grpc::MessageLimits::default().with_max_decoding(6)
+        )
+        .expect("all members"),
+        b"onetwo"
+    );
+    assert_eq!(
+        pbrs_grpc::gzip::decode_limited(
+            &joined,
+            pbrs_grpc::MessageLimits::default().with_max_decoding(3)
+        )
+        .expect_err("aggregate cap")
+        .code(),
+        pbrs_grpc::Code::ResourceExhausted
+    );
+    let junk = [first.as_slice(), &[255, 0, 123]].concat();
+    assert_eq!(
+        pbrs_grpc::gzip::decode_limited(
+            &junk,
+            pbrs_grpc::MessageLimits::default().with_max_decoding(64)
+        )
+        .expect_err("encoded junk")
+        .code(),
+        pbrs_grpc::Code::Internal
+    );
 }
 
 #[tokio::test]
-async fn finite_inbound_gzip_cap_preserves_original_encoded_frame() {
+async fn finite_inbound_gzip_cap_normalizes_a_complete_message() {
     let wire = gzip_wire(b"abc");
     let mut echo = probe(Vec::new());
     echo.read_input = true;
@@ -732,8 +804,201 @@ async fn finite_inbound_gzip_cap_preserves_original_encoded_frame() {
             .await
             .expect("tiny windows must progress");
     assert_eq!(terminal.get("grpc-status").expect("status"), "0");
-    assert_eq!(bytes, wire);
+    assert_eq!(bytes, identity_wire(b"abc"));
     assert_eq!(fixture.state.calls.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn gzip_members_reach_tonics_decoder_as_one_complete_protobuf_message() {
+    // Fixed HelloRequest { name: "abc" } protobuf bytes. Splitting inside its
+    // string makes first-member-only protobuf decoding fail, rather than
+    // accidentally accepting a valid but incomplete set of fields.
+    let protobuf = b"\x0a\x03abc";
+    let wire = gzip_members_wire(&[&protobuf[..3], &protobuf[3..]]);
+    for config in [
+        ServerConfig::default(),
+        ServerConfig::default().max_decoding_message_size(128),
+    ] {
+        let mut service = probe(Vec::new());
+        service.decode_input = true;
+        let mut fixture = connect(service, config.initial_stream_window_size(1), 65_535).await;
+        for split in 1..wire.len() {
+            let mut req = request();
+            req.headers_mut()
+                .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
+            req.headers_mut().insert(
+                "content-length",
+                wire.len().to_string().parse().expect("length"),
+            );
+            let (bytes, terminal, _) = tokio::time::timeout(
+                Duration::from_secs(2),
+                exchange(
+                    &mut fixture,
+                    req,
+                    vec![wire.slice(..split), wire.slice(split..)],
+                ),
+            )
+            .await
+            .expect("member split must progress");
+            assert_eq!(
+                terminal.get("grpc-status").expect("status"),
+                "0",
+                "split {split}"
+            );
+            assert_eq!(
+                bytes,
+                identity_wire(protobuf),
+                "complete protobuf at split {split}"
+            );
+            assert_eq!(fixture.state.input_content_length.load(Ordering::SeqCst), 0);
+        }
+        assert_eq!(
+            fixture.state.decoded_calls.load(Ordering::SeqCst),
+            wire.len() - 1
+        );
+    }
+}
+
+#[tokio::test]
+async fn later_gzip_member_errors_and_aggregate_bombs_withhold_all_output() {
+    let first = pbrs_grpc::gzip::encode(&[7; 64]).expect("first member");
+    let second = pbrs_grpc::gzip::encode(&[8; 64]).expect("second member");
+    let mut crc = second.clone();
+    let crc_at = crc.len() - 8;
+    *crc.get_mut(crc_at).expect("CRC") ^= 1;
+    let mut size = second.clone();
+    *size.last_mut().expect("ISIZE") ^= 1;
+    let mut fixtures = vec![
+        (second.clone(), 128, "0"),
+        (
+            pbrs_grpc::gzip::encode(&[8; 65]).expect("later bomb"),
+            128,
+            "8",
+        ),
+        (crc, 128, "13"),
+        (size, 128, "13"),
+        (second[..second.len() - 1].to_vec(), 128, "13"),
+        (vec![255, 0, 123], 128, "13"),
+        (vec![0; 8], 128, "13"),
+    ];
+    // Exercise default gzip guarding too; a changed cap must not be necessary
+    // for a malformed later member to be rejected.
+    fixtures.push((vec![255, 0, 123], 4 * 1024 * 1024, "13"));
+    for (tail, max, status) in fixtures {
+        let encoded = [first.as_slice(), tail.as_slice()].concat();
+        let mut wire = vec![1];
+        wire.extend_from_slice(
+            &u32::try_from(encoded.len())
+                .expect("small fixture")
+                .to_be_bytes(),
+        );
+        wire.extend(encoded);
+        let wire = Bytes::from(wire);
+        let mut service = probe(Vec::new());
+        service.read_input = true;
+        let mut fixture = connect(
+            service,
+            ServerConfig::default().max_decoding_message_size(max),
+            65_535,
+        )
+        .await;
+        let mut req = request();
+        req.headers_mut()
+            .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
+        let upload = (0..wire.len()).map(|at| wire.slice(at..at + 1)).collect();
+        let (bytes, terminal, _) = exchange(&mut fixture, req, upload).await;
+        assert_eq!(terminal.get("grpc-status").expect("status"), status);
+        if status == "0" {
+            assert_eq!(bytes, identity_wire(&[vec![7; 64], vec![8; 64]].concat()));
+        } else {
+            assert!(bytes.is_empty(), "no prefix before all members validate");
+        }
+        assert_eq!(fixture.state.input_dropped.load(Ordering::SeqCst), 1);
+    }
+}
+
+#[tokio::test]
+async fn gzip_member_budget_rejects_empty_member_bombs_and_can_be_configured() {
+    let empty = pbrs_grpc::gzip::encode(b"").expect("empty member");
+    let encoded = empty.repeat(1025);
+    let mut wire = vec![1];
+    wire.extend_from_slice(
+        &u32::try_from(encoded.len())
+            .expect("finite fixture")
+            .to_be_bytes(),
+    );
+    wire.extend(encoded);
+    let wire = Bytes::from(wire);
+    for (limits, expected) in [
+        (pbrs_grpc::MessageLimits::new(), "8"),
+        (
+            pbrs_grpc::MessageLimits::new().with_max_compression_frames(1025),
+            "0",
+        ),
+        (
+            pbrs_grpc::MessageLimits::new().with_unlimited_compression_frames(),
+            "0",
+        ),
+    ] {
+        let mut service = probe(Vec::new());
+        service.read_input = true;
+        let mut fixture = connect(
+            service,
+            ServerConfig::default().message_limits(limits),
+            65_535,
+        )
+        .await;
+        let mut req = request();
+        req.headers_mut()
+            .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
+        let (bytes, terminal, _) = tokio::time::timeout(
+            Duration::from_secs(2),
+            exchange(&mut fixture, req, vec![wire.clone()]),
+        )
+        .await
+        .expect("bounded member decoding");
+        assert_eq!(terminal.get("grpc-status").expect("status"), expected);
+        if expected == "0" {
+            assert_eq!(bytes, identity_wire(b""));
+        } else {
+            assert!(bytes.is_empty());
+        }
+        assert_eq!(fixture.state.input_dropped.load(Ordering::SeqCst), 1);
+    }
+}
+
+#[tokio::test]
+async fn gzip_member_budget_resets_per_message_and_leaves_identity_messages_unchanged() {
+    let empty = gzip_members_wire(&[b"", b"", b""]);
+    for (cap, upload, status, expected) in [
+        (2, empty.clone(), "8", Bytes::new()),
+        (
+            3,
+            Bytes::from([empty.as_ref(), empty.as_ref()].concat()),
+            "0",
+            Bytes::from([identity_wire(b"").as_ref(), identity_wire(b"").as_ref()].concat()),
+        ),
+        (0, gzip_members_wire(&[b""]), "8", Bytes::new()),
+        (0, identity_wire(b""), "0", identity_wire(b"")),
+    ] {
+        let mut service = probe(Vec::new());
+        service.read_input = true;
+        let limits = pbrs_grpc::MessageLimits::new()
+            .with_max_decoding(128)
+            .with_max_compression_frames(cap);
+        let mut fixture = connect(
+            service,
+            ServerConfig::default().message_limits(limits),
+            65_535,
+        )
+        .await;
+        let mut req = request();
+        req.headers_mut()
+            .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
+        let (bytes, terminal, _) = exchange(&mut fixture, req, vec![upload]).await;
+        assert_eq!(terminal.get("grpc-status").expect("status"), status);
+        assert_eq!(bytes, expected);
+    }
 }
 
 async fn response(
@@ -1122,7 +1387,7 @@ async fn reset_in_partial_gzip_header_drops_reader_and_next_rpc_succeeds() {
     req.headers_mut()
         .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
     let (bytes, terminal, _) = exchange(&mut fixture, req, vec![wire.clone()]).await;
-    assert_eq!(bytes, wire);
+    assert_eq!(bytes, identity_wire(b"abc"));
     assert_eq!(terminal.get("grpc-status").expect("status"), "0");
     assert_eq!(fixture.state.calls.load(Ordering::SeqCst), 2);
 }
@@ -1156,22 +1421,15 @@ async fn zero_native_gzip_cap_distinguishes_identity_empty_member_and_missing_gz
 }
 
 #[tokio::test]
-async fn deadline_while_gzip_crc_or_ignored_tail_is_incomplete_recovers_slot() {
+async fn deadline_while_gzip_crc_or_second_member_is_incomplete_recovers_slot() {
     let wire = gzip_wire(&[7; 64]);
-    let mut tail = wire.to_vec();
-    tail.get_mut(1..5).expect("prefix").copy_from_slice(
-        &u32::try_from(wire.len() - 5 + 3)
-            .expect("small fixture")
-            .to_be_bytes(),
-    );
-    tail.extend_from_slice(&[255, 0, 123]);
-    let tail = Bytes::from(tail);
+    let tail = gzip_members_wire(&[&[7; 64], &[9; 32]]);
     let mut echo = probe(Vec::new());
     echo.read_input = true;
     let mut fixture = connect(
         echo,
         ServerConfig::default()
-            .max_decoding_message_size(64)
+            .max_decoding_message_size(128)
             .max_concurrent_rpcs(1),
         65_535,
     )
@@ -1196,22 +1454,15 @@ async fn deadline_while_gzip_crc_or_ignored_tail_is_incomplete_recovers_slot() {
 }
 
 #[tokio::test]
-async fn reset_while_gzip_crc_or_ignored_tail_is_incomplete_recovers_slot() {
+async fn reset_while_gzip_crc_or_second_member_is_incomplete_recovers_slot() {
     let wire = gzip_wire(&[7; 64]);
-    let mut tail = wire.to_vec();
-    tail.get_mut(1..5).expect("prefix").copy_from_slice(
-        &u32::try_from(wire.len() - 5 + 3)
-            .expect("small fixture")
-            .to_be_bytes(),
-    );
-    tail.extend_from_slice(&[255, 0, 123]);
-    let tail = Bytes::from(tail);
+    let tail = gzip_members_wire(&[&[7; 64], &[9; 32]]);
     let mut echo = probe(Vec::new());
     echo.read_input = true;
     let mut fixture = connect(
         echo,
         ServerConfig::default()
-            .max_decoding_message_size(64)
+            .max_decoding_message_size(128)
             .max_concurrent_rpcs(1),
         65_535,
     )
@@ -1234,7 +1485,7 @@ async fn reset_while_gzip_crc_or_ignored_tail_is_incomplete_recovers_slot() {
         req.headers_mut()
             .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
         let (bytes, terminal, _) = exchange(&mut fixture, req, vec![wire.clone()]).await;
-        assert_eq!(bytes, wire);
+        assert_eq!(bytes, identity_wire(&[7; 64]));
         assert_eq!(terminal.get("grpc-status").expect("status"), "0");
         assert_eq!(fixture.state.calls.load(Ordering::SeqCst), n * 2 + 2);
     }

@@ -386,12 +386,13 @@ impl Drop for BytePermit {
     }
 }
 
-/// Message-size caps and optional decoder history limits.
+/// Message-size, compression-work and optional decoder history limits.
 ///
 /// Inbound limits apply to both wire payloads and decompressed protobuf bytes.
 /// Outbound limits count uncompressed protobuf bytes. `None` removes the
 /// corresponding message-size cap. With Zstd enabled, the history window has
 /// a separate 8 MiB default cap, configurable with `with_max_zstd_window`.
+/// Each message also admits at most 1,024 compressed frames or gzip members.
 ///
 /// ```
 /// # use pbrs_grpc::MessageLimits;
@@ -406,12 +407,14 @@ impl Drop for BytePermit {
 pub struct MessageLimits {
     max_decoding: Option<usize>,
     max_encoding: Option<usize>,
+    max_compression_frames: Option<usize>,
     #[cfg(feature = "zstd")]
     max_zstd_window: Option<u64>,
 }
 
 impl Default for MessageLimits {
-    /// 4 MiB inbound, unlimited outbound, and an 8 MiB Zstd window when enabled.
+    /// 4 MiB inbound, unlimited outbound, 1,024 compressed frames per message,
+    /// and an 8 MiB Zstd window when enabled.
     ///
     /// Inbound is capped because a peer controls it; outbound is not because
     /// the local service does.
@@ -419,6 +422,7 @@ impl Default for MessageLimits {
         Self {
             max_decoding: Some(DEFAULT_MAX_DECODING_MESSAGE_SIZE),
             max_encoding: None,
+            max_compression_frames: Some(1024),
             #[cfg(feature = "zstd")]
             max_zstd_window: Some(8 * 1024 * 1024),
         }
@@ -426,13 +430,14 @@ impl Default for MessageLimits {
 }
 
 impl MessageLimits {
-    /// Defaults: 4 MiB inbound, unlimited outbound, and an 8 MiB Zstd window.
+    /// Defaults: 4 MiB inbound, unlimited outbound, 1,024 compressed frames
+    /// per message, and an 8 MiB Zstd window when enabled.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// No message-size caps in either direction.
+    /// No message-size or compression-frame count caps.
     ///
     /// With Zstd enabled, this also leaves the history window at the backend's
     /// 100 MiB cap. Use `with_max_zstd_window` to set a smaller cap.
@@ -444,6 +449,7 @@ impl MessageLimits {
         Self {
             max_decoding: None,
             max_encoding: None,
+            max_compression_frames: None,
             #[cfg(feature = "zstd")]
             max_zstd_window: None,
         }
@@ -489,6 +495,33 @@ impl MessageLimits {
     #[must_use]
     pub fn max_encoding(self) -> Option<usize> {
         self.max_encoding
+    }
+
+    /// Limit gzip members and Zstd standard or skippable frames per gRPC message.
+    ///
+    /// Defaults to 1,024. Empty members and skippable frames count too. This
+    /// bounds decoder setup work independently of decoded bytes; it does not
+    /// preempt an admitted frame or limit the number of messages in an RPC.
+    /// Exceeding the limit returns `RESOURCE_EXHAUSTED` before the next reset.
+    #[must_use]
+    pub fn with_max_compression_frames(mut self, limit: usize) -> Self {
+        self.max_compression_frames = Some(limit);
+        self
+    }
+
+    /// Lift the per-message compression-frame count limit for trusted input.
+    #[must_use]
+    pub fn with_unlimited_compression_frames(mut self) -> Self {
+        self.max_compression_frames = None;
+        self
+    }
+
+    /// Compression-frame count limit, independent of byte and history limits.
+    ///
+    /// [`Self::with_unlimited_decoding`] preserves this limit.
+    #[must_use]
+    pub fn max_compression_frames(self) -> Option<usize> {
+        self.max_compression_frames
     }
 
     /// Cap the history window accepted from a Zstd frame, in bytes.
@@ -802,7 +835,9 @@ mod tests {
         assert_eq!(lifted.max_zstd_window(), Some(64 * 1024));
         assert_eq!(
             lifted,
-            MessageLimits::unlimited().with_max_zstd_window(64 * 1024)
+            MessageLimits::unlimited()
+                .with_max_zstd_window(64 * 1024)
+                .with_max_compression_frames(1024)
         );
         assert_eq!(MessageLimits::unlimited().max_zstd_window(), None);
     }
@@ -838,8 +873,35 @@ mod tests {
         assert!(lifted.check_decode(usize::MAX).is_ok());
         assert!(lifted.check_encode(usize::MAX).is_ok());
         let expected = MessageLimits::unlimited();
+        let expected = expected.with_max_compression_frames(1024);
         #[cfg(feature = "zstd")]
         let expected = expected.with_max_zstd_window(8 * 1024 * 1024);
         assert_eq!(lifted, expected);
+    }
+
+    #[test]
+    fn compression_frame_count_is_independent_of_byte_limits() {
+        let limits = MessageLimits::new();
+        assert_eq!(limits.max_compression_frames(), Some(1024));
+        let limits = limits
+            .with_max_compression_frames(7)
+            .with_unlimited_decoding()
+            .with_unlimited_encoding();
+        assert_eq!(limits.max_compression_frames(), Some(7));
+        assert_eq!(limits.max_decoding(), None);
+        assert_eq!(limits.max_encoding(), None);
+        assert_eq!(
+            limits
+                .with_max_compression_frames(0)
+                .max_compression_frames(),
+            Some(0)
+        );
+        assert_eq!(
+            limits
+                .with_unlimited_compression_frames()
+                .max_compression_frames(),
+            None
+        );
+        assert_eq!(MessageLimits::unlimited().max_compression_frames(), None);
     }
 }

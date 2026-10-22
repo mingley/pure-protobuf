@@ -1665,7 +1665,7 @@ impl<B> StreamRef<B> {
         &mut self,
         data: B,
         end_stream: bool,
-    ) -> Result<Result<(), UserError>, B>
+    ) -> Result<Result<(), crate::h2_backend::Error>, B>
     where
         B: Buf,
     {
@@ -1711,6 +1711,12 @@ impl<B> StreamRef<B> {
             if result.is_ok() {
                 return Ok(Ok(()));
             }
+            let result = result.map_err(|error| {
+                stream
+                    .state
+                    .send_error()
+                    .map_or_else(|| error.into(), Into::into)
+            });
             #[allow(
                 unsafe_code,
                 reason = "the reset flag is read from the slot the buffer check already resolved"
@@ -1722,18 +1728,26 @@ impl<B> StreamRef<B> {
         Ok(me.counts.transition_at(stream, slot, |counts, stream| {
             let mut frame = frame::Data::new(stream_id, data);
             frame.set_end_stream(end_stream);
-            actions.send.send_data(
-                frame,
-                &mut send_buffer,
-                stream,
-                slot,
-                counts,
-                &mut actions.task,
-            )
+            actions
+                .send
+                .send_data(
+                    frame,
+                    &mut send_buffer,
+                    stream,
+                    slot,
+                    counts,
+                    &mut actions.task,
+                )
+                .map_err(|error| {
+                    stream
+                        .state
+                        .send_error()
+                        .map_or_else(|| error.into(), Into::into)
+                })
         }))
     }
 
-    pub fn send_data(&mut self, data: B, end_stream: bool) -> Result<(), UserError>
+    pub fn send_data(&mut self, data: B, end_stream: bool) -> Result<(), crate::h2_backend::Error>
     where
         B: Buf,
     {
@@ -1761,10 +1775,16 @@ impl<B> StreamRef<B> {
             actions
                 .send
                 .send_data(frame, send_buffer, stream, slot, counts, &mut actions.task)
+                .map_err(|error| {
+                    stream
+                        .state
+                        .send_error()
+                        .map_or_else(|| error.into(), Into::into)
+                })
         })
     }
 
-    pub fn send_trailers(&mut self, trailers: HeaderMap) -> Result<(), UserError> {
+    pub fn send_trailers(&mut self, trailers: HeaderMap) -> Result<(), crate::h2_backend::Error> {
         let mut me = self.opaque.inner.lock().unwrap();
         let me = &mut *me;
 
@@ -1784,6 +1804,12 @@ impl<B> StreamRef<B> {
             actions
                 .send
                 .send_trailers(frame, send_buffer, stream, slot, counts, &mut actions.task)
+                .map_err(|error| {
+                    stream
+                        .state
+                        .send_error()
+                        .map_or_else(|| error.into(), Into::into)
+                })
         })
     }
 

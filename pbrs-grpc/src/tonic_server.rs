@@ -18,30 +18,28 @@
 //! TLS/Unix facts alone cannot reconstruct tonic's private TLS/credential
 //! values. [`crate::Server::serve_connection`] deliberately supplies no peer
 //! facts; use `serve_with_incoming` for a custom acceptor that has them.
-//! Default `Bytes` DATA and terminal trailers are forwarded without payload
+//! Identity `Bytes` DATA and terminal trailers are forwarded without payload
 //! copies, protobuf decoding, a second HTTP/2 connection or an unbounded queue.
 //!
-//! Tonic owns opaque message framing, codecs, its default 4 MiB decoding cap,
-//! outbound message limits and opt-in compression. Configure those on the
-//! generated tonic server. Explicit native message-cap overrides additionally
-//! restrict identity-coded messages without protobuf decoding or DATA copies.
-//! Each direction retains the default forwarding path unless its cap changes;
-//! a native cap cannot enlarge tonic's own configured cap. Configured inbound
-//! finite decoding caps also validate gzip requests with the native encoded and
-//! inflated bounds. Gzip messages are withheld until validated, then their
-//! original DATA views are forwarded; tonic inflates again when decoding.
-//! The guard bounds logical retained bytes and descriptor count, while Bytes
-//! backing allocations and tonic's private decoded buffers remain opaque.
-//! Other encodings and unlimited changed decoding caps reject compressed input
-//! before readiness. Cap-only outbound forwarding without the native outbound
+//! Tonic owns protobuf decoding, outbound message limits and opt-in compression.
+//! Configure those on the generated tonic server. Native message-cap overrides
+//! additionally restrict identity messages without copying their DATA bytes.
+//! Gzip input is decoded once under the native encoded and decoded size caps,
+//! including all members in one message. Only validated output reaches tonic,
+//! as a flag-zero frame; consumed gzip input views are released during decoding.
+//! The default native decoding cap is 4 MiB. A native cap cannot enlarge tonic's
+//! independently configured cap. Decoder workspace, Bytes backing allocations
+//! and tonic's private codec buffers are separate memory costs.
+//! Other encodings under changed caps, and gzip with unlimited native decoding,
+//! reject compressed input before readiness. Cap-only outbound forwarding without the native outbound
 //! transform rejects nonidentity response encoding after the handler, before headers.
 //! Disabling native input compression admits identity requests and advertises
 //! identity acceptance without changing tonic's negotiated response codec.
 //! Nonidentity request headers are rejected before readiness; a compressed flag
 //! without such a header is rejected only when its prefix is read, which can
 //! happen after readiness and handler entry for streaming methods. Native
-//! identity aliases are canonicalized only for this input opt-out. An unchanged
-//! native decoding cap does not constrain tonic's separately configured decoder.
+//! identity aliases are canonicalized only for this input opt-out. Unchanged
+//! identity limits leave tonic's separately configured decoder in control.
 //! Changed native outbound compression settings with a finite outbound cap use
 //! a cold transform: tonic sees no response-encoding advertisement and emits
 //! identity frames, then native gzip/deflate applies the original peer's coding
@@ -161,9 +159,12 @@ where
         if rpc.limits() != ServerConfig::default().limits()
             || !rpc.config.accepts_compressed()
             || outbound::requested(rpc.config.as_ref())
+            || crate::wire::grpc_encoding(rpc.metadata.all_headers()).is_some_and(|token| {
+                crate::CompressionAlgorithm::parse(token) == Some(crate::CompressionAlgorithm::Gzip)
+            })
         {
-            // Keep the framing state and cap-body boxes out of the default
-            // path. Explicit caps or compression policies use the cold future.
+            // Identity forwarding needs no framing state. Gzip requires full
+            // message validation before tonic receives the decoded bytes.
             Box::pin(call_configured(self, rpc)).await;
             return;
         }
@@ -309,20 +310,24 @@ where
     let cap_output = limits.max_encoding() != defaults.max_encoding();
     // Capture real peer negotiation before forcing tonic identity encoding.
     let outbound = outbound::requested(rpc.config.as_ref()).then(|| outbound::Settings::new(&rpc));
-    let input_gzip = if cap_input {
-        match (
-            crate::wire::grpc_encoding(rpc.metadata.all_headers()),
-            limits.max_decoding(),
-        ) {
-            (Some("gzip"), Some(max)) => Some(max),
-            (Some(_), _) => {
-                rpc.reject(opaque::compressed_policy());
-                return;
+    let input_gzip = match crate::wire::grpc_encoding(rpc.metadata.all_headers()) {
+        Some(token)
+            if crate::CompressionAlgorithm::parse(token)
+                == Some(crate::CompressionAlgorithm::Gzip) =>
+        {
+            match limits.max_decoding() {
+                Some(max) => Some(max),
+                None => {
+                    rpc.reject(opaque::compressed_policy());
+                    return;
+                }
             }
-            (None, _) => None,
         }
-    } else {
-        None
+        Some(_) if cap_input => {
+            rpc.reject(opaque::compressed_policy());
+            return;
+        }
+        _ => None,
     };
     let deadline = rpc.deadline();
     let mut accounting = Accounting::new(rpc.channelz_server, rpc.channelz_socket);
@@ -352,6 +357,12 @@ where
         parts
             .headers
             .insert("grpc-encoding", http::HeaderValue::from_static("identity"));
+    }
+    if input_gzip.is_some() {
+        parts.headers.remove(http::header::CONTENT_LENGTH);
+        parts
+            .headers
+            .insert("grpc-encoding", http::HeaderValue::from_static("gzip"));
     }
     if outbound.is_some() {
         parts.headers.remove("grpc-accept-encoding");

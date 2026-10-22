@@ -137,6 +137,11 @@ settings, and metadata.
 
 ## Where to change performance
 
+The [gRPC execution and ownership decision](decisions/grpc-execution.md)
+sets the direction for scheduling, compression, generated dispatch and message
+representation. It separates architectural changes from backend experiments
+and defines the correctness and resource behavior each must preserve.
+
 | Cost to investigate | Start here | Evidence needed |
 |---|---|---|
 | Protobuf allocation, parse, and encode | [Runtime design](design.md), `src/lazy.rs`, `src/map.rs`, `src/wire.rs`, `src/table.rs` | Equivalent generated messages, parse-and-touch work, allocations, and retained bytes. |

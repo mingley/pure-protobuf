@@ -459,6 +459,17 @@ impl State {
         }
     }
 
+    /// Preserve a stored terminal error when a synchronous send fails.
+    /// A clean local end has no transport error and keeps its user error.
+    pub(super) fn send_error(&self) -> Option<Error> {
+        match self.inner {
+            Closed(Cause::Error(ref error) | Cause::ErrorAfterEndStream(ref error)) => {
+                Some(error.clone())
+            }
+            _ => None,
+        }
+    }
+
     /// Returns a reason if the stream has been reset.
     pub(super) fn ensure_reason(&self, mode: PollReset) -> Result<Option<Reason>, crate::h2_backend::Error> {
         match self.inner {
@@ -501,6 +512,21 @@ mod tests {
     use http::HeaderMap;
 
     #[test]
+    fn clean_send_end_has_no_stored_transport_error() {
+        let mut state = State::default();
+        assert!(state.send_error().is_none());
+        state.send_open(false).unwrap();
+        assert!(state.send_error().is_none());
+        state.send_close();
+        assert!(state.send_error().is_none());
+        state.set_reset(StreamId::from(1), Reason::CANCEL, Initiator::Remote);
+        assert!(matches!(
+            state.send_error(),
+            Some(Error::Reset(_, Reason::CANCEL, Initiator::Remote))
+        ));
+    }
+
+    #[test]
     fn recv_reset_preserves_received_end_stream() {
         let stream_id = StreamId::from(1);
         let mut state = State::default();
@@ -513,6 +539,10 @@ mod tests {
 
         state.recv_reset(frame::Reset::new(stream_id, Reason::NO_ERROR), true);
 
+        assert!(matches!(
+            state.send_error(),
+            Some(Error::Reset(_, Reason::NO_ERROR, Initiator::Remote))
+        ));
         assert!(state.is_recv_end_stream());
         assert_eq!(state.ensure_recv_open().unwrap(), false);
         assert_eq!(

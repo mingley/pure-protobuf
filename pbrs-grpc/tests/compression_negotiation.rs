@@ -28,13 +28,51 @@ async fn bounded<T>(future: impl Future<Output = T>) -> T {
         .expect("wire fixture completed within five seconds")
 }
 
-fn frame(compressed: bool) -> Bytes {
+fn codings() -> impl Iterator<Item = Option<&'static str>> {
+    [
+        None,
+        Some("identity"),
+        Some("IDENTITY"),
+        Some("gzip"),
+        Some("deflate"),
+    ]
+    .into_iter()
+    .chain(cfg!(feature = "zstd").then_some(Some("zstd")))
+}
+
+fn frame(compressed: bool, coding: Option<&str>) -> Bytes {
     let payload = if compressed {
-        CompressionAlgorithm::Gzip.encode(MESSAGE).expect("gzip")
+        let algorithm = coding
+            .and_then(CompressionAlgorithm::parse)
+            .unwrap_or_default();
+        if algorithm == CompressionAlgorithm::Deflate {
+            algorithm.encode(MESSAGE).expect("zlib stream")
+        } else {
+            // Split protobuf bytes across independent gzip members or Zstd
+            // frames. A first-frame decoder would see truncated protobuf.
+            let (first, second) = MESSAGE.split_at(3);
+            let mut payload = algorithm.encode(first).expect("first compressed part");
+            if algorithm.name() == "zstd" {
+                // Legal skippable metadata between standard Zstd frames.
+                payload.extend_from_slice(&0x184d2a50u32.to_le_bytes());
+                payload.extend_from_slice(&3u32.to_le_bytes());
+                payload.extend_from_slice(b"pad");
+            }
+            payload.extend_from_slice(&algorithm.encode(second).expect("second compressed part"));
+            payload
+        }
     } else {
         MESSAGE.to_vec()
     };
     pbrs_grpc::codec::encode(&payload, compressed).expect("frame")
+}
+
+fn split_points(wire: &Bytes, compressed: bool, coding: Option<&str>) -> Vec<usize> {
+    if compressed && coding.and_then(CompressionAlgorithm::parse).is_some() {
+        (0..=wire.len()).collect()
+    } else {
+        vec![wire.len()]
+    }
 }
 
 struct Echo;
@@ -111,44 +149,50 @@ async fn server_checks_compressed_request_flags_for_every_call_shape() {
         .expect("raw client handshake");
     let driver = tokio::spawn(connection);
     for path in [UNARY, SERVER_STREAM, CLIENT_STREAM, BIDI] {
-        for coding in [None, Some("identity"), Some("IDENTITY"), Some("gzip")] {
+        for coding in codings() {
             for compressed in [false, true] {
-                let mut request = http::Request::builder()
-                    .method(Method::POST)
-                    .uri(format!("http://localhost{path}"))
-                    .header("content-type", "application/grpc")
-                    .header("te", "trailers");
-                if let Some(coding) = coding {
-                    request = request.header("grpc-encoding", coding);
+                let wire = frame(compressed, coding);
+                for split in split_points(&wire, compressed, coding) {
+                    let mut request = http::Request::builder()
+                        .method(Method::POST)
+                        .uri(format!("http://localhost{path}"))
+                        .header("content-type", "application/grpc")
+                        .header("te", "trailers");
+                    if let Some(coding) = coding {
+                        request = request.header("grpc-encoding", coding);
+                    }
+                    sender = bounded(sender.ready()).await.expect("ready raw client");
+                    let (response, mut send) = sender
+                        .send_request(request.body(()).expect("request"), false)
+                        .expect("send request");
+                    send.send_data(wire.slice(..split), false)
+                        .expect("first request DATA");
+                    send.send_data(wire.slice(split..), true)
+                        .expect("last request DATA");
+                    let response = bounded(response).await.expect("response headers");
+                    let mut status = response.headers().get("grpc-status").cloned();
+                    let mut body = response.into_body();
+                    while let Some(chunk) = bounded(body.data()).await {
+                        let chunk = chunk.expect("response DATA");
+                        body.flow_control()
+                            .release_capacity(chunk.len())
+                            .expect("response credit");
+                    }
+                    if let Some(trailers) = bounded(body.trailers()).await.expect("trailers") {
+                        status = trailers.get("grpc-status").cloned().or(status);
+                    }
+                    let expected =
+                        if compressed && coding.and_then(CompressionAlgorithm::parse).is_none() {
+                            "13"
+                        } else {
+                            "0"
+                        };
+                    assert_eq!(
+                        status.expect("grpc-status"),
+                        expected,
+                        "{path}, coding {coding:?}, compressed {compressed}, split {split}"
+                    );
                 }
-                sender = bounded(sender.ready()).await.expect("ready raw client");
-                let (response, mut send) = sender
-                    .send_request(request.body(()).expect("request"), false)
-                    .expect("send request");
-                send.send_data(frame(compressed), true)
-                    .expect("request DATA");
-                let response = bounded(response).await.expect("response headers");
-                let mut status = response.headers().get("grpc-status").cloned();
-                let mut body = response.into_body();
-                while let Some(chunk) = bounded(body.data()).await {
-                    let chunk = chunk.expect("response DATA");
-                    body.flow_control()
-                        .release_capacity(chunk.len())
-                        .expect("return response capacity");
-                }
-                if let Some(trailers) = bounded(body.trailers()).await.expect("trailers") {
-                    status = trailers.get("grpc-status").cloned().or(status);
-                }
-                let expected = if compressed && coding != Some("gzip") {
-                    "13"
-                } else {
-                    "0"
-                };
-                assert_eq!(
-                    status.expect("grpc-status"),
-                    expected,
-                    "{path}, coding {coding:?}, compressed {compressed}"
-                );
             }
         }
     }
@@ -172,7 +216,10 @@ async fn client_checks_compressed_response_flags_for_unary_and_streaming() {
                 incoming = connection.accept() => {
                     let Some(incoming) = incoming else { break };
                     let (request, mut respond) = incoming.expect("raw request");
-                    let coding = request.headers().get("x-fixture-encoding").cloned();
+                    let coding = request.headers().get("x-fixture-encoding")
+                        .map(|value| value.to_str().expect("encoding token").to_owned());
+                    let split = request.headers().get("x-fixture-split").expect("response split")
+                        .to_str().expect("split text").parse::<usize>().expect("split number");
                     let compressed = request.headers().get("x-fixture-compressed")
                         .is_some_and(|value| value == "yes");
                     handlers.spawn(async move {
@@ -182,12 +229,14 @@ async fn client_checks_compressed_response_flags_for_unary_and_streaming() {
                             body.flow_control().release_capacity(chunk.len()).expect("request credit");
                         }
                         let mut response = http::Response::builder().header("content-type", "application/grpc");
-                        if let Some(coding) = coding {
+                        if let Some(coding) = &coding {
                             response = response.header("grpc-encoding", coding);
                         }
                         let mut send = respond.send_response(response.body(()).expect("response"), false)
                             .expect("response headers");
-                        send.send_data(frame(compressed), false).expect("response DATA");
+                        let wire = frame(compressed, coding.as_deref());
+                        send.send_data(wire.slice(..split), false).expect("first response DATA");
+                        send.send_data(wire.slice(split..), false).expect("last response DATA");
                         let mut trailers = HeaderMap::new();
                         trailers.insert("grpc-status", "0".parse().expect("status"));
                         send.send_trailers(trailers).expect("response trailers");
@@ -200,46 +249,67 @@ async fn client_checks_compressed_response_flags_for_unary_and_streaming() {
         .await
         .expect("native client handshake");
     for path in [UNARY, SERVER_STREAM] {
-        for coding in [None, Some("identity"), Some("IDENTITY"), Some("gzip")] {
+        for coding in codings() {
             for compressed in [false, true] {
-                let mut message = HelloRequest::new();
-                message.set_name("request");
-                let mut request = Request::new(message);
-                if let Some(coding) = coding {
+                let wire = frame(compressed, coding);
+                for split in split_points(&wire, compressed, coding) {
+                    let mut message = HelloRequest::new();
+                    message.set_name("request");
+                    let mut request = Request::new(message);
+                    if let Some(coding) = coding {
+                        request
+                            .metadata_mut()
+                            .insert("x-fixture-encoding", coding)
+                            .expect("encoding");
+                    }
+                    if compressed {
+                        request
+                            .metadata_mut()
+                            .insert("x-fixture-compressed", "yes")
+                            .expect("flag");
+                    }
                     request
                         .metadata_mut()
-                        .insert("x-fixture-encoding", coding)
-                        .expect("fixture encoding");
-                }
-                if compressed {
-                    request
-                        .metadata_mut()
-                        .insert("x-fixture-compressed", "yes")
-                        .expect("fixture compression flag");
-                }
-                let result = if path == UNARY {
-                    bounded(channel.unary::<HelloRequest, HelloReply>(path, request))
+                        .insert("x-fixture-split", split.to_string())
+                        .expect("split");
+                    let result = if path == UNARY {
+                        bounded(channel.unary::<HelloRequest, HelloReply>(path, request))
+                            .await
+                            .map(|response| response.into_inner())
+                    } else {
+                        let mut stream = bounded(
+                            channel.server_streaming::<HelloRequest, HelloReply>(path, request),
+                        )
                         .await
-                        .map(|response| response.into_inner())
-                } else {
-                    let mut stream = bounded(
-                        channel.server_streaming::<HelloRequest, HelloReply>(path, request),
-                    )
-                    .await
-                    .expect("response headers")
-                    .into_inner();
-                    bounded(stream.message())
-                        .await
-                        .map(|message| message.expect("fixture reply"))
-                };
-                if compressed && coding != Some("gzip") {
-                    assert_eq!(
-                        result.expect_err("unnegotiated compressed message").code(),
-                        Code::Internal
-                    );
-                } else {
-                    let reply = result.expect("valid per-message compression");
-                    assert_eq!(reply.message().to_str().expect("UTF-8 response"), "hello");
+                        .expect("response headers")
+                        .into_inner();
+                        match bounded(stream.message()).await {
+                            Ok(Some(reply)) => {
+                                assert!(
+                                    bounded(stream.message())
+                                        .await
+                                        .expect("clean response end")
+                                        .is_none()
+                                );
+                                Ok(reply)
+                            }
+                            Ok(None) => panic!("missing fixture reply"),
+                            Err(status) => Err(status),
+                        }
+                    };
+                    if compressed && coding.and_then(CompressionAlgorithm::parse).is_none() {
+                        assert_eq!(
+                            result.expect_err("unnegotiated compressed message").code(),
+                            Code::Internal
+                        );
+                    } else {
+                        let reply = result.expect("valid per-message compression");
+                        assert_eq!(
+                            reply.message().to_str().expect("UTF-8 response"),
+                            "hello",
+                            "{path}, coding {coding:?}, compressed {compressed}, split {split}"
+                        );
+                    }
                 }
             }
         }

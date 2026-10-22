@@ -161,11 +161,7 @@ pub(crate) fn release(recv: &mut backend::RecvStream, n: usize) -> Result<(), St
 }
 
 pub(crate) fn h2_error(e: TransportError) -> Status {
-    if e.is_reset() {
-        Status::cancelled()
-    } else {
-        Status::from_h2(e)
-    }
+    Status::from_h2(e)
 }
 
 /// Splits inbound DATA chunks into gRPC frames.

@@ -629,6 +629,7 @@ dependencies = [
  "opentelemetry",
  "opentelemetry_sdk",
  "pbrs",
+ "pin-project-lite",
  "prost",
  "rustls",
  "rustls-graviola",

@@ -323,6 +323,9 @@ impl<B: Buf> SendStream<B> {
     /// on the data frame. Any further calls to `send_data` or `send_trailers`
     /// will return an [`Error`].
     ///
+    /// If the stream has a stored reset or connection error, that error and its
+    /// reason are preserved. A send after a clean local end remains a user error.
+    ///
     /// `send_data` can be called without reserving capacity. In this case, the
     /// data is buffered and the capacity is implicitly requested. Once the
     /// capacity becomes available, the data is flushed to the connection.
@@ -331,15 +334,21 @@ impl<B: Buf> SendStream<B> {
     /// amounts of data being buffered in memory.
     ///
     /// [`Error`]: struct.Error.html
-    pub fn send_data(&mut self, data: B, end_of_stream: bool) -> Result<(), crate::h2_backend::Error> {
-        self.inner
-            .send_data(data, end_of_stream)
-            .map_err(Into::into)
+    pub fn send_data(
+        &mut self,
+        data: B,
+        end_of_stream: bool,
+    ) -> Result<(), crate::h2_backend::Error> {
+        self.inner.send_data(data, end_of_stream)
     }
 
     /// Return `data` if it cannot fit within the configured stream buffer.
-    pub(crate) fn try_send_data(&mut self, data: B, end_of_stream: bool) -> Result<Result<(), crate::h2_backend::Error>, B> {
-        self.inner.try_send_data(data, end_of_stream).map(|result| result.map_err(Into::into))
+    pub(crate) fn try_send_data(
+        &mut self,
+        data: B,
+        end_of_stream: bool,
+    ) -> Result<Result<(), crate::h2_backend::Error>, B> {
+        self.inner.try_send_data(data, end_of_stream)
     }
 
     /// Sends trailers to the remote peer.
@@ -347,7 +356,7 @@ impl<B: Buf> SendStream<B> {
     /// Sending trailers implicitly closes the send stream. Once the send stream
     /// is closed, no more data can be sent.
     pub fn send_trailers(&mut self, trailers: HeaderMap) -> Result<(), crate::h2_backend::Error> {
-        self.inner.send_trailers(trailers).map_err(Into::into)
+        self.inner.send_trailers(trailers)
     }
 
     /// Resets the stream.

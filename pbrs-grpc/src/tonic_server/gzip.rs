@@ -1,8 +1,8 @@
-//! Finite inbound gzip validation over retained original DATA views.
+//! Bounded gzip input normalization before opaque tonic decoding.
 
+use crate::compression::GzipMembers;
 use crate::{MessageLimits, Status};
 use bytes::Bytes;
-use flate2::bufread::GzDecoder;
 use http_body::{Body, Frame};
 use std::io::{self, BufRead, Read};
 use std::pin::Pin;
@@ -21,6 +21,12 @@ struct Segments {
     quota: usize,
     complete: bool,
     invalid: bool,
+    retain: bool,
+}
+impl Default for Segments {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 impl Segments {
     fn new() -> Self {
@@ -32,10 +38,21 @@ impl Segments {
             quota: 0,
             complete: false,
             invalid: false,
+            retain: true,
+        }
+    }
+    fn decoder_input() -> Self {
+        Self {
+            retain: false,
+            ..Self::new()
         }
     }
     fn push(&mut self, bytes: Bytes) -> Result<(), tonic::Status> {
         if !bytes.is_empty() {
+            if !self.retain && self.cursor == self.views.len() {
+                self.views.clear();
+                self.cursor = 0;
+            }
             self.views.try_reserve(1).map_err(|_| {
                 tonic::Status::resource_exhausted("gzip fragment allocation failed")
             })?;
@@ -80,6 +97,11 @@ impl BufRead for Segments {
             self.offset += amount;
             self.quota -= amount;
             if self.offset == view.len() {
+                if !self.retain {
+                    if let Some(view) = self.views.get_mut(self.cursor) {
+                        *view = Bytes::new();
+                    }
+                }
                 self.cursor += 1;
                 self.offset = 0;
             }
@@ -105,10 +127,11 @@ impl Read for Segments {
 enum Payload {
     Identity(Segments),
     Gzip {
-        decoder: Box<GzDecoder<Segments>>,
-        inflated: usize,
+        decoder: Box<GzipMembers<Segments>>,
+        decoded: Vec<u8>,
         done: bool,
     },
+    Normalized(Bytes),
 }
 enum Step {
     Data(Bytes),
@@ -116,10 +139,35 @@ enum Step {
     Yield,
 }
 impl Payload {
-    fn store(&mut self) -> &mut Segments {
+    fn store(&mut self) -> Option<&mut Segments> {
         match self {
-            Self::Identity(store) => store,
-            Self::Gzip { decoder, .. } => decoder.get_mut(),
+            Self::Identity(store) => Some(store),
+            Self::Gzip { decoder, .. } => Some(decoder.get_mut()),
+            Self::Normalized(_) => None,
+        }
+    }
+    fn normalize(&mut self) -> Option<usize> {
+        let bytes = match self {
+            Self::Gzip {
+                decoded,
+                done: true,
+                ..
+            } => Bytes::from(std::mem::take(decoded)),
+            _ => return None,
+        };
+        let len = bytes.len();
+        // Release the decoder and its remaining input before handing bytes to
+        // tonic. A flag-zero message avoids tonic inflating only one member.
+        *self = Self::Normalized(bytes);
+        Some(len)
+    }
+    fn replay(&mut self) -> Option<Bytes> {
+        match self {
+            Self::Identity(store) => store.replay(),
+            Self::Normalized(bytes) if !bytes.is_empty() => {
+                Some(bytes.split_to(bytes.len().min(QUANTUM)))
+            }
+            Self::Gzip { .. } | Self::Normalized(_) => None,
         }
     }
     fn validate(
@@ -130,37 +178,58 @@ impl Payload {
     ) -> Result<Option<Step>, tonic::Status> {
         match self {
             Self::Identity(store) => Ok((!store.complete).then_some(Step::NeedData)),
+            Self::Normalized(_) => Ok(None),
             Self::Gzip {
                 decoder,
-                inflated,
+                decoded,
                 done,
             } => {
                 if *done {
-                    return Ok((!decoder.get_ref().complete).then_some(Step::NeedData));
+                    return Ok(None);
                 }
                 decoder.get_mut().quota = *input_left;
-                let read_len = max.saturating_sub(*inflated).saturating_add(1).min(QUANTUM);
+                let read_len = max
+                    .saturating_sub(decoded.len())
+                    .saturating_add(1)
+                    .min(QUANTUM);
                 let output = scratch
                     .get_mut(..read_len)
                     .ok_or_else(|| tonic::Status::internal("invalid gzip scratch state"))?;
                 let result = decoder.read(output);
                 *input_left = decoder.get_ref().quota;
+                if let Some(status) = decoder.take_failure() {
+                    return Err(native_status(status));
+                }
                 match result {
                     Ok(0) => {
                         *done = true;
-                        Ok((!decoder.get_ref().complete).then_some(Step::NeedData))
+                        Ok(None)
                     }
                     Ok(n) => {
-                        let next =
-                            inflated
-                                .checked_add(n)
-                                .filter(|&n| n <= max)
-                                .ok_or_else(|| {
-                                    tonic::Status::resource_exhausted(format!(
-                                        "decompressed message exceeds limit {max}"
-                                    ))
+                        let next = decoded
+                            .len()
+                            .checked_add(n)
+                            .filter(|&n| n <= max)
+                            .ok_or_else(|| {
+                                tonic::Status::resource_exhausted(format!(
+                                    "decompressed message exceeds limit {max}"
+                                ))
+                            })?;
+                        if next > decoded.capacity() {
+                            let capacity = decoded.capacity().saturating_mul(2).max(next).min(max);
+                            decoded
+                                .try_reserve_exact(capacity - decoded.len())
+                                .map_err(|_| {
+                                    tonic::Status::resource_exhausted(
+                                        "gzip output allocation failed",
+                                    )
                                 })?;
-                        *inflated = next;
+                        }
+                        decoded.extend_from_slice(
+                            output.get(..n).ok_or_else(|| {
+                                tonic::Status::internal("invalid gzip output state")
+                            })?,
+                        );
                         Ok(Some(Step::Yield))
                     }
                     Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
@@ -169,6 +238,9 @@ impl Payload {
                         } else {
                             Step::NeedData
                         }))
+                    }
+                    Err(error) if error.kind() == io::ErrorKind::Interrupted => {
+                        Ok(Some(Step::Yield))
                     }
                     Err(error) => Err(tonic::Status::internal(format!("gzip decode: {error}"))),
                 }
@@ -258,9 +330,16 @@ impl State {
                 } else {
                     // An empty unfinished reader yields WouldBlock during
                     // construction; optional gzip headers are parsed in quota.
+                    // Gzip messages are normalized, so their original prefix
+                    // views need not retain the input backing allocation.
+                    self.prefix = std::array::from_fn(|_| Bytes::new());
+                    self.queued = 0;
                     Payload::Gzip {
-                        decoder: Box::new(GzDecoder::new(Segments::new())),
-                        inflated: 0,
+                        decoder: Box::new(GzipMembers::new(
+                            Segments::decoder_input(),
+                            self.limits.max_compression_frames(),
+                        )),
+                        decoded: Vec::new(),
                         done: false,
                     }
                 });
@@ -268,16 +347,31 @@ impl State {
             let Some(payload) = self.payload.as_mut() else {
                 return Err(tonic::Status::internal("invalid gzip payload state"));
             };
-            if self.remaining != 0 && !self.data.is_empty() {
-                let n = self.remaining.min(self.data.len());
-                payload.store().push(self.data.split_to(n))?;
-                self.remaining -= n;
-            }
-            if self.remaining == 0 {
-                payload.store().complete = true;
+            if let Some(store) = payload.store() {
+                if self.remaining != 0 && !self.data.is_empty() {
+                    let n = self.remaining.min(self.data.len());
+                    store.push(self.data.split_to(n))?;
+                    self.remaining -= n;
+                }
+                if self.remaining == 0 {
+                    store.complete = true;
+                }
             }
             if let Some(step) = payload.validate(&mut self.scratch, self.max, input_left)? {
                 return Ok(step);
+            }
+            if let Some(len) = payload.normalize() {
+                let len =
+                    u32::try_from(len).map_err(|_| tonic::Status::internal("message too large"))?;
+                self.header[0] = 0;
+                self.header
+                    .get_mut(1..5)
+                    .ok_or_else(|| tonic::Status::internal("invalid gzip prefix state"))?
+                    .copy_from_slice(&len.to_be_bytes());
+                self.prefix = std::array::from_fn(|_| Bytes::new());
+                self.prefix[0] = Bytes::copy_from_slice(&self.header);
+                self.queued = 1;
+                self.emitted = 0;
             }
             if self.emitted < self.queued {
                 let view = std::mem::take(
@@ -288,7 +382,7 @@ impl State {
                 self.emitted += 1;
                 return Ok(Step::Data(view));
             }
-            if let Some(view) = payload.store().replay() {
+            if let Some(view) = payload.replay() {
                 return Ok(Step::Data(view));
             }
             self.payload = None;
@@ -309,9 +403,11 @@ impl State {
     }
 }
 
-/// Exists only for changed, finite decoding caps and gzip request encoding.
-/// Retained logical bytes/descriptor count are bounded by the wire cap, but
-/// Bytes backing allocations and tonic's private decoded buffers are opaque.
+/// Validates every gzip member once before emitting an identity-coded message.
+/// Decoded output reservations stay within the finite message cap. Consumed
+/// gzip input views are released as decoding advances; identity messages retain
+/// their original views. Bytes backing allocations and tonic's private codec
+/// buffers are separate costs.
 pub(super) struct GzipBody<B> {
     inner: Option<Pin<Box<B>>>,
     state: Option<Box<State>>,
@@ -432,6 +528,16 @@ mod tests {
             Poll::Ready(self.0.pop_front())
         }
     }
+    fn identity(payload: &[u8]) -> Vec<u8> {
+        let mut wire = vec![0];
+        wire.extend_from_slice(
+            &u32::try_from(payload.len())
+                .expect("small fixture")
+                .to_be_bytes(),
+        );
+        wire.extend_from_slice(payload);
+        wire
+    }
     fn wire(payload: &[u8]) -> Bytes {
         let encoded = crate::gzip::encode(payload).expect("gzip");
         frame(encoded)
@@ -458,7 +564,7 @@ mod tests {
         )
     }
     #[tokio::test]
-    async fn fragmented_mixed_messages_preserve_original_spans_and_per_message_cap() {
+    async fn fragmented_mixed_messages_normalize_gzip_and_preserve_identity_spans() {
         let first = wire(&[7; 64]);
         let zero = wire(b"");
         let original = Bytes::from([first.as_ref(), b"\0\0\0\0\x03abc", zero.as_ref()].concat());
@@ -485,10 +591,13 @@ mod tests {
                 }
             };
             let start = bytes.as_ptr() as usize;
-            assert!(start >= ptr && start + bytes.len() <= ptr + original.len());
+            if (69..77).contains(&got.len()) {
+                assert!(start >= ptr && start + bytes.len() <= ptr + original.len());
+            }
             got.extend_from_slice(&bytes);
         }
-        assert_eq!(got, original);
+        let expected = [identity(&[7; 64]), identity(b"abc"), identity(b"")].concat();
+        assert_eq!(got, expected);
         assert_eq!(dropped.load(Ordering::SeqCst), 1);
     }
     #[tokio::test]
@@ -511,7 +620,7 @@ mod tests {
                 }
             }
         }
-        assert_eq!(got, first);
+        assert_eq!(got, identity(&[7; 64]));
         assert_eq!(dropped.load(Ordering::SeqCst), 1);
         assert!(
             poll_fn(|cx| Pin::new(&mut body).poll_frame(cx))
@@ -520,24 +629,208 @@ mod tests {
         );
     }
     #[tokio::test]
-    async fn single_member_and_encoded_tail_match_existing_decoders() {
+    async fn all_members_are_normalized_and_invalid_tails_are_withheld() {
         let first = crate::gzip::encode(b"one").expect("first");
-        for tail in [
-            crate::gzip::encode(b"two").expect("second"),
-            vec![255, 0, 123],
+        let second = crate::gzip::encode(b"two").expect("second");
+        let mut bad_crc = second.clone();
+        let crc = bad_crc.len() - 8;
+        *bad_crc.get_mut(crc).expect("CRC byte") ^= 1;
+        let mut bad_size = second.clone();
+        *bad_size.last_mut().expect("ISIZE byte") ^= 1;
+        for (tail, valid) in [
+            (second.clone(), true),
+            (vec![255, 0, 123], false),
+            (vec![0; 8], false),
+            (bad_crc, false),
+            (bad_size, false),
+            (
+                second
+                    .get(..second.len() - 1)
+                    .expect("truncated member")
+                    .to_vec(),
+                false,
+            ),
         ] {
             let original = frame([first.as_slice(), tail.as_slice()].concat());
+            // Every split includes member header, DEFLATE, CRC and ISIZE boundaries.
+            for split in 1..original.len() {
+                let dropped = Arc::new(AtomicUsize::new(0));
+                let mut body = body(
+                    vec![
+                        Ok(Frame::data(original.slice(..split))),
+                        Ok(Frame::data(original.slice(split..))),
+                    ],
+                    128,
+                    dropped.clone(),
+                );
+                let mut got = Vec::new();
+                let mut error = None;
+                while let Some(frame) = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await {
+                    match frame {
+                        Ok(frame) => got.extend_from_slice(&frame.into_data().expect("data")),
+                        Err(status) => error = Some(status),
+                    }
+                }
+                if valid {
+                    assert!(error.is_none(), "split {split}: {error:?}");
+                    assert_eq!(got, identity(b"onetwo"));
+                } else {
+                    assert_eq!(error.expect("invalid tail").code(), tonic::Code::Internal);
+                    assert!(
+                        got.is_empty(),
+                        "invalid later member must withhold the prefix"
+                    );
+                }
+                assert_eq!(dropped.load(Ordering::SeqCst), 1);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn aggregate_member_limit_is_enforced_before_normalized_prefix() {
+        let encoded = [
+            crate::gzip::encode(&[7; 64]).expect("first"),
+            crate::gzip::encode(&[8; 65]).expect("second"),
+        ]
+        .concat();
+        let wire = frame(encoded);
+        for max in [128, 129] {
             let mut body = body(
-                vec![Ok(Frame::data(original.clone()))],
-                64,
+                vec![Ok(Frame::data(wire.clone()))],
+                max,
                 Arc::new(AtomicUsize::new(0)),
             );
             let mut got = Vec::new();
+            let mut error = None;
             while let Some(frame) = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await {
-                got.extend_from_slice(&frame.expect("accepted tail").into_data().expect("data"));
+                match frame {
+                    Ok(frame) => got.extend_from_slice(&frame.into_data().expect("data")),
+                    Err(status) => error = Some(status),
+                }
             }
-            assert_eq!(got, original);
+            if max == 128 {
+                assert_eq!(
+                    error.expect("aggregate cap").code(),
+                    tonic::Code::ResourceExhausted
+                );
+                assert!(got.is_empty());
+            } else {
+                assert!(error.is_none());
+                assert_eq!(got, identity(&[vec![7; 64], vec![8; 65]].concat()));
+            }
         }
+    }
+
+    #[tokio::test]
+    async fn member_budget_counts_empty_members_and_resets_for_each_grpc_message() {
+        let encoded = [
+            crate::gzip::encode(b"first").expect("first"),
+            crate::gzip::encode(b"").expect("empty"),
+            crate::gzip::encode(b"last").expect("last"),
+        ]
+        .concat();
+        let wire = frame(encoded);
+        for member_cap in [0, 1, 2, 3] {
+            let limits = MessageLimits::new()
+                .with_max_decoding(128)
+                .with_max_compression_frames(member_cap);
+            let dropped = Arc::new(AtomicUsize::new(0));
+            // Separate gzip members and gRPC messages over one-byte DATA views.
+            // At each member boundary the decoder must survive WouldBlock
+            // without admitting or resetting that member twice.
+            let stream = Bytes::from([wire.as_ref(), wire.as_ref()].concat());
+            let frames = (0..stream.len())
+                .map(|at| Ok(Frame::data(stream.slice(at..at + 1))))
+                .collect();
+            let mut body = GzipBody::new(Frames(frames, dropped.clone()), limits, 128);
+            let mut got = Vec::new();
+            let mut error = None;
+            while let Some(frame) = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await {
+                match frame {
+                    Ok(frame) => got.extend_from_slice(&frame.into_data().expect("data")),
+                    Err(status) => error = Some(status),
+                }
+            }
+            if member_cap == 3 {
+                assert!(error.is_none());
+                assert_eq!(
+                    got,
+                    [identity(b"firstlast"), identity(b"firstlast")].concat()
+                );
+            } else {
+                assert_eq!(
+                    error.expect("member cap").code(),
+                    tonic::Code::ResourceExhausted
+                );
+                assert!(got.is_empty());
+            }
+            assert_eq!(dropped.load(Ordering::SeqCst), 1);
+        }
+    }
+
+    #[tokio::test]
+    async fn default_member_budget_rejects_an_empty_member_chain_before_output() {
+        let empty = crate::gzip::encode(b"").expect("empty member");
+        let wire = frame(empty.repeat(1025));
+        let dropped = Arc::new(AtomicUsize::new(0));
+        let mut body = body(vec![Ok(Frame::data(wire))], 4 * QUANTUM, dropped.clone());
+        let error = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx))
+            .await
+            .expect("error frame")
+            .expect_err("empty member count must be bounded");
+        assert_eq!(error.code(), tonic::Code::ResourceExhausted);
+        assert_eq!(dropped.load(Ordering::SeqCst), 1);
+        assert!(
+            poll_fn(|cx| Pin::new(&mut body).poll_frame(cx))
+                .await
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn multipart_normalization_releases_input_and_emits_bounded_views() {
+        struct Owner(Vec<u8>, Arc<AtomicUsize>);
+        impl AsRef<[u8]> for Owner {
+            fn as_ref(&self) -> &[u8] {
+                &self.0
+            }
+        }
+        impl Drop for Owner {
+            fn drop(&mut self) {
+                self.1.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+        let first = vec![7; QUANTUM + 1];
+        let second = vec![8; 2 * QUANTUM + 3];
+        let encoded = [
+            crate::gzip::encode(&first).expect("first"),
+            crate::gzip::encode(&second).expect("second"),
+        ]
+        .concat();
+        let backing = Arc::new(AtomicUsize::new(0));
+        let original = Bytes::from_owner(Owner(frame(encoded).to_vec(), backing.clone()));
+        let dropped = Arc::new(AtomicUsize::new(0));
+        let mut body = body(
+            vec![Ok(Frame::data(original))],
+            4 * QUANTUM,
+            dropped.clone(),
+        );
+        let mut got = Vec::new();
+        while let Some(frame) = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await {
+            let bytes = frame
+                .expect("complete gzip members")
+                .into_data()
+                .expect("data");
+            assert!(bytes.len() <= QUANTUM);
+            assert_eq!(
+                backing.load(Ordering::SeqCst),
+                1,
+                "compressed input released before the normalized prefix"
+            );
+            got.extend_from_slice(&bytes);
+        }
+        assert_eq!(got, identity(&[first, second].concat()));
+        assert_eq!(dropped.load(Ordering::SeqCst), 1);
     }
     #[tokio::test]
     async fn partial_gzip_producer_error_keeps_status_details_and_metadata() {
@@ -615,7 +908,7 @@ mod tests {
                 Poll::Ready(Some(Err(error))) => panic!("valid gzip: {error}"),
                 Poll::Ready(None) => {
                     assert!(yields >= 4);
-                    assert_eq!(got, original);
+                    assert_eq!(got, identity(b"abc"));
                     return;
                 }
             }
@@ -663,7 +956,7 @@ mod tests {
             }
             if valid {
                 assert!(error.is_none());
-                assert_eq!(got, original);
+                assert_eq!(got, identity(b"abc"));
             } else {
                 assert_eq!(
                     error.expect("checksum rejected").code(),
@@ -748,8 +1041,16 @@ mod tests {
         }
         let dropped = Arc::new(AtomicUsize::new(0));
         let backing = Arc::new(AtomicUsize::new(0));
-        let original =
-            Bytes::from_owner(Owner(wire(&vec![7; 1024 * 1024]).to_vec(), backing.clone()));
+        let mut random = 0x243f_6a88_85a3_08d3u64;
+        let payload: Vec<u8> = (0..1024 * 1024)
+            .map(|_| {
+                random ^= random << 13;
+                random ^= random >> 7;
+                random ^= random << 17;
+                u8::try_from(random & 255).expect("one byte")
+            })
+            .collect();
+        let original = Bytes::from_owner(Owner(wire(&payload).to_vec(), backing.clone()));
         let mut body = body(
             vec![Ok(Frame::data(original))],
             2 * 1024 * 1024,

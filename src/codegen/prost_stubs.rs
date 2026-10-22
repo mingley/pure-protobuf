@@ -222,64 +222,63 @@ fn emit_server(
     let _ = writeln!(src, "}}\n");
     let _ = writeln!(src, "impl<T: {trait_name}> {G}::Service for {server}<T> {{");
     let _ = writeln!(src, "    const NAME: &'static str = \"{full_name}\";");
-    let _ = writeln!(src, "    async fn call(&self, rpc: {G}::Rpc) {{");
-    let _ = writeln!(src, "        match rpc.method() {{");
-    for method in sorted_methods(svc) {
-        let fn_name = to_snake(&method.name);
-        let req = prost_type_path(&method.input_type);
-        let _ = writeln!(src, "            \"{}\" => {{", method.name);
-        let _ = writeln!(src, "                let inner = Arc::clone(&self.inner);");
-        match (method.client_streaming, method.server_streaming) {
-            (false, false) => {
-                let _ = writeln!(
-                    src,
-                    "                rpc.unary(move |request: {G}::Request<{P}::Message<{req}>>| async move {{"
-                );
-                let _ = writeln!(
-                    src,
-                    "                    inner.{fn_name}(request.map({P}::Message::into_inner)).await.map({P}::response_to_native)"
-                );
-                let _ = writeln!(src, "                }}).await;");
-            }
-            (true, false) => {
-                let _ = writeln!(
-                    src,
-                    "                rpc.client_streaming(move |request: {G}::Request<{G}::Streaming<{P}::Message<{req}>>>| async move {{"
-                );
-                let _ = writeln!(
-                    src,
-                    "                    inner.{fn_name}(request.map({P}::Streaming::from_native)).await.map({P}::response_to_native)"
-                );
-                let _ = writeln!(src, "                }}).await;");
-            }
-            (false, true) => {
-                let _ = writeln!(
-                    src,
-                    "                rpc.server_streaming(move |request: {G}::Request<{P}::Message<{req}>>| async move {{"
-                );
-                let _ = writeln!(
-                    src,
-                    "                    inner.{fn_name}(request.map({P}::Message::into_inner)).await.map({P}::streaming_response_to_native)"
-                );
-                let _ = writeln!(src, "                }}).await;");
-            }
-            (true, true) => {
-                let _ = writeln!(
-                    src,
-                    "                rpc.bidi_streaming(move |request: {G}::Request<{G}::Streaming<{P}::Message<{req}>>>| async move {{"
-                );
-                let _ = writeln!(
-                    src,
-                    "                    inner.{fn_name}(request.map({P}::Streaming::from_native)).await.map({P}::streaming_response_to_native)"
-                );
-                let _ = writeln!(src, "                }}).await;");
-            }
+    // Select the method before boxing so an unrelated method's state machine
+    // cannot enlarge every RPC's handler allocation. Keep the direct hook too.
+    for boxed in [false, true] {
+        if boxed {
+            let _ = writeln!(
+                src,
+                "    fn call_boxed(&self, rpc: {G}::Rpc) -> ::core::pin::Pin<::std::boxed::Box<dyn ::core::future::Future<Output = ()> + Send + '_>> {{"
+            );
+        } else {
+            let _ = writeln!(src, "    async fn call(&self, rpc: {G}::Rpc) {{");
         }
-        let _ = writeln!(src, "            }}");
+        let _ = writeln!(src, "        match rpc.method() {{");
+        for method in sorted_methods(svc) {
+            let fn_name = to_snake(&method.name);
+            let req = prost_type_path(&method.input_type);
+            let dispatch = match (method.client_streaming, method.server_streaming) {
+                (false, false) => "unary",
+                (true, false) => "client_streaming",
+                (false, true) => "server_streaming",
+                (true, true) => "bidi_streaming",
+            };
+            let (request_type, request_map) = if method.client_streaming {
+                (
+                    format!("{G}::Streaming<{P}::Message<{req}>>"),
+                    "Streaming::from_native",
+                )
+            } else {
+                (format!("{P}::Message<{req}>"), "Message::into_inner")
+            };
+            let response_map = if method.server_streaming {
+                "streaming_response_to_native"
+            } else {
+                "response_to_native"
+            };
+            let future = format!(
+                "rpc.{dispatch}(move |request: {G}::Request<{request_type}>| async move {{ inner.{fn_name}(request.map({P}::{request_map})).await.map({P}::{response_map}) }})"
+            );
+            let _ = writeln!(src, "            \"{}\" => {{", method.name);
+            let _ = writeln!(src, "                let inner = Arc::clone(&self.inner);");
+            if boxed {
+                let _ = writeln!(src, "                ::std::boxed::Box::pin({future})");
+            } else {
+                let _ = writeln!(src, "                {future}.await;");
+            }
+            let _ = writeln!(src, "            }}");
+        }
+        if boxed {
+            let _ = writeln!(
+                src,
+                "            _ => ::std::boxed::Box::pin(async move {{ rpc.unimplemented() }}),"
+            );
+        } else {
+            let _ = writeln!(src, "            _ => rpc.unimplemented(),");
+        }
+        let _ = writeln!(src, "        }}");
+        let _ = writeln!(src, "    }}");
     }
-    let _ = writeln!(src, "            _ => rpc.unimplemented(),");
-    let _ = writeln!(src, "        }}");
-    let _ = writeln!(src, "    }}");
     let _ = writeln!(src, "}}\n");
 }
 
