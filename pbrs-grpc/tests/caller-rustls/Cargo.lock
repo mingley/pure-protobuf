@@ -549,6 +549,7 @@ dependencies = [
  "base64",
  "bytes",
  "flate2",
+ "futures-util",
  "fnv",
  "futures-core",
  "futures-sink",

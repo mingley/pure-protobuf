@@ -1466,13 +1466,9 @@ impl InboundRpc {
     }
 
     fn base_request<T>(&mut self, message: T) -> Request<T> {
-        // Prepared keeps `path` only to label an observed call. With no
-        // observer the handler request is the only owner.
-        let path = if self.observer.is_some() {
-            self.path.clone()
-        } else {
-            self.path.take()
-        };
+        // The handler and outbound response each need the RPC path. Response
+        // interceptors use it even when no lifecycle observer is installed.
+        let path = self.path.clone();
         let mut req = Request::from_metadata(
             message,
             std::mem::take(&mut self.metadata),

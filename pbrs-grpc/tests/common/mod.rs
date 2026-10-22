@@ -1070,7 +1070,8 @@ pub mod lifecycle {
             if !self.has_faulted.load(Ordering::SeqCst) {
                 assert!(
                     result.is_ok(),
-                    "Call failed unexpectedly without fault: {result:?}"
+                    "Call failed unexpectedly without fault: {result:?}; message: {}",
+                    result.as_ref().err().map_or("", Status::message)
                 );
                 return;
             }
@@ -1099,7 +1100,8 @@ pub mod lifecycle {
                 FaultKind::StreamHalfClose => {
                     assert!(
                         result.is_ok(),
-                        "Expected OK status on stream half-close, got {result:?}"
+                        "Expected OK status on stream half-close, got {result:?}; message: {}",
+                        result.as_ref().err().map_or("", Status::message)
                     );
                 }
                 FaultKind::RstStream(RstReason::RefusedStream) => {

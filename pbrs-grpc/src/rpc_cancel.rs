@@ -194,6 +194,9 @@ impl Future for Wait {
             {
                 this.registration = Registration::Primary;
             } else {
+                // Cloning or dropping a waker can run executor code. Keep
+                // both outside the registry lock so callbacks can cancel.
+                let waker = cx.waker().clone();
                 let mut waiters = this
                     .inner
                     .additional
@@ -204,10 +207,10 @@ impl Future for Wait {
                     .enumerate()
                     .find(|(_, slot)| slot.is_none())
                 {
-                    *slot = Some(cx.waker().clone());
+                    *slot = Some(waker);
                     index
                 } else {
-                    waiters.push(Some(cx.waker().clone()));
+                    waiters.push(Some(waker));
                     waiters.len() - 1
                 };
                 this.registration = Registration::Additional(index);
@@ -216,15 +219,36 @@ impl Future for Wait {
         match this.registration {
             Registration::Primary => this.inner.waker.register(cx.waker()),
             Registration::Additional(index) => {
-                let mut waiters = this
-                    .inner
-                    .additional
-                    .lock()
-                    .unwrap_or_else(|p| p.into_inner());
-                if let Some(Some(waker)) = waiters.get_mut(index) {
-                    if !waker.will_wake(cx.waker()) {
-                        *waker = cx.waker().clone();
-                    }
+                let needs_update = {
+                    let waiters = this
+                        .inner
+                        .additional
+                        .lock()
+                        .unwrap_or_else(|p| p.into_inner());
+                    waiters
+                        .get(index)
+                        .and_then(Option::as_ref)
+                        .is_some_and(|waker| !waker.will_wake(cx.waker()))
+                };
+                if needs_update {
+                    let mut replacement = Some(cx.waker().clone());
+                    let previous = {
+                        let mut waiters = this
+                            .inner
+                            .additional
+                            .lock()
+                            .unwrap_or_else(|p| p.into_inner());
+                        match waiters.get_mut(index) {
+                            Some(slot) if slot.is_some() => {
+                                std::mem::replace(slot, replacement.take())
+                            }
+                            _ => None,
+                        }
+                    };
+                    drop(previous);
+                    // Cancellation may have removed the registration while
+                    // the replacement was cloned. Drop an unused clone here.
+                    drop(replacement);
                 }
             }
             Registration::None => {}
@@ -284,6 +308,53 @@ mod tests {
     fn waker() -> (Arc<Count>, Waker) {
         let count = Arc::new(Count(AtomicUsize::new(0)));
         (count.clone(), Waker::from(count))
+    }
+
+    #[test]
+    fn replacing_secondary_waker_allows_its_drop_to_cancel() {
+        struct CancelOnDrop(RpcCancel);
+        impl Wake for CancelOnDrop {
+            fn wake(self: Arc<Self>) {}
+        }
+        impl Drop for CancelOnDrop {
+            fn drop(&mut self) {
+                self.0.signal();
+            }
+        }
+
+        let cancel = RpcCancel::new();
+        let mut primary = Box::pin(cancel.wait());
+        assert!(
+            primary
+                .as_mut()
+                .poll(&mut Context::from_waker(Waker::noop()))
+                .is_pending()
+        );
+        let mut secondary = Box::pin(cancel.wait());
+        let waker = Waker::from(Arc::new(CancelOnDrop(cancel.clone())));
+        assert!(
+            secondary
+                .as_mut()
+                .poll(&mut Context::from_waker(&waker))
+                .is_pending()
+        );
+        drop(waker);
+
+        let (sent, received) = std::sync::mpsc::channel();
+        let task = std::thread::spawn(move || {
+            assert!(
+                secondary
+                    .as_mut()
+                    .poll(&mut Context::from_waker(Waker::noop()))
+                    .is_ready()
+            );
+            sent.send(()).expect("test receiver exists");
+        });
+        received
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .expect("waker drop must run outside the registry lock");
+        task.join().expect("poll completes");
+        assert!(cancel.is_cancelled());
     }
 
     #[test]
