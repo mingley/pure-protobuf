@@ -1,3 +1,8 @@
+#![allow(
+    clippy::disallowed_types,
+    reason = "short synchronous waker registry locks; no guard crosses an await"
+)]
+
 //! Per-RPC client cancel flag.
 //!
 //! One waiter uses the inline atomic waker. Concurrent upload, response and
@@ -135,14 +140,16 @@ impl Drop for RpcCancel {
             inner.cancelled.store(false, Ordering::Release);
             inner.closed.store(false, Ordering::Release);
             drop(inner.waker.take());
-            let _ = SPARE.try_with(|cell| {
-                let existing = cell.take();
-                if existing.is_none() {
-                    cell.set(Some(inner));
-                } else {
-                    cell.set(existing);
-                }
-            });
+            SPARE
+                .try_with(|cell| {
+                    let existing = cell.take();
+                    if existing.is_none() {
+                        cell.set(Some(inner));
+                    } else {
+                        cell.set(existing);
+                    }
+                })
+                .unwrap_or_default();
             return;
         }
         inner.closed.store(true, Ordering::Release);

@@ -87,7 +87,7 @@ impl HttpStr {
             // SAFETY: `cap == 0` is only set for `'static` input. Drop does
             // not free those bytes.
             let st: &'static str = unsafe { &*(self.as_str() as *const str) };
-            std::mem::forget(self);
+            drop(self);
             Cow::Borrowed(st)
         } else {
             Cow::Owned(self.into_string())
