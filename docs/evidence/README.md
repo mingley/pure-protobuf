@@ -14,6 +14,8 @@ comparative claim. No category currently has a qualified performance win.
 The [2026-10-22 day campaign](grpc-resource-soak-20261022/README.md) now has a
 terminal resource outcome. Its recorded revision and qualification limits apply.
 
+The [streaming resource day, source `6cd91911`](grpc-streaming-soak-20261022/README.md) has a terminal resource outcome; its source and qualification limits apply.
+
 ## Benchmark coverage and campaign readiness
 
 | Record | What it contributes | How to read it |

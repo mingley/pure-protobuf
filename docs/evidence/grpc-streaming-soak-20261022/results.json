@@ -1,0 +1,27 @@
+{
+  "source": "6cd91911afce24cceee6df3f60a945453e5b04da",
+  "requested_duration_seconds": 86400,
+  "report_available": true,
+  "day_status": "failed",
+  "report_day_status": "failed",
+  "resource_status": "failed",
+  "duration_actual_seconds": 1922.729070202,
+  "exit_code": 101,
+  "failures": [
+    "incomplete, duplicated or reordered cycle phases",
+    "independent samples do not cover the requested duration",
+    "missing or incomplete requested duration",
+    "resource test child failed"
+  ],
+  "qualified": false,
+  "termination": {
+    "source": "6cd91911afce24cceee6df3f60a945453e5b04da",
+    "supervisor_pid": 87061,
+    "qualified": false,
+    "exit_code": 1,
+    "source_pin_verified_at_end": true,
+    "state": "terminated",
+    "ended_utc": "2026-10-22T20:59:51.361898+00:00",
+    "supervisor_elapsed_seconds": 1923.8416151830006
+  }
+}
