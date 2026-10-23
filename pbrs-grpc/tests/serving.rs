@@ -2433,6 +2433,39 @@ async fn assert_fixture_pending<F: std::future::Future>(mut future: std::pin::Pi
     .await;
 }
 
+async fn await_fixture_repoll(probe: &FixtureHandlerProbe, expected: usize) {
+    let previous_polls = probe.polled.load(Ordering::Relaxed);
+    probe.waker.wake();
+    drive_frozen_fixture(
+        std::future::poll_fn(|_| {
+            if probe.polled.load(Ordering::Relaxed) > previous_polls
+                || probe.dropped.load(Ordering::Relaxed) >= expected
+            {
+                std::task::Poll::Ready(())
+            } else {
+                std::task::Poll::Pending
+            }
+        }),
+        "handler poll before configured deadline",
+    )
+    .await;
+}
+
+#[cfg(unix)]
+async fn await_fixture_unix_listener(path: &std::path::Path) {
+    drive_frozen_fixture(
+        std::future::poll_fn(|_| {
+            if path.exists() {
+                std::task::Poll::Ready(())
+            } else {
+                std::task::Poll::Pending
+            }
+        }),
+        "Unix listener readiness",
+    )
+    .await;
+}
+
 async fn await_fixture_drop(probe: &FixtureHandlerProbe, expected: usize) {
     drive_frozen_fixture(
         std::future::poll_fn(|_| {
@@ -6301,27 +6334,39 @@ async fn a_client_interceptor_sees_every_shape_context() {
     task.abort();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test(start_paused = true)]
 async fn a_client_interceptor_can_set_a_deadline() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
     let child_done = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(FixtureHandlerProbe::default());
     let (addr, listener) = bind().await;
-    let hang = SpawnHang {
-        started: Arc::clone(&started),
-        finished: Arc::clone(&finished),
-        child_done: Arc::clone(&child_done),
+    let hang = ProbedFixtureGreeter {
+        inner: SpawnHang {
+            started: Arc::clone(&started),
+            finished: Arc::clone(&finished),
+            child_done: Arc::clone(&child_done),
+        },
+        probe: Arc::clone(&probe),
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(hang).serve_listener(listener).await.ok();
     });
 
-    let client = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
-        call.set_timeout(Duration::from_millis(40));
-        Ok(())
-    });
-    assert_deadline_on_every_shape(&client, &started, &finished, &child_done).await;
-
+    let client = GreeterClient::new(drive_frozen_fixture(channel(addr), "TCP connect").await)
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_timeout(Duration::from_millis(40));
+            Ok(())
+        });
+    assert_controlled_deadline_on_every_shape(
+        &client,
+        &probe,
+        &started,
+        &finished,
+        &child_done,
+        Duration::from_millis(40),
+    )
+    .await;
     task.abort();
 }
 
@@ -6335,12 +6380,16 @@ async fn a_tls_client_interceptor_can_set_a_deadline() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
     let child_done = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(FixtureHandlerProbe::default());
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
-    let hang = SpawnHang {
-        started: Arc::clone(&started),
-        finished: Arc::clone(&finished),
-        child_done: Arc::clone(&child_done),
+    let hang = ProbedFixtureGreeter {
+        inner: SpawnHang {
+            started: Arc::clone(&started),
+            finished: Arc::clone(&finished),
+            child_done: Arc::clone(&child_done),
+        },
+        probe: Arc::clone(&probe),
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(hang)
@@ -6348,41 +6397,35 @@ async fn a_tls_client_interceptor_can_set_a_deadline() {
             .await
             .ok();
     });
-    let client = GreeterClient::new(tls_channel(addr).await).intercept(interceptor_set_timeout);
-    assert_paused_deadline_dropped_spawned(
-        client.say_hello(Request::new(req("ada"))),
+    let client = GreeterClient::new(drive_frozen_fixture(tls_channel(addr), "TLS connect").await)
+        .intercept(interceptor_set_timeout);
+    assert_controlled_deadline_on_every_shape(
+        &client,
+        &probe,
         &started,
         &finished,
         &child_done,
+        Duration::from_millis(40),
     )
     .await;
-    assert_paused_deadline_dropped_spawned(
-        client.server_hello(Request::new(req("ada"))),
-        &started,
-        &finished,
-        &child_done,
-    )
-    .await;
-    let (tx, call) = client.client_hello(Request::new(()));
-    assert_paused_deadline_dropped_spawned(call, &started, &finished, &child_done).await;
-    drop(tx);
-    let (tx, call) = client.stream_hello(Request::new(()));
-    assert_paused_deadline_dropped_spawned(call, &started, &finished, &child_done).await;
-    drop(tx);
     task.abort();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test(start_paused = true)]
 async fn an_mtls_client_interceptor_can_set_a_deadline() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
     let child_done = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(FixtureHandlerProbe::default());
     let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
     let (addr, listener) = bind().await;
-    let hang = SpawnHang {
-        started: Arc::clone(&started),
-        finished: Arc::clone(&finished),
-        child_done: Arc::clone(&child_done),
+    let hang = ProbedFixtureGreeter {
+        inner: SpawnHang {
+            started: Arc::clone(&started),
+            finished: Arc::clone(&finished),
+            child_done: Arc::clone(&child_done),
+        },
+        probe: Arc::clone(&probe),
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(hang)
@@ -6391,43 +6434,72 @@ async fn an_mtls_client_interceptor_can_set_a_deadline() {
             .ok();
     });
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
-    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await)
-        .intercept(interceptor_set_timeout);
-    assert_deadline_on_every_shape(&client, &started, &finished, &child_done).await;
+    let client = GreeterClient::new(
+        drive_frozen_fixture(tls_channel_with(addr, client_tls), "mTLS connect").await,
+    )
+    .intercept(interceptor_set_timeout);
+    assert_controlled_deadline_on_every_shape(
+        &client,
+        &probe,
+        &started,
+        &finished,
+        &child_done,
+        Duration::from_millis(40),
+    )
+    .await;
     task.abort();
 }
 
 #[cfg(unix)]
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test(start_paused = true)]
 async fn a_unix_client_interceptor_can_set_a_deadline() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
     let child_done = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(FixtureHandlerProbe::default());
     let (path, _guard) = unix_test_path();
-    let hang = SpawnHang {
-        started: Arc::clone(&started),
-        finished: Arc::clone(&finished),
-        child_done: Arc::clone(&child_done),
+    let hang = ProbedFixtureGreeter {
+        inner: SpawnHang {
+            started: Arc::clone(&started),
+            finished: Arc::clone(&finished),
+            child_done: Arc::clone(&child_done),
+        },
+        probe: Arc::clone(&probe),
     };
     let sock = path.clone();
     let task = tokio::spawn(async move {
         GreeterServer::new(hang).serve_unix(sock).await.ok();
     });
-    let client = GreeterClient::new(unix_channel(&path).await).intercept(interceptor_set_timeout);
-    assert_deadline_on_every_shape(&client, &started, &finished, &child_done).await;
+    await_fixture_unix_listener(&path).await;
+    let client =
+        GreeterClient::new(drive_frozen_fixture(unix_channel(&path), "Unix connect").await)
+            .intercept(interceptor_set_timeout);
+    assert_controlled_deadline_on_every_shape(
+        &client,
+        &probe,
+        &started,
+        &finished,
+        &child_done,
+        Duration::from_millis(40),
+    )
+    .await;
     task.abort();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test(start_paused = true)]
 async fn a_from_io_client_interceptor_can_set_a_deadline() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
     let child_done = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(FixtureHandlerProbe::default());
     let (client_io, server_io) = duplex_pair();
-    let hang = SpawnHang {
-        started: Arc::clone(&started),
-        finished: Arc::clone(&finished),
-        child_done: Arc::clone(&child_done),
+    let hang = ProbedFixtureGreeter {
+        inner: SpawnHang {
+            started: Arc::clone(&started),
+            finished: Arc::clone(&finished),
+            child_done: Arc::clone(&child_done),
+        },
+        probe: Arc::clone(&probe),
     };
     let server = tokio::spawn(async move {
         GreeterServer::new(hang)
@@ -6436,12 +6508,20 @@ async fn a_from_io_client_interceptor_can_set_a_deadline() {
             .ok();
     });
     let client = GreeterClient::new(
-        Channel::from_io(client_io, "localhost")
+        drive_frozen_fixture(Channel::from_io(client_io, "localhost"), "from_io connect")
             .await
             .expect("from_io"),
     )
     .intercept(interceptor_set_timeout);
-    assert_deadline_on_every_shape(&client, &started, &finished, &child_done).await;
+    assert_controlled_deadline_on_every_shape(
+        &client,
+        &probe,
+        &started,
+        &finished,
+        &child_done,
+        Duration::from_millis(40),
+    )
+    .await;
     server.abort();
 }
 
@@ -11214,27 +11294,36 @@ impl Greeter for SeesCap {
 async fn assert_handler_sees_interceptor_deadline(client: &GreeterClient) {
     let mut request = Request::new(req("ada"));
     request.set_timeout(Duration::from_secs(5));
-    let reply = client.say_hello(request).await.expect("unary");
+    let reply = client
+        .say_hello(request)
+        .await
+        .unwrap_or_else(|status| panic!("unary: {:?}: {}", status.code(), status.message()));
     assert_eq!(name_of(reply.get_ref()), "ada");
 
     let mut request = Request::new(req("ada"));
     request.set_timeout(Duration::from_secs(5));
-    let _ = client.server_hello(request).await.expect("server-stream");
+    let _ = client.server_hello(request).await.unwrap_or_else(|status| {
+        panic!("server-stream: {:?}: {}", status.code(), status.message())
+    });
 
     let mut request = Request::new(());
     request.set_timeout(Duration::from_secs(5));
     let (tx, call) = client.client_hello(request);
     tx.close();
-    let _ = call.await.expect("client-stream");
+    let _ = call.await.unwrap_or_else(|status| {
+        panic!("client-stream: {:?}: {}", status.code(), status.message())
+    });
 
     let mut request = Request::new(());
     request.set_timeout(Duration::from_secs(5));
     let (tx, call) = client.stream_hello(request);
     tx.close();
-    let _ = call.await.expect("bidi");
+    let _ = call
+        .await
+        .unwrap_or_else(|status| panic!("bidi: {:?}: {}", status.code(), status.message()));
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn a_handler_sees_the_interceptor_deadline_on_request() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
@@ -11244,11 +11333,17 @@ async fn a_handler_sees_the_interceptor_deadline_on_request() {
             .await
             .ok();
     });
-    assert_handler_sees_interceptor_deadline(&GreeterClient::new(channel(addr).await)).await;
+    drive_frozen_fixture(
+        assert_handler_sees_interceptor_deadline(&GreeterClient::new(
+            drive_frozen_fixture(channel(addr), "TCP connect").await,
+        )),
+        "four interceptor-cap calls",
+    )
+    .await;
     task.abort();
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn a_tls_handler_sees_the_interceptor_deadline_on_request() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
@@ -11259,11 +11354,17 @@ async fn a_tls_handler_sees_the_interceptor_deadline_on_request() {
             .await
             .ok();
     });
-    assert_handler_sees_interceptor_deadline(&GreeterClient::new(tls_channel(addr).await)).await;
+    drive_frozen_fixture(
+        assert_handler_sees_interceptor_deadline(&GreeterClient::new(
+            drive_frozen_fixture(tls_channel(addr), "TLS connect").await,
+        )),
+        "four interceptor-cap calls",
+    )
+    .await;
     task.abort();
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn an_mtls_handler_sees_the_interceptor_deadline_on_request() {
     let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
     let (addr, listener) = bind().await;
@@ -11275,15 +11376,18 @@ async fn an_mtls_handler_sees_the_interceptor_deadline_on_request() {
             .ok();
     });
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
-    assert_handler_sees_interceptor_deadline(&GreeterClient::new(
-        tls_channel_with(addr, client_tls).await,
-    ))
+    drive_frozen_fixture(
+        assert_handler_sees_interceptor_deadline(&GreeterClient::new(
+            drive_frozen_fixture(tls_channel_with(addr, client_tls), "mTLS connect").await,
+        )),
+        "four interceptor-cap calls",
+    )
     .await;
     task.abort();
 }
 
 #[cfg(unix)]
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn a_unix_handler_sees_the_interceptor_deadline_on_request() {
     let (path, _guard) = unix_test_path();
     let sock = path.clone();
@@ -11294,11 +11398,18 @@ async fn a_unix_handler_sees_the_interceptor_deadline_on_request() {
             .await
             .ok();
     });
-    assert_handler_sees_interceptor_deadline(&GreeterClient::new(unix_channel(&path).await)).await;
+    await_fixture_unix_listener(&path).await;
+    drive_frozen_fixture(
+        assert_handler_sees_interceptor_deadline(&GreeterClient::new(
+            drive_frozen_fixture(unix_channel(&path), "Unix connect").await,
+        )),
+        "four interceptor-cap calls",
+    )
+    .await;
     task.abort();
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn a_from_io_handler_sees_the_interceptor_deadline_on_request() {
     let (client_io, server_io) = duplex_pair();
     let server = tokio::spawn(async move {
@@ -11309,11 +11420,15 @@ async fn a_from_io_handler_sees_the_interceptor_deadline_on_request() {
             .ok();
     });
     let client = GreeterClient::new(
-        Channel::from_io(client_io, "localhost")
+        drive_frozen_fixture(Channel::from_io(client_io, "localhost"), "from_io connect")
             .await
             .expect("from_io"),
     );
-    assert_handler_sees_interceptor_deadline(&client).await;
+    drive_frozen_fixture(
+        assert_handler_sees_interceptor_deadline(&client),
+        "four interceptor-cap calls",
+    )
+    .await;
     server.abort();
 }
 
@@ -17405,21 +17520,7 @@ async fn assert_controlled_server_timeout<T>(mut call: Call<T>, probe: &FixtureH
     // On this current-thread runtime, witness another poll of this admitted
     // handler (or its destruction) before checking the lower boundary. Merely
     // polling the client once could miss a prematurely expired server timer.
-    let previous_polls = probe.polled.load(Ordering::Relaxed);
-    probe.waker.wake();
-    drive_frozen_fixture(
-        std::future::poll_fn(|_| {
-            if probe.polled.load(Ordering::Relaxed) > previous_polls
-                || probe.dropped.load(Ordering::Relaxed) >= expected
-            {
-                std::task::Poll::Ready(())
-            } else {
-                std::task::Poll::Pending
-            }
-        }),
-        "handler poll before the server deadline",
-    )
-    .await;
+    await_fixture_repoll(probe, expected).await;
     assert_eq!(probe.dropped.load(Ordering::Relaxed), expected - 1);
     assert_fixture_pending(std::pin::Pin::new(&mut call)).await;
     tokio::time::advance(Duration::from_millis(2)).await;
@@ -19398,90 +19499,92 @@ async fn assert_deadline_dropped_spawned<T>(
 
 async fn assert_paused_deadline_dropped_spawned<T>(
     mut call: Call<T>,
+    probe: &FixtureHandlerProbe,
     started: &AtomicUsize,
     finished: &AtomicUsize,
     child_done: &AtomicUsize,
+    deadline: Duration,
 ) {
     started.store(0, Ordering::Relaxed);
+    finished.store(0, Ordering::Relaxed);
     child_done.store(0, Ordering::Relaxed);
-    let wall_deadline = Instant::now() + Duration::from_secs(5);
-    // Keep the real TLS/socket driver runnable while virtual time is frozen.
-    // A wall-clock bound still detects failed admission or cancellation.
-    let check_progress = |cx: &std::task::Context<'_>| {
-        assert!(
-            Instant::now() < wall_deadline,
-            "deadline test stalled: started={}, child_done={}, finished={}",
-            started.load(Ordering::Relaxed),
-            child_done.load(Ordering::Relaxed),
-            finished.load(Ordering::Relaxed),
-        );
-        cx.waker().wake_by_ref();
-    };
-    std::future::poll_fn(|cx| {
-        check_progress(cx);
-        assert!(
-            std::future::Future::poll(std::pin::Pin::new(&mut call), cx).is_pending(),
-            "call ended before the admitted handler's deadline"
-        );
-        if started.load(Ordering::Relaxed) >= 1 {
-            std::task::Poll::Ready(())
-        } else {
-            std::task::Poll::Pending
-        }
-    })
-    .await;
-    // The interceptor still sets 40ms. Advance only after a handler and its
-    // spawned cancellation waiter exist, rather than racing TLS scheduling.
-    tokio::time::advance(Duration::from_millis(41)).await;
-    let err = std::future::poll_fn(|cx| {
-        check_progress(cx);
-        std::future::Future::poll(std::pin::Pin::new(&mut call), cx)
-    })
-    .await
-    .err()
-    .expect("expected deadline");
-    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
-    std::future::poll_fn(|cx| {
-        check_progress(cx);
-        if child_done.load(Ordering::Relaxed) >= 1 {
-            std::task::Poll::Ready(())
-        } else {
-            std::task::Poll::Pending
-        }
-    })
-    .await;
+    let expected = probe.admitted.load(Ordering::Relaxed) + 1;
+    await_fixture_admission(std::pin::Pin::new(&mut call), probe, expected).await;
+    assert!(
+        started.load(Ordering::Relaxed) >= 1,
+        "handler and child must be admitted"
+    );
+    tokio::time::advance(deadline - Duration::from_millis(1)).await;
+    await_fixture_repoll(probe, expected).await;
+    assert_eq!(
+        probe.dropped.load(Ordering::Relaxed),
+        expected - 1,
+        "handler dropped before configured deadline"
+    );
     assert_eq!(
         finished.load(Ordering::Relaxed),
         0,
-        "handler should have been dropped, not run to completion"
+        "handler completed before deadline"
+    );
+    assert_fixture_pending(std::pin::Pin::new(&mut call)).await;
+    tokio::time::advance(Duration::from_millis(2)).await;
+    let err = drive_frozen_fixture(call, "controlled handler deadline")
+        .await
+        .err()
+        .expect("expected deadline");
+    assert_eq!(err.code(), Code::DeadlineExceeded, "{}", err.message());
+    drive_frozen_fixture(
+        std::future::poll_fn(|_| {
+            if child_done.load(Ordering::Relaxed) >= 1 {
+                std::task::Poll::Ready(())
+            } else {
+                std::task::Poll::Pending
+            }
+        }),
+        "deadline cancellation of spawned child",
+    )
+    .await;
+    await_fixture_drop(probe, expected).await;
+    assert_eq!(
+        finished.load(Ordering::Relaxed),
+        0,
+        "handler completed instead of dropping"
     );
 }
 
-async fn assert_deadline_on_every_shape(
+async fn assert_controlled_deadline_on_every_shape(
     client: &GreeterClient,
+    probe: &FixtureHandlerProbe,
     started: &AtomicUsize,
     finished: &AtomicUsize,
     child_done: &AtomicUsize,
+    deadline: Duration,
 ) {
-    assert_deadline_dropped_spawned(
+    assert_paused_deadline_dropped_spawned(
         client.say_hello(Request::new(req("ada"))),
+        probe,
         started,
         finished,
         child_done,
+        deadline,
     )
     .await;
-    assert_deadline_dropped_spawned(
+    assert_paused_deadline_dropped_spawned(
         client.server_hello(Request::new(req("ada"))),
+        probe,
         started,
         finished,
         child_done,
+        deadline,
     )
     .await;
     let (tx, call) = client.client_hello(Request::new(()));
-    assert_deadline_dropped_spawned(call, started, finished, child_done).await;
+    assert_paused_deadline_dropped_spawned(call, probe, started, finished, child_done, deadline)
+        .await;
     drop(tx);
     let (tx, call) = client.stream_hello(Request::new(()));
-    assert_deadline_dropped_spawned(call, started, finished, child_done).await;
+    assert_paused_deadline_dropped_spawned(call, probe, started, finished, child_done, deadline)
+        .await;
     drop(tx);
 }
 
@@ -21410,16 +21513,20 @@ fn interceptor_server_set_timeout(rpc: &mut Rpc) -> Result<(), Status> {
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test(start_paused = true)]
 async fn spawned_work_stops_when_the_deadline_fires() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
     let child_done = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(FixtureHandlerProbe::default());
     let (addr, listener) = bind().await;
-    let hang = SpawnHang {
-        started: Arc::clone(&started),
-        finished: Arc::clone(&finished),
-        child_done: Arc::clone(&child_done),
+    let hang = ProbedFixtureGreeter {
+        inner: SpawnHang {
+            started: Arc::clone(&started),
+            finished: Arc::clone(&finished),
+            child_done: Arc::clone(&child_done),
+        },
+        probe: Arc::clone(&probe),
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(hang)
@@ -21428,22 +21535,34 @@ async fn spawned_work_stops_when_the_deadline_fires() {
             .await
             .ok();
     });
-    let client = GreeterClient::new(channel(addr).await);
-    assert_deadline_on_every_shape(&client, &started, &finished, &child_done).await;
+    let client = GreeterClient::new(drive_frozen_fixture(channel(addr), "TCP connect").await);
+    assert_controlled_deadline_on_every_shape(
+        &client,
+        &probe,
+        &started,
+        &finished,
+        &child_done,
+        Duration::from_millis(20),
+    )
+    .await;
     task.abort();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test(start_paused = true)]
 async fn tls_spawned_work_stops_when_the_deadline_fires() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
     let child_done = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(FixtureHandlerProbe::default());
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
-    let hang = SpawnHang {
-        started: Arc::clone(&started),
-        finished: Arc::clone(&finished),
-        child_done: Arc::clone(&child_done),
+    let hang = ProbedFixtureGreeter {
+        inner: SpawnHang {
+            started: Arc::clone(&started),
+            finished: Arc::clone(&finished),
+            child_done: Arc::clone(&child_done),
+        },
+        probe: Arc::clone(&probe),
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(hang)
@@ -21452,22 +21571,34 @@ async fn tls_spawned_work_stops_when_the_deadline_fires() {
             .await
             .ok();
     });
-    let client = GreeterClient::new(tls_channel(addr).await);
-    assert_deadline_on_every_shape(&client, &started, &finished, &child_done).await;
+    let client = GreeterClient::new(drive_frozen_fixture(tls_channel(addr), "TLS connect").await);
+    assert_controlled_deadline_on_every_shape(
+        &client,
+        &probe,
+        &started,
+        &finished,
+        &child_done,
+        Duration::from_millis(20),
+    )
+    .await;
     task.abort();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test(start_paused = true)]
 async fn mtls_spawned_work_stops_when_the_deadline_fires() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
     let child_done = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(FixtureHandlerProbe::default());
     let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
     let (addr, listener) = bind().await;
-    let hang = SpawnHang {
-        started: Arc::clone(&started),
-        finished: Arc::clone(&finished),
-        child_done: Arc::clone(&child_done),
+    let hang = ProbedFixtureGreeter {
+        inner: SpawnHang {
+            started: Arc::clone(&started),
+            finished: Arc::clone(&finished),
+            child_done: Arc::clone(&child_done),
+        },
+        probe: Arc::clone(&probe),
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(hang)
@@ -21477,23 +21608,37 @@ async fn mtls_spawned_work_stops_when_the_deadline_fires() {
             .ok();
     });
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
-    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
-    assert_deadline_on_every_shape(&client, &started, &finished, &child_done).await;
+    let client = GreeterClient::new(
+        drive_frozen_fixture(tls_channel_with(addr, client_tls), "mTLS connect").await,
+    );
+    assert_controlled_deadline_on_every_shape(
+        &client,
+        &probe,
+        &started,
+        &finished,
+        &child_done,
+        Duration::from_millis(20),
+    )
+    .await;
     task.abort();
 }
 
 #[cfg(unix)]
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test(start_paused = true)]
 async fn unix_spawned_work_stops_when_the_deadline_fires() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
     let child_done = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(FixtureHandlerProbe::default());
     let (path, _guard) = unix_test_path();
     let sock = path.clone();
-    let hang = SpawnHang {
-        started: Arc::clone(&started),
-        finished: Arc::clone(&finished),
-        child_done: Arc::clone(&child_done),
+    let hang = ProbedFixtureGreeter {
+        inner: SpawnHang {
+            started: Arc::clone(&started),
+            finished: Arc::clone(&finished),
+            child_done: Arc::clone(&child_done),
+        },
+        probe: Arc::clone(&probe),
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(hang)
@@ -21502,21 +21647,35 @@ async fn unix_spawned_work_stops_when_the_deadline_fires() {
             .await
             .ok();
     });
-    let client = GreeterClient::new(unix_channel(&path).await);
-    assert_deadline_on_every_shape(&client, &started, &finished, &child_done).await;
+    await_fixture_unix_listener(&path).await;
+    let client =
+        GreeterClient::new(drive_frozen_fixture(unix_channel(&path), "Unix connect").await);
+    assert_controlled_deadline_on_every_shape(
+        &client,
+        &probe,
+        &started,
+        &finished,
+        &child_done,
+        Duration::from_millis(20),
+    )
+    .await;
     task.abort();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test(start_paused = true)]
 async fn from_io_spawned_work_stops_when_the_deadline_fires() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
     let child_done = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(FixtureHandlerProbe::default());
     let (client_io, server_io) = duplex_pair();
-    let hang = SpawnHang {
-        started: Arc::clone(&started),
-        finished: Arc::clone(&finished),
-        child_done: Arc::clone(&child_done),
+    let hang = ProbedFixtureGreeter {
+        inner: SpawnHang {
+            started: Arc::clone(&started),
+            finished: Arc::clone(&finished),
+            child_done: Arc::clone(&child_done),
+        },
+        probe: Arc::clone(&probe),
     };
     let server = tokio::spawn(async move {
         GreeterServer::new(hang)
@@ -21526,11 +21685,19 @@ async fn from_io_spawned_work_stops_when_the_deadline_fires() {
             .ok();
     });
     let client = GreeterClient::new(
-        Channel::from_io(client_io, "localhost")
+        drive_frozen_fixture(Channel::from_io(client_io, "localhost"), "from_io connect")
             .await
             .expect("from_io"),
     );
-    assert_deadline_on_every_shape(&client, &started, &finished, &child_done).await;
+    assert_controlled_deadline_on_every_shape(
+        &client,
+        &probe,
+        &started,
+        &finished,
+        &child_done,
+        Duration::from_millis(20),
+    )
+    .await;
     server.abort();
 }
 
