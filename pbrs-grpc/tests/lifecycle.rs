@@ -980,12 +980,19 @@ async fn tls_fault_recovery_replays_recorded_timeout_scenarios() {
     }
 }
 
+#[expect(
+    clippy::disallowed_types,
+    reason = "FaultInjectingStream shares synchronous poll state; fixture guards end before every await"
+)]
+fn new_fault_proxy_state() -> std::sync::Arc<std::sync::Mutex<common::lifecycle::ProxyState>> {
+    std::sync::Arc::new(std::sync::Mutex::new(common::lifecycle::ProxyState::new()))
+}
+
 #[test]
 fn fault_proxy_sniffs_only_accepted_write_bytes() {
-    use common::lifecycle::{FaultInjectingStream, ProxyState};
+    use common::lifecycle::FaultInjectingStream;
     use std::io;
     use std::pin::Pin;
-    use std::sync::{Arc, Mutex};
     use std::task::{Context, Poll, Waker};
     use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
@@ -1022,7 +1029,7 @@ fn fault_proxy_sniffs_only_accepted_write_bytes() {
         }
     }
 
-    let state = Arc::new(Mutex::new(ProxyState::new()));
+    let state = new_fault_proxy_state();
     let mut stream = FaultInjectingStream::new(ShortWriter { pending: true }, state.clone(), true);
     let mut bytes = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n".to_vec();
     bytes.extend_from_slice(&[0, 0, 1, 1, 4, 0, 0, 0, 7, 0x82]);
@@ -1050,14 +1057,13 @@ fn fault_proxy_sniffs_only_accepted_write_bytes() {
 
 #[tokio::test]
 async fn fault_proxy_inserts_reset_between_complete_frames() {
-    use common::lifecycle::{FaultInjectingStream, ProxyState};
-    use std::sync::{Arc, Mutex};
+    use common::lifecycle::FaultInjectingStream;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     // A fragmented header and a fragmented payload must both be completed
     // before inserting RST_STREAM. The following original frame must survive.
     for split in [4, 10] {
-        let state = Arc::new(Mutex::new(ProxyState::new()));
+        let state = new_fault_proxy_state();
         {
             let mut st = state.lock().unwrap();
             st.headers_observed = true;
@@ -1110,11 +1116,10 @@ async fn repeated_tcp_bidi_reset_at_body_started() {
 
 #[tokio::test]
 async fn fault_proxy_finishes_header_block_before_reset() {
-    use common::lifecycle::{FaultInjectingStream, ProxyState};
-    use std::sync::{Arc, Mutex};
+    use common::lifecycle::FaultInjectingStream;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-    let state = Arc::new(Mutex::new(ProxyState::new()));
+    let state = new_fault_proxy_state();
     {
         let mut st = state.lock().unwrap();
         st.headers_observed = true;
@@ -1151,11 +1156,10 @@ async fn fault_proxy_finishes_header_block_before_reset() {
 
 #[tokio::test]
 async fn fault_proxy_opens_server_stream_before_reset() {
-    use common::lifecycle::{FaultInjectingStream, ProxyState};
-    use std::sync::{Arc, Mutex};
+    use common::lifecycle::FaultInjectingStream;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-    let state = Arc::new(Mutex::new(ProxyState::new()));
+    let state = new_fault_proxy_state();
     {
         let mut st = state.lock().unwrap();
         st.headers_observed = true;
@@ -1184,11 +1188,10 @@ async fn fault_proxy_opens_server_stream_before_reset() {
 
 #[tokio::test]
 async fn fault_proxy_preserves_server_connection_preface() {
-    use common::lifecycle::{FaultInjectingStream, ProxyState};
-    use std::sync::{Arc, Mutex};
+    use common::lifecycle::FaultInjectingStream;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-    let state = Arc::new(Mutex::new(ProxyState::new()));
+    let state = new_fault_proxy_state();
     {
         let mut st = state.lock().unwrap();
         st.headers_observed = true;
