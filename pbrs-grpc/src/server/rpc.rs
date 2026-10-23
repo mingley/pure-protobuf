@@ -1285,7 +1285,9 @@ struct InboundRpc {
     deadline: Option<tokio::time::Instant>,
     prefer_gzip: bool,
     limits: MessageLimits,
-    cancel_tx: Arc<super::drain::CancelFlag>,
+    // Own cancellation before the first handler poll, including when the
+    // connection abandons this record before a Prepared response exists.
+    cancel_tx: CancelOnDrop,
 }
 
 impl InboundRpc {
@@ -1369,7 +1371,7 @@ impl InboundRpc {
         let limits = config.limits();
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
         let prefer_gzip = config.compresses_outbound();
-        let cancel_tx = super::drain::CancelFlag::new();
+        let cancel_tx = CancelOnDrop::new(super::drain::CancelFlag::new());
         // The record is 624 bytes. `Box::new` built it on the stack and
         // copied it. Each field is written into the allocation instead.
         #[allow(unsafe_code, reason = "initialize the call record in its allocation")]
@@ -1422,7 +1424,7 @@ impl InboundRpc {
 
     #[inline(always)]
     fn into_prepared<T>(self, outcome: Result<T, Status>) -> Prepared<T> {
-        notify_deadline(&outcome, &self.cancel_tx);
+        notify_deadline(&outcome, self.cancel_tx.flag());
         if matches!(&outcome, Err(status) if status.code() == Code::DeadlineExceeded) {
             if let (Some(obs), Some(labels)) = (&self.observer, &self.owned_labels) {
                 obs.on_cancellation(&CancellationEvent {
@@ -1448,7 +1450,7 @@ impl InboundRpc {
             peer_accepts_deflate: self.peer_accepts_deflate,
             #[cfg(feature = "zstd")]
             peer_accepts_zstd: self.peer_accepts_zstd,
-            cancel: CancelOnDrop::new(self.cancel_tx),
+            cancel: self.cancel_tx,
             path: self.path,
             gzip_level: self.config.gzip_level(),
             timeout: self.timeout,
@@ -1517,8 +1519,8 @@ impl InboundRpc {
         }
         let mut req = self.base_request(framed.message);
         req.set_compressed(framed.compressed);
-        req.set_cancel(Arc::clone(&self.cancel_tx));
-        let on_reset = Arc::clone(&self.cancel_tx);
+        req.set_cancel(Arc::clone(self.cancel_tx.flag()));
+        let on_reset = Arc::clone(self.cancel_tx.flag());
         let handler = handler(req);
         run_handler_fut(self, on_reset, handler).await
     }
@@ -1569,8 +1571,8 @@ impl InboundRpc {
         ))
         .bind_channelz_socket_count_only(self.channelz_socket);
         let mut req = self.base_request(stream);
-        req.set_cancel(Arc::clone(&self.cancel_tx));
-        let on_reset = Arc::clone(&self.cancel_tx);
+        req.set_cancel(Arc::clone(self.cancel_tx.flag()));
+        let on_reset = Arc::clone(self.cancel_tx.flag());
         let timeout = self.timeout;
         let handler = handler(req);
         wrap_timeout(timeout, run_handler_fut(self, on_reset, handler)).await

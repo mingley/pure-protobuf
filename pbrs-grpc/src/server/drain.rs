@@ -40,7 +40,9 @@ pub(crate) struct CancelFlag {
         clippy::disallowed_types,
         reason = "short waker-registry sections; no await under lock and wakers run after unlocking"
     )]
-    waiters: Mutex<Vec<Waker>>,
+    // Slab reuses abandoned registrations in O(1); storage follows peak live
+    // waiters rather than the number of cancelled select branches over time.
+    waiters: Mutex<slab::Slab<Waker>>,
 }
 
 impl CancelFlag {
@@ -58,7 +60,7 @@ impl CancelFlag {
             clippy::disallowed_types,
             reason = "short waker-registry sections; no await under lock and wakers run after unlocking"
         )]
-        let waiters = Mutex::new(Vec::new());
+        let waiters = Mutex::new(slab::Slab::new());
         Arc::new(Self {
             state: AtomicU8::new(0),
             waiters,
@@ -84,7 +86,7 @@ impl CancelFlag {
             Ok(mut waiters) => std::mem::take(&mut *waiters),
             Err(poisoned) => std::mem::take(&mut *poisoned.into_inner()),
         };
-        for waiter in waiters {
+        for (_, waiter) in waiters {
             waiter.wake();
         }
     }
@@ -130,24 +132,44 @@ impl Future for WaitCancel {
                     Ok(waiters) => waiters,
                     Err(poisoned) => poisoned.into_inner(),
                 };
-                if let Some(waiter) = this.slot.and_then(|index| waiters.get_mut(index)) {
+                // No registration can appear after cancellation drains the
+                // slab: stale slot handles must never alias a later waiter.
+                // The shared RMW also closes the first-registration wake race.
+                if flag.state.fetch_or(CancelFlag::ARMED, Ordering::AcqRel) & CancelFlag::CANCELLED
+                    != 0
+                {
+                    Some(replacement)
+                } else if let Some(waiter) = this.slot.and_then(|index| waiters.get_mut(index)) {
                     Some(std::mem::replace(waiter, replacement))
                 } else {
-                    this.slot = Some(waiters.len());
-                    waiters.push(replacement);
+                    this.slot = Some(waiters.insert(replacement));
                     None
                 }
             };
             drop(previous);
         }
-        if flag.state.fetch_or(CancelFlag::ARMED, Ordering::AcqRel) & CancelFlag::CANCELLED != 0 {
-            // A signal that preceded ARMED could not drain this registration.
-            // Release its waker too, including any references back to the flag.
-            flag.wake_waiters();
+        if flag.is_cancelled() {
             Poll::Ready(())
         } else {
             Poll::Pending
         }
+    }
+}
+
+impl Drop for WaitCancel {
+    fn drop(&mut self) {
+        let (Some(flag), Some(index)) = (&self.flag, self.slot.take()) else {
+            return;
+        };
+        let removed = {
+            let mut waiters = match flag.waiters.lock() {
+                Ok(waiters) => waiters,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            waiters.try_remove(index)
+        };
+        // A waker destructor may signal this same flag.
+        drop(removed);
     }
 }
 
@@ -197,16 +219,24 @@ pub(crate) async fn run_handler<T>(
     }
 }
 
-/// Marks [`Request::cancelled`] when this RPC is fully written or rejected.
+/// Owns [`Request::cancelled`] from request setup through the response write.
 ///
-/// Lives until the response is on the wire so a streaming producer spawned
-/// before the handler returns is not cancelled at return — only when the
-/// stream drains, the client resets, or the deadline fires.
+/// Dropping a live handler's owner also signals cancellation. Moving this guard
+/// into the response keeps spawned producers alive after the handler returns,
+/// until the stream drains, the client resets, or the deadline fires.
 pub(crate) struct CancelOnDrop(Option<Arc<CancelFlag>>);
 
 impl CancelOnDrop {
     pub(crate) fn new(flag: Arc<CancelFlag>) -> Self {
         Self(Some(flag))
+    }
+
+    #[expect(
+        clippy::expect_used,
+        reason = "the private guard is constructed live; its flag is only taken inside Drop after its final use"
+    )]
+    pub(crate) fn flag(&self) -> &Arc<CancelFlag> {
+        self.0.as_ref().expect("live cancellation guard")
     }
 }
 
@@ -1002,6 +1032,120 @@ mod cancel_flag_wait_tests {
             Poll::Ready(())
         })
         .await;
+    }
+
+    #[test]
+    fn inbound_owner_abandoned_waiter_churn_releases_wakers_and_slots() {
+        let flag = CancelFlag::new();
+        let count = Arc::new(WakeCount::default());
+        let waker = Waker::from(Arc::clone(&count));
+        for _ in 0..10_000 {
+            let mut waiting = wait_cancel(Some(Arc::clone(&flag)));
+            assert!(
+                Pin::new(&mut waiting)
+                    .poll(&mut Context::from_waker(&waker))
+                    .is_pending()
+            );
+            drop(waiting);
+        }
+        assert_eq!(flag.waiters.lock().expect("waiters").len(), 0);
+        assert_eq!(Arc::strong_count(&count), 2);
+        assert!(flag.waiters.lock().expect("waiters").capacity() <= 4);
+    }
+
+    #[test]
+    fn inbound_owner_reused_slots_preserve_two_active_waiters() {
+        let flag = CancelFlag::new();
+        let first_count = Arc::new(WakeCount::default());
+        let first_waker = Waker::from(Arc::clone(&first_count));
+        let mut first = wait_cancel(Some(Arc::clone(&flag)));
+        assert!(
+            Pin::new(&mut first)
+                .poll(&mut Context::from_waker(&first_waker))
+                .is_pending()
+        );
+        let second_count = Arc::new(WakeCount::default());
+        let second_waker = Waker::from(Arc::clone(&second_count));
+        let mut second = wait_cancel(Some(Arc::clone(&flag)));
+        assert!(
+            Pin::new(&mut second)
+                .poll(&mut Context::from_waker(&second_waker))
+                .is_pending()
+        );
+        for _ in 0..10_000 {
+            let mut abandoned = wait_cancel(Some(Arc::clone(&flag)));
+            assert!(
+                Pin::new(&mut abandoned)
+                    .poll(&mut Context::from_waker(&first_waker))
+                    .is_pending()
+            );
+            drop(abandoned);
+        }
+        assert_eq!(flag.waiters.lock().expect("waiters").len(), 2);
+        assert!(flag.waiters.lock().expect("waiters").capacity() <= 4);
+        flag.signal();
+        assert_eq!(first_count.0.load(Ordering::Relaxed), 1);
+        assert_eq!(second_count.0.load(Ordering::Relaxed), 1);
+        assert!(
+            Pin::new(&mut first)
+                .poll(&mut Context::from_waker(&first_waker))
+                .is_ready()
+        );
+        assert!(
+            Pin::new(&mut second)
+                .poll(&mut Context::from_waker(&second_waker))
+                .is_ready()
+        );
+    }
+
+    #[test]
+    fn inbound_owner_waiter_drop_allows_waker_drop_to_signal() {
+        struct SignalOnDrop(Arc<CancelFlag>);
+        #[expect(
+            clippy::manual_noop_waker,
+            reason = "the custom destructor reenters cancellation; Waker::noop would remove the tested callback"
+        )]
+        impl Wake for SignalOnDrop {
+            fn wake(self: Arc<Self>) {}
+        }
+        impl Drop for SignalOnDrop {
+            fn drop(&mut self) {
+                self.0.signal();
+            }
+        }
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            let flag = CancelFlag::new();
+            let reentrant = Waker::from(Arc::new(SignalOnDrop(Arc::clone(&flag))));
+            let mut abandoned = wait_cancel(Some(Arc::clone(&flag)));
+            assert!(
+                Pin::new(&mut abandoned)
+                    .poll(&mut Context::from_waker(&reentrant))
+                    .is_pending()
+            );
+            drop(reentrant);
+            let count = Arc::new(WakeCount::default());
+            let waker = Waker::from(Arc::clone(&count));
+            let mut active = wait_cancel(Some(Arc::clone(&flag)));
+            assert!(
+                Pin::new(&mut active)
+                    .poll(&mut Context::from_waker(&waker))
+                    .is_pending()
+            );
+            drop(abandoned);
+            assert!(flag.is_cancelled());
+            assert_eq!(count.0.load(Ordering::Relaxed), 1);
+            assert!(
+                Pin::new(&mut active)
+                    .poll(&mut Context::from_waker(&waker))
+                    .is_ready()
+            );
+            done_tx.send(()).expect("observer alive");
+        });
+        done_rx
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .expect("dropping a waiter failed to release its reentrant waker");
+        worker.join().expect("waiter drop worker panicked");
     }
 
     #[test]

@@ -30,6 +30,173 @@ use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 
+#[derive(Default)]
+struct InboundOwnerProbe {
+    admitted: tokio::sync::Notify,
+    dropped: tokio::sync::Notify,
+    child_cancelled: tokio::sync::Notify,
+}
+
+struct InboundOwnerHandler(std::sync::Arc<InboundOwnerProbe>);
+
+impl std::future::Future for InboundOwnerHandler {
+    type Output = ();
+
+    fn poll(
+        self: std::pin::Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<()> {
+        std::task::Poll::Pending
+    }
+}
+
+impl Drop for InboundOwnerHandler {
+    fn drop(&mut self) {
+        self.0.dropped.notify_one();
+    }
+}
+
+struct InboundOwnerService(std::sync::Arc<InboundOwnerProbe>);
+
+impl InboundOwnerService {
+    async fn pending<T, R>(&self, request: Request<T>) -> Result<pbrs_grpc::Response<R>, Status> {
+        let cancelled = request.cancelled();
+        let probe = std::sync::Arc::clone(&self.0);
+        drop(tokio::spawn(async move {
+            cancelled.await;
+            probe.child_cancelled.notify_one();
+        }));
+        let handler = InboundOwnerHandler(std::sync::Arc::clone(&self.0));
+        self.0.admitted.notify_one();
+        handler.await;
+        Err(Status::internal("pending handler returned"))
+    }
+}
+
+impl pbrs_grpc::Greeter for InboundOwnerService {
+    async fn say_hello(
+        &self,
+        request: Request<pbrs_grpc::HelloRequest>,
+    ) -> Result<pbrs_grpc::Response<pbrs_grpc::HelloReply>, Status> {
+        self.pending(request).await
+    }
+
+    async fn server_hello(
+        &self,
+        request: Request<pbrs_grpc::HelloRequest>,
+    ) -> Result<pbrs_grpc::Response<pbrs_grpc::Streaming<pbrs_grpc::HelloReply>>, Status> {
+        self.pending(request).await
+    }
+
+    async fn client_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<pbrs_grpc::HelloRequest>>,
+    ) -> Result<pbrs_grpc::Response<pbrs_grpc::HelloReply>, Status> {
+        self.pending(request).await
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<pbrs_grpc::HelloRequest>>,
+    ) -> Result<pbrs_grpc::Response<pbrs_grpc::Streaming<pbrs_grpc::HelloReply>>, Status> {
+        self.pending(request).await
+    }
+}
+
+async fn inbound_owner_ends_cancel_spawned_work(method: &str, force_age: bool) {
+    let probe = std::sync::Arc::new(InboundOwnerProbe::default());
+    let service = InboundOwnerService(std::sync::Arc::clone(&probe));
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move {
+        let (socket, _) = listener.accept().await.unwrap();
+        let service = GreeterServer::new(service);
+        let service = if force_age {
+            service
+                .max_connection_age(Duration::from_millis(500))
+                .max_connection_age_grace(Duration::from_millis(10))
+        } else {
+            service
+        };
+        service.serve_connection(socket).await
+    });
+    // An independent h2 peer retains both stream halves throughout the server
+    // event: no client handle drop or local cancellation can satisfy this test.
+    let socket = tokio::net::TcpStream::connect(address).await.unwrap();
+    let (mut requests, connection) = h2::client::handshake(socket).await.unwrap();
+    let peer = tokio::spawn(connection);
+    let request = http::Request::builder()
+        .method(http::Method::POST)
+        .uri(format!("http://{address}/helloworld.Greeter/{method}"))
+        .header("content-type", "application/grpc")
+        .header("te", "trailers")
+        .body(())
+        .unwrap();
+    let (response, mut upload) = requests.send_request(request, false).unwrap();
+    upload
+        .send_data(
+            bytes::Bytes::from_static(&[0, 0, 0, 0, 0]),
+            matches!(method, "SayHello" | "ServerHello"),
+        )
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(3), probe.admitted.notified())
+        .await
+        .expect("handler never admitted");
+    if force_age {
+        tokio::time::timeout(Duration::from_secs(3), server)
+            .await
+            .expect("connection age failed to close the server connection")
+            .expect("server connection panicked")
+            .expect("server connection failed");
+    } else {
+        server.abort();
+        assert!(server.await.unwrap_err().is_cancelled());
+    }
+    tokio::time::timeout(Duration::from_secs(3), probe.dropped.notified())
+        .await
+        .expect("server owner did not destroy the admitted handler");
+    tokio::time::timeout(Duration::from_secs(3), probe.child_cancelled.notified())
+        .await
+        .expect("server owner dropped the handler without signaling Request::cancelled");
+    drop((response, upload, requests));
+    peer.abort();
+}
+
+macro_rules! inbound_owner_cases {
+    ($abort:ident, $age:ident, $method:literal) => {
+        #[tokio::test]
+        async fn $abort() {
+            inbound_owner_ends_cancel_spawned_work($method, false).await;
+        }
+
+        #[tokio::test]
+        async fn $age() {
+            inbound_owner_ends_cancel_spawned_work($method, true).await;
+        }
+    };
+}
+
+inbound_owner_cases!(
+    inbound_owner_abort_unary,
+    inbound_owner_age_unary,
+    "SayHello"
+);
+inbound_owner_cases!(
+    inbound_owner_abort_server_stream,
+    inbound_owner_age_server_stream,
+    "ServerHello"
+);
+inbound_owner_cases!(
+    inbound_owner_abort_client_stream,
+    inbound_owner_age_client_stream,
+    "ClientHello"
+);
+inbound_owner_cases!(
+    inbound_owner_abort_bidi,
+    inbound_owner_age_bidi,
+    "StreamHello"
+);
+
 #[tokio::test]
 async fn pr_suite_fast_cycles() {
     // 48 curated deterministic scenarios spanning all 4 shapes, 5 transports,
