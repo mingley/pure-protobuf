@@ -6,7 +6,7 @@
 //! boundaries so handlers still work with their prost-build message types.
 
 use crate::{CodecMessage, Framed, MessageLimits, Status, StreamSender as NativeSender};
-use bytes::Bytes;
+use bytes::{Buf, Bytes};
 use futures_core::Stream as FuturesStream;
 use prost::Message as ProstMessage;
 use std::pin::Pin;
@@ -15,6 +15,39 @@ use std::task::{Context, Poll};
 /// A prost message carried over the native pbrs-grpc transport.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Message<T>(pub T);
+
+// Bytes::copy_to_bytes moves the backing allocation out when the requested
+// range is the entire remaining input. Prost uses it even for owned Vec fields,
+// then copies and drops that temporary. Keep an exhausted owner in the cursor
+// so the transport can reclaim it after decoding. Partial splits keep Bytes'
+// existing behavior; there is no unconditional keeper clone per message.
+struct DecodeCursor<'a>(&'a mut Bytes);
+
+impl Buf for DecodeCursor<'_> {
+    fn remaining(&self) -> usize {
+        self.0.len()
+    }
+
+    fn chunk(&self) -> &[u8] {
+        self.0.chunk()
+    }
+
+    fn advance(&mut self, count: usize) {
+        self.0.advance(count);
+    }
+
+    fn copy_to_bytes(&mut self, count: usize) -> Bytes {
+        if count == 0 {
+            Bytes::new()
+        } else if count == self.0.len() {
+            let bytes = self.0.clone();
+            self.0.advance(count);
+            bytes
+        } else {
+            self.0.split_to(count)
+        }
+    }
+}
 
 impl<T> Message<T> {
     /// Wrap a prost message for transport.
@@ -63,6 +96,12 @@ where
 
     fn decode_payload(payload: Bytes) -> Result<Self, Status> {
         T::decode(payload)
+            .map(Self)
+            .map_err(|e| Status::internal(e.to_string()))
+    }
+
+    fn decode_payload_reusable(payload: &mut Bytes) -> Result<Self, Status> {
+        T::decode(DecodeCursor(payload))
             .map(Self)
             .map_err(|e| Status::internal(e.to_string()))
     }
@@ -255,5 +294,111 @@ mod tests {
         let mut direct = Vec::new();
         msg.encode_payload(&mut direct).expect("direct");
         assert_eq!(direct, buffered);
+    }
+
+    #[test]
+    fn reusable_decode_preserves_owned_and_shared_field_semantics() {
+        #[derive(Clone, PartialEq, prost::Message)]
+        struct LastBytes {
+            #[prost(bytes = "vec", tag = "1")]
+            payload: Vec<u8>,
+        }
+
+        #[derive(Clone, PartialEq, prost::Message)]
+        struct Nested {
+            #[prost(message, optional, tag = "1")]
+            value: Option<LastBytes>,
+        }
+
+        #[derive(Clone, PartialEq, prost::Message)]
+        struct SharedLast {
+            #[prost(bytes = "bytes", tag = "1")]
+            payload: Bytes,
+        }
+
+        #[derive(Clone, PartialEq, prost::Message)]
+        struct Shared {
+            #[prost(bytes = "bytes", tag = "1")]
+            payload: Bytes,
+            #[prost(int32, tag = "2")]
+            n: i32,
+        }
+
+        let expected = Sample {
+            payload: vec![0x71; 64 * 1024],
+            n: -19,
+        };
+        let encoded = expected.encode_to_vec();
+        let mut owned_input = Bytes::from(encoded.clone());
+        let owned = Message::<Sample>::decode_payload_reusable(&mut owned_input).expect("owned");
+        assert_eq!(owned.0, expected);
+        assert!(owned_input.is_empty());
+        assert!(
+            owned_input.try_into_mut().is_ok(),
+            "owned fields release input"
+        );
+
+        let last = LastBytes {
+            payload: expected.payload.clone(),
+        };
+        let mut last_input = Bytes::from(last.encode_to_vec());
+        let actual =
+            Message::<LastBytes>::decode_payload_reusable(&mut last_input).expect("last field");
+        assert_eq!(actual.0, last);
+        assert!(last_input.is_empty());
+        assert!(
+            last_input.try_into_mut().is_ok(),
+            "last bytes field preserves the owner"
+        );
+
+        let nested = Nested {
+            value: Some(last.clone()),
+        };
+        let mut nested_input = Bytes::from(nested.encode_to_vec());
+        let actual = Message::<Nested>::decode_payload_reusable(&mut nested_input)
+            .expect("nested last field");
+        assert_eq!(actual.0, nested);
+        assert!(nested_input.is_empty());
+        assert!(nested_input.try_into_mut().is_ok());
+
+        let mut shared_last_input = Bytes::from(last.encode_to_vec());
+        let actual = Message::<SharedLast>::decode_payload_reusable(&mut shared_last_input)
+            .expect("shared last field");
+        assert_eq!(actual.0.payload.as_ref(), last.payload);
+        assert!(shared_last_input.is_empty());
+        assert!(shared_last_input.try_into_mut().is_err());
+
+        let mut empty = Bytes::new();
+        assert_eq!(
+            Message::<LastBytes>::decode_payload_reusable(&mut empty)
+                .expect("empty payload")
+                .0,
+            LastBytes::default()
+        );
+        let mut truncated_last = last.encode_to_vec();
+        truncated_last.pop();
+        let mut truncated_last = Bytes::from(truncated_last);
+        let ordinary = Message::<LastBytes>::decode_payload(truncated_last.clone()).unwrap_err();
+        let reusable =
+            Message::<LastBytes>::decode_payload_reusable(&mut truncated_last).unwrap_err();
+        assert_eq!(ordinary.code(), reusable.code());
+        assert_eq!(ordinary.message(), reusable.message());
+
+        let mut shared_input = Bytes::from(encoded.clone());
+        let shared = Message::<Shared>::decode_payload_reusable(&mut shared_input).expect("shared");
+        assert!(shared_input.is_empty());
+        assert!(
+            shared_input.try_into_mut().is_err(),
+            "shared field owns backing"
+        );
+        assert_eq!(shared.0.payload.as_ref(), expected.payload);
+        assert_eq!(shared.0.n, expected.n);
+
+        let mut truncated = Bytes::from(encoded[..encoded.len() - 1].to_vec());
+        let ordinary_error = Message::<Sample>::decode_payload(truncated.clone()).unwrap_err();
+        let reusable_error =
+            Message::<Sample>::decode_payload_reusable(&mut truncated).unwrap_err();
+        assert_eq!(reusable_error.code(), ordinary_error.code());
+        assert_eq!(reusable_error.message(), ordinary_error.message());
     }
 }

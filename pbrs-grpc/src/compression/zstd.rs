@@ -44,13 +44,27 @@ pub(super) fn decode(payload: &[u8]) -> Result<Vec<u8>, Status> {
 /// Decode all RFC 8878 standard and skippable frames under one message cap.
 /// Each standard frame independently validates its window, length and checksum.
 pub(super) fn decode_limited(payload: &[u8], limits: MessageLimits) -> Result<Vec<u8>, Status> {
+    decode_limited_into(payload, limits, Vec::new())
+}
+
+pub(super) fn decode_limited_into(
+    payload: &[u8],
+    limits: MessageLimits,
+    out: Vec<u8>,
+) -> Result<Vec<u8>, Status> {
     if limits.max_compression_frames() == Some(0) {
         return Err(Status::resource_exhausted(
             "zstd frame count exceeds limit 0",
         ));
     }
     let mut decoder = ZstdFrames::new(payload, limits);
-    let result = super::read_bounded(&mut decoder, limits.inflate_budget(), payload.len(), "zstd");
+    let result = super::read_bounded_into(
+        &mut decoder,
+        limits.inflate_budget(),
+        payload.len(),
+        "zstd",
+        out,
+    );
     if let Some(status) = decoder.failure.take() {
         return Err(status);
     }

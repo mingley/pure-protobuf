@@ -361,6 +361,8 @@ mod transport;
 mod h2_backend;
 #[forbid(unsafe_code)]
 mod wire;
+#[forbid(unsafe_code)]
+mod workspace;
 
 /// Re-exports that `protoc-gen-pbrs` stubs name explicitly.
 ///

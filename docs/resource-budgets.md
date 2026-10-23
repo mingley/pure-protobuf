@@ -59,6 +59,7 @@ owner, limit and release point.
 | **Uncompressed Header Block** | Transport (HPACK decoder) | Up to 16 KiB per RPC | `ServerConfig::max_header_list_size` (`DEFAULT_MAX_HEADER_LIST_SIZE`) | Freed after header parse |
 | **Inbound Frame Carry Buffer** | Transport (`wire::FrameReader`) | Up to 4 MiB (chunk-straddling) | `MessageLimits::max_decoding` (`DEFAULT_MAX_DECODING_MESSAGE_SIZE`) | Freed on frame yield |
 | **Decompression Expansion Buffer** | Transport (`compression::read_bounded`) | Output reservation up to the decoding cap, plus an 8 KiB stack chunk and decoder state | `MessageLimits::inflate_budget` (`limits.max_decoding()`) | Output may be retained by the decoded message |
+| **Idle Decoded Buffer Cache** | Transport, shared across the process | At most 4 MiB per inbound stream and 16 MiB in total | Fixed internal capacity policy, separate from transport-byte permits | Reused by the next compressed message; released on observed EOF, error, cancellation, deadline or stream drop |
 | **Zstd History Window** | Optional Zstd decoder | 8 MiB default logical window cap, plus capacity/block/decoder overhead | `MessageLimits::with_max_zstd_window`; independent of output and frame-count caps | Scratch is reused within a message and released afterward |
 | **Compressed Member/Frame Setup** | Compression decoder | At most 1,024 admissions per message by default | `MessageLimits::with_max_compression_frames`; includes empty gzip members and Zstd skippable frames | Count resets for each gRPC message |
 | **Outbound Frame Serialization** | Transport (`wire::frame_from_msg`) | Serialized payload length | `MessageLimits::max_encoding` / application message size | Dropped after wire enqueue |
@@ -68,6 +69,19 @@ owner, limit and release point.
 | **Streaming Channel Queue** | Transport / Application (`mpsc::channel`) | `buffer` $\times$ message size | `Streaming::channel(buffer)`, `ChannelConfig::stream_buffer` | Dropped as consumer reads |
 | **Deserialized Message Struct** | Application (`T: Parse + Default`) | Domain dependent | Rust allocator / struct lifetime | Dropped by application handler |
 | **Retained Backing Buffers** | Application (`bytes::Bytes`) | Original chunk size | Application holding sub-slice of transport `Bytes` | Dropped when last `Bytes` clone drops |
+
+Compressed streams can retain decoded storage only after successful decoding,
+when the codec has consumed the input and its backing allocation has one owner.
+The Prost adapter supports this for owned fields. Messages that retain shared
+`Bytes`, including the default pbrs decoding path, keep their existing ownership
+behavior. Unary and uncompressed decoding do not populate this cache.
+
+Cache admission charges the allocation's full capacity. A full cache or a buffer
+above 4 MiB simply disables retention for that message. These limits cover idle
+storage between messages; active decoding, codec state and application messages
+remain separate costs. Reusing a larger allocation does not raise the next
+message's decoded-byte limit. Cancellation through a separate call handle
+releases cached storage when the reader observes it or the stream is dropped.
 
 Outbound gRPC messages can be larger than the configured HTTP/2 send buffer or
 the peer's stream window. `wire::send_bytes` queues small frames directly when

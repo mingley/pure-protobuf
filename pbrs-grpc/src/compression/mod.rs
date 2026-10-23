@@ -34,12 +34,26 @@ use crate::status::Status;
 /// the bytes it produced; full chunks retain geometric growth for large output.
 /// The buffered compressed length is an initial hint capped at 256 KiB. Neither
 /// gzip trailers nor other untrusted decoded-size fields drive reservations.
+#[cfg(test)]
 fn read_bounded(
-    mut decoder: impl std::io::Read,
+    decoder: impl std::io::Read,
     budget: usize,
     compressed_length: usize,
     coding: &str,
 ) -> Result<Vec<u8>, Status> {
+    read_bounded_into(decoder, budget, compressed_length, coding, Vec::new())
+}
+
+/// Reuse an exclusively owned output allocation. Existing spare capacity does
+/// not increase the decoded-byte allowance or drive a new reservation.
+fn read_bounded_into(
+    mut decoder: impl std::io::Read,
+    budget: usize,
+    compressed_length: usize,
+    coding: &str,
+    mut out: Vec<u8>,
+) -> Result<Vec<u8>, Status> {
+    out.clear();
     fn read_retry(
         decoder: &mut impl std::io::Read,
         target: &mut [u8],
@@ -75,6 +89,9 @@ fn read_bounded(
         Ok((used, false))
     }
     fn reserve(out: &mut Vec<u8>, capacity: usize, budget: usize) -> Result<(), Status> {
+        if capacity <= out.capacity() {
+            return Ok(());
+        }
         out.try_reserve_exact(capacity - out.len())
             .map_err(|_| Status::resource_exhausted("decompressed message allocation failed"))?;
         if out.capacity() > budget {
@@ -96,13 +113,14 @@ fn read_bounded(
         return Err(exceeded());
     }
     if n == 0 {
-        return Ok(Vec::new());
+        return Ok(out);
     }
-    let mut out = Vec::new();
     let capacity = if eof {
         n
     } else {
-        n.max(compressed_length.min(256 * 1024)).min(budget)
+        n.max(compressed_length.min(256 * 1024))
+            .max(out.capacity())
+            .min(budget)
     };
     reserve(&mut out, capacity, budget)?;
     out.extend_from_slice(
@@ -349,11 +367,21 @@ impl CompressionAlgorithm {
 
     /// Inflate `payload`, refusing to allocate past the inbound cap.
     pub fn decode_limited(self, payload: &[u8], limits: MessageLimits) -> Result<Vec<u8>, Status> {
+        self.decode_limited_into(payload, limits, Vec::new())
+    }
+
+    /// Decode into a previously reclaimed, exclusively owned allocation.
+    pub(crate) fn decode_limited_into(
+        self,
+        payload: &[u8],
+        limits: MessageLimits,
+        out: Vec<u8>,
+    ) -> Result<Vec<u8>, Status> {
         match self {
-            Self::Gzip => gzip::decode_limited(payload, limits),
-            Self::Deflate => deflate::decode_limited(payload, limits),
+            Self::Gzip => gzip::decode_limited_into(payload, limits, out),
+            Self::Deflate => deflate::decode_limited_into(payload, limits, out),
             #[cfg(feature = "zstd")]
-            Self::Zstd => zstd::decode_limited(payload, limits),
+            Self::Zstd => zstd::decode_limited_into(payload, limits, out),
         }
     }
 }
@@ -398,6 +426,68 @@ mod tests {
             return Err(Code::Internal);
         }
         Ok(out)
+    }
+
+    #[test]
+    fn reused_output_preserves_decode_limits_and_complete_input_validation() {
+        for codec in codecs() {
+            for length in [0, 1, 8192, 8193, 65539] {
+                let payload = vec![7; length];
+                let encoded = codec.encode(&payload).expect("encode");
+                let mut truncated = encoded.clone();
+                truncated.pop();
+                let mut trailing = encoded.clone();
+                trailing.extend_from_slice(b"invalid trailing data");
+                let mut corrupt = encoded.clone();
+                if let Some(last) = corrupt.last_mut() {
+                    *last ^= 0xff;
+                }
+                for bytes in [&encoded, &truncated, &trailing, &corrupt] {
+                    for budget in [0, length.saturating_sub(1), length, length + 1] {
+                        let limits = MessageLimits::unlimited().with_max_decoding(budget);
+                        let fresh = codec.decode_limited(bytes, limits).map_err(|e| e.code());
+                        let reused = codec
+                            .decode_limited_into(bytes, limits, Vec::with_capacity(131072))
+                            .map_err(|e| e.code());
+                        assert_eq!(reused, fresh, "{codec:?}, length {length}, budget {budget}");
+                    }
+                }
+                assert_eq!(
+                    codec
+                        .decode_limited_into(
+                            &encoded,
+                            MessageLimits::unlimited().with_max_compression_frames(0),
+                            Vec::with_capacity(131072),
+                        )
+                        .expect_err("frame count applies to reused output")
+                        .code(),
+                    Code::ResourceExhausted
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn reused_large_output_handles_smaller_allowances_without_reallocation() {
+        for codec in codecs() {
+            let mut output = Vec::with_capacity(131072);
+            let pointer = output.as_ptr();
+            let capacity = output.capacity();
+            for length in [65539, 1, 8193, 0, 8192, 65539] {
+                let payload = vec![7; length];
+                let encoded = codec.encode(&payload).expect("encode");
+                output = codec
+                    .decode_limited_into(
+                        &encoded,
+                        MessageLimits::unlimited().with_max_decoding(length),
+                        output,
+                    )
+                    .expect("decode with retained allocation larger than allowance");
+                assert_eq!(output, payload);
+                assert_eq!(output.as_ptr(), pointer, "{codec:?}, length {length}");
+                assert_eq!(output.capacity(), capacity);
+            }
+        }
     }
 
     #[test]

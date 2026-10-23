@@ -12,6 +12,7 @@ use crate::metadata::{self, Metadata};
 use crate::status::{Code, Status, parse_pushback_value};
 use crate::stream::{Framed, Streaming};
 use crate::transport::{Error as TransportError, RecvStream, h2 as backend};
+use crate::workspace::RetainedDecodeLease;
 use bytes::{Bytes, BytesMut};
 use futures_util::future::Either;
 use http::{HeaderMap, StatusCode};
@@ -252,6 +253,80 @@ pub(crate) fn decode_frame<T: CodecMessage>(
     })
 }
 
+/// A retained allocation is charged only while idle between messages. Fields
+/// drop in this order, so the allocation is freed before its lease is released.
+struct DecodedWorkspace {
+    buffer: Vec<u8>,
+    lease: Option<RetainedDecodeLease>,
+}
+
+impl DecodedWorkspace {
+    fn take_buffer(&mut self) -> Vec<u8> {
+        let buffer = std::mem::take(&mut self.buffer);
+        // The allocation is now active decode memory, governed by message
+        // limits. The retention budget applies again only after validation.
+        self.lease = None;
+        buffer
+    }
+}
+
+fn decode_stream_frame<T: CodecMessage>(
+    frame: Frame,
+    limits: MessageLimits,
+    accept_gzip: bool,
+    codec: Option<CompressionAlgorithm>,
+    workspace: &mut Option<Box<DecodedWorkspace>>,
+) -> Result<Framed<T>, Status> {
+    if !frame.compressed {
+        return decode_frame(frame, limits, accept_gzip, codec);
+    }
+    let result = (|| {
+        let codec = codec.ok_or_else(|| {
+            Status::internal("compressed-flag set without a non-identity grpc-encoding")
+        })?;
+        if !accept_gzip {
+            return Err(encoding_not_supported(false));
+        }
+        let output = workspace
+            .as_mut()
+            .map_or_else(Vec::new, |workspace| workspace.take_buffer());
+        let raw = codec.decode_limited_into(&frame.payload, limits, output)?;
+        let mut payload = Bytes::from(raw);
+        let message = T::decode_payload_reusable(&mut payload)?;
+        // A codec may move, split or retain its input. Reclaim only a fully
+        // consumed cursor whose backing allocation is still exclusively ours.
+        let retained = payload
+            .is_empty()
+            .then(|| payload.try_into_mut().ok())
+            .flatten()
+            .map(Vec::from)
+            .and_then(|buffer| {
+                RetainedDecodeLease::try_acquire(buffer.capacity()).map(|lease| (buffer, lease))
+            });
+        if let Some((buffer, lease)) = retained {
+            if let Some(workspace) = workspace {
+                workspace.buffer = buffer;
+                workspace.lease = Some(lease);
+            } else {
+                *workspace = Some(Box::new(DecodedWorkspace {
+                    buffer,
+                    lease: Some(lease),
+                }));
+            }
+        } else {
+            *workspace = None;
+        }
+        Ok(Framed {
+            message,
+            compressed: true,
+        })
+    })();
+    if result.is_err() {
+        *workspace = None;
+    }
+    result
+}
+
 /// Read the single message of a unary request or response.
 ///
 /// An empty body decodes to `T::default()`, matching gRPC's treatment of a
@@ -303,8 +378,13 @@ pub(crate) async fn read_trailers(
     recv.trailers().await.map_err(h2_error)
 }
 
-type DecodeFrame<T> =
-    fn(Frame, MessageLimits, bool, Option<CompressionAlgorithm>) -> Result<Framed<T>, Status>;
+type DecodeFrame<T> = fn(
+    Frame,
+    MessageLimits,
+    bool,
+    Option<CompressionAlgorithm>,
+    &mut Option<Box<DecodedWorkspace>>,
+) -> Result<Framed<T>, Status>;
 
 /// An inbound message stream, decoded straight off its HTTP/2 stream.
 ///
@@ -319,6 +399,8 @@ pub(crate) struct WireStream<T> {
     /// Bound at construction, where `T: CodecMessage` is known, so the public
     /// [`Streaming`] type needs no `Parse` bound of its own.
     decode: DecodeFrame<T>,
+    /// Allocated only after a codec actually relinquishes a reusable buffer.
+    workspace: Option<Box<DecodedWorkspace>>,
     accept_gzip: bool,
     codec: Option<CompressionAlgorithm>,
     /// When the RPC's deadline expires. A deadline has to reach the reads, not
@@ -348,7 +430,8 @@ impl<T: CodecMessage> WireStream<T> {
             recv,
             reader: FrameReader::new(limits),
             limits,
-            decode: decode_frame::<T>,
+            decode: decode_stream_frame::<T>,
+            workspace: None,
             accept_gzip,
             codec,
             deadline,
@@ -366,6 +449,11 @@ impl<T> WireStream<T> {
     fn requiring_response_status(mut self, required: bool) -> Self {
         self.require_response_status = required;
         self
+    }
+
+    /// Release retained decode memory even if a terminal stream stays alive.
+    pub(crate) fn release_workspace(&mut self) {
+        self.workspace = None;
     }
 
     /// Whether DATA and trailers have both been consumed, so a Drop must
@@ -401,15 +489,21 @@ impl<T> WireStream<T> {
     ) -> Poll<Result<Option<Framed<T>>, Status>> {
         if let Some(at) = self.deadline {
             if tokio::time::Instant::now() >= at {
+                self.release_workspace();
                 return Poll::Ready(Err(Status::deadline_exceeded()));
             }
             if let Some(sleep) = &mut self.sleep {
                 if sleep.as_mut().poll(cx).is_ready() {
+                    self.release_workspace();
                     return Poll::Ready(Err(Status::deadline_exceeded()));
                 }
             }
         }
-        match self.poll_next_inner(cx) {
+        let result = self.poll_next_inner(cx);
+        if matches!(result, Poll::Ready(Err(_)) | Poll::Ready(Ok(None))) {
+            self.release_workspace();
+        }
+        match result {
             Poll::Ready(Err(status))
                 if matches!(status.code(), Code::Unavailable | Code::Cancelled)
                     && self
@@ -431,7 +525,14 @@ impl<T> WireStream<T> {
                         tap.log_read(&frame.payload);
                     }
                     return Poll::Ready(
-                        (self.decode)(frame, self.limits, self.accept_gzip, self.codec).map(Some),
+                        (self.decode)(
+                            frame,
+                            self.limits,
+                            self.accept_gzip,
+                            self.codec,
+                            &mut self.workspace,
+                        )
+                        .map(Some),
                     );
                 }
                 Ok(None) => {}
@@ -460,6 +561,7 @@ impl<T> WireStream<T> {
                 }
                 Poll::Ready(Ok(None)) => {
                     self.ended = true;
+                    self.release_workspace();
                     if !self.require_response_status {
                         if let Err(e) = self.reader.finish() {
                             return Poll::Ready(Err(e));
@@ -860,6 +962,182 @@ mod tests {
 
         fn empty() -> Self {
             Self(Bytes::new())
+        }
+    }
+
+    #[derive(Debug, PartialEq, Eq)]
+    struct OwnedMessage(Vec<u8>);
+
+    impl CodecMessage for OwnedMessage {
+        fn encoded_len(&self) -> usize {
+            self.0.len()
+        }
+
+        fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status> {
+            out.put_slice(&self.0);
+            Ok(())
+        }
+
+        fn decode_payload(payload: Bytes) -> Result<Self, Status> {
+            Ok(Self(payload.to_vec()))
+        }
+
+        fn decode_payload_reusable(payload: &mut Bytes) -> Result<Self, Status> {
+            use bytes::Buf;
+            let message = Self(payload.to_vec());
+            payload.advance(payload.len());
+            Ok(message)
+        }
+
+        fn empty() -> Self {
+            Self(Vec::new())
+        }
+    }
+
+    fn compressed(payload: &[u8]) -> Frame {
+        Frame {
+            compressed: true,
+            payload: CompressionAlgorithm::Gzip
+                .encode(payload)
+                .expect("gzip")
+                .into(),
+        }
+    }
+
+    #[test]
+    fn owned_stream_decode_reuses_the_allocation_and_discards_it_on_error() {
+        let limits = MessageLimits::unlimited().with_max_decoding(131072);
+        let mut workspace = None;
+        let first = vec![7; 65539];
+        assert_eq!(
+            decode_stream_frame::<OwnedMessage>(
+                compressed(&first),
+                limits,
+                true,
+                Some(CompressionAlgorithm::Gzip),
+                &mut workspace,
+            )
+            .expect("owned decode")
+            .message
+            .0,
+            first
+        );
+        let retained = workspace
+            .as_ref()
+            .expect("uniquely owned decode output is retained");
+        let pointer = retained.buffer.as_ptr();
+        let capacity = retained.buffer.capacity();
+        for length in [1, 8193, 0, 65539] {
+            let next = vec![9; length];
+            assert_eq!(
+                decode_stream_frame::<OwnedMessage>(
+                    compressed(&next),
+                    MessageLimits::unlimited().with_max_decoding(length),
+                    true,
+                    Some(CompressionAlgorithm::Gzip),
+                    &mut workspace,
+                )
+                .expect("decode with smaller allowance")
+                .message
+                .0,
+                next
+            );
+            let retained = workspace.as_ref().expect("same allocation retained");
+            assert_eq!(retained.buffer.as_ptr(), pointer);
+            assert_eq!(retained.buffer.capacity(), capacity);
+        }
+        let mut bad = compressed(&first);
+        let mut payload = bad.payload.to_vec();
+        payload.pop();
+        bad.payload = payload.into();
+        assert_eq!(
+            decode_stream_frame::<OwnedMessage>(
+                bad,
+                limits,
+                true,
+                Some(CompressionAlgorithm::Gzip),
+                &mut workspace,
+            )
+            .expect_err("truncated checksum after a warm cache")
+            .code(),
+            Code::Internal
+        );
+        assert!(workspace.is_none());
+    }
+
+    #[test]
+    fn retained_input_and_uncompressed_messages_do_not_create_a_workspace() {
+        let limits = MessageLimits::default();
+        let mut workspace = None;
+        let first = decode_stream_frame::<RawMessage>(
+            compressed(&vec![7; 65539]),
+            limits,
+            true,
+            Some(CompressionAlgorithm::Gzip),
+            &mut workspace,
+        )
+        .expect("retained input")
+        .message;
+        let pointer = first.0.as_ptr();
+        assert!(
+            workspace.is_none(),
+            "default codecs retain the original ownership behavior"
+        );
+        let second = decode_stream_frame::<RawMessage>(
+            compressed(&vec![9; 65539]),
+            limits,
+            true,
+            Some(CompressionAlgorithm::Gzip),
+            &mut workspace,
+        )
+        .expect("later message")
+        .message;
+        assert!(workspace.is_none());
+        assert_eq!(first.0.as_ptr(), pointer);
+        assert_eq!(first.0.as_ref(), vec![7; 65539]);
+        assert_eq!(second.0.as_ref(), vec![9; 65539]);
+        let frame = Frame {
+            compressed: false,
+            payload: Bytes::from_static(b"plain"),
+        };
+        assert_eq!(
+            decode_stream_frame::<OwnedMessage>(
+                frame,
+                limits,
+                true,
+                Some(CompressionAlgorithm::Gzip),
+                &mut workspace,
+            )
+            .expect("uncompressed decode")
+            .message
+            .0,
+            b"plain"
+        );
+        assert!(workspace.is_none());
+    }
+
+    #[test]
+    fn consumed_unique_bytes_recover_the_entire_original_allocation() {
+        use bytes::Buf;
+
+        // Cover both Bytes representations: exact-size boxed storage and a
+        // Vec with spare capacity. No owner is dropped between conversions.
+        for capacity in [65539, 131072] {
+            let mut original = Vec::with_capacity(capacity);
+            original.resize(65539, 7);
+            let pointer = original.as_ptr();
+            let capacity = original.capacity();
+            let mut payload = Bytes::from(original);
+            let length = payload.len();
+            payload.advance(length);
+            assert!(payload.is_empty());
+            let recovered: Vec<u8> = payload
+                .try_into_mut()
+                .expect("the consumed cursor still uniquely owns the allocation")
+                .into();
+            assert!(recovered.is_empty());
+            assert_eq!(recovered.as_ptr(), pointer);
+            assert_eq!(recovered.capacity(), capacity);
         }
     }
 

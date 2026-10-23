@@ -23,6 +23,19 @@
 //! library task spawn expressions. It does not count wakeups, channel sends,
 //! context switches, application tasks, or task completion.
 
+#[cfg(feature = "copy-counts")]
+pub use crate::workspace::RetainedDecodeCounts;
+
+/// Read the process-wide idle decoded-buffer reservations and capacity gauges.
+///
+/// These lifetime counters have no reset operation. Fields are sampled
+/// separately; acknowledge producer completion before comparing intervals.
+/// They exclude active decode output, application messages and codec state.
+#[cfg(feature = "copy-counts")]
+pub fn retained_decode_counts() -> RetainedDecodeCounts {
+    crate::workspace::retained_decode_counts()
+}
+
 /// Process-wide counts of named library task spawn expressions (RX-10a).
 ///
 /// Available only with the bench-only `copy-counts` feature. Connection setup

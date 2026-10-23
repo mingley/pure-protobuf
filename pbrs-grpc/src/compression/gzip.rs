@@ -155,9 +155,23 @@ pub fn decode(payload: &[u8]) -> Result<Vec<u8>, Status> {
 /// reported against the cap rather than the true inflated size, because
 /// learning the true size is exactly the work being refused.
 pub fn decode_limited(payload: &[u8], limits: MessageLimits) -> Result<Vec<u8>, Status> {
+    decode_limited_into(payload, limits, Vec::new())
+}
+
+pub(super) fn decode_limited_into(
+    payload: &[u8],
+    limits: MessageLimits,
+    out: Vec<u8>,
+) -> Result<Vec<u8>, Status> {
     // Frame bytes already implement BufRead; no extra compressed-input buffer.
     let mut decoder = GzipMembers::new(payload, limits.max_compression_frames());
-    let result = super::read_bounded(&mut decoder, limits.inflate_budget(), payload.len(), "gzip");
+    let result = super::read_bounded_into(
+        &mut decoder,
+        limits.inflate_budget(),
+        payload.len(),
+        "gzip",
+        out,
+    );
     if let Some(status) = decoder.take_failure() {
         return Err(status);
     }

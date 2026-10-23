@@ -58,17 +58,26 @@ pub(super) fn decode(payload: &[u8]) -> Result<Vec<u8>, Status> {
 /// chunk probes one extra decoded byte to detect overflow.
 /// Exceeding it is [`Code::ResourceExhausted`](crate::Code::ResourceExhausted).
 pub(super) fn decode_limited(payload: &[u8], limits: MessageLimits) -> Result<Vec<u8>, Status> {
+    decode_limited_into(payload, limits, Vec::new())
+}
+
+pub(super) fn decode_limited_into(
+    payload: &[u8],
+    limits: MessageLimits,
+    out: Vec<u8>,
+) -> Result<Vec<u8>, Status> {
     if limits.max_compression_frames() == Some(0) {
         return Err(Status::resource_exhausted(
             "deflate frame count exceeds limit 0",
         ));
     }
     let mut decoder = ZlibDecoder::new(payload);
-    let out = super::read_bounded(
+    let out = super::read_bounded_into(
         &mut decoder,
         limits.inflate_budget(),
         payload.len(),
         "deflate",
+        out,
     )?;
     if !decoder.get_ref().is_empty() {
         return Err(Status::internal("trailing bytes after zlib stream"));

@@ -51,6 +51,18 @@ pub trait CodecMessage: Sized {
     /// Decode one uncompressed protobuf payload.
     fn decode_payload(payload: Bytes) -> Result<Self, Status>;
 
+    /// Decode a payload whose backing allocation may be reused by the transport.
+    ///
+    /// This must produce the same message and errors as [`Self::decode_payload`].
+    /// The default transfers ownership of the bytes to that method. A codec
+    /// that consumes a mutable cursor may override this method and leave the
+    /// exhausted cursor in `payload`. The transport reclaims its storage only
+    /// when decoding succeeds, the cursor is empty, and ownership is unique.
+    /// Messages may retain shared bytes; that simply prevents reuse.
+    fn decode_payload_reusable(payload: &mut Bytes) -> Result<Self, Status> {
+        Self::decode_payload(std::mem::take(payload))
+    }
+
     /// Empty unary bodies decode as the message default.
     fn empty() -> Self;
 }

@@ -388,10 +388,12 @@ impl<T> Streaming<T> {
                         .is_some_and(crate::rpc_cancel::RpcCancel::is_cancelled)
                 };
                 if cancelled() {
+                    wire.release_workspace();
                     return Poll::Ready(Err(wire.local_cancel_status()));
                 }
                 let poll = wire.poll_next(cx);
                 if cancelled() {
+                    wire.release_workspace();
                     Poll::Ready(Err(wire.local_cancel_status()))
                 } else {
                     poll
