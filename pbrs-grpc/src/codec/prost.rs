@@ -341,25 +341,42 @@ mod tests {
         let last = LastBytes {
             payload: expected.payload.clone(),
         };
-        let mut last_input = Bytes::from(last.encode_to_vec());
+        let last_buffer = last.encode_to_vec();
+        let last_capacity = last_buffer.capacity();
+        let last_pointer = last_buffer.as_ptr();
+        let mut last_input = Bytes::from(last_buffer);
         let actual =
             Message::<LastBytes>::decode_payload_reusable(&mut last_input).expect("last field");
         assert_eq!(actual.0, last);
         assert!(last_input.is_empty());
-        assert!(
-            last_input.try_into_mut().is_ok(),
-            "last bytes field preserves the owner"
+        let recovered: Vec<u8> = last_input
+            .try_into_mut()
+            .expect("last bytes field preserves unique ownership")
+            .into();
+        assert_eq!(
+            recovered.capacity(),
+            last_capacity,
+            "last bytes field returns original storage"
         );
+        assert_eq!(recovered.as_ptr(), last_pointer);
 
         let nested = Nested {
             value: Some(last.clone()),
         };
-        let mut nested_input = Bytes::from(nested.encode_to_vec());
+        let nested_buffer = nested.encode_to_vec();
+        let nested_capacity = nested_buffer.capacity();
+        let nested_pointer = nested_buffer.as_ptr();
+        let mut nested_input = Bytes::from(nested_buffer);
         let actual = Message::<Nested>::decode_payload_reusable(&mut nested_input)
             .expect("nested last field");
         assert_eq!(actual.0, nested);
         assert!(nested_input.is_empty());
-        assert!(nested_input.try_into_mut().is_ok());
+        let recovered: Vec<u8> = nested_input
+            .try_into_mut()
+            .expect("nested last field preserves unique ownership")
+            .into();
+        assert_eq!(recovered.capacity(), nested_capacity);
+        assert_eq!(recovered.as_ptr(), nested_pointer);
 
         let mut shared_last_input = Bytes::from(last.encode_to_vec());
         let actual = Message::<SharedLast>::decode_payload_reusable(&mut shared_last_input)

@@ -6343,6 +6343,7 @@ async fn a_client_interceptor_can_set_a_deadline() {
     let (addr, listener) = bind().await;
     let hang = ProbedFixtureGreeter {
         inner: SpawnHang {
+            probe: Arc::new(SpawnHangProbe::default()),
             started: Arc::clone(&started),
             finished: Arc::clone(&finished),
             child_done: Arc::clone(&child_done),
@@ -6385,6 +6386,7 @@ async fn a_tls_client_interceptor_can_set_a_deadline() {
     let (addr, listener) = bind().await;
     let hang = ProbedFixtureGreeter {
         inner: SpawnHang {
+            probe: Arc::new(SpawnHangProbe::default()),
             started: Arc::clone(&started),
             finished: Arc::clone(&finished),
             child_done: Arc::clone(&child_done),
@@ -6421,6 +6423,7 @@ async fn an_mtls_client_interceptor_can_set_a_deadline() {
     let (addr, listener) = bind().await;
     let hang = ProbedFixtureGreeter {
         inner: SpawnHang {
+            probe: Arc::new(SpawnHangProbe::default()),
             started: Arc::clone(&started),
             finished: Arc::clone(&finished),
             child_done: Arc::clone(&child_done),
@@ -6460,6 +6463,7 @@ async fn a_unix_client_interceptor_can_set_a_deadline() {
     let (path, _guard) = unix_test_path();
     let hang = ProbedFixtureGreeter {
         inner: SpawnHang {
+            probe: Arc::new(SpawnHangProbe::default()),
             started: Arc::clone(&started),
             finished: Arc::clone(&finished),
             child_done: Arc::clone(&child_done),
@@ -6495,6 +6499,7 @@ async fn a_from_io_client_interceptor_can_set_a_deadline() {
     let (client_io, server_io) = duplex_pair();
     let hang = ProbedFixtureGreeter {
         inner: SpawnHang {
+            probe: Arc::new(SpawnHangProbe::default()),
             started: Arc::clone(&started),
             finished: Arc::clone(&finished),
             child_done: Arc::clone(&child_done),
@@ -19341,8 +19346,113 @@ async fn assert_hang_drop_and_reset_on_every_shape(client: &GreeterClient, state
     drop(tx);
 }
 
+#[derive(Default)]
+struct SpawnHangProbe {
+    child_pending: AtomicUsize,
+    dropped: AtomicUsize,
+    stay_pending: bool,
+}
+
+impl SpawnHangProbe {
+    fn pending() -> Arc<Self> {
+        Arc::new(Self {
+            stay_pending: true,
+            ..Self::default()
+        })
+    }
+}
+
+struct SpawnHangGuard<'a>(&'a AtomicUsize);
+
+impl Drop for SpawnHangGuard<'_> {
+    fn drop(&mut self) {
+        self.0.fetch_add(1, Ordering::Release);
+    }
+}
+
+async fn drive_spawned_cancel<F: std::future::Future>(
+    future: F,
+    probe: &SpawnHangProbe,
+    label: &str,
+) -> F::Output {
+    let deadline = Instant::now() + Duration::from_millis(800);
+    let mut future = std::pin::pin!(future);
+    std::future::poll_fn(|cx| {
+        assert!(
+            Instant::now() < deadline,
+            "spawned cancellation stalled: {label}; child_pending={}, handler_drop={}",
+            probe.child_pending.load(Ordering::Acquire),
+            probe.dropped.load(Ordering::Acquire),
+        );
+        cx.waker().wake_by_ref();
+        future.as_mut().poll(cx)
+    })
+    .await
+}
+
+async fn await_spawned_cancel_admission<T: std::fmt::Debug>(
+    call: &mut Call<T>,
+    probe: &SpawnHangProbe,
+    started: &AtomicUsize,
+    finished: &AtomicUsize,
+    child_done: &AtomicUsize,
+) {
+    started.store(0, Ordering::Relaxed);
+    finished.store(0, Ordering::Relaxed);
+    child_done.store(0, Ordering::Relaxed);
+    probe.child_pending.store(0, Ordering::Relaxed);
+    probe.dropped.store(0, Ordering::Relaxed);
+    drive_spawned_cancel(
+        std::future::poll_fn(|cx| {
+            let result = std::pin::Pin::new(&mut *call).poll(cx);
+            assert!(
+                result.is_pending(),
+                "SpawnHang returned before cancel: {result:?}"
+            );
+            if started.load(Ordering::Relaxed) == 1
+                && probe.child_pending.load(Ordering::Acquire) == 1
+            {
+                std::task::Poll::Ready(())
+            } else {
+                std::task::Poll::Pending
+            }
+        }),
+        probe,
+        "handler admission and cancellation-child Pending poll",
+    )
+    .await;
+    assert_eq!(finished.load(Ordering::Relaxed), 0);
+    assert_eq!(child_done.load(Ordering::Relaxed), 0);
+    assert_eq!(probe.dropped.load(Ordering::Acquire), 0);
+}
+
+async fn await_spawned_cancel_drop(
+    probe: &SpawnHangProbe,
+    finished: &AtomicUsize,
+    child_done: &AtomicUsize,
+) {
+    drive_spawned_cancel(
+        std::future::poll_fn(|_| {
+            if child_done.load(Ordering::Relaxed) == 1 && probe.dropped.load(Ordering::Acquire) == 1
+            {
+                std::task::Poll::Ready(())
+            } else {
+                std::task::Poll::Pending
+            }
+        }),
+        probe,
+        "spawned child cancellation and actual parent destruction",
+    )
+    .await;
+    assert_eq!(finished.load(Ordering::Relaxed), 0, "handler completed");
+    assert_eq!(probe.child_pending.load(Ordering::Acquire), 1);
+    assert_eq!(child_done.load(Ordering::Relaxed), 1);
+    assert_eq!(probe.dropped.load(Ordering::Acquire), 1);
+}
+
 /// Spawns a child that waits on [`Request::cancelled`], then hangs.
 struct SpawnHang {
+    probe: Arc<SpawnHangProbe>,
     started: Arc<AtomicUsize>,
     finished: Arc<AtomicUsize>,
     child_done: Arc<AtomicUsize>,
@@ -19352,9 +19462,20 @@ impl SpawnHang {
     fn spawn_child<T>(&self, request: &Request<T>) {
         self.started.fetch_add(1, Ordering::Relaxed);
         let child_done = Arc::clone(&self.child_done);
+        let probe = Arc::clone(&self.probe);
         let cancelled = request.cancelled();
         drop(tokio::spawn(async move {
-            cancelled.await;
+            let mut cancelled = std::pin::pin!(cancelled);
+            let mut registered = false;
+            std::future::poll_fn(|cx| {
+                let result = cancelled.as_mut().poll(cx);
+                if result.is_pending() && !registered {
+                    registered = true;
+                    probe.child_pending.fetch_add(1, Ordering::Release);
+                }
+                result
+            })
+            .await;
             child_done.fetch_add(1, Ordering::Relaxed);
         }));
     }
@@ -19368,6 +19489,9 @@ impl SpawnHang {
     }
 
     async fn hang_until_dropped(&self) -> Status {
+        if self.probe.stay_pending {
+            std::future::pending::<()>().await;
+        }
         tokio::time::sleep(Duration::from_millis(200)).await;
         self.finished.fetch_add(1, Ordering::Relaxed);
         Status::internal("handler should have been dropped")
@@ -19379,6 +19503,7 @@ impl pbrs_grpc::Greeter for SpawnHang {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
+        let _guard = SpawnHangGuard(&self.probe.dropped);
         self.start(&request)?;
         Err(self.hang_until_dropped().await)
     }
@@ -19387,6 +19512,7 @@ impl pbrs_grpc::Greeter for SpawnHang {
         &self,
         request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
+        let _guard = SpawnHangGuard(&self.probe.dropped);
         self.start(&request)?;
         Err(self.hang_until_dropped().await)
     }
@@ -19395,6 +19521,7 @@ impl pbrs_grpc::Greeter for SpawnHang {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        let _guard = SpawnHangGuard(&self.probe.dropped);
         self.start(&request)?;
         Err(self.hang_until_dropped().await)
     }
@@ -19403,6 +19530,7 @@ impl pbrs_grpc::Greeter for SpawnHang {
         &self,
         request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        let _guard = SpawnHangGuard(&self.probe.dropped);
         self.start(&request)?;
         Err(self.hang_until_dropped().await)
     }
@@ -19590,41 +19718,30 @@ async fn assert_controlled_deadline_on_every_shape(
 
 async fn assert_spawned_cancel_dropped<T: std::fmt::Debug>(
     mut call: Call<T>,
+    probe: &SpawnHangProbe,
     started: &AtomicUsize,
     finished: &AtomicUsize,
     child_done: &AtomicUsize,
 ) {
-    started.store(0, Ordering::Relaxed);
-    finished.store(0, Ordering::Relaxed);
-    child_done.store(0, Ordering::Relaxed);
-    tokio::select! {
-        biased;
-        result = &mut call => panic!("SpawnHang returned before cancel: {result:?}"),
-        () = tokio::time::sleep(Duration::from_millis(40)) => {}
-    }
-    assert!(
-        started.load(Ordering::Relaxed) >= 1,
-        "handler should have started"
-    );
+    await_spawned_cancel_admission(&mut call, probe, started, finished, child_done).await;
     call.handle().cancel();
-    let err = call.await.expect_err("cancelled");
+    let err = drive_spawned_cancel(call, probe, "cancelled Call status")
+        .await
+        .expect_err("cancelled");
     assert_eq!(err.code(), Code::Cancelled, "{err}");
-    wait_flag(child_done).await;
-    assert_eq!(
-        finished.load(Ordering::Relaxed),
-        0,
-        "handler should have been dropped"
-    );
+    await_spawned_cancel_drop(probe, finished, child_done).await;
 }
 
 async fn assert_spawned_cancel_on_every_shape(
     client: &GreeterClient,
+    probe: &SpawnHangProbe,
     started: &AtomicUsize,
     finished: &AtomicUsize,
     child_done: &AtomicUsize,
 ) {
     assert_spawned_cancel_dropped(
         client.say_hello(Request::new(req("ada"))),
+        probe,
         started,
         finished,
         child_done,
@@ -19632,16 +19749,17 @@ async fn assert_spawned_cancel_on_every_shape(
     .await;
     assert_spawned_cancel_dropped(
         client.server_hello(Request::new(req("ada"))),
+        probe,
         started,
         finished,
         child_done,
     )
     .await;
     let (tx, call) = client.client_hello(Request::new(()));
-    assert_spawned_cancel_dropped(call, started, finished, child_done).await;
+    assert_spawned_cancel_dropped(call, probe, started, finished, child_done).await;
     drop(tx);
     let (tx, call) = client.stream_hello(Request::new(()));
-    assert_spawned_cancel_dropped(call, started, finished, child_done).await;
+    assert_spawned_cancel_dropped(call, probe, started, finished, child_done).await;
     drop(tx);
 }
 
@@ -21194,8 +21312,10 @@ async fn spawned_work_stops_when_the_client_cancels() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
     let child_done = Arc::new(AtomicUsize::new(0));
+    let child_probe = SpawnHangProbe::pending();
     let (addr, listener) = bind().await;
     let hang = SpawnHang {
+        probe: Arc::clone(&child_probe),
         started: Arc::clone(&started),
         finished: Arc::clone(&finished),
         child_done: Arc::clone(&child_done),
@@ -21204,25 +21324,8 @@ async fn spawned_work_stops_when_the_client_cancels() {
         GreeterServer::new(hang).serve_listener(listener).await.ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    let mut call = client.say_hello(Request::new(req("ada")));
-    tokio::select! {
-        biased;
-        result = &mut call => panic!("SpawnHang returned before cancel: {result:?}"),
-        () = tokio::time::sleep(Duration::from_millis(40)) => {}
-    }
-    assert!(
-        started.load(Ordering::Relaxed) >= 1,
-        "handler should have started"
-    );
-    call.handle().cancel();
-    let err = call.await.expect_err("cancelled");
-    assert_eq!(err.code(), Code::Cancelled, "{err}");
-    wait_flag(&child_done).await;
-    assert_eq!(
-        finished.load(Ordering::Relaxed),
-        0,
-        "handler should have been dropped"
-    );
+    let call = client.say_hello(Request::new(req("ada")));
+    assert_spawned_cancel_dropped(call, &child_probe, &started, &finished, &child_done).await;
     task.abort();
 }
 
@@ -21231,8 +21334,10 @@ async fn spawned_streaming_work_stops_when_the_client_cancels() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
     let child_done = Arc::new(AtomicUsize::new(0));
+    let child_probe = SpawnHangProbe::pending();
     let (addr, listener) = bind().await;
     let hang = SpawnHang {
+        probe: Arc::clone(&child_probe),
         started: Arc::clone(&started),
         finished: Arc::clone(&finished),
         child_done: Arc::clone(&child_done),
@@ -21241,21 +21346,8 @@ async fn spawned_streaming_work_stops_when_the_client_cancels() {
         GreeterServer::new(hang).serve_listener(listener).await.ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    let (tx, mut call) = client.client_hello(Request::new(()));
-    tokio::select! {
-        biased;
-        result = &mut call => panic!("SpawnHang returned before cancel: {result:?}"),
-        () = tokio::time::sleep(Duration::from_millis(40)) => {}
-    }
-    assert!(
-        started.load(Ordering::Relaxed) >= 1,
-        "handler should have started"
-    );
-    call.handle().cancel();
-    let err = call.await.expect_err("cancelled");
-    assert_eq!(err.code(), Code::Cancelled, "{err}");
-    wait_flag(&child_done).await;
-    assert_eq!(finished.load(Ordering::Relaxed), 0);
+    let (tx, call) = client.client_hello(Request::new(()));
+    assert_spawned_cancel_dropped(call, &child_probe, &started, &finished, &child_done).await;
     drop(tx);
     task.abort();
 }
@@ -21265,8 +21357,10 @@ async fn spawned_server_streaming_work_stops_when_the_client_cancels() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
     let child_done = Arc::new(AtomicUsize::new(0));
+    let child_probe = SpawnHangProbe::pending();
     let (addr, listener) = bind().await;
     let hang = SpawnHang {
+        probe: Arc::clone(&child_probe),
         started: Arc::clone(&started),
         finished: Arc::clone(&finished),
         child_done: Arc::clone(&child_done),
@@ -21275,21 +21369,8 @@ async fn spawned_server_streaming_work_stops_when_the_client_cancels() {
         GreeterServer::new(hang).serve_listener(listener).await.ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    let mut call = client.server_hello(Request::new(req("ada")));
-    tokio::select! {
-        biased;
-        result = &mut call => panic!("SpawnHang returned before cancel: {result:?}"),
-        () = tokio::time::sleep(Duration::from_millis(40)) => {}
-    }
-    assert!(
-        started.load(Ordering::Relaxed) >= 1,
-        "handler should have started"
-    );
-    call.handle().cancel();
-    let err = call.await.expect_err("cancelled");
-    assert_eq!(err.code(), Code::Cancelled, "{err}");
-    wait_flag(&child_done).await;
-    assert_eq!(finished.load(Ordering::Relaxed), 0);
+    let call = client.server_hello(Request::new(req("ada")));
+    assert_spawned_cancel_dropped(call, &child_probe, &started, &finished, &child_done).await;
     task.abort();
 }
 
@@ -21298,8 +21379,10 @@ async fn spawned_bidi_work_stops_when_the_client_cancels() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
     let child_done = Arc::new(AtomicUsize::new(0));
+    let child_probe = SpawnHangProbe::pending();
     let (addr, listener) = bind().await;
     let hang = SpawnHang {
+        probe: Arc::clone(&child_probe),
         started: Arc::clone(&started),
         finished: Arc::clone(&finished),
         child_done: Arc::clone(&child_done),
@@ -21308,21 +21391,8 @@ async fn spawned_bidi_work_stops_when_the_client_cancels() {
         GreeterServer::new(hang).serve_listener(listener).await.ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    let (tx, mut call) = client.stream_hello(Request::new(()));
-    tokio::select! {
-        biased;
-        result = &mut call => panic!("SpawnHang returned before cancel: {result:?}"),
-        () = tokio::time::sleep(Duration::from_millis(40)) => {}
-    }
-    assert!(
-        started.load(Ordering::Relaxed) >= 1,
-        "handler should have started"
-    );
-    call.handle().cancel();
-    let err = call.await.expect_err("cancelled");
-    assert_eq!(err.code(), Code::Cancelled, "{err}");
-    wait_flag(&child_done).await;
-    assert_eq!(finished.load(Ordering::Relaxed), 0);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert_spawned_cancel_dropped(call, &child_probe, &started, &finished, &child_done).await;
     drop(tx);
     task.abort();
 }
@@ -21330,16 +21400,14 @@ async fn spawned_bidi_work_stops_when_the_client_cancels() {
 async fn assert_controlled_spawned_cancel<T: std::fmt::Debug>(
     mut call: Call<T>,
     probe: &FixtureHandlerProbe,
+    child_probe: &SpawnHangProbe,
     started: &AtomicUsize,
     finished: &AtomicUsize,
     child_done: &AtomicUsize,
 ) {
-    started.store(0, Ordering::Relaxed);
-    finished.store(0, Ordering::Relaxed);
-    child_done.store(0, Ordering::Relaxed);
     let expected = probe.admitted.load(Ordering::Relaxed) + 1;
-    await_fixture_admission(std::pin::Pin::new(&mut call), probe, expected).await;
-    assert!(started.load(Ordering::Relaxed) >= 1);
+    await_spawned_cancel_admission(&mut call, child_probe, started, finished, child_done).await;
+    assert_eq!(probe.admitted.load(Ordering::Relaxed), expected);
     tokio::time::advance(Duration::from_millis(40)).await;
     assert_fixture_pending(std::pin::Pin::new(&mut call)).await;
     assert_eq!(finished.load(Ordering::Relaxed), 0);
@@ -21348,17 +21416,7 @@ async fn assert_controlled_spawned_cancel<T: std::fmt::Debug>(
         .await
         .expect_err("cancelled");
     assert_eq!(err.code(), Code::Cancelled, "{err}");
-    drive_frozen_fixture(
-        std::future::poll_fn(|_| {
-            if child_done.load(Ordering::Relaxed) >= 1 {
-                std::task::Poll::Ready(())
-            } else {
-                std::task::Poll::Pending
-            }
-        }),
-        "spawned child's cancellation",
-    )
-    .await;
+    await_spawned_cancel_drop(child_probe, finished, child_done).await;
     // A cancellation token alone does not prove the parent future was dropped.
     await_fixture_drop(probe, expected).await;
     assert_eq!(finished.load(Ordering::Relaxed), 0, "handler completed");
@@ -21369,11 +21427,13 @@ async fn tls_spawned_work_stops_when_the_client_cancels() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
     let child_done = Arc::new(AtomicUsize::new(0));
+    let child_probe = SpawnHangProbe::pending();
     let probe = Arc::new(FixtureHandlerProbe::default());
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
     let service = ProbedFixtureGreeter {
         inner: SpawnHang {
+            probe: Arc::clone(&child_probe),
             started: Arc::clone(&started),
             finished: Arc::clone(&finished),
             child_done: Arc::clone(&child_done),
@@ -21390,6 +21450,7 @@ async fn tls_spawned_work_stops_when_the_client_cancels() {
     assert_controlled_spawned_cancel(
         client.say_hello(Request::new(req("ada"))),
         &probe,
+        &child_probe,
         &started,
         &finished,
         &child_done,
@@ -21398,16 +21459,19 @@ async fn tls_spawned_work_stops_when_the_client_cancels() {
     assert_controlled_spawned_cancel(
         client.server_hello(Request::new(req("ada"))),
         &probe,
+        &child_probe,
         &started,
         &finished,
         &child_done,
     )
     .await;
     let (tx, call) = client.client_hello(Request::new(()));
-    assert_controlled_spawned_cancel(call, &probe, &started, &finished, &child_done).await;
+    assert_controlled_spawned_cancel(call, &probe, &child_probe, &started, &finished, &child_done)
+        .await;
     drop(tx);
     let (tx, call) = client.stream_hello(Request::new(()));
-    assert_controlled_spawned_cancel(call, &probe, &started, &finished, &child_done).await;
+    assert_controlled_spawned_cancel(call, &probe, &child_probe, &started, &finished, &child_done)
+        .await;
     drop(tx);
     task.abort();
 }
@@ -21417,9 +21481,11 @@ async fn mtls_spawned_work_stops_when_the_client_cancels() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
     let child_done = Arc::new(AtomicUsize::new(0));
+    let child_probe = SpawnHangProbe::pending();
     let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
     let (addr, listener) = bind().await;
     let hang = SpawnHang {
+        probe: Arc::clone(&child_probe),
         started: Arc::clone(&started),
         finished: Arc::clone(&finished),
         child_done: Arc::clone(&child_done),
@@ -21432,7 +21498,8 @@ async fn mtls_spawned_work_stops_when_the_client_cancels() {
     });
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
-    assert_spawned_cancel_on_every_shape(&client, &started, &finished, &child_done).await;
+    assert_spawned_cancel_on_every_shape(&client, &child_probe, &started, &finished, &child_done)
+        .await;
     task.abort();
 }
 
@@ -21442,9 +21509,11 @@ async fn unix_spawned_work_stops_when_the_client_cancels() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
     let child_done = Arc::new(AtomicUsize::new(0));
+    let child_probe = SpawnHangProbe::pending();
     let (path, _guard) = unix_test_path();
     let sock = path.clone();
     let hang = SpawnHang {
+        probe: Arc::clone(&child_probe),
         started: Arc::clone(&started),
         finished: Arc::clone(&finished),
         child_done: Arc::clone(&child_done),
@@ -21453,7 +21522,8 @@ async fn unix_spawned_work_stops_when_the_client_cancels() {
         GreeterServer::new(hang).serve_unix(sock).await.ok();
     });
     let client = GreeterClient::new(unix_channel(&path).await);
-    assert_spawned_cancel_on_every_shape(&client, &started, &finished, &child_done).await;
+    assert_spawned_cancel_on_every_shape(&client, &child_probe, &started, &finished, &child_done)
+        .await;
     task.abort();
 }
 
@@ -21462,8 +21532,10 @@ async fn from_io_spawned_work_stops_when_the_client_cancels() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
     let child_done = Arc::new(AtomicUsize::new(0));
+    let child_probe = SpawnHangProbe::pending();
     let (client_io, server_io) = duplex_pair();
     let hang = SpawnHang {
+        probe: Arc::clone(&child_probe),
         started: Arc::clone(&started),
         finished: Arc::clone(&finished),
         child_done: Arc::clone(&child_done),
@@ -21479,7 +21551,8 @@ async fn from_io_spawned_work_stops_when_the_client_cancels() {
             .await
             .expect("from_io"),
     );
-    assert_spawned_cancel_on_every_shape(&client, &started, &finished, &child_done).await;
+    assert_spawned_cancel_on_every_shape(&client, &child_probe, &started, &finished, &child_done)
+        .await;
     server.abort();
 }
 
@@ -21490,6 +21563,7 @@ async fn a_deadline_cancels_a_server_stream_before_headers() {
     let child_done = Arc::new(AtomicUsize::new(0));
     let (addr, listener) = bind().await;
     let hang = SpawnHang {
+        probe: Arc::new(SpawnHangProbe::default()),
         started: Arc::clone(&started),
         finished: Arc::clone(&finished),
         child_done: Arc::clone(&child_done),
@@ -21522,6 +21596,7 @@ async fn spawned_work_stops_when_the_deadline_fires() {
     let (addr, listener) = bind().await;
     let hang = ProbedFixtureGreeter {
         inner: SpawnHang {
+            probe: Arc::new(SpawnHangProbe::default()),
             started: Arc::clone(&started),
             finished: Arc::clone(&finished),
             child_done: Arc::clone(&child_done),
@@ -21558,6 +21633,7 @@ async fn tls_spawned_work_stops_when_the_deadline_fires() {
     let (addr, listener) = bind().await;
     let hang = ProbedFixtureGreeter {
         inner: SpawnHang {
+            probe: Arc::new(SpawnHangProbe::default()),
             started: Arc::clone(&started),
             finished: Arc::clone(&finished),
             child_done: Arc::clone(&child_done),
@@ -21594,6 +21670,7 @@ async fn mtls_spawned_work_stops_when_the_deadline_fires() {
     let (addr, listener) = bind().await;
     let hang = ProbedFixtureGreeter {
         inner: SpawnHang {
+            probe: Arc::new(SpawnHangProbe::default()),
             started: Arc::clone(&started),
             finished: Arc::clone(&finished),
             child_done: Arc::clone(&child_done),
@@ -21634,6 +21711,7 @@ async fn unix_spawned_work_stops_when_the_deadline_fires() {
     let sock = path.clone();
     let hang = ProbedFixtureGreeter {
         inner: SpawnHang {
+            probe: Arc::new(SpawnHangProbe::default()),
             started: Arc::clone(&started),
             finished: Arc::clone(&finished),
             child_done: Arc::clone(&child_done),
@@ -21671,6 +21749,7 @@ async fn from_io_spawned_work_stops_when_the_deadline_fires() {
     let (client_io, server_io) = duplex_pair();
     let hang = ProbedFixtureGreeter {
         inner: SpawnHang {
+            probe: Arc::new(SpawnHangProbe::default()),
             started: Arc::clone(&started),
             finished: Arc::clone(&finished),
             child_done: Arc::clone(&child_done),
@@ -22853,6 +22932,238 @@ async fn a_deadline_cancels_client_streaming_after_the_sender_closes() {
     task.abort();
 }
 
+// A locally failed upload can finish before the server admits any request.
+// These probes make cancellation assertions only after actual handler entry,
+// request consumption, and a Pending poll of the spawned cancellation child.
+#[derive(Default)]
+struct SenderFailureProbe {
+    admitted: AtomicUsize,
+    received: AtomicUsize,
+    child_pending: AtomicUsize,
+    child_done: AtomicUsize,
+    handler_dropped: AtomicUsize,
+    producer_dropped: AtomicUsize,
+}
+
+impl SenderFailureProbe {
+    fn counts(&self) -> [usize; 6] {
+        [
+            self.admitted.load(Ordering::Acquire),
+            self.received.load(Ordering::Acquire),
+            self.child_pending.load(Ordering::Acquire),
+            self.child_done.load(Ordering::Acquire),
+            self.handler_dropped.load(Ordering::Acquire),
+            self.producer_dropped.load(Ordering::Acquire),
+        ]
+    }
+
+    fn spawn_child<T>(self: &Arc<Self>, request: &Request<T>) {
+        let probe = Arc::clone(self);
+        let cancelled = request.cancelled();
+        drop(tokio::spawn(async move {
+            let mut cancelled = std::pin::pin!(cancelled);
+            let mut registered = false;
+            std::future::poll_fn(|cx| {
+                let result = cancelled.as_mut().poll(cx);
+                if result.is_pending() && !registered {
+                    registered = true;
+                    probe.child_pending.fetch_add(1, Ordering::Release);
+                }
+                result
+            })
+            .await;
+            probe.child_done.fetch_add(1, Ordering::Release);
+        }));
+    }
+}
+
+struct SenderFailureGuard {
+    probe: Arc<SenderFailureProbe>,
+    producer: bool,
+}
+
+impl Drop for SenderFailureGuard {
+    fn drop(&mut self) {
+        let counter = if self.producer {
+            &self.probe.producer_dropped
+        } else {
+            &self.probe.handler_dropped
+        };
+        counter.fetch_add(1, Ordering::Release);
+    }
+}
+
+struct SenderFailureService {
+    probe: Arc<SenderFailureProbe>,
+    echo_first: bool,
+}
+
+impl SenderFailureService {
+    fn enter<T>(&self, request: &Request<T>) -> SenderFailureGuard {
+        self.probe.admitted.fetch_add(1, Ordering::Release);
+        self.probe.spawn_child(request);
+        SenderFailureGuard {
+            probe: Arc::clone(&self.probe),
+            producer: false,
+        }
+    }
+
+    async fn read_first(
+        inbound: &mut Streaming<HelloRequest>,
+        probe: &SenderFailureProbe,
+    ) -> Result<HelloRequest, Status> {
+        let first = inbound
+            .message()
+            .await?
+            .ok_or_else(|| Status::internal("empty"))?;
+        if first.name().to_str().unwrap_or("") != "ada" {
+            return Err(Status::internal("unexpected name"));
+        }
+        probe.received.fetch_add(1, Ordering::Release);
+        Ok(first)
+    }
+}
+
+impl Greeter for SenderFailureService {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("sender-failure fixture"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("sender-failure fixture"))
+    }
+
+    async fn client_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let _guard = self.enter(&request);
+        let mut inbound = request.into_inner();
+        Self::read_first(&mut inbound, &self.probe).await?;
+        std::future::pending().await
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        let _guard = self.enter(&request);
+        if !self.echo_first {
+            let mut inbound = request.into_inner();
+            Self::read_first(&mut inbound, &self.probe).await?;
+            return std::future::pending().await;
+        }
+        let cancelled = request.cancelled();
+        let mut inbound = request.into_inner();
+        let (tx, stream) = Streaming::channel(8);
+        let probe = Arc::clone(&self.probe);
+        let producer_guard = SenderFailureGuard {
+            probe: Arc::clone(&probe),
+            producer: true,
+        };
+        drop(tokio::spawn(async move {
+            let _guard = producer_guard;
+            let first = Self::read_first(&mut inbound, &probe)
+                .await
+                .expect("first request message");
+            let mut reply = HelloReply::new();
+            reply.set_message(first.name());
+            tx.send(reply).await.expect("first response message");
+            cancelled.await;
+            drop(tx);
+        }));
+        Ok(Response::new(stream))
+    }
+}
+
+async fn drive_sender_failure<F: std::future::Future>(
+    future: F,
+    probe: &SenderFailureProbe,
+    label: &str,
+) -> F::Output {
+    // Keep the existing wait_flag budget: 80 ten-millisecond intervals.
+    let deadline = Instant::now() + Duration::from_millis(800);
+    let mut future = std::pin::pin!(future);
+    std::future::poll_fn(|cx| {
+        assert!(
+            Instant::now() < deadline,
+            "sender failure stalled: {label}; [admitted, received, child_pending, child_done, handler_drop, producer_drop]={:?}",
+            probe.counts(),
+        );
+        cx.waker().wake_by_ref();
+        future.as_mut().poll(cx)
+    })
+    .await
+}
+
+async fn await_sender_failure_admission<T>(
+    call: &mut Call<T>,
+    probe: &SenderFailureProbe,
+    expected: usize,
+) {
+    drive_sender_failure(
+        std::future::poll_fn(|cx| {
+            assert!(
+                std::pin::Pin::new(&mut *call).poll(cx).is_pending(),
+                "call completed before request failure admission: {:?}",
+                probe.counts(),
+            );
+            if probe.admitted.load(Ordering::Acquire) == expected
+                && probe.received.load(Ordering::Acquire) == expected
+                && probe.child_pending.load(Ordering::Acquire) == expected
+            {
+                std::task::Poll::Ready(())
+            } else {
+                std::task::Poll::Pending
+            }
+        }),
+        probe,
+        "handler and cancellation-child admission",
+    )
+    .await;
+    assert_eq!(probe.child_done.load(Ordering::Acquire), expected - 1);
+    assert_eq!(probe.handler_dropped.load(Ordering::Acquire), expected - 1);
+}
+
+async fn await_sender_failure_drop(
+    probe: &SenderFailureProbe,
+    expected: usize,
+    after_headers: bool,
+) {
+    drive_sender_failure(
+        std::future::poll_fn(|_| {
+            if probe.child_done.load(Ordering::Acquire) == expected
+                && probe.handler_dropped.load(Ordering::Acquire) == expected
+                && (!after_headers || probe.producer_dropped.load(Ordering::Acquire) == expected)
+            {
+                std::task::Poll::Ready(())
+            } else {
+                std::task::Poll::Pending
+            }
+        }),
+        probe,
+        "child cancellation and actual owner destruction",
+    )
+    .await;
+    assert_eq!(
+        probe.counts(),
+        [
+            expected,
+            expected,
+            expected,
+            expected,
+            expected,
+            if after_headers { expected } else { 0 }
+        ],
+    );
+}
+
 struct ClientStreamFailAfterOne {
     left: Arc<AtomicUsize>,
 }
@@ -22917,20 +23228,17 @@ impl Greeter for ClientStreamFailAfterOne {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn failing_a_client_stream_after_a_message_is_that_status_not_internal() {
-    let left = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(SenderFailureProbe::default());
     let (addr, listener) = bind().await;
-    let svc = ClientStreamFailAfterOne {
-        left: Arc::clone(&left),
+    let svc = SenderFailureService {
+        probe: Arc::clone(&probe),
+        echo_first: false,
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(svc).serve_listener(listener).await.ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    let (tx, call) = client.client_hello(Request::new(()));
-    tx.send(req("ada")).await.expect("send");
-    tx.fail(stream_abort_status()).await;
-    assert_stream_abort(&call.await.expect_err("fail"));
-    wait_flag(&left).await;
+    assert_client_stream_sender_fail(&client, &probe).await;
     drop(client);
     task.abort();
 }
@@ -22959,25 +23267,37 @@ fn assert_stream_abort(err: &Status) {
 }
 
 /// Client-streaming: no request-side `grpc-status`; the Call gets `status`.
-async fn assert_client_stream_sender_fail(client: &GreeterClient) {
-    let (tx, call) = client.client_hello(Request::new(()));
+async fn assert_client_stream_sender_fail(client: &GreeterClient, probe: &SenderFailureProbe) {
+    let expected = probe.admitted.load(Ordering::Acquire) + 1;
+    let (tx, mut call) = client.client_hello(Request::new(()));
     tx.send(req("ada")).await.expect("send");
+    await_sender_failure_admission(&mut call, probe, expected).await;
     tx.fail(stream_abort_status()).await;
-    assert_stream_abort(&call.await.expect_err("fail"));
+    let result = drive_sender_failure(call, probe, "client failure status").await;
+    assert_stream_abort(&result.expect_err("fail"));
+    await_sender_failure_drop(probe, expected, false).await;
 }
 
 /// Bidi before headers: the Call gets `status`, not `UNAVAILABLE` from RST.
-async fn assert_bidi_sender_fail_before_headers(client: &GreeterClient) {
+async fn assert_bidi_sender_fail_before_headers(
+    client: &GreeterClient,
+    probe: &SenderFailureProbe,
+) {
     for _ in 0..24 {
-        let (tx, call) = client.stream_hello(Request::new(()));
+        let expected = probe.admitted.load(Ordering::Acquire) + 1;
+        let (tx, mut call) = client.stream_hello(Request::new(()));
         tx.send(req("ada")).await.expect("send");
+        await_sender_failure_admission(&mut call, probe, expected).await;
         tx.fail(stream_abort_status()).await;
-        assert_stream_abort(&call.await.expect_err("fail"));
+        let result = drive_sender_failure(call, probe, "bidi failure status").await;
+        assert_stream_abort(&result.expect_err("fail"));
+        await_sender_failure_drop(probe, expected, false).await;
     }
 }
 
 /// Bidi after headers: inbound Streaming sees CANCELLED, not `status`.
-async fn assert_bidi_sender_fail_after_headers(client: &GreeterClient) {
+async fn assert_bidi_sender_fail_after_headers(client: &GreeterClient, probe: &SenderFailureProbe) {
+    let expected = probe.admitted.load(Ordering::Acquire) + 1;
     let (tx, call) = client.stream_hello(Request::new(()));
     tx.send(req("ada")).await.expect("send");
     let mut stream = call.await.expect("headers").into_inner();
@@ -22987,6 +23307,21 @@ async fn assert_bidi_sender_fail_after_headers(client: &GreeterClient) {
         .expect("item")
         .expect("first message");
     assert_eq!(name_of(&first), "ada");
+    drive_sender_failure(
+        std::future::poll_fn(|_| {
+            if probe.child_pending.load(Ordering::Acquire) == expected {
+                std::task::Poll::Ready(())
+            } else {
+                std::task::Poll::Pending
+            }
+        }),
+        probe,
+        "after-header cancellation-child admission",
+    )
+    .await;
+    assert_eq!(probe.child_done.load(Ordering::Acquire), expected - 1);
+    assert_eq!(probe.handler_dropped.load(Ordering::Acquire), expected);
+    assert_eq!(probe.producer_dropped.load(Ordering::Acquire), expected - 1);
     tx.fail(stream_abort_status()).await;
     let err = stream.message().await.expect_err("reset after fail");
     assert_eq!(err.code(), Code::Cancelled, "{err}");
@@ -22995,71 +23330,52 @@ async fn assert_bidi_sender_fail_after_headers(client: &GreeterClient) {
         "gone",
         "fail after headers must not surface the request status on Streaming: {err}"
     );
+    await_sender_failure_drop(probe, expected, true).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn failing_a_bidi_stream_before_headers_is_that_status_not_unavailable() {
-    let left = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(SenderFailureProbe::default());
     let (addr, listener) = bind().await;
-    let svc = ClientStreamFailAfterOne {
-        left: Arc::clone(&left),
+    let svc = SenderFailureService {
+        probe: Arc::clone(&probe),
+        echo_first: false,
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(svc).serve_listener(listener).await.ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    // Repeat: RST can surface as UNAVAILABLE on the same poll as fail's oneshot.
-    for _ in 0..24 {
-        let (tx, call) = client.stream_hello(Request::new(()));
-        tx.send(req("ada")).await.expect("send");
-        tx.fail(stream_abort_status()).await;
-        assert_stream_abort(&call.await.expect_err("fail"));
-    }
-    wait_flag(&left).await;
+    // Preserve all24 before-header reset/status interleavings after admission.
+    assert_bidi_sender_fail_before_headers(&client, &probe).await;
     drop(client);
     task.abort();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn failing_a_bidi_stream_after_headers_is_cancelled_not_that_status() {
-    let left = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(SenderFailureProbe::default());
     let (addr, listener) = bind().await;
-    let svc = BidiWaitAfterFirst {
-        left: Arc::clone(&left),
+    let svc = SenderFailureService {
+        probe: Arc::clone(&probe),
+        echo_first: true,
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(svc).serve_listener(listener).await.ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    let (tx, call) = client.stream_hello(Request::new(()));
-    tx.send(req("ada")).await.expect("send");
-    let mut stream = call.await.expect("headers").into_inner();
-    let first = stream
-        .message()
-        .await
-        .expect("item")
-        .expect("first message");
-    assert_eq!(name_of(&first), "ada");
-    tx.fail(stream_abort_status()).await;
-    let err = stream.message().await.expect_err("reset after fail");
-    assert_eq!(err.code(), Code::Cancelled, "{err}");
-    assert_ne!(
-        err.message(),
-        "gone",
-        "fail after headers must not surface the request status on Streaming: {err}"
-    );
-    wait_flag(&left).await;
+    assert_bidi_sender_fail_after_headers(&client, &probe).await;
     drop(client);
     task.abort();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn tls_failing_a_request_stream_is_that_status_or_cancelled() {
-    let left = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(SenderFailureProbe::default());
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
-    let svc = ClientStreamFailAfterOne {
-        left: Arc::clone(&left),
+    let svc = SenderFailureService {
+        probe: Arc::clone(&probe),
+        echo_first: false,
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(svc)
@@ -23068,17 +23384,17 @@ async fn tls_failing_a_request_stream_is_that_status_or_cancelled() {
             .ok();
     });
     let client = GreeterClient::new(tls_channel(addr).await);
-    assert_client_stream_sender_fail(&client).await;
-    assert_bidi_sender_fail_before_headers(&client).await;
-    wait_flag(&left).await;
+    assert_client_stream_sender_fail(&client, &probe).await;
+    assert_bidi_sender_fail_before_headers(&client, &probe).await;
     drop(client);
     task.abort();
 
-    let left = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(SenderFailureProbe::default());
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
-    let svc = BidiWaitAfterFirst {
-        left: Arc::clone(&left),
+    let svc = SenderFailureService {
+        probe: Arc::clone(&probe),
+        echo_first: true,
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(svc)
@@ -23087,19 +23403,19 @@ async fn tls_failing_a_request_stream_is_that_status_or_cancelled() {
             .ok();
     });
     let client = GreeterClient::new(tls_channel(addr).await);
-    assert_bidi_sender_fail_after_headers(&client).await;
-    wait_flag(&left).await;
+    assert_bidi_sender_fail_after_headers(&client, &probe).await;
     drop(client);
     task.abort();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mtls_failing_a_request_stream_is_that_status_or_cancelled() {
-    let left = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(SenderFailureProbe::default());
     let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
     let (addr, listener) = bind().await;
-    let svc = ClientStreamFailAfterOne {
-        left: Arc::clone(&left),
+    let svc = SenderFailureService {
+        probe: Arc::clone(&probe),
+        echo_first: false,
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(svc)
@@ -23109,17 +23425,17 @@ async fn mtls_failing_a_request_stream_is_that_status_or_cancelled() {
     });
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
-    assert_client_stream_sender_fail(&client).await;
-    assert_bidi_sender_fail_before_headers(&client).await;
-    wait_flag(&left).await;
+    assert_client_stream_sender_fail(&client, &probe).await;
+    assert_bidi_sender_fail_before_headers(&client, &probe).await;
     drop(client);
     task.abort();
 
-    let left = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(SenderFailureProbe::default());
     let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
     let (addr, listener) = bind().await;
-    let svc = BidiWaitAfterFirst {
-        left: Arc::clone(&left),
+    let svc = SenderFailureService {
+        probe: Arc::clone(&probe),
+        echo_first: true,
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(svc)
@@ -23129,8 +23445,7 @@ async fn mtls_failing_a_request_stream_is_that_status_or_cancelled() {
     });
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
-    assert_bidi_sender_fail_after_headers(&client).await;
-    wait_flag(&left).await;
+    assert_bidi_sender_fail_after_headers(&client, &probe).await;
     drop(client);
     task.abort();
 }
@@ -23138,44 +23453,45 @@ async fn mtls_failing_a_request_stream_is_that_status_or_cancelled() {
 #[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unix_failing_a_request_stream_is_that_status_or_cancelled() {
-    let left = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(SenderFailureProbe::default());
     let (path, _guard) = unix_test_path();
     let sock = path.clone();
-    let svc = ClientStreamFailAfterOne {
-        left: Arc::clone(&left),
+    let svc = SenderFailureService {
+        probe: Arc::clone(&probe),
+        echo_first: false,
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(svc).serve_unix(sock).await.ok();
     });
     let client = GreeterClient::new(unix_channel(&path).await);
-    assert_client_stream_sender_fail(&client).await;
-    assert_bidi_sender_fail_before_headers(&client).await;
-    wait_flag(&left).await;
+    assert_client_stream_sender_fail(&client, &probe).await;
+    assert_bidi_sender_fail_before_headers(&client, &probe).await;
     drop(client);
     task.abort();
 
-    let left = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(SenderFailureProbe::default());
     let (path, _guard) = unix_test_path();
     let sock = path.clone();
-    let svc = BidiWaitAfterFirst {
-        left: Arc::clone(&left),
+    let svc = SenderFailureService {
+        probe: Arc::clone(&probe),
+        echo_first: true,
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(svc).serve_unix(sock).await.ok();
     });
     let client = GreeterClient::new(unix_channel(&path).await);
-    assert_bidi_sender_fail_after_headers(&client).await;
-    wait_flag(&left).await;
+    assert_bidi_sender_fail_after_headers(&client, &probe).await;
     drop(client);
     task.abort();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn from_io_failing_a_request_stream_is_that_status_or_cancelled() {
-    let left = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(SenderFailureProbe::default());
     let (client_io, server_io) = duplex_pair();
-    let svc = ClientStreamFailAfterOne {
-        left: Arc::clone(&left),
+    let svc = SenderFailureService {
+        probe: Arc::clone(&probe),
+        echo_first: false,
     };
     let server = tokio::spawn(async move {
         GreeterServer::new(svc)
@@ -23188,16 +23504,16 @@ async fn from_io_failing_a_request_stream_is_that_status_or_cancelled() {
             .await
             .expect("from_io"),
     );
-    assert_client_stream_sender_fail(&client).await;
-    assert_bidi_sender_fail_before_headers(&client).await;
-    wait_flag(&left).await;
+    assert_client_stream_sender_fail(&client, &probe).await;
+    assert_bidi_sender_fail_before_headers(&client, &probe).await;
     drop(client);
     server.abort();
 
-    let left = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(SenderFailureProbe::default());
     let (client_io, server_io) = duplex_pair();
-    let svc = BidiWaitAfterFirst {
-        left: Arc::clone(&left),
+    let svc = SenderFailureService {
+        probe: Arc::clone(&probe),
+        echo_first: true,
     };
     let server = tokio::spawn(async move {
         GreeterServer::new(svc)
@@ -23210,35 +23526,24 @@ async fn from_io_failing_a_request_stream_is_that_status_or_cancelled() {
             .await
             .expect("from_io"),
     );
-    assert_bidi_sender_fail_after_headers(&client).await;
-    wait_flag(&left).await;
+    assert_bidi_sender_fail_after_headers(&client, &probe).await;
     drop(client);
     server.abort();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_call_handle_cancels_a_bidi_stream_before_headers() {
-    let left = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(SenderFailureProbe::default());
     let (addr, listener) = bind().await;
-    let svc = ClientStreamFailAfterOne {
-        left: Arc::clone(&left),
+    let svc = SenderFailureService {
+        probe: Arc::clone(&probe),
+        echo_first: false,
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(svc).serve_listener(listener).await.ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    let (tx, mut call) = client.stream_hello(Request::new(()));
-    tx.send(req("ada")).await.expect("send");
-    tokio::select! {
-        biased;
-        result = &mut call => panic!("hang returned before cancel: {result:?}"),
-        () = tokio::time::sleep(Duration::from_millis(40)) => {}
-    }
-    call.handle().cancel();
-    let err = call.await.expect_err("cancelled");
-    assert_eq!(err.code(), Code::Cancelled, "{err}");
-    wait_flag(&left).await;
-    drop(tx);
+    assert_call_handle_cancels_bidi_before_headers(&client, &probe).await;
     drop(client);
     task.abort();
 }
@@ -23401,19 +23706,18 @@ async fn assert_call_handle_cancels_live_bidi(client: &GreeterClient, left: &Ato
 
 async fn assert_call_handle_cancels_bidi_before_headers(
     client: &GreeterClient,
-    left: &AtomicUsize,
+    probe: &SenderFailureProbe,
 ) {
+    let expected = probe.admitted.load(Ordering::Acquire) + 1;
     let (tx, mut call) = client.stream_hello(Request::new(()));
     tx.send(req("ada")).await.expect("send");
-    tokio::select! {
-        biased;
-        result = &mut call => panic!("hang returned before cancel: {result:?}"),
-        () = tokio::time::sleep(Duration::from_millis(40)) => {}
-    }
+    await_sender_failure_admission(&mut call, probe, expected).await;
     call.handle().cancel();
-    let err = call.await.expect_err("cancelled");
+    let err = drive_sender_failure(call, probe, "explicit CallHandle cancellation")
+        .await
+        .expect_err("cancelled");
     assert_eq!(err.code(), Code::Cancelled, "{err}");
-    wait_flag(left).await;
+    await_sender_failure_drop(probe, expected, false).await;
     drop(tx);
 }
 
@@ -23474,11 +23778,12 @@ async fn tls_call_handle_cancels_streams() {
     drop(client);
     task.abort();
 
-    let left = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(SenderFailureProbe::default());
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
-    let svc = ClientStreamFailAfterOne {
-        left: Arc::clone(&left),
+    let svc = SenderFailureService {
+        probe: Arc::clone(&probe),
+        echo_first: false,
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(svc)
@@ -23487,7 +23792,7 @@ async fn tls_call_handle_cancels_streams() {
             .ok();
     });
     let client = GreeterClient::new(tls_channel(addr).await);
-    assert_call_handle_cancels_bidi_before_headers(&client, &left).await;
+    assert_call_handle_cancels_bidi_before_headers(&client, &probe).await;
     drop(client);
     task.abort();
 
@@ -23549,11 +23854,12 @@ async fn mtls_call_handle_cancels_streams() {
     drop(client);
     task.abort();
 
-    let left = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(SenderFailureProbe::default());
     let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
     let (addr, listener) = bind().await;
-    let svc = ClientStreamFailAfterOne {
-        left: Arc::clone(&left),
+    let svc = SenderFailureService {
+        probe: Arc::clone(&probe),
+        echo_first: false,
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(svc)
@@ -23563,7 +23869,7 @@ async fn mtls_call_handle_cancels_streams() {
     });
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
-    assert_call_handle_cancels_bidi_before_headers(&client, &left).await;
+    assert_call_handle_cancels_bidi_before_headers(&client, &probe).await;
     drop(client);
     task.abort();
 
@@ -23619,17 +23925,18 @@ async fn unix_call_handle_cancels_streams() {
     drop(client);
     task.abort();
 
-    let left = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(SenderFailureProbe::default());
     let (path, _guard) = unix_test_path();
     let sock = path.clone();
-    let svc = ClientStreamFailAfterOne {
-        left: Arc::clone(&left),
+    let svc = SenderFailureService {
+        probe: Arc::clone(&probe),
+        echo_first: false,
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(svc).serve_unix(sock).await.ok();
     });
     let client = GreeterClient::new(unix_channel(&path).await);
-    assert_call_handle_cancels_bidi_before_headers(&client, &left).await;
+    assert_call_handle_cancels_bidi_before_headers(&client, &probe).await;
     drop(client);
     task.abort();
 
@@ -23692,10 +23999,11 @@ async fn from_io_call_handle_cancels_streams() {
     drop(client);
     server.abort();
 
-    let left = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(SenderFailureProbe::default());
     let (client_io, server_io) = duplex_pair();
-    let svc = ClientStreamFailAfterOne {
-        left: Arc::clone(&left),
+    let svc = SenderFailureService {
+        probe: Arc::clone(&probe),
+        echo_first: false,
     };
     let server = tokio::spawn(async move {
         GreeterServer::new(svc)
@@ -23708,7 +24016,7 @@ async fn from_io_call_handle_cancels_streams() {
             .await
             .expect("from_io"),
     );
-    assert_call_handle_cancels_bidi_before_headers(&client, &left).await;
+    assert_call_handle_cancels_bidi_before_headers(&client, &probe).await;
     drop(client);
     server.abort();
 
@@ -23743,6 +24051,7 @@ async fn tls_deadline_rsts_streams_before_and_after_headers() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
     let hang = SpawnHang {
+        probe: Arc::new(SpawnHangProbe::default()),
         started: Arc::clone(&started),
         finished: Arc::clone(&finished),
         child_done: Arc::clone(&child_done),
@@ -23826,6 +24135,7 @@ async fn mtls_deadline_rsts_streams_before_and_after_headers() {
     let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
     let (addr, listener) = bind().await;
     let hang = SpawnHang {
+        probe: Arc::new(SpawnHangProbe::default()),
         started: Arc::clone(&started),
         finished: Arc::clone(&finished),
         child_done: Arc::clone(&child_done),
@@ -23914,6 +24224,7 @@ async fn unix_deadline_rsts_streams_before_and_after_headers() {
     let (path, _guard) = unix_test_path();
     let sock = path.clone();
     let hang = SpawnHang {
+        probe: Arc::new(SpawnHangProbe::default()),
         started: Arc::clone(&started),
         finished: Arc::clone(&finished),
         child_done: Arc::clone(&child_done),
@@ -23984,6 +24295,7 @@ async fn from_io_deadline_rsts_streams_before_and_after_headers() {
     let child_done = Arc::new(AtomicUsize::new(0));
     let (client_io, server_io) = duplex_pair();
     let hang = SpawnHang {
+        probe: Arc::new(SpawnHangProbe::default()),
         started: Arc::clone(&started),
         finished: Arc::clone(&finished),
         child_done: Arc::clone(&child_done),

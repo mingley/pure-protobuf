@@ -75,6 +75,8 @@ when the codec has consumed the input and its backing allocation has one owner.
 The Prost adapter supports this for owned fields. Messages that retain shared
 `Bytes`, including the default pbrs decoding path, keep their existing ownership
 behavior. Unary and uncompressed decoding do not populate this cache.
+Cold output up to the decoder's 8 KiB lookahead uses the ordinary codec path;
+an existing workspace can still serve later small or empty messages.
 
 Cache admission charges the allocation's full capacity. A full cache or a buffer
 above 4 MiB simply disables retention for that message. These limits cover idle

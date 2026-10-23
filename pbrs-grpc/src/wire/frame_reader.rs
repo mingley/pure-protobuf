@@ -6,7 +6,7 @@ use super::headers::{
 };
 use crate::binlog::{CallLogger, Logger};
 use crate::codec::{self, CodecMessage, Frame};
-use crate::compression::CompressionAlgorithm;
+use crate::compression::{CompressionAlgorithm, DECODE_LOOKAHEAD_BYTES};
 use crate::limits::MessageLimits;
 use crate::metadata::{self, Metadata};
 use crate::status::{Code, Status, parse_pushback_value};
@@ -291,6 +291,16 @@ fn decode_stream_frame<T: CodecMessage>(
             .as_mut()
             .map_or_else(Vec::new, |workspace| workspace.take_buffer());
         let raw = codec.decode_limited_into(&frame.payload, limits, output)?;
+        // Cold output within the initial decode lookahead has little growth
+        // to amortize. Keep its ordinary codec ownership path, avoiding cache
+        // metadata, a workspace Box and retention atomics. Existing workspaces
+        // still serve later short or empty messages in a mixed-size stream.
+        if workspace.is_none() && raw.len() <= DECODE_LOOKAHEAD_BYTES {
+            return T::decode_payload(Bytes::from(raw)).map(|message| Framed {
+                message,
+                compressed: true,
+            });
+        }
         let mut payload = Bytes::from(raw);
         let message = T::decode_payload_reusable(&mut payload)?;
         // A codec may move, split or retain its input. Reclaim only a fully
@@ -1001,6 +1011,75 @@ mod tests {
                 .encode(payload)
                 .expect("gzip")
                 .into(),
+        }
+    }
+
+    #[test]
+    fn cold_short_messages_do_not_start_a_workspace_but_warm_short_messages_reuse_it() {
+        let limits = MessageLimits::unlimited().with_max_decoding(131072);
+        let mut workspace = None;
+        for length in [
+            0,
+            1,
+            1024,
+            DECODE_LOOKAHEAD_BYTES - 1,
+            DECODE_LOOKAHEAD_BYTES,
+        ] {
+            let payload = vec![7; length];
+            assert_eq!(
+                decode_stream_frame::<OwnedMessage>(
+                    compressed(&payload),
+                    limits,
+                    true,
+                    Some(CompressionAlgorithm::Gzip),
+                    &mut workspace,
+                )
+                .expect("cold short decode")
+                .message
+                .0,
+                payload
+            );
+            assert!(
+                workspace.is_none(),
+                "cold short output must not start a cache"
+            );
+        }
+
+        let payload = vec![9; DECODE_LOOKAHEAD_BYTES + 1];
+        assert_eq!(
+            decode_stream_frame::<OwnedMessage>(
+                compressed(&payload),
+                limits,
+                true,
+                Some(CompressionAlgorithm::Gzip),
+                &mut workspace,
+            )
+            .expect("large decode starts retention")
+            .message
+            .0,
+            payload
+        );
+        let retained = workspace.as_ref().expect("large owned output retained");
+        let pointer = retained.buffer.as_ptr();
+        let capacity = retained.buffer.capacity();
+        for length in [17, 0, 1024] {
+            let payload = vec![11; length];
+            assert_eq!(
+                decode_stream_frame::<OwnedMessage>(
+                    compressed(&payload),
+                    limits,
+                    true,
+                    Some(CompressionAlgorithm::Gzip),
+                    &mut workspace,
+                )
+                .expect("warm short decode")
+                .message
+                .0,
+                payload
+            );
+            let retained = workspace.as_ref().expect("short output keeps warm storage");
+            assert_eq!(retained.buffer.as_ptr(), pointer);
+            assert_eq!(retained.buffer.capacity(), capacity);
         }
     }
 

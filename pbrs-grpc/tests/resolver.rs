@@ -519,6 +519,7 @@ async fn unix_abstract_uri_dials_on_linux() {
 struct Named {
     tag: &'static str,
     unaries: Arc<AtomicUsize>,
+    second_item: Option<tokio::sync::watch::Receiver<bool>>,
 }
 
 impl Greeter for Named {
@@ -538,13 +539,19 @@ impl Greeter for Named {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<Streaming<HelloReply>>, Status> {
-        // Slow second item: still on the wire when a handoff lands.
+        // The drain fixture keeps the second item pending until it observes
+        // a new pick on B; elapsed time alone cannot establish that ordering.
         let (tx, stream) = Streaming::channel(4);
         let name = request.get_ref().name().to_string();
         let tag = self.tag;
+        let second_item = self.second_item.clone();
         drop(tokio::spawn(async move {
             let _ = tx.send(reply(format!("{tag}:1:{name}"))).await;
-            tokio::time::sleep(Duration::from_millis(500)).await;
+            if let Some(mut release) = second_item {
+                if release.wait_for(|ready| *ready).await.is_err() {
+                    return;
+                }
+            }
             let _ = tx.send(reply(format!("{tag}:2:{name}"))).await;
         }));
         Ok(Response::new(stream))
@@ -552,6 +559,13 @@ impl Greeter for Named {
 }
 
 async fn serve_named(tag: &'static str) -> (SocketAddr, Arc<AtomicUsize>, ServerGuard) {
+    serve_named_with_second_item(tag, None).await
+}
+
+async fn serve_named_with_second_item(
+    tag: &'static str,
+    second_item: Option<tokio::sync::watch::Receiver<bool>>,
+) -> (SocketAddr, Arc<AtomicUsize>, ServerGuard) {
     let unaries = Arc::new(AtomicUsize::new(0));
     let worker = Arc::clone(&unaries);
     let (addr, listener) = bind().await;
@@ -559,6 +573,7 @@ async fn serve_named(tag: &'static str) -> (SocketAddr, Arc<AtomicUsize>, Server
         GreeterServer::new(Named {
             tag,
             unaries: worker,
+            second_item,
         })
         .serve_listener(listener)
         .await
@@ -633,6 +648,7 @@ async fn pick_first_sticks_then_fails_over() {
         GreeterServer::new(Named {
             tag: "A",
             unaries: worker,
+            second_item: None,
         })
         .serve_listener(listener)
         .await
@@ -718,24 +734,16 @@ async fn pick_first_skips_dead_first_address() {
     unary_tag_is(&client, "B:ada").await;
 }
 
-/// Scripted A answers switching once, then repeating.
-struct SwitchA {
-    steps: tokio::sync::Mutex<Vec<Vec<SocketAddr>>>,
-}
+/// Keep an answer in place until the test explicitly changes phase.
+/// Returning from a lookup is not an acknowledgement that the picker applied it.
+struct CurrentAddrs(tokio::sync::watch::Receiver<Vec<SocketAddr>>);
 
-impl DnsLookup for SwitchA {
+impl DnsLookup for CurrentAddrs {
     fn lookup(
         &self,
         _host: &str,
     ) -> Pin<Box<dyn Future<Output = Result<Vec<SocketAddr>, io::Error>> + Send + '_>> {
-        Box::pin(async move {
-            let mut steps = self.steps.lock().await;
-            if steps.len() > 1 {
-                Ok(steps.remove(0))
-            } else {
-                Ok(steps.first().cloned().unwrap_or_default())
-            }
-        })
+        Box::pin(async move { Ok(self.0.borrow().clone()) })
     }
 }
 
@@ -753,11 +761,11 @@ fn fast_bounds() -> DnsConfig {
 
 #[tokio::test]
 async fn removed_address_drains_without_migrating() {
-    let (addr_a, _, _guard_a) = serve_named("A").await;
+    let (release_second, second_item) = tokio::sync::watch::channel(false);
+    let (addr_a, _, _guard_a) = serve_named_with_second_item("A", Some(second_item)).await;
     let (addr_b, unaries_b, _guard_b) = serve_named("B").await;
-    let dns = Arc::new(SwitchA {
-        steps: tokio::sync::Mutex::new(vec![vec![addr_a, addr_b], vec![addr_b]]),
-    });
+    let (answers, current) = tokio::sync::watch::channel(vec![addr_a, addr_b]);
+    let dns = Arc::new(CurrentAddrs(current));
     let config = ResolverConfig::with_dns_provider(fast_bounds(), dns);
     let channel = Channel::connect_uri("dns:///fl.invalid:443", config)
         .await
@@ -765,7 +773,7 @@ async fn removed_address_drains_without_migrating() {
     let client = GreeterClient::new(channel);
     unary_tag_is(&client, "A:ada").await;
 
-    // Slow stream starts on A; the refresh then removes A mid-stream.
+    // Hold the initial answer until an A stream is actually established.
     let mut stream = client
         .server_hello(Request::new(req("ada")))
         .await
@@ -780,6 +788,9 @@ async fn removed_address_drains_without_migrating() {
             .message(),
         "A:1:ada"
     );
+    // Only now remove A. New picks must move to B while this live stream
+    // continues on A; provider return alone does not prove policy adoption.
+    answers.send(vec![addr_b]).expect("DNS provider is live");
     // Wait for the policy to move off A: new unaries land on B.
     let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
     loop {
@@ -800,7 +811,11 @@ async fn removed_address_drains_without_migrating() {
         }
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
-    // The A stream was never migrated or killed: item 2 arrives from A.
+    // B is now selected while A's second item is still gated. Only release
+    // that item after the handoff, proving this stream was not killed/migrated.
+    release_second
+        .send(true)
+        .expect("A stream producer is live");
     assert_eq!(
         stream
             .message()
@@ -869,6 +884,7 @@ async fn all_failing_fast_fails_and_wait_for_ready_recovers() {
         GreeterServer::new(Named {
             tag: "B",
             unaries: Arc::new(AtomicUsize::new(0)),
+            second_item: None,
         })
         .serve_listener(listener)
         .await
@@ -1022,6 +1038,7 @@ async fn serve_named_v6(tag: &'static str) -> Option<(SocketAddr, Arc<AtomicUsiz
         GreeterServer::new(Named {
             tag,
             unaries: worker,
+            second_item: None,
         })
         .serve_listener(listener)
         .await
@@ -1246,13 +1263,8 @@ async fn round_robin_skips_dead_backend() {
 async fn round_robin_churn_removes_and_recovers() {
     let (addr_a, unaries_a, _guard_a) = serve_named("A").await;
     let (addr_b, unaries_b, _guard_b) = serve_named("B").await;
-    let dns = Arc::new(SwitchA {
-        steps: tokio::sync::Mutex::new(vec![
-            vec![addr_a, addr_b],
-            vec![addr_b],
-            vec![addr_a, addr_b],
-        ]),
-    });
+    let (answers, current) = tokio::sync::watch::channel(vec![addr_a, addr_b]);
+    let dns = Arc::new(CurrentAddrs(current));
     let channel = rr_channel_with(dns, "rr.invalid").await;
     let client = GreeterClient::new(channel);
 
@@ -1263,10 +1275,11 @@ async fn round_robin_churn_removes_and_recovers() {
     }
     assert_eq!(tags, vec!["A:ada", "B:ada", "A:ada", "B:ada"]);
 
-    // Phase 2: A leaves; tight loop until 6 consecutive B-only
-    // (phases last one refresh interval, so detect in milliseconds,
-    // not sleeps), then prove A routes nothing further (10 more
-    // RPCs, counter frozen).
+    // Phase 2: hold B-only until the picker demonstrates removal. A DNS
+    // refresh can happen between any two RPCs; recovery must not race these
+    // assertions. Six B replies witness adoption, then ten more must leave
+    // A's counter frozen. Keep the original finite wait and exact results.
+    answers.send(vec![addr_b]).expect("DNS provider is live");
     let mut consecutive_b = 0;
     let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
     while consecutive_b < 6 {
@@ -1286,7 +1299,11 @@ async fn round_robin_churn_removes_and_recovers() {
     }
     assert_eq!(unaries_a.load(Ordering::SeqCst), frozen_a);
 
-    // Phase 3: A returns and serves again (fresh dial, no stale conn).
+    // Phase 3 starts only after removal was observed and checked. A returns
+    // and serves again (fresh dial, no stale conn).
+    answers
+        .send(vec![addr_a, addr_b])
+        .expect("DNS provider is live");
     let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
     let mut recovered = false;
     while tokio::time::Instant::now() < deadline {

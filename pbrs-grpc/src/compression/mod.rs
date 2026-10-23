@@ -28,6 +28,10 @@ pub use gzip::{decode, decode_limited, encode, encode_level};
 use crate::limits::MessageLimits;
 use crate::status::Status;
 
+/// Decoded bytes examined before the bounded reader enters its growth loop.
+/// Cold stream messages within this lookahead keep the ordinary codec path.
+pub(crate) const DECODE_LOOKAHEAD_BYTES: usize = 8192;
+
 /// Read at most the decoded message budget, probing one more byte for overflow.
 ///
 /// Decode a bounded chunk before allocating. A short final chunk reserves only
@@ -103,7 +107,7 @@ fn read_bounded_into(
     }
     let exceeded =
         || Status::resource_exhausted(format!("decompressed message exceeds limit {budget}"));
-    let mut chunk = [0u8; 8192];
+    let mut chunk = [0u8; DECODE_LOOKAHEAD_BYTES];
     let want = budget.saturating_add(1).min(chunk.len());
     let target = chunk
         .get_mut(..want)
@@ -118,9 +122,7 @@ fn read_bounded_into(
     let capacity = if eof {
         n
     } else {
-        n.max(compressed_length.min(256 * 1024))
-            .max(out.capacity())
-            .min(budget)
+        n.max(compressed_length.min(256 * 1024)).min(budget)
     };
     reserve(&mut out, capacity, budget)?;
     out.extend_from_slice(
@@ -388,7 +390,7 @@ impl CompressionAlgorithm {
 
 #[cfg(test)]
 mod tests {
-    use super::{CompressionAlgorithm, read_bounded};
+    use super::{CompressionAlgorithm, read_bounded, read_bounded_into};
     use crate::{Code, MessageLimits};
     use std::io::Read;
 
@@ -488,6 +490,54 @@ mod tests {
                 assert_eq!(output.capacity(), capacity);
             }
         }
+    }
+
+    #[test]
+    fn retained_capacity_does_not_expand_read_spans_for_a_modest_message() {
+        struct ReadSpans<'a> {
+            remaining: &'a [u8],
+            largest_target: usize,
+        }
+        impl Read for ReadSpans<'_> {
+            fn read(&mut self, target: &mut [u8]) -> std::io::Result<usize> {
+                self.largest_target = self.largest_target.max(target.len());
+                self.remaining.read(target)
+            }
+        }
+
+        let payload = vec![7; 8193];
+        let retained = Vec::with_capacity(1024 * 1024);
+        let pointer = retained.as_ptr();
+        let capacity = retained.capacity();
+        let mut reader = ReadSpans {
+            remaining: &payload,
+            largest_target: 0,
+        };
+        let decoded = read_bounded_into(
+            &mut reader,
+            2 * 1024 * 1024,
+            16,
+            "read-span control",
+            retained,
+        )
+        .expect("small output with a large retained allocation");
+        assert_eq!(decoded, payload);
+        assert_eq!(
+            decoded.as_ptr(),
+            pointer,
+            "the retained allocation stays owned"
+        );
+        assert_eq!(decoded.capacity(), capacity);
+        // A large allocation retained by an earlier message must not become
+        // the next message's initialized output/read span. Keep the bound
+        // proportional to this output rather than to a particular chunk size.
+        assert!(
+            reader.largest_target <= 2 * payload.len(),
+            "a {}-byte message requested a {}-byte read target from retained capacity {}",
+            payload.len(),
+            reader.largest_target,
+            capacity,
+        );
     }
 
     #[test]
