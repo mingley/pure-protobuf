@@ -487,6 +487,45 @@ class CorpusTests(unittest.TestCase):
                 with self.assertRaisesRegex(harness.BenchmarkError, "changed during copy"):
                     harness.copy_generator(shared, root / "second-run")
 
+    def test_invalid_time_override_fails_before_spawning(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            non_executable = directory / "not-executable"
+            non_executable.write_text("not a program")
+            non_executable.chmod(0o600)
+            invalid = ("", "relative-time", str(directory),
+                       str(directory / "missing"), str(non_executable))
+            for value in invalid:
+                with self.subTest(value=value), mock.patch.object(
+                    harness.subprocess, "Popen"
+                ) as spawn, self.assertRaisesRegex(
+                    harness.BenchmarkError, "PBRS_CODEGEN_TIME.*absolute executable file"
+                ):
+                    harness.timed_command(
+                        [sys.executable, "-c", "print('never run')"], directory,
+                        {**os.environ, "PBRS_CODEGEN_TIME": value},
+                        directory / "logs" / "invalid", directory, 15, 100,
+                    )
+                spawn.assert_not_called()
+
+    @unittest.skipUnless(sys.platform in ("darwin", "linux"), "requires system time and ps")
+    def test_time_override_with_spaces_runs_command_and_records_selected_tool(self):
+        executable, _ = harness.time_executable(dict(os.environ), harness.platform.system())
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            alternate = directory / "alternate time"
+            alternate.symlink_to(executable)
+            result = harness.timed_command(
+                [sys.executable, "-c", "print('override selected')"], directory,
+                {**os.environ, "PBRS_CODEGEN_TIME": str(alternate)},
+                directory / "logs" / "override", directory, 15, 100,
+            )
+            self.assertEqual(result["exit_code"], 0)
+            self.assertEqual(result["time_executable"], str(alternate))
+            self.assertGreater(result["direct_command_peak_rss_bytes"], 0)
+            self.assertEqual((directory / result["stdout_log"]).read_text(), "override selected\n")
+            self.assertTrue((directory / result["stderr_log"]).read_text())
+
     @unittest.skipUnless(sys.platform in ("darwin", "linux"), "requires system time and ps")
     def test_python_command_keeps_timing_and_raw_logs_separate(self):
         with tempfile.TemporaryDirectory() as temporary:

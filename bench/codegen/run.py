@@ -1587,6 +1587,20 @@ def log_paths(stem: Path, run_dir: Path) -> tuple[Path, Path, dict]:
     }
 
 
+def time_executable(env: dict[str, str], system: str) -> tuple[str, str]:
+    time_flag = {"Darwin": "-l", "Linux": "-v"}.get(system)
+    if time_flag is None:
+        raise BenchmarkError(f"requires system time on Linux or macOS (found {system})")
+    executable = env.get("PBRS_CODEGEN_TIME", "/usr/bin/time")
+    path = Path(executable)
+    if not path.is_absolute() or not path.is_file() or not os.access(path, os.X_OK):
+        raise BenchmarkError(
+            f"PBRS_CODEGEN_TIME must name an absolute executable file "
+            f"(default /usr/bin/time): {executable!r}"
+        )
+    return str(path), time_flag
+
+
 def timed_command(
     command: list[str],
     cwd: Path,
@@ -1597,9 +1611,7 @@ def timed_command(
     sample_ms: int,
 ) -> dict:
     system = platform.system()
-    time_flag = {"Darwin": "-l", "Linux": "-v"}.get(system)
-    if time_flag is None or not Path("/usr/bin/time").is_file():
-        raise BenchmarkError(f"requires /usr/bin/time on Linux or macOS (found {system})")
+    time_path, time_flag = time_executable(env, system)
     ps = shutil.which("ps")
     if ps is None:
         raise BenchmarkError("requires ps to sample cargo/rustc child RSS")
@@ -1609,7 +1621,7 @@ def timed_command(
         started = time.perf_counter_ns()
         try:
             proc = subprocess.Popen(
-                ["/usr/bin/time", time_flag, *command],
+                [time_path, time_flag, *command],
                 cwd=cwd,
                 env=env,
                 stdout=out,
@@ -1665,6 +1677,7 @@ def timed_command(
         "exit_code": exit_code,
         "elapsed_ns": elapsed_ns,
         "peak_rss_bytes": max(direct_peak, sampled_peak or 0),
+        "time_executable": time_path,
         "direct_command_peak_rss_bytes": direct_peak,
         "process_tree_sample_peak_rss_bytes": sampled_peak,
         "process_tree_samples": len(samples),

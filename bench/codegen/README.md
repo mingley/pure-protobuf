@@ -10,6 +10,12 @@ claims.
 
 Use Python 3.11+ for the full matrix and its test suite (`tomllib` verifies
 runtime lockfiles), along with Cargo, Rust, and the required pinned compiler.
+RSS measurement also requires `ps` and `/usr/bin/time`: GNU time on Linux,
+macOS system time on macOS. If time is installed elsewhere, set
+`PBRS_CODEGEN_TIME` to its absolute executable path (for example, a GNU time
+binary extracted into a user-owned directory on Linux). Linux keeps `-v` and
+macOS keeps `-l`; the selected tool must support that platform's flags. Every
+timed phase records the selected executable and retains its raw logs.
 If `python3` selects an older macOS interpreter, run the tests with an installed
 3.11+ executable and put that interpreter first on `PATH` for the shell wrapper.
 
