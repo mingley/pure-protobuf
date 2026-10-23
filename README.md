@@ -291,7 +291,7 @@ run `cargo doc --workspace --no-deps --open`.
 | Next contribution and audit findings | [Execution queue](TODO.md), [repository audit](docs/audit-2026-09-29.md), [task contracts](docs/plan/README.md) |
 | gRPC performance work | [Performance plan](docs/plan/world-class/README.md) and [task cards](docs/plan/world-class/tasks.json) |
 | Adopting pbrs in existing prost/tonic systems | [Adoption program](docs/plan/adoption/README.md) |
-| Every-cell comparison against tonic and prost | [Dominance program](docs/plan/dominance/README.md) |
+| Every-cell comparison against tonic and prost | [Workload comparison plan](docs/plan/dominance/README.md) |
 
 ## License
 

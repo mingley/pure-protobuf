@@ -2,7 +2,7 @@
 
 No performance category has passed qualification yet. The project has useful
 local results and working benchmark tools; it has not completed the controlled
-campaigns needed to establish comparative leadership.
+campaigns needed for repeatable comparisons across the required workloads.
 
 The [execution follow-up](evidence/grpc-architecture-20261022/README.md) adds
 wake-indexed scheduling, runtime-local cancellation parking, selected-method

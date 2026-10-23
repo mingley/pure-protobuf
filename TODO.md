@@ -3,9 +3,9 @@
 The immediate goal is a trustworthy comparison of the current gRPC stack,
 followed by measured improvements to client and server efficiency. The
 [2026-09-29 audit](docs/audit-2026-09-29.md) explains the current gaps. The
-[performance program](docs/plan/world-class/README.md) defines the route to
-leadership; [task cards](docs/plan/world-class/tasks.json) carry acceptance
-criteria and dependencies.
+[performance program](docs/plan/world-class/README.md) defines the required
+comparisons and checks; [task cards](docs/plan/world-class/tasks.json) carry
+acceptance criteria and dependencies.
 
 Michael Ingley coordinates assignments and reviews. A card marked `done`
 means its recorded deliverable was accepted; it does not certify the whole
@@ -89,13 +89,16 @@ transport, scheduling and generated-code costs. Strict lint, remaining features
 and release gates remain open. Production readiness and broad superiority are
 unproved; use the [benchmark contract](docs/benchmark-contract.md) for comparisons.
 
-## Dominance program
+<a id="dominance-program"></a>
 
-Goal: pbrs-grpc beats tonic with prost in every cell, with prost or pbrs
-messages and on client and server alike, in CPU, allocations and wall time.
-The [dominance program](docs/plan/dominance/README.md) defines the matrix and
-the bar, and seeds a loss ledger in which every loss has an owning card.
-Start with SB-27 (after SB-26) and RX-10, then flip the known losses: SV-09,
+## Workload comparisons
+
+Goal: use less CPU, allocate less and complete calls faster than tonic/prost
+across the defined workloads, for both client and server with prost and pbrs
+messages. Measure each side and metric separately. The
+[workload comparison plan](docs/plan/dominance/README.md) defines acceptance
+criteria and assigns each recorded loss to a task card.
+Start with SB-27 (after SB-26) and RX-10, then address the recorded losses: SV-09,
 CL-08, CL-07, CL-09, PK-26, PK-27 and PK-29.
 
 ## Adoption program

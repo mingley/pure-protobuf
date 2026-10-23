@@ -255,7 +255,7 @@ link time plus a generic fallback loop.
    upb-compatible semantics (pointer stability for message elements across
    growth — chunk allocation gives this free).
 2. **Maps.** Hash map with last-wins insert, O(1) get/remove, iteration and
-   clear. First implementation uses `hashbrown` (pure Rust, no new C) inside
+   clear. First implementation uses `hashbrown` inside
    an arena-owned shell with cleanup registration. A custom open-addressing
    table is justified only by a UK-13-measured loss. Map-of-message values
    adopt (fuse) on insert. Deterministic encode sorts by key bytes.

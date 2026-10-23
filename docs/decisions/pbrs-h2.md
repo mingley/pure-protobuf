@@ -484,7 +484,7 @@ move are marked `—` (inherits pbrs-grpc work).
 | F4 gRFC coverage | Unchanged | — |
 | F5 xDS interop | Unchanged | — |
 | F6 fuzz/Miri | 24 CPU-hours per target (`h2_frame`, `h2_hpack`, `h2_diff`); Miri clean on `unsafe` (target: zero `unsafe` in core) | H2-09, QG-01 |
-| F7 pure-Rust graph | Core has zero non-std dependencies; adapters add only tokio/rustls (already in tree) | QG-04 audit |
+| F7 dependency graph | Core has zero non-std dependencies; adapters add only tokio/rustls (already in tree) | QG-04 audit |
 
 Failure rule: any primary-cell regression > 1% dev-loop (2% RPC cells) or any
 F-gate red blocks merge — same rule as every optimization card.

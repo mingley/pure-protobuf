@@ -15,7 +15,10 @@ approval; the source evidence and unresolved gate are retained below.
 
 ---
 
-## 1. Executive Summary & Disposition Decision
+<a id="1-executive-summary--disposition-decision"></a>
+<a id="1-executive-summary-disposition-decision"></a>
+
+## 1. Protocol decision
 
 The official interoperability inventory in `tests/interop/cases.json` includes
 `cacheable_unary` ("Cacheable Unary Call"). It comes from upstream gRPC interop

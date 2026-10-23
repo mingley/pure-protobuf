@@ -1,11 +1,11 @@
 # Roadmap: performance and production readiness
 
-The goal is a Rust protobuf and gRPC stack with leading client and server
-efficiency, predictable resources and a straightforward developer experience.
+The goal is lower client and server CPU and memory costs and faster RPCs than
+tonic/prost, with predictable resources and straightforward protobuf and gRPC APIs.
 The [current queue](../TODO.md) says what to do next. The
 [2026-09-29 audit](audit-2026-09-29.md) explains why, and the
-[performance plan](plan/world-class/README.md) sets the measurable route
-to leadership.
+[performance plan](plan/world-class/README.md) defines the required measurements
+and release checks.
 
 This page defines product scope and promotion requirements. It does not carry
 live task status. Use the two [task plans](plan/README.md) and

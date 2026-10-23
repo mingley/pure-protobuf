@@ -12,7 +12,10 @@ oracles, use the [Edition fixtures](../tests/fixtures/edition2024/README.md).
 
 ---
 
-## 1. Executive Summary & Architectural Scope
+<a id="1-executive-summary--architectural-scope"></a>
+<a id="1-executive-summary-architectural-scope"></a>
+
+## 1. Scope
 
 Protocol Buffers Edition 2024 uses:
 

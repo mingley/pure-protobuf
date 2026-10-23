@@ -237,14 +237,13 @@ access.
 | `Wire` window overhead | +48 B/message alloc bytes (40 B `Wire`) | same window shape reused; no new backing type | PK-09 |
 | Sharing threshold | 4 KiB (owned bytes fields) | none at view layer (whole-buffer retention, documented) | PK-09 sweep |
 
-Trade-off summary: views trade *retention scope* (whole buffer must stay
-alive) for *zero copy and zero allocs*. For RPC handlers that read a few
-fields and drop the message, this strictly dominates owned parse. For
-handlers that cache one small field from a large message, views are a
-footgun without the copy-out rule — hence D4's documentation requirement
-and `to_owned()` detach. The 4 KiB PK-09 threshold stays exactly where it
-is (owned `bytes` fields); views do not get their own threshold because
-partial copy-out would keep the retention while losing the zero-copy win.
+Views can avoid allocation and copying for handlers that read a few fields,
+while retaining the input buffer. Compare equal validation and field access
+before claiming a benefit. Caching one small field can retain the whole input;
+copy it into independent storage when needed, as required by D4 and supported
+by `to_owned()`. The 4 KiB PK-09 threshold still applies to owned `bytes` fields.
+Views have no separate threshold: partial copy-out would retain the original
+buffer as well as the copy.
 
 ## buffa eager/lazy comparison rules (scoreboard group A)
 
@@ -301,7 +300,7 @@ and lazy view, always kept separate (README scoreboard table, group A).
 - **O4. `no_std`/alloc-only story.** `FooViewHandle` needs `bytes::Bytes`
   (already a pbrs dependency via PK-09). Is a handle type acceptable in
   every shipping profile, or must views compile under a minimal feature
-  without `bytes`? (QG-04 pure-Rust audit applies regardless.)
+  without `bytes`? (The QG-04 dependency audit applies regardless.)
 - **O5. Unknown-field access shape on views.** This record says views
   preserve unknown fields for `to_owned()` round-trip but offer no mutable
   API. Should views expose read access to unknown fields (e.g. raw bytes

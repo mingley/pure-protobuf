@@ -343,7 +343,7 @@ Payload Data Received
     - `grpc-status = 8` (`Code::ResourceExhausted`)
     - `grpc-message = "too many concurrent RPCs"`
     - `end_stream = true` set directly on the initial `HEADERS` frame.
-  - **Infallible Zero-Allocation Invariant:**
+  - **Reject before reading the request body:**
     - **No request body data is read or buffered**.
     - No `FrameReader` chunk or carry buffer is allocated or expanded.
     - No decompression or protobuf parsing is attempted.
