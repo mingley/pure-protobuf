@@ -5,21 +5,15 @@ deploying a service. This page explains what each limit controls, what remains
 application-owned, and how to validate overload and cleanup. Transport limits
 do not establish an exact process-memory ceiling.
 
-- **Task:** RT-05 ("Define a complete resource-budget model")
-- **Pinned Standards:** RFC 9113 (HTTP/2), RFC 7541 (HPACK header compression), gRPC over HTTP/2 Wire Specification, gRFC A6 (Client Retries)
-- **Work Package:** RT Lane (Reliability & Resource Safety), Wave 1
-- **Downstream Implementation:** RT-06 ("Enforce the approved transport byte budget"), RT-07 ("Verify overload fairness and slow-peer isolation")
-- **Related Documents:** [docs/retry-contract.md](retry-contract.md), [docs/architecture.md](architecture.md), [docs/grpc.md](grpc.md)
-- **Primary Source References:** `pbrs-grpc/src/config.rs`, `pbrs-grpc/src/limits.rs`, `pbrs-grpc/src/stream.rs`, `pbrs-grpc/src/wire.rs`, `pbrs-grpc/src/gzip.rs`, `pbrs-grpc/src/client.rs`, `pbrs-grpc/src/server.rs`
+Related: [retries](retry-contract.md), [architecture](architecture.md),
+[gRPC](grpc.md). The implementation is in `pbrs-grpc/src/{config,limits,stream,wire,gzip,client,server}.rs`.
+The wire rules follow RFC 9113, RFC 7541, the gRPC HTTP/2 specification and gRFC A6.
 
-## 1. Executive Summary & Problem Statement
+## 1. Default limits
 
-Networked remote procedure call (RPC) services face traffic bursts, slow peers,
-connection spam, and oversized payloads. Without deterministic limits, a gRPC
-service can run out of resident set size (RSS) memory or task capacity before
-CPU becomes the bottleneck.
-
-In `pbrs-grpc`, three facts drive the model:
+Traffic bursts, slow peers and large messages can exhaust memory or task
+capacity. Some defaults are bounded; global connection and RPC counts require
+explicit limits:
 
 | Fact | Why it matters |
 |---|---|
@@ -27,20 +21,12 @@ In `pbrs-grpc`, three facts drive the model:
 | Global connection and active-RPC counts are unbounded by default. | `max_concurrent_connections` and `max_concurrent_rpcs` default to `None`, so operators must choose production ceilings. |
 | High-throughput buffers multiply under overload. | 16 MiB connection and stream windows, 1 MiB frames, and 1 MiB send buffers can become gigabytes without explicit connection and call limits. |
 
-This specification provides:
-
-- a memory-accounting model for clients and servers;
-- a split between transport-owned buffers and application-owned data;
-- the backing-buffer retention hazard for zero-copy handlers;
-- overload analysis showing why explicit limits are required;
-- RT-06 admission-control and error semantics;
-- four production tuning profiles.
-
 ---
 
-## 2. Taxonomy of Buffers: Transport-Owned vs. Application-Owned
+## 2. Buffer ownership
 
-To construct a predictive memory model, memory allocations in `pbrs-grpc` are categorized by ownership, allocation lifecycle, and the enforcement mechanism that caps them.
+Budget transport buffers and application data separately. Each has a different
+owner, limit and release point.
 
 ```
 ┌───────────────────────────────────────────────────────────────────────────────────┐
@@ -59,7 +45,7 @@ To construct a predictive memory model, memory allocations in `pbrs-grpc` are ca
 └─────────────────────────────────────────┴─────────────────────────────────────────┘
 ```
 
-### 2.1 Detailed Buffer Classification
+### 2.1 Buffers and limits
 
 | Buffer Type | Owner | Typical Size Range | Controlled By / Bounded In | Reclaim Lifecycle |
 |---|---|---|---|---|
@@ -73,7 +59,8 @@ To construct a predictive memory model, memory allocations in `pbrs-grpc` are ca
 | **Uncompressed Header Block** | Transport (HPACK decoder) | Up to 16 KiB per RPC | `ServerConfig::max_header_list_size` (`DEFAULT_MAX_HEADER_LIST_SIZE`) | Freed after header parse |
 | **Inbound Frame Carry Buffer** | Transport (`wire::FrameReader`) | Up to 4 MiB (chunk-straddling) | `MessageLimits::max_decoding` (`DEFAULT_MAX_DECODING_MESSAGE_SIZE`) | Freed on frame yield |
 | **Decompression Expansion Buffer** | Transport (`compression::read_bounded`) | Output reservation up to the decoding cap, plus an 8 KiB stack chunk and decoder state | `MessageLimits::inflate_budget` (`limits.max_decoding()`) | Output may be retained by the decoded message |
-| **Zstd History Window** | Optional Zstd decoder | 8 MiB default window cap, plus block/decoder overhead | `MessageLimits::with_max_zstd_window`; independent of the decoded message cap | End of each compressed message |
+| **Zstd History Window** | Optional Zstd decoder | 8 MiB default logical window cap, plus capacity/block/decoder overhead | `MessageLimits::with_max_zstd_window`; independent of output and frame-count caps | Scratch is reused within a message and released afterward |
+| **Compressed Member/Frame Setup** | Compression decoder | At most 1,024 admissions per message by default | `MessageLimits::with_max_compression_frames`; includes empty gzip members and Zstd skippable frames | Count resets for each gRPC message |
 | **Outbound Frame Serialization** | Transport (`wire::frame_from_msg`) | Serialized payload length | `MessageLimits::max_encoding` / application message size | Dropped after wire enqueue |
 | **Compressed Streaming Scratch** | Transport (`wire::OutBatch`) | Up to 64 KiB retained per outbound compressed stream; larger scratch is released after each encode | Finite encoding limits and admitted stream count; outside byte-budget permits | Stream destruction, or immediately after a large encode |
 | **Unconfigured Transparent Retry Replay Buffer** | Client unary/server-streaming executor | One segmented request frame, with no finite default outbound cap | `encode_msg` and existing outbound message limits | Held across a proven-unprocessed replacement; dropped on terminal outcome |
@@ -135,10 +122,13 @@ semaphore-slot gauge, an RSS measurement, or an interval-specific peak.
 
 ### 2.2 The Backing Buffer Retention Hazard
 
-A critical architectural hazard in zero-copy networking engines is **backing buffer retention**:
-- In `pbrs-grpc`, network payloads arrive as reference-counted `bytes::Bytes` chunks sliced from larger I/O buffers.
-- When `FrameReader` extracts a frame that fits inside a single incoming chunk, it calls `chunk.split_to(frame_len)`, which performs an $O(1)$ reference-count increment sharing the underlying buffer allocation.
-- If application handler logic parses a string or byte slice into a long-lived cache by shallow-copying or retaining a `Bytes` handle (or if custom zero-copy deserialization is employed), **the entire physical allocation (often 16 KiB to 64 KiB) remains anchored in heap memory**, even if the application only references a 16-byte field.
+Retaining a small view can keep a large allocation alive:
+
+- Network payloads arrive as reference-counted `bytes::Bytes` chunks.
+- When a frame fits in one chunk, `FrameReader` uses `chunk.split_to(frame_len)`
+  to share its backing allocation in $O(1)$ time.
+- Keeping a shallow copy in a long-lived cache can retain the entire allocation
+  (often 16–64 KiB), even for a 16-byte field.
 - **For handlers:** Copy a small retained field into independent storage when
   keeping the larger backing allocation would exceed the cache's budget.
   Sharing `Bytes` across threads is supported; crossing a thread boundary does
@@ -378,11 +368,13 @@ Payload Data Received
 
 ### 5.4 Decompression output limit
 
-`compression::read_bounded` limits gzip, deflate and optional zstd output to
+`compression::read_bounded` limits gzip, deflate and optional Zstd output to
 `limits.inflate_budget()`. It starts with an 8 KiB stack chunk, then reads into
-initialized output storage. It probes one byte before growing the buffer or
-exceeding the budget. Excess output returns `RESOURCE_EXHAUSTED`; an over-limit
-probe byte is never appended to the output buffer.
+initialized output storage. At a capacity boundary, bounded stack lookahead
+measures a short final tail before reserving more heap capacity. Full chunks
+keep geometric growth. At the configured limit, a one-byte probe distinguishes
+EOF from excess output; an over-limit byte is never appended. Short reads are
+not treated as EOF, and later checksums still have to validate.
 
 Output grows after the decoder produces bytes. The buffered input length is
 an initial sizing hint capped at 256 KiB. Reservations request no more than
@@ -399,8 +391,24 @@ cap. A larger advertised window returns `RESOURCE_EXHAUSTED` before its history
 buffer is allocated. Set `MessageLimits::with_max_zstd_window` explicitly when
 accepting larger windows. `MessageLimits::unlimited()` retains the backend's
 100 MiB window cap; lifting the decoded message limit alone leaves the window
-cap unchanged. Zstd content checksums and declared decoded lengths are checked
-before accepting a decoded message.
+cap unchanged. Each standard Zstd frame receives window, content-checksum and
+declared-length checks. All legal gzip members or Zstd frames in one gRPC
+payload contribute to the same decoded message; deflate rejects bytes after
+its single zlib stream.
+
+The default also permits at most **1,024 compressed members/frames per gRPC
+message**. Set `MessageLimits::with_max_compression_frames` to choose a lower or
+higher count. Gzip empty members and Zstd skippable frames count; deflate uses
+one admission. The count is checked before another decoder reset and excess
+returns `RESOURCE_EXHAUSTED`. This bounds setup work independently of output
+bytes, but does not preempt synchronous decoding inside one admitted frame.
+`with_unlimited_decoding` preserves the count; `with_unlimited_compression_frames`
+lifts it explicitly, and `unlimited()` removes both byte and count caps.
+
+The tonic adapter validates the complete gzip payload before emitting normalized
+uncompressed message views. During that work, encoded views and decoded output
+can coexist. Include both, decoder state and the generated message's allocations
+in memory measurements; the message cap alone is not a process-memory bound.
 
 ### 5.5 Summary Contract Matrix for RT-06
 
@@ -412,6 +420,7 @@ before accepting a decoded message.
 | **Inbound Msg Size** | 5-byte frame header | 0 bytes payload | Send Trailers-Only response or stream reset | `RESOURCE_EXHAUSTED` (8) |
 | **Outbound Msg Size** | `T::serialized_len()` | 0 bytes frame | Abort serialization, return error | `RESOURCE_EXHAUSTED` (8) |
 | **Decompression Overflow** | Decompression loop | Output reservation up to `budget`; decoder and stack costs are separate | Abort inflate, send Trailers-Only error | `RESOURCE_EXHAUSTED` (8) |
+| **Compressed Member/Frame Count** | Before the next decoder reset | Already-admitted decoder/input/output state may remain until cleanup | Reject the message | `RESOURCE_EXHAUSTED` (8) |
 
 ---
 
@@ -572,7 +581,8 @@ Incoming Requests
 
 ### 7.2 Bounded Drain & Cancellation Cleanup Model (RT-08)
 
-To guarantee that no detached task, stalled peer, unending stream, or slow upload can indefinitely extend server termination, `pbrs-grpc` enforces a deterministic three-phase bounded drain and immediate cancellation cleanup contract:
+Shutdown stops admission, lets established calls drain for a configured grace
+period, then closes stalled connections. Handshakes select directly on shutdown:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐
@@ -603,17 +613,17 @@ To guarantee that no detached task, stalled peer, unending stream, or slow uploa
 - **Deadline Overlay on Streams:** Unending streams governed by deadlines (`Server::timeout` or client `grpc-timeout`) are aborted with `Status::deadline_exceeded` upon deadline expiration, freeing stream resources prior to or during drain.
 
 #### 2. Cancellation Cleanup & Immediate Permit Reclaim
-- **Client Call Future Drop:** Dropping a client `Call<T>` future sends an HTTP/2 `RST_STREAM(CANCEL)` on the wire and drops the held `OwnedSemaphorePermit`. Client concurrency slot count returns to 0 immediately ($O(1)$ permit reclaim), allowing subsequent RPCs to acquire slots without delay.
+- **Client Call Future Drop:** Dropping an in-flight `Call<T>` signals cancellation and releases the client RPC permit it owns. The driver resets an open stream. An unpolled call may never open a wire stream; a completed streaming response retains its own lifetime and resources.
 - **Server Stream Reset Handling:** When a client RST or disconnect is received:
-  - Inbound stream readers (`WireStream`) yield `Status::cancelled`.
+  - Inbound readers preserve the terminal reset code; an RST CANCEL maps to CANCELLED. A disconnect may instead be UNAVAILABLE.
   - Outbound stream senders (`drain_to_wire`) abort on `send.poll_reset`, terminating the dispatch task.
-  - The server's `_permit` and `_lease` are dropped immediately on task exit, releasing concurrency slots and decrementing byte budget allocation to 0.
+  - Dropping the owning RPC/stream state releases its permits and byte leases. Recovery checks bound cleanup; one call ending does not make a shared budget zero while other calls remain active.
 - **Seeded Fault Probe:** A handler activity counter can reach zero one
   scheduler turn before its outer dispatch task drops the server permit. The
   lifecycle harness retries probe admission for at most 300 ms; persistent
   `RESOURCE_EXHAUSTED` still fails. The separate direct call-drop check above
   continues to require immediate client permit reclaim.
-- **Zero Background Task Leaks:** All auxiliary tasks (ping-pong drivers, response producers, frame writers) monitor stream cancellation channels (`watch::Receiver<bool>`) or select on `poll_reset`, guaranteeing zero detached task leaks.
+- **Task Cleanup:** Upload/response drivers use cancellation and transport-reset wakeups. Handler scheduling is wake-indexed; cancellation parking is tied to the owning runtime. Test task-count and byte-budget recovery under finite admission limits rather than infer a universal no-leak guarantee from these mechanisms.
 
 #### 3. Measurable Overload, Fairness, and Cleanup Bounds (RT-06/RT-07/RT-08 Contract)
 
@@ -652,9 +662,9 @@ paired reference runs remain unqualified.
 
 ---
 
-## 8. Verification & Links to Downstream Implementation
+## 8. Implementation and checks
 
-This specification directly guides implementation and verification in the Reliability (RT) lane:
+The implementation cards and checks are:
 
 1. **RT-06 ("Enforce the approved transport byte budget"):**
    - Implements the shared byte-admission and accounting mechanism in `pbrs-grpc/src/limits.rs`, `client.rs`, and `server.rs`.
@@ -662,12 +672,12 @@ This specification directly guides implementation and verification in the Reliab
    - Validates memory bounds under synthetic hostile tests in `pbrs-grpc/tests/resource_bounds.rs`.
 2. **RT-07 ("Verify overload fairness and slow-peer isolation"):**
    - Uses the bounded production profiles defined in Section 6 to benchmark mixed workloads (bulk streams mixed with small unary RPCs, slow readers/writers, and reset storms).
-   - Proves that admitted competing calls progress fairly within the budgeted queue delay, without starvation or unbounded RSS growth.
+   - Checks admitted-call progress and the queue-delay bounds above; RSS is recorded separately.
 3. **RT-08 ("Prove bounded drain and cancellation cleanup"):**
-   - Proves that graceful shutdown bounded by `max_connection_age_grace` terminates cleanly under unending streams, stalled client uploads, and blocked peers without indefinite postponement.
-   - Proves that handshake stalls (plain TCP and TLS) do not prolong server drain.
-   - Proves that dropping `Call<T>` futures across all 4 call shapes immediately releases concurrency permits and returns byte budget allocations to zero (`is_byte_budget_quiescent() == true`).
-   - Validates that expired deadlines on unending streams cleanly abort in-flight handlers and enable immediate shutdown quiescence. Tested in `pbrs-grpc/tests/lifecycle.rs` and `pbrs-grpc/tests/resource_bounds.rs`.
+   - Checks drain under unending streams, stalled uploads and blocked peers against `max_connection_age_grace`.
+   - Checks that plain TCP and TLS handshake stalls do not prolong drain.
+   - Checks immediate client-permit release on `Call<T>` drop across all four call shapes and eventual byte-budget recovery.
+   - Checks deadline expiry and handler cleanup in `pbrs-grpc/tests/lifecycle.rs` and `pbrs-grpc/tests/resource_bounds.rs`.
 
 ---
 

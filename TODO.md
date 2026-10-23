@@ -29,50 +29,65 @@ of eligible work, not an instruction to start every lane at once.
 
 ## Current priorities
 
-The [streaming follow-up](docs/evidence/grpc-streaming-20261022/README.md) passes
-3,677 workspace tests on `6cd91911`, with nine existing ignores. Strict Clippy
-still has 115 library diagnostics. Matched native runs complete 2,400 captures
-and 720,000 successful RPCs per revision. Selected 1 KiB streaming allocations
-improve, but production readiness and broad superiority remain unproved.
+The [execution follow-up](docs/evidence/grpc-architecture-20261022/README.md)
+implements wake-indexed scheduling, runtime-local cancellation parking,
+selected-method prost dispatch and complete compressed-input handling. Candidate
+`783bcd53` also fixes blocked duplex uploads, cancellation/ownership defects and
+upload-pump panic cleanup. A message admits at most 1,024 gzip members or Zstd
+frames by default, independently of byte and history limits. Exact-candidate
+AddressSanitizer with leak detection passes 720 tests with one existing ignore.
+Rust 1.85 default-library and Rust 1.87 optional-Zstd checks also pass.
+A 10-cycle resource preview passes with post-drain charges, tokens and active
+calls at zero; the actual day remains open.
+The full workspace run fails with 3,739 passes, five failures and nine existing
+ignores across 139 targets. Deterministic serving/Tower fixture repairs and a new
+clean-source workspace run are pending, alongside strict CI and fresh captures.
+Predecessor `90201458` records 3,717 workspace passes, three failures and
+nine existing ignores; those original results remain archived. Source changes
+are not a speed or production proof.
 
-**Compression correctness comes first.** Native gzip/Zstd can omit fields after
-the first member/frame of valid concatenated input. Gzip, deflate and Zstd do
-not fully validate trailing input; Zstd reserved descriptor bit 3 is not rejected.
-The opaque tonic adapter has an independent first-member gzip path, so a
-native-only repair leaves partial protobuf data. The external proposal is
-uncompiled, untested and unapplied. Validate complete input, aggregate limits,
-fragmentation, checksums, cancellation and adapter behavior before accepting it.
+The `6cd91911` [day attempt failed after 32 min 2.73 s](docs/evidence/grpc-streaming-soak-20261022/README.md).
+Cycle 586, seed 20261588, TCP bidi reset at `BodyStarted` returned INTERNAL.
+The exact failure was not uniquely reproduced in 2,008 scenario replays. New
+independent-peer controls check reset-reason preservation on failed writes and
+gRPC mappings for 15 reasons; they do not establish its unique cause or close
+the day. Local clean-half-close misuse remains INTERNAL.
 
 | Work | Next result | Completion criterion |
 |---|---|---|
-| Compression input correctness | Fix concatenation, trailing input, reserved-bit rejection and the separate tonic-adapter path. | Complete protobuf data or an explicit error; aggregate output/window limits and bounded resource checks pass. |
-| SV-09, CL-08, CL-09, RX-10 | Attribute the largest 64 KiB gzip allocation-byte costs, then identity bytes and instruction regressions. | Matched before/after gains retain message/budget safety, with retained-memory checks and all losses reported. |
-| QG-06: resources and recovery | Finish the running 24-hour diagnostic on `6cd91911`. | The actual day passes the original finite limits, deadlines, recovery and fairness checks. |
-| SB-27: client/server matrix | Extend the verified 1/64 KiB, one/16-in-flight comparison. | Cover every payload, TLS/compression profile, read-all corpus and lifecycle; retain failures and assign losses. |
-| CH-12 and remaining integration cards | Complete external discovery/balancer runtimes and churn tests. | An external consumer uses supported APIs and existing connections stay stable across updates. |
-| Remaining credential and codec cards | Complete providers and broader typed-extension support. | Consumer, wire-compatibility and security checks pass. |
-| SB-28, SB-22 and SB-16 | Run the complete matrix on dedicated x86_64 and arm64 hosts. | Paired statistics, headroom and latency checks support the comparisons. |
+| Duplex progress and pump ownership | Finish qualification of early-response, panic and cancellation cleanup. | Independent-peer cases return replies/status and recover finite resources and the same connection without an RPC timeout. |
+| SV-09, CL-08, CL-09, RX-10 | Attribute the worst large-gzip byte costs, then identity bytes and instruction losses. | Measure output growth, copies and ownership at equal settings; preserve retained-memory bounds and report every loss. |
+| Handler execution | Compare inline execution with one owned Tokio task per admitted RPC under mixed expensive/cheap load. | Preserve finite admission, drop-abort, deadlines, reset, backpressure and drain; measure small-call handoff costs. |
+| PK-27, PK-29 | Experiment with checked eager merge for singular nested fields, keeping current representation and API; compare read-all and sparse corpora. | Preserve validation, unknown/merge semantics and retention; prove span validity before removing repeated checks. |
+| Current candidate qualification | Repair serving/Tower scheduling races with admission witnesses and controlled clocks, then rerun the clean-source workspace and required checks. | Preserve original failures, deadlines, status and drop assertions; keep real I/O externally guarded and finite limits unchanged. |
+| QG-06: resources and recovery | Pass a new actual day on the final validated source. | 24 hours pass the original finite limits, deadlines, recovery and fairness checks. |
+| Strict CI and platforms | Close strict lint, feature, platform and packaged-consumer gates. | Run the required profiles on the same source; keep unsupported combinations and failures explicit. |
+| SB-27: client/server matrix | Extend the measured 1/64 KiB, one/16-in-flight scope. | Cover all payloads, profiles, read-all corpora and lifecycle cases; retain failures and assign losses. |
+| CH-12 and remaining integration cards | Complete discovery/balancer runtimes and churn tests. | External consumers use supported APIs; existing connections stay stable across updates. |
+| Remaining credential and codec cards | Complete providers and typed-extension support. | Consumer, wire-compatibility and security checks pass. |
+| SB-28, SB-22 and SB-16 | Qualify the complete matrix on dedicated x86_64 and arm64 hosts. | Paired statistics, headroom and latency checks support the comparisons. |
 
-The 64 KiB prost gzip upload server requests 1,773.8 KiB/RPC versus 1,190.6 KiB
-for tonic/prost (+49%), and **9.0% more than the old source**; pbrs grows 10.6%
-against its old source. The prost gzip bidi server uses 111.2 allocations versus
-99.0 (+12%). Uncompressed 1 KiB prost bidi requests 45.8 KiB versus 32.9 KiB
-(+39%). These are cumulative allocation requests, not retained memory.
-Selected gzip server instructions also remain 2.2–2.4% above tonic/prost;
-uncompressed source comparisons retain regressions too.
+The [previous comparison](docs/evidence/grpc-streaming-20261022/README.md) retains
+important losses: 64 KiB prost gzip upload requests 49% more allocation bytes
+than tonic/prost and grows about 9% against its old source; pbrs grows 10.6%.
+Identity bytes and selected gzip/uncompressed instruction regressions remain
+recorded. Those values must not be presented as measurements of `90201458`.
+The new bounded output lookahead needs matched measurement at `2eba72d8` versus
+`804b5c59`, including tail sizes around growth boundaries. Both harnesses use
+400 KiB server send buffers and request queues of 16. Historical full matrices
+cannot serve as that source baseline; only selected source-paired scopes are
+planned. Test retained memory under concurrent large streams;
+raising retention caps without attribution is not an accepted remedy.
 
-A message containing a 64 KiB payload exceeds the 64 KiB scratch-retention
-threshold. Attribute scratch discard, decoder-output growth/copying and ownership,
-and fixed batch reservations before changing caps. These are design hypotheses,
-not proven causes. Measure retained memory and bounded behavior under concurrent
-large streams while preserving allocation-budget enforcement.
-
-The earlier [day attempt failed after 4 hours 56 minutes](docs/evidence/grpc-resource-soak-20261022/README.md).
-Its failed record remains archived. The new running day, the finite preview and
-passing workspace do not certify production readiness. Older counter captures
-with incorrect concurrency remain invalid; the final matched comparison uses
-the repaired generator. Numeric thresholds remain in the
-[benchmark contract](docs/benchmark-contract.md).
+PK-26's old eager mutex/TypeId default lookup is already removed from current
+generated getters. Do not redo that source fix; its measurement/regeneration
+acceptance remains separate. Lazy singular materialization still repeats work;
+repeated children, including the adoption Query's recursive lists, already parse
+eagerly. Do not attribute all recursive-query costs to lazy singular fields.
+The [execution decision](docs/decisions/grpc-execution.md) separates those codec,
+transport, scheduling and generated-code costs. Strict lint, remaining features
+and release gates remain open. Production readiness and broad superiority are
+unproved; use the [benchmark contract](docs/benchmark-contract.md) for comparisons.
 
 ## Dominance program
 

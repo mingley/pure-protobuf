@@ -88,6 +88,7 @@ fn tagged<T>(mut response: Response<T>) -> Response<T> {
 #[derive(Clone, Default)]
 struct TaggedEcho {
     cancelled: Arc<AtomicUsize>,
+    client_streams_started: Arc<AtomicUsize>,
 }
 
 impl Greeter for TaggedEcho {
@@ -103,6 +104,7 @@ impl Greeter for TaggedEcho {
         request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
         assert_eq!(request.metadata().get("x-tower"), Some("preserved"));
+        self.client_streams_started.fetch_add(1, Ordering::SeqCst);
         if request.metadata().get("x-early").is_some() {
             return Ok(tagged(Response::new(common::reply("early"))));
         }
@@ -232,56 +234,108 @@ async fn streaming_shapes_through_balance_and_retry_preserve_envelopes() {
 
 #[tokio::test]
 async fn streaming_adapters_keep_deadlines_after_headers_and_with_idle_producers() {
-    let (channel, _guard) = channel(TaggedEcho::default()).await;
+    use std::future::Future;
+
+    async fn with_io_progress<T>(what: &str, future: impl Future<Output = T>) -> T {
+        // Self-waking permits real socket progress without Tokio advancing the
+        // frozen clock. Keep the original two-second sender-cleanup bound as a
+        // real wall-clock guard, including when the deadline is not forwarded.
+        let until = std::time::Instant::now() + Duration::from_secs(2);
+        tokio::pin!(future);
+        std::future::poll_fn(|cx| {
+            assert!(std::time::Instant::now() < until, "{what} stalled");
+            let result = future.as_mut().poll(cx);
+            if result.is_pending() {
+                cx.waker().wake_by_ref();
+            }
+            result
+        })
+        .await
+    }
+
+    let echo = TaggedEcho::default();
+    let client_streams_started = Arc::clone(&echo.client_streams_started);
+    let (channel, _guard) = channel(echo).await;
+    tokio::time::pause();
+
     let mut request = request(req("stall"));
     request.set_timeout(Duration::from_millis(100));
-    let mut replies = layered(
-        channel
-            .tower_server_streaming::<HelloRequest, HelloReply>("/helloworld.Greeter/ServerHello"),
-    )
-    .oneshot(request)
-    .await
-    .unwrap()
-    .into_inner();
+    let response =
+        with_io_progress(
+            "server-streaming headers",
+            layered(channel.tower_server_streaming::<HelloRequest, HelloReply>(
+                "/helloworld.Greeter/ServerHello",
+            ))
+            .oneshot(request),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.metadata().get("x-header"), Some("initial"));
+    let mut replies = response.into_inner();
+    tokio::time::advance(Duration::from_millis(101)).await;
     assert_eq!(
-        replies.message().await.unwrap_err().code(),
+        with_io_progress("server-streaming deadline", replies.message())
+            .await
+            .unwrap_err()
+            .code(),
         Code::DeadlineExceeded
     );
 
     let (tx, input) = Streaming::channel(1);
     let mut request = self::request(input);
     request.set_timeout(Duration::from_millis(100));
-    let error = layered(
+    let call = layered(
         channel
             .tower_client_streaming::<HelloRequest, HelloReply>("/helloworld.Greeter/ClientHello"),
     )
-    .oneshot(request)
-    .await
-    .unwrap_err();
+    .oneshot(request);
+    tokio::pin!(call);
+    with_io_progress(
+        "idle client-streaming admission",
+        std::future::poll_fn(|cx| {
+            assert!(
+                call.as_mut().poll(cx).is_pending(),
+                "idle call ended before its admitted handler's deadline"
+            );
+            if client_streams_started.load(Ordering::SeqCst) == 1 {
+                std::task::Poll::Ready(())
+            } else {
+                std::task::Poll::Pending
+            }
+        }),
+    )
+    .await;
+    tokio::time::advance(Duration::from_millis(101)).await;
+    let error = with_io_progress("idle client-streaming deadline", call)
+        .await
+        .unwrap_err();
     assert_eq!(
         error.downcast_ref::<Status>().unwrap().code(),
         Code::DeadlineExceeded
     );
-    tokio::time::timeout(Duration::from_secs(2), tx.closed())
-        .await
-        .unwrap();
+    with_io_progress("client-streaming sender cleanup", tx.closed()).await;
 
     let (tx, input) = Streaming::channel(1);
     let mut request = self::request(input);
     request.set_timeout(Duration::from_millis(100));
-    let mut replies =
+    let response = with_io_progress(
+        "bidi headers",
         layered(channel.tower_bidi::<HelloRequest, HelloReply>("/helloworld.Greeter/StreamHello"))
-            .oneshot(request)
-            .await
-            .unwrap()
-            .into_inner();
+            .oneshot(request),
+    )
+    .await
+    .unwrap();
+    assert_eq!(response.metadata().get("x-header"), Some("initial"));
+    let mut replies = response.into_inner();
+    tokio::time::advance(Duration::from_millis(101)).await;
     assert_eq!(
-        replies.message().await.unwrap_err().code(),
+        with_io_progress("bidi deadline", replies.message())
+            .await
+            .unwrap_err()
+            .code(),
         Code::DeadlineExceeded
     );
-    tokio::time::timeout(Duration::from_secs(2), tx.closed())
-        .await
-        .unwrap();
+    with_io_progress("bidi sender cleanup", tx.closed()).await;
 }
 
 #[tokio::test]

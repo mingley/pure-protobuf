@@ -20,6 +20,7 @@ The [streaming resource day, source `6cd91911`](grpc-streaming-soak-20261022/REA
 
 | Record | What it contributes | How to read it |
 |---|---|---|
+| [Execution, compression and ownership, 2026-10-22](grpc-architecture-20261022/README.md) | Ready-stream scheduling, complete compression, duplex progress and ownership fixes; source `783bcd53` | Exact-source sanitizer and minimum-version checks pass; workspace, strict CI, measurements and the new resource day remain pending |
 | [Streaming fixes and measurements, 2026-10-22](grpc-streaming-20261022/README.md) | Cancellation, batch rollback and compression repairs; 3,677 workspace tests pass; matched 2,400-capture native runs and 144 instruction captures | Selected allocations improve; larger-message byte and instruction regressions remain. Compression-format gaps, strict lint and production/performance qualification remain open; the new 24-hour diagnostic is running at publication |
 | [2026-10-22 production and performance validation](grpc-validation-20261022/README.md) | Confirmed safety/correctness defects, repairs, full-workspace failures, resource preview and benchmark count/concurrency controls | Production readiness and broad superiority are unproved; invalid declared-load captures and failed checks remain visible |
 | [Current-source prerequisites](grpc-prerequisites-abeb-20261009/README.md) | Strict lint, formatting, campaign contracts, documentation retry and eight caller-rustls tests passed | Native admission stress, features, resource duration and performance remain open |

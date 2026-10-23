@@ -4,19 +4,39 @@ No performance category has passed qualification yet. The project has useful
 local results and working benchmark tools; it has not completed the controlled
 campaigns needed to establish comparative leadership.
 
-The [2026-10-22 streaming follow-up](evidence/grpc-streaming-20261022/README.md)
-records matched 2,400-capture native campaigns and a 144-capture instruction
-pilot. Selected 1 KiB gzip allocation counts fall, but 64 KiB gzip server bytes
-and allocations still exceed tonic/prost. Prost upload allocation bytes rise
-9.0% against the old source; pbrs rises 10.6%. Gzip server instructions are
-2.2–2.4% above tonic, and uncompressed source comparisons retain regressions.
-These are diagnostics, not qualified performance standings.
+The [execution follow-up](evidence/grpc-architecture-20261022/README.md) adds
+wake-indexed scheduling, runtime-local cancellation parking, selected-method
+prost dispatch, complete compressed-message
+handling, tonic gzip normalization and a separate 1,024-member/frame default
+limit. Candidate `783bcd53` also fixes blocked duplex uploads, cancellation and
+ownership defects, including resetting streams when an upload task panics.
+Its leak-detecting AddressSanitizer run passes 720 tests with one existing ignore;
+Rust 1.85 default-library and Rust 1.87 optional-Zstd checks also pass.
+A 10-cycle resource preview passes with post-drain byte charges, tokens and active
+calls at zero; this does not close the day-long requirement.
+Its full workspace run fails with 3,739 passes, five failures and nine existing
+ignores across 139 targets. Serving/Tower deadline fixtures are being made
+deterministic without changing the runtime. A new clean-source workspace run,
+strict CI and performance captures remain pending.
+Predecessor `90201458` records 3,717 workspace passes, three failures and nine
+existing ignores; its failures remain archived. No performance standing changes.
 
-The clean `6cd91911` workspace passes, but strict lint, native/adapter compressed
-concatenation and trailing-input handling, Zstd reserved-bit rejection and
-release gates remain open. A new 24-hour diagnostic is running. The
-[earlier day failed after 4 hours 56 minutes](evidence/grpc-resource-soak-20261022/README.md);
-its failure remains archived. Production readiness is not established.
+Pending benchmark captures use matched 400 KiB server send buffers and request
+queues of 16 at `2eba72d8`/`804b5c59`. Historical full-matrix counts are not the
+source-paired baseline for this harness. Source comparisons cover selected
+workloads; the full current matrix compares native with tonic.
+
+The `6cd91911` [day attempt](evidence/grpc-streaming-soak-20261022/README.md)
+failed after 32 min 2.73 s with an unexpected INTERNAL on TCP bidi reset.
+The exact failure was not uniquely reproduced in 2,008 scenario replays.
+Focused reset-ordering controls are separate evidence; no full day is proved.
+
+The [earlier streaming comparison](evidence/grpc-streaming-20261022/README.md)
+retains its 2,400-capture native campaigns and 144-capture instruction pilot.
+It reports selected 1 KiB allocation savings alongside 64 KiB gzip byte losses
+and instruction regressions. Its values belong to those source pins. Native CPU,
+latency, throughput and scheduling qualification remain open, as do strict lint,
+feature/platform/release gates. No qualification standing changes.
 
 The table began with the 2026-09-29 audit; later source-scoped records above
 update specific findings. It remains a manual index until SB-16 supplies the
@@ -91,7 +111,7 @@ passing reports do not establish that an arbitrary current revision is green.
 | E1 grpc_bench-style | unmeasured | SB-17 diagnostic ran; emulated client and shared Docker host limit interpretation |
 | E2 WorkerService | unmeasured | SB-10 async scenarios ran; SB-21 claim definitions need full accounting and repeat-order integration |
 | E3 TLS | unmeasured | Plaintext/TLS counters cover 1/64 KiB and one/16 in-flight calls; qualified latency/CPU/network comparison remains open |
-| E4 compression | unmeasured | Matched identity/gzip counters and selected server instructions exist; complete compressed-input/adapter handling and Zstd reserved-bit rejection remain open |
+| E4 compression | unmeasured | Complete native member/frame handling, tonic normalization and a 1,024-member/frame default are implemented at 90201458; fresh qualification and comparative measurements remain open |
 | E5 real-network RTT | unmeasured | No stage-3 runs |
 
 ## Correctness and delivery gates
@@ -103,7 +123,7 @@ being measured.
 | Category | What is delivered | What still needs proof |
 |---|---|---|
 | F1 conformance | Conformance and upstream-Rust compatibility harnesses | All required checks pass at the campaign source revision |
-| F2 interop | Go, C++, and tonic interop harnesses | Required directions/features pass with campaign pins; native/adapter compressed concatenation and trailing input remain gaps |
+| F2 interop | Go, C++, and tonic interop harnesses; complete-input handling at 90201458 | Required directions/features and resource limits pass at the campaign source pin |
 | F3 HTTP/2 negatives | Negative tests and upstream HTTP/2 probes | Required negative/flow-control checks pass at the campaign revision |
 | F4 gRFC coverage | Implementations and tests tracked in GF/CH/XD task lanes | Claim only the implemented subset; check each required card |
 | F5 xDS interop | xDS contracts and implementation work | Independent control-plane coverage for the claimed behavior |

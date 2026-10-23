@@ -1,17 +1,15 @@
 # Compression backend, deflate, and zstd (RX-06)
 
-This decision is for Rust developers working on the `pbrs-grpc`
-message-compression registry (`src/compression/`). Decision: keep
-`miniz_oxide` through flate2, define gRPC `deflate` as zlib framing
-(RFC 1950). The original zstd deferral was later superseded by the optional
-`zstd` feature described at the end of this record. That feature uses
-`ruzstd`, requires Rust 1.87, and has separate peer evidence; gzip and deflate
-remain within the base Rust 1.85 profile.
+`pbrs-grpc` uses `miniz_oxide` through flate2 for gzip and zlib-framed
+`deflate` (RFC 1950). Both support the base Rust 1.85 profile. Optional Zstd
+uses `ruzstd`, requires Rust 1.87, and has separate peer checks.
 
-## Backend: miniz_oxide stays (flate2 1.1.10 + `runtime_detection`)
+## Historical backend choice
 
-The backend comparison used two flate2 backends with a throwaway
-harness (`/tmp/zbench`, since removed). The harness drove
+The original comparison used two flate2 backends with a temporary
+harness (`/tmp/zbench`, since removed). Its source and raw runs are not
+available, so these results record the decision's rationale rather than
+reproducible evidence for the current implementation. The harness drove
 `GzEncoder`/`GzDecoder` over protobuf-like payloads: tags, varints, short
 strings, and zero runs. It tested 1 KiB / 32 KiB / 300 KiB payloads at levels
 1 (the kernel default) and 6, in release mode on Apple Silicon. Runs were
@@ -25,43 +23,34 @@ present or absent). Medians of 3 runs, ms/iter:
 | 300K  | 1     | 0.552     | 0.613       | 0.310     | 0.347       |
 | 300K  | 6     | 4.134     | 2.508       | 0.296     | 0.310       |
 
-`runtime_detection` was on for both. Without it, flate2 leaves zlib-rs scalar
-and the comparison is meaningless. Ratios within 0.01 go either way.
+The record says `runtime_detection` was enabled for both backends. Results
+were mixed: miniz encoded these level-1 payloads faster, while zlib-rs decoded
+the 32 KiB level-1 payload faster and encoded 300 KiB at level 6 faster.
+These observations do not establish a universal backend winner.
 
-`miniz_oxide` wins encode and decode at the default level 1 (~8-10%).
-`zlib-rs` wins only level-6 encode (~40%). Both are reviewed codebases, so the
-measured default-level winner stays. This means no new dependency and no
-minimum supported Rust version (MSRV) change. `zlib-rs` 0.6 needs Rust 1.75, so
-it would have fit, but this evidence gives no reason to switch.
+The project retained miniz and enabled flate2 1.1.10's `runtime_detection`.
+The old harness also reported gains from that change; they are not current
+performance proof. The optional `zlib-rs` lockfile edge is inactive in this
+profile; check the activated dependency graph with `cargo tree` when auditing.
 
-Two changes did ship:
+A backend change needs fresh, source-pinned x86_64 and arm64 comparisons at
+matched settings. The current gRPC candidate campaign uses **gzip level 6 on
+both stacks**, rather than the kernel's level-1 default.
 
-- flate2 1.1.9 -> 1.1.10 with `runtime_detection`: free single instruction,
-  multiple data (SIMD) dispatch (crc32fast `std`, miniz_oxide SIMD paths).
-  ~3-8% on the same harness.
-- The `zlib-rs` crate name now appears as an (inactive) edge in
-  `Cargo.lock` because flate2 1.1.10 declares the optional backend. It is
-  not compiled (`cargo tree` shows no path to it) and the dependency audit
-  reads the activated graph, so the gate is unaffected. An auditor seeing
-  it in the lock should check `cargo tree`, not the lock edge list.
-
-Re-measure trigger: x86-64 Linux server numbers. zlib-rs's published wins are
-largest on x86 SIMD. If a server-side shootout flips the table, switching is a
-one-line feature change plus this doc.
-
-## Framing: compress straight into the frame buffer
+## Historical framing change
 
 `encode_msg`/`append_frame` used to serialize, compress into an
 intermediate `Vec`, then copy into the framed buffer. That cost 3 allocations
 and 2 full copies per compressed message.
 
-The encoder now writes through `CompressionAlgorithm::encode_into` directly into the frame
-`BytesMut`. The 5-byte header goes out first with a zero length and is patched
-once the stream ends. This saves 1 allocation and 1 bulk copy per message on
-every call shape in both directions. Byte-identical output is pinned by
+`CompressionAlgorithm::encode_into` lets the encoder write into the frame
+`BytesMut`: reserve the five-byte header, then patch its length after encoding.
+This removed an intermediate allocation and copy in that path. Streaming paths
+also use reusable scratch; their current costs require separate measurement.
+Byte-identical output is checked by
 `compression::tests::encode_into_matches_encode`.
 
-Dev-loop evidence (new `rpc.pbrs.unary_compressed` /
+Historical development-loop observations (`rpc.pbrs.unary_compressed` /
 `rpc.pbrs.server_stream_compressed` cells, 32 KiB mixed payload,
 macOS, medians of 5x1000 RPCs; instructions/syscalls are Linux-only so
 this host reports allocs + wall):
@@ -71,11 +60,9 @@ this host reports allocs + wall):
 | unary_compressed | 87.3 | 85.3 | -2.28% |
 | server_stream_compressed | 949.4 | 880.3 | -7.27% |
 
-Both clear the 2% improvement bar. Uncompressed cells are untouched (allocs
-parity +0.00%). Wall time also moved favorably (-5~-6%), but this host's
-run-to-run wall drift (±6-11% on repeats of the same binary) drowns
-single-digit effects. Wall is reported, not claimed. The Linux CI perf lane
-(SB-04) runs these cells on every PR and will render the instructions verdict.
+These older allocation observations do not describe the current candidate.
+Wall time varied too much to support a speed claim. Use the source-pinned
+[benchmark results](../benchmarks.md) for later comparisons.
 
 ## `deflate` means zlib (RFC 1950), not a raw stream
 
@@ -145,8 +132,8 @@ blocks. For an unknown content size, the backend may buffer a history window
 and block data before returning the first decoded byte. The output cap therefore
 does not bound all decoder work or total memory. Account for decoder state,
 block buffers, compressed input and allocator overhead separately. Decoded
-lengths and content checksums are validated for the first Zstd frame; complete
-concatenated-frame validation remains open. The hostile-peer test
+lengths and content checksums are validated for each standard Zstd frame.
+All frames share one decoded-output cap. The hostile-peer test
 `a_zstd_bomb_cannot_outgrow_the_cap` checks the configured output limit.
 
 The C `zstd` crate is not in `pbrs-grpc`'s dev-dependencies. C-backed zstd
@@ -159,29 +146,51 @@ in both directions.
 Remaining limits: there is still no official gRPC interop procedure for zstd,
 so this is a tonic-compatible proof rather than an upstream interop case.
 
-## Compressed-input gaps
+## Complete compressed input and work limits
 
-The [2026-10-22 follow-up](../evidence/grpc-streaming-20261022/README.md)
-identifies unresolved format handling. Native gzip/Zstd decoding returns only
-the first member/frame and can silently omit protobuf fields in valid
-concatenated input. Gzip, deflate and Zstd do not fully validate trailing input.
-Zstd reserved descriptor bit 3 is not rejected. Passing the first frame's
-size/checksum checks does not establish complete compressed-message validation.
+Candidate `90201458` implements the complete-input policy described in the
+[execution decision](grpc-execution.md). The older
+[streaming investigation](../evidence/grpc-streaming-20261022/README.md)
+records the original partial-data and trailing-input gaps; its untested proposal
+is historical material. The implemented candidate has separate source and
+qualification records in the [execution follow-up](../evidence/grpc-architecture-20261022/README.md).
 
-The opaque tonic adapter has a separate gzip path: it decodes one member,
-discards the decoded scratch bytes and replays the original compressed views.
-The generated tonic decoder then also reads only the first member. Fixing the
-native decoder alone leaves this partial-data problem. The adapter must deliver
-complete decoded protobuf data or an explicit error, with aggregate limits and
-fragmented-input/cancellation checks. Supporting multipart gzip needs bounded
-normalization before replaying messages to generated tonic.
+| Coding | Accepted content within one gRPC compressed payload | Rejected content |
+|---|---|---|
+| gzip | Concatenated RFC 1952 members form one protobuf message; each CRC/ISIZE is checked. | Malformed or truncated later members and non-member tails, including zero padding. |
+| deflate | One RFC 1950 zlib stream. | Bytes after the stream, including a second stream or zero padding. |
+| Zstd | RFC 8878 standard and skippable frames; standard-frame output is concatenated. | Invalid/truncated later frames, arbitrary tails and reserved descriptor bit 3. |
 
-An external proposal covers concatenated gzip members and Zstd standard/skippable
-frames, rejects bytes after a deflate zlib stream and checks the Zstd reserved
-bit. It is **uncompiled, untested and unapplied**. Aggregate output/window limits,
-malformed tails, checksums, adapter normalization, decoder-work bounds and matched
-performance still need validation. Complete compression-spec compliance is not
-established.
+The aggregate decoded-message cap applies across all members/frames. Every
+standard Zstd frame receives independent window admission, declared-size and
+checksum checks. Skippable metadata is consumed without allocating its contents;
+the unused descriptor bit is ignored as required by the format.
+
+`MessageLimits::with_max_compression_frames` separately caps gzip members and
+Zstd standard/skippable frames per gRPC message. The default is **1,024**;
+empty members and skippable frames count too. Deflate consumes one admission.
+Exceeding the cap returns `RESOURCE_EXHAUSTED` before another decoder reset.
+`with_unlimited_decoding` preserves this count limit; trusted callers can lift
+it explicitly with `with_unlimited_compression_frames`. `unlimited()` lifts both
+byte and count limits, leaving Zstd at the backend's 100 MiB window cap.
+
+Counting frames bounds setup/reset work independently of output bytes. It does
+not preempt one admitted frame, bound all decoder memory or limit the number
+of gRPC messages in a stream. Zstd decoder scratch is reused within a message
+and released afterward. Decoder capacity can exceed its logical history size;
+the window cap is not a total allocation or RSS cap.
+
+The opaque tonic adapter now validates and retains the complete decoded gzip
+message, releases the compressed views, and emits an uncompressed-flag-zero
+message for generated tonic. This avoids first-member-only replay and a second
+inflate. Identity input keeps its original byte views. Input/output polling,
+aggregate output and member-count limits remain bounded; encoded input and
+normalized output can coexist during validation and require separate memory
+accounting.
+
+These source changes repair known format gaps. Passing focused tests does not
+establish complete specification or production qualification; the final
+candidate's full checks and resource campaign remain separate requirements.
 
 ## Preserve the published compression selector (AD-03c)
 

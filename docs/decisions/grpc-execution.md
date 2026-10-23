@@ -24,7 +24,11 @@ and queueing or contention. Different workloads expose different terms:
 Use equal handler work and the same codec to isolate a transport comparison.
 A full interop handler and a minimal echo handler are different workloads.
 Count allocations and requested bytes separately; neither measures retained
-memory or establishes latency or throughput.
+memory or establishes latency or throughput. Equal prost handlers measure the
+public API cost, including native accounting and channelz, not a bare kernel.
+The pending harness at `2eba72d8`/`804b5c59` matches server send buffers at 400 KiB
+and request queues at 16; shipping defaults are unchanged. Historical captures
+with other settings are not its source-paired baseline.
 
 ## Execution follows readiness and ownership
 
@@ -32,6 +36,22 @@ One stream becoming ready should not poll every idle stream. The server's
 admitted handlers use a wake-indexed set on their connection task. The set
 stores concrete dispatch futures rather than separately boxed trait objects.
 Cancelling one call likewise needs its own wake registration.
+
+An independent registry `h2` peer tested this over TCP at `6cd91911` and
+`90201458`. Each case held idle handlers while sending 16 PINGs and 16 unary
+calls on the same connection:
+
+| Idle handlers | Unrelated polls before | Unrelated polls at `90201458` |
+|---:|---:|---:|
+| 1 | 80 | 0 |
+| 64 | 5,120 | 0 |
+| 256 | 20,480 | 0 |
+
+Counts exclude admission and intentional cancellation. Both sources completed
+51 unary RPCs, including recovery after reset, and destroyed all 321 cancelled
+handlers. The [execution follow-up](../evidence/grpc-architecture-20261022/README.md)
+retains the control. This proves removal of those unrelated polls, not a latency
+or throughput advantage.
 
 Cancellation belongs to the runtime that owns the call. A process-wide parker
 must not send a second runtime's work to the first runtime that registered.
@@ -42,12 +62,54 @@ These bounds do not replace connection and RPC admission limits.
 Stable runtime IDs require Tokio 1.49 or newer; the default Rust minimum remains
 1.85, with the optional Zstd feature retaining its separate higher minimum.
 
-Inline handler execution avoids a task handoff on each call. It also means
-that synchronous handler or decoder work occupies the connection's task while
-it runs. A wake-indexed set fixes scanning; it does not make CPU-heavy handlers
-parallel or preemptible. Compare a bounded worker execution policy using mixed
-idle/active streams before changing the default. Preserve reset handling,
-deadlines, backpressure, drain and task-count recovery in that comparison.
+Compare two finite policies: current inline `ReadySet` and one owned Tokio task
+per admitted RPC. Inline execution avoids handoff; tasks may isolate expensive
+handlers. Preserve permit ownership, drop-abort, reset, deadlines, backpressure
+and drain in both. Idle streams must not occupy CPU-worker threads. A separate
+decoder-offload experiment needs finite workers and queueing, owned buffer
+permits and cancellation checks. Measure small-message handoff costs and mixed
+idle/active fairness before changing the default.
+
+Early server responses also need independent progress from request upload.
+At `90201458`, a large preclosed client-streaming or bidi upload can wait
+indefinitely after a valid non-OK server rejection if the peer grants no upload
+window and the call has no timeout. Candidate `a3b1d4cc` routes blocked closed
+uploads through the existing live duplex pump: response headers, messages and
+terminal status can progress while upload waits for credit. Buffered encoded
+tails keep their byte permits until sent or dropped. Independent-peer controls
+must check early rejection, successful replies, reset, cancellation, aggregate
+byte admission and same-connection recovery without an RPC timeout. Final-source
+qualification is pending. The initial 10/12 development run and its two corrected
+recovery fixtures remain in the evidence record.
+
+## Keep cancellation and destruction safe
+
+Candidate `a3b1d4cc` also tightens ownership rules beneath the RPC API:
+
+- Cancellation and waiter arming share one atomic modification order. Either
+  registration sees cancellation or cancellation sees the armed waiter.
+- Waker clone, drop and wake callbacks run outside the waiter lock. A callback
+  can reenter cancellation; replacing a thread-local header cache likewise
+  publishes its new value before dropping the old one.
+- HTTP/2 enum payloads use safe projections rather than assumptions about Rust
+  enum layout. Removing a stream publishes the vacant slot before dropping its
+  contents, and nonempty store teardown drops every live stream.
+- Channelz registries allocate positive IDs through both constructors. Cached
+  entries use shared registry identity, so allocator address reuse cannot
+  attribute an old socket to another registry across threads.
+
+Preparatory controls expose the former lost wake in a Loom model, a reentrant
+waker-drop deadlock and two channelz identity failures; repaired controls pass.
+The model checks a cancellation mechanism, not the whole runtime. Slot teardown,
+panic and reentrancy regressions accompany the source changes. Final candidate
+workspace and sanitizer checks remain separate requirements.
+
+An upload task must own an armed reset guard before it is spawned. Installing
+the guard inside the future is too late if the task is destroyed before its
+first poll. Candidate `783bcd53` moves that ownership outside the spawned pump,
+so task cancellation or a custom-codec panic resets the stream instead of
+stranding its call. Four independent-peer tests cover panic, cancellation, drop
+and same-connection recovery.
 
 ## Decode once and validate the complete payload
 
@@ -97,9 +159,11 @@ method and retain identical request/response conversions and error behavior.
 
 Message representation needs a separate choice. Lazy views suit sparse access;
 read-all handlers can pay for validation and then parse the same nested bytes
-again during materialization. The next experiment is an explicit eager owned
-decode path for recursive/read-all messages, compared with the existing lazy
-path on both sparse and read-all corpora. Keep unknown fields, merge semantics,
+again during materialization. The next experiment eagerly merges singular nested
+fields with the existing checked merge path and stores them in the current
+`LazyMsg` representation. Repeated children already parse eagerly, including the
+adoption Query's recursive lists; this is not a blanket recursive-decoder rewrite.
+Compare both sparse and read-all corpora. Keep unknown fields, merge semantics,
 extension behavior and malformed-input rejection identical.
 
 Removing repeated validation requires a typed proof that a span was validated
@@ -125,3 +189,31 @@ The [benchmark contract](../benchmark-contract.md) defines comparative proof.
 The [queue](../../TODO.md) records open work, and [benchmarks](../benchmarks.md)
 report source-scoped results. A source change needs new validation; an older
 revision's running soak cannot qualify it.
+
+At `90201458`, default-library Rust 1.85 and AddressSanitizer checks pass
+(678 sanitizer tests and one existing ignore), and three mechanism negative
+controls fail as expected. The full workspace run records 3,717 passes, three
+failures and nine existing ignores across 137 targets. Two retry cases and a
+TLS interceptor deadline case fail; their later fixture corrections do not erase
+that run. The `a3b1d4cc` workspace attempt was superseded during compilation,
+before executing tests, to qualify the final source once.
+
+At final candidate `783bcd53`, AddressSanitizer with leak detection passes 720
+tests and one existing ignore: 686 library, 12 duplex, 18 retry and four pump
+cases. Its default-library Rust 1.85 and optional-Zstd Rust 1.87 checks also pass.
+A 10-cycle, 34.27-second resource preview passes at the original limits; each
+drain returns byte charges, tokens and active calls to zero, with one shared
+parker driver recorded. It does not substitute for an actual 24-hour campaign.
+The full workspace run fails with 3,739 passes, five failures and nine existing
+ignores across 139 targets: four serving cases and one Tower deadline case.
+The outer recorder was interrupted; complete target summaries and the kernel's
+Cargo exit status 101 establish the failure. Original logs and that observation
+record remain preserved. A quiet replay of the original test executable passes
+14 of 15 cases, retaining a spawned-handler failure on its first repeat.
+
+The deadline fixtures have real-clock scheduling races. Test-only repairs add
+admission witnesses, controlled clocks and real-I/O guards while preserving
+deadlines, status and drop assertions. The runtime remains `783bcd53`; a new
+clean-source fixture pin and workspace run are pending. Strict CI and fresh
+captures are pending too; a development strict-lint pass does not replace required
+CI. None of these records establishes production readiness.

@@ -2311,16 +2311,166 @@ async fn assert_handler_deadline_elapses(client: &GreeterClient) {
     echo_every_shape(client, Some(Duration::from_millis(200))).await;
 }
 
-#[tokio::test]
+#[derive(Default)]
+struct FixtureHandlerProbe {
+    admitted: AtomicUsize,
+    dropped: AtomicUsize,
+    polled: AtomicUsize,
+    waker: atomic_waker::AtomicWaker,
+}
+
+struct FixtureHandlerGuard<'a>(&'a FixtureHandlerProbe);
+
+impl FixtureHandlerProbe {
+    fn enter(&self) -> FixtureHandlerGuard<'_> {
+        self.admitted.fetch_add(1, Ordering::Relaxed);
+        FixtureHandlerGuard(self)
+    }
+
+    async fn track<F: std::future::Future>(&self, future: F) -> F::Output {
+        let mut future = std::pin::pin!(future);
+        std::future::poll_fn(|cx| {
+            self.waker.register(cx.waker());
+            let result = future.as_mut().poll(cx);
+            self.polled.fetch_add(1, Ordering::Relaxed);
+            result
+        })
+        .await
+    }
+}
+
+impl Drop for FixtureHandlerGuard<'_> {
+    fn drop(&mut self) {
+        self.0.dropped.fetch_add(1, Ordering::Relaxed);
+        // Release the retained task waker after take has released its internal
+        // registration state, avoiding a probe/task retention cycle.
+        drop(self.0.waker.take());
+    }
+}
+
+struct ProbedFixtureGreeter<G> {
+    inner: G,
+    probe: Arc<FixtureHandlerProbe>,
+}
+
+impl<G: Greeter> Greeter for ProbedFixtureGreeter<G> {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let _guard = self.probe.enter();
+        self.probe.track(self.inner.say_hello(request)).await
+    }
+
+    async fn client_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let _guard = self.probe.enter();
+        self.probe.track(self.inner.client_hello(request)).await
+    }
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        let _guard = self.probe.enter();
+        self.probe.track(self.inner.server_hello(request)).await
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        let _guard = self.probe.enter();
+        self.probe.track(self.inner.stream_hello(request)).await
+    }
+}
+
+// Keep real socket/TLS I/O runnable without automatically advancing a paused
+// Tokio clock to the next deadline. The independent wall guard detects stalls.
+async fn drive_frozen_fixture<F: std::future::Future>(future: F, label: &str) -> F::Output {
+    let wall_deadline = Instant::now() + Duration::from_secs(5);
+    let mut future = std::pin::pin!(future);
+    std::future::poll_fn(|cx| {
+        assert!(Instant::now() < wall_deadline, "fixture stalled: {label}");
+        cx.waker().wake_by_ref();
+        future.as_mut().poll(cx)
+    })
+    .await
+}
+
+async fn await_fixture_admission<F: std::future::Future>(
+    mut future: std::pin::Pin<&mut F>,
+    probe: &FixtureHandlerProbe,
+    expected: usize,
+) {
+    drive_frozen_fixture(
+        std::future::poll_fn(|cx| {
+            assert!(
+                future.as_mut().poll(cx).is_pending(),
+                "call completed before controlled handler admission"
+            );
+            if probe.admitted.load(Ordering::Relaxed) >= expected {
+                std::task::Poll::Ready(())
+            } else {
+                std::task::Poll::Pending
+            }
+        }),
+        "handler admission",
+    )
+    .await;
+}
+
+async fn assert_fixture_pending<F: std::future::Future>(mut future: std::pin::Pin<&mut F>) {
+    std::future::poll_fn(|cx| {
+        assert!(
+            future.as_mut().poll(cx).is_pending(),
+            "call completed before the controlled boundary"
+        );
+        std::task::Poll::Ready(())
+    })
+    .await;
+}
+
+async fn await_fixture_drop(probe: &FixtureHandlerProbe, expected: usize) {
+    drive_frozen_fixture(
+        std::future::poll_fn(|_| {
+            if probe.dropped.load(Ordering::Relaxed) >= expected {
+                std::task::Poll::Ready(())
+            } else {
+                std::task::Poll::Pending
+            }
+        }),
+        "handler destruction",
+    )
+    .await;
+}
+
+#[tokio::test(start_paused = true)]
 async fn a_handler_deadline_is_an_instant_that_elapses() {
     let (addr, listener) = bind().await;
+    let probe = Arc::new(FixtureHandlerProbe::default());
+    let service = ProbedFixtureGreeter {
+        inner: SeesDeadline,
+        probe: Arc::clone(&probe),
+    };
     let task = tokio::spawn(async move {
-        GreeterServer::new(SeesDeadline)
+        GreeterServer::new(service)
             .serve_listener(listener)
             .await
             .ok();
     });
-    assert_handler_deadline_elapses(&GreeterClient::new(channel(addr).await)).await;
+    let client = GreeterClient::new(drive_frozen_fixture(channel(addr), "connect").await);
+    let mut echo = std::pin::pin!(assert_handler_deadline_elapses(&client));
+    for expected in 1..=4 {
+        await_fixture_admission(echo.as_mut(), &probe, expected).await;
+        // Each handler still receives 200ms and sleeps 50ms. Advance only
+        // after that handler has registered its sleep, keeping I/O time frozen.
+        tokio::time::advance(Duration::from_millis(50)).await;
+    }
+    drive_frozen_fixture(echo, "four successful deadline-bearing calls").await;
+    assert_eq!(probe.dropped.load(Ordering::Relaxed), 4);
     task.abort();
 }
 
@@ -14677,7 +14827,7 @@ async fn client_max_connection_age_lets_in_flight_rpcs_finish() {
     task.abort();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::test(start_paused = true)]
 async fn client_max_connection_age_resets_a_delayed_stream() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
@@ -14689,15 +14839,41 @@ async fn client_max_connection_age_resets_a_delayed_stream() {
     let cfg = ChannelConfig::new()
         .max_connection_age(Duration::from_millis(80))
         .max_connection_age_grace(Duration::from_millis(1));
-    let client = GreeterClient::new(channel_with(addr, cfg).await);
-    let mut stream = client
-        .server_hello(Request::new(req("ada")))
+    // Age begins at handshake: freeze time through connection and headers.
+    let channel = drive_frozen_fixture(channel_with(addr, cfg), "age connect").await;
+    let client = GreeterClient::new(channel.clone());
+    let mut stream = drive_frozen_fixture(
+        client.server_hello(Request::new(req("ada"))),
+        "headers before connection age",
+    )
+    .await
+    .expect("headers")
+    .into_inner();
+    tokio::time::advance(Duration::from_millis(60)).await;
+    {
+        let mut next = std::pin::pin!(stream.message());
+        assert_fixture_pending(next.as_mut()).await;
+    }
+    // Cross the 80ms +/-10% age, then witness retirement. The grace
+    // starts when the age task processes that event, rather than retroactively
+    // when its timer became ready.
+    tokio::time::advance(Duration::from_millis(40)).await;
+    drive_frozen_fixture(
+        std::future::poll_fn(|_| {
+            if channel.connected() {
+                std::task::Poll::Pending
+            } else {
+                std::task::Poll::Ready(())
+            }
+        }),
+        "connection retirement at age",
+    )
+    .await;
+    // The current-thread age task has registered its unchanged 1ms grace.
+    // Advance that grace, staying below the producer's unchanged 200ms delay.
+    tokio::time::advance(Duration::from_millis(1)).await;
+    let err = drive_frozen_fixture(stream.message(), "connection-age reset")
         .await
-        .expect("headers")
-        .into_inner();
-    let err = tokio::time::timeout(Duration::from_secs(5), stream.message())
-        .await
-        .expect("age hung")
         .expect_err("age must reset a delayed stream that idle would hold");
     assert_ne!(err.code(), Code::Ok);
     task.abort();
@@ -17222,18 +17398,64 @@ async fn a_server_timeout_expires_when_the_client_sends_none() {
     task.abort();
 }
 
-#[tokio::test]
+async fn assert_controlled_server_timeout<T>(mut call: Call<T>, probe: &FixtureHandlerProbe) {
+    let expected = probe.admitted.load(Ordering::Relaxed) + 1;
+    await_fixture_admission(std::pin::Pin::new(&mut call), probe, expected).await;
+    tokio::time::advance(Duration::from_millis(49)).await;
+    // On this current-thread runtime, witness another poll of this admitted
+    // handler (or its destruction) before checking the lower boundary. Merely
+    // polling the client once could miss a prematurely expired server timer.
+    let previous_polls = probe.polled.load(Ordering::Relaxed);
+    probe.waker.wake();
+    drive_frozen_fixture(
+        std::future::poll_fn(|_| {
+            if probe.polled.load(Ordering::Relaxed) > previous_polls
+                || probe.dropped.load(Ordering::Relaxed) >= expected
+            {
+                std::task::Poll::Ready(())
+            } else {
+                std::task::Poll::Pending
+            }
+        }),
+        "handler poll before the server deadline",
+    )
+    .await;
+    assert_eq!(probe.dropped.load(Ordering::Relaxed), expected - 1);
+    assert_fixture_pending(std::pin::Pin::new(&mut call)).await;
+    tokio::time::advance(Duration::from_millis(2)).await;
+    let err = drive_frozen_fixture(call, "server's 50ms timeout")
+        .await
+        .err()
+        .expect("expected server deadline");
+    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    await_fixture_drop(probe, expected).await;
+}
+
+#[tokio::test(start_paused = true)]
 async fn a_tls_server_timeout_expires_when_the_client_sends_none() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
+    let probe = Arc::new(FixtureHandlerProbe::default());
+    let service = ProbedFixtureGreeter {
+        inner: Slow,
+        probe: Arc::clone(&probe),
+    };
     let task = tokio::spawn(async move {
-        GreeterServer::new(Slow)
+        GreeterServer::new(service)
             .timeout(Duration::from_millis(50))
             .serve_tls_with_shutdown(listener, std::future::pending(), tls)
             .await
             .ok();
     });
-    assert_server_timeout_expires(tls_channel(addr).await).await;
+    let client = GreeterClient::new(drive_frozen_fixture(tls_channel(addr), "TLS connect").await);
+    assert_controlled_server_timeout(client.say_hello(Request::new(req("ada"))), &probe).await;
+    assert_controlled_server_timeout(client.server_hello(Request::new(req("ada"))), &probe).await;
+    let (tx, call) = client.client_hello(Request::new(()));
+    assert_controlled_server_timeout(call, &probe).await;
+    drop(tx);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert_controlled_server_timeout(call, &probe).await;
+    drop(tx);
     task.abort();
 }
 
@@ -21002,26 +21224,88 @@ async fn spawned_bidi_work_stops_when_the_client_cancels() {
     task.abort();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn assert_controlled_spawned_cancel<T: std::fmt::Debug>(
+    mut call: Call<T>,
+    probe: &FixtureHandlerProbe,
+    started: &AtomicUsize,
+    finished: &AtomicUsize,
+    child_done: &AtomicUsize,
+) {
+    started.store(0, Ordering::Relaxed);
+    finished.store(0, Ordering::Relaxed);
+    child_done.store(0, Ordering::Relaxed);
+    let expected = probe.admitted.load(Ordering::Relaxed) + 1;
+    await_fixture_admission(std::pin::Pin::new(&mut call), probe, expected).await;
+    assert!(started.load(Ordering::Relaxed) >= 1);
+    tokio::time::advance(Duration::from_millis(40)).await;
+    assert_fixture_pending(std::pin::Pin::new(&mut call)).await;
+    assert_eq!(finished.load(Ordering::Relaxed), 0);
+    call.handle().cancel();
+    let err = drive_frozen_fixture(call, "cancel admitted TLS call")
+        .await
+        .expect_err("cancelled");
+    assert_eq!(err.code(), Code::Cancelled, "{err}");
+    drive_frozen_fixture(
+        std::future::poll_fn(|_| {
+            if child_done.load(Ordering::Relaxed) >= 1 {
+                std::task::Poll::Ready(())
+            } else {
+                std::task::Poll::Pending
+            }
+        }),
+        "spawned child's cancellation",
+    )
+    .await;
+    // A cancellation token alone does not prove the parent future was dropped.
+    await_fixture_drop(probe, expected).await;
+    assert_eq!(finished.load(Ordering::Relaxed), 0, "handler completed");
+}
+
+#[tokio::test(start_paused = true)]
 async fn tls_spawned_work_stops_when_the_client_cancels() {
     let started = Arc::new(AtomicUsize::new(0));
     let finished = Arc::new(AtomicUsize::new(0));
     let child_done = Arc::new(AtomicUsize::new(0));
+    let probe = Arc::new(FixtureHandlerProbe::default());
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
-    let hang = SpawnHang {
-        started: Arc::clone(&started),
-        finished: Arc::clone(&finished),
-        child_done: Arc::clone(&child_done),
+    let service = ProbedFixtureGreeter {
+        inner: SpawnHang {
+            started: Arc::clone(&started),
+            finished: Arc::clone(&finished),
+            child_done: Arc::clone(&child_done),
+        },
+        probe: Arc::clone(&probe),
     };
     let task = tokio::spawn(async move {
-        GreeterServer::new(hang)
+        GreeterServer::new(service)
             .serve_tls_with_shutdown(listener, std::future::pending(), tls)
             .await
             .ok();
     });
-    let client = GreeterClient::new(tls_channel(addr).await);
-    assert_spawned_cancel_on_every_shape(&client, &started, &finished, &child_done).await;
+    let client = GreeterClient::new(drive_frozen_fixture(tls_channel(addr), "TLS connect").await);
+    assert_controlled_spawned_cancel(
+        client.say_hello(Request::new(req("ada"))),
+        &probe,
+        &started,
+        &finished,
+        &child_done,
+    )
+    .await;
+    assert_controlled_spawned_cancel(
+        client.server_hello(Request::new(req("ada"))),
+        &probe,
+        &started,
+        &finished,
+        &child_done,
+    )
+    .await;
+    let (tx, call) = client.client_hello(Request::new(()));
+    assert_controlled_spawned_cancel(call, &probe, &started, &finished, &child_done).await;
+    drop(tx);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert_controlled_spawned_cancel(call, &probe, &started, &finished, &child_done).await;
+    drop(tx);
     task.abort();
 }
 

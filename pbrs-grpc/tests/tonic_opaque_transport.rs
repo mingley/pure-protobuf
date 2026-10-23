@@ -326,6 +326,10 @@ fn gzip_wire(payload: &[u8]) -> Bytes {
     Bytes::from(wire)
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "fixed gzip-member test fixtures must encode within the wire length limit"
+)]
 fn gzip_members_wire(members: &[&[u8]]) -> Bytes {
     let mut encoded = Vec::new();
     for member in members {

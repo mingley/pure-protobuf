@@ -1,11 +1,19 @@
 # Benchmarks
 
-**The selected 1 KiB gzip streams use fewer allocations.** Production readiness
-and an overall speed advantage over tonic/prost remain unproved.
+Production readiness and an overall speed advantage over tonic/prost remain
+unproved. The tables below are **historical**, using the earlier harness settings.
 
-## Streaming allocations
+The new campaign pairs benchmark `2eba72d8` (runtime `6cd91911`) with `804b5c59`
+(runtime `783bcd53`). Both use identical harness code, 400 KiB server send buffers
+and request queues of 16; shipping defaults are unchanged. Results are pending.
+The full candidate matrix compares native with tonic; source before/after results
+will cover selected workloads only. No full matched baseline matrix is planned.
+
+## Historical streaming allocations
 
 Before: `8fe0f8ae` · Now: `6cd91911` · Linux x86_64 · Rust 1.99.1.
+That harness used a 1 MiB native server send buffer versus tonic's 400 KiB,
+and bidi request queues of 16 versus one. These settings are corrected above.
 
 **Allocations per RPC; lower is better.** These selected cases use gzip,
 plaintext HTTP/2, 1 KiB zero-filled payloads, one connection and one in-flight
@@ -13,10 +21,10 @@ RPC. Bidirectional calls send four messages each way. Both stacks use gzip
 level 6. Each endpoint runs in its own process against tonic/prost. Only the
 native endpoint uses the listed codec.
 The pbrs server route includes more interop handler work than the prost routes.
-Use prost on both sides to compare transport; each before/after pair keeps its
-handler unchanged.
+Use prost on both sides for equal handler work; this measures API costs including
+native accounting/channelz, not a bare kernel. Each source pair keeps its handler.
 
-| Side | Workload | Codec | Before | Now | tonic/prost |
+| Side | Workload | Codec | `8fe0f8ae` | `6cd91911` | tonic/prost |
 |---|---|---|---:|---:|---:|
 | Client | Bidirectional | pbrs | 116.3 | 101.2 | 99.0 |
 | Client | Bidirectional | prost | 102.2 | 83.2 | 99.0 |
@@ -36,7 +44,7 @@ all five RPC shapes, plaintext/TLS, identity/gzip, both native codecs, 1/64 KiB
 payloads and one/16 in-flight calls. The table selects 1 KiB, one-in-flight cases.
 Fewer allocations alone do not establish faster RPCs or lower retained memory.
 
-## Remaining costs
+## Historical remaining costs
 
 Server with prost, plaintext, one in-flight RPC; lower is better.
 
@@ -86,8 +94,8 @@ The full comparison needs broader payloads/load, realistic field access, cold
 connections, overload and real-network traffic. Measure both endpoints
 for latency, throughput, CPU, allocations, bytes,
 syscalls and scheduling. The full 24-hour resource test remains open.
-Concatenated compressed input can be partly decoded in native and tonic-adapter
-paths; trailing-input and Zstd reserved-descriptor-bit checks also remain open.
+The tables use the old settings and cannot serve as the matched source baseline
+for the pending campaign. [Current scope](evidence/grpc-architecture-20261022/README.md).
 
 The [benchmark contract](benchmark-contract.md) defines the host controls,
 repeats and acceptance margins. The [scoreboard](scoreboard.md) tracks
