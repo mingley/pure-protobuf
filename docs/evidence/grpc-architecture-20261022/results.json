@@ -1,0 +1,422 @@
+{
+  "schema": "pbrs.architecture-results.v1",
+  "recorded_utc": "2026-10-23T02:57:14.415830+00:00",
+  "qualified": false,
+  "runtime_source": "9d6fb9c416fc32732450fd78d32ee16ff8b802de",
+  "fixture_qualification_source": "deb0d1d6b9855188a23128c0dca54c03dc2c8bfc",
+  "benchmark_baseline": {
+    "baseline_runtime": "6cd91911afce24cceee6df3f60a945453e5b04da",
+    "candidate_runtime": "9d6fb9c416fc32732450fd78d32ee16ff8b802de",
+    "baseline_benchmark": "2eba72d86b4bb7db133120797e3c4746d86713bc",
+    "candidate_benchmark": "9d6fb9c416fc32732450fd78d32ee16ff8b802de",
+    "identical_benchmark_sha256": "f2d3a09ca9309b95511eaa456fdd0edb7ed4e24530bca02b267a1a8d19a9c928",
+    "runtime_tree_equivalence": [
+      "src",
+      "pbrs-grpc",
+      "protobuf-tonic",
+      "Cargo.toml",
+      "Cargo.lock"
+    ],
+    "sparse_checkout_excludes_only": "docs/evidence/",
+    "candidate_tree": "557b44c21a8108b67685c73ed09cfe3fb511dbdb",
+    "scope": "C8 includes both new cancellation fixes; there is no production equivalence claim with783 or C4."
+  },
+  "source_equivalence": {
+    "measured_source": "9d6fb9c416fc32732450fd78d32ee16ff8b802de",
+    "qualification_source": "deb0d1d6b9855188a23128c0dca54c03dc2c8bfc",
+    "changed_paths": [
+      "pbrs-grpc/tests/serving.rs"
+    ],
+    "diff_sha256": "095da3a01e1359e3a29e66a8be3b43d5d4150f40e80e4d690039b44aa7001d23",
+    "diff_bytes": 30127,
+    "created_utc": "2026-10-23T01:58:13.276035+00:00",
+    "qualified": false,
+    "scope": "All tracked files including runtime, build scripts, lockfiles and benchmark/controller sources are byte-identical except the corrected serving integration test; previous run results retain their actual source pins."
+  },
+  "claims": {
+    "production_ready": false,
+    "complete_specification_coverage": false,
+    "broad_superiority_over_tonic_prost": false,
+    "world_fastest": false
+  },
+  "workspace": {
+    "record": {
+      "path": "architecture-c9-workspace-final-state.json",
+      "bytes": 14234,
+      "sha256": "69cc0f82fd679a409ca366e0f20c4f5f98ee9dc99b9a184f2b908cef304a6fd6"
+    },
+    "totals": {
+      "passed": 3755,
+      "failed": 0,
+      "ignored": 9
+    },
+    "targets": 139,
+    "duration_seconds": 805.2599504859973,
+    "clean_before_and_after": true,
+    "jobs": 2,
+    "test_workers": 4
+  },
+  "sanitizer": {
+    "record": {
+      "path": "architecture-c8-asan-supervisor-state.json",
+      "bytes": 5329,
+      "sha256": "a996f906a40e0f620cd23f48d046c4565246bb4748724f6d77d40c72fef4badf"
+    },
+    "source": "9d6fb9c416fc32732450fd78d32ee16ff8b802de",
+    "passed": 731,
+    "ignored": 1,
+    "scope": "AddressSanitizer with leak detection: library, closed-upload, retry, upload-panic and eight inbound-owner integration cases; Serving fixture is not an ASAN target."
+  },
+  "pre_workspace_checks": {
+    "source": "9d6fb9c416fc32732450fd78d32ee16ff8b802de",
+    "record": {
+      "path": "architecture-c8-checks-state.json",
+      "bytes": 9713,
+      "sha256": "67cb5e4855fc13bb3195b36030d661a149b04df764874319e2d30d47f739b254"
+    },
+    "passed_checks": [
+      {
+        "name": "format",
+        "exit_code": 0,
+        "duration_seconds": 2.9256677420016786
+      },
+      {
+        "name": "clippy-root-alltargets",
+        "exit_code": 0,
+        "duration_seconds": 0.1646881630003918
+      },
+      {
+        "name": "clippy-grpc-alltargets",
+        "exit_code": 0,
+        "duration_seconds": 0.21543527100220672
+      },
+      {
+        "name": "clippy-grpc-adapter-example",
+        "exit_code": 0,
+        "duration_seconds": 23.363986324999132
+      },
+      {
+        "name": "examples",
+        "exit_code": 0,
+        "duration_seconds": 0.167158633001236
+      },
+      {
+        "name": "rpc-benchmark-correctness",
+        "exit_code": 0,
+        "duration_seconds": 207.4328122950028
+      },
+      {
+        "name": "tonic-benchmark-correctness",
+        "exit_code": 0,
+        "duration_seconds": 0.2659853639997891
+      },
+      {
+        "name": "rustdoc",
+        "exit_code": 0,
+        "duration_seconds": 87.32092336700225
+      },
+      {
+        "name": "msrv",
+        "exit_code": 0,
+        "duration_seconds": 18.28511693299879
+      },
+      {
+        "name": "msrv-zstd",
+        "exit_code": 0,
+        "duration_seconds": 18.5900087609989
+      }
+    ],
+    "qualification_limit": "Ten checks pass; the same file also retains an intentionally superseded workspace compile, which is not a workspace PASS."
+  },
+  "serving_fixture": {
+    "positive_record": {
+      "path": "architecture-c9-serving-positive-state.json",
+      "bytes": 481,
+      "sha256": "2dbc6b461f82cc2aa5aa6b9c045ed45b913df6e25809951f0f0954dbc252e0fd"
+    },
+    "passed": 1100,
+    "strict_clippy_and_formatting": "passed",
+    "copied_controls_record": {
+      "path": "architecture-c9-fixture-controls/review.json",
+      "bytes": 18303,
+      "sha256": "e68e0bca9365a09601e6107cee4713473425ecb135d2bdef2ceba401dc4a11ac"
+    },
+    "positive_fixture_cases": 15,
+    "broken_cases_detected": 28,
+    "source_restored": true,
+    "scope": "All five transports positive; four RPC shapes per deliberately broken TCP control. Original assertions retained."
+  },
+  "descriptor_parity": {
+    "record": {
+      "path": "architecture-c9-adapter-descriptor-oracle-state.json",
+      "bytes": 899,
+      "sha256": "e4fb236cda284e6102d3992160accbbe705d9490a4a1ea78f1de8448cd0b7aca"
+    },
+    "passed": true,
+    "scope": "Installed pinned release protoc35.1; separate from official C++ conformance and Edition2024 source compiler oracles."
+  },
+  "resource_preview": {
+    "record": {
+      "path": "architecture-c9-resource-preview-state.json",
+      "bytes": 5469,
+      "sha256": "b10c4ec85facad9dddcd9ad5ba7c0ef218a7020f4ad032db5fff856d573d0bc6"
+    },
+    "drain_summary": {
+      "source": "9d6fb9c416fc32732450fd78d32ee16ff8b802de",
+      "report_sha256": "004867ed3eba47d10cf5ca969d9ac1b79aa4a4a4980908502de22437a012742d",
+      "duration_actual_seconds": 30.539396388001478,
+      "drain_cycles": 9,
+      "all_drained_to_zero": true,
+      "drain_fds": [
+        7
+      ],
+      "drain_alive_tasks": [
+        1
+      ],
+      "sampled_rss_peak_bytes": 19369984,
+      "observed_rss_hwm_bytes": 21020672,
+      "sampled_fd_peak": 9,
+      "qualified": false
+    },
+    "passed": true,
+    "limits": {
+      "address_space": {
+        "soft": 1073741824,
+        "hard": 1073741824
+      },
+      "file_descriptors": {
+        "soft": 128,
+        "hard": 128
+      },
+      "same_uid_processes": {
+        "soft": 4096,
+        "hard": 4096
+      },
+      "cpu_seconds": {
+        "soft": 60,
+        "hard": 60
+      }
+    },
+    "scope": "30-second shared-host release resource diagnostic; not a completed day or full production qualification."
+  },
+  "performance": {
+    "record": {
+      "path": "architecture-c9-capture-supervisor-state.json",
+      "bytes": 14650,
+      "sha256": "8919beb09b62f11176e182eebb552432580081ed80b7ce2a6fc8e5f730b79eab"
+    },
+    "phase_counts": [
+      {
+        "phase": "selected_native_ab",
+        "captures": 400,
+        "duration_seconds": 217.94145100400056,
+        "campaign": "architecture-c8-selected-native-ab/campaign.json",
+        "campaign_sha256": "77855e80e90d0b9e550c3cb8cdce9f5737b5fcdba37393b84758688a1f92655e"
+      },
+      {
+        "phase": "instruction_pilot",
+        "captures": 4,
+        "duration_seconds": 13.070211574002315,
+        "campaign": "architecture-c8-instruction-pilot/campaign.json",
+        "campaign_sha256": "1ce713076295481e7ea12a6a06fcd89c30bf37eb279a9a6f757c795f08bd0e58"
+      },
+      {
+        "phase": "oversized_pilot",
+        "captures": 4,
+        "duration_seconds": 1.6738834579991817,
+        "campaign": "architecture-c8-oversized-pilot/campaign.json",
+        "campaign_sha256": "3cbbdc2cb9a1c20e47a67bc92456e87cca18ef4ad8dd94ca81e1db44afabb36a"
+      },
+      {
+        "phase": "oversized_full",
+        "captures": 120,
+        "duration_seconds": 78.95284870199976,
+        "campaign": "architecture-c8-oversized-full/campaign.json",
+        "campaign_sha256": "cee9ad6fa7175867ff78073fd0955c45be18e447ff01e198b23d9e912c34161a"
+      },
+      {
+        "phase": "native_expanded",
+        "captures": 2400,
+        "duration_seconds": 571.8524791969976,
+        "campaign": "architecture-c8-counter-expanded/campaign.json",
+        "campaign_sha256": "f661958c448e1c994f99da0a104a3f45770efa224b041d565e22146b9734e718"
+      },
+      {
+        "phase": "cpu_focused72",
+        "captures": 72,
+        "duration_seconds": 291.1246564739995,
+        "campaign": "architecture-c8-instruction-focused72/campaign.json",
+        "campaign_sha256": "089ece4e0614a0961fe0656d9948eaf6204a21c5813364d4db685788ca7d44ba"
+      }
+    ],
+    "summaries": [
+      {
+        "name": "selected_native_ab",
+        "path": "architecture-c8-selected-native-ab-summary.json",
+        "sha256": "bdce74a5e59e9c67640485339c03309c32972998694c7ea99eae131b062b7ece",
+        "actual_completed_rpcs": 120000
+      },
+      {
+        "name": "instruction_pilot",
+        "path": "architecture-c8-instruction-pilot-summary.json",
+        "sha256": "91f01cf2d21a7052e9d212e2b835e9fcadaec3e7fe231679d3ddffc37bff8123",
+        "actual_completed_rpcs": 60
+      },
+      {
+        "name": "oversized_pilot",
+        "path": "architecture-c8-oversized-pilot-summary.json",
+        "sha256": "573603ff3e71b9273b528e988832ef9e5d8a12a911a1ae4eb1dc774c473b87bd",
+        "actual_completed_rpcs": 150
+      },
+      {
+        "name": "oversized_full",
+        "path": "architecture-c8-oversized-full-summary.json",
+        "sha256": "9729258f60cf2dbfbc2f9853b284d33b5c2bb6f8e771a9c0c0d4cb19835a96a0",
+        "actual_completed_rpcs": 4500
+      },
+      {
+        "name": "native_all_counters",
+        "path": "architecture-c8-counter-expanded-all-counters.json",
+        "sha256": "6ab4dfa1ef101907c57de62f319d60518549f836bdc37e1f226a44f0730b61a5",
+        "actual_completed_rpcs": 720000
+      },
+      {
+        "name": "cpu_focused72",
+        "path": "architecture-c8-cpu-focused72-summary.json",
+        "sha256": "c2764060611b439f93f846575c0a3e00fd0b2e10625074e0aef7b530be1ccc88",
+        "actual_completed_rpcs": 1080
+      }
+    ],
+    "captures": 3000,
+    "actual_successful_rpcs": 845790,
+    "all_phase_functional_checks_passed": true,
+    "profiler_wall_seconds": 304.1948680480018,
+    "qualified": false,
+    "limits": [
+      "Shared Linux x86_64 host and Rust1.99.1; no qualified latency/throughput comparison.",
+      "Selected matched source comparison and expanded current-source matrix have different coverage.",
+      "Zero-filled transport payloads do not replace realistic field-access and codec workloads.",
+      "Requested allocation bytes are cumulative, not retained memory or RSS.",
+      "Instruction counts use allocation-instrumented release artifacts, N10/20 samples and only two server workloads.",
+      "Native client instructions, broader CPU/TLS/load matrix, syscalls and task wakeups remain open.",
+      "Native channelz/accounting remains included; prost handlers equalize work. Pbrs interop server handlers include additional work.",
+      "Oversized API captures do not witness the blocked preclosed-upload fallback on every call."
+    ],
+    "independent_audit": {
+      "path": "architecture-c9-final-measurement-review.json",
+      "bytes": 1879764,
+      "sha256": "133bd6b2078e21f767160ad733e13af6d573ece6b6cd555c9306b4a1bcd89668"
+    },
+    "actual_rpc_totals": {
+      "offered_rpcs": 845790,
+      "dispatched_rpcs": 845790,
+      "completed_rpcs": 845790,
+      "successful_rpcs": 845790,
+      "failed_rpcs": 0,
+      "timeouts": 0,
+      "queue_overflows": 0,
+      "unstarted_rpcs": 0,
+      "unfinished_rpcs": 0
+    },
+    "source_split": {
+      "baseline": {
+        "offered_rpcs": 62895,
+        "dispatched_rpcs": 62895,
+        "completed_rpcs": 62895,
+        "successful_rpcs": 62895,
+        "failed_rpcs": 0,
+        "timeouts": 0,
+        "queue_overflows": 0,
+        "unstarted_rpcs": 0,
+        "unfinished_rpcs": 0
+      },
+      "candidate": {
+        "offered_rpcs": 782895,
+        "dispatched_rpcs": 782895,
+        "completed_rpcs": 782895,
+        "successful_rpcs": 782895,
+        "failed_rpcs": 0,
+        "timeouts": 0,
+        "queue_overflows": 0,
+        "unstarted_rpcs": 0,
+        "unfinished_rpcs": 0
+      }
+    }
+  },
+  "resource_day": {
+    "state": "running",
+    "source": "9d6fb9c416fc32732450fd78d32ee16ff8b802de",
+    "requested_duration_seconds": 86400,
+    "passed": false,
+    "started_utc": "2026-10-23T02:52:01.848618+00:00",
+    "launch": {
+      "path": "architecture-c8-day-launch.json",
+      "bytes": 4414,
+      "sha256": "a5958713ba4f55526a269a1cb97905eb0c0727a1c0c897b68d0e342a385b8e30"
+    },
+    "snapshot_directory": "architecture-c8-day-snapshot",
+    "scope": "An active run is not a completed 24-hour result; the separate terminal capsule publishes its actual outcome.",
+    "snapshot": {
+      "path": "architecture-c8-day-snapshot/snapshot.json",
+      "bytes": 2533,
+      "sha256": "4e12e0f4e2758d276297978ac7856cefca145e2773a5d8194e657926eefefdce"
+    }
+  },
+  "retained_failures": [
+    {
+      "source": "9d6fb9c416fc32732450fd78d32ee16ff8b802de",
+      "record": {
+        "path": "architecture-c8-workspace-final-state.json",
+        "bytes": 14244,
+        "sha256": "e9280233a61b572570f2fe5fe73870c36f2c5cf0c2a397fa60c21e20eca08df5"
+      },
+      "totals": {
+        "passed": 3753,
+        "failed": 2,
+        "ignored": 9
+      },
+      "targets": 139
+    },
+    {
+      "source": "783bcd53c723032cd0ccbff5d4550f9a1c92cbb8",
+      "record": {
+        "path": "architecture-c3-workspace-observed.json",
+        "bytes": 27211,
+        "sha256": "5393e2d7eaabf965b824ea2ec0c1765e43c92e0e57905059cdc44f7f7a778d2b"
+      },
+      "totals": {
+        "passed": 3739,
+        "failed": 5,
+        "ignored": 9
+      },
+      "targets": 139,
+      "scope": "Actual Cargo exit101 and complete raw logs retained after the outer recorder was interrupted; no original recorder success fabricated."
+    }
+  ],
+  "remaining_work": [
+    "Residual small-bidi and gzip-upload byte losses and source regressions.",
+    "Finite buffer/workspace reuse and read-all nested decoding experiments with preserved semantics.",
+    "Mixed expensive/cheap handler scheduling under finite admission and owned cancellation.",
+    "Complete feature, specification, platform and real-network coverage.",
+    "Dedicated-host, per-side CPU/latency/throughput/scheduling/resource qualification.",
+    "Actual full 24-hour resource result."
+  ],
+  "next_allocation_experiment": {
+    "record": {
+      "path": "architecture-c9-large-gzip-allocation-review.json",
+      "bytes": 1909,
+      "sha256": "86b5cc43b6885c9562e974a2e3faec0abc231d21647747565249566a058997a7"
+    },
+    "scope": "Source-derived model, not allocation-site attribution or an implemented performance gain; reuse requires unique ownership and finite aggregate capacity leases."
+  },
+  "documentation": {
+    "record": {
+      "path": "architecture-docs-final-contract.json",
+      "bytes": 766,
+      "sha256": "00d1e266d866adb8890768f0088ec5bbbb1f9758a4ec27c3b1a1e047a427068a"
+    },
+    "passed": 25,
+    "failed": 0,
+    "scope": "Full existing documentation contracts after final benchmark/status edits; subsequent day-start changes are plain status prose."
+  }
+}

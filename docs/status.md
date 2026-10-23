@@ -1,8 +1,9 @@
 # Implementation status
 
 The [execution and ownership follow-up](evidence/grpc-architecture-20261022/README.md)
-uses candidate `783bcd53`. It adds wake-indexed handler scheduling, runtime-local
-cancellation parking, selected-method prost dispatch and complete compressed
+uses runtime `9d6fb9c4` and workspace source `deb0d1d6`. It adds wake-indexed
+handler scheduling, runtime-local cancellation parking, selected-method prost
+dispatch and complete compressed
 input handling. Gzip members and Zstd standard/skippable frames share one decoded
 message limit; deflate rejects trailing bytes, and Zstd rejects its reserved
 descriptor bit. The tonic adapter normalizes complete gzip messages before
@@ -14,38 +15,56 @@ setup independently of output bytes. It does not preempt an admitted frame or
 bound all decoder memory. The [execution decision](decisions/grpc-execution.md)
 records the design and remaining constraints.
 
-At this exact candidate, AddressSanitizer with leak detection passes **720 tests**
-with one existing ignore: 686 library, 12 duplex, 18 retry and four upload-pump
-cases. Rust 1.85 default-library and Rust 1.87 optional-Zstd checks also pass.
-A 10-cycle resource preview passes in 34.27 seconds at the original limits,
-returning byte charges, byte tokens and active calls to zero after each drain;
-it records one shared parker driver. This is a preview, not a day-long result.
-Its full workspace run **failed: 3,739 passed, five failed and nine existing
-ignores** across 139 targets. The completed logs and kernel exit status 101 are
-preserved after the outer recorder was interrupted. Four serving cases and one
-Tower deadline case failed. Their real-clock scheduling races are being repaired
-with admission witnesses, controlled clocks and real-I/O guards; runtime code is
-unchanged. A new clean-source workspace run, strict CI and performance captures
-remain pending.
-Predecessor `90201458` records 3,717 workspace passes, three failures and
-nine existing ignores. Its retry/deadline fixtures were corrected later; the
-original failures remain recorded.
+| Check | Actual source | Result |
+|---|---|---|
+| All-feature workspace | `deb0d1d6`, clean before and after | **3,755 passed, zero failed, nine existing ignores**, 139 targets; 13 min 25 s |
+| AddressSanitizer with leak detection | `9d6fb9c4` | **731 passed**, one existing ignore |
+| Ten pre-workspace checks | `9d6fb9c4` | Pass, including strict Clippy/rustdoc, 193 benchmark tests and Rust 1.85 default/Rust 1.87 optional Zstd |
+| Adapter descriptor oracle | `deb0d1d6`, pinned release protoc 35.1 | Pass separately, including its ordinarily ignored test |
+
+Only `pbrs-grpc/tests/serving.rs` differs between the runtime and workspace pins.
+The source-equivalence record preserves that exact fixture patch; sanitizer and
+binary results retain their actual `9d6fb9c4` pin. The descriptor test does not
+execute the official C++ conformance runner; the 36.1 source-built oracle is unrun.
+The actual `9d6fb9c4` resource preview passes **30.54 seconds and nine drains**.
+Every drain returns client/server byte charges, byte tokens and active calls to
+zero, with seven file descriptors and one shared task. This is a short preview;
+the actual 24-hour run started at 02:52 UTC on 2026-10-23; its result is pending.
+
+Original failures remain in the record: `9d6fb9c4` first failed its workspace run
+with 3,753 passes, two failures and nine ignores. `783bcd53` recorded 3,739 passes,
+five failures and nine ignores; `90201458` recorded 3,717 passes, three failures
+and nine ignores. The `783bcd53` outer recorder was
+interrupted, but complete logs and kernel Cargo exit status 101 establish its
+failure. Fixture repairs and later passes do not erase these runs.
 
 An independent TCP `h2` control confirms that `90201458` avoids unrelated
 polls of idle handlers; both revisions complete active calls and reset recovery.
 A separate early-response case remains a blocker at that pin: without a timeout,
 a large preclosed client-streaming or bidi upload can hang after a valid non-OK
-server rejection when the peer grants no upload window. The current candidate
+server rejection when the peer grants no upload window. The current runtime
 implements the duplex fix, cancellation/destruction/registry repairs and an
 upload guard that resets the stream if a custom codec panics in the pump task.
 Independent-peer panic, cancellation and drop cases check same-connection
-recovery. No current speed ranking is proved.
+recovery. Owning cancellation guards also cover transport task abortion and
+connection-age teardown. Dropped waiters release their slots in O(1), with storage
+proportional to peak live registrations. Eleven old/new detecting controls and
+five normal-producer lifetime checks cover these mechanisms. No current speed
+ranking is proved.
 
 Fresh measurements use identical benchmark harnesses at `2eba72d8` (old runtime)
-and `804b5c59` (current runtime). Server send buffers are matched at 400 KiB and
+and `9d6fb9c4` (current runtime). Server send buffers are matched at 400 KiB and
 request queues at 16; shipping defaults are unchanged. Only selected workloads
 have a planned source-paired baseline. The full current matrix compares native
-with tonic within the corrected harness.
+with tonic within the corrected harness. The expanded campaign passes 2,400
+captures and 720,000 successful RPCs; selected source pairs pass 400 captures and
+120,000 RPCs, and 1 MiB pairs pass 120 captures and 4,500 RPCs. Large gzip
+allocation-byte costs improve, while identity bidi byte losses and some source
+regressions remain. The 1 MiB gzip bidi cases still request 71–76% more bytes than
+tonic/prost. The 72-capture focused server-instruction diagnostic passes;
+including pilots, all campaigns total 3,000 captures and 845,790 successful RPCs.
+Its allocation-instrumented binaries do not prove shipping CPU superiority; see
+[benchmarks](benchmarks.md) for the measured scope.
 
 The `6cd91911` [24-hour attempt](evidence/grpc-streaming-soak-20261022/README.md)
 failed after **32 min 2.73 s**, at cycle 586, seed 20261588: a TCP bidi reset
@@ -59,8 +78,8 @@ attempt or prove its unique cause. No full 24-hour pass is established.
 The [earlier streaming record](evidence/grpc-streaming-20261022/README.md) retains
 its exact-source workspace, sanitizer and matched performance results. Its
 allocation counts improve in selected cases but retain large-message byte and
-instruction losses. Those measurements belong to the older sources. Strict lint,
-feature/release gates and broader qualification remain open. Production readiness,
+instruction losses. Those measurements belong to the older sources. Required
+platform, feature/release and broader qualification remain open. Production readiness,
 complete specification compliance and broad superiority over tonic/prost remain
 unproved.
 

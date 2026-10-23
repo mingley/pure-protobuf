@@ -1,101 +1,149 @@
 # gRPC execution, compression and ownership
 
-Runtime source: `783bcd53c723032cd0ccbff5d4550f9a1c92cbb8`.
-Benchmark candidate: `804b5c593fc209cbc5714fd3e77710b54711cc63`; matching control:
-`2eba72d86b4bb7db133120797e3c4746d86713bc` (runtime `6cd91911`).
-Their benchmark code is identical; candidate runtime trees match `783bcd53`.
-Controls retain the preceding `90201458`, `a3b1d4cc` and `6cd91911` revisions.
-Production qualification and broad superiority over tonic/prost remain open.
+Runtime and benchmark source: `9d6fb9c416fc32732450fd78d32ee16ff8b802de`.
+Matched benchmark control: `2eba72d86b4bb7db133120797e3c4746d86713bc`
+(runtime `6cd91911`). The control and candidate use identical benchmark code.
+Fixture checkpoint: `deb0d1d6b9855188a23128c0dca54c03dc2c8bfc`. It changes only
+`pbrs-grpc/tests/serving.rs`; the complete diff and its hash are retained. All
+other tracked inputs are byte-identical. Results keep their actual source pins.
+
+Production readiness, full specification coverage and broad superiority over
+tonic/prost remain unproved.
 
 ## Changes
 
-- Poll ready server handlers and cancellation jobs without scanning idle ones.
-- Keep cancellation jobs on their owning runtime, with bounded registration.
-- Validate complete compressed messages, including later members, checksums and
-  trailing input. Bound decoded bytes, history windows and member/frame count.
+- Poll ready handlers and cancellation jobs without scanning idle ones.
+- Own cancellation through handler teardown, including connection task abortion
+  and forced connection-age cleanup. Remove abandoned waiter registrations in
+  constant time; storage follows peak live registrations rather than churn.
+- Validate complete compressed inputs, including later members, checksums and
+  trailing data. Bound decoded bytes, history windows and member/frame count.
 - Grow decoded output from observed bytes and decompress opaque tonic uploads once.
 - Box the selected generated prost method's future.
-- Return responses independently of blocked request upload; retain encoded-tail
+- Return responses independently of blocked request uploads; retain encoded-tail
   byte charges until enqueue or cleanup.
-- Use one atomic cancellation handshake and run waker callbacks outside its lock.
-- Remove enum-layout assumptions; publish replacement owners before destructors
-  can reenter; release live stream fields at store teardown.
-- Give registry caches stable identities and upload tasks reset guards.
+- Use one atomic cancellation handshake and invoke waker callbacks outside locks.
+- Publish replacement owners before reentrant destructors, release live stream
+  fields at teardown, and give upload tasks reset guards.
+- Test deadlines after explicit admission with controlled time, unchanged timeout
+  values, before-expiry checks and actual handler destruction witnesses.
 
-## Checks
+## Validation
 
-| Check on `783bcd53` | Result |
-|---|---|
-| AddressSanitizer with leak detection | 720 passed, 1 existing ignored |
-| Default library minimum Rust 1.85 | Passed |
-| Zstd library minimum Rust 1.87 | Passed |
-| Benchmark/resource controller contracts | 44 passed |
-| Day supervisor/publication controls | 22 passed; synthetic reports only |
-| Release resource preview | Passed: 10 cycles in 34.27 s, original limits |
-| Full workspace | 3,739 passed, 5 failed, 9 ignored; 139 targets |
-| Required CI Clippy and strict all-feature rustdoc | Passed |
-| Broader gRPC all-target Clippy | Two test-fixture diagnostics; correction pending validation |
-| Matched performance captures | Pending |
-| Actual 24-hour resource run | Not started |
+| Check | Source | Result |
+|---|---|---|
+| Full all-feature workspace, 139 targets | `deb0d1d6` | **3,755 passed, zero failed, nine ignored**; 13 min 25 s |
+| AddressSanitizer and leak detection | `9d6fb9c4` | **731 passed**, one existing ignore |
+| Serving fixture suite, strict Clippy and formatting | Corrected file committed at `deb0d1d6` | 1,100 passed; checks passed |
+| Copied-fixture detecting controls | `deb0d1d6` | 15 positive cases passed; 28 broken cases failed at expected assertions |
+| Ten pre-workspace checks | `9d6fb9c4` | Passed: strict lint, rustdoc, formatting, examples, 193 benchmark tests and Rust 1.85/1.87 library checks |
+| Descriptor parity, protoc 35.1 release compiler | `deb0d1d6` | Separately passed; not the official C++ conformance runner |
+| Resource preview | Runtime `9d6fb9c4`, qualified by fixture checkpoint | Passed: nine drains in 30.54 s; 18.5 MiB sampled peak RSS |
+| Corrected benchmark captures | Runtime `9d6fb9c4` against matched control | Passed: 3,000 captures and 845,790 successful RPCs |
+| Actual 24-hour resource run | Runtime `9d6fb9c4` | Started 2026-10-23 at 02:52 UTC; result pending |
 
-The sanitizer run includes 686 library, 12 blocked-upload, 18 retry and four
-upload-panic/cancellation tests. Independent HTTP/2 peers require exact statuses,
-reset delivery, released byte charges and a successful RPC on the same channel.
-Every preview drain returned client/server byte charges, byte tokens and active
-streaming calls to zero; one shared cancellation driver remained. These checks
-do not cover every feature, platform or production workload.
+The full run starts and ends at a clean fixture checkpoint. The sanitizer and
+release artifacts retain the earlier runtime pin; they are not relabeled as
+new builds. The ignored compiler and resource tests are not silently counted as
+passes. Edition 2024 source compiler oracles and the official C++ conformance
+job are separate gates. Offline controller checks remain synthetic.
 
-The benchmark uses a common 400 KiB server send buffer and 16-message client
-request queues. This matches the locked tonic/Hyper server default without
-changing shipping native defaults. Native channelz/accounting remains included;
-prost routes keep handler work equal. Older captures used different settings
-and cannot serve as a matched runtime-only baseline for these captures.
+Every preview drain released client/server byte charges, byte tokens and active
+streaming calls to zero. Drains had seven file descriptors and one shared
+cancellation driver. Sampled RSS peaked at 18.5 MiB; the separately observed
+process RSS high-water mark was 20.0 MiB. The original 1 GiB address-space and
+128-descriptor limits were retained. These nine cycles do not qualify a day.
 
-## Current workspace failures
+The runtime's eleven new teardown/waiter controls fail against the former
+mechanisms and pass against the replacement. Eight use independent registry h2
+TCP peers across all four RPC shapes; three cover waiter churn and reentrancy.
+They prove the detecting mechanisms, not complete production qualification.
 
-Four serving tests and one Tower deadline test fail at `783bcd53`. Isolated
-quiet replays pass 14 of 15 repetitions; one cancellation fixture still fails.
-Deterministic fixture repairs now retain the same deadlines and statuses while
-using explicit admission, handler-poll and destruction witnesses. The repaired
-Tower case and two serving cases pass development checks. The first controlled
-connection-age replay exposed a fixture that froze time before its grace timer
-could expire; it now observes retirement before advancing the 1 ms grace.
-That replay, cancellation and negative controls remain pending. Production code is unchanged by these fixture repairs. The
-original failure remains authoritative; no new full-workspace pass is claimed.
+## Performance
 
-The environment transition interrupted the outer recorder. A detached observer
-retained Cargo’s actual kernel exit status (101), its process identity, all 139
-complete result summaries, clean-source checks and log hashes. The missing
-original recorder result is not reconstructed as a success.
+All six phases passed their functional and accounting checks. Every offered RPC
+was dispatched, completed and successful; failed, timed-out, unstarted and
+unfinished counts were zero.
 
-## Controls and earlier attempts
+| Campaign | Captures | Successful RPCs |
+|---|---:|---:|
+| Selected matched source comparison | 400 | 120,000 |
+| Instruction pilot | 4 | 60 |
+| Oversized pilot | 4 | 150 |
+| Oversized matched source comparison | 120 | 4,500 |
+| Expanded current allocation matrix | 2,400 | 720,000 |
+| Focused instruction comparison | 72 | 1,080 |
+| **Total** | **3,000** | **845,790** |
 
-The archive retains failures and intermediate harness corrections:
+See [benchmarks](../../benchmarks.md) for readable tables. Equal prost-handler
+64 KiB gzip upload server requests fell 14.5%, but remain 27.4% above tonic.
+The larger remaining byte loss is 1 MiB gzip bidi: native is 71.0% above tonic
+on the client and 75.5% on the server, despite saving about 4 MiB per endpoint
+against the preceding source. Small unary client requested bytes rose 2.5%,
+and gzip server-stream allocation count rose 0.9%; these regressions remain.
 
-- At `90201458`, the workspace had 3,717 passes, three failures and nine ignores.
-  Two reset assertions expected the wrong code; the TLS deadline fixture raced
-  handler admission. The corresponding corrections are included in this source.
-- The `a3b1d4cc` workspace build was superseded during compilation, before any
-  tests ran. Its completed sanitizer and minimum-version checks remain separate.
-- Old two-atomic cancellation and reentrant-waker controls fail; replacements
-  pass. The Loom model covers the handshake, not the entire transport.
-- Old registry default/identity controls fail; corrected controls pass.
-- Original blocked-upload and background-panic controls reproduce hangs without
-  RPC deadlines. Positive controls retain ordinary cancellation behavior.
-- The earlier `6cd91911` day failed after 32 min 2.73 s. Its cause was not uniquely
-  reproduced by 2,008 scenario replays; the failed attempt remains published.
+The focused instruction diagnostic uses 64 KiB gzip, plaintext, one connection
+and one in-flight call, three seeded repeats and 10/20-call subtraction. Prost
+upload server instructions fall 19.5% against the old source and 4.8% against
+fresh tonic controls. Prost bidi falls 3.8% against the old source; its 1.6%
+reduction against tonic remains inside the 2% tie band. Both endpoints are
+instrumented, but the client is tonic: native client instruction coverage is
+still open. The pilot and expansion use 304.19 profiler seconds in total.
 
-The independent TCP scheduling control at `90201458` reduces unrelated idle
-handler polls from 80 / 5,120 / 20,480 to zero at 1 / 64 / 256 idle streams.
-It proves that mechanism, not lower latency. Its generated prost dispatch
-control measures unary/chat futures at 1,808 / 88 bytes versus 2,976 / 2,976
-for direct dispatch. Output lookahead probes measure allocation requests;
-they do not measure retained memory or RPC speed.
+The corrected harness gives both servers a 400 KiB send buffer and both clients
+16-message request queues. Shipping defaults are unchanged. Native channelz and
+accounting remain enabled. Prost routes keep application work equal; pbrs interop
+routes include extra handler work. These compare APIs, not bare transport kernels.
+
+The expanded candidate matrix and selected matched source comparison have
+different coverage. Allocation requests do not measure retained memory.
+Allocation-instrumented Callgrind counts do not establish shipping latency,
+throughput or uninstrumented CPU superiority. Missing counters remain unavailable.
+
+## Retained failures
+
+The original `783bcd53` workspace failed: 3,739 passed, five failed and nine
+ignored across 139 targets. A detached observer retained the actual Cargo exit
+101, complete summaries, source checks and raw log hashes after the outer
+recorder was interrupted. The missing recorder result is not treated as success.
+
+The `9d6fb9c4` workspace failed: 3,753 passed, two failed and nine ignored across
+139 targets. One deadline expired before handler admission. The other returned
+a redacted Internal status; its original message was not recovered. Both passed
+quiet replays. The strict five-second header assertion depends on time not
+advancing: after admission delay, the client may correctly send a reduced
+remaining timeout. This dependency does not establish that failure's unique cause.
+
+The archive also retains intentionally superseded builds, test lint failures,
+failed fixture development attempts and the final corrected checks. Offline
+controller tests are synthetic; they are not resource runs or performance captures.
+
+Earlier actual resource-day attempts failed. The `6cd91911` attempt failed after
+32 min 2.73 s; 2,008 scenario replays did not uniquely reproduce its cause. A
+short resource preview and an active day run do not constitute a completed day.
+
+## Remaining work
+
+Measure read-all nested-message decoding, sparse access, both endpoint CPU costs,
+latency, throughput and retained memory on controlled hosts. Compare independently
+scheduled admitted RPCs against inline execution for mixed expensive/cheap calls
+on one connection, preserving ownership, cancellation and finite admission.
+Source inspection models roughly 12 MiB of excess allocation requests per
+endpoint in 1 MiB gzip bidi: discarded encoding scratch, repeated decoded-buffer
+growth and oversized compressed-output reservations. This is a hypothesis, not
+allocation-site attribution. The next experiment reclaims backing storage only
+when uniquely owned and retains scratch only under finite aggregate leases.
+Lazy pbrs values may retain decoded backing; that must remain a cache miss.
+
+Complete remaining features, platform and network coverage, specification gates
+and a full recorded resource day before claiming production qualification.
 
 ## Evidence
 
-`manifest.json` indexes the source changes, commands, raw logs, failures,
-controller sources and hashes in `raw.tar.gz`. Executables are represented by
-hashes. Verify archive integrity with `python3 check.py`; integrity is separate
-from qualification. Comparative results will be linked from
-[benchmarks](../../benchmarks.md), with scope and remaining losses.
+`results.json` identifies final records and their scopes. `manifest.json` indexes
+commands, raw logs, failures, controls, source changes and hashes in `raw.tar.gz`.
+Executables are represented by hashes. The archive includes a frozen launch and
+progress snapshot for the active resource day; live logs belong to its separate
+terminal capsule. Success, failure or incomplete termination is published with
+a normal update to `main`. Run `python3 check.py` to verify archive
+integrity; integrity is separate from qualification.

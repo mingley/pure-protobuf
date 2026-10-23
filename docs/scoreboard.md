@@ -8,23 +8,28 @@ The [execution follow-up](evidence/grpc-architecture-20261022/README.md) adds
 wake-indexed scheduling, runtime-local cancellation parking, selected-method
 prost dispatch, complete compressed-message
 handling, tonic gzip normalization and a separate 1,024-member/frame default
-limit. Candidate `783bcd53` also fixes blocked duplex uploads, cancellation and
-ownership defects, including resetting streams when an upload task panics.
-Its leak-detecting AddressSanitizer run passes 720 tests with one existing ignore;
-Rust 1.85 default-library and Rust 1.87 optional-Zstd checks also pass.
-A 10-cycle resource preview passes with post-drain byte charges, tokens and active
-calls at zero; this does not close the day-long requirement.
-Its full workspace run fails with 3,739 passes, five failures and nine existing
-ignores across 139 targets. Serving/Tower deadline fixtures are being made
-deterministic without changing the runtime. A new clean-source workspace run,
-strict CI and performance captures remain pending.
-Predecessor `90201458` records 3,717 workspace passes, three failures and nine
-existing ignores; its failures remain archived. No performance standing changes.
+limit. Runtime `9d6fb9c4` also fixes blocked duplex uploads, task-abort cancellation,
+waiter-slot lifetime and transport ownership. Its leak-detecting sanitizer run
+passes **731 tests**, with one existing ignore, and all ten pre-workspace checks
+pass. The clean `deb0d1d6` all-feature workspace passes **3,755 tests**, with zero
+failures and nine existing ignores across 139 targets. Only the serving fixture
+differs from the runtime source; sanitizer and binary proofs keep their own pin.
+The original C8/C3 workspace failures remain archived. The actual current resource
+preview passes 30.54 seconds and nine drains, all with client/server byte charges,
+tokens and active calls at zero. The actual 24-hour run started at 02:52 UTC
+on 2026-10-23; its result is pending. No performance standing is established.
 
-Pending benchmark captures use matched 400 KiB server send buffers and request
-queues of 16 at `2eba72d8`/`804b5c59`. Historical full-matrix counts are not the
+Current benchmark captures use matched 400 KiB server send buffers and request
+queues of 16 at `2eba72d8`/`9d6fb9c4`. Historical full-matrix counts are not the
 source-paired baseline for this harness. Source comparisons cover selected
-workloads; the full current matrix compares native with tonic.
+workloads; the full current matrix compares native with tonic. The expanded
+campaign passes 2,400 captures and 720,000 RPCs. Selected source pairs pass 400
+captures and 120,000 RPCs; 1 MiB pairs pass 120 captures and 4,500 RPCs. Gzip byte
+improvements, identity bidi losses and source regressions remain; 1 MiB gzip bidi
+still requests 71–76% more bytes than tonic/prost. The focused
+server-instruction diagnostic passes 72 captures and 1,080 RPCs; with pilots,
+the combined campaigns pass 3,000 captures and 845,790 RPCs. These instrumented
+results do not qualify shipping CPU, latency or throughput.
 
 The `6cd91911` [day attempt](evidence/grpc-streaming-soak-20261022/README.md)
 failed after 32 min 2.73 s with an unexpected INTERNAL on TCP bidi reset.
@@ -35,7 +40,7 @@ The [earlier streaming comparison](evidence/grpc-streaming-20261022/README.md)
 retains its 2,400-capture native campaigns and 144-capture instruction pilot.
 It reports selected 1 KiB allocation savings alongside 64 KiB gzip byte losses
 and instruction regressions. Its values belong to those source pins. Native CPU,
-latency, throughput and scheduling qualification remain open, as do strict lint,
+latency, throughput and scheduling qualification remain open, as do required
 feature/platform/release gates. No qualification standing changes.
 
 The table began with the 2026-09-29 audit; later source-scoped records above
@@ -96,8 +101,8 @@ passing reports do not establish that an arbitrary current revision is green.
 | C2 QPS/core | unmeasured | Fair loopback QPS exists; controlled CPU budgets/scaling campaign remains open |
 | C3 streaming msgs/s | unmeasured | Fair rerun favors pbrs server-stream/upload, tonic ping-pong; still local diagnostic |
 | C4 large messages | unmeasured | SB-01/SB-13 diagnostics exist; no qualified network campaign |
-| C5 instructions/RPC | unmeasured | Selected 144-capture server pilot retains gzip and uncompressed source regressions; 25/50-call diagnostics are not a qualified speed ranking |
-| C6 memory | unmeasured | Matched 2,400-capture campaigns measure per-side allocations/requested bytes; large gzip and identity byte losses remain; retained-memory qualification is separate |
+| C5 instructions/RPC | unmeasured | Current 72-capture allocation-instrumented server diagnostic improves selected source costs; native shipping CPU and client coverage remain open |
+| C6 memory | unmeasured | Current 2,400-capture matrix retains large gzip and identity byte losses; selected source changes improve and regress; retained-memory qualification remains open |
 | C7 time to first RPC | unmeasured | SB-12 same-process diagnostic favors tonic; no qualified external-peer campaign |
 | C8 CPU/RPC matched load | unmeasured | SB-11 open-loop harness exists; smoke is not a controlled campaign |
 | D1 latency at load | unmeasured | grpc-go tables are separate-process but one host, best-of, no intervals |
@@ -111,7 +116,7 @@ passing reports do not establish that an arbitrary current revision is green.
 | E1 grpc_bench-style | unmeasured | SB-17 diagnostic ran; emulated client and shared Docker host limit interpretation |
 | E2 WorkerService | unmeasured | SB-10 async scenarios ran; SB-21 claim definitions need full accounting and repeat-order integration |
 | E3 TLS | unmeasured | Plaintext/TLS counters cover 1/64 KiB and one/16 in-flight calls; qualified latency/CPU/network comparison remains open |
-| E4 compression | unmeasured | Complete native member/frame handling, tonic normalization and a 1,024-member/frame default are implemented at 90201458; fresh qualification and comparative measurements remain open |
+| E4 compression | unmeasured | Complete-input handling and finite work limits are included in the passing current workspace; comparative measurements remain open |
 | E5 real-network RTT | unmeasured | No stage-3 runs |
 
 ## Correctness and delivery gates
@@ -132,9 +137,10 @@ being measured.
 
 ## Benchmark claims
 
-The current [benchmark page](benchmarks.md) reports scoped allocation and
-instruction diagnostics. It retains both source regressions and tonic losses;
-these measurements do not qualify native CPU, latency, throughput or overall speed.
+The [benchmark page](benchmarks.md) reports current scoped counter and instruction
+results, retaining regressions and tonic losses. They do not qualify shipping
+CPU, latency, throughput or overall speed. Historical diagnostics below retain
+their original source/settings limits.
 
 | Statement | Categories | Evidence limit |
 |---|---|---|

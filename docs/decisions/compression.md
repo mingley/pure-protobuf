@@ -148,7 +148,8 @@ so this is a tonic-compatible proof rather than an upstream interop case.
 
 ## Complete compressed input and work limits
 
-Candidate `90201458` implements the complete-input policy described in the
+The complete-input policy first implemented at `90201458` remains in current
+runtime `9d6fb9c4`, as described in the
 [execution decision](grpc-execution.md). The older
 [streaming investigation](../evidence/grpc-streaming-20261022/README.md)
 records the original partial-data and trailing-input gaps; its untested proposal
@@ -188,9 +189,14 @@ aggregate output and member-count limits remain bounded; encoded input and
 normalized output can coexist during validation and require separate memory
 accounting.
 
-These source changes repair known format gaps. Passing focused tests does not
-establish complete specification or production qualification; the final
-candidate's full checks and resource campaign remain separate requirements.
+The clean `deb0d1d6` all-feature workspace passes 3,755 tests with zero failures
+and nine existing ignores. Only its serving fixture differs from `9d6fb9c4`;
+the runtime's leak-detecting sanitizer run separately passes 731 tests with one
+existing ignore. Original failed workspace attempts remain in the evidence.
+Selected matched gzip streams request fewer allocation bytes, while some tonic
+losses and source regressions remain; see [benchmarks](../benchmarks.md) for the
+measured scope. Sustained resources and broader comparisons remain open. These
+checks do not establish complete specification or production qualification.
 
 ## Preserve the published compression selector (AD-03c)
 

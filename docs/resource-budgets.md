@@ -206,6 +206,23 @@ slow readers, overload, cancellation, deadline recovery and drain. See the
 Its result always remains `qualified: false`; QG-06's complete 24-hour campaign
 is a separate acceptance requirement.
 
+Current runtime `9d6fb9c4` passes 731 leak-detecting sanitizer tests with one
+existing ignore. The clean `deb0d1d6` all-feature workspace passes 3,755 tests,
+zero failures and nine existing ignores; only its serving fixture differs from
+the runtime. Original failed runs remain recorded in the
+[execution follow-up](evidence/grpc-architecture-20261022/README.md).
+Twenty-four supervisor offline controls pass. The actual `9d6fb9c4` preview passes
+**30.54 seconds and nine drains**, all with client/server byte charges, tokens and
+active calls at zero. Each drain records seven file descriptors and one shared
+task. Sampled RSS peaks at **18.47 MiB**; the separately observed process memory
+high-water mark is **20.05 MiB**. Sampled file descriptors peak at nine.
+The preview retains the original limits: 1 GiB address space, 128 descriptors,
+4,096 same-UID processes and 60 CPU seconds. The actual 24-hour run started at
+02:52 UTC on 2026-10-23; its result is pending. It uses the same memory, descriptor
+and process limits, with an 86,430-second CPU allowance. Neither offline
+controls nor a short preview proves a full day, total RSS bounds or fairness
+under all loads.
+
 ### Message and queue accounting
 
 For each simultaneously active RPC, allow for the following lifetimes:
@@ -334,7 +351,7 @@ Payload Data Received
 ### 5.2 Process-Wide RPC Concurrency Limit (`max_concurrent_rpcs`)
 
 - **Enforcement Location:**
-  - **Server:** Connection worker loop in `pbrs-grpc/src/server.rs` (`serve_io`) upon receiving an incoming stream via `conn.poll_accept()`, **before** reading request DATA frames and before spawning the handler dispatch task.
+  - **Server:** Connection worker loop in `pbrs-grpc/src/server/connection.rs` (`serve_io`) upon receiving an incoming stream via `conn.poll_accept()`, **before** reading request DATA frames and admitting the handler future.
   - **Client:** Client call entry in `pbrs-grpc/src/client.rs` (`take_rpc_slot()`), **before** acquiring a channel connection slot and before writing request HEADERS.
 - **Server Rejection Behavior:**
   - The server immediately responds with an HTTP/2 **Trailers-Only** response (`wire::reject`):
@@ -544,7 +561,7 @@ Incoming Requests
        │                    ▼
        │      [ RPC Semaphore: max_concurrent_rpcs ]
        │                    │
-       │                    ├── Acquired: Spawn 1 Tokio Dispatch Task (handler)
+       │                    ├── Acquired: Admit 1 Dispatch Future
        │                    │                    │
        │                    │                    ▼
        │                    │             Execute RPC
@@ -563,21 +580,23 @@ Incoming Requests
 1. **Connection Tasks:**
    - Exactly $N_{\text{conn}}$ tasks are spawned on the Tokio runtime for active connections (`serve_io`).
    - When a connection drops or is closed via `GOAWAY`, the connection task completes and drops its `OwnedSemaphorePermit`.
-2. **RPC Dispatch Tasks:**
-   - Exactly $N_{\text{rpc}}$ tasks are spawned for admitted RPCs (`dispatch.dispatch(...)`).
-   - Rejected RPCs (due to `max_concurrent_rpcs` exhaustion) execute inline on the `serve_io` connection loop with zero async task spawning.
-   - The permit `_permit: Option<OwnedSemaphorePermit>` is moved into the spawned dispatch task:
+2. **RPC Dispatch Futures:**
+   - Each admitted RPC has one dispatch future in its connection's wake-indexed set; the current policy does not spawn one Tokio task per handler.
+   - Rejected RPCs execute inline on the connection loop without admitting a handler future.
+   - The permit `_permit: Option<OwnedSemaphorePermit>` moves into the admitted future:
      ```rust
-     drop(tokio::spawn(async move {
+     admitted.push(async move {
          let _lease = lease;
          let _permit = permit;
          dispatch.dispatch(...).await;
-     }));
+     });
      ```
-   - When the handler future completes, `_permit` is dropped, immediately returning the permit to the shared process-wide semaphore.
+   - Completion or destruction of the dispatch future drops its permit, returning the slot to the shared semaphore.
+   - Its cancellation owner signals on transport task abortion and connection-age teardown too. Normal producer/response lifetimes retain their documented ownership; an early return must not cancel work still owned by the response.
+   - Dropping a cancellation waiter removes its slab slot in O(1). Storage follows peak live registrations, not all registrations over the connection's lifetime; waker callbacks run outside the lock.
 3. **Quiescent Draining:**
    - During server shutdown (`drain_tx` / `drain_rx`), the accept loop stops accepting new sockets, closes the listener, and signals connection tasks.
-   - In-flight tasks drain up to `max_connection_age_grace` before socket termination, ensuring no lingering tasks or permits leak.
+   - In-flight work drains up to `max_connection_age_grace`, then connection teardown drops admitted futures and their permits. Recovery checks verify task, byte and slot cleanup under finite limits.
 
 ### 7.2 Bounded Drain & Cancellation Cleanup Model (RT-08)
 
@@ -616,10 +635,10 @@ period, then closes stalled connections. Handshakes select directly on shutdown:
 - **Client Call Future Drop:** Dropping an in-flight `Call<T>` signals cancellation and releases the client RPC permit it owns. The driver resets an open stream. An unpolled call may never open a wire stream; a completed streaming response retains its own lifetime and resources.
 - **Server Stream Reset Handling:** When a client RST or disconnect is received:
   - Inbound readers preserve the terminal reset code; an RST CANCEL maps to CANCELLED. A disconnect may instead be UNAVAILABLE.
-  - Outbound stream senders (`drain_to_wire`) abort on `send.poll_reset`, terminating the dispatch task.
+  - Outbound stream senders (`drain_to_wire`) abort on `send.poll_reset`, ending dispatch work.
   - Dropping the owning RPC/stream state releases its permits and byte leases. Recovery checks bound cleanup; one call ending does not make a shared budget zero while other calls remain active.
 - **Seeded Fault Probe:** A handler activity counter can reach zero one
-  scheduler turn before its outer dispatch task drops the server permit. The
+  scheduler turn before its outer dispatch future drops the server permit. The
   lifecycle harness retries probe admission for at most 300 ms; persistent
   `RESOURCE_EXHAUSTED` still fails. The separate direct call-drop check above
   continues to require immediate client permit reclaim.

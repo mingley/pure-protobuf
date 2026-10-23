@@ -1,73 +1,94 @@
 # Benchmarks
 
-Production readiness and an overall speed advantage over tonic/prost remain
-unproved. The tables below are **historical**, using the earlier harness settings.
+Gzip bidi at 1 MiB still requests **71–76% more allocation bytes** than
+tonic/prost. Selected stream costs improve against the old source. Production
+readiness and a broad speed advantage remain unproved.
 
-The new campaign pairs benchmark `2eba72d8` (runtime `6cd91911`) with `804b5c59`
-(runtime `783bcd53`). Both use identical harness code, 400 KiB server send buffers
-and request queues of 16; shipping defaults are unchanged. Results are pending.
-The full candidate matrix compares native with tonic; source before/after results
-will cover selected workloads only. No full matched baseline matrix is planned.
+2026-10-23 · Linux x86_64 · Rust 1.99.1 · Shared host.
 
-## Historical streaming allocations
+## Remaining byte costs
 
-Before: `8fe0f8ae` · Now: `6cd91911` · Linux x86_64 · Rust 1.99.1.
-That harness used a 1 MiB native server send buffer versus tonic's 400 KiB,
-and bidi request queues of 16 versus one. These settings are corrected above.
+**Requested allocation bytes/RPC; lower is better.** Prost, plaintext HTTP/2,
+one connection and one in-flight call. The 1 MiB rows use two-repeat medians;
+the smaller rows use three repeats from the expanded matrix.
 
-**Allocations per RPC; lower is better.** These selected cases use gzip,
-plaintext HTTP/2, 1 KiB zero-filled payloads, one connection and one in-flight
-RPC. Bidirectional calls send four messages each way. Both stacks use gzip
-level 6. Each endpoint runs in its own process against tonic/prost. Only the
-native endpoint uses the listed codec.
-The pbrs server route includes more interop handler work than the prost routes.
-Use prost on both sides for equal handler work; this measures API costs including
-native accounting/channelz, not a bare kernel. Each source pair keeps its handler.
+| Side | Workload | Current | tonic/prost | More |
+|---|---|---:|---:|---:|
+| Server | Bidi, 1 MiB gzip | 27.5 MiB | 15.7 MiB | +75.5% |
+| Client | Bidi, 1 MiB gzip | 28.5 MiB | 16.7 MiB | +71.0% |
+| Server | Upload, 64 KiB gzip | 1,516.3 KiB | 1,190.6 KiB | +27.4% |
+| Server | Bidi, 1 KiB identity | 43.5 KiB | 32.9 KiB | +31.9% |
+| Client | Bidi, 1 KiB identity | 53.9 KiB | 39.4 KiB | +36.7% |
 
-| Side | Workload | Codec | `8fe0f8ae` | `6cd91911` | tonic/prost |
-|---|---|---|---:|---:|---:|
-| Client | Bidirectional | pbrs | 116.3 | 101.2 | 99.0 |
-| Client | Bidirectional | prost | 102.2 | 83.2 | 99.0 |
-| Server | Bidirectional | pbrs | 122.1 | 107.1 | 94.0 |
-| Server | Bidirectional | prost | 107.2 | 88.1 | 94.0 |
-| Client | Pipelined bidi | pbrs | 113.5 | 98.4 | 99.0 |
-| Client | Pipelined bidi | prost | 99.2 | 80.3 | 99.0 |
-| Server | Pipelined bidi | pbrs | 121.3 | 107.8 | 94.0 |
-| Server | Pipelined bidi | prost | 107.4 | 88.8 | 94.0 |
+## Source changes
 
-Values are medians of three repeats, rounded to one decimal. Counts use the
-difference between 200-call and 400-call samples to remove fixed startup costs.
-The tonic column is the control from the current run; both runs retain theirs.
+**KiB requested per RPC.** Before: `2eba72d8` (runtime `6cd91911`);
+current: `9d6fb9c4`. Separate selected campaign, four-repeat medians; same
+settings and handlers as the representative cases above.
 
-Each revision completed **2,400 captures and 720,000 successful RPCs** across
-all five RPC shapes, plaintext/TLS, identity/gzip, both native codecs, 1/64 KiB
-payloads and one/16 in-flight calls. The table selects 1 KiB, one-in-flight cases.
-Fewer allocations alone do not establish faster RPCs or lower retained memory.
+| Side | Workload | Before | Current | Change |
+|---|---|---:|---:|---:|
+| Server | Upload, 64 KiB gzip | 1,773.8 | 1,516.3 | -14.5% |
+| Client | Server stream, 64 KiB gzip | 1,927.6 | 1,671.7 | -13.3% |
+| Server | Bidi, 64 KiB gzip | 3,455.3 | 3,196.9 | -7.5% |
+| Client | Unary, 1 KiB identity | 9.4 | 9.6 | +2.5% |
+| Client | Bidi, 1 KiB identity | 53.4 | 53.9 | +0.9% |
 
-## Historical remaining costs
+Gzip upload server allocations fall **65.0 → 61.0/RPC** (tonic: 63.0).
+Gzip server-stream server allocations rise **79.5 → 80.2/RPC (+0.9%)** in all
+four repeats, while requested bytes fall 1.5%. Improvements do not cover every cost.
 
-Server with prost, plaintext, one in-flight RPC; lower is better.
+Bytes are rounded to one decimal; percentages use ratios of unrounded medians.
+Requested bytes are cumulative allocation requests, not retained memory or RSS.
 
-| Payload | Workload | Metric | pbrs-grpc | tonic/prost | More |
-|---|---|---|---:|---:|---:|
-| 64 KiB | Bidi, gzip | Allocations/RPC | 111.2 | 99.0 | +12% |
-| 64 KiB | Client stream, gzip | KiB/RPC | 1,773.8 | 1,190.6 | +49% |
-| 1 KiB | Bidi, uncompressed | KiB/RPC | 45.8 | 32.9 | +39% |
+## Server instructions
 
-These are cumulative allocation requests, not retained memory. Against the old
-source, 64 KiB gzip upload server bytes rose **9.0% with prost and 10.6% with
-pbrs**. A 144-capture
-instruction pilot retains gzip and uncompressed regressions. Gzip bidi servers
-use 2.2–2.4% more instructions than tonic and about 0.7% more than the old code.
-Its 25/50-call samples do not establish a native speed ranking.
+**Million instructions/RPC; lower is better.** Prost, 64 KiB gzip, plaintext, one
+in-flight call. Three seeded 10/20-call repeats with fresh tonic controls.
 
-[Full results and raw evidence](evidence/grpc-streaming-20261022/README.md)
-· [Earlier validation](evidence/grpc-validation-20261022/README.md)
+| Workload | Before | Current | tonic/prost | vs before | vs tonic |
+|---|---:|---:|---:|---:|---:|
+| Upload | 2.41 | 1.94 | 2.04 | -19.5% | -4.8% |
+| Bidi | 12.34 | 11.86 | 12.06 | -3.8% | -1.6% |
+
+Callgrind uses allocation-counts-enabled release binaries with both endpoints
+instrumented. Native-server diagnostics only; no native-client CPU measurement.
+Bidi versus tonic is within the 2% tie band. These are not uninstrumented CPU,
+latency or throughput results; fewer allocations alone also do not prove speed.
+
+## Scope
+
+| Completed campaign | Captures | Successful RPCs |
+|---|---:|---:|
+| Expanded current matrix | 2,400 | 720,000 |
+| Selected source pairs | 400 | 120,000 |
+| 1 MiB source pairs | 120 | 4,500 |
+| Focused server instructions | 72 | 1,080 |
+
+Including pilots: **3,000 captures, 845,790 successful RPCs**, zero failures or
+timeouts. Expanded coverage: all five RPC
+shapes, plaintext/TLS, identity/gzip, both native codecs, 1/64 KiB and one/16
+in-flight calls; three repeats. Selected coverage: 1 KiB identity unary/bidi and
+64 KiB gzip upload/bidi/server-stream; four ABBA repeats, 200/400-call differences.
+Only selected scopes have a matched source baseline. Tables above select prost.
+
+The 1 MiB gzip bidi cases save about 4 MiB per endpoint against the old source;
+identity source changes are essentially ties. These API cases do not isolate the blocked
+closed-upload fallback. The raw record retains its independent correctness tests.
+
+Gzip is level 6 on both stacks, with four messages on each streaming leg.
+Payloads are zero-filled application bytes, not encoded messages. **Server** send
+buffers match at 400 KiB and request queues at 16; shipping defaults are unchanged.
+Native accounting/channelz stay enabled. Equal prost handlers measure API costs;
+the pbrs route includes additional interop-handler work. Native speed qualification
+remains open.
+
+[Full results, dated source and raw captures](evidence/grpc-architecture-20261022/README.md)
+· [Benchmark contract](benchmark-contract.md)
 
 ## Run the comparison
 
-Start from a clean checkout with Rust, Cargo and protoc on `PATH`. Use output
-directories outside the checkout so generated files do not dirty the source.
+Use a clean checkout, outside build outputs and identical harness code:
 
 ```sh
 source_commit=$(git rev-parse HEAD)
@@ -82,28 +103,15 @@ python3 scripts/grpc-counter-campaign.py \
   --payloads 1024,65536 --load-levels 1:1,1:16 --repeats 3
 ```
 
-The build record pins the source, toolchain and binary. The campaign verifies
-completed call counts and records failures. Repeat on the before and after
-revisions with a quiet host. These shared-host runs also collect raw process
-context switches. This phase omits instructions, syscalls and task wakeups;
-qualified latency, throughput and scheduling comparisons remain open.
+The command runs the expanded native matrix; exact selected ABBA/profiler commands
+are in the raw record. Native captures record allocations, bytes and raw context
+switches; CPU ticks are coarse, syscalls/task wakeups unmeasured. Qualified latency,
+throughput, scheduling, retention and the full 24-hour result remain open.
 
-## What remains to prove
+[Historical results](evidence/grpc-streaming-20261022/README.md) used different
+send buffers/queues and are not this source-paired baseline. The
+[scoreboard](scoreboard.md) tracks broader payloads, real field access, overload,
+cold connections, real-network traffic and release qualification.
 
-The full comparison needs broader payloads/load, realistic field access, cold
-connections, overload and real-network traffic. Measure both endpoints
-for latency, throughput, CPU, allocations, bytes,
-syscalls and scheduling. The full 24-hour resource test remains open.
-The tables use the old settings and cannot serve as the matched source baseline
-for the pending campaign. [Current scope](evidence/grpc-architecture-20261022/README.md).
-
-The [benchmark contract](benchmark-contract.md) defines the host controls,
-repeats and acceptance margins. The [scoreboard](scoreboard.md) tracks
-qualification; the [evidence index](evidence/README.md) retains attempts and
-failures.
-
-## Older measurements
-
-The [older tables](https://github.com/mingley/pure-protobuf/blob/99eccf209fd4cda28c992b7b8855531a31c2d249/docs/benchmarks.md) lack complete dated source and raw captures.
-Their timings are not current speed claims. The older 7,200-capture counter
-matrix used incorrect concurrency and cannot establish its declared load.
+The actual 24-hour resource run started at 02:52 UTC on 2026-10-23. Its result
+is pending; an active attempt does not establish production readiness.

@@ -26,7 +26,7 @@ A full interop handler and a minimal echo handler are different workloads.
 Count allocations and requested bytes separately; neither measures retained
 memory or establishes latency or throughput. Equal prost handlers measure the
 public API cost, including native accounting and channelz, not a bare kernel.
-The pending harness at `2eba72d8`/`804b5c59` matches server send buffers at 400 KiB
+The measured harness at `2eba72d8`/`9d6fb9c4` matches server send buffers at 400 KiB
 and request queues at 16; shipping defaults are unchanged. Historical captures
 with other settings are not its source-paired baseline.
 
@@ -78,9 +78,9 @@ uploads through the existing live duplex pump: response headers, messages and
 terminal status can progress while upload waits for credit. Buffered encoded
 tails keep their byte permits until sent or dropped. Independent-peer controls
 must check early rejection, successful replies, reset, cancellation, aggregate
-byte admission and same-connection recovery without an RPC timeout. Final-source
-qualification is pending. The initial 10/12 development run and its two corrected
-recovery fixtures remain in the evidence record.
+byte admission and same-connection recovery without an RPC timeout. These cases
+are included in the passing current workspace. The initial 10/12 development run
+and its two corrected recovery fixtures remain in the evidence record.
 
 ## Keep cancellation and destruction safe
 
@@ -101,8 +101,8 @@ Candidate `a3b1d4cc` also tightens ownership rules beneath the RPC API:
 Preparatory controls expose the former lost wake in a Loom model, a reentrant
 waker-drop deadlock and two channelz identity failures; repaired controls pass.
 The model checks a cancellation mechanism, not the whole runtime. Slot teardown,
-panic and reentrancy regressions accompany the source changes. Final candidate
-workspace and sanitizer checks remain separate requirements.
+panic and reentrancy regressions accompany the source changes. Current workspace
+and sanitizer results have separate source records below.
 
 An upload task must own an armed reset guard before it is spawned. Installing
 the guard inside the future is too late if the task is destroyed before its
@@ -110,6 +110,19 @@ first poll. Candidate `783bcd53` moves that ownership outside the spawned pump,
 so task cancellation or a custom-codec panic resets the stream instead of
 stranding its call. Four independent-peer tests cover panic, cancellation, drop
 and same-connection recovery.
+
+Runtime `9d6fb9c4` also makes cancellation an owned teardown action. An RPC's
+guard signals when its owner is aborted or a connection ages out; normal response
+and producer ownership must remain live until their work ends. The guard adds no
+extra reference-count clone or allocation. Eleven controls detect the former
+behavior and pass after repair: eight TCP abort/age cases across four shapes and
+three waiter churn/reentrancy cases. Five normal producer-lifetime checks guard
+against premature cancellation.
+
+Each waiter owns its slab registration until drop. Removing an abandoned waiter
+is O(1), so slot storage follows peak live registrations rather than all past
+polls. Clone, drop and wake callbacks still run outside the registry lock. These
+bounds do not replace finite RPC admission or a total memory budget.
 
 ## Decode once and validate the complete payload
 
@@ -198,7 +211,7 @@ TLS interceptor deadline case fail; their later fixture corrections do not erase
 that run. The `a3b1d4cc` workspace attempt was superseded during compilation,
 before executing tests, to qualify the final source once.
 
-At final candidate `783bcd53`, AddressSanitizer with leak detection passes 720
+At earlier candidate `783bcd53`, AddressSanitizer with leak detection passes 720
 tests and one existing ignore: 686 library, 12 duplex, 18 retry and four pump
 cases. Its default-library Rust 1.85 and optional-Zstd Rust 1.87 checks also pass.
 A 10-cycle, 34.27-second resource preview passes at the original limits; each
@@ -211,9 +224,30 @@ Cargo exit status 101 establish the failure. Original logs and that observation
 record remain preserved. A quiet replay of the original test executable passes
 14 of 15 cases, retaining a spawned-handler failure on its first repeat.
 
-The deadline fixtures have real-clock scheduling races. Test-only repairs add
-admission witnesses, controlled clocks and real-I/O guards while preserving
-deadlines, status and drop assertions. The runtime remains `783bcd53`; a new
-clean-source fixture pin and workspace run are pending. Strict CI and fresh
-captures are pending too; a development strict-lint pass does not replace required
-CI. None of these records establishes production readiness.
+Test-only repairs add admission witnesses, controlled clocks and real-I/O guards
+while preserving deadlines, status and drop assertions. C7's later workspace
+attempt was superseded during compilation, before any tests. The original clean
+`9d6fb9c4` workspace then failed with 3,753 passes, two failures and nine ignores;
+that failure remains recorded too.
+
+The clean `deb0d1d6` all-feature workspace now passes **3,755 tests**, with zero
+failures and nine existing ignores across 139 targets in 13 min 25 s. Only
+`pbrs-grpc/tests/serving.rs` differs from `9d6fb9c4`; the exact equivalence record
+retains its fixture patch. Independent copied-fixture controls pass 15 positive
+cases and detect all 28 per-shape negative cases. The runtime remains `9d6fb9c4`:
+its leak-detecting sanitizer run passes **731 tests**, with one existing ignore,
+and all ten clean pre-workspace checks pass. Those checks include strict
+Clippy/rustdoc, 193 benchmark tests and Rust 1.85 default/Rust 1.87 optional Zstd.
+Its release benchmark binary is source-attested. None of these records repins
+the sanitizer or binary execution to the later fixture source.
+
+The actual `9d6fb9c4` resource preview passes 30.54 seconds and nine drains. Every
+drain returns client/server charges, tokens and active calls to zero, with seven
+file descriptors and one shared task. The current expanded counter campaign
+passes 2,400 captures and 720,000 RPCs; matched source comparisons cover selected
+scopes separately. The focused server-instruction diagnostic passes 72 captures
+and 1,080 RPCs; it uses allocation-instrumented binaries, not shipping CPU or
+latency measurements. Combined campaigns with pilots pass 3,000 captures and
+845,790 RPCs. The actual 24-hour run started at 02:52 UTC on 2026-10-23; its
+result is pending. Passing functional and sanitizer checks does not
+establish production readiness or a performance ranking.
