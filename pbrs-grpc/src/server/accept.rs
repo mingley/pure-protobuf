@@ -820,7 +820,7 @@ impl<S: Service> Server<S> {
     /// Distinct from [`crate::ResponseParts::encoding`]: that is received `grpc-encoding`.
     /// [`crate::ResponseParts::deadline`] is kernel-stamped when writing.
     /// Distinct from [`crate::Request::deadline`]: that is the inbound request.
-    /// Distinct from [`crate::Rpc::deadline`]: that is computed when that getter runs.
+    /// [`crate::Rpc::deadline`] reports this same fixed deadline before shape selection.
     /// [`crate::ResponseParts::timeout`] is the duration stamped at dispatch.
     /// Distinct from [`crate::ResponseParts::deadline`]: that is the Instant.
     /// [`crate::ResponseParts::limits`] is the encode cap when writing.

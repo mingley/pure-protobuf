@@ -289,6 +289,41 @@ pub struct SendResponse<B: Buf> {
     inner: Option<proto::StreamRef<B>>,
 }
 
+/// A private terminal owner that survives dropping an application call.
+#[derive(Debug)]
+pub(crate) struct DeadlineResponse<B: Buf> {
+    inner: proto::StreamRef<B>,
+}
+
+/// The owner chooses how its application protocol can terminate after headers.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum DeadlineEnding {
+    /// HTTP/2 trailers can replace an unsent body tail.
+    Trailers,
+    /// Preserve complete queued application frames and append ending DATA.
+    Data,
+    /// A partial application frame cannot be repaired; reset the stream.
+    Reset,
+}
+
+impl<B: Buf> DeadlineResponse<B> {
+    /// Finish an unfinished response without replacing a completed result.
+    ///
+    /// An initial DATA-encoded ending can be sent intact. Once body output has
+    /// started, such an ending cannot repair an arbitrary partial application
+    /// message; that case resets instead of appending ambiguous payload bytes.
+    pub(crate) fn finish(
+        &mut self,
+        response: Response<()>,
+        trailers: HeaderMap,
+        ending_data: Option<B>,
+        post_header: DeadlineEnding,
+    ) -> Result<bool, crate::h2_backend::Error> {
+        self.inner
+            .finish_response(response, trailers, ending_data, post_header)
+    }
+}
+
 /// Send a response to a promised request
 ///
 /// A `SendPushedResponse` instance is provided when promising a request and is used
@@ -1164,6 +1199,13 @@ impl Default for Builder {
 // ===== impl SendResponse =====
 
 impl<B: Buf> SendResponse<B> {
+    /// Keep one terminal owner while the application consumes this handle.
+    pub(crate) fn deadline_response(&self) -> Option<DeadlineResponse<B>> {
+        self.inner.as_ref().map(|inner| DeadlineResponse {
+            inner: inner.clone(),
+        })
+    }
+
     /// Send an interim informational response (1xx status codes)
     ///
     /// This method can be called multiple times before calling `send_response()`

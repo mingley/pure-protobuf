@@ -175,8 +175,13 @@ where
             return;
         }
         let deadline = rpc.deadline();
-        let mut accounting = Accounting::new(rpc.channelz_server, rpc.channelz_socket);
+        let mut accounting = Accounting::new(
+            rpc.channelz_server,
+            rpc.channelz_socket,
+            Arc::clone(&rpc.call_cancel),
+        );
         let Rpc {
+            call_cancel,
             request,
             mut respond,
             config,
@@ -200,7 +205,7 @@ where
             return;
         }
         parts.extensions.extend(extensions);
-        let cancel = crate::server::drain::CancelFlag::new();
+        let cancel = call_cancel;
         let request = http::Request::from_parts(
             parts,
             TonicBody::new(IncomingBody::new(recv, Arc::clone(&cancel))),
@@ -330,8 +335,13 @@ where
         _ => None,
     };
     let deadline = rpc.deadline();
-    let mut accounting = Accounting::new(rpc.channelz_server, rpc.channelz_socket);
+    let mut accounting = Accounting::new(
+        rpc.channelz_server,
+        rpc.channelz_socket,
+        Arc::clone(&rpc.call_cancel),
+    );
     let Rpc {
+        call_cancel,
         request,
         mut respond,
         config,
@@ -368,7 +378,7 @@ where
         parts.headers.remove("grpc-accept-encoding");
     }
     parts.extensions.extend(extensions);
-    let cancel = crate::server::drain::CancelFlag::new();
+    let cancel = call_cancel;
     let incoming = IncomingBody::new(recv, Arc::clone(&cancel));
     let body = if let Some(max) = input_gzip {
         TonicBody::new(gzip::GzipBody::new(incoming, limits, max))
@@ -691,6 +701,7 @@ fn successful_status(headers: &http::HeaderMap) -> bool {
 }
 
 struct Accounting {
+    call: Arc<crate::server::drain::CancelFlag>,
     server: Option<crate::channelz::ServerId>,
     socket: Option<crate::channelz::SocketId>,
     ok: bool,
@@ -700,16 +711,11 @@ impl Accounting {
     fn new(
         server: Option<crate::channelz::ServerId>,
         socket: Option<crate::channelz::SocketId>,
+        call: Arc<crate::server::drain::CancelFlag>,
     ) -> Self {
-        if server.is_some() || socket.is_some() {
-            let registry = crate::channelz::Registry::global();
-            if let Some(socket) = socket {
-                registry.note_stream_started(socket, false);
-            } else if let Some(server) = server {
-                registry.note_server_call_started(server);
-            }
-        }
+        crate::server::rpc::start_call(&call, None, None, server, socket);
         Self {
+            call,
             server,
             socket,
             ok: false,
@@ -719,13 +725,19 @@ impl Accounting {
 
 impl Drop for Accounting {
     fn drop(&mut self) {
-        if self.server.is_some() || self.socket.is_some() {
-            let registry = crate::channelz::Registry::global();
-            if let Some(socket) = self.socket {
-                registry.note_stream_end(socket, self.ok);
-            } else if let Some(server) = self.server {
-                registry.note_server_call_end(server, self.ok);
-            }
-        }
+        let status = if self.ok {
+            Status::ok()
+        } else {
+            Status::cancelled()
+        };
+        crate::server::rpc::end_call(
+            &self.call,
+            None,
+            None,
+            self.server,
+            self.socket,
+            &status,
+            std::time::Duration::ZERO,
+        );
     }
 }

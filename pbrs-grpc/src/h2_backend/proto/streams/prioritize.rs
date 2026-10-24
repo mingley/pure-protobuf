@@ -383,6 +383,42 @@ impl Prioritize {
         }
     }
 
+    /// The deadline path also redistributes credit, but its callbacks must not
+    /// run while the engine is locked. The ordinary send path stays unchanged.
+    pub fn reclaim_terminal_capacity(
+        &mut self,
+        stream: &mut store::Ptr,
+        counts: &mut Counts,
+        wake: &mut Vec<Waker>,
+    ) {
+        let available = stream.send_flow.available().as_size();
+        if available == 0 {
+            return;
+        }
+        let reclaimed = stream.send_flow.claim_capacity(available);
+        debug_assert!(reclaimed.is_ok());
+        let assigned = self.flow.assign_capacity(available);
+        debug_assert!(assigned.is_ok());
+        while self.flow.available() > 0 {
+            let Some(other) = self.pending_capacity.pop(stream) else {
+                return;
+            };
+            if !(other.state.is_send_streaming() || other.buffered_send_data > 0) {
+                continue;
+            }
+            counts.transition(other, |_, other| {
+                let before = other.capacity(self.max_buffer_size);
+                let task = other.take_send_task_for_terminal();
+                self.try_assign_capacity(other);
+                if other.capacity(self.max_buffer_size) > before {
+                    wake.extend(task);
+                } else {
+                    other.restore_send_task_after_terminal(task);
+                }
+            });
+        }
+    }
+
     /// Reclaim just reserved capacity, not buffered capacity, and re-assign
     /// it to the connection
     pub fn reclaim_reserved_capacity(&mut self, stream: &mut store::Ptr, counts: &mut Counts) {
@@ -554,6 +590,23 @@ impl Prioritize {
         matches!(self.in_flight_data_frame, InFlightData::Nothing)
             && self.pending_open.is_empty()
             && self.pending_send.is_empty()
+    }
+
+    /// A queued deadline/reset can invalidate only the unencoded tail of a
+    /// DATA frame. Transfer that tail out of the locked engine before dropping.
+    pub fn take_discarded_frame<T, B>(
+        &mut self,
+        dst: &mut Codec<T, Prioritized<B>>,
+    ) -> Option<frame::Data<Prioritized<B>>>
+    where
+        B: Buf,
+    {
+        if !matches!(self.in_flight_data_frame, InFlightData::Drop) {
+            return None;
+        }
+        let frame = dst.take_last_data_frame()?;
+        self.in_flight_data_frame = InFlightData::Nothing;
+        Some(frame)
     }
 
     pub fn buffer_pending<T, B>(
@@ -753,6 +806,35 @@ impl Prioritize {
         if let InFlightData::DataFrame(key) = self.in_flight_data_frame {
             if stream.key() == key {
                 // This stream could get cleaned up now - don't allow the buffered frame to get reclaimed.
+                self.in_flight_data_frame = InFlightData::Drop;
+            }
+        }
+    }
+
+    /// Detach unsent payloads before a terminal response. Initial response
+    /// headers may still be queued, so native trailers must keep those in order.
+    /// The caller drops detached owners after releasing both engine locks.
+    pub fn discard_queued<B>(
+        &mut self,
+        buffer: &mut Buffer<Frame<B>>,
+        stream: &mut store::Ptr,
+        preserve_headers: bool,
+        discarded: &mut Vec<Frame<B>>,
+    ) {
+        let mut previous = mem::replace(&mut stream.pending_send, super::buffer::Deque::new());
+        while let Some(frame) = previous.pop_front(buffer) {
+            if preserve_headers && !matches!(&frame, Frame::Data(_)) {
+                stream.pending_send.push_back(buffer, frame);
+            } else {
+                discarded.push(frame);
+            }
+        }
+        stream.buffered_send_data = 0;
+        stream.requested_send_capacity = 0;
+        if let InFlightData::DataFrame(key) = self.in_flight_data_frame {
+            if stream.key() == key {
+                // The codec must finish the current HTTP/2 frame's advertised
+                // length. Once that finishes, do not requeue its unsent tail.
                 self.in_flight_data_frame = InFlightData::Drop;
             }
         }

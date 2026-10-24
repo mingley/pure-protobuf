@@ -7,6 +7,7 @@
 
 pub(crate) mod accept;
 pub(crate) mod connection;
+pub(crate) mod deadline;
 pub(crate) mod dispatch;
 pub(crate) mod drain;
 pub(crate) mod http_name;

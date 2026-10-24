@@ -311,6 +311,7 @@ impl ConnectionInfo {
 pub(crate) fn incoming_rpc(
     mut request: http::Request<RecvStream>,
     respond: SendResponse,
+    accepted_at: tokio::time::Instant,
     config: Arc<ServerConfig>,
     peer: ConnectionInfo,
     byte_budget: ByteBudgetTracker,
@@ -351,7 +352,15 @@ pub(crate) fn incoming_rpc(
     if let Some(uds_info) = peer.tonic_uds {
         extensions.insert(uds_info);
     }
+    let accepted_peer_timeout = if stock_facts.classified {
+        None
+    } else {
+        crate::wire::timeout_from_headers(metadata.all_headers())
+    };
     Rpc {
+        accepted_at,
+        accepted_peer_timeout,
+        call_cancel: super::drain::CancelFlag::new(),
         request,
         respond,
         config,
@@ -567,6 +576,7 @@ where
                 conn.graceful_shutdown();
             }
             Wait::Accepted => {
+                let accepted_at = R::now();
                 let Some(Ok((request, mut respond))) = accepted_slot.take() else {
                     break;
                 };
@@ -725,19 +735,20 @@ where
                         let labels = CallLabels::new(path, authority, CallRole::Server);
                         obs.on_server_queue_wait(&labels, queued_at.elapsed());
                     }
-                    dispatch
-                        .dispatch(incoming_rpc(
-                            request,
-                            respond,
-                            rpc_config,
-                            rpc_peer,
-                            byte_budget,
-                            channelz_server,
-                            channelz_socket_id,
-                            facts,
-                            shared_headers,
-                        ))
-                        .await;
+                    let rpc = incoming_rpc(
+                        request,
+                        respond,
+                        accepted_at,
+                        rpc_config,
+                        rpc_peer,
+                        byte_budget,
+                        channelz_server,
+                        channelz_socket_id,
+                        facts,
+                        shared_headers,
+                    );
+                    let _deadline = rpc.deadline();
+                    super::deadline::serve::<R, _>(dispatch.as_ref(), rpc).await;
                 });
             }
         }

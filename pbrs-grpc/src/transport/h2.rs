@@ -16,6 +16,9 @@ use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 #[cfg(test)]
+mod deadline_response_tests;
+
+#[cfg(test)]
 #[allow(
     clippy::expect_used,
     clippy::unwrap_used,
@@ -707,6 +710,32 @@ impl super::ClientBuilder for ClientBuilder {
 
 /// Server handle that answers one accepted stream.
 pub(crate) struct SendResponse(crate::h2_backend::server::SendResponse<Bytes>);
+
+/// Surviving ownership used only after a finite call deadline is installed.
+#[derive(Debug)]
+pub(crate) struct DeadlineResponse(crate::h2_backend::server::DeadlineResponse<Bytes>);
+
+pub(crate) use crate::h2_backend::server::DeadlineEnding;
+
+impl DeadlineResponse {
+    pub(crate) fn finish(
+        &mut self,
+        response: Response<()>,
+        trailers: HeaderMap,
+        ending_data: Option<Bytes>,
+        post_header: DeadlineEnding,
+    ) -> Result<bool, Error> {
+        self.0
+            .finish(response, trailers, ending_data, post_header)
+            .map_err(Error)
+    }
+}
+
+impl SendResponse {
+    pub(crate) fn deadline_response(&self) -> Option<DeadlineResponse> {
+        self.0.deadline_response().map(DeadlineResponse)
+    }
+}
 
 impl fmt::Debug for SendResponse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

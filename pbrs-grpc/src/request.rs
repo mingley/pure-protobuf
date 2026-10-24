@@ -431,8 +431,8 @@ impl<T> Request<T> {
 
     /// Set the relative timeout. Outbound this becomes `grpc-timeout`.
     ///
-    /// Inbound, the kernel stamps the effective remaining duration at
-    /// dispatch (client, server cap, interceptor). That value does not
+    /// Inbound, the kernel stamps the accepted effective duration
+    /// (client, server cap, interceptor). That inspection value does not
     /// shrink as the handler runs; see [`Self::deadline`] for the absolute
     /// Instant a downstream RPC should inherit.
     pub fn set_timeout(&mut self, timeout: Duration) {
@@ -1430,8 +1430,9 @@ impl<'a> Outgoing<'a> {
     /// Absolute Instant matching [`Self::timeout`].
     ///
     /// Computed when you call this, so an interceptor that just set
-    /// [`Self::set_timeout`] sees the new Instant. Same contract as
-    /// [`crate::Rpc::deadline`]. Visible on every call shape.
+    /// [`Self::set_timeout`] sees the new Instant before the outgoing call starts.
+    /// Inbound [`crate::Rpc::deadline`] instead stays fixed from header acceptance.
+    /// Visible on every call shape.
     #[must_use]
     pub fn deadline(&self) -> Option<tokio::time::Instant> {
         self.timeout.map(|d| tokio::time::Instant::now() + d)
@@ -2673,7 +2674,7 @@ impl<T> Response<T> {
     ///
     /// Same Instant as [`crate::Request::deadline`] after dispatch.
     /// Distinct from [`crate::Request::deadline`]: that is the inbound request.
-    /// Distinct from [`crate::Rpc::deadline`]: that is computed when that getter runs.
+    /// [`crate::Rpc::deadline`] reports this same fixed deadline before shape selection.
     /// Distinct from [`crate::Request::timeout`]: that is the duration stamped at dispatch.
     /// Distinct from [`crate::Outgoing::deadline`]: that is a client interceptor Instant.
     /// `None` on a response you built or a received reply (the peer deadline is not on the wire).
@@ -3142,7 +3143,7 @@ impl ResponseParts {
     /// Remaining Instant when writing. See [`Response::deadline`].
     ///
     /// Distinct from [`crate::Request::deadline`]: that is the inbound request, not this split reply envelope.
-    /// Distinct from [`crate::Rpc::deadline`]: that is computed when that getter runs, not this split reply envelope.
+    /// Distinct from [`crate::Rpc::deadline`]: that is the same fixed admission-origin Instant before shape selection.
     /// Distinct from [`crate::Request::timeout`]: that is the duration stamped at dispatch, not this split reply envelope.
     /// Distinct from [`crate::Outgoing::deadline`]: that is a client interceptor Instant, not this split reply envelope.
     #[must_use]
@@ -3154,7 +3155,7 @@ impl ResponseParts {
     ///
     /// Distinct from [`crate::Request::timeout`]: that is the inbound request, not this split reply envelope.
     /// Distinct from [`crate::Rpc::timeout`]: that is the interceptor cap, not the effective duration on this split reply envelope.
-    /// Distinct from [`crate::Rpc::effective_timeout`]: that is computed when that getter runs, not this split reply envelope.
+    /// Distinct from [`crate::Rpc::effective_timeout`]: that is the same fixed admission-origin Instant before shape selection.
     /// Distinct from [`crate::Rpc::rpc_timeout`]: that is the server overlay, not the effective cap on this split reply envelope.
     /// Distinct from [`crate::Request::peer_timeout`]: that is the client's `grpc-timeout`, not this split reply envelope.
     /// Distinct from [`crate::Outgoing::timeout`]: that is a client interceptor duration, not this split reply envelope.

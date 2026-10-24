@@ -89,7 +89,7 @@ impl Send {
         Ok(stream_id)
     }
 
-    fn check_headers(fields: &http::HeaderMap) -> Result<(), UserError> {
+    pub(super) fn check_headers(fields: &http::HeaderMap) -> Result<(), UserError> {
         // RFC 9113 §8.2.2. One pass: `contains_key("keep-alive")` parses a
         // header name on every block, and gRPC blocks do not carry these names.
         // `get` returns the first value, so a repeated `te` is judged by the first.
@@ -440,6 +440,32 @@ impl Send {
         self.prioritize.reserve_capacity_at(0, stream, sp, counts);
 
         Ok(())
+    }
+
+    /// Discard body queues without destroying their owners under engine locks.
+    pub fn discard_queued_for_terminal<B>(
+        &mut self,
+        buffer: &mut Buffer<Frame<B>>,
+        stream: &mut store::Ptr,
+        counts: &mut Counts,
+        preserve_headers: bool,
+        discarded: &mut Vec<Frame<B>>,
+        wake: &mut Vec<Waker>,
+    ) {
+        self.prioritize
+            .discard_queued(buffer, stream, preserve_headers, discarded);
+        self.prioritize
+            .reclaim_terminal_capacity(stream, counts, wake);
+    }
+
+    pub fn take_discarded_frame<T, B>(
+        &mut self,
+        dst: &mut Codec<T, Prioritized<B>>,
+    ) -> Option<frame::Data<Prioritized<B>>>
+    where
+        B: Buf,
+    {
+        self.prioritize.take_discarded_frame(dst)
     }
 
     pub(super) fn is_idle(&self) -> bool {

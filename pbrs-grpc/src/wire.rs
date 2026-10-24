@@ -21,7 +21,7 @@ pub(crate) use out_batch::{OutBatch, let_producer_catch_up};
 pub(crate) use send::{
     ImmediateSend, PumpEnd, bare_ok_trailer_map, grpc_trailers, hold_half_closed_send,
     pump_outbound, reject, reject_request, reset_on_cancel, send_frame, send_frame_if_ready,
-    send_ok_headers, send_trailers_only, wrap_timeout,
+    send_ok_headers, send_trailers_only,
 };
 // Re-exported for the unit tests below, which drive internals directly.
 #[cfg(test)]
@@ -29,7 +29,7 @@ pub(crate) use frame_reader::{FrameReader, percent_decode};
 #[cfg(test)]
 pub(crate) use headers::{grpc_content_type, grpc_encoding_admitted, grpc_encoding_supported};
 #[cfg(test)]
-pub(crate) use send::percent_encode;
+pub(crate) use send::{percent_encode, wrap_timeout};
 
 #[cfg(test)]
 mod tests {

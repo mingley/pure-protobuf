@@ -258,6 +258,45 @@ pub(crate) fn send_trailers_only(
     }
 }
 
+/// Prepare a gRPC-Web deadline ending after the response writer is destroyed.
+/// Text mode resumes the writer's unencoded final one or two bytes before the
+/// trailer frame, so the resulting body remains one continuous base64 stream.
+pub(crate) fn deadline_response(
+    mode: Mode,
+    status: &Status,
+    carry: &[u8],
+) -> Result<(Response<()>, HeaderMap, Option<Bytes>), Status> {
+    debug_assert!(carry.len() <= 2, "base64 carry is at most two bytes");
+    debug_assert!(
+        mode.is_text() || carry.is_empty(),
+        "binary mode has no base64 carry"
+    );
+    let mut response = Response::new(());
+    response
+        .headers_mut()
+        .insert(http::header::CONTENT_TYPE, mode.content_type());
+    let frame = trailer_frame(status)?;
+    let body = if mode.is_text() {
+        let bytes = if carry.is_empty() {
+            frame
+        } else {
+            let capacity = frame
+                .len()
+                .checked_add(carry.len())
+                .ok_or_else(|| Status::internal("gRPC-Web deadline body too large"))?;
+            let mut bytes = BytesMut::with_capacity(capacity);
+            bytes.extend_from_slice(carry);
+            bytes.extend_from_slice(&frame);
+            bytes.freeze()
+        };
+        TEXT_BASE64.encode(bytes).into()
+    } else {
+        frame
+    };
+    // Web status belongs in the DATA trailer frame, not HTTP/2 trailers.
+    Ok((response, HeaderMap::new(), Some(body)))
+}
+
 /// Stateful gRPC-Web body encoder for `grpc-web-text`.
 #[derive(Default)]
 pub(crate) struct TextEncoder {
@@ -267,6 +306,17 @@ pub(crate) struct TextEncoder {
 impl TextEncoder {
     pub(crate) fn new() -> Self {
         Self::default()
+    }
+
+    /// Copy the bounded raw suffix for a surviving terminal response owner.
+    pub(crate) fn carry(&self) -> ([u8; 2], usize) {
+        let len = self.carry.len();
+        assert!(len <= 2, "base64 carry is at most two bytes");
+        let mut bytes = [0; 2];
+        for (output, input) in bytes.iter_mut().zip(self.carry.iter()) {
+            *output = *input;
+        }
+        (bytes, len)
     }
 
     fn encode(&mut self, bytes: Bytes, end: bool) -> Option<Bytes> {
@@ -389,8 +439,12 @@ fn trailer_frame(status: &Status) -> Result<Bytes, Status> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Mode, trailer_frame};
-    use crate::status::Status;
+    use super::{Mode, TextEncoder, deadline_response, trailer_frame};
+    use crate::status::{Code, Status};
+    use base64::Engine;
+    use base64::engine::general_purpose::STANDARD;
+    use bytes::{BufMut, BytesMut};
+    use http::StatusCode;
 
     #[test]
     fn parses_content_types() {
@@ -422,5 +476,66 @@ mod tests {
                 .windows("grpc-status: 0\r\n".len())
                 .any(|window| { window == b"grpc-status: 0\r\n" })
         );
+    }
+
+    #[test]
+    fn deadline_status_uses_a_complete_body_trailer_in_every_web_mode() {
+        let status = Status::new(Code::DeadlineExceeded, "elapsed");
+        for (mode, content_type) in [
+            (Mode::Binary, "application/grpc-web"),
+            (Mode::BinaryProto, "application/grpc-web+proto"),
+            (Mode::Text, "application/grpc-web-text"),
+            (Mode::TextProto, "application/grpc-web-text+proto"),
+        ] {
+            let (response, trailers, body) =
+                deadline_response(mode, &status, &[]).expect("web deadline ending");
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(response.headers()[http::header::CONTENT_TYPE], content_type);
+            assert!(!response.headers().contains_key("grpc-status"));
+            assert!(trailers.is_empty());
+            let body = body.expect("web status is DATA-encoded");
+            let decoded = if mode.is_text() {
+                STANDARD.decode(body).expect("complete padded base64")
+            } else {
+                body.to_vec()
+            };
+            assert_eq!(decoded[0], 0x80);
+            let declared = u32::from_be_bytes(decoded[1..5].try_into().expect("frame length"));
+            assert_eq!(
+                usize::try_from(declared).expect("body length"),
+                decoded.len() - 5
+            );
+            let block = std::str::from_utf8(&decoded[5..]).expect("ASCII trailer block");
+            assert!(block.lines().any(|line| line == "grpc-status: 4"));
+            assert!(block.lines().any(|line| line == "grpc-message: elapsed"));
+            assert!(block.ends_with("\r\n"));
+        }
+    }
+
+    #[test]
+    fn deadline_text_ending_preserves_each_possible_raw_carry() {
+        let status = Status::deadline_exceeded();
+        for mode in [Mode::Text, Mode::TextProto] {
+            for length in 1u8..=3 {
+                let mut frame = BytesMut::new();
+                frame.put_u8(0);
+                frame.put_u32(u32::from(length));
+                frame.extend_from_slice(&[0x61; 3][..usize::from(length)]);
+                let raw = frame.freeze();
+                let mut text = TextEncoder::new();
+                let prefix = text.encode(raw.clone(), false).unwrap_or_default();
+                let (carry, count) = text.carry();
+                assert_eq!(count, raw.len() % 3);
+                drop(text);
+                let (_, _, ending) = deadline_response(mode, &status, &carry[..count])
+                    .expect("deadline resumes the destroyed writer's raw suffix");
+                let mut body = prefix.to_vec();
+                body.extend_from_slice(&ending.expect("encoded trailer"));
+                let decoded = STANDARD.decode(body).expect("continuous padded base64");
+                let mut expected = raw.to_vec();
+                expected.extend_from_slice(&trailer_frame(&status).expect("trailer"));
+                assert_eq!(decoded, expected, "raw carry length {count}");
+            }
+        }
     }
 }

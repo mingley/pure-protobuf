@@ -34,6 +34,7 @@ use std::time::Duration;
 /// never call [`Request::cancelled`] still paid that, so this flag only wakes
 /// tasks that have started waiting.
 pub(crate) struct CancelFlag {
+    pub(crate) deadline: super::deadline::CallDeadline,
     /// Cancellation and waiter registration share one modification order.
     state: AtomicU8,
     #[allow(
@@ -54,6 +55,7 @@ impl CancelFlag {
             // The slot may still be marked cancelled from the call that
             // finished. The next call has not been cancelled.
             flag.state.store(0, Ordering::Release);
+            flag.deadline.reset();
             return flag;
         }
         #[allow(
@@ -62,6 +64,7 @@ impl CancelFlag {
         )]
         let waiters = Mutex::new(slab::Slab::new());
         Arc::new(Self {
+            deadline: super::deadline::CallDeadline::new(),
             state: AtomicU8::new(0),
             waiters,
         })
@@ -354,6 +357,7 @@ pub(crate) async fn send_unary_response<Resp: CodecMessage>(
     call_labels: &CallLabels<'_>,
     tap: Option<&crate::binlog::CallLogger>,
     channelz_socket: Option<crate::channelz::SocketId>,
+    call: &CancelFlag,
 ) {
     let (msg, headers, trailers, compress) = response.split();
     let negotiated = preferred_codec(
@@ -364,12 +368,15 @@ pub(crate) async fn send_unary_response<Resp: CodecMessage>(
         peer_accepts_zstd,
     );
     let codec = select_outbound_codec(compress, prefer_gzip, negotiated);
-    let frame = match encode_msg(&msg, codec, wire.limits, wire.gzip_level) {
+    let encoded = encode_msg(&msg, codec, wire.limits, wire.gzip_level);
+    super::deadline::before_commit(call).await;
+    let frame = match encoded {
         Ok(frame) => frame,
         Err(status) => {
             if let Some(tap) = tap {
                 tap.log_trailer(&Metadata::new(), &status);
             }
+            super::deadline::before_commit(call).await;
             send_trailers_only(&mut respond, status, &Metadata::new());
             return;
         }
@@ -380,10 +387,12 @@ pub(crate) async fn send_unary_response<Resp: CodecMessage>(
             if let Some(tap) = tap {
                 tap.log_trailer(&Metadata::new(), &status);
             }
+            super::deadline::before_commit(call).await;
             send_trailers_only(&mut respond, status, &Metadata::new());
             return;
         }
     };
+    super::deadline::before_commit(call).await;
     let Ok(mut send) = send_ok_headers(&mut respond, &headers, codec, wire.accept_gzip) else {
         return;
     };
@@ -400,6 +409,7 @@ pub(crate) async fn send_unary_response<Resp: CodecMessage>(
     if let Some(socket) = channelz_socket {
         crate::channelz::Registry::global().note_messages(socket, true, 1);
     }
+    super::deadline::before_commit(call).await;
     match send_frame_if_ready(&mut send, frame, false, wire.send_buffer) {
         ImmediateSend::Done(result) => {
             result.ok();
@@ -418,16 +428,53 @@ pub(crate) async fn send_unary_response<Resp: CodecMessage>(
             let status = Status::ok();
             tap.log_trailer(status.metadata(), &status);
         }
+        super::deadline::before_commit(call).await;
         send.send_trailers(crate::wire::bare_ok_trailer_map()).ok();
         return;
     }
+    super::deadline::before_commit(call).await;
     let mut status = Status::ok();
     *status.metadata_mut() = trailers;
     if let Some(tap) = tap {
         tap.log_trailer(status.metadata(), &status);
     }
+    super::deadline::before_commit(call).await;
     if let Ok(map) = grpc_trailers(&status) {
         send.send_trailers(map).ok();
+    }
+}
+
+#[cfg(feature = "grpc-web")]
+struct WebWriter<'a> {
+    text: crate::web::TextEncoder,
+    call: &'a CancelFlag,
+}
+#[cfg(feature = "grpc-web")]
+impl<'a> WebWriter<'a> {
+    fn new(call: &'a CancelFlag) -> Self {
+        Self {
+            text: crate::web::TextEncoder::new(),
+            call,
+        }
+    }
+}
+#[cfg(feature = "grpc-web")]
+impl std::ops::Deref for WebWriter<'_> {
+    type Target = crate::web::TextEncoder;
+    fn deref(&self) -> &Self::Target {
+        &self.text
+    }
+}
+#[cfg(feature = "grpc-web")]
+impl std::ops::DerefMut for WebWriter<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.text
+    }
+}
+#[cfg(feature = "grpc-web")]
+impl Drop for WebWriter<'_> {
+    fn drop(&mut self) {
+        self.call.deadline.save_web_carry(self.text.carry());
     }
 }
 
@@ -450,6 +497,7 @@ pub(crate) async fn send_web_unary_response<Resp: CodecMessage>(
     call_labels: &CallLabels<'_>,
     tap: Option<&crate::binlog::CallLogger>,
     channelz_socket: Option<crate::channelz::SocketId>,
+    call: &CancelFlag,
 ) {
     let (msg, headers, trailers, compress) = response.split();
     let negotiated = preferred_codec(
@@ -460,12 +508,15 @@ pub(crate) async fn send_web_unary_response<Resp: CodecMessage>(
         peer_accepts_zstd,
     );
     let codec = select_outbound_codec(compress, prefer_gzip, negotiated);
-    let frame = match encode_msg(&msg, codec, wire.limits, wire.gzip_level) {
+    let encoded = encode_msg(&msg, codec, wire.limits, wire.gzip_level);
+    super::deadline::before_commit(call).await;
+    let frame = match encoded {
         Ok(frame) => frame,
         Err(status) => {
             if let Some(tap) = tap {
                 tap.log_trailer(&Metadata::new(), &status);
             }
+            super::deadline::before_commit(call).await;
             crate::web::send_trailers_only(&mut respond, web, status, &Metadata::new());
             return;
         }
@@ -476,10 +527,12 @@ pub(crate) async fn send_web_unary_response<Resp: CodecMessage>(
             if let Some(tap) = tap {
                 tap.log_trailer(&Metadata::new(), &status);
             }
+            super::deadline::before_commit(call).await;
             crate::web::send_trailers_only(&mut respond, web, status, &Metadata::new());
             return;
         }
     };
+    super::deadline::before_commit(call).await;
     let Ok(mut send) =
         crate::web::send_ok_headers(&mut respond, web, &headers, codec, wire.accept_gzip)
     else {
@@ -497,11 +550,17 @@ pub(crate) async fn send_web_unary_response<Resp: CodecMessage>(
     if let Some(socket) = channelz_socket {
         crate::channelz::Registry::global().note_messages(socket, true, 1);
     }
-    let mut text = crate::web::TextEncoder::new();
-    crate::web::send_frame(&mut send, web, &mut text, frame, wire.send_buffer)
+    let mut text = WebWriter::new(call);
+    call.deadline.web_frame_started();
+    if crate::web::send_frame(&mut send, web, &mut text, frame, wire.send_buffer)
         .await
-        .ok();
+        .is_err()
+    {
+        return;
+    }
+    call.deadline.web_frame_finished();
     drop(permit);
+    super::deadline::before_commit(call).await;
     let mut status = Status::ok();
     if !trailers.is_empty() {
         *status.metadata_mut() = trailers;
@@ -509,9 +568,14 @@ pub(crate) async fn send_web_unary_response<Resp: CodecMessage>(
     if let Some(tap) = tap {
         tap.log_trailer(status.metadata(), &status);
     }
-    crate::web::send_trailers(&mut send, web, &mut text, &status, wire.send_buffer)
+    super::deadline::before_commit(call).await;
+    call.deadline.web_frame_started();
+    if crate::web::send_trailers(&mut send, web, &mut text, &status, wire.send_buffer)
         .await
-        .ok();
+        .is_ok()
+    {
+        call.deadline.web_frame_finished();
+    }
 }
 
 #[allow(
@@ -532,6 +596,7 @@ pub(crate) async fn send_stream_response<Resp: CodecMessage + Send>(
     call_labels: &CallLabels<'_>,
     tap: Option<&crate::binlog::CallLogger>,
     channelz_socket: Option<crate::channelz::SocketId>,
+    call: &CancelFlag,
 ) -> Status {
     let (mut stream, headers, trailers, compress) = response.split();
     // Headers go out before the first message so a client that only wants
@@ -544,6 +609,7 @@ pub(crate) async fn send_stream_response<Resp: CodecMessage + Send>(
         peer_accepts_zstd,
     );
     let codec = select_outbound_codec(compress, prefer_gzip, negotiated);
+    super::deadline::before_commit(call).await;
     let Ok(mut send) = send_ok_headers(&mut respond, &headers, codec, wire.accept_gzip) else {
         return Status::unavailable("failed to send response headers");
     };
@@ -551,52 +617,30 @@ pub(crate) async fn send_stream_response<Resp: CodecMessage + Send>(
         tap.log_server_header(&headers);
     }
     let ok_trailers = trailers;
+    super::deadline::before_commit(call).await;
     let mut status = Status::ok();
     // The deadline has to cover the whole response, not just the handler
     // future: a producer that stops early because *its* deadline expired must
     // not be reported as a clean end of stream.
-    let drained = match deadline {
-        None => {
-            drain_to_wire(
-                &mut stream,
-                &mut send,
-                wire,
-                compress,
-                prefer_gzip,
-                peer_accepts_gzip,
-                peer_accepts_deflate,
-                #[cfg(feature = "zstd")]
-                peer_accepts_zstd,
-                budget,
-                observer,
-                call_labels,
-                tap.cloned(),
-                channelz_socket,
-            )
-            .await
-        }
-        Some(at) => tokio::time::timeout_at(
-            at,
-            drain_to_wire(
-                &mut stream,
-                &mut send,
-                wire,
-                compress,
-                prefer_gzip,
-                peer_accepts_gzip,
-                peer_accepts_deflate,
-                #[cfg(feature = "zstd")]
-                peer_accepts_zstd,
-                budget,
-                observer,
-                call_labels,
-                tap.cloned(),
-                channelz_socket,
-            ),
-        )
-        .await
-        .unwrap_or_else(|_| Err(DrainError::Producer(Status::deadline_exceeded()))),
-    };
+    let drained = drain_to_wire(
+        &mut stream,
+        &mut send,
+        wire,
+        compress,
+        prefer_gzip,
+        peer_accepts_gzip,
+        peer_accepts_deflate,
+        #[cfg(feature = "zstd")]
+        peer_accepts_zstd,
+        budget,
+        observer,
+        call_labels,
+        tap.cloned(),
+        channelz_socket,
+        call,
+        false,
+    )
+    .await;
     if let Err(err) = drained {
         // A transport failure cannot be reported; a producer failure becomes
         // the stream's trailing status.
@@ -614,10 +658,12 @@ pub(crate) async fn send_stream_response<Resp: CodecMessage + Send>(
             status = Status::deadline_exceeded();
         }
     }
+    super::deadline::before_commit(call).await;
     if status.is_ok() && ok_trailers.is_empty() {
         if let Some(tap) = tap {
             tap.log_trailer(status.metadata(), &status);
         }
+        super::deadline::before_commit(call).await;
         send.send_trailers(crate::wire::bare_ok_trailer_map()).ok();
         return status;
     }
@@ -627,6 +673,7 @@ pub(crate) async fn send_stream_response<Resp: CodecMessage + Send>(
     if let Some(tap) = tap {
         tap.log_trailer(status.metadata(), &status);
     }
+    super::deadline::before_commit(call).await;
     if let Ok(map) = grpc_trailers(&status) {
         send.send_trailers(map).ok();
     }
@@ -653,6 +700,7 @@ pub(crate) async fn send_web_stream_response<Resp: CodecMessage + Send>(
     call_labels: &CallLabels<'_>,
     tap: Option<&crate::binlog::CallLogger>,
     channelz_socket: Option<crate::channelz::SocketId>,
+    call: &CancelFlag,
 ) -> Status {
     let (mut stream, headers, trailers, compress) = response.split();
     let negotiated = preferred_codec(
@@ -663,6 +711,7 @@ pub(crate) async fn send_web_stream_response<Resp: CodecMessage + Send>(
         peer_accepts_zstd,
     );
     let codec = select_outbound_codec(compress, prefer_gzip, negotiated);
+    super::deadline::before_commit(call).await;
     let Ok(mut send) =
         crate::web::send_ok_headers(&mut respond, web, &headers, codec, wire.accept_gzip)
     else {
@@ -672,98 +721,50 @@ pub(crate) async fn send_web_stream_response<Resp: CodecMessage + Send>(
         tap.log_server_header(&headers);
     }
     let ok_trailers = trailers;
+    super::deadline::before_commit(call).await;
     let mut status = Status::ok();
-    let mut text = crate::web::TextEncoder::new();
+    let mut text = WebWriter::new(call);
     let drained = if web.is_text() {
-        match deadline {
-            None => {
-                drain_to_web_text(
-                    &mut stream,
-                    &mut send,
-                    web,
-                    &mut text,
-                    wire,
-                    compress,
-                    prefer_gzip,
-                    peer_accepts_gzip,
-                    peer_accepts_deflate,
-                    #[cfg(feature = "zstd")]
-                    peer_accepts_zstd,
-                    budget,
-                    observer,
-                    call_labels,
-                    tap.cloned(),
-                    channelz_socket,
-                )
-                .await
-            }
-            Some(at) => tokio::time::timeout_at(
-                at,
-                drain_to_web_text(
-                    &mut stream,
-                    &mut send,
-                    web,
-                    &mut text,
-                    wire,
-                    compress,
-                    prefer_gzip,
-                    peer_accepts_gzip,
-                    peer_accepts_deflate,
-                    #[cfg(feature = "zstd")]
-                    peer_accepts_zstd,
-                    budget,
-                    observer,
-                    call_labels,
-                    tap.cloned(),
-                    channelz_socket,
-                ),
-            )
-            .await
-            .unwrap_or_else(|_| Err(DrainError::Producer(Status::deadline_exceeded()))),
-        }
+        drain_to_web_text(
+            &mut stream,
+            &mut send,
+            web,
+            &mut text,
+            wire,
+            compress,
+            prefer_gzip,
+            peer_accepts_gzip,
+            peer_accepts_deflate,
+            #[cfg(feature = "zstd")]
+            peer_accepts_zstd,
+            budget,
+            observer,
+            call_labels,
+            tap.cloned(),
+            channelz_socket,
+            call,
+        )
+        .await
     } else {
-        match deadline {
-            None => {
-                drain_to_wire(
-                    &mut stream,
-                    &mut send,
-                    wire,
-                    compress,
-                    prefer_gzip,
-                    peer_accepts_gzip,
-                    peer_accepts_deflate,
-                    #[cfg(feature = "zstd")]
-                    peer_accepts_zstd,
-                    budget,
-                    observer,
-                    call_labels,
-                    tap.cloned(),
-                    channelz_socket,
-                )
-                .await
-            }
-            Some(at) => tokio::time::timeout_at(
-                at,
-                drain_to_wire(
-                    &mut stream,
-                    &mut send,
-                    wire,
-                    compress,
-                    prefer_gzip,
-                    peer_accepts_gzip,
-                    peer_accepts_deflate,
-                    #[cfg(feature = "zstd")]
-                    peer_accepts_zstd,
-                    budget,
-                    observer,
-                    call_labels,
-                    tap.cloned(),
-                    channelz_socket,
-                ),
-            )
-            .await
-            .unwrap_or_else(|_| Err(DrainError::Producer(Status::deadline_exceeded()))),
-        }
+        drain_to_wire(
+            &mut stream,
+            &mut send,
+            wire,
+            compress,
+            prefer_gzip,
+            peer_accepts_gzip,
+            peer_accepts_deflate,
+            #[cfg(feature = "zstd")]
+            peer_accepts_zstd,
+            budget,
+            observer,
+            call_labels,
+            tap.cloned(),
+            channelz_socket,
+            call,
+            true,
+        )
+        .await
     };
     if let Err(err) = drained {
         match err {
@@ -782,9 +783,14 @@ pub(crate) async fn send_web_stream_response<Resp: CodecMessage + Send>(
     if let Some(tap) = tap {
         tap.log_trailer(status.metadata(), &status);
     }
-    crate::web::send_trailers(&mut send, web, &mut text, &status, wire.send_buffer)
+    super::deadline::before_commit(call).await;
+    call.deadline.web_frame_started();
+    if crate::web::send_trailers(&mut send, web, &mut text, &status, wire.send_buffer)
         .await
-        .ok();
+        .is_ok()
+    {
+        call.deadline.web_frame_finished();
+    }
     status
 }
 
@@ -809,6 +815,7 @@ pub(crate) async fn drain_to_web_text<Resp: CodecMessage + Send>(
     call_labels: &CallLabels<'_>,
     tap: Option<crate::binlog::CallLogger>,
     channelz_socket: Option<crate::channelz::SocketId>,
+    call: &CancelFlag,
 ) -> Result<(), DrainError> {
     let negotiated = preferred_codec(
         wire.send_codec,
@@ -819,6 +826,7 @@ pub(crate) async fn drain_to_web_text<Resp: CodecMessage + Send>(
     );
     let channelz_entry = channelz_socket.and_then(crate::channelz::socket_entry);
     loop {
+        super::deadline::before_commit(call).await;
         let item = tokio::select! {
             biased;
             reset = poll_fn(|cx| send.poll_reset(cx)) => {
@@ -849,9 +857,12 @@ pub(crate) async fn drain_to_web_text<Resp: CodecMessage + Send>(
         if let Some(entry) = &channelz_entry {
             entry.add_messages(true, 1);
         }
+        super::deadline::before_commit(call).await;
+        call.deadline.web_frame_started();
         crate::web::send_frame(send, web, text, frame, wire.send_buffer)
             .await
             .map_err(|_| DrainError::Transport)?;
+        call.deadline.web_frame_finished();
         drop(permit);
     }
     Ok(())
@@ -865,14 +876,32 @@ pub(crate) enum DrainError {
     Producer(Status),
 }
 
-pub(crate) async fn flush_queued_before_error(
+async fn flush_batch(
+    batch: &mut OutBatch,
+    send: &mut backend::SendStream,
+    call: &CancelFlag,
+    web: bool,
+) -> Result<(), DrainError> {
+    super::deadline::before_commit(call).await;
+    if web {
+        call.deadline.web_frame_started();
+    }
+    batch.flush(send).await.map_err(|_| DrainError::Transport)?;
+    if web {
+        call.deadline.web_frame_finished();
+    }
+    Ok(())
+}
+
+async fn flush_queued_before_error(
     batch: &mut OutBatch,
     send: &mut backend::SendStream,
     permits: &mut Vec<crate::limits::BytePermit>,
     status: Status,
+    call: &CancelFlag,
+    web: bool,
 ) -> Result<(), DrainError> {
-    // A burst can contain successful replies followed by a producer error.
-    batch.flush(send).await.map_err(|_| DrainError::Transport)?;
+    flush_batch(batch, send, call, web).await?;
     permits.clear();
     Err(DrainError::Producer(status))
 }
@@ -896,6 +925,8 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
     call_labels: &CallLabels<'_>,
     tap: Option<crate::binlog::CallLogger>,
     channelz_socket: Option<crate::channelz::SocketId>,
+    call: &CancelFlag,
+    web: bool,
 ) -> Result<(), DrainError> {
     // Negotiated once per response: every frame shares the `grpc-encoding`
     // the headers advertised, so per-message selection only decides the
@@ -918,6 +949,7 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
     let mut items = Vec::with_capacity(OutBatch::BURST);
     let mut permits = Vec::with_capacity(OutBatch::BURST);
     loop {
+        super::deadline::before_commit(call).await;
         items.clear();
         // A client RST while we wait for the next message must abort: a
         // producer that is itself waiting (Health Watch, a timer) will not
@@ -949,7 +981,15 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
             let mut item = match item {
                 Ok(item) => item,
                 Err(status) => {
-                    return flush_queued_before_error(&mut batch, send, &mut permits, status).await;
+                    return flush_queued_before_error(
+                        &mut batch,
+                        send,
+                        &mut permits,
+                        status,
+                        call,
+                        web,
+                    )
+                    .await;
                 }
             };
             item.compressed =
@@ -958,12 +998,28 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
             let permit = match budget.acquire(frame_len) {
                 Ok(permit) => permit,
                 Err(status) => {
-                    return flush_queued_before_error(&mut batch, send, &mut permits, status).await;
+                    return flush_queued_before_error(
+                        &mut batch,
+                        send,
+                        &mut permits,
+                        status,
+                        call,
+                        web,
+                    )
+                    .await;
                 }
             };
             permits.push(permit);
             if let Err(status) = batch.encode(item) {
-                return flush_queued_before_error(&mut batch, send, &mut permits, status).await;
+                return flush_queued_before_error(
+                    &mut batch,
+                    send,
+                    &mut permits,
+                    status,
+                    call,
+                    web,
+                )
+                .await;
             }
             if let Some(obs) = observer {
                 obs.on_bytes_sent(call_labels, frame_len);
@@ -972,16 +1028,16 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
                 entry.add_messages(true, 1);
             }
             if batch.is_full() {
-                batch.flush(send).await.map_err(|_| DrainError::Transport)?;
+                flush_batch(&mut batch, send, call, web).await?;
                 permits.clear();
             }
         }
         if !batch.is_full() {
-            batch.flush(send).await.map_err(|_| DrainError::Transport)?;
+            flush_batch(&mut batch, send, call, web).await?;
             permits.clear();
         }
     }
-    batch.flush(send).await.map_err(|_| DrainError::Transport)?;
+    flush_batch(&mut batch, send, call, web).await?;
     permits.clear();
     Ok(())
 }

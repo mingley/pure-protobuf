@@ -404,6 +404,25 @@ impl Stream {
         }
     }
 
+    /// Terminal queue cleanup transfers callbacks to its caller for waking
+    /// after the stream and send-buffer locks have been released.
+    pub(super) fn take_tasks_for_terminal(&mut self) -> [Option<Waker>; 3] {
+        [
+            self.send_task.take(),
+            self.recv_task.take(),
+            self.push_task.take(),
+        ]
+    }
+
+    pub(super) fn take_send_task_for_terminal(&mut self) -> Option<Waker> {
+        self.send_task.take()
+    }
+
+    pub(super) fn restore_send_task_after_terminal(&mut self, task: Option<Waker>) {
+        debug_assert!(self.send_task.is_none());
+        self.send_task = task;
+    }
+
     pub fn wait_send(&mut self, cx: &Context) {
         self.send_task = Some(cx.waker().clone());
     }

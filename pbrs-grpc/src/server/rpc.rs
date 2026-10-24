@@ -31,7 +31,7 @@ use crate::telemetry::{
 };
 use crate::tls::PeerIdentity;
 use crate::transport::h2::{RecvStream, SendResponse};
-use crate::wire::{WireStream, read_one_message, send_trailers_only, wrap_timeout};
+use crate::wire::{WireStream, read_one_message, send_trailers_only};
 use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -49,6 +49,9 @@ use std::time::Duration;
 /// [`Self::rpc_timeout`], attach typed state on
 /// [`Self::extensions_mut`], or turn the RPC away with [`Self::reject`].
 pub struct Rpc {
+    pub(crate) accepted_at: tokio::time::Instant,
+    pub(crate) accepted_peer_timeout: Option<Duration>,
+    pub(crate) call_cancel: Arc<super::drain::CancelFlag>,
     pub(crate) request: http::Request<RecvStream>,
     pub(crate) respond: SendResponse,
     pub(crate) config: Arc<ServerConfig>,
@@ -284,6 +287,8 @@ impl Rpc {
     /// can only tighten, not extend. Calling this twice keeps the sooner
     /// value. Values below 1 ms are raised to 1 ms. This is the handler's
     /// deadline on every call shape.
+    /// The duration is measured from header acceptance, so a cap introduced
+    /// later also consumes time already spent waiting in the service.
     ///
     pub fn set_timeout(&mut self, timeout: Duration) {
         let timeout = timeout.max(Duration::from_millis(1));
@@ -291,6 +296,7 @@ impl Rpc {
             Some(prev) => prev.min(timeout),
             None => timeout,
         });
+        let _deadline = self.deadline();
     }
 
     /// Deadline cap an interceptor set with [`Self::set_timeout`], if any.
@@ -328,7 +334,7 @@ impl Rpc {
     /// Response interceptors see the same duration on [`crate::Response::peer_timeout`].
     #[must_use]
     pub fn peer_timeout(&self) -> Option<Duration> {
-        crate::wire::timeout_from_headers(self.metadata.all_headers())
+        self.accepted_peer_timeout
     }
 
     /// Deadline the handler will run under: the soonest of the client's
@@ -337,22 +343,38 @@ impl Rpc {
     #[must_use]
     pub fn effective_timeout(&self) -> Option<Duration> {
         crate::wire::soonest(
-            crate::wire::effective_timeout(self.metadata.all_headers(), self.config.rpc_timeout()),
-            self.timeout,
+            crate::wire::soonest(
+                crate::wire::effective_timeout(
+                    self.metadata.all_headers(),
+                    self.config.rpc_timeout(),
+                ),
+                self.accepted_peer_timeout,
+            ),
+            crate::wire::soonest(
+                self.timeout,
+                self.call_cancel
+                    .deadline
+                    .at()
+                    .map(|at| at.saturating_duration_since(self.accepted_at)),
+            ),
         )
     }
 
     /// Absolute Instant matching [`Self::effective_timeout`].
     ///
-    /// Computed when you call this, so an interceptor that just tightened
-    /// [`Self::set_timeout`] sees the new Instant. The handler's
-    /// [`Request::deadline`] is stamped once when dispatch starts. Visible
+    /// Measured from local acceptance of the request headers. Waiting before
+    /// selecting a call shape consumes the same budget. Interceptors can only
+    /// tighten this Instant; metadata edits and repeated getters cannot renew it.
+    /// An overflowing duration imposes no representable additional cap. Visible
     /// on every call shape.
     /// Response interceptors see the same Instant as [`Request::deadline`] on [`crate::Response::deadline`].
     #[must_use]
     pub fn deadline(&self) -> Option<tokio::time::Instant> {
-        self.effective_timeout()
-            .map(|d| tokio::time::Instant::now() + d)
+        self.call_cancel.deadline.tighten(
+            self.effective_timeout()
+                .and_then(|d| self.accepted_at.checked_add(d)),
+            &self.respond,
+        )
     }
 
     /// Effective message caps for this RPC.
@@ -499,29 +521,9 @@ impl Rpc {
     ///
     /// This is the correct default arm of a method `match`: a peer asking for
     /// a method you do not have is a peer error, not a server error.
-    pub fn unimplemented(mut self) {
+    pub fn unimplemented(self) {
         let status = Status::unimplemented(self.request.uri().path().to_string());
-        channelz_start(self.channelz_server, self.channelz_socket);
-        if let Some(obs) = &self.observer {
-            let labels = CallLabels::new(self.path(), self.authority(), CallRole::Server);
-            obs.on_server_call_start(&labels);
-            obs.on_rejection(&RejectionEvent {
-                call: labels,
-                reason: RejectionReason::Unimplemented,
-                code: Code::Unimplemented,
-            });
-            obs.on_server_call_end(&labels, &status, Duration::ZERO);
-        }
-        if let Some(tap) = &self.binlog {
-            tap.log_trailer(&Metadata::new(), &status);
-        }
-        channelz_end(self.channelz_server, self.channelz_socket, false);
-        #[cfg(feature = "grpc-web")]
-        if let Some(web) = self.web {
-            crate::web::send_trailers_only(&mut self.respond, web, status, &Metadata::new());
-            return;
-        }
-        send_trailers_only(&mut self.respond, status, &Metadata::new());
+        self.reject_with_reason(status, RejectionReason::Unimplemented);
     }
 
     /// Answer with `status` without reading the request body.
@@ -554,29 +556,62 @@ impl Rpc {
     ///     }
     /// }
     /// ```
-    pub fn reject(mut self, status: Status) {
-        channelz_start(self.channelz_server, self.channelz_socket);
+    pub fn reject(self, status: Status) {
+        self.reject_with_reason(status, RejectionReason::ServerInterceptor);
+    }
+
+    fn reject_with_reason(mut self, status: Status, reason: RejectionReason) {
+        let _deadline = self.deadline();
+        let uri = self.request.uri().clone();
+        let labels = CallLabels::new(
+            uri.path(),
+            uri.authority().map(http::uri::Authority::as_str),
+            CallRole::Server,
+        );
+        start_call(
+            &self.call_cancel,
+            self.observer.as_deref(),
+            Some(&labels),
+            self.channelz_server,
+            self.channelz_socket,
+        );
+        let status = if self.call_cancel.deadline.expired() {
+            Status::deadline_exceeded()
+        } else {
+            status
+        };
+        #[cfg(feature = "grpc-web")]
+        if let Some(web) = self.web {
+            crate::web::send_trailers_only(
+                &mut self.respond,
+                web,
+                status.clone(),
+                &Metadata::new(),
+            );
+        } else {
+            send_trailers_only(&mut self.respond, status.clone(), &Metadata::new());
+        }
+        #[cfg(not(feature = "grpc-web"))]
+        send_trailers_only(&mut self.respond, status.clone(), &Metadata::new());
         if let Some(obs) = &self.observer {
-            let labels = CallLabels::new(self.path(), self.authority(), CallRole::Server);
-            obs.on_server_call_start(&labels);
             obs.on_rejection(&RejectionEvent {
                 call: labels,
-                reason: RejectionReason::ServerInterceptor,
+                reason,
                 code: status.code(),
             });
-            obs.on_server_call_end(&labels, &status, Duration::ZERO);
         }
         if let Some(tap) = &self.binlog {
             tap.log_trailer(&Metadata::new(), &status);
         }
-        let ok = status.is_ok();
-        channelz_end(self.channelz_server, self.channelz_socket, ok);
-        #[cfg(feature = "grpc-web")]
-        if let Some(web) = self.web {
-            crate::web::send_trailers_only(&mut self.respond, web, status, &Metadata::new());
-            return;
-        }
-        send_trailers_only(&mut self.respond, status, &Metadata::new());
+        end_call(
+            &self.call_cancel,
+            self.observer.as_deref(),
+            Some(&labels),
+            self.channelz_server,
+            self.channelz_socket,
+            &status,
+            self.accepted_at.elapsed(),
+        );
     }
 
     /// Serve a unary method: one request message, one response message.
@@ -631,52 +666,73 @@ impl Rpc {
         else {
             return;
         };
+        let call_cancel = Arc::clone(cancel.flag());
         hold_cancel(cancel, async move {
             let path_for_labels = observer.as_ref().and_then(|_| path.clone());
             let call_labels = match &path_for_labels {
                 Some(path) => CallLabels::new(path.as_str(), None, CallRole::Server),
                 None => CallLabels::UNLABELED_SERVER,
             };
-            match outcome.and_then(|mut response| {
-                {
-                    response.apply_outbound(
-                        path,
-                        gzip_level,
-                        prefer_gzip,
-                        peer_accepts_gzip,
-                        wire.accept_gzip,
-                        deadline,
-                        timeout,
-                        peer_timeout,
-                        rpc_timeout,
-                        Some(wire.limits),
-                        Some(wire.send_buffer),
-                    );
-                    // No hook: keep the response in place. The call would only
-                    // move it in and return it.
-                    if hook.is_none() {
-                        Ok(response)
+            match outcome
+                .and_then(|mut response| {
+                    {
+                        response.apply_outbound(
+                            path,
+                            gzip_level,
+                            prefer_gzip,
+                            peer_accepts_gzip,
+                            wire.accept_gzip,
+                            deadline,
+                            timeout,
+                            peer_timeout,
+                            rpc_timeout,
+                            Some(wire.limits),
+                            Some(wire.send_buffer),
+                        );
+                        // No hook: keep the response in place. The call would only
+                        // move it in and return it.
+                        if hook.is_none() {
+                            Ok(response)
+                        } else {
+                            crate::interceptor::intercept_response(response, hook.as_deref())
+                        }
+                    }
+                })
+                .and_then(|response| {
+                    if call_cancel.deadline.expired() {
+                        Err(Status::deadline_exceeded())
                     } else {
-                        crate::interceptor::intercept_response(response, hook.as_deref())
+                        Ok(response)
                     }
-                }
-            }) {
+                }) {
                 Err(status) => {
-                    if let Some(obs) = &observer {
-                        obs.on_server_call_end(&call_labels, &status, call_start.elapsed());
+                    super::deadline::before_commit(&call_cancel).await;
+
+                    #[cfg(feature = "grpc-web")]
+                    if let Some(web) = web {
+                        crate::web::send_trailers_only(
+                            &mut respond,
+                            web,
+                            status.clone(),
+                            &Metadata::new(),
+                        );
+                    } else {
+                        send_trailers_only(&mut respond, status.clone(), &Metadata::new());
                     }
+                    #[cfg(not(feature = "grpc-web"))]
+                    send_trailers_only(&mut respond, status.clone(), &Metadata::new());
                     if let Some(tap) = &binlog {
                         tap.log_trailer(&Metadata::new(), &status);
                     }
-                    channelz_end(channelz_server, channelz_socket, status.is_ok());
-                    #[cfg(feature = "grpc-web")]
-                    if let Some(web) = web {
-                        crate::web::send_trailers_only(&mut respond, web, status, &Metadata::new());
-                    } else {
-                        send_trailers_only(&mut respond, status, &Metadata::new());
-                    }
-                    #[cfg(not(feature = "grpc-web"))]
-                    send_trailers_only(&mut respond, status, &Metadata::new());
+                    end_call(
+                        &call_cancel,
+                        observer.as_deref(),
+                        Some(&call_labels),
+                        channelz_server,
+                        channelz_socket,
+                        &status,
+                        call_start.elapsed(),
+                    );
                 }
                 Ok(response) => {
                     #[cfg(feature = "grpc-web")]
@@ -696,6 +752,7 @@ impl Rpc {
                             &call_labels,
                             binlog.as_ref(),
                             channelz_socket,
+                            &call_cancel,
                         )
                         .await;
                     } else {
@@ -713,6 +770,7 @@ impl Rpc {
                             &call_labels,
                             binlog.as_ref(),
                             channelz_socket,
+                            &call_cancel,
                         )
                         .await;
                     }
@@ -731,12 +789,22 @@ impl Rpc {
                         &call_labels,
                         binlog.as_ref(),
                         channelz_socket,
+                        &call_cancel,
                     )
                     .await;
-                    if let Some(obs) = &observer {
-                        obs.on_server_call_end(&call_labels, &Status::ok(), call_start.elapsed());
-                    }
-                    channelz_end(channelz_server, channelz_socket, true);
+                    end_call(
+                        &call_cancel,
+                        observer.as_deref(),
+                        Some(&call_labels),
+                        channelz_server,
+                        channelz_socket,
+                        &if call_cancel.deadline.expired() {
+                            Status::deadline_exceeded()
+                        } else {
+                            Status::ok()
+                        },
+                        call_start.elapsed(),
+                    );
                 }
             }
         })
@@ -802,45 +870,61 @@ impl Rpc {
             #[cfg(feature = "grpc-web")]
                 web: _,
         } = *prepared;
+        let call_cancel = Arc::clone(cancel.flag());
         hold_cancel(cancel, async move {
             let path_for_labels = observer.as_ref().and_then(|_| path.clone());
             let call_labels = match &path_for_labels {
                 Some(path) => CallLabels::new(path.as_str(), None, CallRole::Server),
                 None => CallLabels::UNLABELED_SERVER,
             };
-            match outcome.and_then(|mut response| {
-                {
-                    response.apply_outbound(
-                        path,
-                        gzip_level,
-                        prefer_gzip,
-                        peer_accepts_gzip,
-                        wire.accept_gzip,
-                        deadline,
-                        timeout,
-                        peer_timeout,
-                        rpc_timeout,
-                        Some(wire.limits),
-                        Some(wire.send_buffer),
-                    );
-                    // No hook: keep the response in place. The call would only
-                    // move it in and return it.
-                    if hook.is_none() {
-                        Ok(response)
+            match outcome
+                .and_then(|mut response| {
+                    {
+                        response.apply_outbound(
+                            path,
+                            gzip_level,
+                            prefer_gzip,
+                            peer_accepts_gzip,
+                            wire.accept_gzip,
+                            deadline,
+                            timeout,
+                            peer_timeout,
+                            rpc_timeout,
+                            Some(wire.limits),
+                            Some(wire.send_buffer),
+                        );
+                        // No hook: keep the response in place. The call would only
+                        // move it in and return it.
+                        if hook.is_none() {
+                            Ok(response)
+                        } else {
+                            crate::interceptor::intercept_response(response, hook.as_deref())
+                        }
+                    }
+                })
+                .and_then(|response| {
+                    if call_cancel.deadline.expired() {
+                        Err(Status::deadline_exceeded())
                     } else {
-                        crate::interceptor::intercept_response(response, hook.as_deref())
+                        Ok(response)
                     }
-                }
-            }) {
+                }) {
                 Err(status) => {
-                    if let Some(obs) = &observer {
-                        obs.on_server_call_end(&call_labels, &status, call_start.elapsed());
-                    }
+                    super::deadline::before_commit(&call_cancel).await;
+
+                    send_trailers_only(&mut respond, status.clone(), &Metadata::new());
                     if let Some(tap) = &binlog {
                         tap.log_trailer(&Metadata::new(), &status);
                     }
-                    channelz_end(channelz_server, channelz_socket, status.is_ok());
-                    send_trailers_only(&mut respond, status, &Metadata::new())
+                    end_call(
+                        &call_cancel,
+                        observer.as_deref(),
+                        Some(&call_labels),
+                        channelz_server,
+                        channelz_socket,
+                        &status,
+                        call_start.elapsed(),
+                    );
                 }
                 Ok(response) => {
                     send_unary_response(
@@ -857,12 +941,22 @@ impl Rpc {
                         &call_labels,
                         binlog.as_ref(),
                         channelz_socket,
+                        &call_cancel,
                     )
                     .await;
-                    if let Some(obs) = &observer {
-                        obs.on_server_call_end(&call_labels, &Status::ok(), call_start.elapsed());
-                    }
-                    channelz_end(channelz_server, channelz_socket, true);
+                    end_call(
+                        &call_cancel,
+                        observer.as_deref(),
+                        Some(&call_labels),
+                        channelz_server,
+                        channelz_socket,
+                        &if call_cancel.deadline.expired() {
+                            Status::deadline_exceeded()
+                        } else {
+                            Status::ok()
+                        },
+                        call_start.elapsed(),
+                    );
                 }
             }
         })
@@ -928,52 +1022,73 @@ impl Rpc {
         else {
             return;
         };
+        let call_cancel = Arc::clone(cancel.flag());
         hold_cancel(cancel, async move {
             let path_for_labels = observer.as_ref().and_then(|_| path.clone());
             let call_labels = match &path_for_labels {
                 Some(path) => CallLabels::new(path.as_str(), None, CallRole::Server),
                 None => CallLabels::UNLABELED_SERVER,
             };
-            match outcome.and_then(|mut response| {
-                {
-                    response.apply_outbound(
-                        path,
-                        gzip_level,
-                        prefer_gzip,
-                        peer_accepts_gzip,
-                        wire.accept_gzip,
-                        deadline,
-                        timeout,
-                        peer_timeout,
-                        rpc_timeout,
-                        Some(wire.limits),
-                        Some(wire.send_buffer),
-                    );
-                    // No hook: keep the response in place. The call would only
-                    // move it in and return it.
-                    if hook.is_none() {
-                        Ok(response)
+            match outcome
+                .and_then(|mut response| {
+                    {
+                        response.apply_outbound(
+                            path,
+                            gzip_level,
+                            prefer_gzip,
+                            peer_accepts_gzip,
+                            wire.accept_gzip,
+                            deadline,
+                            timeout,
+                            peer_timeout,
+                            rpc_timeout,
+                            Some(wire.limits),
+                            Some(wire.send_buffer),
+                        );
+                        // No hook: keep the response in place. The call would only
+                        // move it in and return it.
+                        if hook.is_none() {
+                            Ok(response)
+                        } else {
+                            crate::interceptor::intercept_response(response, hook.as_deref())
+                        }
+                    }
+                })
+                .and_then(|response| {
+                    if call_cancel.deadline.expired() {
+                        Err(Status::deadline_exceeded())
                     } else {
-                        crate::interceptor::intercept_response(response, hook.as_deref())
+                        Ok(response)
                     }
-                }
-            }) {
+                }) {
                 Err(status) => {
-                    if let Some(obs) = &observer {
-                        obs.on_server_call_end(&call_labels, &status, call_start.elapsed());
+                    super::deadline::before_commit(&call_cancel).await;
+
+                    #[cfg(feature = "grpc-web")]
+                    if let Some(web) = web {
+                        crate::web::send_trailers_only(
+                            &mut respond,
+                            web,
+                            status.clone(),
+                            &Metadata::new(),
+                        );
+                    } else {
+                        send_trailers_only(&mut respond, status.clone(), &Metadata::new());
                     }
+                    #[cfg(not(feature = "grpc-web"))]
+                    send_trailers_only(&mut respond, status.clone(), &Metadata::new());
                     if let Some(tap) = &binlog {
                         tap.log_trailer(&Metadata::new(), &status);
                     }
-                    channelz_end(channelz_server, channelz_socket, status.is_ok());
-                    #[cfg(feature = "grpc-web")]
-                    if let Some(web) = web {
-                        crate::web::send_trailers_only(&mut respond, web, status, &Metadata::new());
-                    } else {
-                        send_trailers_only(&mut respond, status, &Metadata::new());
-                    }
-                    #[cfg(not(feature = "grpc-web"))]
-                    send_trailers_only(&mut respond, status, &Metadata::new());
+                    end_call(
+                        &call_cancel,
+                        observer.as_deref(),
+                        Some(&call_labels),
+                        channelz_server,
+                        channelz_socket,
+                        &status,
+                        call_start.elapsed(),
+                    );
                 }
                 Ok(response) => {
                     #[cfg(feature = "grpc-web")]
@@ -994,6 +1109,7 @@ impl Rpc {
                             &call_labels,
                             binlog.as_ref(),
                             channelz_socket,
+                            &call_cancel,
                         )
                         .await
                     } else {
@@ -1012,6 +1128,7 @@ impl Rpc {
                             &call_labels,
                             binlog.as_ref(),
                             channelz_socket,
+                            &call_cancel,
                         )
                         .await
                     };
@@ -1031,12 +1148,18 @@ impl Rpc {
                         &call_labels,
                         binlog.as_ref(),
                         channelz_socket,
+                        &call_cancel,
                     )
                     .await;
-                    if let Some(obs) = &observer {
-                        obs.on_server_call_end(&call_labels, &final_status, call_start.elapsed());
-                    }
-                    channelz_end(channelz_server, channelz_socket, final_status.is_ok());
+                    end_call(
+                        &call_cancel,
+                        observer.as_deref(),
+                        Some(&call_labels),
+                        channelz_server,
+                        channelz_socket,
+                        &final_status,
+                        call_start.elapsed(),
+                    );
                 }
             }
         })
@@ -1136,45 +1259,61 @@ impl Rpc {
             #[cfg(feature = "grpc-web")]
                 web: _,
         } = *prepared;
+        let call_cancel = Arc::clone(cancel.flag());
         hold_cancel(cancel, async move {
             let path_for_labels = observer.as_ref().and_then(|_| path.clone());
             let call_labels = match &path_for_labels {
                 Some(path) => CallLabels::new(path.as_str(), None, CallRole::Server),
                 None => CallLabels::UNLABELED_SERVER,
             };
-            match outcome.and_then(|mut response| {
-                {
-                    response.apply_outbound(
-                        path,
-                        gzip_level,
-                        prefer_gzip,
-                        peer_accepts_gzip,
-                        wire.accept_gzip,
-                        deadline,
-                        timeout,
-                        peer_timeout,
-                        rpc_timeout,
-                        Some(wire.limits),
-                        Some(wire.send_buffer),
-                    );
-                    // No hook: keep the response in place. The call would only
-                    // move it in and return it.
-                    if hook.is_none() {
-                        Ok(response)
+            match outcome
+                .and_then(|mut response| {
+                    {
+                        response.apply_outbound(
+                            path,
+                            gzip_level,
+                            prefer_gzip,
+                            peer_accepts_gzip,
+                            wire.accept_gzip,
+                            deadline,
+                            timeout,
+                            peer_timeout,
+                            rpc_timeout,
+                            Some(wire.limits),
+                            Some(wire.send_buffer),
+                        );
+                        // No hook: keep the response in place. The call would only
+                        // move it in and return it.
+                        if hook.is_none() {
+                            Ok(response)
+                        } else {
+                            crate::interceptor::intercept_response(response, hook.as_deref())
+                        }
+                    }
+                })
+                .and_then(|response| {
+                    if call_cancel.deadline.expired() {
+                        Err(Status::deadline_exceeded())
                     } else {
-                        crate::interceptor::intercept_response(response, hook.as_deref())
+                        Ok(response)
                     }
-                }
-            }) {
+                }) {
                 Err(status) => {
-                    if let Some(obs) = &observer {
-                        obs.on_server_call_end(&call_labels, &status, call_start.elapsed());
-                    }
+                    super::deadline::before_commit(&call_cancel).await;
+
+                    send_trailers_only(&mut respond, status.clone(), &Metadata::new());
                     if let Some(tap) = &binlog {
                         tap.log_trailer(&Metadata::new(), &status);
                     }
-                    channelz_end(channelz_server, channelz_socket, status.is_ok());
-                    send_trailers_only(&mut respond, status, &Metadata::new())
+                    end_call(
+                        &call_cancel,
+                        observer.as_deref(),
+                        Some(&call_labels),
+                        channelz_server,
+                        channelz_socket,
+                        &status,
+                        call_start.elapsed(),
+                    );
                 }
                 Ok(response) => {
                     let final_status = send_stream_response(
@@ -1192,12 +1331,18 @@ impl Rpc {
                         &call_labels,
                         binlog.as_ref(),
                         channelz_socket,
+                        &call_cancel,
                     )
                     .await;
-                    if let Some(obs) = &observer {
-                        obs.on_server_call_end(&call_labels, &final_status, call_start.elapsed());
-                    }
-                    channelz_end(channelz_server, channelz_socket, final_status.is_ok());
+                    end_call(
+                        &call_cancel,
+                        observer.as_deref(),
+                        Some(&call_labels),
+                        channelz_server,
+                        channelz_socket,
+                        &final_status,
+                        call_start.elapsed(),
+                    );
                 }
             }
         })
@@ -1215,10 +1360,9 @@ impl Rpc {
         // The live request state sits in one heap allocation. The future that
         // the connection task polls only holds that pointer plus the read.
         let mut inbound = InboundRpc::from_rpc(self);
-        let timeout = inbound.timeout;
         // Box the read here, in a synchronous helper, so this future stores a
         // pointer instead of the read state machine.
-        let outcome = wrap_timeout(timeout, read_unary_fut(&mut inbound, handler)).await;
+        let outcome = read_unary_fut(&mut inbound, handler).await;
         Some((*inbound).into_prepared(outcome))
     }
 
@@ -1294,15 +1438,16 @@ impl InboundRpc {
     fn from_rpc(rpc: Rpc) -> Box<Self> {
         // Each request header is read once. Timeout, accept-encoding, and
         // grpc-encoding feed the deadline and the compression decision.
-        let (peer_accepts_gzip, peer_accepts_deflate, enc_token, peer_timeout) =
-            if rpc.stock_facts.classified {
-                (rpc.stock_facts.gzip, rpc.stock_facts.deflate, None, None)
-            } else {
-                crate::wire::headers::request_facts(rpc.metadata.all_headers())
-            };
+        let (peer_accepts_gzip, peer_accepts_deflate, enc_token, _) = if rpc.stock_facts.classified
+        {
+            (rpc.stock_facts.gzip, rpc.stock_facts.deflate, None, None)
+        } else {
+            crate::wire::headers::request_facts(rpc.metadata.all_headers())
+        };
+        let peer_timeout = rpc.peer_timeout();
         let rpc_timeout = rpc.rpc_timeout();
-        let timeout =
-            crate::wire::soonest(crate::wire::soonest(peer_timeout, rpc_timeout), rpc.timeout);
+        let timeout = rpc.effective_timeout();
+        let deadline = rpc.deadline();
         let authority = rpc
             .authority()
             .map(|value| HttpStr::adopt(value, crate::h2_backend::server::leaked_authority(value)));
@@ -1328,7 +1473,11 @@ impl InboundRpc {
         let channelz_socket = rpc.channelz_socket;
         #[cfg(feature = "grpc-web")]
         let web = rpc.web;
-        let call_start = call_start_instant(observer.is_some());
+        let call_start = if observer.is_some() {
+            rpc.accepted_at
+        } else {
+            call_start_instant(false)
+        };
         let owned_labels = observer.as_ref().map(|_| {
             CallLabels::new(
                 path.as_deref().unwrap_or(""),
@@ -1337,11 +1486,20 @@ impl InboundRpc {
             )
             .to_owned()
         });
-        if let (Some(obs), Some(labels)) = (&observer, &owned_labels) {
-            obs.on_server_call_start(&labels.as_borrowed());
-        }
-        channelz_start(channelz_server, channelz_socket);
+        start_call(
+            &rpc.call_cancel,
+            observer.as_deref(),
+            owned_labels
+                .as_ref()
+                .map(|labels| labels.as_borrowed())
+                .as_ref(),
+            channelz_server,
+            channelz_socket,
+        );
         let Rpc {
+            accepted_at: _,
+            accepted_peer_timeout: _,
+            call_cancel,
             request,
             respond,
             config,
@@ -1369,9 +1527,8 @@ impl InboundRpc {
         // aggregate and then again into the box.
         let recv = Some(request.into_body());
         let limits = config.limits();
-        let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
         let prefer_gzip = config.compresses_outbound();
-        let cancel_tx = CancelOnDrop::new(super::drain::CancelFlag::new());
+        let cancel_tx = CancelOnDrop::new(call_cancel);
         // The record is 624 bytes. `Box::new` built it on the stack and
         // copied it. Each field is written into the allocation instead.
         #[allow(unsafe_code, reason = "initialize the call record in its allocation")]
@@ -1425,14 +1582,18 @@ impl InboundRpc {
     #[inline(always)]
     fn into_prepared<T>(self, outcome: Result<T, Status>) -> Prepared<T> {
         notify_deadline(&outcome, self.cancel_tx.flag());
-        if matches!(&outcome, Err(status) if status.code() == Code::DeadlineExceeded) {
+        if matches!(&outcome, Err(status) if status.code() == Code::DeadlineExceeded)
+            && self.cancel_tx.flag().deadline.record_cancellation()
+        {
             if let (Some(obs), Some(labels)) = (&self.observer, &self.owned_labels) {
                 obs.on_cancellation(&CancellationEvent {
                     call: labels.as_borrowed(),
                     reason: CancellationReason::DeadlineExceeded,
                 });
             }
-        } else if matches!(&outcome, Err(status) if status.code() == Code::Cancelled) {
+        } else if matches!(&outcome, Err(status) if status.code() == Code::Cancelled)
+            && self.cancel_tx.flag().deadline.record_cancellation()
+        {
             if let (Some(obs), Some(labels)) = (&self.observer, &self.owned_labels) {
                 obs.on_cancellation(&CancellationEvent {
                     call: labels.as_borrowed(),
@@ -1521,8 +1682,19 @@ impl InboundRpc {
         req.set_compressed(framed.compressed);
         req.set_cancel(Arc::clone(self.cancel_tx.flag()));
         let on_reset = Arc::clone(self.cancel_tx.flag());
+        if self.cancel_tx.flag().deadline.expired() {
+            return Err(Status::deadline_exceeded());
+        }
         let handler = handler(req);
-        run_handler_fut(self, on_reset, handler).await
+        if self.cancel_tx.flag().deadline.expired() {
+            return Err(Status::deadline_exceeded());
+        }
+        let result = run_handler_fut(self, on_reset, handler).await;
+        if self.cancel_tx.flag().deadline.expired() {
+            Err(Status::deadline_exceeded())
+        } else {
+            result
+        }
     }
 
     async fn read_unary_frame<Req: CodecMessage>(
@@ -1573,9 +1745,19 @@ impl InboundRpc {
         let mut req = self.base_request(stream);
         req.set_cancel(Arc::clone(self.cancel_tx.flag()));
         let on_reset = Arc::clone(self.cancel_tx.flag());
-        let timeout = self.timeout;
+        if self.cancel_tx.flag().deadline.expired() {
+            return Err(Status::deadline_exceeded());
+        }
         let handler = handler(req);
-        wrap_timeout(timeout, run_handler_fut(self, on_reset, handler)).await
+        if self.cancel_tx.flag().deadline.expired() {
+            return Err(Status::deadline_exceeded());
+        }
+        let result = run_handler_fut(self, on_reset, handler).await;
+        if self.cancel_tx.flag().deadline.expired() {
+            Err(Status::deadline_exceeded())
+        } else {
+            result
+        }
     }
 }
 
@@ -1661,7 +1843,7 @@ fn call_start_instant(observed: bool) -> tokio::time::Instant {
 /// Channelz: a dispatched RPC started. The socket stream is
 /// remote-initiated (`local: false`).
 #[inline]
-fn channelz_start(
+pub(crate) fn channelz_start(
     server: Option<crate::channelz::ServerId>,
     socket: Option<crate::channelz::SocketId>,
 ) {
@@ -1682,7 +1864,7 @@ fn channelz_start(
 
 /// Channelz: a dispatched RPC ended with `ok`.
 #[inline]
-fn channelz_end(
+pub(crate) fn channelz_end(
     server: Option<crate::channelz::ServerId>,
     socket: Option<crate::channelz::SocketId>,
     ok: bool,
@@ -1695,5 +1877,51 @@ fn channelz_end(
         global.note_stream_end(socket, ok);
     } else if let Some(server) = server {
         global.note_server_call_end(server, ok);
+    }
+}
+
+pub(crate) fn start_call(
+    flag: &super::drain::CancelFlag,
+    observer: Option<&dyn LifecycleObserver>,
+    labels: Option<&CallLabels<'_>>,
+    server: Option<crate::channelz::ServerId>,
+    socket: Option<crate::channelz::SocketId>,
+) {
+    if flag.deadline.start() {
+        channelz_start(server, socket);
+        if let Some(observer) = observer {
+            observer.on_server_call_start(labels.unwrap_or(&CallLabels::UNLABELED_SERVER));
+        }
+    }
+}
+
+#[allow(
+    clippy::too_many_arguments,
+    reason = "one shared terminal accounting transition"
+)]
+pub(crate) fn end_call(
+    flag: &super::drain::CancelFlag,
+    observer: Option<&dyn LifecycleObserver>,
+    labels: Option<&CallLabels<'_>>,
+    server: Option<crate::channelz::ServerId>,
+    socket: Option<crate::channelz::SocketId>,
+    status: &Status,
+    elapsed: Duration,
+) {
+    if flag.deadline.end() {
+        channelz_end(server, socket, status.is_ok());
+        if let Some(observer) = observer {
+            if status.code() == Code::DeadlineExceeded && flag.deadline.record_cancellation() {
+                observer.on_cancellation(&CancellationEvent {
+                    call: *labels.unwrap_or(&CallLabels::UNLABELED_SERVER),
+                    reason: CancellationReason::DeadlineExceeded,
+                });
+            }
+            observer.on_server_call_end(
+                labels.unwrap_or(&CallLabels::UNLABELED_SERVER),
+                status,
+                elapsed,
+            );
+        }
     }
 }

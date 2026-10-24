@@ -17,11 +17,13 @@ use crate::transport::{Reason, SendResponse, SendStream, h2 as backend};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD_NO_PAD;
 use bytes::Bytes;
+#[cfg(test)]
 use futures_util::future::Either;
 use http::{HeaderMap, HeaderValue, Response, StatusCode};
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+#[cfg(test)]
 use std::time::Duration;
 
 pub(crate) async fn wait_capacity(send: &mut backend::SendStream, n: usize) -> Result<(), Status> {
@@ -602,6 +604,7 @@ mod park_tests;
 
 /// No deadline polls `fut` directly. The sleep is boxed in the other arm, so a
 /// call without a timeout does not carry that state machine.
+#[cfg(test)]
 pub(crate) fn wrap_timeout<T>(
     timeout: Option<Duration>,
     fut: impl Future<Output = Result<T, Status>>,
@@ -612,6 +615,7 @@ pub(crate) fn wrap_timeout<T>(
     }
 }
 
+#[cfg(test)]
 async fn expire_after<T>(
     d: Duration,
     fut: impl Future<Output = Result<T, Status>>,

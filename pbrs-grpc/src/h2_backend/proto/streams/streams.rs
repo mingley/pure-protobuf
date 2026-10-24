@@ -272,8 +272,12 @@ where
             // Make any required socket progress before taking stream locks.
             ready!(dst.poll_ready(cx))?;
 
+            // Declare the owner outside the lock scope so errors or unwinding
+            // also release the lock before its payload destructor runs.
+            let discarded;
             let status = {
                 let mut me = self.inner.lock().unwrap();
+                discarded = me.actions.send.take_discarded_frame(dst);
                 let status = me.buffer_pending(&self.send_buffer, dst)?;
 
                 // Register the task while holding the same lock used to
@@ -298,6 +302,7 @@ where
 
                 status
             };
+            drop(discarded);
 
             match status {
                 // Nothing was staged and no data frame is in flight, so the
@@ -321,10 +326,17 @@ where
                 return Poll::Ready(Ok(()));
             }
 
+            let discarded;
             let reclaimed = {
                 let mut me = self.inner.lock().unwrap();
-                me.reclaim_written_frame(&self.send_buffer, dst)
+                discarded = me.actions.send.take_discarded_frame(dst);
+                if discarded.is_some() {
+                    false
+                } else {
+                    me.reclaim_written_frame(&self.send_buffer, dst)
+                }
             };
+            drop(discarded);
 
             if !reclaimed {
                 return Poll::Ready(Ok(()));
@@ -1930,6 +1942,158 @@ impl<B> StreamRef<B> {
                 &mut actions.task,
             )
         })
+    }
+
+    /// Complete an unfinished response through a surviving terminal owner.
+    ///
+    /// Logical END_STREAM is the commit boundary: queued successful trailers
+    /// are never replaced because a timer is observed later. Unsent DATA is
+    /// detached before native trailers so flow control cannot hide that ending.
+    /// The owner decides whether its protocol can append ending DATA or needs a
+    /// reset after headers. Payload owners are dropped outside the engine and
+    /// send-buffer locks.
+    pub(crate) fn finish_response(
+        &mut self,
+        mut response: Response<()>,
+        trailers: HeaderMap,
+        ending_data: Option<B>,
+        post_header: server::DeadlineEnding,
+    ) -> Result<bool, crate::h2_backend::Error>
+    where
+        B: Buf,
+    {
+        response.extensions_mut().clear();
+        let validation =
+            Send::check_headers(response.headers()).and_then(|()| Send::check_headers(&trailers));
+        // Unused branch inputs also outlive the locks. A body owner or an
+        // extension may have a destructor that reenters this connection.
+        let mut response = Some(response);
+        let mut trailers = Some(trailers);
+        let mut ending_data = ending_data;
+        let mut discarded = Vec::new();
+        let mut wake = Vec::new();
+        let result = {
+            let mut locked = self.opaque.inner.lock().unwrap();
+            let me = &mut *locked;
+            let mut stream = me.store.resolve(self.opaque.key);
+            if stream.state.is_send_closed() {
+                return Ok(false);
+            }
+            validation.map_err(crate::h2_backend::Error::from)?;
+            let mut buffer = self.send_buffer.inner.lock().unwrap();
+            let buffer = &mut *buffer;
+            let actions = &mut me.actions;
+            // Queueing wakes the connection through this slot. Defer that
+            // callback until neither engine lock is held.
+            wake.extend(actions.task.take());
+            wake.extend(stream.take_tasks_for_terminal().into_iter().flatten());
+            if stream.state.is_send_streaming()
+                && matches!(post_header, server::DeadlineEnding::Reset)
+            {
+                actions.send.discard_queued_for_terminal(
+                    buffer,
+                    &mut stream,
+                    &mut me.counts,
+                    false,
+                    &mut discarded,
+                    &mut wake,
+                );
+                actions
+                    .send_reset(
+                        stream,
+                        Reason::CANCEL,
+                        Initiator::User,
+                        &mut me.counts,
+                        buffer,
+                        &me.reset_pending,
+                    )
+                    .map(|()| true)
+                    .map_err(|error| crate::h2_backend::Error::from(error.reason))
+            } else {
+                me.counts
+                    .transition(stream, |counts, stream| -> Result<bool, UserError> {
+                        let slot = stream.stream_ptr();
+                        if stream.state.is_send_streaming() {
+                            match post_header {
+                                server::DeadlineEnding::Trailers => {
+                                    actions.send.discard_queued_for_terminal(
+                                        buffer,
+                                        stream,
+                                        counts,
+                                        true,
+                                        &mut discarded,
+                                        &mut wake,
+                                    );
+                                    let trailers =
+                                        trailers.take().ok_or(UserError::UnexpectedFrameType)?;
+                                    let frame = frame::Headers::trailers_boxed(stream.id, trailers);
+                                    actions.send.send_trailers(
+                                        frame,
+                                        buffer,
+                                        stream,
+                                        slot,
+                                        counts,
+                                        &mut actions.task,
+                                    )?;
+                                }
+                                server::DeadlineEnding::Data => {
+                                    let data =
+                                        ending_data.take().ok_or(UserError::UnexpectedFrameType)?;
+                                    let mut frame = frame::Data::new(stream.id, data);
+                                    frame.set_end_stream(true);
+                                    actions.send.send_data(
+                                        frame,
+                                        buffer,
+                                        stream,
+                                        slot,
+                                        counts,
+                                        &mut actions.task,
+                                    )?;
+                                }
+                                server::DeadlineEnding::Reset => {
+                                    return Err(UserError::UnexpectedFrameType);
+                                }
+                            }
+                        } else {
+                            let response = response
+                                .take()
+                                .ok_or(UserError::PollResetAfterSendResponse)?;
+                            let initial = server::Peer::convert_send_message(
+                                stream.id,
+                                response,
+                                ending_data.is_none(),
+                            );
+                            actions.send.send_headers_boxed(
+                                initial,
+                                buffer,
+                                stream,
+                                slot,
+                                counts,
+                                &mut actions.task,
+                            )?;
+                            if let Some(data) = ending_data.take() {
+                                let mut frame = frame::Data::new(stream.id, data);
+                                frame.set_end_stream(true);
+                                actions.send.send_data(
+                                    frame,
+                                    buffer,
+                                    stream,
+                                    slot,
+                                    counts,
+                                    &mut actions.task,
+                                )?;
+                            }
+                        }
+                        Ok(true)
+                    })
+                    .map_err(crate::h2_backend::Error::from)
+            }
+        };
+        for wake in wake {
+            wake.wake();
+        }
+        drop(discarded);
+        result
     }
 
     /// Send the stock HTTP 200 without copying an `http::Response`.

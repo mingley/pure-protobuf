@@ -89,7 +89,7 @@ pub(crate) trait DynService: Send + Sync + 'static {
 
 impl<S: Service> DynService for S {
     fn dispatch<'a>(&'a self, rpc: Rpc) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
-        self.call_boxed(rpc)
+        start_service_call(self, rpc)
     }
 }
 
@@ -120,7 +120,18 @@ fn start_service_call<'a, S: Service>(
     service: &'a S,
     rpc: Rpc,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
-    service.call_boxed(rpc)
+    let call = Arc::clone(&rpc.call_cancel);
+    let future = service.call_boxed(rpc);
+    if call.deadline.expired() {
+        // A synchronous custom future constructor can consume its budget.
+        // Keep that future unpolled until the terminal owner destroys it.
+        Box::pin(async move {
+            let _keep = future;
+            std::future::pending::<()>().await;
+        })
+    } else {
+        future
+    }
 }
 
 /// Newtype so the monomorphic path gets its own [`Dispatch`] impl.
@@ -176,12 +187,23 @@ impl<S: Service> Dispatch for Single<S> {
                 rpc.effective_timeout(),
             );
             rpc.binlog = Some(tap);
+            if let Some(logger) = &rpc.binlog {
+                rpc.call_cancel.deadline.set_binlog(logger);
+            }
         }
+        let _deadline = rpc.deadline();
         if let Some(interceptor) = &self.interceptor {
             if let Err(status) = interceptor.intercept(&mut rpc) {
                 rpc.reject(status);
                 return SingleDispatch::Done;
             }
+        }
+        if rpc
+            .deadline()
+            .is_some_and(|at| tokio::time::Instant::now() >= at)
+        {
+            rpc.reject(crate::Status::deadline_exceeded());
+            return SingleDispatch::Done;
         }
         // Box one method future. Awaiting `Service::call` here would embed
         // every method's state in this connection-task future and copy it
