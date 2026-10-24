@@ -1001,7 +1001,9 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
             let_producer_catch_up().await;
             stream.try_recv_many(&mut items, room);
         }
-        for item in items.drain(..) {
+        let mut ready = items.drain(..);
+        while let Some(item) = ready.next() {
+            let ready_messages = ready.len() + 1;
             let mut item = match item {
                 Ok(item) => item,
                 Err(status) => {
@@ -1034,7 +1036,7 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
                 }
             };
             permits.push(permit);
-            if let Err(status) = batch.encode(item) {
+            if let Err(status) = batch.encode_ready(item, ready_messages) {
                 return flush_queued_before_error(
                     &mut batch,
                     send,
@@ -1056,6 +1058,7 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
                 permits.clear();
             }
         }
+        drop(ready);
         if !batch.is_full() {
             flush_batch(&mut batch, send, call, web).await?;
             permits.clear();

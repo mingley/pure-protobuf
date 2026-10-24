@@ -357,13 +357,14 @@ pub(crate) const STREAM_BATCH_BYTES: usize = 32 * 1024;
 /// The uncompressed path serializes straight into `sink`, so a batch of `n`
 /// messages costs one head buffer rather than `n`; large shared fields
 /// become segments of their own.
-pub(crate) fn append_frame<T: CodecMessage>(
+pub(crate) fn append_frame_with_ready<T: CodecMessage>(
     sink: &mut SegSink,
     scratch: &mut EncodeScratch,
     msg: &T,
     codec: Option<CompressionAlgorithm>,
     limits: MessageLimits,
     gzip_level: u32,
+    ready_messages: usize,
 ) -> Result<(), Status> {
     let len = msg.encoded_len();
     limits.check_encode(len)?;
@@ -387,17 +388,31 @@ pub(crate) fn append_frame<T: CodecMessage>(
         });
     }
     let need = codec::HEADER_LEN + len;
-    // A batch of equal frames otherwise reallocates and copies the prefix on
-    // every message. The first small frame reserves room for three more.
-    // `frame_from_msg` keeps the exact size for a single message.
+    // A single already-ready message is flushed before polling for more.
+    // Reserve only its frame. Multiple ready messages keep the existing
+    // four-frame prefetch, including mixed-size bursts. No second length
+    // traversal or speculative wait is needed. Unknown counts stay conservative.
     if sink.is_empty() && need <= 8 * 1024 {
-        sink.reserve_new(need.saturating_mul(4));
+        let prefetch = if ready_messages == 1 { 1 } else { 4 };
+        sink.reserve_new(need.saturating_mul(prefetch));
     } else {
         sink.reserve(need);
     }
     write_uncompressed_prefix(sink, len)?;
     msg.encode_payload(sink)?;
     Ok(())
+}
+
+#[cfg(test)]
+fn append_frame<T: CodecMessage>(
+    sink: &mut SegSink,
+    scratch: &mut EncodeScratch,
+    msg: &T,
+    codec: Option<CompressionAlgorithm>,
+    limits: MessageLimits,
+    gzip_level: u32,
+) -> Result<(), Status> {
+    append_frame_with_ready(sink, scratch, msg, codec, limits, gzip_level, 4)
 }
 
 /// Compression flag plus the 4-byte length, written into the reserved head.
@@ -415,6 +430,138 @@ mod tests {
     use crate::testing::Payload;
 
     const ONE_MIB: usize = 1024 * 1024;
+
+    struct ContiguousMessage(usize);
+
+    impl CodecMessage for ContiguousMessage {
+        fn encoded_len(&self) -> usize {
+            self.0
+        }
+
+        fn encode_payload<W: WireOut>(&self, out: &mut W) -> Result<(), Status> {
+            out.write_contiguous(|buf| buf.resize(buf.len() + self.0, 0xAB));
+            Ok(())
+        }
+
+        fn decode_payload(payload: Bytes) -> Result<Self, Status> {
+            Ok(Self(payload.len()))
+        }
+
+        fn empty() -> Self {
+            Self(0)
+        }
+    }
+
+    #[test]
+    fn single_ready_identity_frame_uses_exact_capacity_at_boundaries() {
+        for size in [0, 1, 1024, 8186, 8187, 8188, 32762, 32763, 32764, 65536] {
+            // A flush transfers the old sink to HTTP/2, so the next turn has
+            // another fresh sink even when the outbound stream stays alive.
+            let mut scratch = EncodeScratch::new();
+            for _ in 0..2 {
+                let mut sink = SegSink::new();
+                let message = ContiguousMessage(size);
+                append_frame_with_ready(
+                    &mut sink,
+                    &mut scratch,
+                    &message,
+                    None,
+                    MessageLimits::unlimited(),
+                    0,
+                    1,
+                )
+                .expect("single ready frame");
+                assert_eq!(sink.head.capacity(), codec::HEADER_LEN + size);
+                let expected = frame_from_msg(&message, size).expect("single frame");
+                assert_eq!(sink.finish().concat(), expected.concat());
+            }
+        }
+    }
+
+    #[test]
+    fn multiple_ready_messages_keep_the_existing_capacity_trace() {
+        for count in [2, 3, 4, 64] {
+            for mixed in [false, true] {
+                let mut before = SegSink::new();
+                let mut after = SegSink::new();
+                let mut old_scratch = EncodeScratch::new();
+                let mut new_scratch = EncodeScratch::new();
+                for index in 0..count {
+                    let size = if mixed {
+                        match index % 5 {
+                            0 => 1,
+                            1 => 2048,
+                            2 => 8192,
+                            3 => 33,
+                            _ => 32768,
+                        }
+                    } else {
+                        1024
+                    };
+                    let message = ContiguousMessage(size);
+                    append_frame(
+                        &mut before,
+                        &mut old_scratch,
+                        &message,
+                        None,
+                        MessageLimits::unlimited(),
+                        0,
+                    )
+                    .expect("existing burst frame");
+                    append_frame_with_ready(
+                        &mut after,
+                        &mut new_scratch,
+                        &message,
+                        None,
+                        MessageLimits::unlimited(),
+                        0,
+                        count - index,
+                    )
+                    .expect("ready burst frame");
+                    assert_eq!(after.head.len(), before.head.len());
+                    assert_eq!(after.head.capacity(), before.head.capacity());
+                }
+                assert_eq!(after.finish().concat(), before.finish().concat());
+            }
+        }
+    }
+
+    #[test]
+    fn ready_hint_preserves_shared_segments_and_compressed_frames() {
+        for ready in [0, 1, 2, 3, 4, 64, usize::MAX] {
+            for size in [0, 32, 1024, 8192, 32768, 65536] {
+                let mut message = Payload::new();
+                message.set_body(vec![0xAB; size]);
+                for compression in [None, Some(CompressionAlgorithm::Gzip)] {
+                    let mut before = SegSink::new();
+                    let mut after = SegSink::new();
+                    append_frame(
+                        &mut before,
+                        &mut EncodeScratch::new(),
+                        &message,
+                        compression,
+                        MessageLimits::unlimited(),
+                        6,
+                    )
+                    .expect("existing shared or compressed frame");
+                    append_frame_with_ready(
+                        &mut after,
+                        &mut EncodeScratch::new(),
+                        &message,
+                        compression,
+                        MessageLimits::unlimited(),
+                        6,
+                        ready,
+                    )
+                    .expect("ready shared or compressed frame");
+                    let before = before.finish();
+                    let after = after.finish();
+                    assert_eq!(after.seg_count(), before.seg_count());
+                    assert_eq!(after.concat(), before.concat());
+                }
+            }
+        }
+    }
 
     fn big_payload() -> Payload {
         let mut p = Payload::new();

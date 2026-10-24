@@ -1,6 +1,6 @@
 //! Batched stream output: OutBatch.
 
-use super::encode::{EncodeScratch, STREAM_BATCH_BYTES, SegSink, append_frame};
+use super::encode::{EncodeScratch, STREAM_BATCH_BYTES, SegSink, append_frame_with_ready};
 use super::send::{ImmediateSend, send_frame, send_frame_if_ready};
 use crate::binlog::CallLogger;
 use crate::codec::CodecMessage;
@@ -42,15 +42,20 @@ impl OutBatch {
     ///
     /// Encode-cap and serialize failures stay [`Status`] so a server drain
     /// can ship them as trailers instead of treating them as a dead socket.
-    pub(crate) fn encode<T: CodecMessage>(&mut self, item: Framed<T>) -> Result<(), Status> {
+    pub(crate) fn encode_ready<T: CodecMessage>(
+        &mut self,
+        item: Framed<T>,
+        ready_messages: usize,
+    ) -> Result<(), Status> {
         let checkpoint = self.sink.checkpoint();
-        if let Err(status) = append_frame(
+        if let Err(status) = append_frame_with_ready(
             &mut self.sink,
             &mut self.scratch,
             &item.message,
             item.compressed.then_some(self.wire.send_codec),
             self.wire.limits,
             self.wire.gzip_level,
+            ready_messages,
         ) {
             // Keep earlier complete frames flushable before the error trailer.
             self.sink.rollback(&checkpoint);
@@ -66,6 +71,11 @@ impl OutBatch {
             }
         }
         Ok(())
+    }
+
+    #[cfg(test)]
+    fn encode<T: CodecMessage>(&mut self, item: Framed<T>) -> Result<(), Status> {
+        self.encode_ready(item, 4)
     }
 
     /// Whether the batch has reached the size worth writing on its own.
@@ -173,6 +183,127 @@ mod tests {
             Self {
                 shared: false,
                 fail: false,
+            }
+        }
+    }
+
+    #[test]
+    fn single_ready_rollback_and_reuse_preserve_plain_shared_and_compressed_frames() {
+        for compressed in [false, true] {
+            let wire = ChannelConfig::new().wire();
+            let mut batch = OutBatch::new(wire);
+            for _ in 0..2 {
+                let framed = |fail| Framed {
+                    message: PartialEncode(fail),
+                    compressed,
+                };
+                batch.encode_ready(framed(false), 1).expect("prefix");
+                assert_eq!(
+                    batch
+                        .encode_ready(framed(true), 1)
+                        .expect_err("partial")
+                        .code(),
+                    Code::Internal
+                );
+                batch.encode_ready(framed(false), 1).expect("after error");
+                let mut bytes = Bytes::from(batch.take_frame().expect("two frames").concat());
+                for _ in 0..2 {
+                    let frame = crate::codec::pop_from_chunk(&mut bytes, wire.limits)
+                        .expect("framing")
+                        .expect("complete frame");
+                    assert_eq!(frame.compressed, compressed);
+                    let payload = if compressed {
+                        wire.send_codec.decode(&frame.payload).expect("decode")
+                    } else {
+                        frame.payload.to_vec()
+                    };
+                    assert_eq!(payload, [0xAB]);
+                }
+                assert!(bytes.is_empty());
+            }
+        }
+        let wire = ChannelConfig::new().wire();
+        let mut batch = OutBatch::new(wire);
+        for _ in 0..2 {
+            batch
+                .encode_ready(Framed::new(SharedEncode::empty()), 1)
+                .expect("complete prefix");
+            batch
+                .encode_ready(
+                    Framed::new(SharedEncode {
+                        shared: true,
+                        fail: true,
+                    }),
+                    1,
+                )
+                .expect_err("partial shared encode");
+            batch
+                .encode_ready(
+                    Framed::new(SharedEncode {
+                        shared: true,
+                        fail: false,
+                    }),
+                    1,
+                )
+                .expect("after shared rollback");
+            let mut bytes = Bytes::from(batch.take_frame().expect("two frames").concat());
+            for expected in [
+                b"startend".as_slice(),
+                b"startshared-onemiddleshared-twoend".as_slice(),
+            ] {
+                let frame = crate::codec::pop_from_chunk(&mut bytes, wire.limits)
+                    .expect("framing")
+                    .expect("complete frame");
+                assert_eq!(frame.payload.as_ref(), expected);
+            }
+            assert!(bytes.is_empty());
+        }
+    }
+
+    #[test]
+    fn ready_bursts_keep_frame_order_across_batch_flush_boundaries() {
+        for count in [1, 2, 3, 4, 64] {
+            for compressed in [false, true] {
+                let wire = ChannelConfig::new().wire();
+                let mut batch = OutBatch::new(wire);
+                let mut actual = Vec::new();
+                let mut expected = Vec::new();
+                for index in 0..count {
+                    let mut message = crate::testing::Payload::new();
+                    let size = match index % 4 {
+                        0 => 1024,
+                        1 => 8192,
+                        2 => 32768,
+                        _ => 65536,
+                    };
+                    message.set_body(vec![0xAB; size]);
+                    expected.extend(
+                        crate::wire::encode::encode_msg(
+                            &message,
+                            compressed.then_some(wire.send_codec),
+                            wire.limits,
+                            wire.gzip_level,
+                        )
+                        .expect("independent frame")
+                        .concat(),
+                    );
+                    batch
+                        .encode_ready(
+                            Framed {
+                                message,
+                                compressed,
+                            },
+                            count - index,
+                        )
+                        .expect("ready frame");
+                    if batch.is_full() {
+                        actual.extend(batch.take_frame().expect("full frame").concat());
+                    }
+                }
+                if let Some(frame) = batch.take_frame() {
+                    actual.extend(frame.concat());
+                }
+                assert_eq!(actual, expected);
             }
         }
     }

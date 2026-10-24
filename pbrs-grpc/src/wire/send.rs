@@ -419,7 +419,9 @@ pub(crate) async fn pump_outbound<T: CodecMessage>(
             let_producer_catch_up().await;
             rx.try_recv_many(&mut items, room);
         }
-        for item in items.drain(..) {
+        let mut ready = items.drain(..);
+        while let Some(item) = ready.next() {
+            let ready_messages = ready.len() + 1;
             let item = match item {
                 Ok(item) => item,
                 Err(status) => {
@@ -429,7 +431,7 @@ pub(crate) async fn pump_outbound<T: CodecMessage>(
                     return PumpEnd::Failed(status);
                 }
             };
-            if let Err(status) = batch.encode(item) {
+            if let Err(status) = batch.encode_ready(item, ready_messages) {
                 return PumpEnd::Failed(status);
             }
             if batch.is_full() && batch.flush(send).await.is_err() {
@@ -437,6 +439,7 @@ pub(crate) async fn pump_outbound<T: CodecMessage>(
                 return PumpEnd::Reset;
             }
         }
+        drop(ready);
         if !batch.is_full() && batch.flush(send).await.is_err() {
             send.send_reset(Reason::INTERNAL_ERROR);
             return PumpEnd::Reset;

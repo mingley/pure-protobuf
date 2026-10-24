@@ -407,7 +407,9 @@ async fn pump_outbound_budget<T: CodecMessage>(
             crate::wire::let_producer_catch_up().await;
             rx.try_recv_many(&mut items, room);
         }
-        for item in items.drain(..) {
+        let mut ready = items.drain(..);
+        while let Some(item) = ready.next() {
+            let ready_messages = ready.len() + 1;
             let item = match item {
                 Ok(item) => item,
                 Err(status) => return PumpEnd::Failed(status),
@@ -417,7 +419,7 @@ async fn pump_outbound_budget<T: CodecMessage>(
                 Ok(permit) => permits.push(permit),
                 Err(status) => return PumpEnd::Failed(status),
             }
-            if let Err(status) = batch.encode(item) {
+            if let Err(status) = batch.encode_ready(item, ready_messages) {
                 return PumpEnd::Failed(status);
             }
             // Channelz: each encoded message counts as sent (a later
@@ -433,6 +435,7 @@ async fn pump_outbound_budget<T: CodecMessage>(
                 permits.clear();
             }
         }
+        drop(ready);
         if !batch.is_full() {
             if batch.flush(send).await.is_err() {
                 send.send_reset(Reason::INTERNAL_ERROR);
@@ -514,7 +517,9 @@ fn write_closed_upload<T: CodecMessage>(
         send.send_reset(Reason::CANCEL);
         status
     };
-    for item in items {
+    let mut ready = items.into_iter();
+    while let Some(item) = ready.next() {
+        let ready_messages = ready.len() + 1;
         let item = match item {
             Ok(item) => item,
             Err(status) => return Err(fail(send, status)),
@@ -524,7 +529,7 @@ fn write_closed_upload<T: CodecMessage>(
             Ok(acquired) => permit.merge(acquired),
             Err(status) => return Err(fail(send, status)),
         }
-        if let Err(status) = batch.encode(item) {
+        if let Err(status) = batch.encode_ready(item, ready_messages) {
             return Err(fail(send, status));
         }
         if let Some(entry) = &channelz_entry {
@@ -536,6 +541,7 @@ fn write_closed_upload<T: CodecMessage>(
             }
         }
     }
+    drop(ready);
     if let Some(frame) = batch.take_frame() {
         queued.extend(frame.into_segments());
     }
