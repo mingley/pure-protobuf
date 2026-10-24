@@ -1,0 +1,308 @@
+{
+  "schema": "pbrs.resource-capsule.v1",
+  "source": "beb4ecd9a9b2143c440892607d5b486318062b61",
+  "qualified": false,
+  "archive": {
+    "name": "raw.tar.gz",
+    "bytes": 1608329,
+    "sha256": "b00de33a5c344b666a70a4ffc59aef626982d1a8fdc8629207e59e87fd2b7a6f"
+  },
+  "logical_bytes": 19818841,
+  "files": [
+    {
+      "path": "architecture-c11-prost-cache-build/build.json",
+      "bytes": 1962,
+      "sha256": "f87810bc32669bf7aa332d7265856117872fab8a5f412edfec533c8c3b108dc4"
+    },
+    {
+      "path": "architecture-c11-prost-cache-build/build.stderr.log",
+      "bytes": 1802,
+      "sha256": "8931133322548c372fffbdf1e82f74a69d6e4182f5890b7d4e257f4e4b532d78"
+    },
+    {
+      "path": "architecture-c11-prost-cache-build/build.stdout.jsonl",
+      "bytes": 123341,
+      "sha256": "fd2716df6152cfc928de26504b414d034c68c4b411825309f07cdb0b32f2f1bd"
+    },
+    {
+      "path": "architecture-c11-prost-cache-build.py",
+      "bytes": 19928,
+      "sha256": "0b790bb773aba901395b890aa97666cb77624c7a2cabfe1435a3a7fd5e76f0e1"
+    },
+    {
+      "path": "architecture-c11-prost-cache-controller.py",
+      "bytes": 22211,
+      "sha256": "0f7e9a2503d816cff1138c4ebd618311c984c57960dc371c2e6077490028360d"
+    },
+    {
+      "path": "architecture-c11-prost-cache-day-grant.json",
+      "bytes": 136,
+      "sha256": "a172f9a95181c4e1a86a14754d35ba56e7507f493c070dbd8fa6ea07dc809731"
+    },
+    {
+      "path": "architecture-c11-prost-cache-day-launch-snapshot.json",
+      "bytes": 4854,
+      "sha256": "626e09120d6d0cb270b04f1ce02a942106005e084a1a3db538bbd9ce68a3f1e6"
+    },
+    {
+      "path": "architecture-c11-prost-cache-day-progress-snapshot.json",
+      "bytes": 5231,
+      "sha256": "0a4a49d3c21e7a806663c86c3b7eded868ab7e17bc8617a0f939ec31a9d369ab"
+    },
+    {
+      "path": "architecture-c11-prost-cache-day-readiness.json",
+      "bytes": 1622,
+      "sha256": "772930beed5971dc5ded03fa87946733c9a107c857fdcd1da7f51f524b4887da"
+    },
+    {
+      "path": "architecture-c11-prost-cache-day-terminal.json",
+      "bytes": 3574,
+      "sha256": "d8e0a3ab942c91a3cc33cc2d9429f9fdfc8b803cd0c65762a105bf635005c32d"
+    },
+    {
+      "path": "architecture-c11-prost-cache-fixture.rs",
+      "bytes": 25035,
+      "sha256": "4d5dd9f080c9e7c9d588d364027b6fa8df5944248c1a83fb91dea8ebc11f808a"
+    },
+    {
+      "path": "architecture-c11-prost-cache-plan.md",
+      "bytes": 3610,
+      "sha256": "4f36d20e13b0e3352c1a6e7597ec2e851657c5750721f67db8ff1b03a02edb1d"
+    },
+    {
+      "path": "architecture-c11-prost-cache-preview-evidence/events.jsonl",
+      "bytes": 3995,
+      "sha256": "de21513b175a1b32c8ab0f1d35bff83c221acf582f02d3c3c6d4984cbe911d51"
+    },
+    {
+      "path": "architecture-c11-prost-cache-preview-evidence/progress.json",
+      "bytes": 330,
+      "sha256": "0f77c2ca24474eeeeb0641e6ee79b16de0293edf4cdc6a0da5c695b849c6dd25"
+    },
+    {
+      "path": "architecture-c11-prost-cache-preview-evidence/report.json",
+      "bytes": 3328,
+      "sha256": "7943217868f65514dc3b982e9f19d649bbc5acdf87a88a9bfebd59aead40b438"
+    },
+    {
+      "path": "architecture-c11-prost-cache-preview-evidence/samples.jsonl",
+      "bytes": 3233,
+      "sha256": "69c96c8466eec61c2e1770d4975c45c9abf88adeddae4705a311ec474125da34"
+    },
+    {
+      "path": "architecture-c11-prost-cache-preview-evidence/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "architecture-c11-prost-cache-preview-evidence/stdout.log",
+      "bytes": 147,
+      "sha256": "7463944e6ea256a66949ce94e49b171e4be939ea1189f9679b2e57377d3418b9"
+    },
+    {
+      "path": "architecture-c11-prost-cache-preview-evidence/supervisor-state.json",
+      "bytes": 262,
+      "sha256": "47c8e59c49d7f7db6f1864d95663eef3e00e7fffaccc771ea74eb0b354434644"
+    },
+    {
+      "path": "architecture-c11-prost-cache-preview-snapshot.json",
+      "bytes": 2230,
+      "sha256": "b7554c8efcca045b7c7e7b23254533dbf0e16e597be74068ef158a3bc0a1a514"
+    },
+    {
+      "path": "architecture-c11-prost-cache-preview-terminal.json",
+      "bytes": 3328,
+      "sha256": "7943217868f65514dc3b982e9f19d649bbc5acdf87a88a9bfebd59aead40b438"
+    },
+    {
+      "path": "architecture-c11-prost-cache-provenance.json",
+      "bytes": 1979,
+      "sha256": "a9ca2a593a411a1239c15e8ca9ad993f5a8bb0204088acda1f3a0204daf537f3"
+    },
+    {
+      "path": "architecture-c11-prost-cache-publish.py",
+      "bytes": 28014,
+      "sha256": "0824d1781d51419d1eeb3cc55b4be007dc45c2dd90e92296c47f37e5a10a4a19"
+    },
+    {
+      "path": "architecture-c11-prost-cache-publisher-controls.json",
+      "bytes": 1854,
+      "sha256": "42ff9035a02725b69b19aa10286bd30fce06b33616fe3b091b63a4746067a2e1"
+    },
+    {
+      "path": "architecture-c11-prost-cache-source-equivalence.json",
+      "bytes": 411269,
+      "sha256": "0b6329af223cf061026432cbc6b0ea5d38359b7dfc2ed63ebbfcfa67094784d3"
+    },
+    {
+      "path": "architecture-c11-prost-cache-wrapper.rs",
+      "bytes": 5666,
+      "sha256": "f33dff5e9eaeab8d0b765179f684f39ec3f703cbbe6fc1e2017f81b8148d82b9"
+    },
+    {
+      "path": "architecture-c11-source-pins.json",
+      "bytes": 286,
+      "sha256": "82366dd76dd17d0c8ac4a27609796f7ae82c8b76fa9dc3efb06fd6f91ea3d619"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-day/events.jsonl",
+      "bytes": 10389170,
+      "sha256": "76f90ce3722fe3b042674f99bd24b20c5e771c0197a63fab07b689239c69eb37"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-day/harness/architecture-c11-prost-cache-controller.py",
+      "bytes": 22211,
+      "sha256": "0f7e9a2503d816cff1138c4ebd618311c984c57960dc371c2e6077490028360d"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-day/harness/architecture-c11-prost-cache-day-grant.json",
+      "bytes": 136,
+      "sha256": "a172f9a95181c4e1a86a14754d35ba56e7507f493c070dbd8fa6ea07dc809731"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-day/harness/architecture-c11-prost-cache-fixture.rs",
+      "bytes": 25035,
+      "sha256": "4d5dd9f080c9e7c9d588d364027b6fa8df5944248c1a83fb91dea8ebc11f808a"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-day/harness/architecture-c11-prost-cache-provenance.json",
+      "bytes": 1979,
+      "sha256": "a9ca2a593a411a1239c15e8ca9ad993f5a8bb0204088acda1f3a0204daf537f3"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-day/harness/architecture-c11-prost-cache-publish.py",
+      "bytes": 28014,
+      "sha256": "0824d1781d51419d1eeb3cc55b4be007dc45c2dd90e92296c47f37e5a10a4a19"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-day/harness/architecture-c11-prost-cache-wrapper.rs",
+      "bytes": 5666,
+      "sha256": "f33dff5e9eaeab8d0b765179f684f39ec3f703cbbe6fc1e2017f81b8148d82b9"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-day/harness/architecture-c11-source-pins.json",
+      "bytes": 286,
+      "sha256": "82366dd76dd17d0c8ac4a27609796f7ae82c8b76fa9dc3efb06fd6f91ea3d619"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-day/launch.json",
+      "bytes": 4397,
+      "sha256": "742f7d0e3c3f643779dc641194ebfb738596fb37bd265ed5edf62c4b1551e832"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-day/progress.json",
+      "bytes": 347,
+      "sha256": "68f3d4eb7002de470850f76cb6a31410994d49137acfdf04f244177bcce2eb11"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-day/report.json",
+      "bytes": 3574,
+      "sha256": "d8e0a3ab942c91a3cc33cc2d9429f9fdfc8b803cd0c65762a105bf635005c32d"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-day/samples.jsonl",
+      "bytes": 8455546,
+      "sha256": "097056268872a5683827ebe5fac4bf6761812bd474528f06ba8ce362e7f1ee80"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-day/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-day/stdout.log",
+      "bytes": 150,
+      "sha256": "9975793d2995944ab4147dfa9370c51d912c7770d582533baffb3b8313e44ab6"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-day/supervisor-state.json",
+      "bytes": 258,
+      "sha256": "193e66ec66d8897fad7b1dc82ed615965a05e7f185b1325d3b95b827bd30eac7"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-day/supervisor.lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-day/supervisor.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-preview/events.jsonl",
+      "bytes": 3995,
+      "sha256": "de21513b175a1b32c8ab0f1d35bff83c221acf582f02d3c3c6d4984cbe911d51"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-preview/progress.json",
+      "bytes": 330,
+      "sha256": "0f77c2ca24474eeeeb0641e6ee79b16de0293edf4cdc6a0da5c695b849c6dd25"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-preview/report.json",
+      "bytes": 3328,
+      "sha256": "7943217868f65514dc3b982e9f19d649bbc5acdf87a88a9bfebd59aead40b438"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-preview/samples.jsonl",
+      "bytes": 3233,
+      "sha256": "69c96c8466eec61c2e1770d4975c45c9abf88adeddae4705a311ec474125da34"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-preview/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-preview/stdout.log",
+      "bytes": 147,
+      "sha256": "7463944e6ea256a66949ce94e49b171e4be939ea1189f9679b2e57377d3418b9"
+    },
+    {
+      "path": "resource-architecture-c11-prost-cache-preview/supervisor-state.json",
+      "bytes": 262,
+      "sha256": "47c8e59c49d7f7db6f1864d95663eef3e00e7fffaccc771ea74eb0b354434644"
+    },
+    {
+      "path": "publication-snapshot.json",
+      "bytes": 19040,
+      "sha256": "24eda945104a8b9ce879afbf11290d5e3ee76e4d83986e106154569231ebcee1"
+    },
+    {
+      "path": "runtime-source/pbrs-grpc/tests/decode_workspace.rs",
+      "bytes": 19372,
+      "sha256": "b936b7fc9c1610c177080b706c52a3e731b0a65dac0a5ef1f32d45be6fb05149"
+    },
+    {
+      "path": "runtime-source/pbrs-grpc/src/workspace.rs",
+      "bytes": 13134,
+      "sha256": "925e68b5ca9a2487b37db58d0b2f309bcc6b13807011258bdcf09d0c47b91f59"
+    },
+    {
+      "path": "runtime-source/pbrs-grpc/src/codec/prost.rs",
+      "bytes": 13338,
+      "sha256": "1037fee963faa0996971fcd5a9f11fbe6d06a1cbc1513c57406bc948c477f33b"
+    },
+    {
+      "path": "runtime-source/pbrs-grpc/src/compression/mod.rs",
+      "bytes": 35562,
+      "sha256": "1fb248bec46d486472bd65d3530bbfc2a082b3ea0e95536851fc7cff73b4ba7c"
+    },
+    {
+      "path": "runtime-source/pbrs-grpc/src/wire/frame_reader.rs",
+      "bytes": 45735,
+      "sha256": "032e54a2f6e9e59810e913c70da0697fea4284fff9c1505cd973130ae2bdcce7"
+    },
+    {
+      "path": "runtime-source/Cargo.toml",
+      "bytes": 3842,
+      "sha256": "a55dc7d5d3f48f4ec5572ed21debe8fd5205c25fc44e9bfa10028c2f51c67dac"
+    },
+    {
+      "path": "runtime-source/Cargo.lock",
+      "bytes": 41527,
+      "sha256": "a5ca5a8efb2ba7f3ae0f0a62d5344e267c96794c69dd2d751321d0a0d6ab5c33"
+    }
+  ]
+}
