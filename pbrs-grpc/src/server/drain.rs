@@ -14,7 +14,6 @@ use crate::transport::{SendResponse, SendStream, h2 as backend};
 use crate::wire::{
     ImmediateSend, OutBatch, encode_msg, grpc_trailers, let_producer_catch_up, preferred_codec,
     select_outbound_codec, select_stream_codec, send_frame, send_frame_if_ready, send_ok_headers,
-    send_trailers_only,
 };
 use std::future::{Future, poll_fn};
 use std::pin::Pin;
@@ -358,7 +357,7 @@ pub(crate) async fn send_unary_response<Resp: CodecMessage>(
     tap: Option<&crate::binlog::CallLogger>,
     channelz_socket: Option<crate::channelz::SocketId>,
     call: &CancelFlag,
-) {
+) -> Status {
     let (msg, headers, trailers, compress) = response.split();
     let negotiated = preferred_codec(
         wire.send_codec,
@@ -377,8 +376,12 @@ pub(crate) async fn send_unary_response<Resp: CodecMessage>(
                 tap.log_trailer(&Metadata::new(), &status);
             }
             super::deadline::before_commit(call).await;
-            send_trailers_only(&mut respond, status, &Metadata::new());
-            return;
+            return crate::wire::send::try_send_trailers_only(
+                &mut respond,
+                &status,
+                &Metadata::new(),
+            )
+            .map_or_else(|error| error, |()| status);
         }
     };
     let permit = match budget.acquire(frame.total_len()) {
@@ -388,13 +391,18 @@ pub(crate) async fn send_unary_response<Resp: CodecMessage>(
                 tap.log_trailer(&Metadata::new(), &status);
             }
             super::deadline::before_commit(call).await;
-            send_trailers_only(&mut respond, status, &Metadata::new());
-            return;
+            return crate::wire::send::try_send_trailers_only(
+                &mut respond,
+                &status,
+                &Metadata::new(),
+            )
+            .map_or_else(|error| error, |()| status);
         }
     };
     super::deadline::before_commit(call).await;
-    let Ok(mut send) = send_ok_headers(&mut respond, &headers, codec, wire.accept_gzip) else {
-        return;
+    let mut send = match send_ok_headers(&mut respond, &headers, codec, wire.accept_gzip) {
+        Ok(send) => send,
+        Err(status) => return status,
     };
     if let Some(tap) = tap {
         tap.log_server_header(&headers);
@@ -410,15 +418,14 @@ pub(crate) async fn send_unary_response<Resp: CodecMessage>(
         crate::channelz::Registry::global().note_messages(socket, true, 1);
     }
     super::deadline::before_commit(call).await;
-    match send_frame_if_ready(&mut send, frame, false, wire.send_buffer) {
-        ImmediateSend::Done(result) => {
-            result.ok();
-        }
+    let written = match send_frame_if_ready(&mut send, frame, false, wire.send_buffer) {
+        ImmediateSend::Done(result) => result,
         ImmediateSend::Blocked(frame) => {
-            send_frame(&mut send, frame, false, wire.send_buffer)
-                .await
-                .ok();
+            send_frame(&mut send, frame, false, wire.send_buffer).await
         }
+    };
+    if let Err(status) = written {
+        return status;
     }
     drop(permit);
     // An empty OK trailer is the pooled map. Building a `Status` and then
@@ -429,8 +436,10 @@ pub(crate) async fn send_unary_response<Resp: CodecMessage>(
             tap.log_trailer(status.metadata(), &status);
         }
         super::deadline::before_commit(call).await;
-        send.send_trailers(crate::wire::bare_ok_trailer_map()).ok();
-        return;
+        return match send.send_trailers(crate::wire::bare_ok_trailer_map()) {
+            Ok(()) => Status::ok(),
+            Err(error) => Status::from_h2_send(error),
+        };
     }
     super::deadline::before_commit(call).await;
     let mut status = Status::ok();
@@ -439,8 +448,13 @@ pub(crate) async fn send_unary_response<Resp: CodecMessage>(
         tap.log_trailer(status.metadata(), &status);
     }
     super::deadline::before_commit(call).await;
-    if let Ok(map) = grpc_trailers(&status) {
-        send.send_trailers(map).ok();
+    let map = match grpc_trailers(&status) {
+        Ok(map) => map,
+        Err(error) => return error,
+    };
+    match send.send_trailers(map) {
+        Ok(()) => status,
+        Err(error) => Status::from_h2_send(error),
     }
 }
 
@@ -498,7 +512,7 @@ pub(crate) async fn send_web_unary_response<Resp: CodecMessage>(
     tap: Option<&crate::binlog::CallLogger>,
     channelz_socket: Option<crate::channelz::SocketId>,
     call: &CancelFlag,
-) {
+) -> Status {
     let (msg, headers, trailers, compress) = response.split();
     let negotiated = preferred_codec(
         wire.send_codec,
@@ -517,8 +531,13 @@ pub(crate) async fn send_web_unary_response<Resp: CodecMessage>(
                 tap.log_trailer(&Metadata::new(), &status);
             }
             super::deadline::before_commit(call).await;
-            crate::web::send_trailers_only(&mut respond, web, status, &Metadata::new());
-            return;
+            return crate::web::try_send_trailers_only(
+                &mut respond,
+                web,
+                &status,
+                &Metadata::new(),
+            )
+            .map_or_else(|error| error, |()| status);
         }
     };
     let permit = match budget.acquire(frame.total_len()) {
@@ -528,16 +547,21 @@ pub(crate) async fn send_web_unary_response<Resp: CodecMessage>(
                 tap.log_trailer(&Metadata::new(), &status);
             }
             super::deadline::before_commit(call).await;
-            crate::web::send_trailers_only(&mut respond, web, status, &Metadata::new());
-            return;
+            return crate::web::try_send_trailers_only(
+                &mut respond,
+                web,
+                &status,
+                &Metadata::new(),
+            )
+            .map_or_else(|error| error, |()| status);
         }
     };
     super::deadline::before_commit(call).await;
-    let Ok(mut send) =
-        crate::web::send_ok_headers(&mut respond, web, &headers, codec, wire.accept_gzip)
-    else {
-        return;
-    };
+    let mut send =
+        match crate::web::send_ok_headers(&mut respond, web, &headers, codec, wire.accept_gzip) {
+            Ok(send) => send,
+            Err(status) => return status,
+        };
     if let Some(tap) = tap {
         tap.log_server_header(&headers);
         for seg in frame.segments() {
@@ -552,11 +576,10 @@ pub(crate) async fn send_web_unary_response<Resp: CodecMessage>(
     }
     let mut text = WebWriter::new(call);
     call.deadline.web_frame_started();
-    if crate::web::send_frame(&mut send, web, &mut text, frame, wire.send_buffer)
-        .await
-        .is_err()
+    if let Err(status) =
+        crate::web::send_frame(&mut send, web, &mut text, frame, wire.send_buffer).await
     {
-        return;
+        return status;
     }
     call.deadline.web_frame_finished();
     drop(permit);
@@ -570,11 +593,12 @@ pub(crate) async fn send_web_unary_response<Resp: CodecMessage>(
     }
     super::deadline::before_commit(call).await;
     call.deadline.web_frame_started();
-    if crate::web::send_trailers(&mut send, web, &mut text, &status, wire.send_buffer)
-        .await
-        .is_ok()
-    {
-        call.deadline.web_frame_finished();
+    match crate::web::send_trailers(&mut send, web, &mut text, &status, wire.send_buffer).await {
+        Ok(()) => {
+            call.deadline.web_frame_finished();
+            status
+        }
+        Err(error) => error,
     }
 }
 

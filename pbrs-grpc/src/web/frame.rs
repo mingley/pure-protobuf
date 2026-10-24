@@ -258,6 +258,30 @@ pub(crate) fn send_trailers_only(
     }
 }
 
+/// Queue a trailers-only body while preserving serialization and send errors.
+pub(crate) fn try_send_trailers_only(
+    respond: &mut backend::SendResponse,
+    mode: Mode,
+    status: &Status,
+    extra_headers: &Metadata,
+) -> Result<(), Status> {
+    let mut response = Response::new(());
+    response
+        .headers_mut()
+        .insert(http::header::CONTENT_TYPE, mode.content_type());
+    extra_headers.write_to(response.headers_mut())?;
+    let frame = trailer_frame(status)?;
+    let frame = if mode.is_text() {
+        TEXT_BASE64.encode(frame).into()
+    } else {
+        frame
+    };
+    let mut send = respond
+        .send_response(response, false)
+        .map_err(Status::from_h2_send)?;
+    send.send_data(frame, true).map_err(Status::from_h2_send)
+}
+
 /// Prepare a gRPC-Web deadline ending after the response writer is destroyed.
 /// Text mode resumes the writer's unencoded final one or two bytes before the
 /// trailer frame, so the resulting body remains one continuous base64 stream.

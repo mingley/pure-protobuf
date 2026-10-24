@@ -736,7 +736,7 @@ impl Rpc {
                 }
                 Ok(response) => {
                     #[cfg(feature = "grpc-web")]
-                    if let Some(web) = web {
+                    let final_status = if let Some(web) = web {
                         send_web_unary_response(
                             response,
                             respond,
@@ -754,7 +754,7 @@ impl Rpc {
                             channelz_socket,
                             &call_cancel,
                         )
-                        .await;
+                        .await
                     } else {
                         send_unary_response(
                             response,
@@ -772,10 +772,10 @@ impl Rpc {
                             channelz_socket,
                             &call_cancel,
                         )
-                        .await;
-                    }
+                        .await
+                    };
                     #[cfg(not(feature = "grpc-web"))]
-                    send_unary_response(
+                    let final_status = send_unary_response(
                         response,
                         respond,
                         wire,
@@ -798,11 +798,7 @@ impl Rpc {
                         Some(&call_labels),
                         channelz_server,
                         channelz_socket,
-                        &if call_cancel.deadline.expired() {
-                            Status::deadline_exceeded()
-                        } else {
-                            Status::ok()
-                        },
+                        &final_status,
                         call_start.elapsed(),
                     );
                 }
@@ -927,7 +923,7 @@ impl Rpc {
                     );
                 }
                 Ok(response) => {
-                    send_unary_response(
+                    let final_status = send_unary_response(
                         response,
                         respond,
                         wire,
@@ -950,11 +946,7 @@ impl Rpc {
                         Some(&call_labels),
                         channelz_server,
                         channelz_socket,
-                        &if call_cancel.deadline.expired() {
-                            Status::deadline_exceeded()
-                        } else {
-                            Status::ok()
-                        },
+                        &final_status,
                         call_start.elapsed(),
                     );
                 }

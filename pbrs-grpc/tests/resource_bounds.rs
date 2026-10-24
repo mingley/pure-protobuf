@@ -432,9 +432,19 @@ async fn run_small_calls(
     label: &'static str,
     count: usize,
 ) -> FairnessRecord {
+    let first = TokioInstant::now() + Duration::from_millis(20);
+    run_small_calls_at(client, server, label, count, first).await
+}
+
+async fn run_small_calls_at(
+    client: &GreeterClient,
+    server: &Server<GreeterServer<Echo>>,
+    label: &'static str,
+    count: usize,
+    first: TokioInstant,
+) -> FairnessRecord {
     let mut record = FairnessRecord::new();
     record.sample_resources(server.byte_budget_allocated());
-    let first = TokioInstant::now() + Duration::from_millis(20);
     let mut calls = Vec::with_capacity(count);
     for i in 0..count {
         let client = client.clone();
@@ -1502,12 +1512,20 @@ async fn test_slow_writer_peer_isolation() {
         .expect("slow writer initial message");
     permit.wait_for_active(1).await;
 
+    // Establish the competing connection before starting either schedule. Both
+    // use one origin: late producer polls catch up to the intended drip times
+    // instead of adding their scheduling delay to each subsequent sleep.
+    let queue = QueueProbe::default();
+    let fast_client = GreeterClient::new(connect_client(addr).await.observer(queue.clone()));
+    let origin = TokioInstant::now();
+    let (started_tx, started_rx) = tokio::sync::oneshot::channel();
     let (release_tx, release_rx) = tokio::sync::oneshot::channel();
     let sent = Arc::new(AtomicUsize::new(0));
     let sent_by_writer = sent.clone();
     let writer = tokio::spawn(async move {
+        started_tx.send(()).expect("writer started");
         for i in 0..3 {
-            tokio::time::sleep(Duration::from_millis(15)).await;
+            tokio::time::sleep_until(origin + Duration::from_millis((i + 1) * 15)).await;
             slow_tx
                 .send(req(&format!("drip-{i}")))
                 .await
@@ -1518,10 +1536,19 @@ async fn test_slow_writer_peer_isolation() {
         slow_tx.close();
     });
 
-    let queue = QueueProbe::default();
-    let fast_client = GreeterClient::new(connect_client(addr).await.observer(queue.clone()));
+    tokio::time::timeout(PROBE_TIMEOUT, started_rx)
+        .await
+        .expect("slow writer did not start")
+        .expect("slow writer startup witness");
     let server_queue_baseline = permit.server_queue_count();
-    let record = run_small_calls(&fast_client, &server, "fast-writer", 32).await;
+    let record = run_small_calls_at(
+        &fast_client,
+        &server,
+        "fast-writer",
+        32,
+        origin + Duration::from_millis(20),
+    )
+    .await;
     assert_eq!(
         record.successful, 32,
         "slow writer starved fast RPCs: {record:?}"

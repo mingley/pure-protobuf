@@ -215,6 +215,26 @@ pub(crate) fn send_trailers_only(
     respond.send_response(res, true).ok();
 }
 
+/// Queue a trailers-only response while preserving serialization and send errors.
+pub(crate) fn try_send_trailers_only(
+    respond: &mut backend::SendResponse,
+    status: &Status,
+    extra_headers: &Metadata,
+) -> Result<(), Status> {
+    let mut response = Response::new(());
+    response
+        .headers_mut()
+        .insert(http::header::CONTENT_TYPE, APPLICATION_GRPC);
+    extra_headers.write_to(response.headers_mut())?;
+    for (key, value) in &grpc_trailers(status)? {
+        response.headers_mut().append(key, value.clone());
+    }
+    respond
+        .send_response(response, true)
+        .map(|_| ())
+        .map_err(Status::from_h2_send)
+}
+
 /// Answer a request this server refuses to process, advertising what it does
 /// accept.
 ///
