@@ -50,6 +50,7 @@ struct Probe {
     producer_dropped: AtomicUsize,
     handlers: AtomicUsize,
     constructors: AtomicUsize,
+    interceptors: AtomicUsize,
     deadlines: Mutex<Vec<Option<tokio::time::Instant>>>,
     starts: AtomicUsize,
     ends: Mutex<Vec<Code>>,
@@ -283,6 +284,10 @@ struct Peer {
 
 impl Peer {
     async fn new(kind: Kind, response_window: u32) -> Self {
+        Self::with_route(kind, response_window, false, false).await
+    }
+
+    async fn with_route(kind: Kind, response_window: u32, routed: bool, overrun: bool) -> Self {
         let (gate, receiver) = watch::channel(false);
         let probe = Arc::new(Probe {
             entered: AtomicBool::new(false),
@@ -291,6 +296,7 @@ impl Peer {
             producer_dropped: AtomicUsize::new(0),
             handlers: AtomicUsize::new(0),
             constructors: AtomicUsize::new(0),
+            interceptors: AtomicUsize::new(0),
             deadlines: Mutex::new(Vec::new()),
             starts: AtomicUsize::new(0),
             ends: Mutex::new(Vec::new()),
@@ -304,6 +310,7 @@ impl Peer {
             kind,
         };
         let observer = Observer(Arc::clone(&probe));
+        let interceptor_probe = Arc::clone(&probe);
         let server = tokio::spawn(async move {
             let mut server = Server::new(service)
                 .observer(observer)
@@ -314,7 +321,34 @@ impl Peer {
                 // alone does not imply the application write is still pending.
                 server = server.max_send_buffer_size(8);
             }
-            server.serve_connection(server_io).await.unwrap();
+            if overrun {
+                server = server.intercept(move |rpc: &mut Rpc| {
+                    if rpc.method() != "Recovery" {
+                        interceptor_probe
+                            .interceptors
+                            .fetch_add(1, Ordering::SeqCst);
+                        let before = tokio::time::Instant::now();
+                        let mut advance =
+                            std::pin::pin!(tokio::time::advance(Duration::from_millis(21)));
+                        let mut cx = std::task::Context::from_waker(std::task::Waker::noop());
+                        let _advanced = advance.as_mut().poll(&mut cx);
+                        assert_eq!(
+                            tokio::time::Instant::now(),
+                            before + Duration::from_millis(21)
+                        );
+                    }
+                    Ok(())
+                });
+            }
+            if routed {
+                server
+                    .into_router()
+                    .serve_connection(server_io)
+                    .await
+                    .unwrap();
+            } else {
+                server.serve_connection(server_io).await.unwrap();
+            }
         });
         let mut builder = h2::client::Builder::new();
         builder.initial_window_size(response_window);
@@ -843,4 +877,53 @@ async fn web_committed_success_is_not_replaced_after_its_deadline() {
         );
         peer.recovery().await;
     }
+}
+
+#[tokio::test(start_paused = true)]
+async fn router_pre_shape_expiry_drops_service_and_releases_permit() {
+    let mut peer = Peer::with_route(Kind::Hold, 65535, true, false).await;
+    let response = peer.request("Call", Some("20m"), "application/grpc").await;
+    peer.entered().await;
+    assert_eq!(peer.probe.starts.load(Ordering::SeqCst), 1);
+    tokio::time::advance(Duration::from_millis(21)).await;
+    peer.expired().await;
+    assert_eq!(peer.probe.handlers.load(Ordering::SeqCst), 0);
+    assert_eq!(native_status(drive(response).await.unwrap()).await.0, "4");
+    peer.recovery().await;
+}
+
+#[tokio::test(start_paused = true)]
+async fn router_constructor_overrun_does_not_poll_handler_future() {
+    let mut peer = Peer::with_route(Kind::ConstructorOverrun, 65535, true, false).await;
+    let response = peer.request("Call", Some("20m"), "application/grpc").await;
+    witnessed(|| peer.probe.constructors.load(Ordering::SeqCst) == 1).await;
+    peer.expired().await;
+    assert_eq!(peer.probe.handlers.load(Ordering::SeqCst), 0);
+    assert_eq!(native_status(drive(response).await.unwrap()).await.0, "4");
+    peer.recovery().await;
+}
+
+#[tokio::test(start_paused = true)]
+async fn router_interceptor_overrun_does_not_enter_service() {
+    let mut peer = Peer::with_route(Kind::Hold, 65535, true, true).await;
+    let response = peer.request("Call", Some("20m"), "application/grpc").await;
+    assert_eq!(native_status(drive(response).await.unwrap()).await.0, "4");
+    assert_eq!(peer.probe.interceptors.load(Ordering::SeqCst), 1);
+    assert!(!peer.probe.entered.load(Ordering::SeqCst));
+    assert_eq!(peer.probe.handlers.load(Ordering::SeqCst), 0);
+    assert_eq!(peer.probe.starts.load(Ordering::SeqCst), 1);
+    assert_eq!(*peer.probe.ends.lock().unwrap(), [Code::DeadlineExceeded]);
+    peer.recovery().await;
+}
+
+#[tokio::test(start_paused = true)]
+async fn router_connection_abort_ends_parked_service_once() {
+    let mut peer = Peer::with_route(Kind::Hold, 65535, true, false).await;
+    let _response = peer.request("Call", None, "application/grpc").await;
+    peer.entered().await;
+    assert_eq!(peer.probe.starts.load(Ordering::SeqCst), 1);
+    peer.server.abort();
+    witnessed(|| peer.probe.dropped.load(Ordering::SeqCst) == 1).await;
+    turn().await;
+    assert_eq!(*peer.probe.ends.lock().unwrap(), [Code::Cancelled]);
 }

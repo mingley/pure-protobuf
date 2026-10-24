@@ -430,6 +430,17 @@ mod tests {
         }
     }
 
+    struct LargeLayoutService;
+    impl super::super::dispatch::Service for LargeLayoutService {
+        const NAME: &'static str = "deadline.LargeLayout";
+        async fn call(&self, rpc: Rpc) {
+            let payload = [7_u8; 16 * 1024];
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            std::hint::black_box(payload);
+            drop(rpc);
+        }
+    }
+
     fn returned_future_size<A, B, F>(_: impl FnOnce(A, B) -> F) -> usize {
         std::mem::size_of::<F>()
     }
@@ -542,6 +553,126 @@ mod tests {
         drop(flag);
         client.abort();
         server.abort();
+    }
+
+    #[tokio::test]
+    async fn unpolled_router_owner_drop_closes_lifecycle_and_terminal_capability() {
+        struct Counts {
+            starts: AtomicUsize,
+            ends: AtomicUsize,
+            polls: AtomicUsize,
+        }
+        struct Observed(Arc<Counts>);
+        impl LifecycleObserver for Observed {
+            fn on_server_call_start(&self, _: &CallLabels<'_>) {
+                self.0.starts.fetch_add(1, Ordering::SeqCst);
+            }
+            fn on_server_call_end(&self, _: &CallLabels<'_>, status: &Status, _: Duration) {
+                assert_eq!(status.code(), crate::Code::Cancelled);
+                self.0.ends.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+        struct Unpolled(Arc<Counts>);
+        impl super::super::dispatch::Service for Unpolled {
+            const NAME: &'static str = "deadline.Unpolled";
+            async fn call(&self, rpc: Rpc) {
+                self.0.polls.fetch_add(1, Ordering::SeqCst);
+                std::future::pending::<()>().await;
+                drop(rpc);
+            }
+        }
+        let counts = Arc::new(Counts {
+            starts: AtomicUsize::new(0),
+            ends: AtomicUsize::new(0),
+            polls: AtomicUsize::new(0),
+        });
+        let router = crate::Router::new()
+            .add_service(Unpolled(Arc::clone(&counts)))
+            .observer(Observed(Arc::clone(&counts)));
+        let (client_io, server_io) = tokio::io::duplex(4096);
+        let (accepted, receiver) = tokio::sync::oneshot::channel();
+        let server = tokio::spawn(async move {
+            let mut connection = crate::transport::h2::ServerBuilder::new()
+                .handshake(server_io)
+                .await
+                .unwrap();
+            let (request, response) = connection.accept().await.unwrap().unwrap();
+            accepted.send((request, response)).unwrap();
+            while let Some(request) = connection.accept().await {
+                drop(request.unwrap());
+            }
+        });
+        let (sender, connection) = h2::client::handshake(client_io).await.unwrap();
+        let client = tokio::spawn(async move {
+            drop(connection.await);
+        });
+        let mut sender = sender.ready().await.unwrap();
+        let (response, _) = sender
+            .send_request(
+                http::Request::builder()
+                    .uri("http://local/deadline.Unpolled/Owned")
+                    .header("grpc-timeout", "20m")
+                    .body(())
+                    .unwrap(),
+                true,
+            )
+            .unwrap();
+        let (request, respond) = tokio::time::timeout(Duration::from_secs(2), receiver)
+            .await
+            .unwrap()
+            .unwrap();
+        let accepted_at = Instant::now();
+        let rpc = super::super::connection::incoming_rpc(
+            request,
+            respond,
+            accepted_at,
+            Arc::new(crate::ServerConfig::default()),
+            super::super::connection::ConnectionInfo::new(),
+            crate::limits::ByteBudgetTracker::default(),
+            None,
+            None,
+            crate::wire::headers::StockFacts::not_stock(),
+            None,
+        );
+        let _deadline = rpc.deadline();
+        let flag = Arc::clone(&rpc.call_cancel);
+        let driver = super::serve::<crate::rt::TokioRuntime, _>(&router, rpc);
+        assert_eq!(counts.starts.load(Ordering::SeqCst), 1);
+        assert_eq!(counts.polls.load(Ordering::SeqCst), 0);
+        drop(driver); // Deliberately never polled.
+        assert_eq!(counts.polls.load(Ordering::SeqCst), 0);
+        assert_eq!(counts.ends.load(Ordering::SeqCst), 1);
+        assert!(flag.is_cancelled());
+        assert!(flag.deadline.ended());
+        let error = tokio::time::timeout(Duration::from_secs(2), response)
+            .await
+            .expect("retained cancellation flag must not retain terminal capability")
+            .unwrap_err();
+        assert_eq!(error.reason(), Some(h2::Reason::CANCEL));
+        client.abort();
+        server.abort();
+        let router_size =
+            returned_future_size(super::serve::<crate::rt::TokioRuntime, crate::Router>);
+        let small_size = returned_future_size(
+            super::serve::<crate::rt::TokioRuntime, super::super::dispatch::Single<LayoutService>>,
+        );
+        let large_size = returned_future_size(
+            super::serve::<
+                crate::rt::TokioRuntime,
+                super::super::dispatch::Single<LargeLayoutService>,
+            >,
+        );
+        println!(
+            "router layout diagnostic: router={router_size} single={small_size} large_single={large_size}"
+        );
+        assert_eq!(
+            large_size, small_size,
+            "boxed user payload must not enlarge the driver"
+        );
+        assert!(
+            router_size <= small_size + 4 * std::mem::size_of::<usize>(),
+            "routed dispatch should retain only its selected future pointer"
+        );
     }
 
     #[test]

@@ -21,7 +21,9 @@ use crate::tls::ServerTls;
 use std::collections::HashMap;
 use std::future::Future;
 use std::net::SocketAddr;
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::net::TcpListener;
 #[cfg(unix)]
@@ -1078,8 +1080,26 @@ impl Router {
     }
 }
 
+// Select the service before constructing the admitted driver future. The
+// selected method stays in its existing box, including large user futures.
+enum RouterDispatch<'a> {
+    Done,
+    Call(Pin<Box<dyn Future<Output = ()> + Send + 'a>>),
+}
+
+impl Future for RouterDispatch<'_> {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        match self.get_mut() {
+            Self::Done => Poll::Ready(()),
+            Self::Call(future) => future.as_mut().poll(cx),
+        }
+    }
+}
+
 impl Dispatch for Router {
-    async fn dispatch(&self, mut rpc: Rpc) {
+    fn dispatch(&self, mut rpc: Rpc) -> impl Future<Output = ()> + Send {
         rpc.response_interceptor = self.response_interceptor.clone();
         rpc.observer = self.observer.clone();
         if let Some(tap) = self
@@ -1099,20 +1119,33 @@ impl Dispatch for Router {
             rpc.call_cancel.deadline.set_binlog(&tap);
             rpc.binlog = Some(tap);
         }
+        // Synchronous logging can consume the remaining budget too.
+        if rpc
+            .deadline()
+            .is_some_and(|at| tokio::time::Instant::now() >= at)
+        {
+            rpc.reject(Status::deadline_exceeded());
+            return RouterDispatch::Done;
+        }
         if let Some(interceptor) = &self.interceptor {
             if let Err(status) = interceptor.intercept(&mut rpc) {
-                return rpc.reject(status);
+                rpc.reject(status);
+                return RouterDispatch::Done;
             }
         }
         if rpc
             .deadline()
             .is_some_and(|at| tokio::time::Instant::now() >= at)
         {
-            return rpc.reject(Status::deadline_exceeded());
+            rpc.reject(Status::deadline_exceeded());
+            return RouterDispatch::Done;
         }
         match self.routes.get(rpc.service()) {
-            Some(service) => service.dispatch(rpc).await,
-            None => rpc.unimplemented(),
+            Some(service) => RouterDispatch::Call(service.dispatch(rpc)),
+            None => {
+                rpc.unimplemented();
+                RouterDispatch::Done
+            }
         }
     }
 
