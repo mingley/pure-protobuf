@@ -1,0 +1,28 @@
+{
+  "source": "beb4ecd9a9b2143c440892607d5b486318062b61",
+  "requested_duration_seconds": 86400,
+  "report_available": true,
+  "day_status": "completed",
+  "validation_errors": [],
+  "report_day_status": "completed",
+  "resource_status": "passed",
+  "duration_actual_seconds": 86405.46115672201,
+  "exit_code": 0,
+  "failures": [],
+  "qualified": false,
+  "prost_decoded_cache_exercised": false,
+  "qualification_limit": "The unchanged resource fixture uses pbrs decoding; this does not qualify the Prost decoded workspace cache for 24 hours.",
+  "termination": {
+    "source": "beb4ecd9a9b2143c440892607d5b486318062b61",
+    "supervisor_pid": 371168,
+    "qualified": false,
+    "prost_decoded_cache_exercised": false,
+    "qualification_limit": "The unchanged resource fixture uses pbrs decoding; this does not qualify the Prost decoded workspace cache for 24 hours.",
+    "exit_code": 0,
+    "source_pin_verified_at_end": true,
+    "state": "terminated",
+    "tool_metadata_matches_preview": true,
+    "ended_utc": "2026-10-24T06:07:15.174482+00:00",
+    "supervisor_elapsed_seconds": 86986.75176456601
+  }
+}

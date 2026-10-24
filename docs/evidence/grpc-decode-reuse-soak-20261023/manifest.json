@@ -1,0 +1,183 @@
+{
+  "schema": "pbrs.resource-capsule.v1",
+  "source": "beb4ecd9a9b2143c440892607d5b486318062b61",
+  "qualified": false,
+  "archive": {
+    "name": "raw.tar.gz",
+    "bytes": 6159358,
+    "sha256": "74d6ff485f4ffacc23c4cb5ad7633100fbba17e82dc13e6beaaf097a29023918"
+  },
+  "logical_bytes": 254412138,
+  "files": [
+    {
+      "path": "architecture-c11-day-grant.json",
+      "bytes": 122,
+      "sha256": "81562c20d9327316b26f380aeccba05b3e970b2b0c2754bc99c0aa4fd4742595"
+    },
+    {
+      "path": "architecture-c11-day-harness/architecture-c11-day-grant.json",
+      "bytes": 122,
+      "sha256": "81562c20d9327316b26f380aeccba05b3e970b2b0c2754bc99c0aa4fd4742595"
+    },
+    {
+      "path": "architecture-c11-day-harness/architecture-c11-source-pins.json",
+      "bytes": 286,
+      "sha256": "82366dd76dd17d0c8ac4a27609796f7ae82c8b76fa9dc3efb06fd6f91ea3d619"
+    },
+    {
+      "path": "architecture-c11-day-harness/publish-architecture-c11-day.py",
+      "bytes": 14920,
+      "sha256": "dd9cb7001c13ff0227093e66e2dd7de802ad4495b52b24ad3da98b2bdb14cb7c"
+    },
+    {
+      "path": "architecture-c11-day-harness/record.py",
+      "bytes": 1905,
+      "sha256": "16b8712d0fe0a478409e3f036f265f79e1926e4978fdcfc3d35915337ef7139f"
+    },
+    {
+      "path": "architecture-c11-day-harness/resource-controller.py",
+      "bytes": 25431,
+      "sha256": "20c7a00cdd37c0ef7b3baa45f6eb9aac3f1eeafe75130772dc8c69c499d1fb49"
+    },
+    {
+      "path": "architecture-c11-day-harness/run-architecture-c11-day.py",
+      "bytes": 19309,
+      "sha256": "04f986f6ce6b746a4765bfe6560497fb8b356ed94b47e2210239acc46c0d85a8"
+    },
+    {
+      "path": "architecture-c11-day-harness/run-rust",
+      "bytes": 464,
+      "sha256": "f4ad44aeadf5276ff25b56578396f32b52c112fe7f83bfb5f1fb171bcba939b5"
+    },
+    {
+      "path": "architecture-c11-day-launch-request.json",
+      "bytes": 42566,
+      "sha256": "ebe73aca94475867e81ee2e7c0a20fcfe36e965320f69976a786abfe98595fbc"
+    },
+    {
+      "path": "architecture-c11-day-launch.json",
+      "bytes": 44329,
+      "sha256": "2e650efc0318dad17782fed9c05f4b6b010602faa53d4e4d4ed66af10c25aa93"
+    },
+    {
+      "path": "architecture-c11-day-launcher.json",
+      "bytes": 503,
+      "sha256": "7e947a01b06e51245e62ada151acc86228ee13e9a74d2029296b6904c2e9dd8b"
+    },
+    {
+      "path": "architecture-c11-day-prepared.json",
+      "bytes": 3928,
+      "sha256": "cece1330fa444b47c5773bc3fd0fec34f68bb6ab9802ce8458c739a798022c04"
+    },
+    {
+      "path": "architecture-c11-day-publication.lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "architecture-c11-day-root-readiness.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "architecture-c11-day-root-readiness.stdout",
+      "bytes": 40621,
+      "sha256": "b345148e16c0e01e438b7f52d4727d8affb6e626bc9659c72965c733d92e590c"
+    },
+    {
+      "path": "architecture-c11-day-supervisor.json",
+      "bytes": 1071,
+      "sha256": "bcff35237e960b514a483f7b916a4a68ca3c31d1b40d9aa3cb4e8b9df983fe31"
+    },
+    {
+      "path": "architecture-c11-day-supervisor.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "architecture-c11-day-supervisor.stdout",
+      "bytes": 167,
+      "sha256": "3271a43f5529696e492f6fe82ba08b9c241587cd8fd107a446052789d7206032"
+    },
+    {
+      "path": "architecture-c11-day-termination.json",
+      "bytes": 524,
+      "sha256": "bf34c6e7fa4a6efb35b41afd9964a6d04242b2d05883526ebced74dfcdaa4d72"
+    },
+    {
+      "path": "architecture-c11-day-v2-prepared.json",
+      "bytes": 5282,
+      "sha256": "cd39312d0f6f0c655fbc18be6eec43deb1bc8043f606d6293492bfea1a8efad7"
+    },
+    {
+      "path": "architecture-c11-resource-preview/report.json",
+      "bytes": 49132,
+      "sha256": "a4b45d63fc4f6434216b1f7705f3d6e4ab2567afb3011c755d4a62a6ea0a044c"
+    },
+    {
+      "path": "resource-architecture-c11-day/build.stderr.log",
+      "bytes": 2668,
+      "sha256": "e1879e47d1ea375ad6cd11bafb8bdfb1f1fafcfe7c92c9e29f0cb0f3b0de15f3"
+    },
+    {
+      "path": "resource-architecture-c11-day/build.stdout.jsonl",
+      "bytes": 98590,
+      "sha256": "a285e70f20eee49a663a23333660a9a1cacbcfe274fbd7bff70c90668e9b8db6"
+    },
+    {
+      "path": "resource-architecture-c11-day/events.jsonl",
+      "bytes": 120181711,
+      "sha256": "71f9911ae34d85d2e0354d03342cd973eef3f2cecd42cc879f063b3db4cce98d"
+    },
+    {
+      "path": "resource-architecture-c11-day/progress.json",
+      "bytes": 214,
+      "sha256": "0fe08550018274ce54fcbf154444bd8347a9b360d5e5bd3254422db6d619a669"
+    },
+    {
+      "path": "resource-architecture-c11-day/report.json",
+      "bytes": 133689755,
+      "sha256": "2a29d1d3397f9cd94d7c3e9c8f1ce1351943658d6cbe20a7a9ab5e12822f0042"
+    },
+    {
+      "path": "resource-architecture-c11-day/test.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "resource-architecture-c11-day/test.stdout.log",
+      "bytes": 157,
+      "sha256": "fd724dd82d3d7bd599daeb3b4f64b2b5ca0b64fe947c9f291aa35796c403637c"
+    },
+    {
+      "path": "source/scripts/grpc-resource-campaign.py",
+      "bytes": 25431,
+      "sha256": "20c7a00cdd37c0ef7b3baa45f6eb9aac3f1eeafe75130772dc8c69c499d1fb49"
+    },
+    {
+      "path": "source/pbrs-grpc/tests/resource_qualification.rs",
+      "bytes": 32202,
+      "sha256": "89053bf68bb9a85ae9d82d9c1ca8fa6e79909500b2ea9d52f437a01ebd6f0402"
+    },
+    {
+      "path": "source/pbrs-grpc/tests/common/mod.rs",
+      "bytes": 85151,
+      "sha256": "7360670590380563e5036830e48234848d872c04c487d69e9249104bbba48051"
+    },
+    {
+      "path": "source/Cargo.toml",
+      "bytes": 3842,
+      "sha256": "a55dc7d5d3f48f4ec5572ed21debe8fd5205c25fc44e9bfa10028c2f51c67dac"
+    },
+    {
+      "path": "source/Cargo.lock",
+      "bytes": 41527,
+      "sha256": "a5ca5a8efb2ba7f3ae0f0a62d5344e267c96794c69dd2d751321d0a0d6ab5c33"
+    },
+    {
+      "path": "omitted-executables.json",
+      "bytes": 208,
+      "sha256": "14c8c1489e799660795dc3730a15b6f4bb3dbbcd11505fd8fd2ba75a92601c31"
+    }
+  ]
+}
