@@ -1,10 +1,12 @@
 # gRPC execution and ownership
 
-The target is less work per RPC across the client, server and generated code,
-with complete gRPC behavior and explicit resource ownership. Production readiness
-and broad superiority over tonic/prost remain unproved. The current source is
-`beb4ecd9` (C11); its [evidence capsule](../evidence/grpc-decode-reuse-20261023/README.md)
-records validation, measurements and limits.
+Source `7c02eb38` uses one accepted deadline and cooperative owner for the whole
+service lifetime. Its [record](../evidence/grpc-deadlines-20261024/README.md) includes
+the detecting controls, terminal framing rules, checks and measured costs.
+The aim is less setup, message, byte and queueing work on both endpoints.
+The full workspace passes at repository `8144576f`; all production, codegen,
+benchmark, manifest and lock blobs equal measured runtime `7c02eb38`. The record
+keeps the actual workspace commit and runtime commit separate.
 
 ## Measure the work before replacing a layer
 
@@ -55,30 +57,37 @@ siblings when workers remain available; a current-thread runtime gains no thread
 by spawning another task. Keep permits, reset/drop guards and response ownership
 through actual cleanup. Measure handoff costs on small calls and mixed workloads.
 
-## Fix deadline origin and terminal ownership
-
-Source review finds a current gap before a custom `Service` chooses its RPC shape:
-there is no outer service timeout, and later shape preparation starts a fresh
-relative duration. `Rpc::deadline()` also recomputes now plus the duration. A bidi
-shape constructed synchronously can stamp a deadline, then start another relative
-wait when first polled later. These are source findings; the proposed independent
-peer controls have **not run**, so no new wire failure is claimed as reproduced.
+## Keep one deadline and terminal owner
 
 Capture one absolute deadline when complete request headers are accepted, before
-interceptors, admission queues or service waits. Every later wait must use its
-remaining budget; metadata changes, getters and shape selection cannot extend it.
-Reject an already expired call before invoking a new service or handler.
+service waits or shape selection. `Rpc::deadline()` reports that fixed value.
+Late caps only tighten it; getters, metadata changes and delayed first polls
+cannot renew the budget. Check expiry after logging/interceptors and synchronous
+service/handler construction before polling the returned future.
 
-Own the whole cooperative service lifetime and one terminal response transition.
-An outer timeout alone can drop `Rpc`'s responder and reset the stream before valid
-DEADLINE_EXCEEDED trailers are sent. Preserve the pre-header responder or active
-response stream through cancellation, with no second responder or duplicate status.
-Test pre-shape waits, delayed first polls, response commitment and same-connection
-recovery. This repair is independent of scheduling policy and remains open.
+The outer owner begins lifecycle accounting before dispatch and keeps the terminal
+capability through cooperative cancellation. The application future drops before
+the owner, including when never polled. Shared deadline/cancellation state reuses
+the existing `CancelFlag` allocation. Retained Request/RequestParts do not keep a
+completed response capability alive. Unary accounting uses the writer's actual
+committed status, including encoding and byte-admission errors; a later clock read
+or payload destructor cannot replace that result.
+
+Native error termination preserves initial headers and the current HTTP/2 frame
+length, discards unsent DATA tails and sends one ending. A committed ending stays
+committed. gRPC-Web status is BODY DATA: a completed-message boundary can preserve
+base64 carry and append status; an unfinished message or trailer body cannot be
+repaired by inserting another status, so that path resets the transport. Web
+status still needs peer credit and cannot force progress through a blocked socket.
+
+New terminal-path payload destruction and waker callbacks run outside engine
+locks. The broader ordinary-success DATA-owner destruction concern is a separate,
+open source finding; its bounded runtime reproduction has not run. These deadline
+repairs do not preempt synchronous work or replace handler-isolation experiments.
 
 ## Reuse decoded storage when ownership returns
 
-C11 adds stream-local reuse of fully consumed, uniquely owned decoded `Vec` backing.
+Source `beb4ecd9` introduced stream-local reuse of fully consumed, uniquely owned decoded `Vec` backing.
 The Prost adapter preserves its input owner through full-range and nested bytes
 copies, then the transport checks actual uniqueness. Retained Bytes fields and
 default pbrs/custom codecs keep their ownership semantics and may miss the cache;
@@ -97,20 +106,9 @@ RSS are separate. Release on DATA EOF, error, deadline, observed cancellation an
 Drop. An unpolled reader observes external cancellation only when polled or dropped.
 Unary reads and uncompressed decoding do not create this workspace.
 
-Selected source-paired medians for four-message, 1 MiB zero-filled Prost bidi,
-gzip level 6, h2c, one connection and one in-flight RPC:
-
-| Native side | Previous source | C11 | Reduction | C11 above fresh tonic |
-|---|---:|---:|---:|---:|
-| Client | 28.5 MiB/RPC | 19.5 MiB/RPC | 31.5% | 17.1% |
-| Server | 27.5 MiB/RPC | 18.5 MiB/RPC | 32.6% | 18.2% |
-
-These are cumulative allocation requests, with source `9d6fb9c4` as the previous
-baseline. Values are rounded; ratios use unrounded medians. They do not establish
-CPU or wall-time gains. The [benchmark results](../benchmarks.md) retain all losses
-and source increases, including separate full-interop routes. Source instruction
-changes in the complete selected comparison stay inside
-the diagnostic tie band.
+The [original decode reuse measurements](../evidence/grpc-decode-reuse-20261023/README.md)
+belong to `beb4ecd9` versus `9d6fb9c4`. The [current benchmark tables](../benchmarks.md)
+use `7c02eb38`, retaining endpoint losses and every observed source cost increase.
 
 ## Preserve complete compression validation
 
@@ -121,16 +119,24 @@ empty frames can consume work without consuming output budget. Keep exact-cap
 EOF/overflow probes. Reuse output storage without sharing compression history
 between gRPC messages or repeating decompression in compatibility adapters.
 
-A current 1 KiB gzip upload-client profile attributes extra work to repeated
-initialization of flate2 writer output scratch. Common compressor initialization
-is equal in that control. This is allocation-instrumented Callgrind attribution,
-not shipping CPU or latency evidence. A safe `bufread::GzEncoder` over the existing
-input slice, with a bounded initialized output-copy loop, is an **unimplemented**
-experiment. Preserve independent members, CRC/trailer completion and writer errors;
-compare compressible, incompressible and boundary inputs before selecting it.
-Plaintext encode-scratch retention and compressed-output hints are separate changes.
+The gzip encoder now uses a fresh `bufread::GzEncoder` over each message's input
+slice and one initialized 8 KiB output chunk. This removes repeated large writer
+scratch initialization while preserving level/clamp behavior, complete member
+CRC/ISIZE output and writer-error mapping. No compression history crosses message
+boundaries. Incompressible/boundary inputs have correctness tests; the endpoint
+performance harness uses zero-filled application payloads. Plaintext scratch
+retention and compressed reservation remain separate work.
 
 ## Generate only the selected work
+
+Router dispatch selects the existing boxed service future synchronously under
+the outer owner. It does not retain the complete Rpc inside an initial async
+state or add a second box. The private release proof measures Router's driver
+at 4,288 → 544 bytes; Single stays 544 bytes, including a large application future.
+That is compiler layout evidence, separate from allocation-site or speed claims.
+A three-source unchanged-harness control measures **19.76% fewer unary / 7.72%
+fewer bidi server requested bytes** versus `40f219fa`; small allocation-count
+increases remain. Its 48 captures are separate from the full counter campaigns.
 
 Generated native and Prost dispatch select the method before boxing its future,
 so a small call does not carry every method's largest state. Preserve conversions

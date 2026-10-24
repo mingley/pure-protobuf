@@ -1,54 +1,44 @@
 # Implementation status
 
-The current [stream decode results](evidence/grpc-decode-reuse-20261023/README.md)
-belong to source `beb4ecd9`. Streaming compressed input can reuse uniquely owned
-decoded storage under a 4 MiB per-buffer and 16 MiB process idle-capacity limit.
-Retained Bytes and lazy pbrs messages keep their input ownership. Active decoding,
-application messages, codec scratch and RSS are outside that idle budget.
+Source `7c02eb38` adds fixed accepted service deadlines, one cooperative response
+owner, committed unary status accounting, compact Router dispatch and bounded
+gzip output reads. [The current record](evidence/grpc-deadlines-20261024/README.md)
+contains actual source pins, failures, checks and [endpoint costs](benchmarks.md).
 
 | Check | Actual source | Result |
 |---|---|---|
-| All-feature workspace | `beb4ecd9`, clean before and after | **3,771 passed, zero failed, nine existing ignores**, 141 targets |
-| AddressSanitizer with leak detection | `beb4ecd9` | **746 passed, zero failed, one existing ignore**, six selected binaries |
-| Ten pre-workspace checks | `beb4ecd9` | Passed, including strict lint/rustdoc, 193 benchmark tests, Rust 1.85 default and Rust 1.87 optional Zstd |
-| Resource preview | `beb4ecd9` | Passed for 31.70 seconds; nine cancelled cycles and final drain return accounted bytes, tokens and active calls to zero |
-| Diagnostic comparisons | `beb4ecd9` versus `9d6fb9c4` and fresh tonic controls | **3,064 captures, 742,740 successful RPCs**, zero failures/timeouts; selected source pairs plus an expanded current matrix |
+| All-feature workspace | Repository `8144576f`, production-equivalent to runtime `7c02eb38` | **3,812 passed, zero failed, nine existing ignores**, 144 targets |
+| ASAN with leak detection | `7c02eb38` | **787 passed, zero failed, one existing ignore**; nine selected binaries, including both deadline targets and terminal accounting |
+| Eleven prechecks | `7c02eb38` | Passed: strict lint/rustdoc, examples, 193 benchmark tests, Rust 1.85 default and Rust 1.87 optional Zstd; gRPC target run passes 3,250 with four existing ignores |
+| General resource preview | `7c02eb38`, release | **33.418 seconds**; accounted resources balance after cancellation/drain |
+| Deadline resource preview | Runtime-equivalent `7c02eb38` | **30.792 seconds, 31 cycles of the same 27 cases**; final FD 8, tasks 0, retained cache/leases 0 |
+| Native / instruction / fresh-process counters | `7c02eb38` versus `beb4ecd9`, fresh tonic controls | **1,448 captures / 44,904 successful RPCs**, zero terminal errors; 1,088 / 264 / 96 captures respectively |
+| Router allocation control | `beb4ecd9` / `40f219fa` / `7c02eb38` | Separate **48 captures / 1,800 RPCs**; lower server requested bytes versus `40f219fa`, with small allocation-count increases retained |
 
-Selected Prost gzip streams request 31–36% fewer allocation bytes than the
-previous revision, but important identity, large-stream and client instruction
-losses remain. This change establishes no CPU gain. The
-[benchmark tables](benchmarks.md) separate allocation requests from instruction
-diagnostics; shipping latency, throughput and broad superiority remain unproved.
+All 22 measured native instruction groups beat tonic in both paired repeats.
+Byte losses remain: identity bidi is 34.92% higher on the client / 32.26% on the
+server; the separate pbrs interop route includes more handler work. Source unary
+server bytes rise 5.12% for TLS/16 in flight and instructions rise 16.14% for
+plaintext. These are instrumented counters; see the complete ranges and units
+in the benchmark tables.
 
-Two current-runtime 24-hour diagnostics are running on 2026-10-23: the resource
-test started at 06:07 UTC, and a separate Prost-cache test started at 06:23 UTC
-after its 33.04-second, ten-cycle preview passed. Their results are pending.
-The cache test adds only a diagnostic fixture to the pinned runtime and repeats
-the same ownership/validation cases. Neither establishes a completed 24-hour
-result. Older resource days apply only to their recorded source.
+The earlier `beb4ecd9` [general resource day](evidence/grpc-decode-reuse-soak-20261023/README.md)
+passed 86,405.461 seconds; its [Prost-cache diagnostic](evidence/grpc-prost-cache-diagnostic-20261023/README.md)
+passed 86,400.801 seconds. Current runtime `7c02eb38` general/deadline days are
+**running; results pending**, observed at 2026-10-24 09:27 UTC. Repository `8144576f`
+qualifies the unchanged production/codegen/harness/manifest/lock blobs through full
+Git equivalence. A preview, older day or repeated cycle does not replace a
+current-source full-duration run.
+The ordinary successful DATA-owner Drop concern remains open and unreproduced.
 
-Source review also identifies a current deadline gap: a custom Service can wait
-before choosing its RPC shape without consuming its timeout correctly. Delayed
-bidi polling can start another relative timer. The independent reproduction and
-repair remain open. The [execution decision](decisions/grpc-execution.md)
-separates fixed deadline ownership from handler scheduling and codec costs.
+Streaming decode reuse retains its 4 MiB per-buffer / 16 MiB process idle-capacity
+limit. Retained Bytes/lazy pbrs input keeps ownership; active decoding, application
+messages, codec scratch and RSS are separate. Complete gzip members, zlib streams
+and Zstd frames remain validated under output and member/history limits.
 
-Earlier work adds wake-indexed handler scheduling, runtime-local cancellation,
-selected-method dispatch, blocked-upload response progress and teardown repairs.
-Compressed payloads validate complete gzip members, zlib streams and Zstd
-standard/skippable frames. The separate 1,024-member/frame cap bounds repeated
-setup independently of output bytes; it does not preempt decoder work or bound
-all decoder memory. The tonic adapter avoids decoding the same gzip message twice.
-
-The [earlier execution record](evidence/grpc-architecture-20261022/README.md)
-retains those exact-source controls, failures and resource attempts. The current
-capsule preserves the failed initial workspace, fixture repairs and original
-failed control classifier alongside the passing successor checks. Later passes
-do not erase failures or qualify a different source.
-
-Required platforms, remaining features and release checks remain open.
-Production readiness, complete specification compliance and broad superiority
-over tonic/prost remain unproved.
+Sustained resources, remaining features/specification coverage, required
+platforms/releases and shipping CPU/latency/throughput still
+need qualification. Production readiness and broad superiority remain unproved.
 
 Use this page to distinguish source features, recorded tests and missing
 qualification. The [2026-09-29 audit](audit-2026-09-29.md) reviewed

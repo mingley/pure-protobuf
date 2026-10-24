@@ -12,11 +12,12 @@ gRPC over HTTP/2 and `protobuf-tonic` for using pbrs messages with tonic 0.14+.
 Edition 2024 generation supports a [defined subset](docs/edition-2024.md).
 The gRPC crates are previews; see the [support policy](docs/support-policy.md)
 for supported versions and deployment guidance.
-The [bounded stream decode results](docs/evidence/grpc-decode-reuse-20261023/README.md)
-record checked ownership limits, matched allocation gains and remaining byte and
-instruction losses. [Earlier execution results](docs/evidence/grpc-architecture-20261022/README.md)
-retain their original validation and resource-run scope. The
-[benchmark tables](docs/benchmarks.md) show current gains and losses.
+The [server deadlines and gzip results](docs/evidence/grpc-deadlines-20261024/README.md)
+record fixed service deadlines, response ownership and measured client/server costs
+at runtime `7c02eb38`. The full workspace passes at `8144576f`, whose production
+code, benchmarks and locks match that runtime. The [benchmark tables](docs/benchmarks.md)
+show gains and remaining losses; [implementation status](docs/status.md) lists
+completed checks and pending qualification.
 For contributors, start with [what to work on next](TODO.md) and the
 [2026-09-29 repository audit](docs/audit-2026-09-29.md).
 

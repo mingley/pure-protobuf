@@ -29,71 +29,58 @@ of eligible work, not an instruction to start every lane at once.
 
 ## Current priorities
 
-[Bounded stream decode reuse](docs/evidence/grpc-decode-reuse-20261023/README.md)
-is implemented at `beb4ecd9`: uniquely recoverable prost input can reuse decoded
-storage under a **4 MiB per-buffer / 16 MiB process idle-capacity limit**. Retained
-Bytes/pbrs input keeps its ownership. Logical initialization is bounded separately
-from physical cached capacity; observed terminals release idle storage.
+Source `7c02eb38` implements one accepted absolute deadline, cooperative service
+ownership, committed unary status accounting, bounded gzip output reads and
+compact routed dispatch. The [current evidence](docs/evidence/grpc-deadlines-20261024/README.md)
+retains the detecting failures, repairs and source-specific measurements.
 
-The clean all-feature workspace passes **3,771 tests**, zero failures and nine
-existing ignores across 141 targets. All ten prechecks pass; leak-detecting
-AddressSanitizer passes **746 tests**, zero failures and one existing ignore.
-The completed campaigns pass **3,064 captures and 742,740 successful RPCs**.
-These are scoped functional/counter results, not production or broad speed proof.
-Original C10 failures, fixture repairs and the failed control classifier remain
-in the capsule with their actual outcomes.
+All 11 prechecks pass, including 3,250 gRPC tests (four existing ignores), strict
+lint/docs, benchmark checks and both minimum-version profiles. Selected
+ASAN/leak checks pass 787 tests (one existing ignore) across nine binaries.
+**The full all-feature workspace passes 3,812 tests**, zero failures and nine
+existing ignores across 144 targets, at repository `8144576f`. Its production,
+codegen, harness, manifest and lock blobs match measured runtime `7c02eb38`.
+Canonical counters pass 1,448 captures / 44,904 RPCs; the Router control separately
+passes 48 / 1,800. Release general/deadline previews pass 33.418 / 30.792 seconds.
+The deadline preview repeats the same 27 cases for 31 cycles; it is not 837
+independent tests or a completed day. Both current-source 24-hour days are
+**running, with results pending**, in the 2026-10-24 09:27 UTC snapshot.
 
-The 24-hour general-resource test started at **06:07 UTC on 2026-10-23**; the
-separate Prost-cache test started at **06:23 UTC**. Both are running; results
-are pending. The general workload uses pbrs, while the cache harness exercises
-production code equivalent to `beb4ecd9`. Neither has established a 24-hour pass.
-C8's day remains pinned to C8 and cannot qualify changed C11 code.
+The [benchmarks](docs/benchmarks.md) identify the remaining costs: identity bidi
+bytes exceed tonic by 34.92% on the client / 32.26% on the server; the pbrs interop
+1 MiB gzip bidi server gap is 176.88% with additional handler work. Source server
+unary costs rise 5.12% in requested bytes for TLS/16 in flight and 16.14% in
+instrumented instructions for plaintext. All 22 measured native instruction
+comparisons beat tonic, but these counter results do not establish shipping speed.
 
 | Work | Next result | Completion criterion |
 |---|---|---|
-| Admission deadline and full service ownership | Reproduce the source-reviewed pre-shape custom-Service deadline gap, then repair it in a separate source. | One fixed deadline from local header acceptance; expire cooperative pre-shape waits with one valid terminal response, exact drops and recovery. The proposed raw-peer control has not run. |
-| Gzip output initialization | Replace only the profile-attributed repeated output-scratch initialization, then compare. | Preserve independent gzip members, CRC/trailers, writer errors and limits; lower the measured 1 KiB upload client instruction cost without hiding other costs. No replacement is implemented. |
-| Identity first-frame reservations | Test the prepared known-single reservation option; tune 64-slot scratch vectors separately. | Attribute actual allocations/copies; retain burst behavior, frame rollback, byte permits and cancellation. Source arithmetic is not measured savings. |
-| Owned encode scratch and compressed reservation | Attribute each allocation owner independently before retaining more storage. | Finite explicit capacity budgets, short/cold-stream costs and terminal cleanup; active/idle definitions and any extra ledger allowance remain visible. |
-| PK-27, PK-29: owned read-all decode | Compare checked eager singular merge with the lazy path on equal sparse/read-all corpora. | Preserve parse-time rejection, unknown/merge/oneof/recursion semantics and retention; repeated Query children already parse eagerly. |
-| Handler isolation | Compare inline execution with owned per-RPC tasks under explicit finite process admission and spare workers. | Preserve fixed deadline origin, reset, response ownership, permits until actual cleanup and abort/drain; measure small-call handoff and expensive/cheap siblings. |
-| QG-06: current sustained resources | Complete the generic day and run a separate bounded Prost-cache campaign. | Actual full-duration records at the correct source; cache saturation, retention and cleanup are exercised, not inferred from C8 or generic traffic. |
-| SB-27: complete client/server matrix | Extend measured cells to realistic field access, broader payloads, overload and real networks. | Record latency, throughput, CPU, allocations, bytes and scheduling on both endpoints, retaining all losing cells. |
-| CH-12 and discovery | Complete discovery/balancer integrations, xDS targets and the xDS control plane. | External consumers use supported APIs; refresh, failure and churn preserve live connections and bounded work. |
-| Credentials and codec coverage | Finish async OAuth2/JWT credential providers and typed protobuf extensions. | Refresh, expiry, cancellation, consumer and wire-compatibility checks pass. |
-| Telemetry | Complete retry, message-size, connection, WRR and dynamic-label instruments. | Record gRFC coverage, finite label costs and observability overhead. |
-| Platforms, release and SB-28/SB-22/SB-16 | Complete required feature/platform/consumer gates and dedicated-host comparisons. | Exact-source required profiles, paired statistics, headroom and latency checks support each claimed scope. |
+| QG-06: sustained resources | Complete the running current-source general/deadline days. | Actual terminal records for runtime `7c02eb38`, repository validation `8144576f`, finite limits, balanced ownership and recovery; older-source days never substitute. |
+| Ordinary DATA-owner destruction | Reproduce the source concern about a successful DATA payload's destructor running under a backend lock. | A bounded independent control first; this remains an unreproduced source finding, not an established deadlock or a completed repair. |
+| Identity/bidi costs and first-frame reservations | Attribute allocation/copy owners before tuning reservations or scratch vectors. | Retain burst behavior, frame rollback, byte permits, cancellation and all losing cells; source arithmetic is not measured savings. |
+| Owned encode scratch and compressed reservation | Attribute each allocation owner before retaining more storage. | Finite capacity budgets, short/cold costs and terminal cleanup; active/idle definitions remain explicit. |
+| PK-27, PK-29: owned read-all decode | Compare checked eager singular merge with lazy access on equal sparse/read-all corpora. | Preserve validation, unknown/merge/oneof/recursion semantics and retention; repeated Query children already parse eagerly. |
+| Handler isolation | Compare inline execution with owned per-RPC tasks under finite admission and spare workers. | Preserve deadline origin, reset/response ownership, permits through cleanup and abort/drain; measure handoff and mixed siblings. |
+| SB-27: complete client/server matrix | Add shipping CPU, latency, throughput, field access, entropy, overload and real networks. | Both endpoint metrics, scheduling/syscall/wake attribution and all losing scopes remain visible. |
+| CH-12 and discovery | Complete balancers/discovery, xDS targets and control plane. | Supported external consumers; refresh, failure and churn preserve live connections and bounded work. |
+| Credentials and codec coverage | Finish async OAuth2/JWT providers and typed protobuf extensions. | Refresh, expiry, cancellation, consumer and wire-compatibility checks pass. |
+| Telemetry | Complete retry, message-size, connection, WRR and dynamic-label instruments. | gRFC coverage, finite label costs and measured observability overhead. |
+| Platforms, release and SB-28/SB-22/SB-16 | Complete required features/platforms/consumers and dedicated-host comparisons. | Exact-source profiles, paired statistics, headroom and latency checks support each claimed scope. |
 
-Current prost gzip stream requested bytes fall **31–36%** against C8 in selected
-cases, but 1 MiB bidi still costs **17–18% more than tonic**. Expanded 1 KiB identity
-bidi bytes remain **36.7% higher on the client / 31.9% on the server**. The full
-pbrs interop server has a **+178%** 1 MiB gzip bidi byte gap; its additional handler
-work prevents a codec-only attribution. Selected source byte/count increases stay
-visible too; no 2% cutoff removes them from the ledger.
+Earlier [stream decode reuse](docs/evidence/grpc-decode-reuse-20261023/README.md)
+keeps a 4 MiB per-buffer / 16 MiB process idle-capacity limit; retained Bytes/pbrs
+input preserves ownership. The older `beb4ecd9` [general resource day](docs/evidence/grpc-decode-reuse-soak-20261023/README.md)
+and [Prost-cache day](docs/evidence/grpc-prost-cache-diagnostic-20261023/README.md)
+both passed their own full durations. They cannot qualify changed `7c02eb38` code.
 
-C8→C11 instruction changes are all under 0.4%; no CPU gain is established. The
-current 1 KiB gzip upload client uses **6.629% more diagnostic instructions** than
-tonic. Retained profiles attribute the extra work chiefly to repeated gzip writer
-output initialization, rather than different compressor initialization or levels.
-This is allocation-instrumented Callgrind evidence, not shipping CPU or latency.
-
-The current deadline finding exists before any new task queue: a cooperative
-custom Service can hold Rpc before choosing a shape, while its timer is not yet
-owned; shape preparation restarts the duration and repeated deadline getters
-advance the reported expiry. The independent reproduction is **not run**. Fixing
-only a future handoff would not close this current origin/outer-owner gap.
-
-Task isolation is a separate concern. One driver per connection can isolate
-protocol progress but not a cheap RPC from a heavy sibling on that driver.
-Spawning on a current-thread/per-core runtime adds no execution thread. Timers
-and Tokio abort cannot preempt a poll already executing; keep permits and buffers
-owned until actual cleanup, and do not detach work by dropping a JoinHandle.
-
-PK-26's old eager mutex/TypeId getter lookup is already removed; do not redo it.
-Shared-input keeper and encode-cache proposals remain unimplemented experiments.
-Use the [execution decision](docs/decisions/grpc-execution.md) and
-[benchmark contract](docs/benchmark-contract.md) for design and comparison rules.
-Production readiness, complete spec coverage and broad superiority remain unproved.
+Timers cannot preempt synchronous application polls. A per-connection driver
+cannot isolate sibling handlers; spawning on a current-thread runtime adds no
+thread. Keep permits and buffers until actual cleanup and do not detach RPC work.
+PK-26's eager mutex/TypeId lookup is already removed. Shared-input keeper and
+encode-cache proposals remain experiments. Use the [execution decision](docs/decisions/grpc-execution.md)
+and [benchmark contract](docs/benchmark-contract.md) for design and comparison rules.
+Production readiness, complete specification coverage and broad superiority
+remain open alongside the concrete work above.
 
 <a id="dominance-program"></a>
 
