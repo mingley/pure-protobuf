@@ -21,6 +21,9 @@ The [architecture resource day, source `9d6fb9c4`](grpc-architecture-soak-202610
 <!-- architecture-c11-day-terminal -->
 The [decode reuse resource day, source `beb4ecd9`](grpc-decode-reuse-soak-20261023/README.md) has a terminal resource outcome; its source and qualification limits apply.
 
+<!-- architecture-c11-prost-cache-terminal -->
+The [Prost cache diagnostic, source `beb4ecd9`](grpc-prost-cache-diagnostic-20261023/README.md) has a terminal diagnostic outcome; its scope and qualification limits apply.
+
 ## Benchmark coverage and campaign readiness
 
 | Record | What it contributes | How to read it |

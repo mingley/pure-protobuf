@@ -1,0 +1,36 @@
+{
+  "source_pin": "beb4ecd9a9b2143c440892607d5b486318062b61",
+  "diagnostic": "repeated independent-peer compressed decode fixture",
+  "requested_seconds": 86400,
+  "state": "passed",
+  "report_state": "passed",
+  "report_available": true,
+  "qualified": false,
+  "duration_actual_seconds": 86400.801312286,
+  "completed_cycles": 26679,
+  "exit_code": 0,
+  "final_progress": {
+    "acquired": 1494024,
+    "baseline_fd_count": 8,
+    "completed_cycles": 26679,
+    "elapsed_seconds": 86400.801312286,
+    "event": "duration_completed",
+    "fd_count": 8,
+    "peak_retained_buffers": 15,
+    "peak_retained_capacity": 15728700,
+    "pid": 375180,
+    "released": 1494024,
+    "requested_seconds": 86400,
+    "retained_buffers": 0,
+    "retained_capacity": 0,
+    "rss_bytes": 15286272,
+    "state": "completed"
+  },
+  "validation_errors": [],
+  "failures": [],
+  "source_at_publication": {
+    "head": "beb4ecd9a9b2143c440892607d5b486318062b61",
+    "status": ""
+  },
+  "scope": "Cycles repeat the same independent-peer fixture; they are not additional distinct production tests."
+}
