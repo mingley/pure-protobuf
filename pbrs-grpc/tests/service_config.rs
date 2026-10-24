@@ -728,17 +728,31 @@ async fn fl07_vec23_channel_without_config_has_no_policy() {
 
 #[test]
 fn lb_selection_skips_unregistered_and_typed() {
-    let config = ServiceConfig::parse(
-        r#"{"loadBalancingConfig": [{"pick_first": {"shuffleAddressList": true}}]}"#,
+    let unregistered = ServiceConfig::parse(
+        r#"{"loadBalancingConfig": [{"service_config_selection_no_factory": {}}]}"#,
     )
     .expect("parses");
-    // pick_first is parsed (typed) but registers in CH-04: no selection yet.
-    if pbrs_grpc::lb::is_policy_registered("pick_first") {
-        let selected = select_lb_policy(&config).expect("selected");
-        assert_eq!(selected.name, "pick_first");
-    } else {
-        assert!(select_lb_policy(&config).is_none());
-    }
+    assert!(select_lb_policy(&unregistered).is_none());
+
+    // Other tests can build channels and register built-ins concurrently.
+    // Initialize them explicitly instead of comparing two registry snapshots.
+    pbrs_grpc::lb::ensure_default_policies_registered();
+    let config = ServiceConfig::parse(
+        r#"{"loadBalancingConfig": [
+            {"service_config_selection_no_factory": {}},
+            {"pick_first": {"shuffleAddressList": true}}
+        ]}"#,
+    )
+    .expect("parses");
+    let selected = select_lb_policy(&config).expect("registered policy selected");
+    assert_eq!(selected.name, "pick_first");
+    assert!(matches!(
+        selected.policy,
+        LbPolicyConfig::PickFirst {
+            shuffle_address_list: true
+        }
+    ));
+    assert!(select_lb_policy(&unregistered).is_none());
     let bare = ServiceConfig::parse(r#"{"methodConfig": []}"#).expect("parses");
     assert!(select_lb_policy(&bare).is_none());
 }
