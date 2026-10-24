@@ -9,8 +9,7 @@
 use crate::limits::MessageLimits;
 use crate::status::Status;
 use flate2::Compression;
-use flate2::bufread::GzDecoder;
-use flate2::write::GzEncoder;
+use flate2::bufread::{GzDecoder, GzEncoder};
 use std::io::{self, BufRead, Read, Write};
 
 /// Message-local member decoder shared by native and tonic inbound paths.
@@ -131,12 +130,24 @@ pub fn encode_level(payload: &[u8], level: u32) -> Result<Vec<u8>, Status> {
 /// The framing layer compresses straight into the frame buffer through
 /// this, saving the intermediate `Vec` and its copy.
 pub(super) fn encode_into(payload: &[u8], level: u32, out: &mut impl Write) -> Result<(), Status> {
-    let mut enc = GzEncoder::new(&mut *out, Compression::new(level.min(9)));
-    enc.write_all(payload)
-        .map_err(|e| Status::internal(format!("gzip encode: {e}")))?;
-    enc.finish()
-        .map_err(|e| Status::internal(format!("gzip encode: {e}")))?;
-    Ok(())
+    let mut enc = GzEncoder::new(payload, Compression::new(level.min(9)));
+    // The read interface compresses into initialized storage. Its writer
+    // counterpart repeatedly initializes spare output capacity on write/finish.
+    // Keep one bounded chunk for this message, without retaining codec history.
+    let mut chunk = [0; 8192];
+    loop {
+        let n = match enc.read(&mut chunk) {
+            Ok(0) => return Ok(()),
+            Ok(n) => n,
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+            Err(error) => return Err(Status::internal(format!("gzip encode: {error}"))),
+        };
+        let bytes = chunk
+            .get(..n)
+            .ok_or_else(|| Status::internal("gzip encode: invalid read length"))?;
+        out.write_all(bytes)
+            .map_err(|error| Status::internal(format!("gzip encode: {error}")))?;
+    }
 }
 
 /// Inflate `payload` with no cap.
@@ -180,9 +191,193 @@ pub(super) fn decode_limited_into(
 
 #[cfg(test)]
 mod tests {
-    use super::{GzipMembers, decode, decode_limited, encode, encode_level};
+    use super::{GzipMembers, decode, decode_limited, encode, encode_into, encode_level};
     use crate::limits::MessageLimits;
     use crate::status::Code;
+    use std::io::{self, Read, Write};
+
+    fn noise(length: usize) -> Vec<u8> {
+        let mut state = 0x7f4a_7c15_9e37_79b9u64;
+        (0..length)
+            .map(|_| {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                state.to_le_bytes()[0]
+            })
+            .collect()
+    }
+
+    fn reference_decode_single_member(encoded: &[u8]) -> Vec<u8> {
+        let mut decoder = flate2::bufread::GzDecoder::new(encoded);
+        let mut decoded = Vec::new();
+        decoder
+            .read_to_end(&mut decoded)
+            .expect("reference decoder validates DEFLATE, CRC and ISIZE");
+        assert!(decoder.get_ref().is_empty(), "exactly one complete member");
+        decoded
+    }
+
+    #[test]
+    fn encoded_messages_have_complete_independent_members_across_sizes_and_levels() {
+        for length in [
+            0,
+            1,
+            15,
+            1024,
+            8191,
+            8192,
+            8193,
+            32767,
+            32768,
+            32769,
+            65535,
+            65536,
+            65537,
+            1024 * 1024,
+        ] {
+            let compressible = vec![0; length];
+            let incompressible = noise(length);
+            for payload in [&compressible, &incompressible] {
+                for level in [0, 1, 6, 9, 99] {
+                    let encoded = encode_level(payload, level).expect("encode complete member");
+                    assert_eq!(
+                        reference_decode_single_member(&encoded),
+                        *payload,
+                        "length {length}, level {level}"
+                    );
+                }
+                assert_eq!(
+                    encode_level(payload, 99).expect("clamped level"),
+                    encode_level(payload, 9).expect("maximum level"),
+                    "clamping must not select a different compression level"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn encoding_appends_without_sharing_message_history() {
+        let first = noise(32769);
+        let second = vec![7; 8193];
+        let prefix = b"an existing frame prefix";
+        let mut output = prefix.to_vec();
+        encode_into(&first, 6, &mut output).expect("first message");
+        let boundary = output.len();
+        encode_into(&second, 6, &mut output).expect("second message");
+        assert_eq!(&output[..prefix.len()], prefix);
+        assert_eq!(
+            reference_decode_single_member(&output[prefix.len()..boundary]),
+            first
+        );
+        assert_eq!(reference_decode_single_member(&output[boundary..]), second);
+    }
+
+    #[test]
+    fn encoding_retries_interrupted_and_short_writes_without_flushing_the_sink() {
+        #[derive(Default)]
+        struct ShortWriter {
+            bytes: Vec<u8>,
+            interrupt: bool,
+            interrupted: usize,
+            flushes: usize,
+        }
+
+        impl Write for ShortWriter {
+            fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+                self.interrupt = !self.interrupt;
+                if self.interrupt {
+                    self.interrupted += 1;
+                    return Err(io::ErrorKind::Interrupted.into());
+                }
+                let n = bytes.len().min(7);
+                self.bytes.extend_from_slice(&bytes[..n]);
+                Ok(n)
+            }
+
+            fn flush(&mut self) -> io::Result<()> {
+                self.flushes += 1;
+                Ok(())
+            }
+        }
+
+        let payload = noise(32769);
+        let mut writer = ShortWriter::default();
+        encode_into(&payload, 6, &mut writer).expect("short/interrupted sink");
+        assert!(writer.interrupted > 1);
+        assert_eq!(writer.flushes, 0, "framing owns sink flush policy");
+        assert_eq!(reference_decode_single_member(&writer.bytes), payload);
+    }
+
+    #[test]
+    fn encoding_returns_the_first_sink_error_without_later_writes() {
+        struct FailingWriter {
+            bytes: Vec<u8>,
+            fail_after: usize,
+            zero: bool,
+            failed: bool,
+            writes_after_failure: usize,
+            flushes: usize,
+        }
+
+        impl Write for FailingWriter {
+            fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+                if self.failed {
+                    self.writes_after_failure += 1;
+                    return Err(io::Error::other("write after failure"));
+                }
+                if self.bytes.len() == self.fail_after {
+                    self.failed = true;
+                    return if self.zero {
+                        Ok(0)
+                    } else {
+                        Err(io::Error::other("injected encode failure"))
+                    };
+                }
+                let n = bytes.len().min(self.fail_after - self.bytes.len());
+                self.bytes.extend_from_slice(&bytes[..n]);
+                Ok(n)
+            }
+
+            fn flush(&mut self) -> io::Result<()> {
+                self.flushes += 1;
+                Ok(())
+            }
+        }
+
+        let payload = noise(32769);
+        let complete = encode_level(&payload, 6).expect("complete member");
+        // Reject within the header, compressed body, CRC and ISIZE.
+        for fail_after in [
+            0,
+            1,
+            9,
+            10,
+            complete.len() / 2,
+            complete.len() - 8,
+            complete.len() - 1,
+        ] {
+            for zero in [false, true] {
+                let mut writer = FailingWriter {
+                    bytes: Vec::new(),
+                    fail_after,
+                    zero,
+                    failed: false,
+                    writes_after_failure: 0,
+                    flushes: 0,
+                };
+                let error = encode_into(&payload, 6, &mut writer).expect_err("sink failure");
+                assert_eq!(error.code(), Code::Internal);
+                if !zero {
+                    assert_eq!(error.message(), "gzip encode: injected encode failure");
+                }
+                assert!(writer.failed);
+                assert_eq!(writer.bytes, complete[..fail_after]);
+                assert_eq!(writer.writes_after_failure, 0);
+                assert_eq!(writer.flushes, 0);
+            }
+        }
+    }
 
     // Independently specified RFC 1952 member with one stored DEFLATE block.
     // CRC32("hello") = 0x3610a686, ISIZE = 5.
