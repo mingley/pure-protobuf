@@ -1,0 +1,183 @@
+{
+  "schema": "pbrs.resource-capsule.v1",
+  "source": "9d6fb9c416fc32732450fd78d32ee16ff8b802de",
+  "qualified": false,
+  "archive": {
+    "name": "raw.tar.gz",
+    "bytes": 6086521,
+    "sha256": "6c225c65ac124a311fdeacb77c98656d1a8513d983f55358a27b2790c74b5b6a"
+  },
+  "logical_bytes": 253899863,
+  "files": [
+    {
+      "path": "architecture-c8-day-harness/publish-architecture-c8-day.py",
+      "bytes": 12500,
+      "sha256": "a6df1a6e89a1647c690186e7888cf279acdc840c523b05b36447d5888a59861e"
+    },
+    {
+      "path": "architecture-c8-day-harness/record.py",
+      "bytes": 1905,
+      "sha256": "16b8712d0fe0a478409e3f036f265f79e1926e4978fdcfc3d35915337ef7139f"
+    },
+    {
+      "path": "architecture-c8-day-harness/run-architecture-c8-day.py",
+      "bytes": 10018,
+      "sha256": "66768bf31f26a0ae64764ae8eace18061b8840d864686df0d18b896fac05cf3d"
+    },
+    {
+      "path": "architecture-c8-day-harness/run-rust",
+      "bytes": 464,
+      "sha256": "f4ad44aeadf5276ff25b56578396f32b52c112fe7f83bfb5f1fb171bcba939b5"
+    },
+    {
+      "path": "architecture-c8-day-launch-request.json",
+      "bytes": 2997,
+      "sha256": "e5131ab98f8df13ccca7b6020e5556edf7aaabc418b337daba6782c8a49f80ac"
+    },
+    {
+      "path": "architecture-c8-day-launch.json",
+      "bytes": 4414,
+      "sha256": "a5958713ba4f55526a269a1cb97905eb0c0727a1c0c897b68d0e342a385b8e30"
+    },
+    {
+      "path": "architecture-c8-day-launcher.json",
+      "bytes": 500,
+      "sha256": "d17b62b5bf331988517a38c98129e06beed5bb629584339176d7ab6650b25c0f"
+    },
+    {
+      "path": "architecture-c8-day-readiness.json",
+      "bytes": 2697,
+      "sha256": "f642615a38078259486a9becf3064f88b5f0af0146a638e59d802a480b86ab2d"
+    },
+    {
+      "path": "architecture-c8-day-supervisor.json",
+      "bytes": 931,
+      "sha256": "0d287b0fe7bf295a5552a1077eaf3713674fd29efc06dbf10f9faa4ba01a3249"
+    },
+    {
+      "path": "architecture-c8-day-supervisor.log",
+      "bytes": 149,
+      "sha256": "83d1a8b2d7ba2760a5b3aa56d1c472a3879a2cbb596884adf2871d6c16f592ae"
+    },
+    {
+      "path": "architecture-c8-day-supervisor.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "architecture-c8-day-supervisor.stdout",
+      "bytes": 166,
+      "sha256": "72b90b477cc5d7d48db8f85de91d1b5de590ffa27987e7607cb23b8d5922667c"
+    },
+    {
+      "path": "architecture-c8-day-termination.json",
+      "bytes": 290,
+      "sha256": "cf1d84ac7afc021d3b1dd1bea41e1c2c63b0e7696b8517e1183d24bdaa58e33e"
+    },
+    {
+      "path": "architecture-c8-day-tools-controls.json",
+      "bytes": 464,
+      "sha256": "86531c66c56f81000cebeb88625c2a3b6f1caf0cf099d2bd8b97085dbc50618c"
+    },
+    {
+      "path": "architecture-c8-day-tools-controls.stderr",
+      "bytes": 2855,
+      "sha256": "5eb5f89450b65678229d6483752f56b54c778acd54cb4ebbe48403318b71b495"
+    },
+    {
+      "path": "architecture-c8-day-tools-controls.stdout",
+      "bytes": 60,
+      "sha256": "9b2e702524b87dc89bfbf28c34f1c6fb5a8d4fb9846051a4106029febaddcd3d"
+    },
+    {
+      "path": "architecture-c8-day-tools-prepared.json",
+      "bytes": 1927,
+      "sha256": "4ad5a247997450111303af1062d34f322673a8cf2520e2a2d79a1019e15b84a2"
+    },
+    {
+      "path": "architecture-c8-day-tools-tests.json",
+      "bytes": 510,
+      "sha256": "3d20a142e42cb90b1428007897abee1d1f866b43e9d780e12dbead723ad7a6ae"
+    },
+    {
+      "path": "architecture-c8-day-tools-tests.stderr",
+      "bytes": 2855,
+      "sha256": "e0f954985cf389dfa338c70979db52443b0cca70d45a76434d2014147e87bdbd"
+    },
+    {
+      "path": "architecture-c8-day-tools-tests.stdout",
+      "bytes": 60,
+      "sha256": "9b2e702524b87dc89bfbf28c34f1c6fb5a8d4fb9846051a4106029febaddcd3d"
+    },
+    {
+      "path": "architecture-c8-resource-preview/report.json",
+      "bytes": 48991,
+      "sha256": "004867ed3eba47d10cf5ca969d9ac1b79aa4a4a4980908502de22437a012742d"
+    },
+    {
+      "path": "resource-architecture-c8-day/build.stderr.log",
+      "bytes": 62,
+      "sha256": "f18e8aa44b81e7d9d1663536017be739eb80ede7041400fe06bf4e1c755d3d59"
+    },
+    {
+      "path": "resource-architecture-c8-day/build.stdout.jsonl",
+      "bytes": 98448,
+      "sha256": "7e2deafeaa6b8ca08e6b98af10ca7d691f17acfd553a9d5ede2fbccc0dac69f7"
+    },
+    {
+      "path": "resource-architecture-c8-day/events.jsonl",
+      "bytes": 120012152,
+      "sha256": "538c47f8b2ff7ae690e7a83ba8338dc753c3f8aca1bdb5dd1c0c0d635522463b"
+    },
+    {
+      "path": "resource-architecture-c8-day/progress.json",
+      "bytes": 213,
+      "sha256": "e0a0f6ba0bdf91d551241e09caa62982373a59a004b04707a99f80f3f9781093"
+    },
+    {
+      "path": "resource-architecture-c8-day/report.json",
+      "bytes": 133505718,
+      "sha256": "16630bdbb09ff9d4cc70ef0e47badd02832ee8ca45bba76b4b7c7629e822e55e"
+    },
+    {
+      "path": "resource-architecture-c8-day/test.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "resource-architecture-c8-day/test.stdout.log",
+      "bytes": 157,
+      "sha256": "b4c63d5c73bcf4c558f61d6fd3d877bffdf3b9eafe637311769460df0eb581ab"
+    },
+    {
+      "path": "source/scripts/grpc-resource-campaign.py",
+      "bytes": 25431,
+      "sha256": "20c7a00cdd37c0ef7b3baa45f6eb9aac3f1eeafe75130772dc8c69c499d1fb49"
+    },
+    {
+      "path": "source/pbrs-grpc/tests/resource_qualification.rs",
+      "bytes": 32202,
+      "sha256": "89053bf68bb9a85ae9d82d9c1ca8fa6e79909500b2ea9d52f437a01ebd6f0402"
+    },
+    {
+      "path": "source/pbrs-grpc/tests/common/mod.rs",
+      "bytes": 85151,
+      "sha256": "7360670590380563e5036830e48234848d872c04c487d69e9249104bbba48051"
+    },
+    {
+      "path": "source/Cargo.toml",
+      "bytes": 3842,
+      "sha256": "a55dc7d5d3f48f4ec5572ed21debe8fd5205c25fc44e9bfa10028c2f51c67dac"
+    },
+    {
+      "path": "source/Cargo.lock",
+      "bytes": 41527,
+      "sha256": "a5ca5a8efb2ba7f3ae0f0a62d5344e267c96794c69dd2d751321d0a0d6ab5c33"
+    },
+    {
+      "path": "omitted-executables.json",
+      "bytes": 207,
+      "sha256": "6fa24fffd303c36eb8a75944833f4eb4b5b19ced5b956ce784c2e06654c95468"
+    }
+  ]
+}

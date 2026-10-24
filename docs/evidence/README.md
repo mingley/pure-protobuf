@@ -16,6 +16,8 @@ terminal resource outcome. Its recorded revision and qualification limits apply.
 
 The [streaming resource day, source `6cd91911`](grpc-streaming-soak-20261022/README.md) has a terminal resource outcome; its source and qualification limits apply.
 
+The [architecture resource day, source `9d6fb9c4`](grpc-architecture-soak-20261023/README.md) has a terminal resource outcome; its source and qualification limits apply.
+
 ## Benchmark coverage and campaign readiness
 
 | Record | What it contributes | How to read it |

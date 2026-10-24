@@ -1,0 +1,23 @@
+{
+  "source": "9d6fb9c416fc32732450fd78d32ee16ff8b802de",
+  "requested_duration_seconds": 86400,
+  "report_available": true,
+  "day_status": "completed",
+  "validation_errors": [],
+  "report_day_status": "completed",
+  "resource_status": "passed",
+  "duration_actual_seconds": 86406.43248939601,
+  "exit_code": 0,
+  "failures": [],
+  "qualified": false,
+  "termination": {
+    "source": "9d6fb9c416fc32732450fd78d32ee16ff8b802de",
+    "supervisor_pid": 246829,
+    "qualified": false,
+    "exit_code": 0,
+    "source_pin_verified_at_end": true,
+    "state": "terminated",
+    "ended_utc": "2026-10-24T02:52:13.300985+00:00",
+    "supervisor_elapsed_seconds": 86411.484326486
+  }
+}
