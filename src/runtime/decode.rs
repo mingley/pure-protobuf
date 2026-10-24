@@ -11,7 +11,7 @@ use crate::message::{Clear, ClearAndParse, MergeFrom, Serialize};
 use crate::proxied::{AsView, View};
 use crate::wire::{
     UnknownField, WIRE_LEN, WIRE_VARINT, decode_tag, decode_varint, decode_zigzag32,
-    decode_zigzag64, read_fixed32, read_fixed64, read_len_bytes, skip_field_with_depth,
+    decode_zigzag64, read_fixed32, read_fixed64, read_len_bytes, skip_field_with_number_and_depth,
 };
 use std::marker::PhantomData;
 
@@ -46,7 +46,7 @@ fn parse_into(
     while pos < buf.len() {
         let (num, wire) = decode_tag(buf, &mut pos)?;
         let Some((idx, f)) = table.field_by_number(num) else {
-            skip_field_with_depth(buf, &mut pos, wire, depth)?;
+            skip_field_with_number_and_depth(buf, &mut pos, num, wire, depth)?;
             continue;
         };
         decode_field(data, idx, f, buf, &mut pos, wire, arena, depth)?;
@@ -84,7 +84,7 @@ fn decode_field(
     };
     if f.is_map {
         if wire != WIRE_LEN {
-            skip_field_with_depth(buf, pos, wire, depth)?;
+            skip_field_with_number_and_depth(buf, pos, f.number, wire, depth)?;
             return Ok(());
         }
         let payload = read_len_bytes(buf, pos)?;
@@ -130,7 +130,7 @@ fn decode_field(
         }
         let v = if f.ty == FieldType::Enum {
             if wire != WIRE_VARINT {
-                skip_field_with_depth(buf, pos, wire, depth)?;
+                skip_field_with_number_and_depth(buf, pos, f.number, wire, depth)?;
                 return Ok(());
             }
             let Some(v) = decode_enum(f, buf, pos, ptr)? else {
@@ -176,7 +176,7 @@ fn decode_field(
     }
     let v = if f.ty == FieldType::Enum {
         if wire != WIRE_VARINT {
-            skip_field_with_depth(buf, pos, wire, depth)?;
+            skip_field_with_number_and_depth(buf, pos, f.number, wire, depth)?;
             return Ok(());
         }
         let Some(v) = decode_enum(f, buf, pos, ptr)? else {
@@ -246,7 +246,7 @@ fn decode_map_entry(
                     if wire == WIRE_LEN {
                         key = read_len_bytes(buf, &mut pos)?.to_vec();
                     } else {
-                        skip_field_with_depth(buf, &mut pos, wire, depth)?;
+                        skip_field_with_number_and_depth(buf, &mut pos, num, wire, depth)?;
                     }
                 }
                 Some(FieldType::Bool) => {
@@ -257,7 +257,7 @@ fn decode_map_entry(
                             0
                         }];
                     } else {
-                        skip_field_with_depth(buf, &mut pos, wire, depth)?;
+                        skip_field_with_number_and_depth(buf, &mut pos, num, wire, depth)?;
                     }
                 }
                 Some(FieldType::Fixed32 | FieldType::SFixed32) => {
@@ -283,14 +283,14 @@ fn decode_map_entry(
                             .to_le_bytes()
                             .to_vec();
                     } else {
-                        skip_field_with_depth(buf, &mut pos, wire, depth)?;
+                        skip_field_with_number_and_depth(buf, &mut pos, num, wire, depth)?;
                     }
                 }
             },
             2 => {
                 if let Some(f) = field {
                     if f.ty == FieldType::Enum && wire != WIRE_VARINT {
-                        skip_field_with_depth(buf, &mut pos, wire, depth)?;
+                        skip_field_with_number_and_depth(buf, &mut pos, num, wire, depth)?;
                         rejected_enum = true;
                         continue;
                     }
@@ -301,10 +301,10 @@ fn decode_map_entry(
                 } else if wire == WIRE_VARINT {
                     val = FieldKind::I32(decode_varint(buf, &mut pos)? as i32);
                 } else {
-                    skip_field_with_depth(buf, &mut pos, wire, depth)?;
+                    skip_field_with_number_and_depth(buf, &mut pos, num, wire, depth)?;
                 }
             }
-            _ => skip_field_with_depth(buf, &mut pos, wire, depth)?,
+            _ => skip_field_with_number_and_depth(buf, &mut pos, num, wire, depth)?,
         }
     }
     Ok((!rejected_enum).then_some((key, val)))
@@ -340,7 +340,7 @@ fn decode_one(
     match f.ty {
         FieldType::Int32 | FieldType::Enum => {
             if wire != WIRE_VARINT {
-                skip_field_with_depth(buf, pos, wire, depth)?;
+                skip_field_with_number_and_depth(buf, pos, f.number, wire, depth)?;
                 return Ok(FieldKind::Empty);
             }
             Ok(FieldKind::I32(decode_varint(buf, pos)? as i32))
@@ -361,7 +361,7 @@ fn decode_one(
         }
         FieldType::Message => {
             if wire != WIRE_LEN {
-                skip_field_with_depth(buf, pos, wire, depth)?;
+                skip_field_with_number_and_depth(buf, pos, f.number, wire, depth)?;
                 return Ok(FieldKind::Empty);
             }
             let payload = read_len_bytes(buf, pos)?;
@@ -371,7 +371,7 @@ fn decode_one(
             Ok(FieldKind::Msg(child))
         }
         _ => {
-            skip_field_with_depth(buf, pos, wire, depth)?;
+            skip_field_with_number_and_depth(buf, pos, f.number, wire, depth)?;
             Ok(FieldKind::Empty)
         }
     }

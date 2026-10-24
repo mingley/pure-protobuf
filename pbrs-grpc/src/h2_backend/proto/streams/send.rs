@@ -1,6 +1,6 @@
 use super::{
-    Buffer, BufferStatus, Codec, Config, Counts, Frame, Prioritize, Prioritized, Store, Stream,
-    StreamId, StreamIdOverflow, WindowSize, store,
+    Buffer, BufferStatus, Codec, Config, Counts, Frame, Prioritize, Prioritized, RetiredData,
+    Store, Stream, StreamId, StreamIdOverflow, WindowSize, store,
 };
 use crate::h2_backend::codec::UserError;
 use crate::h2_backend::frame::{self, Reason};
@@ -478,12 +478,14 @@ impl Send {
         store: &mut Store,
         counts: &mut Counts,
         dst: &mut Codec<T, Prioritized<B>>,
+        retired: &mut RetiredData<B>,
     ) -> io::Result<BufferStatus>
     where
         T: AsyncWrite + Unpin,
         B: Buf,
     {
-        self.prioritize.buffer_pending(buffer, store, counts, dst)
+        self.prioritize
+            .buffer_pending(buffer, store, counts, dst, retired)
     }
 
     pub fn reclaim_written_frame<T, B>(
@@ -491,30 +493,32 @@ impl Send {
         buffer: &mut Buffer<Frame<B>>,
         store: &mut Store,
         dst: &mut Codec<T, Prioritized<B>>,
+        retired: &mut RetiredData<B>,
     ) -> bool
     where
         B: Buf,
     {
-        self.prioritize.reclaim_written_frame(buffer, store, dst)
+        self.prioritize
+            .reclaim_written_frame(buffer, store, dst, retired)
     }
 
-    pub(super) fn reclaim_consumed<B>(&mut self, frame: frame::Data<Prioritized<B>>)
+    pub(super) fn reclaim_consumed<B>(&mut self, retired: &RetiredData<B>)
     where
         B: Buf,
     {
-        self.prioritize.reclaim_consumed(frame);
+        self.prioritize.reclaim_consumed(retired.last());
     }
 
     pub(super) fn reclaim_partial<B>(
         &mut self,
         buffer: &mut Buffer<Frame<B>>,
         store: &mut Store,
-        frame: frame::Data<Prioritized<B>>,
+        retired: &mut RetiredData<B>,
     ) -> bool
     where
         B: Buf,
     {
-        self.prioritize.reclaim_partial(buffer, store, frame)
+        self.prioritize.reclaim_partial(buffer, store, retired)
     }
 
     /// Request capacity to send data

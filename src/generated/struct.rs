@@ -408,9 +408,9 @@ mod __gen_google_protobuf_struct_proto {
                             let mut ip = 0;
                             PbValue::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -702,18 +702,19 @@ mod __gen_google_protobuf_struct_proto {
                                             entry_depth + 1,
                                         )?;
                                     }
-                                    _ => pbrs::rt::skip_field_with_depth(
+                                    _ => pbrs::rt::skip_field_with_number_and_depth(
                                         d,
                                         &mut ip,
+                                        nn,
                                         ww,
                                         entry_depth,
                                     )?,
                                 }
                             }
                         }
-                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                 }
             }
             if until.is_some() {
@@ -838,7 +839,7 @@ mod __gen_google_protobuf_struct_proto {
                         None,
                     )?;
                 }
-                _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,
+                _ => pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
             }
         }
         Ok((key, val.unwrap_or_default()))
@@ -1444,26 +1445,26 @@ mod __gen_google_protobuf_struct_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     2 => match w {
                         pbrs::rt::WIRE_I64 => {
                             let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     3 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             pbrs::rt::require_utf8(&data[s..e])?;
                         }
-                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     4 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     5 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -1471,7 +1472,7 @@ mod __gen_google_protobuf_struct_proto {
                             let mut ip = 0;
                             Struct::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     6 => match w {
                         pbrs::rt::WIRE_LEN => {
@@ -1479,9 +1480,9 @@ mod __gen_google_protobuf_struct_proto {
                             let mut ip = 0;
                             ListValue::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                 }
             }
             if until.is_some() {

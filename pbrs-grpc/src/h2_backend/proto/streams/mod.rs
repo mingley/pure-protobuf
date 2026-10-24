@@ -1,11 +1,11 @@
 mod buffer;
+mod counts;
+mod flow_control;
 #[cfg(target_os = "linux")]
 mod lock;
 #[cfg(not(target_os = "linux"))]
 #[path = "lock/fallback.rs"]
 mod lock;
-mod counts;
-mod flow_control;
 mod prioritize;
 mod recv;
 mod send;
@@ -23,7 +23,7 @@ pub(crate) use self::streams::{DynStreams, OpaqueStreamRef, StreamRef, Streams};
 use self::buffer::Buffer;
 use self::counts::Counts;
 use self::flow_control::FlowControl;
-use self::prioritize::Prioritize;
+use self::prioritize::{Prioritize, RetiredData};
 use self::recv::Recv;
 use self::send::Send;
 use self::state::State;
@@ -54,6 +54,8 @@ pub(super) enum BufferStatus {
     Complete,
     /// The codec cannot accept another frame until it is flushed.
     CodecFull,
+    /// Release a bounded owner batch before continuing the same encoded batch.
+    RetiredFull,
     /// No window update, no queued frame, and nothing in flight.
     Idle,
 }
@@ -126,11 +128,7 @@ trait DebugStructExt<'a, 'b> {
 
 impl<'a, 'b> DebugStructExt<'a, 'b> for std::fmt::DebugStruct<'a, 'b> {
     fn h2_field_if(&mut self, name: &str, val: &bool) -> &mut std::fmt::DebugStruct<'a, 'b> {
-        if *val {
-            self.field(name, val)
-        } else {
-            self
-        }
+        if *val { self.field(name, val) } else { self }
     }
 
     fn h2_field_if_then<T: std::fmt::Debug>(
@@ -139,11 +137,7 @@ impl<'a, 'b> DebugStructExt<'a, 'b> for std::fmt::DebugStruct<'a, 'b> {
         cond: bool,
         val: &T,
     ) -> &mut std::fmt::DebugStruct<'a, 'b> {
-        if cond {
-            self.field(name, val)
-        } else {
-            self
-        }
+        if cond { self.field(name, val) } else { self }
     }
 
     fn h2_field_some<T: std::fmt::Debug>(

@@ -83,6 +83,60 @@ pub(crate) struct Prioritized<B> {
     stream: store::Key,
 }
 
+// Scratch ownership for one staging pass, never stored in the engine. Visible
+// bytes do not bound an opaque backing owner's size; bound the owner count.
+const RETIRED_DATA_LIMIT: usize = 16;
+
+pub(super) struct RetiredData<B> {
+    frames: [Option<frame::Data<Prioritized<B>>>; RETIRED_DATA_LIMIT],
+    len: usize,
+}
+
+impl<B> RetiredData<B> {
+    pub(super) fn new() -> Self {
+        Self {
+            frames: [const { None }; RETIRED_DATA_LIMIT],
+            len: 0,
+        }
+    }
+
+    pub(super) fn is_full(&self) -> bool {
+        self.len == RETIRED_DATA_LIMIT
+    }
+
+    pub(super) fn push(&mut self, frame: frame::Data<Prioritized<B>>) {
+        let slot = self
+            .frames
+            .get_mut(self.len)
+            .expect("retirement capacity checked before taking frame");
+        debug_assert!(slot.is_none());
+        *slot = Some(frame);
+        self.len += 1;
+    }
+
+    pub(super) fn last(&self) -> &frame::Data<Prioritized<B>> {
+        self.frames
+            .get(self.len.checked_sub(1).expect("retired frame present"))
+            .and_then(Option::as_ref)
+            .expect("occupied retirement slot")
+    }
+
+    fn pop(&mut self) -> frame::Data<Prioritized<B>> {
+        self.len = self.len.checked_sub(1).expect("retired frame present");
+        self.frames
+            .get_mut(self.len)
+            .and_then(Option::take)
+            .expect("occupied retirement slot")
+    }
+
+    pub(super) fn has_tail(&self) -> bool
+    where
+        B: Buf,
+    {
+        self.last().payload().inner.has_remaining()
+    }
+}
+
 // ===== impl Prioritize =====
 
 impl Prioritize {
@@ -615,6 +669,7 @@ impl Prioritize {
         store: &mut Store,
         counts: &mut Counts,
         dst: &mut Codec<T, Prioritized<B>>,
+        retired: &mut RetiredData<B>,
     ) -> io::Result<BufferStatus>
     where
         T: AsyncWrite + Unpin,
@@ -626,12 +681,15 @@ impl Prioritize {
             return Ok(BufferStatus::Idle);
         }
         // Reclaim any frame that has previously been written
-        self.reclaim_frame(buffer, store, dst);
+        self.reclaim_frame(buffer, store, dst, retired);
 
         // The max frame length
         let max_frame_len = dst.max_send_frame_size();
 
         loop {
+            if retired.is_full() {
+                return Ok(BufferStatus::RetiredFull);
+            }
             if !dst.has_send_capacity() {
                 return Ok(BufferStatus::CodecFull);
             }
@@ -653,7 +711,7 @@ impl Prioritize {
                 // slot. A larger payload stays in `next` and a header block
                 // never sets it, so reclaim would only observe None.
                 if dst.has_last_data_frame() {
-                    self.reclaim_frame(buffer, store, dst);
+                    self.reclaim_frame(buffer, store, dst, retired);
                 }
             } else {
                 // The queue is drained. Headers leave nothing in flight, so
@@ -672,16 +730,17 @@ impl Prioritize {
         buffer: &mut Buffer<Frame<B>>,
         store: &mut Store,
         dst: &mut Codec<T, Prioritized<B>>,
+        retired: &mut RetiredData<B>,
     ) -> bool
     where
         B: Buf,
     {
-        self.reclaim_frame(buffer, store, dst)
+        self.reclaim_frame(buffer, store, dst, retired)
     }
 
     /// The codec finished this data frame. Clear the in-flight mark.
     /// The frame slab is not involved.
-    pub(super) fn reclaim_consumed<B>(&mut self, frame: frame::Data<Prioritized<B>>)
+    pub(super) fn reclaim_consumed<B>(&mut self, frame: &frame::Data<Prioritized<B>>)
     where
         B: Buf,
     {
@@ -699,12 +758,12 @@ impl Prioritize {
         &mut self,
         buffer: &mut Buffer<Frame<B>>,
         store: &mut Store,
-        frame: frame::Data<Prioritized<B>>,
+        retired: &mut RetiredData<B>,
     ) -> bool
     where
         B: Buf,
     {
-        self.reclaim_frame_inner(buffer, store, frame)
+        self.reclaim_frame_inner(buffer, store, retired)
     }
 
     /// Tries to reclaim a pending data frame from the codec.
@@ -719,13 +778,15 @@ impl Prioritize {
         buffer: &mut Buffer<Frame<B>>,
         store: &mut Store,
         dst: &mut Codec<T, Prioritized<B>>,
+        retired: &mut RetiredData<B>,
     ) -> bool
     where
         B: Buf,
     {
         // First check if there are any data chunks to take back
         if let Some(frame) = dst.take_last_data_frame() {
-            self.reclaim_frame_inner(buffer, store, frame)
+            retired.push(frame);
+            self.reclaim_frame_inner(buffer, store, retired)
         } else {
             false
         }
@@ -735,13 +796,14 @@ impl Prioritize {
         &mut self,
         buffer: &mut Buffer<Frame<B>>,
         store: &mut Store,
-        frame: frame::Data<Prioritized<B>>,
+        retired: &mut RetiredData<B>,
     ) -> bool
     where
         B: Buf,
     {
-        let mut eos = false;
+        let frame = retired.last();
         let key = frame.payload().stream;
+        let eos = frame.payload().end_of_stream;
 
         match mem::replace(&mut self.in_flight_data_frame, InFlightData::Nothing) {
             InFlightData::Nothing => panic!("wasn't expecting a frame to reclaim"),
@@ -753,25 +815,17 @@ impl Prioritize {
             }
         }
 
-        let mut frame = frame.map(|prioritized| {
-            // TODO: Ensure fully written
-            eos = prioritized.end_of_stream;
-            prioritized.inner
-        });
-
-        if frame.payload().has_remaining() {
-            let mut stream = store.resolve(key);
-
-            if eos {
-                frame.set_end_stream(true);
-            }
-
-            self.push_back_frame(frame.into(), buffer, &mut stream);
-
-            return true;
+        if !retired.has_tail() {
+            return false;
         }
-
-        false
+        // Resolve before removing the frame from the outer owner batch.
+        let mut stream = store.resolve(key);
+        let mut frame = retired.pop().map(|prioritized| prioritized.inner);
+        if eos {
+            frame.set_end_stream(true);
+        }
+        self.push_back_frame(frame.into(), buffer, &mut stream);
+        true
     }
 
     /// Push the frame to the front of the stream's deque, scheduling the

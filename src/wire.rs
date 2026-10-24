@@ -651,6 +651,48 @@ pub fn skip_field_with_depth(
     }
 }
 
+/// Skip a field with its decoded number and enclosing recursion depth.
+///
+/// Unlike [`skip_field_with_depth`], this validates that every end-group
+/// number matches its corresponding start-group. Non-group fields retain
+/// the existing skip behavior; unknown length-delimited bytes stay opaque.
+pub fn skip_field_with_number_and_depth(
+    buf: &[u8],
+    pos: &mut usize,
+    number: u32,
+    wire: u32,
+    depth: u32,
+) -> Result<(), ParseError> {
+    if wire == WIRE_SGROUP {
+        skip_group_with_number_and_depth(buf, pos, number, depth)
+    } else {
+        skip_field(buf, pos, wire)
+    }
+}
+
+#[cold]
+fn skip_group_with_number_and_depth(
+    buf: &[u8],
+    pos: &mut usize,
+    number: u32,
+    depth: u32,
+) -> Result<(), ParseError> {
+    if depth >= crate::RECURSION_LIMIT {
+        return Err(ParseError::new("recursion limit exceeded"));
+    }
+    let group_depth = depth + 1;
+    loop {
+        let (inner_number, inner_wire) = decode_tag(buf, pos)?;
+        if inner_wire == WIRE_EGROUP {
+            if inner_number != number {
+                return Err(ParseError::new("mismatched end-group"));
+            }
+            return Ok(());
+        }
+        skip_field_with_number_and_depth(buf, pos, inner_number, inner_wire, group_depth)?;
+    }
+}
+
 #[cold]
 fn skip_group_with_depth(buf: &[u8], pos: &mut usize, depth: u32) -> Result<(), ParseError> {
     if depth >= crate::RECURSION_LIMIT {
@@ -1421,5 +1463,221 @@ mod tests {
             check(&buf);
         }
         println!("bulk varint differential: {count} inputs, no divergence");
+    }
+}
+
+#[cfg(all(test, feature = "conformance"))]
+mod unknown_group_structure_tests {
+    use super::*;
+    use crate::gencode::{TestAllTypesProto2, TestAllTypesProto3};
+    use crate::{Parse, Serialize};
+
+    fn tags(items: &[(u32, u32)]) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        for &(number, wire) in items {
+            encode_tag(&mut bytes, number, wire);
+        }
+        bytes
+    }
+
+    fn malformed_groups() -> Vec<(&'static str, Vec<u8>)> {
+        vec![
+            (
+                "mismatched outer",
+                tags(&[(10001, WIRE_SGROUP), (10002, WIRE_EGROUP)]),
+            ),
+            (
+                "mismatched inner",
+                tags(&[
+                    (10001, WIRE_SGROUP),
+                    (10002, WIRE_SGROUP),
+                    (10003, WIRE_EGROUP),
+                    (10001, WIRE_EGROUP),
+                ]),
+            ),
+            (
+                "crossed groups",
+                tags(&[
+                    (10001, WIRE_SGROUP),
+                    (10002, WIRE_SGROUP),
+                    (10001, WIRE_EGROUP),
+                    (10002, WIRE_EGROUP),
+                ]),
+            ),
+            ("unmatched start", tags(&[(10001, WIRE_SGROUP)])),
+            ("unmatched end", tags(&[(10001, WIRE_EGROUP)])),
+            (
+                "unclosed outer",
+                tags(&[
+                    (10001, WIRE_SGROUP),
+                    (10002, WIRE_SGROUP),
+                    (10002, WIRE_EGROUP),
+                ]),
+            ),
+            (
+                "extra end",
+                tags(&[
+                    (10001, WIRE_SGROUP),
+                    (10001, WIRE_EGROUP),
+                    (10002, WIRE_EGROUP),
+                ]),
+            ),
+        ]
+    }
+
+    fn wrap(field: u32, payload: &[u8]) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        encode_len_field(&mut bytes, field, payload);
+        bytes
+    }
+
+    fn validates(bytes: &[u8]) -> bool {
+        let mut pos = 0;
+        let result =
+            TestAllTypesProto3::validate_inner(&crate::rt::Wire::from_slice(bytes), &mut pos, 0);
+        if result.is_ok() {
+            assert_eq!(pos, bytes.len());
+        }
+        result.is_ok()
+    }
+
+    #[test]
+    fn valid_unknown_groups_roundtrip_direct_lazy_and_validator() {
+        for group in [
+            tags(&[(10001, WIRE_SGROUP), (10001, WIRE_EGROUP)]),
+            tags(&[
+                (10001, WIRE_SGROUP),
+                (10002, WIRE_SGROUP),
+                (10002, WIRE_EGROUP),
+                (10001, WIRE_EGROUP),
+            ]),
+            tags(&[
+                (MAX_FIELD_NUMBER, WIRE_SGROUP),
+                (MAX_FIELD_NUMBER, WIRE_EGROUP),
+            ]),
+        ] {
+            for bytes in [group.clone(), wrap(27, &group)] {
+                assert!(validates(&bytes));
+                let parsed = TestAllTypesProto3::parse(&bytes).unwrap();
+                assert_eq!(parsed.serialize().unwrap(), bytes);
+                if parsed.has_recursive_message() {
+                    assert_eq!(parsed.recursive_message().serialize().unwrap(), group);
+                    assert_eq!(parsed.serialize().unwrap(), bytes);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn malformed_unknown_groups_reject_direct_parse() {
+        for (case, bytes) in malformed_groups() {
+            assert!(TestAllTypesProto3::parse(&bytes).is_err(), "{case}");
+        }
+    }
+
+    #[test]
+    fn malformed_unknown_groups_reject_lazy_parse() {
+        for (case, bytes) in malformed_groups() {
+            assert!(
+                TestAllTypesProto3::parse(&wrap(27, &bytes)).is_err(),
+                "{case}"
+            );
+        }
+    }
+
+    #[test]
+    fn malformed_unknown_groups_reject_validator() {
+        for (case, bytes) in malformed_groups() {
+            assert!(!validates(&bytes), "{case}");
+        }
+    }
+
+    #[test]
+    fn wrong_wire_known_field_group_rejects_mismatched_end() {
+        let bytes = tags(&[(1, WIRE_SGROUP), (2, WIRE_EGROUP)]);
+        assert!(TestAllTypesProto3::parse(&bytes).is_err());
+        assert!(!validates(&bytes));
+        assert!(TestAllTypesProto3::parse(&wrap(27, &bytes)).is_err());
+    }
+
+    #[test]
+    fn malformed_unknown_map_entry_groups_reject_direct_and_lazy() {
+        for field in [56, 71] {
+            for (case, group) in malformed_groups() {
+                // Correctly framed entry: omitted key/value are permitted;
+                // only the unknown group's structure is malformed.
+                let bytes = wrap(field, &group);
+                assert!(
+                    TestAllTypesProto3::parse(&bytes).is_err(),
+                    "direct map {field}: {case}"
+                );
+                assert!(!validates(&bytes), "map validator {field}: {case}");
+                assert!(
+                    TestAllTypesProto3::parse(&wrap(27, &bytes)).is_err(),
+                    "lazy map {field}: {case}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn malformed_unknown_message_set_groups_reject_both_item_forms() {
+        for delimited in [false, true] {
+            for (case, group) in malformed_groups() {
+                let item = if delimited {
+                    wrap(1, &group)
+                } else {
+                    let mut item = tags(&[(1, WIRE_SGROUP)]);
+                    item.extend_from_slice(&group);
+                    encode_tag(&mut item, 1, WIRE_EGROUP);
+                    item
+                };
+                assert!(
+                    TestAllTypesProto2::parse(&wrap(500, &item)).is_err(),
+                    "MessageSet {delimited}: {case}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn unknown_groups_keep_total_recursion_budget() {
+        let group_chain = |count| {
+            let mut bytes = Vec::new();
+            for _ in 0..count {
+                encode_tag(&mut bytes, 10001, WIRE_SGROUP);
+            }
+            for _ in 0..count {
+                encode_tag(&mut bytes, 10001, WIRE_EGROUP);
+            }
+            bytes
+        };
+        for (known, groups, accepted) in [
+            (0, 100, true),
+            (0, 101, false),
+            (1, 99, true),
+            (1, 100, false),
+        ] {
+            let body = group_chain(groups);
+            let bytes = if known == 0 { body } else { wrap(27, &body) };
+            assert_eq!(TestAllTypesProto3::parse(&bytes).is_ok(), accepted);
+            assert_eq!(validates(&bytes), accepted);
+        }
+    }
+
+    #[test]
+    fn unknown_length_delimited_payloads_remain_opaque() {
+        for (_, payload) in malformed_groups() {
+            for bytes in [wrap(10001, &payload), wrap(27, &wrap(10001, &payload))] {
+                assert!(validates(&bytes));
+                assert_eq!(
+                    TestAllTypesProto3::parse(&bytes)
+                        .unwrap()
+                        .serialize()
+                        .unwrap(),
+                    bytes
+                );
+            }
+        }
     }
 }

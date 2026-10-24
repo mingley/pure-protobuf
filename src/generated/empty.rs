@@ -258,7 +258,7 @@ mod __gen_google_protobuf_empty_proto {
                     }
                 }
                 match n {
-                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                 }
             }
             if until.is_some() {

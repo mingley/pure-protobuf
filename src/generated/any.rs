@@ -401,15 +401,15 @@ mod __gen_google_protobuf_any_proto {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             pbrs::rt::require_utf8(&data[s..e])?;
                         }
-                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     2 => match w {
                         pbrs::rt::WIRE_LEN => {
                             pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                 }
             }
             if until.is_some() {

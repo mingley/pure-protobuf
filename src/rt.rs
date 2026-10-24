@@ -16,7 +16,7 @@ pub use crate::wire::{
     decode_tag, decode_varint, decode_zigzag32, decode_zigzag64, encode_len_field,
     encode_len_field_shared, encode_len_header, encode_tag, encode_varint, encode_zigzag32,
     encode_zigzag64, key_len_value_len, read_fixed32, read_fixed64, read_len_bytes, read_len_span,
-    skip_field, skip_field_with_depth, tag_len, varint_len,
+    skip_field, skip_field_with_depth, skip_field_with_number_and_depth, tag_len, varint_len,
 };
 pub use bytes::Bytes;
 

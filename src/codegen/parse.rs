@@ -175,11 +175,11 @@ pub(crate) fn emit_codec(
         let _ = writeln!(src, "            1 => match w {{");
         let _ = writeln!(
             src,
-            "                pbrs::rt::WIRE_LEN => {{ let inner = pbrs::rt::read_len_bytes(data, pos)?; let mut ip = 0; while ip < inner.len() {{ let (_, ww) = pbrs::rt::decode_tag(inner, &mut ip)?; pbrs::rt::skip_field_with_depth(inner, &mut ip, ww, depth + 1)?; }} }}"
+            "                pbrs::rt::WIRE_LEN => {{ let inner = pbrs::rt::read_len_bytes(data, pos)?; let mut ip = 0; while ip < inner.len() {{ let (nn, ww) = pbrs::rt::decode_tag(inner, &mut ip)?; pbrs::rt::skip_field_with_number_and_depth(inner, &mut ip, nn, ww, depth + 1)?; }} }}"
         );
         let _ = writeln!(
             src,
-            "                _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,"
+            "                _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,"
         );
         let _ = writeln!(src, "            }}");
     }
@@ -192,13 +192,13 @@ pub(crate) fn emit_codec(
         emit_validate_arm(src, f, bit);
         let _ = writeln!(
             src,
-            "                _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,"
+            "                _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,"
         );
         let _ = writeln!(src, "            }}");
     }
     let _ = writeln!(
         src,
-        "                _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,"
+        "                _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,"
     );
     let _ = writeln!(src, "            }}");
     let _ = writeln!(src, "        }}");
@@ -279,7 +279,7 @@ pub(crate) fn emit_message_set_merge(src: &mut String, desc: &MessageDescriptor)
     );
     let _ = writeln!(
         src,
-        "                    if w == pbrs::rt::WIRE_LEN {{ let inner = pbrs::rt::read_len_bytes(data, pos)?; let mut p = 0; while p < inner.len() {{ let (n, ww) = pbrs::rt::decode_tag(inner, &mut p)?; match (n, ww) {{ (2, pbrs::rt::WIRE_VARINT) => type_id = pbrs::rt::decode_varint(inner, &mut p)? as u32, (3, pbrs::rt::WIRE_LEN) => payload = pbrs::rt::read_len_bytes(inner, &mut p)?.to_vec(), _ => pbrs::rt::skip_field_with_depth(inner, &mut p, ww, depth + 1)?, }} }} }} else {{ loop {{ let (n, ww) = pbrs::rt::decode_tag(data, pos)?; if ww == pbrs::rt::WIRE_EGROUP && n == 1 {{ break; }} match (n, ww) {{ (2, pbrs::rt::WIRE_VARINT) => type_id = pbrs::rt::decode_varint(data, pos)? as u32, (3, pbrs::rt::WIRE_LEN) => payload = pbrs::rt::read_len_bytes(data, pos)?.to_vec(), _ => pbrs::rt::skip_field_with_depth(data, pos, ww, depth + 1)?, }} }} }}"
+        "                    if w == pbrs::rt::WIRE_LEN {{ let inner = pbrs::rt::read_len_bytes(data, pos)?; let mut p = 0; while p < inner.len() {{ let (n, ww) = pbrs::rt::decode_tag(inner, &mut p)?; match (n, ww) {{ (2, pbrs::rt::WIRE_VARINT) => type_id = pbrs::rt::decode_varint(inner, &mut p)? as u32, (3, pbrs::rt::WIRE_LEN) => payload = pbrs::rt::read_len_bytes(inner, &mut p)?.to_vec(), _ => pbrs::rt::skip_field_with_number_and_depth(inner, &mut p, n, ww, depth + 1)?, }} }} }} else {{ loop {{ let (n, ww) = pbrs::rt::decode_tag(data, pos)?; if ww == pbrs::rt::WIRE_EGROUP && n == 1 {{ break; }} match (n, ww) {{ (2, pbrs::rt::WIRE_VARINT) => type_id = pbrs::rt::decode_varint(data, pos)? as u32, (3, pbrs::rt::WIRE_LEN) => payload = pbrs::rt::read_len_bytes(data, pos)?.to_vec(), _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, ww, depth + 1)?, }} }} }}"
     );
     let _ = writeln!(src, "                    match type_id {{");
     for f in desc.fields.values() {
@@ -376,12 +376,12 @@ pub(crate) fn emit_validate_arm(src: &mut String, f: &FieldDescriptor, req_bit: 
             let (_, value_type) = map_kv(f);
             let _ = writeln!(
                 src,
-                "                    while ip < d.len() {{ let (nn, ww) = pbrs::rt::decode_tag(d, &mut ip)?; match (nn, ww) {{ (2, pbrs::rt::WIRE_LEN) => {{ if entry_depth >= pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }} let (vs, ve) = pbrs::rt::read_len_span(d, &mut ip)?; let mut vp = 0; {value_type}::validate_inner(&w.window(vs, ve), &mut vp, entry_depth + 1)?; }}, _ => pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?, }} }}{mark}"
+                "                    while ip < d.len() {{ let (nn, ww) = pbrs::rt::decode_tag(d, &mut ip)?; match (nn, ww) {{ (2, pbrs::rt::WIRE_LEN) => {{ if entry_depth >= pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }} let (vs, ve) = pbrs::rt::read_len_span(d, &mut ip)?; let mut vp = 0; {value_type}::validate_inner(&w.window(vs, ve), &mut vp, entry_depth + 1)?; }}, _ => pbrs::rt::skip_field_with_number_and_depth(d, &mut ip, nn, ww, entry_depth)?, }} }}{mark}"
             );
         } else {
             let _ = writeln!(
                 src,
-                "                    while ip < d.len() {{ let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?; pbrs::rt::skip_field_with_depth(d, &mut ip, ww, entry_depth)?; }}{mark}"
+                "                    while ip < d.len() {{ let (nn, ww) = pbrs::rt::decode_tag(d, &mut ip)?; pbrs::rt::skip_field_with_number_and_depth(d, &mut ip, nn, ww, entry_depth)?; }}{mark}"
             );
         }
         let _ = writeln!(src, "                }}");
@@ -764,7 +764,7 @@ pub(crate) fn emit_map_decoders(
         }
         let _ = writeln!(
             src,
-            "        _ => pbrs::rt::skip_field_with_depth(data, &mut pos, w, depth)?,"
+            "        _ => pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,"
         );
         let _ = writeln!(src, "    }} }}");
         if message_value {

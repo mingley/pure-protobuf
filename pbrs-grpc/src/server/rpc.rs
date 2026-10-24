@@ -373,7 +373,6 @@ impl Rpc {
         self.call_cancel.deadline.tighten(
             self.effective_timeout()
                 .and_then(|d| self.accepted_at.checked_add(d)),
-            &self.respond,
         )
     }
 

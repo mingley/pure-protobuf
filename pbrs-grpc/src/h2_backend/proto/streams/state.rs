@@ -471,7 +471,10 @@ impl State {
     }
 
     /// Returns a reason if the stream has been reset.
-    pub(super) fn ensure_reason(&self, mode: PollReset) -> Result<Option<Reason>, crate::h2_backend::Error> {
+    pub(super) fn ensure_reason(
+        &self,
+        mode: PollReset,
+    ) -> Result<Option<Reason>, crate::h2_backend::Error> {
         match self.inner {
             Closed(Cause::Error(Error::Reset(_, reason, _)))
             | Closed(Cause::ErrorAfterEndStream(Error::Reset(_, reason, _)))

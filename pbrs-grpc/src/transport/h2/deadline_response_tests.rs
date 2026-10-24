@@ -484,3 +484,177 @@ async fn deadline_response_returns_reserved_credit_and_wakes_siblings_after_unlo
     );
     peer.recover().await;
 }
+
+// Preparation only: append to transport/h2/deadline_response_tests.rs.
+// Uses that module's independent Peer; no timeout or terminal owner is activated.
+
+struct NormalSuccessProbe {
+    send: Arc<Mutex<super::SendStream>>,
+    drops: std::sync::atomic::AtomicUsize,
+    observed: AtomicU8,
+    worker: Mutex<Option<std::thread::JoinHandle<usize>>>,
+}
+
+impl NormalSuccessProbe {
+    fn new(send: Arc<Mutex<super::SendStream>>) -> Arc<Self> {
+        Arc::new(Self {
+            send,
+            drops: std::sync::atomic::AtomicUsize::new(0),
+            observed: AtomicU8::new(0),
+            worker: Mutex::new(None),
+        })
+    }
+
+    fn on_drop(&self) {
+        self.drops.fetch_add(1, Ordering::AcqRel);
+        let send = Arc::clone(&self.send);
+        let (done, finished) = std::sync::mpsc::sync_channel(1);
+        let worker = std::thread::spawn(move || {
+            // A read-only query locks the same engine; it neither finishes nor
+            // resets the successful response. Main retains another send owner.
+            let capacity = send.lock().unwrap().capacity();
+            let _send_result = done.send(capacity);
+            capacity
+        });
+        *self.worker.lock().unwrap() = Some(worker);
+        // This is a finite deadlock detector, not a latency requirement. If the
+        // engine is held, return after three seconds so it can release its lock
+        // and the worker can complete. Do not join inside the destructor.
+        let outcome = match finished.recv_timeout(Duration::from_secs(3)) {
+            Ok(_) => 1,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => 2,
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => 3,
+        };
+        self.observed.store(outcome, Ordering::Release);
+    }
+
+    async fn finish_worker(&self) {
+        bounded(async {
+            loop {
+                let finished = self
+                    .worker
+                    .lock()
+                    .unwrap()
+                    .as_ref()
+                    .is_some_and(std::thread::JoinHandle::is_finished);
+                if finished {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await;
+        // is_finished above makes this join nonblocking. It also reports a
+        // worker panic instead of leaving a detached lock probe behind.
+        let worker = self.worker.lock().unwrap().take().unwrap();
+        let _queried_capacity = worker.join().expect("capacity probe returned");
+        assert_eq!(self.drops.load(Ordering::Acquire), 1);
+    }
+}
+
+struct NormalSuccessBody {
+    bytes: Vec<u8>,
+    probe: Arc<NormalSuccessProbe>,
+}
+
+impl AsRef<[u8]> for NormalSuccessBody {
+    fn as_ref(&self) -> &[u8] {
+        &self.bytes
+    }
+}
+
+impl Drop for NormalSuccessBody {
+    fn drop(&mut self) {
+        self.probe.on_drop();
+    }
+}
+
+async fn ordinary_success_owner_case(payload_len: usize, unlocked_control: bool) {
+    let mut peer = Peer::new(65_535).await;
+    let (response, mut respond) = peer.open().await;
+    let send = Arc::new(Mutex::new(
+        respond.send_response(headers(None), false).unwrap(),
+    ));
+    let response = bounded(response).await.unwrap();
+    assert_eq!(response.status(), http::StatusCode::OK);
+    assert_eq!(response.headers()["content-type"], "application/grpc");
+    let mut body = response.into_body();
+    let probe = NormalSuccessProbe::new(Arc::clone(&send));
+    let mut expected = vec![b'x'; payload_len];
+    // One complete native uncompressed gRPC message, including its 5-byte head.
+    let message_len = u32::try_from(payload_len - 5).unwrap();
+    expected[0] = 0;
+    expected[1..5].copy_from_slice(&message_len.to_be_bytes());
+    let owned = Bytes::from_owner(NormalSuccessBody {
+        bytes: expected.clone(),
+        probe: Arc::clone(&probe),
+    });
+    if unlocked_control {
+        // Same query, same live stream, but deliberately destroy this backing
+        // owner outside engine work. Then send an ordinary successful response.
+        drop(owned);
+        assert_eq!(probe.observed.load(Ordering::Acquire), 1);
+        let mut send = send.lock().unwrap();
+        send.send_data(Bytes::copy_from_slice(&expected), false)
+            .unwrap();
+        send.send_trailers(trailers("0")).unwrap();
+    } else {
+        // Pause socket flush only. Writes remain enabled. With the existing
+        // non-vectored GatedIo, 64 B is copied and 16,384 B is chained; the latter
+        // occupies exactly one default-max HTTP/2 DATA frame with ample credit.
+        peer.flush.pause();
+        let mut send = send.lock().unwrap();
+        send.send_data(owned, false).unwrap();
+        send.send_trailers(trailers("0")).unwrap();
+    }
+
+    let first = bounded(body.data()).await.unwrap().unwrap();
+    assert_eq!(first.as_ref(), expected.as_slice());
+    if !unlocked_control {
+        assert!(peer.flush.blocked.load(Ordering::Acquire));
+        if payload_len == 16_384 {
+            // Witness the fully written chained frame still held by the codec
+            // behind poll_flush. Reclaim must happen after this gate opens.
+            assert_eq!(probe.drops.load(Ordering::Acquire), 0);
+            assert_eq!(probe.observed.load(Ordering::Acquire), 0);
+        } else {
+            // The small copied owner was retired while staging, before flush.
+            assert_eq!(probe.drops.load(Ordering::Acquire), 1);
+            assert_ne!(probe.observed.load(Ordering::Acquire), 0);
+        }
+        peer.flush.release();
+    }
+    body.flow_control().release_capacity(first.len()).unwrap();
+    assert!(bounded(body.data()).await.is_none());
+    assert_eq!(
+        bounded(body.trailers()).await.unwrap().unwrap()["grpc-status"],
+        "0"
+    );
+    probe.finish_worker().await;
+    peer.recover().await;
+    // Establish complete successful output, exactly-once destruction, worker
+    // completion and connection recovery before the causal red/green assertion.
+    let observed = probe.observed.load(Ordering::Acquire);
+    eprintln!(
+        "normal-success owner: payload={payload_len} control={unlocked_control} native_status=0 recovery=ok drops=1 reentry={observed} (1=returned, 2=watchdog, 3=disconnected)"
+    );
+    assert_eq!(
+        observed, 1,
+        "ordinary successful DATA owner could not query its engine during Drop"
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn normal_success_owner_drop_unlocked_control() {
+    ordinary_success_owner_case(64, true).await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn normal_success_small_copied_owner_drop_reenters_unlocked() {
+    ordinary_success_owner_case(64, false).await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn normal_success_large_chained_tail_drop_reenters_unlocked() {
+    ordinary_success_owner_case(16_384, false).await;
+}

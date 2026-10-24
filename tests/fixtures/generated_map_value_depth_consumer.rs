@@ -115,19 +115,18 @@ mod tests {
         for value in [&[0x10, 0x80][..], &[0x0a, 2, 0x10][..], &truncated_group] {
             assert!(!validate(&vectors::malformed_value(0, 1, value), 0));
         }
-        // Skip-based validators retain QG18's legacy mismatched end-number acceptance.
-        // This test deliberately does not add stricter skip end-tag semantics.
+        // Unknown groups must be structurally valid in both merge and validation.
     }
 
     #[test]
-    fn legacy_group_end_number_difference_remains_explicit() {
+    fn mismatched_unknown_group_ends_reject_in_every_parse_path() {
         let mut mismatched = Vec::new();
         pbrs::rt::encode_tag(&mut mismatched, 99, pbrs::rt::WIRE_SGROUP);
         pbrs::rt::encode_tag(&mut mismatched, 98, pbrs::rt::WIRE_EGROUP);
         assert!(Node::parse(&vectors::malformed_value(0, 1, &mismatched)).is_err());
         assert!(Node::parse(&vectors::malformed_value(1, 3, &mismatched)).is_err());
-        assert!(Node::parse(&vectors::malformed_value(1, 1, &mismatched)).is_ok());
-        assert!(validate(&vectors::malformed_value(0, 1, &mismatched), 0));
+        assert!(Node::parse(&vectors::malformed_value(1, 1, &mismatched)).is_err());
+        assert!(!validate(&vectors::malformed_value(0, 1, &mismatched), 0));
     }
 
     #[test]

@@ -734,7 +734,8 @@ use crate::dynamic::{
 use crate::string::{ProtoBytes, ProtoString};
 #[cfg(feature = "reflect")]
 use crate::wire::{
-    decode_tag as dyn_decode_tag, skip_field_with_depth as dyn_skip_field_with_depth,
+    decode_tag as dyn_decode_tag,
+    skip_field_with_number_and_depth as dyn_skip_field_with_number_and_depth,
 };
 #[cfg(feature = "reflect")]
 use std::sync::Arc;
@@ -1544,7 +1545,9 @@ fn merge_dynamic_message_set(
             match (number, wire) {
                 (2, WIRE_VARINT) => type_id = decode_varint(inner, &mut item)? as u32,
                 (3, WIRE_LEN) => payload = read_len_bytes(inner, &mut item)?.to_vec(),
-                _ => dyn_skip_field_with_depth(inner, &mut item, wire, depth + 1)?,
+                _ => {
+                    dyn_skip_field_with_number_and_depth(inner, &mut item, number, wire, depth + 1)?
+                }
             }
         }
     } else if wire_type == WIRE_SGROUP {

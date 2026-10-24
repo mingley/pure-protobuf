@@ -9,7 +9,7 @@ use crate::status::Status;
 use crate::telemetry::{
     CallLabels, CallRole, CancellationEvent, CancellationReason, LifecycleObserver, OwnedCallLabels,
 };
-use crate::transport::h2::{DeadlineEnding, DeadlineResponse, SendResponse};
+use crate::transport::h2::{DeadlineEnding, DeadlineResponse};
 use atomic_waker::AtomicWaker;
 use std::future::{Future, poll_fn};
 use std::sync::Arc;
@@ -22,8 +22,8 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use std::task::{Context, Poll};
 use tokio::time::Instant;
 
-/// Reuses the call's cancellation allocation. Unlimited calls do not retain a
-/// backend response capability or allocate a timer.
+/// Reuses the call's cancellation allocation. The service owner holds the
+/// backend response capability; only finite deadlines allocate a timer.
 pub(crate) struct CallDeadline {
     flags: AtomicU8,
     wake: AtomicWaker,
@@ -36,7 +36,6 @@ pub(crate) struct CallDeadline {
 
 struct DeadlineState {
     at: Option<Instant>,
-    response: Option<DeadlineResponse>,
     binlog: Option<crate::binlog::CallLogger>,
     web_carry: ([u8; 2], usize),
 }
@@ -56,7 +55,6 @@ impl CallDeadline {
         )]
         let inner = Mutex::new(DeadlineState {
             at: None,
-            response: None,
             binlog: None,
             web_carry: ([0; 2], 0),
         });
@@ -81,7 +79,7 @@ impl CallDeadline {
         self.inner.lock().unwrap_or_else(|p| p.into_inner()).at
     }
 
-    pub(crate) fn tighten(&self, at: Option<Instant>, respond: &SendResponse) -> Option<Instant> {
+    pub(crate) fn tighten(&self, at: Option<Instant>) -> Option<Instant> {
         let Some(at) = at else { return self.at() };
         let flags = self.flags.load(Ordering::Acquire);
         if flags & Self::CLOSED != 0 {
@@ -90,23 +88,14 @@ impl CallDeadline {
         if self.at().is_some_and(|previous| previous <= at) {
             return self.at();
         }
-        // Cloning/dropping a backend capability can acquire engine locks, so
-        // neither operation belongs inside the call-state lock.
-        let mut capability = (flags & Self::ACTIVE == 0)
-            .then(|| respond.deadline_response())
-            .flatten();
         let result = {
             let mut state = self.inner.lock().unwrap_or_else(|p| p.into_inner());
             if self.flags.load(Ordering::Acquire) & Self::CLOSED == 0 {
                 state.at = Some(state.at.map_or(at, |previous| previous.min(at)));
-                if state.response.is_none() {
-                    state.response = capability.take();
-                }
                 self.flags.fetch_or(Self::ACTIVE, Ordering::Release);
             }
             state.at
         };
-        drop(capability);
         self.wake.wake();
         result
     }
@@ -174,23 +163,15 @@ impl CallDeadline {
             let mut state = self.inner.lock().unwrap_or_else(|p| p.into_inner());
             self.flags.fetch_or(Self::CLOSED, Ordering::AcqRel);
             state.web_carry = ([0; 2], 0);
-            (state.response.take(), state.binlog.take())
+            state.binlog.take()
         };
         drop(self.wake.take());
         drop(resources);
     }
 
-    fn take_terminal(
-        &self,
-    ) -> (
-        Option<DeadlineResponse>,
-        Option<crate::binlog::CallLogger>,
-        ([u8; 2], usize),
-        bool,
-    ) {
+    fn take_terminal(&self) -> (Option<crate::binlog::CallLogger>, ([u8; 2], usize), bool) {
         let mut state = self.inner.lock().unwrap_or_else(|p| p.into_inner());
         (
-            state.response.take(),
             state.binlog.take(),
             state.web_carry,
             self.flags.load(Ordering::Acquire) & Self::WEB_PARTIAL != 0,
@@ -200,6 +181,7 @@ impl CallDeadline {
 
 struct Owner {
     cancel: CancelOnDrop,
+    response: Option<DeadlineResponse>,
     observer: Option<Arc<dyn LifecycleObserver>>,
     labels: Option<OwnedCallLabels>,
     channelz_server: Option<crate::channelz::ServerId>,
@@ -218,6 +200,9 @@ pub(crate) async fn before_commit(call: &CancelFlag) {
 impl Drop for Owner {
     fn drop(&mut self) {
         self.cancel.flag().deadline.close();
+        // Backend reference destruction belongs outside the call-state lock and
+        // before the cancellation allocation can return to its reuse slot.
+        drop(self.response.take());
         if self.cancel.flag().deadline.started() && !self.cancel.flag().deadline.ended() {
             // Preserve registry accounting on connection abort and panic. A
             // second user callback panic during unwinding could abort the process.
@@ -260,6 +245,7 @@ pub(crate) fn serve<R: Runtime, D: Dispatch>(
     let accepted_at = rpc.accepted_at;
     let owner = Owner {
         cancel: CancelOnDrop::new(Arc::clone(&rpc.call_cancel)),
+        response: rpc.respond.deadline_response(),
         observer,
         labels,
         channelz_server,
@@ -284,11 +270,14 @@ pub(crate) fn serve<R: Runtime, D: Dispatch>(
     } else {
         Some(dispatch.dispatch(rpc))
     };
-    let state = ServiceState { service, owner };
+    let mut state = ServiceState { service, owner };
     async move {
-        let ServiceState { owner, service } = state;
+        let service = state.service.take();
+        // Keep the owner in its captured slot rather than moving a second
+        // full owner into the coroutine's live state.
+        let owner = &mut state.owner;
         let flag = owner.cancel.flag();
-        let expired = {
+        let terminal = {
             let service = async move {
                 match service {
                     Some(service) => service.await,
@@ -301,10 +290,10 @@ pub(crate) fn serve<R: Runtime, D: Dispatch>(
                 let at = flag.deadline.poll_at(cx);
                 if at.is_some_and(|at| R::now() >= at) {
                     flag.signal();
-                    return Poll::Ready(true);
+                    return Poll::Ready(Some(CancellationReason::DeadlineExceeded));
                 }
                 if service.as_mut().poll(cx).is_ready() {
-                    return Poll::Ready(false);
+                    return Poll::Ready(None);
                 }
                 if let Some(at) = flag.deadline.poll_at(cx) {
                     if sleep.as_ref().is_none_or(|(previous, _)| *previous != at) {
@@ -313,17 +302,36 @@ pub(crate) fn serve<R: Runtime, D: Dispatch>(
                     if let Some((_, sleep)) = &mut sleep {
                         if sleep.as_mut().poll(cx).is_ready() {
                             flag.signal();
-                            return Poll::Ready(true);
+                            return Poll::Ready(Some(CancellationReason::DeadlineExceeded));
                         }
+                    }
+                }
+                // Shape helpers get the first opportunity to observe a reset and
+                // poll cancellation-aware handlers. A custom Service parked before
+                // those helpers still needs a reset owner of its own.
+                if let Some(response) = owner.response.as_mut() {
+                    if let Poll::Ready(reset) = response.poll_reset_cause(cx) {
+                        flag.signal();
+                        let reason = if reset.is_reset() && reset.is_remote() {
+                            CancellationReason::PeerReset
+                        } else {
+                            CancellationReason::TransportReset
+                        };
+                        return Poll::Ready(Some(reason));
                     }
                 }
                 Poll::Pending
             })
             .await
         }; // Destroy service state before recovering/sending its terminal response.
-        if expired {
-            let status = Status::deadline_exceeded();
-            let (capability, logger, carry, partial_web_frame) = flag.deadline.take_terminal();
+        if let Some(reason) = terminal {
+            let expired = reason == CancellationReason::DeadlineExceeded;
+            let status = if expired {
+                Status::deadline_exceeded()
+            } else {
+                Status::cancelled()
+            };
+            let (logger, carry, partial_web_frame) = flag.deadline.take_terminal();
             #[cfg(not(feature = "grpc-web"))]
             let _carry = carry;
             let labels = owner.labels.as_ref().map(|labels| labels.as_borrowed());
@@ -341,16 +349,20 @@ pub(crate) fn serve<R: Runtime, D: Dispatch>(
                 if let (Some(observer), Some(labels)) = (observer, labels.as_ref()) {
                     observer.on_cancellation(&CancellationEvent {
                         call: *labels,
-                        reason: CancellationReason::DeadlineExceeded,
+                        reason,
                     });
                 }
             }
             if !flag.deadline.ended() {
                 if let Some(logger) = logger {
-                    logger.log_trailer(&Metadata::new(), &status);
+                    if expired {
+                        logger.log_trailer(&Metadata::new(), &status);
+                    } else {
+                        logger.log_cancel();
+                    }
                 }
             }
-            if let Some(mut capability) = capability {
+            if let (true, Some(capability)) = (expired, owner.response.as_mut()) {
                 #[cfg(feature = "grpc-web")]
                 let terminal = match web {
                     Some(mode) => match carry.0.get(..carry.1) {
@@ -533,6 +545,7 @@ mod tests {
         assert_eq!(Arc::strong_count(&wake), 3);
         let owner = Owner {
             cancel: CancelOnDrop::new(Arc::clone(&flag)),
+            response: rpc.respond.deadline_response(),
             observer: None,
             labels: None,
             channelz_server: None,
@@ -557,10 +570,33 @@ mod tests {
 
     #[tokio::test]
     async fn unpolled_router_owner_drop_closes_lifecycle_and_terminal_capability() {
+        #[derive(Clone, Copy, Debug)]
+        enum DropMode {
+            NeverPolled,
+            Pending,
+            Panic,
+        }
         struct Counts {
             starts: AtomicUsize,
             ends: AtomicUsize,
             polls: AtomicUsize,
+            drops: AtomicUsize,
+            dropped_before_owner: AtomicUsize,
+            panic_when_polled: bool,
+        }
+        struct ServiceDrop {
+            counts: Arc<Counts>,
+            call: Arc<CancelFlag>,
+        }
+        impl Drop for ServiceDrop {
+            fn drop(&mut self) {
+                self.counts.drops.fetch_add(1, Ordering::SeqCst);
+                if self.call.deadline.flags.load(Ordering::Acquire) & CallDeadline::CLOSED == 0 {
+                    self.counts
+                        .dropped_before_owner
+                        .fetch_add(1, Ordering::SeqCst);
+                }
+            }
         }
         struct Observed(Arc<Counts>);
         impl LifecycleObserver for Observed {
@@ -568,89 +604,149 @@ mod tests {
                 self.0.starts.fetch_add(1, Ordering::SeqCst);
             }
             fn on_server_call_end(&self, _: &CallLabels<'_>, status: &Status, _: Duration) {
+                assert!(
+                    !std::thread::panicking(),
+                    "user callbacks stay outside unwinding"
+                );
                 assert_eq!(status.code(), crate::Code::Cancelled);
+                assert_eq!(self.0.drops.load(Ordering::SeqCst), 1);
+                assert_eq!(self.0.dropped_before_owner.load(Ordering::SeqCst), 1);
                 self.0.ends.fetch_add(1, Ordering::SeqCst);
             }
         }
         struct Unpolled(Arc<Counts>);
         impl super::super::dispatch::Service for Unpolled {
             const NAME: &'static str = "deadline.Unpolled";
-            async fn call(&self, rpc: Rpc) {
-                self.0.polls.fetch_add(1, Ordering::SeqCst);
-                std::future::pending::<()>().await;
-                drop(rpc);
+            fn call(&self, rpc: Rpc) -> impl Future<Output = ()> + Send {
+                let guard = ServiceDrop {
+                    counts: Arc::clone(&self.0),
+                    call: Arc::clone(&rpc.call_cancel),
+                };
+                async move {
+                    self.0.polls.fetch_add(1, Ordering::SeqCst);
+                    assert!(
+                        !self.0.panic_when_polled,
+                        "intentional service-poll unwind control"
+                    );
+                    std::future::pending::<()>().await;
+                    drop(guard);
+                    drop(rpc);
+                }
             }
         }
-        let counts = Arc::new(Counts {
-            starts: AtomicUsize::new(0),
-            ends: AtomicUsize::new(0),
-            polls: AtomicUsize::new(0),
-        });
-        let router = crate::Router::new()
-            .add_service(Unpolled(Arc::clone(&counts)))
-            .observer(Observed(Arc::clone(&counts)));
-        let (client_io, server_io) = tokio::io::duplex(4096);
-        let (accepted, receiver) = tokio::sync::oneshot::channel();
-        let server = tokio::spawn(async move {
-            let mut connection = crate::transport::h2::ServerBuilder::new()
-                .handshake(server_io)
-                .await
+        async fn scenario(mode: DropMode) {
+            let counts = Arc::new(Counts {
+                starts: AtomicUsize::new(0),
+                ends: AtomicUsize::new(0),
+                polls: AtomicUsize::new(0),
+                drops: AtomicUsize::new(0),
+                dropped_before_owner: AtomicUsize::new(0),
+                panic_when_polled: matches!(mode, DropMode::Panic),
+            });
+            let router = crate::Router::new()
+                .add_service(Unpolled(Arc::clone(&counts)))
+                .observer(Observed(Arc::clone(&counts)));
+            let (client_io, server_io) = tokio::io::duplex(4096);
+            let (accepted, receiver) = tokio::sync::oneshot::channel();
+            let server = tokio::spawn(async move {
+                let mut connection = crate::transport::h2::ServerBuilder::new()
+                    .handshake(server_io)
+                    .await
+                    .unwrap();
+                let (request, response) = connection.accept().await.unwrap().unwrap();
+                accepted.send((request, response)).unwrap();
+                while let Some(request) = connection.accept().await {
+                    drop(request.unwrap());
+                }
+            });
+            let (sender, connection) = h2::client::handshake(client_io).await.unwrap();
+            let client = tokio::spawn(async move {
+                drop(connection.await);
+            });
+            let mut sender = sender.ready().await.unwrap();
+            let (response, _) = sender
+                .send_request(
+                    http::Request::builder()
+                        .uri("http://local/deadline.Unpolled/Owned")
+                        .header("grpc-timeout", "20m")
+                        .body(())
+                        .unwrap(),
+                    true,
+                )
                 .unwrap();
-            let (request, response) = connection.accept().await.unwrap().unwrap();
-            accepted.send((request, response)).unwrap();
-            while let Some(request) = connection.accept().await {
-                drop(request.unwrap());
+            let (request, respond) = tokio::time::timeout(Duration::from_secs(2), receiver)
+                .await
+                .unwrap()
+                .unwrap();
+            let accepted_at = Instant::now();
+            let rpc = super::super::connection::incoming_rpc(
+                request,
+                respond,
+                accepted_at,
+                Arc::new(crate::ServerConfig::default()),
+                super::super::connection::ConnectionInfo::new(),
+                crate::limits::ByteBudgetTracker::default(),
+                None,
+                None,
+                crate::wire::headers::StockFacts::not_stock(),
+                None,
+            );
+            let _deadline = rpc.deadline();
+            let flag = Arc::clone(&rpc.call_cancel);
+            let mut driver = Box::pin(super::serve::<crate::rt::TokioRuntime, _>(&router, rpc));
+            assert_eq!(counts.starts.load(Ordering::SeqCst), 1);
+            assert_eq!(counts.polls.load(Ordering::SeqCst), 0);
+            match mode {
+                DropMode::NeverPolled => {}
+                DropMode::Pending => {
+                    let mut cx = Context::from_waker(Waker::noop());
+                    assert!(driver.as_mut().poll(&mut cx).is_pending());
+                    assert_eq!(counts.drops.load(Ordering::SeqCst), 0);
+                    assert_eq!(counts.ends.load(Ordering::SeqCst), 0);
+                }
+                DropMode::Panic => {
+                    let mut cx = Context::from_waker(Waker::noop());
+                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        driver.as_mut().poll(&mut cx)
+                    }));
+                    assert!(result.is_err(), "the actual driver poll must unwind");
+                }
             }
-        });
-        let (sender, connection) = h2::client::handshake(client_io).await.unwrap();
-        let client = tokio::spawn(async move {
-            drop(connection.await);
-        });
-        let mut sender = sender.ready().await.unwrap();
-        let (response, _) = sender
-            .send_request(
-                http::Request::builder()
-                    .uri("http://local/deadline.Unpolled/Owned")
-                    .header("grpc-timeout", "20m")
-                    .body(())
-                    .unwrap(),
-                true,
-            )
-            .unwrap();
-        let (request, respond) = tokio::time::timeout(Duration::from_secs(2), receiver)
-            .await
-            .unwrap()
-            .unwrap();
-        let accepted_at = Instant::now();
-        let rpc = super::super::connection::incoming_rpc(
-            request,
-            respond,
-            accepted_at,
-            Arc::new(crate::ServerConfig::default()),
-            super::super::connection::ConnectionInfo::new(),
-            crate::limits::ByteBudgetTracker::default(),
-            None,
-            None,
-            crate::wire::headers::StockFacts::not_stock(),
-            None,
-        );
-        let _deadline = rpc.deadline();
-        let flag = Arc::clone(&rpc.call_cancel);
-        let driver = super::serve::<crate::rt::TokioRuntime, _>(&router, rpc);
-        assert_eq!(counts.starts.load(Ordering::SeqCst), 1);
-        assert_eq!(counts.polls.load(Ordering::SeqCst), 0);
-        drop(driver); // Deliberately never polled.
-        assert_eq!(counts.polls.load(Ordering::SeqCst), 0);
-        assert_eq!(counts.ends.load(Ordering::SeqCst), 1);
-        assert!(flag.is_cancelled());
-        assert!(flag.deadline.ended());
-        let error = tokio::time::timeout(Duration::from_secs(2), response)
-            .await
-            .expect("retained cancellation flag must not retain terminal capability")
-            .unwrap_err();
-        assert_eq!(error.reason(), Some(h2::Reason::CANCEL));
-        client.abort();
-        server.abort();
+            drop(driver);
+            assert_eq!(
+                counts.polls.load(Ordering::SeqCst),
+                usize::from(!matches!(mode, DropMode::NeverPolled))
+            );
+            assert_eq!(counts.drops.load(Ordering::SeqCst), 1);
+            assert_eq!(counts.dropped_before_owner.load(Ordering::SeqCst), 1);
+            if matches!(mode, DropMode::Panic) {
+                assert!(
+                    counts.ends.load(Ordering::SeqCst) <= 1,
+                    "never duplicate user lifecycle callbacks"
+                );
+            } else {
+                assert_eq!(counts.ends.load(Ordering::SeqCst), 1);
+            }
+            eprintln!(
+                "actual driver drop control: mode={mode:?} polls={} drops={} before_owner={} observer_ends={}",
+                counts.polls.load(Ordering::SeqCst),
+                counts.drops.load(Ordering::SeqCst),
+                counts.dropped_before_owner.load(Ordering::SeqCst),
+                counts.ends.load(Ordering::SeqCst)
+            );
+            assert!(flag.is_cancelled());
+            assert!(flag.deadline.ended());
+            let error = tokio::time::timeout(Duration::from_secs(2), response)
+                .await
+                .expect("retained cancellation flag must not retain terminal capability")
+                .unwrap_err();
+            assert_eq!(error.reason(), Some(h2::Reason::CANCEL));
+            client.abort();
+            server.abort();
+        }
+        scenario(DropMode::NeverPolled).await;
+        scenario(DropMode::Pending).await;
+        scenario(DropMode::Panic).await;
         let router_size =
             returned_future_size(super::serve::<crate::rt::TokioRuntime, crate::Router>);
         let small_size = returned_future_size(

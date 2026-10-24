@@ -307,6 +307,12 @@ pub(crate) enum DeadlineEnding {
 }
 
 impl<B: Buf> DeadlineResponse<B> {
+    /// Observe stream cancellation before or after response headers, without
+    /// taking ownership of the application's response writer.
+    pub(crate) fn poll_reset_cause(&mut self, cx: &mut Context) -> Poll<crate::h2_backend::Error> {
+        self.inner.poll_reset_cause(cx)
+    }
+
     /// Finish an unfinished response without replacing a completed result.
     ///
     /// An initial DATA-encoded ending can be sent intact. Once body output has

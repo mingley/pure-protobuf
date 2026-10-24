@@ -1,6 +1,8 @@
 use super::recv::RecvHeaderBlockError;
 use super::store::{self, Entry, Resolve, Store};
-use super::{Buffer, BufferStatus, Config, Counts, Prioritized, Recv, Send, Stream, StreamId};
+use super::{
+    Buffer, BufferStatus, Config, Counts, Prioritized, Recv, RetiredData, Send, Stream, StreamId,
+};
 use crate::h2_backend::codec::{Codec, SendError, UserError};
 use crate::h2_backend::ext::Protocol;
 use crate::h2_backend::frame::{self, Frame, Reason};
@@ -225,6 +227,7 @@ where
             match status {
                 BufferStatus::Complete | BufferStatus::Idle => return Poll::Ready(Ok(())),
                 BufferStatus::CodecFull => ready!(dst.poll_ready(cx))?,
+                BufferStatus::RetiredFull => unreachable!("receive-only buffering retires no DATA"),
             }
         }
     }
@@ -274,35 +277,45 @@ where
 
             // Declare the owner outside the lock scope so errors or unwinding
             // also release the lock before its payload destructor runs.
-            let discarded;
-            let status = {
-                let mut me = self.inner.lock().unwrap();
-                discarded = me.actions.send.take_discarded_frame(dst);
-                let status = me.buffer_pending(&self.send_buffer, dst)?;
+            let status = loop {
+                let mut retired = RetiredData::new();
+                let discarded;
+                let status = {
+                    let mut me = self.inner.lock().unwrap();
+                    discarded = me.actions.send.take_discarded_frame(dst);
+                    let status = me.buffer_pending(&self.send_buffer, dst, &mut retired)?;
 
-                // Register the task while holding the same lock used to
-                // observe that all pending frames have been buffered. A
-                // producer that queues another frame while the codec is being
-                // flushed will then take and wake this task. Replace a
-                // handshake task's waker when the driver takes over, even
-                // before the peer's initial SETTINGS have arrived.
-                if matches!(status, BufferStatus::Complete | BufferStatus::Idle) {
-                    match me.actions.task.as_mut() {
-                        Some(waker) => waker.clone_from(cx.waker()),
-                        None => me.actions.task = Some(cx.waker().clone()),
+                    // Register the task while holding the same lock used to
+                    // observe that all pending frames have been buffered. A
+                    // producer that queues another frame while the codec is being
+                    // flushed will then take and wake this task. Replace a
+                    // handshake task's waker when the driver takes over, even
+                    // before the peer's initial SETTINGS have arrived.
+                    if matches!(status, BufferStatus::Complete | BufferStatus::Idle) {
+                        match me.actions.task.as_mut() {
+                            Some(waker) => waker.clone_from(cx.waker()),
+                            None => me.actions.task = Some(cx.waker().clone()),
+                        }
                     }
-                }
-                // Set while the lock is still held. A producer clears the
-                // flag before it wakes, so it cannot sneak in between the
-                // idle observation and this store. `has_pending_flush` keeps
-                // the next poll from skipping a write that is still buffered.
-                if matches!(status, BufferStatus::Idle) {
-                    self.buffer_idle.store(true, Ordering::Release);
-                }
+                    // Set while the lock is still held. A producer clears the
+                    // flag before it wakes, so it cannot sneak in between the
+                    // idle observation and this store. `has_pending_flush` keeps
+                    // the next poll from skipping a write that is still buffered.
+                    if matches!(status, BufferStatus::Idle) {
+                        self.buffer_idle.store(true, Ordering::Release);
+                    }
 
-                status
+                    status
+                };
+                drop(discarded);
+                drop(retired);
+                if status == BufferStatus::RetiredFull {
+                    // Preserve the existing codec batch: owners need an unlock,
+                    // not a socket flush or another poll_ready call.
+                    continue;
+                }
+                break status;
             };
-            drop(discarded);
 
             match status {
                 // Nothing was staged and no data frame is in flight, so the
@@ -314,6 +327,7 @@ where
                 }
                 BufferStatus::Complete => {}
                 BufferStatus::CodecFull => continue,
+                BufferStatus::RetiredFull => unreachable!("retirement batches drained before IO"),
             }
 
             // Flush any frames staged by `buffer_pending` without holding the
@@ -326,6 +340,7 @@ where
                 return Poll::Ready(Ok(()));
             }
 
+            let mut retired = RetiredData::new();
             let discarded;
             let reclaimed = {
                 let mut me = self.inner.lock().unwrap();
@@ -333,10 +348,11 @@ where
                 if discarded.is_some() {
                     false
                 } else {
-                    me.reclaim_written_frame(&self.send_buffer, dst)
+                    me.reclaim_written_frame(&self.send_buffer, dst, &mut retired)
                 }
             };
             drop(discarded);
+            drop(retired);
 
             if !reclaimed {
                 return Poll::Ready(Ok(()));
@@ -1399,6 +1415,7 @@ impl Inner {
         &mut self,
         send_buffer: &SendBuffer<B>,
         dst: &mut Codec<T, Prioritized<B>>,
+        retired: &mut RetiredData<B>,
     ) -> io::Result<BufferStatus>
     where
         T: AsyncWrite + Unpin,
@@ -1433,9 +1450,13 @@ impl Inner {
             &mut self.store,
             &mut self.counts,
             dst,
+            retired,
         )?;
-        if send_status == BufferStatus::CodecFull {
-            return Ok(BufferStatus::CodecFull);
+        if matches!(
+            send_status,
+            BufferStatus::CodecFull | BufferStatus::RetiredFull
+        ) {
+            return Ok(send_status);
         }
         if recv_status == BufferStatus::Idle && send_status == BufferStatus::Idle {
             Ok(BufferStatus::Idle)
@@ -1448,6 +1469,7 @@ impl Inner {
         &mut self,
         send_buffer: &SendBuffer<B>,
         dst: &mut Codec<T, Prioritized<B>>,
+        retired: &mut RetiredData<B>,
     ) -> bool
     where
         B: Buf,
@@ -1457,15 +1479,16 @@ impl Inner {
         let Some(frame) = dst.take_last_data_frame() else {
             return false;
         };
-        if !frame.payload().has_remaining() {
-            self.actions.send.reclaim_consumed(frame);
+        retired.push(frame);
+        if !retired.has_tail() {
+            self.actions.send.reclaim_consumed(retired);
             return false;
         }
         let mut send_buffer = send_buffer.inner.lock().unwrap();
         let send_buffer = &mut *send_buffer;
         self.actions
             .send
-            .reclaim_partial(send_buffer, &mut self.store, frame)
+            .reclaim_partial(send_buffer, &mut self.store, retired)
     }
 
     fn send_reset<B>(
@@ -2267,6 +2290,29 @@ impl<B> StreamRef<B> {
         me.actions.send.poll_reset(cx, &mut stream, mode)
     }
 
+    /// Observe cancellation without collapsing remote RST, GOAWAY and local
+    /// stream failures into a bare HTTP/2 reason.
+    pub(crate) fn poll_reset_cause(&mut self, cx: &Context) -> Poll<crate::h2_backend::Error> {
+        let mut me = self.opaque.inner.lock().unwrap();
+        let me = &mut *me;
+        let mut stream = me.store.resolve(self.opaque.key);
+        match me
+            .actions
+            .send
+            .poll_reset(cx, &mut stream, proto::PollReset::Streaming)
+        {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(Err(error)) => Poll::Ready(error),
+            Poll::Ready(Ok(reason)) => Poll::Ready(
+                stream
+                    .state
+                    .send_error()
+                    .unwrap_or_else(|| Error::library_reset(stream.id, reason))
+                    .into(),
+            ),
+        }
+    }
+
     pub fn clone_to_opaque(&self) -> OpaqueStreamRef {
         self.opaque.clone()
     }
@@ -2740,3 +2786,7 @@ impl Actions {
         self.send.clear_queues(store, counts);
     }
 }
+
+#[cfg(test)]
+#[path = "retirement_tests.rs"]
+mod retirement_tests;

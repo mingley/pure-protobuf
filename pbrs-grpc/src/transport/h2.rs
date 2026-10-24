@@ -98,6 +98,11 @@ impl Error {
     pub(crate) fn is_reset(&self) -> bool {
         self.0.is_reset()
     }
+
+    /// True when the error came from a frame received from the peer.
+    pub(crate) fn is_remote(&self) -> bool {
+        self.0.is_remote()
+    }
 }
 
 impl fmt::Debug for Error {
@@ -711,13 +716,17 @@ impl super::ClientBuilder for ClientBuilder {
 /// Server handle that answers one accepted stream.
 pub(crate) struct SendResponse(crate::h2_backend::server::SendResponse<Bytes>);
 
-/// Surviving ownership used only after a finite call deadline is installed.
+/// Service-owned response capability for peer reset and finite deadlines.
 #[derive(Debug)]
 pub(crate) struct DeadlineResponse(crate::h2_backend::server::DeadlineResponse<Bytes>);
 
 pub(crate) use crate::h2_backend::server::DeadlineEnding;
 
 impl DeadlineResponse {
+    pub(crate) fn poll_reset_cause(&mut self, cx: &mut Context<'_>) -> Poll<Error> {
+        self.0.poll_reset_cause(cx).map(Error)
+    }
+
     pub(crate) fn finish(
         &mut self,
         response: Response<()>,
@@ -1135,5 +1144,136 @@ mod embedding_status_oracles {
         assert!(before.is_transparent_retryable());
         assert!(!after.is_transparent_retryable());
         assert!(!sending.is_transparent_retryable());
+    }
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::panic,
+    reason = "bounded independent-peer cancellation cause and normal-end controls"
+)]
+mod reset_cause_tests {
+    use super::{DeadlineResponse, SendResponse};
+    use crate::transport::{
+        SendResponse as _, SendStream as _, ServerBuilder as _, ServerConnection as _,
+    };
+    use bytes::Bytes;
+    use std::future::{Future, poll_fn};
+    use std::task::{Context, Waker};
+    use std::time::Duration;
+
+    async fn bounded<T>(future: impl Future<Output = T>) -> T {
+        tokio::time::timeout(Duration::from_secs(3), future)
+            .await
+            .expect("reset cause peer watchdog")
+    }
+
+    struct Peer {
+        response: h2::client::ResponseFuture,
+        send: h2::SendStream<Bytes>,
+        respond: SendResponse,
+        capability: DeadlineResponse,
+        server: tokio::task::JoinHandle<()>,
+        client: tokio::task::JoinHandle<()>,
+        _requests: h2::client::SendRequest<Bytes>,
+    }
+
+    impl Peer {
+        async fn new() -> Self {
+            let (client_io, server_io) = tokio::io::duplex(4096);
+            let (accepted, receiver) = tokio::sync::oneshot::channel();
+            let server = tokio::spawn(async move {
+                let mut connection = super::ServerBuilder::new()
+                    .handshake(server_io)
+                    .await
+                    .unwrap();
+                let (_, respond) = connection.accept().await.unwrap().unwrap();
+                accepted.send(respond).unwrap();
+                while let Some(Ok(request)) = connection.accept().await {
+                    drop(request);
+                }
+            });
+            let (requests, connection) = bounded(h2::client::handshake(client_io)).await.unwrap();
+            let client = tokio::spawn(async move {
+                let _closed = connection.await;
+            });
+            let mut requests = bounded(requests.ready()).await.unwrap();
+            let (response, send) = requests
+                .send_request(
+                    http::Request::builder()
+                        .uri("http://local/reset-cause")
+                        .body(())
+                        .unwrap(),
+                    true,
+                )
+                .unwrap();
+            let respond = bounded(receiver).await.unwrap();
+            let capability = respond.deadline_response().unwrap();
+            Self {
+                response,
+                send,
+                respond,
+                capability,
+                server,
+                client,
+                _requests: requests,
+            }
+        }
+    }
+
+    impl Drop for Peer {
+        fn drop(&mut self) {
+            self.client.abort();
+            self.server.abort();
+        }
+    }
+
+    #[tokio::test]
+    async fn reset_capability_preserves_remote_local_and_transport_causes() {
+        let mut remote = Peer::new().await;
+        remote.send.send_reset(h2::Reason::CANCEL);
+        let cause = bounded(poll_fn(|cx| remote.capability.poll_reset_cause(cx))).await;
+        assert!(cause.is_reset() && cause.is_remote());
+        assert_eq!(cause.reason(), Some(super::Reason::CANCEL));
+
+        let mut local = Peer::new().await;
+        local.respond.send_reset(super::Reason::CANCEL);
+        let cause = bounded(poll_fn(|cx| local.capability.poll_reset_cause(cx))).await;
+        assert!(cause.is_reset() && !cause.is_remote());
+        assert_eq!(cause.reason(), Some(super::Reason::CANCEL));
+
+        let mut disconnected = Peer::new().await;
+        disconnected.client.abort();
+        let cause = bounded(poll_fn(|cx| disconnected.capability.poll_reset_cause(cx))).await;
+        assert!(
+            cause.is_io(),
+            "connection closure preserves its I/O cause: {cause:?}"
+        );
+        assert!(!cause.is_remote());
+    }
+
+    #[tokio::test]
+    async fn reset_capability_does_not_report_normal_response_completion_as_cancel() {
+        let mut peer = Peer::new().await;
+        let mut cx = Context::from_waker(Waker::noop());
+        assert!(peer.capability.poll_reset_cause(&mut cx).is_pending());
+        let mut send = peer
+            .respond
+            .send_response(http::Response::new(()), false)
+            .unwrap();
+        assert!(peer.capability.poll_reset_cause(&mut cx).is_pending());
+        send.send_data(Bytes::from_static(b"complete"), true)
+            .unwrap();
+        let response = bounded(&mut peer.response).await.unwrap();
+        assert_eq!(response.status(), http::StatusCode::OK);
+        let mut body = response.into_body();
+        assert_eq!(
+            bounded(body.data()).await.unwrap().unwrap(),
+            b"complete".as_slice()
+        );
+        assert!(bounded(body.data()).await.is_none());
+        assert!(peer.capability.poll_reset_cause(&mut cx).is_pending());
     }
 }

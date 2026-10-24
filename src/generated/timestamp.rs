@@ -414,15 +414,15 @@ mod __gen_google_protobuf_timestamp_proto {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     2 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field_with_depth(data, pos, w, depth)?,
+                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                 }
             }
             if until.is_some() {
