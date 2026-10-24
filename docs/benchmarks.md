@@ -1,85 +1,89 @@
 # Benchmarks
 
-All **22 measured native Prost endpoint instruction comparisons beat tonic/prost**.
-Identity and large bidi allocation-byte losses remain.
+The native unary server still uses more CPU than tonic in the measured shipping build.
+Some allocation and instruction counts are lower; remaining losses are listed first.
 
-Current: `7c02eb38`; before: `beb4ecd9`. 2026-10-24 UTC · Linux x86_64 · Rust 1.99.1 · shared host.
+**Current `933bf877` · safety `ca4ef720` · before `7c02eb38`** · 2026-10-24 UTC · Linux x86_64 · Rust 1.99.1 · shared host.
 
-## Remaining byte costs
+## Shipping-build loss
 
-**Requested allocation bytes/RPC. Lower is better.** Equal Prost handlers, plaintext, one in flight.
-Bytes are cumulative allocation requests, not retained memory or RSS.
+Quiet same-source replay: identity unary, 1 KiB, one connection / one in-flight call, two Tokio workers, four repeats. Counters/profilers are off.
 
-| Side | Workload | Current | tonic/prost | Difference |
+| Server CPU | Native | tonic/prost | Native / tonic |
+|---|---:|---:|---:|
+| Raw CPU/call, 10,000 calls | 53–60 µs | 40–45 µs | 1.18–1.46× |
+| N/2N CPU slope | 46–68 µs/RPC | 38–46 µs/RPC | 1.00–1.79× |
+
+Raw CPU loses all four pairs; one slope pair ties. The earlier 48-capture run had 2.08–2.89× slopes and 13.6–18.3% lower throughput; that magnitude does not repeat. Replay timing is mixed and remains unqualified.
+
+## Requested allocation bytes
+
+**Bytes/RPC, lower is better.** Equal Prost work, plaintext, one in flight. These are cumulative allocation requests, not RSS.
+
+| Side | Workload | Current | tonic/prost | Change |
 |---|---|---:|---:|---:|
-| Client | Bidi, 1 KiB identity | 54.23 KiB | 40.19 KiB | +34.92% |
-| Server | Bidi, 1 KiB identity | 43.58 KiB | 32.95 KiB | +32.26% |
+| Client | Bidi, 1 KiB identity | 42.40 KiB | 40.11 KiB | +5.70% |
+| Server | Bidi, 1 KiB identity | 31.32 KiB | 32.95 KiB | -4.94% |
 | Client | Bidi, 1 MiB gzip | 19.41 MiB | 16.67 MiB | +16.40% |
 | Server | Bidi, 1 MiB gzip | 18.40 MiB | 15.67 MiB | +17.43% |
 
-The pbrs interop server requests **43.37 MiB versus 15.67 MiB (+176.88%)** for 1 MiB gzip bidi.
-That route includes additional handler work; it does not isolate codec or transport cost.
+Singleton identity bidi improves versus Safety: client −21.28%, server −27.92% requested bytes.
 
-## Source changes
+## Costs versus earlier source
 
-**Before versus current.** Both paired repeats increase for the rows below; all increases remain in the full ledger.
+| Comparison | Side / workload | Metric/RPC | Before → current | Change; paired range |
+|---|---|---|---:|---:|
+| Before → current | server, unary 1 KiB identity | k instructions | 34.51 → 40.40 | +17.08%; +2.88..+35.07% |
+| Before → current | server, upload 1 KiB identity | k instructions | 37.58 → 44.22 | +17.66%; +10.16..+25.40% |
+| Safety → current | client, pipelined bidi 64 KiB identity | allocations | 45.18 → 49.06 | +8.59%; +2.24..+15.30% |
+| Safety → current | server, pipelined bidi 64 × 1 KiB | KiB requested | 319.34 → 359.10 | +12.45%; +1.15..+26.75% |
 
-| Side | Workload | Metric/RPC | Before | Current | Change |
-|---|---|---|---:|---:|---:|
-| Server | Unary, 1 KiB identity | Requested bytes | 14.51 KiB | 14.84 KiB | +2.29% |
-| Server | Unary, 1 KiB identity, TLS, 16 in flight | Requested bytes | 18.24 KiB | 19.17 KiB | +5.12% |
-| Client | Bidi, 1 KiB identity | Allocations | 37.96 | 39.08 | +2.95% |
-| Server | Unary, 1 KiB identity | Million instructions | 0.03443 | 0.03998 | +16.14% |
-
-Selected gzip bytes also fall: 64 KiB server-stream server **2.30 → 2.17 MiB/RPC (−5.69%)**.
-A separate 48-capture Router control cuts server bytes **19.76% unary / 7.72% bidi** versus `40f219fa`;
-it retains small allocation-count increases and does not replace the full source comparison.
+The bulk server repeats lose +26.90% / +15.67% bytes versus fresh tonic. All increases, mixed repeats and control endpoints remain in the full ledgers.
 
 ## Instructions
 
-**Million instructions/RPC: current / tonic (change).** All 22 scopes win in both paired repeats.
-The 20 gzip scopes use **3.19–16.52% fewer instructions**. These are allocation-instrumented Callgrind results.
-Both endpoints use Prost, plaintext, one connection and one in-flight call. The table covers every measured instruction scope.
+**Instructions/RPC: current / tonic (change); k = 1,000, M = 1,000,000.** All 30 scopes are lower in both repeats; medians are 3.24–55.77% lower.
+Callgrind and allocation counting are enabled. Both endpoints use Prost, plaintext and one in-flight call. These counts do not establish shipping CPU speed.
 
-| Workload | Client: current / tonic | Server: current / tonic |
+| Workload | Client | Server |
 |---|---:|---:|
-| Unary, 1 KiB gzip | 0.624 / 0.738 (-15.5%) | 0.637 / 0.727 (-12.4%) |
-| Upload, 1 KiB gzip | 2.022 / 2.237 (-9.6%) | 0.976 / 1.163 (-16.0%) |
-| Server stream, 1 KiB gzip | 1.031 / 1.235 (-16.5%) | 2.047 / 2.238 (-8.5%) |
-| Bidi, 1 KiB gzip | 2.468 / 2.785 (-11.4%) | 2.474 / 2.774 (-10.8%) |
-| Pipelined bidi, 1 KiB gzip | 2.446 / 2.753 (-11.1%) | 2.446 / 2.740 (-10.7%) |
-| Unary, 64 KiB gzip | 2.897 / 3.033 (-4.5%) | 2.911 / 3.007 (-3.2%) |
-| Upload, 64 KiB gzip | 10.226 / 10.708 (-4.5%) | 1.853 / 2.037 (-9.0%) |
-| Server stream, 64 KiB gzip | 3.994 / 4.229 (-5.5%) | 10.405 / 10.815 (-3.8%) |
-| Bidi, 64 KiB gzip | 11.562 / 12.169 (-5.0%) | 11.500 / 12.062 (-4.7%) |
-| Pipelined bidi, 64 KiB gzip | 11.604 / 12.112 (-4.2%) | 11.478 / 12.029 (-4.6%) |
-| Unary, 1 KiB identity | 0.0287 / 0.0655 (-56.2%) | 0.0400 / 0.0553 (-27.7%) |
+| Unary, 1 KiB identity | 29.4k / 65.2k (-55.0%) | 40.4k / 56.3k (-28.2%) |
+| Upload, 1 KiB identity | 30.2k / 68.2k (-55.8%) | 44.2k / 56.5k (-21.8%) |
+| Server stream, 1 KiB identity | 44.6k / 71.9k (-38.0%) | 55.1k / 68.3k (-19.4%) |
+| Bidi, 1 KiB identity | 85.6k / 130k (-34.2%) | 94.8k / 124.8k (-24.0%) |
+| Pipelined bidi, 1 KiB identity | 66k / 96.8k (-31.9%) | 66.8k / 89.7k (-25.5%) |
+| Unary, 1 KiB gzip | 624.4k / 738.6k (-15.5%) | 637.2k / 727.2k (-12.4%) |
+| Upload, 1 KiB gzip | 2.023M / 2.237M (-9.6%) | 974.8k / 1.163M (-16.2%) |
+| Server stream, 1 KiB gzip | 1.032M / 1.235M (-16.4%) | 2.046M / 2.237M (-8.5%) |
+| Bidi, 1 KiB gzip | 2.471M / 2.786M (-11.3%) | 2.479M / 2.776M (-10.7%) |
+| Pipelined bidi, 1 KiB gzip | 2.449M / 2.75M (-10.9%) | 2.447M / 2.738M (-10.6%) |
+| Unary, 64 KiB gzip | 2.897M / 3.038M (-4.6%) | 2.912M / 3.009M (-3.2%) |
+| Upload, 64 KiB gzip | 10.25M / 10.71M (-4.3%) | 1.851M / 2.037M (-9.1%) |
+| Server stream, 64 KiB gzip | 3.97M / 4.226M (-6.1%) | 10.4M / 10.82M (-3.8%) |
+| Bidi, 64 KiB gzip | 11.56M / 12.13M (-4.7%) | 11.5M / 12.06M (-4.6%) |
+| Pipelined bidi, 64 KiB gzip | 11.6M / 12.11M (-4.2%) | 11.48M / 12.03M (-4.6%) |
 
-Gzip upload client, 1 KiB: **2.384 → 2.022 M instructions/RPC (−15.21%)** versus before.
-Ratios use unrounded medians; a ±2% reporting band is not a significance test.
-Every cost increase, including values below 2%, and every repeat range stays in the raw record.
+Against before, 22 of 30 instruction medians rise. The ±2% ledger band is not a significance test; every smaller increase and repeat range is retained.
 
 ## Scope and records
 
-| Completed campaign | Captures | Successful RPCs, both sources |
+| Campaign | Captures | Successful RPCs |
 |---|---:|---:|
-| Native counters | 1,088 | 40,800 |
-| Instructions | 264 | 3,960 |
-| Fresh process | 96 | 144 |
+| Native counters, three sources | 576 | 21,600 |
+| Callgrind, three sources | 540 | 8,100 |
+| Separate bulk, Safety/current | 240 | 9,000 |
+| Separate shipping builds / quiet replay | 48 / 16 | 360,000 / 120,000 |
+| Separate selected syscall / fd traces | 8 / 8 | 12,000 / 600 |
 
-**Total: 1,448 captures / 44,904 RPCs.** The separate Router control adds 48 / 1,800; counts are not combined.
-Offered/dispatched/completed/successful calls reconcile; zero errors, timeouts, overflow or unfinished calls.
-Native: 136 selected workloads, 25/50 calls; instructions: 33 workloads, 10/20 calls; both use two paired repeats.
-Fresh process: six workloads, 1/2 calls, four repeats, **including setup**. Identity server process bytes rise
-**0.49% / 0.90%** for one/two RPCs; no startup subtraction or isolated cold-RPC cost is claimed.
-Gzip level 6, zero-filled payloads, four messages per streaming leg, 400 KiB server send buffers, queues 16.
-Native accounting/channelz stay enabled. Entropy, field access and overload need wider measurements.
+Native N=25/50; Callgrind N=10/20; two paired repeats. The native controller failed after capture on missing plan files; separate recovery rebuilt reports without recapture.
+Gzip level 6, zero-filled payloads, four streaming messages, 400 KiB server send buffers, queues 16. Bulk partitions use 1/2/3/4/64 messages.
+Current-source cold-process, entropy/read-all, overload, physical networks and broader platform/feature coverage remain open; older C12 cold results are not inherited.
 
-[Results, dated source and raw captures](evidence/grpc-deadlines-20261024/README.md) · [Benchmark contract](benchmark-contract.md)
+[Results, dated source and raw captures](evidence/grpc-ownership-20261024/README.md) · [Benchmark contract](benchmark-contract.md)
 
 ## Reproduce
 
-Use a clean checkout with Rust, Cargo and protoc on `PATH`; keep outputs outside the checkout.
+Use a clean checkout and keep outputs outside it. Exact paired commands, profiles and source pins are in the record.
 
 ```sh
 source_commit=$(git rev-parse HEAD)
@@ -94,9 +98,7 @@ python3 scripts/grpc-counter-campaign.py \
   --payloads 1024,65536 --load-levels 1:1,1:16 --repeats 3
 ```
 
-Exact source-paired commands and profiles are in the raw record. **Workspace: 3,812 passed, zero failed, nine
-existing ignores**, 144 targets at repository `8144576f`, production-equivalent to measured runtime `7c02eb38`.
-Both current 24-hour days are **running; results pending** ([09:27 UTC snapshot](evidence/grpc-deadlines-20261024/README.md#resource-days)).
-Shipping CPU, latency, throughput, real networks, remaining features and platform/release checks remain open.
-Older `beb4ecd9` resource/cache days passed only their recorded scope.
-Production readiness and broad superiority remain unproved. [Next work](../TODO.md#current-priorities)
+**Validation:** 3,840 workspace tests pass (nine existing ignores); selected ASAN/leak checks pass 961 (one existing ignore). Resource previews pass 34.37 / 30.80 seconds; both 24-hour runs are advancing in the 22:48:16 UTC snapshot, with results pending.
+Older `7c02eb38` days are interrupted, with no terminal outcome or known exit cause. Production readiness and broad superiority remain unproved. [Next work](../TODO.md#current-priorities)
+
+[Separate ready-set experiment](evidence/grpc-ready-set-20261024/README.md): 87 focused checks and 360,000 RPCs pass, but CPU results are mixed; the change is not adopted.

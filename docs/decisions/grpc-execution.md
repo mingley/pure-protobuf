@@ -1,12 +1,14 @@
 # gRPC execution and ownership
 
-Source `7c02eb38` uses one accepted deadline and cooperative owner for the whole
-service lifetime. Its [record](../evidence/grpc-deadlines-20261024/README.md) includes
-the detecting controls, terminal framing rules, checks and measured costs.
-The aim is less setup, message, byte and queueing work on both endpoints.
-The full workspace passes at repository `8144576f`; all production, codegen,
-benchmark, manifest and lock blobs equal measured runtime `7c02eb38`. The record
-keeps the actual workspace commit and runtime commit separate.
+Source `933bf877` retires completed DATA owners outside backend locks, preserves
+pre-shape reset ownership and adjusts singleton/bulk reservations. The
+[current record](../evidence/grpc-ownership-20261024/README.md) retains detecting
+failures, source snapshots and actual endpoint costs. Full workspace validation
+passes 3,840 tests; source-bound sanitizers, conformance and toolchain checks pass.
+
+Unary-server shipping CPU still loses to tonic. Lower allocation and Callgrind
+instruction counts describe other costs. A separate ready-set experiment passes
+a bounded causal control but has mixed physical CPU results, so it is not adopted.
 
 ## Measure the work before replacing a layer
 
@@ -57,6 +59,17 @@ siblings when workers remain available; a current-thread runtime gains no thread
 by spawning another task. Keep permits, reset/drop guards and response ownership
 through actual cleanup. Measure handoff costs on small calls and mixed workloads.
 
+The shipping trace diagnostic finds eventfd notifications and frequent changes
+of thread between adjacent TCP operations. Four native-server traces contain
+WAIT_BITSET_PRIVATE waits and no WAIT_PRIVATE engine-lock acquisition signature.
+Do not retune the engine lock from an aggregate futex count. The separate
+[ready-set experiment](../evidence/grpc-ready-set-20261024/README.md) drives its
+controlled newly ready RPC in the same parent poll, preserves a sleeping sibling
+and passes 87 focused checks. Its 48 captures / 360,000 RPCs have mixed CPU results,
+so production adoption is deferred. Already queued notifications and another
+ready-set fairness slice remain costs to examine. Notification forwarding needs
+its own wake/cancellation correctness model. Tracing affects scheduling.
+
 ## Keep one deadline and terminal owner
 
 Capture one absolute deadline when complete request headers are accepted, before
@@ -80,10 +93,17 @@ base64 carry and append status; an unfinished message or trailer body cannot be
 repaired by inserting another status, so that path resets the transport. Web
 status still needs peer credit and cannot force progress through a blocked socket.
 
-New terminal-path payload destruction and waker callbacks run outside engine
-locks. The broader ordinary-success DATA-owner destruction concern is a separate,
-open source finding; its bounded runtime reproduction has not run. These deadline
-repairs do not preempt synchronous work or replace handler-isolation experiments.
+Completed DATA frames now move to a fixed retirement batch declared outside
+engine and send-buffer lock guards. Fully consumed owners drop after unlocking;
+partial payloads retain their unsent tails and final EOS intent. A full retirement
+batch unlocks and destroys owners before staging continues; it does not force IO.
+Controls cover normal reclaim, explicit post-flush reclaim, retired-owner unwind,
+credit/EOS, reentry and IO error. Generic Buf operations still run under staging
+locks; current-frame panic and other queue/EOF owner paths need separate review.
+
+Pre-shape response ownership also retains the selected reset cause through
+cancellation and unwind. These repairs do not preempt synchronous application
+work or replace handler-isolation measurements.
 
 ## Reuse decoded storage when ownership returns
 
@@ -108,7 +128,7 @@ Unary reads and uncompressed decoding do not create this workspace.
 
 The [original decode reuse measurements](../evidence/grpc-decode-reuse-20261023/README.md)
 belong to `beb4ecd9` versus `9d6fb9c4`. The [current benchmark tables](../benchmarks.md)
-use `7c02eb38`, retaining endpoint losses and every observed source cost increase.
+use `933bf877` against `7c02eb38`, retaining losses and every source cost increase.
 
 ## Preserve complete compression validation
 
@@ -157,8 +177,8 @@ ownership/concurrency boundary. Account for commands across tasks, flow control,
 TLS, backpressure and compatibility. Follow the [HTTP/2 design](pbrs-h2.md) and
 [benchmark contract](../benchmark-contract.md) before making comparative claims.
 
-Correctness, remaining features/spec coverage, platform/release qualification,
-shipping CPU/latency/throughput coverage and an actual final-source 24-hour soak
-remain open. Older campaigns qualify only their recorded source. The capsule and
+Remaining destructor/merge/specification coverage, features, platform/release
+qualification, shipping CPU/latency/throughput and an actual final-source
+24-hour soak remain open. Older campaigns qualify only their recorded source. The capsule and
 [open work](../../TODO.md) retain the next controls; passing a subset does not
 establish production readiness or an overall performance ranking.

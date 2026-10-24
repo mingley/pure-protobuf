@@ -1,44 +1,51 @@
 # Implementation status
 
-Source `7c02eb38` adds fixed accepted service deadlines, one cooperative response
-owner, committed unary status accounting, compact Router dispatch and bounded
-gzip output reads. [The current record](evidence/grpc-deadlines-20261024/README.md)
-contains actual source pins, failures, checks and [endpoint costs](benchmarks.md).
+Source `933bf877` repairs completed DATA-owner retirement, pre-shape reset ownership
+and malformed unknown-group validation, and changes singleton/bulk reservations.
+[The current record](evidence/grpc-ownership-20261024/README.md) retains actual
+sources, detecting failures, checks and [endpoint costs](benchmarks.md).
 
-| Check | Actual source | Result |
+| Check | Actual source/scope | Result |
 |---|---|---|
-| All-feature workspace | Repository `8144576f`, production-equivalent to runtime `7c02eb38` | **3,812 passed, zero failed, nine existing ignores**, 144 targets |
-| ASAN with leak detection | `7c02eb38` | **787 passed, zero failed, one existing ignore**; nine selected binaries, including both deadline targets and terminal accounting |
-| Eleven prechecks | `7c02eb38` | Passed: strict lint/rustdoc, examples, 193 benchmark tests, Rust 1.85 default and Rust 1.87 optional Zstd; gRPC target run passes 3,250 with four existing ignores |
-| General resource preview | `7c02eb38`, release | **33.418 seconds**; accounted resources balance after cancellation/drain |
-| Deadline resource preview | Runtime-equivalent `7c02eb38` | **30.792 seconds, 31 cycles of the same 27 cases**; final FD 8, tasks 0, retained cache/leases 0 |
-| Native / instruction / fresh-process counters | `7c02eb38` versus `beb4ecd9`, fresh tonic controls | **1,448 captures / 44,904 successful RPCs**, zero terminal errors; 1,088 / 264 / 96 captures respectively |
-| Router allocation control | `beb4ecd9` / `40f219fa` / `7c02eb38` | Separate **48 captures / 1,800 RPCs**; lower server requested bytes versus `40f219fa`, with small allocation-count increases retained |
+| Full all-feature workspace | Clean `933bf877` | **3,840 passed, zero failed, nine existing ignores**, 145 summaries; 1,350.798 seconds |
+| ASAN with leak detection | `933bf877`, 13 selected ELFs | **961 passed, zero failed, one existing ignore** |
+| Official protobuf conformance | Pinned upstream v35.1; maximum Edition 2023 | Required twice and recommended once: each **5,631 binary/JSON + 909 text**, zero skipped/expected/unexpected failures |
+| Lint, formatting and docs | Source-bound precommit snapshots; clean final rustdoc | Strict workspace Clippy/fmt and warning-strict rustdoc pass; equivalence proof binds tested batch/kernel files to final Git blobs |
+| Minimum Rust profiles | Clean `933bf877` | Rust **1.85** core and **1.87** optional Zstd pass |
+| Native / Callgrind counters | `7c02eb38` → safety `ca4ef720` → current `933bf877` | **576 / 540 captures**, 21,600 / 8,100 successful RPCs; all accounting errors zero |
+| Separate bulk / shipping / quiet replay | Explicit source/feature scopes | **240 / 48 / 16 captures**, 9,000 / 360,000 / 120,000 successful RPCs; CPU/byte losses remain |
+| Separate syscall / fd traces | Own-child tracing, timing unqualified | **8 / 8 captures**, 12,000 / 600 successful RPCs; raw errors and unresolved teardown calls retained |
 
-All 22 measured native instruction groups beat tonic in both paired repeats.
-Byte losses remain: identity bidi is 34.92% higher on the client / 32.26% on the
-server; the separate pbrs interop route includes more handler work. Source unary
-server bytes rise 5.12% for TLS/16 in flight and instructions rise 16.14% for
-plaintext. These are instrumented counters; see the complete ranges and units
-in the benchmark tables.
+Before/after workspace proofs match all **3,797 physical Git blobs, modes and
+sizes: 910,511,102 bytes**. The original native counter controller exited 1 after
+all captures when sparse checkouts lacked plan files. Exact Git materialization
+and a separate postprocessing recovery preserve that failure and reuse all raw
+captures; no failed process is relabeled as passed.
 
-The earlier `beb4ecd9` [general resource day](evidence/grpc-decode-reuse-soak-20261023/README.md)
-passed 86,405.461 seconds; its [Prost-cache diagnostic](evidence/grpc-prost-cache-diagnostic-20261023/README.md)
-passed 86,400.801 seconds. Current runtime `7c02eb38` general/deadline days are
-**running; results pending**, observed at 2026-10-24 09:27 UTC. Repository `8144576f`
-qualifies the unchanged production/codegen/harness/manifest/lock blobs through full
-Git equivalence. A preview, older day or repeated cycle does not replace a
-current-source full-duration run.
-The ordinary successful DATA-owner Drop concern remains open and unreproduced.
+The quiet same-source replay retains a native unary-server CPU loss in all four
+raw comparisons (53–60 versus 40–45 µs/call); timing is mixed. The earlier run
+records a throughput loss whose magnitude is not generalized to the replay. Identity bidi client bytes exceed tonic by 5.70%; 1 MiB gzip bidi
+bytes exceed it by 16.40% client / 17.43% server. All 30 native instruction groups
+are lower in both repeats, while 22 medians rise against the previous runtime.
+The benchmark page separates those results and keeps every source/control increase.
 
-Streaming decode reuse retains its 4 MiB per-buffer / 16 MiB process idle-capacity
-limit. Retained Bytes/lazy pbrs input keeps ownership; active decoding, application
-messages, codec scratch and RSS are separate. Complete gzip members, zlib streams
-and Zstd frames remain validated under output and member/history limits.
+Current-source release previews pass **34.370 / 30.796 seconds**. The deadline
+preview repeats the same 30 cases for 31 cycles. Both 24-hour runs are **running,
+results pending**, with advancing cycles verified at **2026-10-24 22:48:16 UTC**.
+The observed processes have the intended kernel limits and balanced cleanup;
+no full-duration pass is claimed.
+The earlier `7c02eb38` general/deadline attempts are interrupted with no terminal
+report, no 24-hour pass and no established application failure; the exit cause is
+unavailable. Earlier `beb4ecd9` general/cache days passed only their own source.
 
-Sustained resources, remaining features/specification coverage, required
-platforms/releases and shipping CPU/latency/throughput still
-need qualification. Production readiness and broad superiority remain unproved.
+Stream decode reuse keeps the 4 MiB per-buffer / 16 MiB process idle-capacity limit.
+Retained Bytes/lazy pbrs input keeps ownership. Active decoding, application
+messages, codec scratch and RSS remain separate. Complete compressed members,
+streams and frames retain output/history/work limits.
+
+Sustained resources, remaining features/specification coverage, required platforms,
+releases and the complete per-side performance matrix remain open. These checks
+are not a production certification; broad superiority remains unproved.
 
 Use this page to distinguish source features, recorded tests and missing
 qualification. The [2026-09-29 audit](audit-2026-09-29.md) reviewed

@@ -1,0 +1,174 @@
+{
+  "schema": "pbrs.grpc-ready-set-experiment.v1",
+  "created_utc": "2026-10-24T22:52:30.482879+00:00",
+  "qualified": false,
+  "production_ready": false,
+  "broad_superiority_proven": false,
+  "baseline": "933bf8775b70d24d91fb46a7992eae343b60f0ea",
+  "candidate": "daa7eb4074d654849d4206473250933666994adb",
+  "root_runtime_source": "933bf8775b70d24d91fb46a7992eae343b60f0ea",
+  "root_decision": "defer",
+  "reason": "The causal control passes, but the matched shipping comparison shows no consistent physical CPU benefit. Native server and Tonic control results vary; retain the experiment and keep the qualified runtime unchanged.",
+  "qualification": {
+    "source": "933bf8775b70d24d91fb46a7992eae343b60f0ea",
+    "capsule": "docs/evidence/grpc-ownership-20261024",
+    "applies_to_candidate": false
+  },
+  "causal": {
+    "baseline_passed": 0,
+    "baseline_failed": 1,
+    "v1_passed": 87,
+    "v2_passed": 87,
+    "v2_failed": 0,
+    "witness": "One parent poll reads complete DATA and executes its newly ready handler; an unwoken sibling remains parked. Wire output/status and same-connection recovery pass before detection.",
+    "limits": [
+      "Observed parent wakes rise from one to two; no notification-reduction proof.",
+      "The extra ready-set poll restarts one fairness slice; no universal same-turn or noncooperative-handler guarantee.",
+      "Drain priority preserved; nonsteady paths unchanged."
+    ]
+  },
+  "shipping": {
+    "captures": 48,
+    "successful_rpcs": 360000,
+    "failed_rpcs": 0,
+    "rpc_counts": [
+      5000,
+      10000
+    ],
+    "repeats": 2,
+    "allocation_counts": false,
+    "timing_qualified": false,
+    "native_server_raw_cpu_us_per_rpc_at_10000": [
+      {
+        "shape": "unary",
+        "repeat": 1,
+        "baseline": 47,
+        "candidate": 49,
+        "change_percent": 4.255319148936176
+      },
+      {
+        "shape": "unary",
+        "repeat": 2,
+        "baseline": 49,
+        "candidate": 43,
+        "change_percent": -12.244897959183676
+      },
+      {
+        "shape": "bidi",
+        "repeat": 1,
+        "baseline": 108,
+        "candidate": 108,
+        "change_percent": 0.0
+      },
+      {
+        "shape": "bidi",
+        "repeat": 2,
+        "baseline": 149,
+        "candidate": 162,
+        "change_percent": 8.7248322147651
+      }
+    ],
+    "native_server_cpu_slopes_us_per_rpc": {
+      "unary": {
+        "baseline": [
+          32,
+          62
+        ],
+        "candidate": [
+          54,
+          44
+        ]
+      },
+      "bidi": {
+        "baseline": [
+          78,
+          138
+        ],
+        "candidate": [
+          76,
+          168
+        ]
+      }
+    }
+  },
+  "limits": [
+    "Full source/control comparisons, histograms, user/system components and signed slopes remain in the archived original summary.",
+    "Shared host, two repeats and 10 ms process ticks limit interpretation.",
+    "Server client-window CPU and client process-lifetime CPU have different setup/reporting scopes.",
+    "No C14 syscall tracing; previous C13 traces cannot establish a C14 reduction.",
+    "C13 workspace, sanitizer, conformance and resource qualification does not qualify this experimental source.",
+    "ELF bytes omitted; build/source/tool hashes and command logs remain."
+  ],
+  "records": {
+    "architecture-c14-publication-decision.json": {
+      "path": "work/qualification/architecture-c14-publication-decision.json",
+      "bytes": 2081,
+      "sha256": "a88563af22a72662a1ee3c280fc3910dc99846664ad482933605670c33f683fc",
+      "archive_path": "qualification/architecture-c14-publication-decision.json"
+    },
+    "architecture-c14-connection-turn-results.json": {
+      "path": "work/qualification/architecture-c14-connection-turn-results.json",
+      "bytes": 24700,
+      "sha256": "dd2dc1cae428053f79772a492152ad8e2ff4f98863357fc261b9e6a4902f168e",
+      "archive_path": "qualification/architecture-c14-connection-turn-results.json"
+    },
+    "architecture-c14-shipping-analysis.json": {
+      "path": "work/qualification/architecture-c14-shipping-analysis.json",
+      "bytes": 110950,
+      "sha256": "d19f9536db286618b8fb205295bad499f8e7242fc42f65041637894f37988697",
+      "archive_path": "qualification/architecture-c14-shipping-analysis.json"
+    },
+    "architecture-c14-shipping-completion.json": {
+      "path": "work/qualification/architecture-c14-shipping-completion.json",
+      "bytes": 92876,
+      "sha256": "e6a750cce636cfb806285634474302e3465db7a934b3e328bb0087717a950016",
+      "archive_path": "qualification/architecture-c14-shipping-completion.json"
+    },
+    "architecture-c14-shipping-captures/state.json": {
+      "path": "work/qualification/architecture-c14-shipping-captures/state.json",
+      "bytes": 18451,
+      "sha256": "6810693fd8386f378e6272438ade550ba09c11fcbd63557aad623cd0cacccba7",
+      "archive_path": "qualification/architecture-c14-shipping-captures/state.json"
+    },
+    "architecture-c14-shipping-captures/shipping-summary.json": {
+      "path": "work/qualification/architecture-c14-shipping-captures/shipping-summary.json",
+      "bytes": 643254,
+      "sha256": "f04e5a226d3a48d545d5ef7cdd774151e72e758e162a285819aa8aa3368e5bfb",
+      "archive_path": "qualification/architecture-c14-shipping-captures/shipping-summary.json"
+    },
+    "architecture-c14-shipping-findings.md": {
+      "path": "work/qualification/architecture-c14-shipping-findings.md",
+      "bytes": 5223,
+      "sha256": "a494f4ed81a019334c0c847471d9f4df0680a1a11081f4d3be65906023cf027f",
+      "archive_path": "qualification/architecture-c14-shipping-findings.md"
+    },
+    "architecture-c14-shipping-source-freeze.json": {
+      "path": "work/qualification/architecture-c14-shipping-source-freeze.json",
+      "bytes": 2660,
+      "sha256": "b2bb4baa23dc781d52221e3f62633e161d391582f8eff56879ca0de657413b09",
+      "archive_path": "qualification/architecture-c14-shipping-source-freeze.json"
+    },
+    "architecture-c14-package-prepared-v2.json": {
+      "path": "work/qualification/architecture-c14-package-prepared-v2.json",
+      "bytes": 2826,
+      "sha256": "4906af783f784860614fb6fffea5ef20b2351d5cb15adc960e17db393d0a5029",
+      "archive_path": "qualification/architecture-c14-package-prepared-v2.json"
+    },
+    "architecture-c14-source.bundle": {
+      "path": "work/qualification/architecture-c14-source.bundle",
+      "bytes": 4836,
+      "sha256": "3e9db576707850eeb3eaf124ba7bb91323d9d0ed5df0f10359ea80ed2b5a89ab",
+      "archive_path": "qualification/architecture-c14-source.bundle"
+    },
+    "architecture-c14-source-bundle.json": {
+      "path": "work/qualification/architecture-c14-source-bundle.json",
+      "bytes": 1381,
+      "sha256": "da9a2b5b7ee42ccd35f21ae9c5a4ed0132869b145839d8e151302233614a01aa",
+      "archive_path": "qualification/architecture-c14-source-bundle.json"
+    }
+  },
+  "source_bundle": {
+    "required_commit": "933bf8775b70d24d91fb46a7992eae343b60f0ea",
+    "candidate": "daa7eb4074d654849d4206473250933666994adb"
+  }
+}

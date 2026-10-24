@@ -1,0 +1,4946 @@
+{
+  "schema": "pbrs.grpc-ownership-evidence.v1",
+  "created_utc": "2026-10-24T22:51:51.852481+00:00",
+  "qualified": false,
+  "production_ready": false,
+  "broad_superiority_proven": false,
+  "sources": {
+    "baseline": "7c02eb387a6785d6e914146babe34f0902a6dd62",
+    "safety": "ca4ef720f8a90134334101e0106a8a68808fc19f",
+    "current": "933bf8775b70d24d91fb46a7992eae343b60f0ea",
+    "current_tree": "6188eaf5c9d3342afd221b10c7a133968a27e6e7"
+  },
+  "source_roles": {
+    "baseline": "Previous measured runtime.",
+    "safety": "Completed DATA owner retirement, pre-shape reset ownership and structural protobuf group validation.",
+    "current": "Safety source plus single-ready batch reservation changes."
+  },
+  "validation": {
+    "workspace": {
+      "result": {
+        "passed": 3840,
+        "failed": 0,
+        "ignored": 9
+      },
+      "targets": 145,
+      "seconds": 1350.7978259629963,
+      "state": {
+        "path": "work/qualification/architecture-c13-workspace.json",
+        "archive_path": "qualification/architecture-c13-workspace.json",
+        "bytes": 1559,
+        "sha256": "64a53065971f391a95c40e2c28cbea401930e522a2ca2ddf29340034cc276dd6"
+      },
+      "physical_before": {
+        "path": "work/qualification/architecture-c13-workspace-source-before.json",
+        "archive_path": "qualification/architecture-c13-workspace-source-before.json",
+        "bytes": 735965,
+        "sha256": "6c54796af2609264f1caacce057f703902473d53ce5dfd50e03856ec3a0277df"
+      },
+      "physical_after": {
+        "path": "work/qualification/architecture-c13-workspace-source-after.json",
+        "archive_path": "qualification/architecture-c13-workspace-source-after.json",
+        "bytes": 735965,
+        "sha256": "6c54796af2609264f1caacce057f703902473d53ce5dfd50e03856ec3a0277df"
+      },
+      "tracked_blobs": 3797,
+      "tracked_bytes": 910511102
+    },
+    "asan": {
+      "result": {
+        "passed": 961,
+        "failed": 0,
+        "ignored": 1
+      },
+      "selected_elfs": 13,
+      "summary": {
+        "path": "work/qualification/architecture-c13-asan-summary.json",
+        "archive_path": "qualification/architecture-c13-asan-summary.json",
+        "bytes": 903,
+        "sha256": "bd5dba84ad3cb7de5c5f579807746c758b62b5704d4635da82110f3dd9d3021b"
+      },
+      "state": {
+        "path": "work/qualification/architecture-c13-asan-state.json",
+        "archive_path": "qualification/architecture-c13-asan-state.json",
+        "bytes": 14708,
+        "sha256": "0e3fff8fd50302a8355e524b9e5c9b9e5cbd8dd68985f67e694f5660475e692d"
+      }
+    },
+    "precommit_source_equivalence": {
+      "path": "work/qualification/architecture-c13-precommit-source-equivalence.json",
+      "archive_path": "qualification/architecture-c13-precommit-source-equivalence.json",
+      "bytes": 4823,
+      "sha256": "f829eaa8598dcc9c6c157add714463a5d892db0bace3e2f671149a59ba295ce4"
+    },
+    "warning_strict_rustdoc": {
+      "path": "work/qualification/architecture-c13-final-rustdoc.json",
+      "archive_path": "qualification/architecture-c13-final-rustdoc.json",
+      "bytes": 646,
+      "sha256": "c195f0dec571eb78a669c136541ae0bcd86b67079dcccbe89806b9afd75380a5"
+    },
+    "rust185_core": {
+      "path": "work/qualification/architecture-c13-final-msrv.json",
+      "archive_path": "qualification/architecture-c13-final-msrv.json",
+      "bytes": 649,
+      "sha256": "53a7cadf9c00c66d48add651b58b9f060c9d2d3cde69e1e947cf82943241c96d"
+    },
+    "rust187_zstd": {
+      "path": "work/qualification/architecture-c13-final-msrv-zstd.json",
+      "archive_path": "qualification/architecture-c13-final-msrv-zstd.json",
+      "bytes": 656,
+      "sha256": "4968506d80eefd16c9c21a7a91a61f88fe3adb97a1d0fb7a1859bc9e23a845a2"
+    },
+    "precommit_clippy": {
+      "path": "work/qualification/architecture-c13-single-ready-clippy.json",
+      "archive_path": "qualification/architecture-c13-single-ready-clippy.json",
+      "bytes": 748,
+      "sha256": "a85356ed078830c87258c2953c32cf7f3e42c7c7ca93f63357faa854c7de2276"
+    },
+    "precommit_fmt": {
+      "path": "work/qualification/architecture-c13-single-ready-fmt.json",
+      "archive_path": "qualification/architecture-c13-single-ready-fmt.json",
+      "bytes": 590,
+      "sha256": "2e42472e1e139db637841e474e143bf5b3f152ccc2e9c329ed312fdfe4905047"
+    },
+    "kernel": {
+      "path": "work/qualification/kernel-unknown-group-focused-qualification.json",
+      "archive_path": "qualification/kernel-unknown-group-focused-qualification.json",
+      "bytes": 5980,
+      "sha256": "ad1244eb88990bc44735e23d217495be33f9c6d03d6cd3c29ab3d4b5ba0e3701"
+    },
+    "regeneration": {
+      "path": "work/qualification/kernel-unknown-group-original-regen-check.json",
+      "archive_path": "qualification/kernel-unknown-group-original-regen-check.json",
+      "bytes": 879,
+      "sha256": "04a87c9a89cb7135ac6355bbc96ac4b2d83b6f14e4c82ac8c6f4f0a7cc768ef0"
+    },
+    "official_conformance": {
+      "required_1": {
+        "maximum_edition": 2023,
+        "binary_json_successes": 5631,
+        "text_successes": 909,
+        "skipped": 0,
+        "expected_failures": 0,
+        "unexpected_failures": 0,
+        "record": {
+          "path": "work/qualification/kernel-unknown-group-conformance-required_1.json",
+          "archive_path": "qualification/kernel-unknown-group-conformance-required_1.json",
+          "bytes": 938,
+          "sha256": "84ccb8dd323e59c691dbc4ee88dd5fafd5c14715d97c4adc3247d745a0fd717d"
+        }
+      },
+      "required_2": {
+        "maximum_edition": 2023,
+        "binary_json_successes": 5631,
+        "text_successes": 909,
+        "skipped": 0,
+        "expected_failures": 0,
+        "unexpected_failures": 0,
+        "record": {
+          "path": "work/qualification/kernel-unknown-group-conformance-required_2.json",
+          "archive_path": "qualification/kernel-unknown-group-conformance-required_2.json",
+          "bytes": 938,
+          "sha256": "76a93fcc593a2dfbbd60a1ed530fa9cd70e5ed5b76475183cbc425c2ad375479"
+        }
+      },
+      "recommended": {
+        "maximum_edition": 2023,
+        "binary_json_successes": 5631,
+        "text_successes": 909,
+        "skipped": 0,
+        "expected_failures": 0,
+        "unexpected_failures": 0,
+        "record": {
+          "path": "work/qualification/kernel-unknown-group-conformance-recommended.json",
+          "archive_path": "qualification/kernel-unknown-group-conformance-recommended.json",
+          "bytes": 968,
+          "sha256": "0c48eb8b45144dbd8149ea2e025ae987013f16e6d40da9ab4ada604777810be7"
+        }
+      }
+    }
+  },
+  "phases": {
+    "native": {
+      "captures": 576,
+      "successful_rpcs": 21600,
+      "source_count": 3,
+      "scope": "Allocation-instrumented N25/50; two paired repeats; 48 workload/pair scopes.",
+      "state": "postprocessing_recovered",
+      "original_controller_exit_code": 1,
+      "original_controller": {
+        "path": "work/qualification/resource-c13-native-execution.json",
+        "archive_path": "qualification/resource-c13-native-execution.json",
+        "bytes": 666,
+        "sha256": "22b880e7808351f838d4c3153a80c7dc945b44918ba83259333ab0a82bf6cd93"
+      },
+      "original_state": {
+        "path": "work/qualification/architecture-c13-native-captures/state.json",
+        "archive_path": "qualification/architecture-c13-native-captures/state.json",
+        "bytes": 60344,
+        "sha256": "bc27b412e68427a043cfacf403aca108b7ff675bfb29c119dca64f928204e2a0"
+      },
+      "recovered_state": {
+        "path": "work/qualification/architecture-c13-native-recovered/state.json",
+        "archive_path": "qualification/architecture-c13-native-recovered/state.json",
+        "bytes": 854184,
+        "sha256": "009f3e4a898192956d27f172b9a072273ab69d0976de0f7381d6911d4d529665"
+      },
+      "complete_analysis": {
+        "path": "work/qualification/architecture-c13-native-analysis.json",
+        "archive_path": "qualification/architecture-c13-native-analysis.json",
+        "bytes": 4923663,
+        "sha256": "a8d82180a71dc98e45ba4004e64545e92a2eeddb0d2b7ac1fe68e17bca934416"
+      }
+    },
+    "callgrind": {
+      "captures": 540,
+      "successful_rpcs": 8100,
+      "source_count": 3,
+      "scope": "Allocation-instrumented N10/20; two paired repeats; 45 workload/pair scopes.",
+      "state": {
+        "path": "work/qualification/architecture-c13-callgrind-captures/state.json",
+        "archive_path": "qualification/architecture-c13-callgrind-captures/state.json",
+        "bytes": 60862,
+        "sha256": "67aa8fcb9c2d867529c3848a1528232549463ab4f62c2c33264732578262110b"
+      },
+      "execution": {
+        "path": "work/qualification/resource-c13-callgrind-execution.json",
+        "archive_path": "qualification/resource-c13-callgrind-execution.json",
+        "bytes": 862,
+        "sha256": "297be1aa5513e90f7386f91574b0974c5290f827b20bbc56b7037ae54dd44d5b"
+      },
+      "complete_analysis": {
+        "path": "work/qualification/architecture-c13-callgrind-analysis.json",
+        "archive_path": "qualification/architecture-c13-callgrind-analysis.json",
+        "bytes": 6171857,
+        "sha256": "ebfaf86ec0b5bc17e922bebf9c73dc9d9fed9c798cfb587dfcfda1b66d101d71"
+      }
+    },
+    "bulk": {
+      "captures": 240,
+      "successful_rpcs": 9000,
+      "source_count": 2,
+      "scope": "Safety->batch, separate partitions for 1/2/3/4/64 messages per leg.",
+      "complete_record": {
+        "path": "work/qualification/architecture-c13-bulk-completion.json",
+        "archive_path": "qualification/architecture-c13-bulk-completion.json",
+        "bytes": 443495,
+        "sha256": "264ed0fac99bea344cf137111bfa60589f0bc4c7a6c000ae786064567877c34b"
+      }
+    },
+    "shipping": {
+      "captures": 48,
+      "successful_rpcs": 360000,
+      "source_count": 2,
+      "scope": "Feature-off release binaries, N5000/10000, two paired repeats, identity1KiB unary/bidi. Timing remains unqualified.",
+      "complete_record": {
+        "path": "work/qualification/architecture-c13-shipping-completion.json",
+        "archive_path": "qualification/architecture-c13-shipping-completion.json",
+        "bytes": 104629,
+        "sha256": "b2f60330cee3cd4326c41cf92b96a01f3f4322a23c1a00a271bf933a81593cea"
+      },
+      "complete_summary": {
+        "path": "work/qualification/architecture-c13-shipping-captures/shipping-summary.json",
+        "archive_path": "qualification/architecture-c13-shipping-captures/shipping-summary.json",
+        "bytes": 425609,
+        "sha256": "3e4b982b378254620ee05df9f1212f0682483f74a281d858fd93307d36113037"
+      },
+      "cpu_investigation": {
+        "path": "work/qualification/architecture-c13-shipping-unary-server-investigation.md",
+        "archive_path": "qualification/architecture-c13-shipping-unary-server-investigation.md",
+        "bytes": 8309,
+        "sha256": "a91aba9a125e97a7ef23298b9d33aadf7c9623671968d5537d386fb2d1b34888"
+      }
+    },
+    "selected_syscalls": {
+      "captures": 8,
+      "successful_rpcs": 12000,
+      "source": "933bf8775b70d24d91fb46a7992eae343b60f0ea",
+      "scope": "Tracing diagnostic, not timing.",
+      "complete_record": {
+        "path": "work/qualification/architecture-c13-shipping-unary-syscalls-completion.json",
+        "archive_path": "qualification/architecture-c13-shipping-unary-syscalls-completion.json",
+        "bytes": 20662,
+        "sha256": "7ff2c54c12b5c065300b32869a1b2262bca12d5910144daa6515b93b298207e0"
+      }
+    },
+    "fd_trace": {
+      "captures": 8,
+      "successful_rpcs": 600,
+      "source": "933bf8775b70d24d91fb46a7992eae343b60f0ea",
+      "scope": "Own-child fd-aware traces; four native-server traces. Tracing/background effects apply.",
+      "complete_record": {
+        "path": "work/qualification/architecture-c13-shipping-unary-fdtrace-completion.json",
+        "archive_path": "qualification/architecture-c13-shipping-unary-fdtrace-completion.json",
+        "bytes": 21568,
+        "sha256": "e11b04dc7ecaed8b2c2ac70481d2e3dbc305f2976e3e4ca369cfd67d7c8cb5d6"
+      },
+      "complete_analysis": {
+        "path": "work/qualification/architecture-c13-fdtrace-analysis.json",
+        "archive_path": "qualification/architecture-c13-fdtrace-analysis.json",
+        "bytes": 4752317,
+        "sha256": "58e8b784394ef2ed87d1439f6cc69d296ef71dc121539922dac83aaf848b96b2"
+      },
+      "findings": {
+        "path": "work/qualification/architecture-c13-shipping-unary-fdtrace-findings.md",
+        "archive_path": "qualification/architecture-c13-shipping-unary-fdtrace-findings.md",
+        "bytes": 5584,
+        "sha256": "4fa2e794a8f0a370c7eee5a05a9651dcc59ddba9c3371953a6957bfdbeae234c"
+      }
+    },
+    "adjacent_shipping": {
+      "captures": 16,
+      "successful_rpcs": 120000,
+      "source": "933bf8775b70d24d91fb46a7992eae343b60f0ea",
+      "scope": "Quiet same-source feature-off unary replay; N5000/10000, four paired repeats. Known-process quiescence observations have coverage limits; timing unqualified.",
+      "complete_record": {
+        "path": "work/qualification/architecture-c13-shipping-unary-adjacent-completion.json",
+        "archive_path": "qualification/architecture-c13-shipping-unary-adjacent-completion.json",
+        "bytes": 55834,
+        "sha256": "afc5c0251d297ddf16c0b086413d9a9d7ba7c7eb59803af40ac35d74c005ae55"
+      }
+    }
+  },
+  "canonical_counter_totals": {
+    "captures": 1116,
+    "successful_rpcs": 29700,
+    "includes": [
+      "native",
+      "callgrind"
+    ],
+    "excludes": [
+      "bulk",
+      "shipping",
+      "selected_syscalls",
+      "fd_trace",
+      "adjacent_shipping"
+    ]
+  },
+  "measurements": {
+    "byte_table": [
+      {
+        "side": "Client",
+        "workload": "Bidi, 1 KiB identity",
+        "data": {
+          "comparison": "batch->tonic",
+          "cell": {
+            "pair": [
+              "native",
+              "prost",
+              "tonic",
+              "prost"
+            ],
+            "shape": "bidi",
+            "payload_bytes": 1024,
+            "tls": false,
+            "compression": "identity",
+            "connections": 1,
+            "in_flight": 1
+          },
+          "side": "client",
+          "metric": "requested_bytes",
+          "native_endpoint": true,
+          "before": {
+            "values": [
+              41073.96,
+              41074.56
+            ],
+            "complete": true,
+            "min": 41073.96,
+            "median": 41074.259999999995,
+            "max": 41074.56
+          },
+          "after": {
+            "values": [
+              43177.12,
+              43654.0
+            ],
+            "complete": true,
+            "min": 43177.12,
+            "median": 43415.56,
+            "max": 43654.0
+          },
+          "percent_of_medians": 5.700163557420157,
+          "paired_percent": {
+            "values": [
+              5.1204217952201425,
+              6.279896850994882
+            ],
+            "complete": true,
+            "min": 5.1204217952201425,
+            "median": 5.700159323107512,
+            "max": 6.279896850994882
+          },
+          "paired_saved": {
+            "values": [
+              -2103.1600000000035,
+              -2579.4400000000023
+            ],
+            "complete": true,
+            "min": -2579.4400000000023,
+            "median": -2341.300000000003,
+            "max": -2103.1600000000035
+          },
+          "directions": {
+            "higher": 2
+          },
+          "any_positive_cost_repeat": true,
+          "positive_cost_median": true,
+          "repeats": [
+            {
+              "comparison": "batch->tonic",
+              "cell": {
+                "pair": [
+                  "native",
+                  "prost",
+                  "tonic",
+                  "prost"
+                ],
+                "shape": "bidi",
+                "payload_bytes": 1024,
+                "tls": false,
+                "compression": "identity",
+                "connections": 1,
+                "in_flight": 1,
+                "repeat": 0
+              },
+              "side": "client",
+              "metric": "requested_bytes",
+              "before": 41073.96,
+              "after": 43177.12,
+              "ledger_disposition": "loss"
+            },
+            {
+              "comparison": "batch->tonic",
+              "cell": {
+                "pair": [
+                  "native",
+                  "prost",
+                  "tonic",
+                  "prost"
+                ],
+                "shape": "bidi",
+                "payload_bytes": 1024,
+                "tls": false,
+                "compression": "identity",
+                "connections": 1,
+                "in_flight": 1,
+                "repeat": 1
+              },
+              "side": "client",
+              "metric": "requested_bytes",
+              "before": 41074.56,
+              "after": 43654.0,
+              "ledger_disposition": "loss"
+            }
+          ]
+        }
+      },
+      {
+        "side": "Server",
+        "workload": "Bidi, 1 KiB identity",
+        "data": {
+          "comparison": "batch->tonic",
+          "cell": {
+            "pair": [
+              "tonic",
+              "prost",
+              "native",
+              "prost"
+            ],
+            "shape": "bidi",
+            "payload_bytes": 1024,
+            "tls": false,
+            "compression": "identity",
+            "connections": 1,
+            "in_flight": 1
+          },
+          "side": "server",
+          "metric": "requested_bytes",
+          "native_endpoint": true,
+          "before": {
+            "values": [
+              33740.0,
+              33740.0
+            ],
+            "complete": true,
+            "min": 33740.0,
+            "median": 33740.0,
+            "max": 33740.0
+          },
+          "after": {
+            "values": [
+              32071.04,
+              32077.72
+            ],
+            "complete": true,
+            "min": 32071.04,
+            "median": 32074.38,
+            "max": 32077.72
+          },
+          "percent_of_medians": -4.936633076467101,
+          "paired_percent": {
+            "values": [
+              -4.9465323058684,
+              -4.9267338470657895
+            ],
+            "complete": true,
+            "min": -4.9465323058684,
+            "median": -4.9366330764670945,
+            "max": -4.9267338470657895
+          },
+          "paired_saved": {
+            "values": [
+              1668.9599999999991,
+              1662.2799999999988
+            ],
+            "complete": true,
+            "min": 1662.2799999999988,
+            "median": 1665.619999999999,
+            "max": 1668.9599999999991
+          },
+          "directions": {
+            "lower": 2
+          },
+          "any_positive_cost_repeat": false,
+          "positive_cost_median": false,
+          "repeats": [
+            {
+              "comparison": "batch->tonic",
+              "cell": {
+                "pair": [
+                  "tonic",
+                  "prost",
+                  "native",
+                  "prost"
+                ],
+                "shape": "bidi",
+                "payload_bytes": 1024,
+                "tls": false,
+                "compression": "identity",
+                "connections": 1,
+                "in_flight": 1,
+                "repeat": 0
+              },
+              "side": "server",
+              "metric": "requested_bytes",
+              "before": 33740.0,
+              "after": 32071.04,
+              "ledger_disposition": "win"
+            },
+            {
+              "comparison": "batch->tonic",
+              "cell": {
+                "pair": [
+                  "tonic",
+                  "prost",
+                  "native",
+                  "prost"
+                ],
+                "shape": "bidi",
+                "payload_bytes": 1024,
+                "tls": false,
+                "compression": "identity",
+                "connections": 1,
+                "in_flight": 1,
+                "repeat": 1
+              },
+              "side": "server",
+              "metric": "requested_bytes",
+              "before": 33740.0,
+              "after": 32077.72,
+              "ledger_disposition": "win"
+            }
+          ]
+        }
+      },
+      {
+        "side": "Client",
+        "workload": "Bidi, 1 MiB gzip",
+        "data": {
+          "comparison": "batch->tonic",
+          "cell": {
+            "pair": [
+              "native",
+              "prost",
+              "tonic",
+              "prost"
+            ],
+            "shape": "bidi",
+            "payload_bytes": 1048576,
+            "tls": false,
+            "compression": "gzip",
+            "connections": 1,
+            "in_flight": 1
+          },
+          "side": "client",
+          "metric": "requested_bytes",
+          "native_endpoint": true,
+          "before": {
+            "values": [
+              17481453.68,
+              17481454.44
+            ],
+            "complete": true,
+            "min": 17481453.68,
+            "median": 17481454.060000002,
+            "max": 17481454.44
+          },
+          "after": {
+            "values": [
+              20348042.72,
+              20348092.48
+            ],
+            "complete": true,
+            "min": 20348042.72,
+            "median": 20348067.6,
+            "max": 20348092.48
+          },
+          "percent_of_medians": 16.398026904176177,
+          "paired_percent": {
+            "values": [
+              16.397887112097422,
+              16.39816669624887
+            ],
+            "complete": true,
+            "min": 16.397887112097422,
+            "median": 16.398026904173147,
+            "max": 16.39816669624887
+          },
+          "paired_saved": {
+            "values": [
+              -2866589.039999999,
+              -2866638.039999999
+            ],
+            "complete": true,
+            "min": -2866638.039999999,
+            "median": -2866613.539999999,
+            "max": -2866589.039999999
+          },
+          "directions": {
+            "higher": 2
+          },
+          "any_positive_cost_repeat": true,
+          "positive_cost_median": true,
+          "repeats": [
+            {
+              "comparison": "batch->tonic",
+              "cell": {
+                "pair": [
+                  "native",
+                  "prost",
+                  "tonic",
+                  "prost"
+                ],
+                "shape": "bidi",
+                "payload_bytes": 1048576,
+                "tls": false,
+                "compression": "gzip",
+                "connections": 1,
+                "in_flight": 1,
+                "repeat": 0
+              },
+              "side": "client",
+              "metric": "requested_bytes",
+              "before": 17481453.68,
+              "after": 20348042.72,
+              "ledger_disposition": "loss"
+            },
+            {
+              "comparison": "batch->tonic",
+              "cell": {
+                "pair": [
+                  "native",
+                  "prost",
+                  "tonic",
+                  "prost"
+                ],
+                "shape": "bidi",
+                "payload_bytes": 1048576,
+                "tls": false,
+                "compression": "gzip",
+                "connections": 1,
+                "in_flight": 1,
+                "repeat": 1
+              },
+              "side": "client",
+              "metric": "requested_bytes",
+              "before": 17481454.44,
+              "after": 20348092.48,
+              "ledger_disposition": "loss"
+            }
+          ]
+        }
+      },
+      {
+        "side": "Server",
+        "workload": "Bidi, 1 MiB gzip",
+        "data": {
+          "comparison": "batch->tonic",
+          "cell": {
+            "pair": [
+              "tonic",
+              "prost",
+              "native",
+              "prost"
+            ],
+            "shape": "bidi",
+            "payload_bytes": 1048576,
+            "tls": false,
+            "compression": "gzip",
+            "connections": 1,
+            "in_flight": 1
+          },
+          "side": "server",
+          "metric": "requested_bytes",
+          "native_endpoint": true,
+          "before": {
+            "values": [
+              16426521.6,
+              16426504.12
+            ],
+            "complete": true,
+            "min": 16426504.12,
+            "median": 16426512.86,
+            "max": 16426521.6
+          },
+          "after": {
+            "values": [
+              19289124.88,
+              19289125.48
+            ],
+            "complete": true,
+            "min": 19289124.88,
+            "median": 19289125.18,
+            "max": 19289125.48
+          },
+          "percent_of_medians": 17.426780378754113,
+          "paired_percent": {
+            "values": [
+              17.426716073596495,
+              17.426844683980146
+            ],
+            "complete": true,
+            "min": 17.426716073596495,
+            "median": 17.426780378788322,
+            "max": 17.426844683980146
+          },
+          "paired_saved": {
+            "values": [
+              -2862603.2799999993,
+              -2862621.3600000013
+            ],
+            "complete": true,
+            "min": -2862621.3600000013,
+            "median": -2862612.3200000003,
+            "max": -2862603.2799999993
+          },
+          "directions": {
+            "higher": 2
+          },
+          "any_positive_cost_repeat": true,
+          "positive_cost_median": true,
+          "repeats": [
+            {
+              "comparison": "batch->tonic",
+              "cell": {
+                "pair": [
+                  "tonic",
+                  "prost",
+                  "native",
+                  "prost"
+                ],
+                "shape": "bidi",
+                "payload_bytes": 1048576,
+                "tls": false,
+                "compression": "gzip",
+                "connections": 1,
+                "in_flight": 1,
+                "repeat": 0
+              },
+              "side": "server",
+              "metric": "requested_bytes",
+              "before": 16426521.6,
+              "after": 19289124.88,
+              "ledger_disposition": "loss"
+            },
+            {
+              "comparison": "batch->tonic",
+              "cell": {
+                "pair": [
+                  "tonic",
+                  "prost",
+                  "native",
+                  "prost"
+                ],
+                "shape": "bidi",
+                "payload_bytes": 1048576,
+                "tls": false,
+                "compression": "gzip",
+                "connections": 1,
+                "in_flight": 1,
+                "repeat": 1
+              },
+              "side": "server",
+              "metric": "requested_bytes",
+              "before": 16426504.12,
+              "after": 19289125.48,
+              "ledger_disposition": "loss"
+            }
+          ]
+        }
+      }
+    ],
+    "instruction_groups": [
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "native",
+            "prost",
+            "tonic",
+            "prost"
+          ],
+          "shape": "unary",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "identity",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "client",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            65138.9,
+            65335.6
+          ],
+          "complete": true,
+          "min": 65138.9,
+          "median": 65237.25,
+          "max": 65335.6
+        },
+        "after": {
+          "values": [
+            28173.9,
+            30553.9
+          ],
+          "complete": true,
+          "min": 28173.9,
+          "median": 29363.9,
+          "max": 30553.9
+        },
+        "percent_of_medians": -54.98905916481765,
+        "paired_percent": {
+          "values": [
+            -56.74796473382264,
+            -53.23544897421926
+          ],
+          "complete": true,
+          "min": -56.74796473382264,
+          "median": -54.99170685402095,
+          "max": -53.23544897421926
+        },
+        "paired_saved": {
+          "values": [
+            36965.0,
+            34781.7
+          ],
+          "complete": true,
+          "min": 34781.7,
+          "median": 35873.35,
+          "max": 36965.0
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "unary",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 65138.9,
+            "after": 28173.9,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "unary",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 65335.6,
+            "after": 30553.9,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "tonic",
+            "prost",
+            "native",
+            "prost"
+          ],
+          "shape": "unary",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "identity",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "server",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            56282.3,
+            56295.4
+          ],
+          "complete": true,
+          "min": 56282.3,
+          "median": 56288.850000000006,
+          "max": 56295.4
+        },
+        "after": {
+          "values": [
+            41117.7,
+            39685.1
+          ],
+          "complete": true,
+          "min": 39685.1,
+          "median": 40401.399999999994,
+          "max": 41117.7
+        },
+        "percent_of_medians": -28.224861584487893,
+        "paired_percent": {
+          "values": [
+            -26.943817150329686,
+            -29.505607918231334
+          ],
+          "complete": true,
+          "min": -29.505607918231334,
+          "median": -28.22471253428051,
+          "max": -26.943817150329686
+        },
+        "paired_saved": {
+          "values": [
+            15164.600000000006,
+            16610.300000000003
+          ],
+          "complete": true,
+          "min": 15164.600000000006,
+          "median": 15887.450000000004,
+          "max": 16610.300000000003
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "unary",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 56282.3,
+            "after": 41117.7,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "unary",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 56295.4,
+            "after": 39685.1,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "native",
+            "prost",
+            "tonic",
+            "prost"
+          ],
+          "shape": "client_stream",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "identity",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "client",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            68832.1,
+            67503.5
+          ],
+          "complete": true,
+          "min": 67503.5,
+          "median": 68167.8,
+          "max": 68832.1
+        },
+        "after": {
+          "values": [
+            30030.5,
+            30275.4
+          ],
+          "complete": true,
+          "min": 30030.5,
+          "median": 30152.95,
+          "max": 30275.4
+        },
+        "percent_of_medians": -55.76657894196379,
+        "paired_percent": {
+          "values": [
+            -56.37137324010164,
+            -55.1498811172754
+          ],
+          "complete": true,
+          "min": -56.37137324010164,
+          "median": -55.76062717868852,
+          "max": -55.1498811172754
+        },
+        "paired_saved": {
+          "values": [
+            38801.600000000006,
+            37228.1
+          ],
+          "complete": true,
+          "min": 37228.1,
+          "median": 38014.850000000006,
+          "max": 38801.600000000006
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "client_stream",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 68832.1,
+            "after": 30030.5,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "client_stream",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 67503.5,
+            "after": 30275.4,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "tonic",
+            "prost",
+            "native",
+            "prost"
+          ],
+          "shape": "client_stream",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "identity",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "server",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            56020.1,
+            57042.0
+          ],
+          "complete": true,
+          "min": 56020.1,
+          "median": 56531.05,
+          "max": 57042.0
+        },
+        "after": {
+          "values": [
+            42066.4,
+            46375.9
+          ],
+          "complete": true,
+          "min": 42066.4,
+          "median": 44221.15,
+          "max": 46375.9
+        },
+        "percent_of_medians": -21.77546675676465,
+        "paired_percent": {
+          "values": [
+            -24.90838109892699,
+            -18.69867816696469
+          ],
+          "complete": true,
+          "min": -24.90838109892699,
+          "median": -21.80352963294584,
+          "max": -18.69867816696469
+        },
+        "paired_saved": {
+          "values": [
+            13953.699999999997,
+            10666.099999999999
+          ],
+          "complete": true,
+          "min": 10666.099999999999,
+          "median": 12309.899999999998,
+          "max": 13953.699999999997
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "client_stream",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 56020.1,
+            "after": 42066.4,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "client_stream",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 57042.0,
+            "after": 46375.9,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "native",
+            "prost",
+            "tonic",
+            "prost"
+          ],
+          "shape": "server_stream",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "identity",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "client",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            72794.9,
+            71078.6
+          ],
+          "complete": true,
+          "min": 71078.6,
+          "median": 71936.75,
+          "max": 72794.9
+        },
+        "after": {
+          "values": [
+            46105.3,
+            43074.9
+          ],
+          "complete": true,
+          "min": 43074.9,
+          "median": 44590.100000000006,
+          "max": 46105.3
+        },
+        "percent_of_medians": -38.01485332601208,
+        "paired_percent": {
+          "values": [
+            -36.66410696353727,
+            -39.39821549664738
+          ],
+          "complete": true,
+          "min": -39.39821549664738,
+          "median": -38.03116123009232,
+          "max": -36.66410696353727
+        },
+        "paired_saved": {
+          "values": [
+            26689.59999999999,
+            28003.700000000004
+          ],
+          "complete": true,
+          "min": 26689.59999999999,
+          "median": 27346.649999999998,
+          "max": 28003.700000000004
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "server_stream",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 72794.9,
+            "after": 46105.3,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "server_stream",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 71078.6,
+            "after": 43074.9,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "tonic",
+            "prost",
+            "native",
+            "prost"
+          ],
+          "shape": "server_stream",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "identity",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "server",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            70228.8,
+            66386.7
+          ],
+          "complete": true,
+          "min": 66386.7,
+          "median": 68307.75,
+          "max": 70228.8
+        },
+        "after": {
+          "values": [
+            52523.0,
+            57588.7
+          ],
+          "complete": true,
+          "min": 52523.0,
+          "median": 55055.85,
+          "max": 57588.7
+        },
+        "percent_of_medians": -19.400287668675954,
+        "paired_percent": {
+          "values": [
+            -25.21159410384344,
+            -13.252654522667939
+          ],
+          "complete": true,
+          "min": -25.21159410384344,
+          "median": -19.23212431325569,
+          "max": -13.252654522667939
+        },
+        "paired_saved": {
+          "values": [
+            17705.800000000003,
+            8798.0
+          ],
+          "complete": true,
+          "min": 8798.0,
+          "median": 13251.900000000001,
+          "max": 17705.800000000003
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "server_stream",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 70228.8,
+            "after": 52523.0,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "server_stream",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 66386.7,
+            "after": 57588.7,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "native",
+            "prost",
+            "tonic",
+            "prost"
+          ],
+          "shape": "bidi",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "identity",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "client",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            130658.7,
+            129432.2
+          ],
+          "complete": true,
+          "min": 129432.2,
+          "median": 130045.45,
+          "max": 130658.7
+        },
+        "after": {
+          "values": [
+            87010.8,
+            84190.6
+          ],
+          "complete": true,
+          "min": 84190.6,
+          "median": 85600.70000000001,
+          "max": 87010.8
+        },
+        "percent_of_medians": -34.176320663275796,
+        "paired_percent": {
+          "values": [
+            -33.4060418479596,
+            -34.95389864345966
+          ],
+          "complete": true,
+          "min": -34.95389864345966,
+          "median": -34.179970245709626,
+          "max": -33.4060418479596
+        },
+        "paired_saved": {
+          "values": [
+            43647.899999999994,
+            45241.59999999999
+          ],
+          "complete": true,
+          "min": 43647.899999999994,
+          "median": 44444.74999999999,
+          "max": 45241.59999999999
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "bidi",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 130658.7,
+            "after": 87010.8,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "bidi",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 129432.2,
+            "after": 84190.6,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "tonic",
+            "prost",
+            "native",
+            "prost"
+          ],
+          "shape": "bidi",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "identity",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "server",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            124242.4,
+            125359.1
+          ],
+          "complete": true,
+          "min": 124242.4,
+          "median": 124800.75,
+          "max": 125359.1
+        },
+        "after": {
+          "values": [
+            91480.5,
+            98152.8
+          ],
+          "complete": true,
+          "min": 91480.5,
+          "median": 94816.65,
+          "max": 98152.8
+        },
+        "percent_of_medians": -24.02557676937038,
+        "paired_percent": {
+          "values": [
+            -26.3693392915784,
+            -21.702692504971722
+          ],
+          "complete": true,
+          "min": -26.3693392915784,
+          "median": -24.03601589827506,
+          "max": -21.702692504971722
+        },
+        "paired_saved": {
+          "values": [
+            32761.899999999994,
+            27206.300000000003
+          ],
+          "complete": true,
+          "min": 27206.300000000003,
+          "median": 29984.1,
+          "max": 32761.899999999994
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "bidi",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 124242.4,
+            "after": 91480.5,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "bidi",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 125359.1,
+            "after": 98152.8,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "native",
+            "prost",
+            "tonic",
+            "prost"
+          ],
+          "shape": "bidi_pipelined",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "identity",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "client",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            103979.3,
+            89680.2
+          ],
+          "complete": true,
+          "min": 89680.2,
+          "median": 96829.75,
+          "max": 103979.3
+        },
+        "after": {
+          "values": [
+            67229.8,
+            64715.5
+          ],
+          "complete": true,
+          "min": 64715.5,
+          "median": 65972.65,
+          "max": 67229.8
+        },
+        "percent_of_medians": -31.867375470865113,
+        "paired_percent": {
+          "values": [
+            -35.343092327030476,
+            -27.83747137049204
+          ],
+          "complete": true,
+          "min": -35.343092327030476,
+          "median": -31.590281848761258,
+          "max": -27.83747137049204
+        },
+        "paired_saved": {
+          "values": [
+            36749.5,
+            24964.699999999997
+          ],
+          "complete": true,
+          "min": 24964.699999999997,
+          "median": 30857.1,
+          "max": 36749.5
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "bidi_pipelined",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 103979.3,
+            "after": 67229.8,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "bidi_pipelined",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 89680.2,
+            "after": 64715.5,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "tonic",
+            "prost",
+            "native",
+            "prost"
+          ],
+          "shape": "bidi_pipelined",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "identity",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "server",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            96738.9,
+            82596.5
+          ],
+          "complete": true,
+          "min": 82596.5,
+          "median": 89667.7,
+          "max": 96738.9
+        },
+        "after": {
+          "values": [
+            70739.4,
+            62954.5
+          ],
+          "complete": true,
+          "min": 62954.5,
+          "median": 66846.95,
+          "max": 70739.4
+        },
+        "percent_of_medians": -25.450357263540834,
+        "paired_percent": {
+          "values": [
+            -26.87595165957025,
+            -23.780668672401372
+          ],
+          "complete": true,
+          "min": -26.87595165957025,
+          "median": -25.328310165985812,
+          "max": -23.780668672401372
+        },
+        "paired_saved": {
+          "values": [
+            25999.5,
+            19642.0
+          ],
+          "complete": true,
+          "min": 19642.0,
+          "median": 22820.75,
+          "max": 25999.5
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "bidi_pipelined",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 96738.9,
+            "after": 70739.4,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "bidi_pipelined",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 82596.5,
+            "after": 62954.5,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "native",
+            "prost",
+            "tonic",
+            "prost"
+          ],
+          "shape": "unary",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "client",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            738418.8,
+            738842.1
+          ],
+          "complete": true,
+          "min": 738418.8,
+          "median": 738630.45,
+          "max": 738842.1
+        },
+        "after": {
+          "values": [
+            624348.3,
+            624443.5
+          ],
+          "complete": true,
+          "min": 624348.3,
+          "median": 624395.9,
+          "max": 624443.5
+        },
+        "percent_of_medians": -15.465724436353788,
+        "paired_percent": {
+          "values": [
+            -15.447940924581005,
+            -15.483497759534814
+          ],
+          "complete": true,
+          "min": -15.483497759534814,
+          "median": -15.465719342057909,
+          "max": -15.447940924581005
+        },
+        "paired_saved": {
+          "values": [
+            114070.5,
+            114398.59999999998
+          ],
+          "complete": true,
+          "min": 114070.5,
+          "median": 114234.54999999999,
+          "max": 114398.59999999998
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "unary",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 738418.8,
+            "after": 624348.3,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "unary",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 738842.1,
+            "after": 624443.5,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "tonic",
+            "prost",
+            "native",
+            "prost"
+          ],
+          "shape": "unary",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "server",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            726929.0,
+            727417.5
+          ],
+          "complete": true,
+          "min": 726929.0,
+          "median": 727173.25,
+          "max": 727417.5
+        },
+        "after": {
+          "values": [
+            637214.2,
+            637218.2
+          ],
+          "complete": true,
+          "min": 637214.2,
+          "median": 637216.2,
+          "max": 637218.2
+        },
+        "percent_of_medians": -12.370786466636396,
+        "paired_percent": {
+          "values": [
+            -12.341617957187022,
+            -12.39993538786186
+          ],
+          "complete": true,
+          "min": -12.39993538786186,
+          "median": -12.37077667252444,
+          "max": -12.341617957187022
+        },
+        "paired_saved": {
+          "values": [
+            89714.80000000005,
+            90199.30000000005
+          ],
+          "complete": true,
+          "min": 89714.80000000005,
+          "median": 89957.05000000005,
+          "max": 90199.30000000005
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "unary",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 726929.0,
+            "after": 637214.2,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "unary",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 727417.5,
+            "after": 637218.2,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "native",
+            "prost",
+            "tonic",
+            "prost"
+          ],
+          "shape": "client_stream",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "client",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            2236936.6,
+            2236680.0
+          ],
+          "complete": true,
+          "min": 2236680.0,
+          "median": 2236808.3,
+          "max": 2236936.6
+        },
+        "after": {
+          "values": [
+            2022498.7,
+            2022649.6
+          ],
+          "complete": true,
+          "min": 2022498.7,
+          "median": 2022574.15,
+          "max": 2022649.6
+        },
+        "percent_of_medians": -9.577671452667625,
+        "paired_percent": {
+          "values": [
+            -9.58623056192116,
+            -9.569111361482197
+          ],
+          "complete": true,
+          "min": -9.58623056192116,
+          "median": -9.577670961701678,
+          "max": -9.569111361482197
+        },
+        "paired_saved": {
+          "values": [
+            214437.90000000014,
+            214030.3999999999
+          ],
+          "complete": true,
+          "min": 214030.3999999999,
+          "median": 214234.15000000002,
+          "max": 214437.90000000014
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "client_stream",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 2236936.6,
+            "after": 2022498.7,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "client_stream",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 2236680.0,
+            "after": 2022649.6,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "tonic",
+            "prost",
+            "native",
+            "prost"
+          ],
+          "shape": "client_stream",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "server",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            1163554.0,
+            1163283.8
+          ],
+          "complete": true,
+          "min": 1163283.8,
+          "median": 1163418.9,
+          "max": 1163554.0
+        },
+        "after": {
+          "values": [
+            975487.3,
+            974041.5
+          ],
+          "complete": true,
+          "min": 974041.5,
+          "median": 974764.4,
+          "max": 975487.3
+        },
+        "percent_of_medians": -16.21552649694791,
+        "paired_percent": {
+          "values": [
+            -16.163126077517674,
+            -16.267939087606997
+          ],
+          "complete": true,
+          "min": -16.267939087606997,
+          "median": -16.215532582562336,
+          "max": -16.163126077517674
+        },
+        "paired_saved": {
+          "values": [
+            188066.69999999995,
+            189242.30000000005
+          ],
+          "complete": true,
+          "min": 188066.69999999995,
+          "median": 188654.5,
+          "max": 189242.30000000005
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "client_stream",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 1163554.0,
+            "after": 975487.3,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "client_stream",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 1163283.8,
+            "after": 974041.5,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "native",
+            "prost",
+            "tonic",
+            "prost"
+          ],
+          "shape": "server_stream",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "client",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            1234460.3,
+            1235953.6
+          ],
+          "complete": true,
+          "min": 1234460.3,
+          "median": 1235206.9500000002,
+          "max": 1235953.6
+        },
+        "after": {
+          "values": [
+            1031795.3,
+            1032839.8
+          ],
+          "complete": true,
+          "min": 1031795.3,
+          "median": 1032317.55,
+          "max": 1032839.8
+        },
+        "percent_of_medians": -16.425539056430992,
+        "paired_percent": {
+          "values": [
+            -16.41729588225721,
+            -16.433772271062608
+          ],
+          "complete": true,
+          "min": -16.433772271062608,
+          "median": -16.425534076659908,
+          "max": -16.41729588225721
+        },
+        "paired_saved": {
+          "values": [
+            202665.0,
+            203113.80000000005
+          ],
+          "complete": true,
+          "min": 202665.0,
+          "median": 202889.40000000002,
+          "max": 203113.80000000005
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "server_stream",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 1234460.3,
+            "after": 1031795.3,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "server_stream",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 1235953.6,
+            "after": 1032839.8,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "tonic",
+            "prost",
+            "native",
+            "prost"
+          ],
+          "shape": "server_stream",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "server",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            2236766.6,
+            2236960.4
+          ],
+          "complete": true,
+          "min": 2236766.6,
+          "median": 2236863.5,
+          "max": 2236960.4
+        },
+        "after": {
+          "values": [
+            2044741.4,
+            2048159.1
+          ],
+          "complete": true,
+          "min": 2044741.4,
+          "median": 2046450.25,
+          "max": 2048159.1
+        },
+        "percent_of_medians": -8.512510933277785,
+        "paired_percent": {
+          "values": [
+            -8.584945787370046,
+            -8.440082354609402
+          ],
+          "complete": true,
+          "min": -8.584945787370046,
+          "median": -8.512514070989724,
+          "max": -8.440082354609402
+        },
+        "paired_saved": {
+          "values": [
+            192025.2000000002,
+            188801.2999999998
+          ],
+          "complete": true,
+          "min": 188801.2999999998,
+          "median": 190413.25,
+          "max": 192025.2000000002
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "server_stream",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 2236766.6,
+            "after": 2044741.4,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "server_stream",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 2236960.4,
+            "after": 2048159.1,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "native",
+            "prost",
+            "tonic",
+            "prost"
+          ],
+          "shape": "bidi",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "client",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            2784883.9,
+            2787538.9
+          ],
+          "complete": true,
+          "min": 2784883.9,
+          "median": 2786211.4,
+          "max": 2787538.9
+        },
+        "after": {
+          "values": [
+            2469485.7,
+            2471684.1
+          ],
+          "complete": true,
+          "min": 2469485.7,
+          "median": 2470584.9000000004,
+          "max": 2471684.1
+        },
+        "percent_of_medians": -11.328160526512798,
+        "paired_percent": {
+          "values": [
+            -11.32536261206436,
+            -11.330955776079033
+          ],
+          "complete": true,
+          "min": -11.330955776079033,
+          "median": -11.328159194071697,
+          "max": -11.32536261206436
+        },
+        "paired_saved": {
+          "values": [
+            315398.1999999997,
+            315854.7999999998
+          ],
+          "complete": true,
+          "min": 315398.1999999997,
+          "median": 315626.49999999977,
+          "max": 315854.7999999998
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "bidi",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 2784883.9,
+            "after": 2469485.7,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "bidi",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 2787538.9,
+            "after": 2471684.1,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "tonic",
+            "prost",
+            "native",
+            "prost"
+          ],
+          "shape": "bidi",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "server",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            2775882.4,
+            2775522.7
+          ],
+          "complete": true,
+          "min": 2775522.7,
+          "median": 2775702.55,
+          "max": 2775882.4
+        },
+        "after": {
+          "values": [
+            2478424.1,
+            2479001.8
+          ],
+          "complete": true,
+          "min": 2478424.1,
+          "median": 2478712.95,
+          "max": 2479001.8
+        },
+        "percent_of_medians": -10.699619092831103,
+        "paired_percent": {
+          "values": [
+            -10.715810583330176,
+            -10.683425503960041
+          ],
+          "complete": true,
+          "min": -10.715810583330176,
+          "median": -10.69961804364511,
+          "max": -10.683425503960041
+        },
+        "paired_saved": {
+          "values": [
+            297458.2999999998,
+            296520.9000000004
+          ],
+          "complete": true,
+          "min": 296520.9000000004,
+          "median": 296989.6000000001,
+          "max": 297458.2999999998
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "bidi",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 2775882.4,
+            "after": 2478424.1,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "bidi",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 2775522.7,
+            "after": 2479001.8,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "native",
+            "prost",
+            "tonic",
+            "prost"
+          ],
+          "shape": "bidi_pipelined",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "client",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            2748936.1,
+            2750180.1
+          ],
+          "complete": true,
+          "min": 2748936.1,
+          "median": 2749558.1,
+          "max": 2750180.1
+        },
+        "after": {
+          "values": [
+            2449626.3,
+            2448564.8
+          ],
+          "complete": true,
+          "min": 2448564.8,
+          "median": 2449095.55,
+          "max": 2449626.3
+        },
+        "percent_of_medians": -10.927666885817045,
+        "paired_percent": {
+          "values": [
+            -10.888205076865932,
+            -10.96711084484977
+          ],
+          "complete": true,
+          "min": -10.96711084484977,
+          "median": -10.92765796085785,
+          "max": -10.888205076865932
+        },
+        "paired_saved": {
+          "values": [
+            299309.8000000003,
+            301615.3000000003
+          ],
+          "complete": true,
+          "min": 299309.8000000003,
+          "median": 300462.5500000003,
+          "max": 301615.3000000003
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "bidi_pipelined",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 2748936.1,
+            "after": 2449626.3,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "bidi_pipelined",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 2750180.1,
+            "after": 2448564.8,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "tonic",
+            "prost",
+            "native",
+            "prost"
+          ],
+          "shape": "bidi_pipelined",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "server",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            2736569.1,
+            2739204.6
+          ],
+          "complete": true,
+          "min": 2736569.1,
+          "median": 2737886.85,
+          "max": 2739204.6
+        },
+        "after": {
+          "values": [
+            2448055.1,
+            2445654.0
+          ],
+          "complete": true,
+          "min": 2445654.0,
+          "median": 2446854.55,
+          "max": 2448055.1
+        },
+        "percent_of_medians": -10.62981474197885,
+        "paired_percent": {
+          "values": [
+            -10.542909367791953,
+            -10.716636500975508
+          ],
+          "complete": true,
+          "min": -10.716636500975508,
+          "median": -10.62977293438373,
+          "max": -10.542909367791953
+        },
+        "paired_saved": {
+          "values": [
+            288514.0,
+            293550.6000000001
+          ],
+          "complete": true,
+          "min": 288514.0,
+          "median": 291032.30000000005,
+          "max": 293550.6000000001
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "bidi_pipelined",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 2736569.1,
+            "after": 2448055.1,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "bidi_pipelined",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 2739204.6,
+            "after": 2445654.0,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "native",
+            "prost",
+            "tonic",
+            "prost"
+          ],
+          "shape": "unary",
+          "payload_bytes": 65536,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "client",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            3039977.7,
+            3036557.5
+          ],
+          "complete": true,
+          "min": 3036557.5,
+          "median": 3038267.6,
+          "max": 3039977.7
+        },
+        "after": {
+          "values": [
+            2897383.3,
+            2897542.5
+          ],
+          "complete": true,
+          "min": 2897383.3,
+          "median": 2897462.9,
+          "max": 2897542.5
+        },
+        "percent_of_medians": -4.6343745363311655,
+        "paired_percent": {
+          "values": [
+            -4.690639671468655,
+            -4.578046027450489
+          ],
+          "complete": true,
+          "min": -4.690639671468655,
+          "median": -4.634342849459571,
+          "max": -4.578046027450489
+        },
+        "paired_saved": {
+          "values": [
+            142594.40000000037,
+            139015.0
+          ],
+          "complete": true,
+          "min": 139015.0,
+          "median": 140804.7000000002,
+          "max": 142594.40000000037
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "unary",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 3039977.7,
+            "after": 2897383.3,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "unary",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 3036557.5,
+            "after": 2897542.5,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "tonic",
+            "prost",
+            "native",
+            "prost"
+          ],
+          "shape": "unary",
+          "payload_bytes": 65536,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "server",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            3008512.3,
+            3009709.2
+          ],
+          "complete": true,
+          "min": 3008512.3,
+          "median": 3009110.75,
+          "max": 3009709.2
+        },
+        "after": {
+          "values": [
+            2910632.8,
+            2912768.9
+          ],
+          "complete": true,
+          "min": 2910632.8,
+          "median": 2911700.8499999996,
+          "max": 2912768.9
+        },
+        "percent_of_medians": -3.237165664307984,
+        "paired_percent": {
+          "values": [
+            -3.253418641499317,
+            -3.220919150594359
+          ],
+          "complete": true,
+          "min": -3.253418641499317,
+          "median": -3.237168896046838,
+          "max": -3.220919150594359
+        },
+        "paired_saved": {
+          "values": [
+            97879.5,
+            96940.30000000028
+          ],
+          "complete": true,
+          "min": 96940.30000000028,
+          "median": 97409.90000000014,
+          "max": 97879.5
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "unary",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 3008512.3,
+            "after": 2910632.8,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "unary",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 3009709.2,
+            "after": 2912768.9,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "native",
+            "prost",
+            "tonic",
+            "prost"
+          ],
+          "shape": "client_stream",
+          "payload_bytes": 65536,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "client",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            10710760.6,
+            10711250.0
+          ],
+          "complete": true,
+          "min": 10710760.6,
+          "median": 10711005.3,
+          "max": 10711250.0
+        },
+        "after": {
+          "values": [
+            10265855.1,
+            10239212.9
+          ],
+          "complete": true,
+          "min": 10239212.9,
+          "median": 10252534.0,
+          "max": 10265855.1
+        },
+        "percent_of_medians": -4.280375997946717,
+        "paired_percent": {
+          "values": [
+            -4.15381798375738,
+            -4.406928229665064
+          ],
+          "complete": true,
+          "min": -4.406928229665064,
+          "median": -4.280373106711222,
+          "max": -4.15381798375738
+        },
+        "paired_saved": {
+          "values": [
+            444905.5,
+            472037.0999999996
+          ],
+          "complete": true,
+          "min": 444905.5,
+          "median": 458471.2999999998,
+          "max": 472037.0999999996
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "client_stream",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 10710760.6,
+            "after": 10265855.1,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "client_stream",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 10711250.0,
+            "after": 10239212.9,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "tonic",
+            "prost",
+            "native",
+            "prost"
+          ],
+          "shape": "client_stream",
+          "payload_bytes": 65536,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "server",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            2038480.1,
+            2035423.8
+          ],
+          "complete": true,
+          "min": 2035423.8,
+          "median": 2036951.9500000002,
+          "max": 2038480.1
+        },
+        "after": {
+          "values": [
+            1852192.5,
+            1849521.5
+          ],
+          "complete": true,
+          "min": 1849521.5,
+          "median": 1850857.0,
+          "max": 1852192.5
+        },
+        "percent_of_medians": -9.135951881437364,
+        "paired_percent": {
+          "values": [
+            -9.138553768565128,
+            -9.13334608743398
+          ],
+          "complete": true,
+          "min": -9.138553768565128,
+          "median": -9.135949927999555,
+          "max": -9.13334608743398
+        },
+        "paired_saved": {
+          "values": [
+            186287.6000000001,
+            185902.30000000005
+          ],
+          "complete": true,
+          "min": 185902.30000000005,
+          "median": 186094.95000000007,
+          "max": 186287.6000000001
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "client_stream",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 2038480.1,
+            "after": 1852192.5,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "client_stream",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 2035423.8,
+            "after": 1849521.5,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "native",
+            "prost",
+            "tonic",
+            "prost"
+          ],
+          "shape": "server_stream",
+          "payload_bytes": 65536,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "client",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            4220058.0,
+            4232444.3
+          ],
+          "complete": true,
+          "min": 4220058.0,
+          "median": 4226251.15,
+          "max": 4232444.3
+        },
+        "after": {
+          "values": [
+            3989585.7,
+            3950229.8
+          ],
+          "complete": true,
+          "min": 3950229.8,
+          "median": 3969907.75,
+          "max": 3989585.7
+        },
+        "percent_of_medians": -6.065503229735891,
+        "paired_percent": {
+          "values": [
+            -5.461353848691175,
+            -6.667884560229176
+          ],
+          "complete": true,
+          "min": -6.667884560229176,
+          "median": -6.064619204460175,
+          "max": -5.461353848691175
+        },
+        "paired_saved": {
+          "values": [
+            230472.2999999998,
+            282214.5
+          ],
+          "complete": true,
+          "min": 230472.2999999998,
+          "median": 256343.3999999999,
+          "max": 282214.5
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "server_stream",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 4220058.0,
+            "after": 3989585.7,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "server_stream",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 4232444.3,
+            "after": 3950229.8,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "tonic",
+            "prost",
+            "native",
+            "prost"
+          ],
+          "shape": "server_stream",
+          "payload_bytes": 65536,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "server",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            10815639.9,
+            10815820.4
+          ],
+          "complete": true,
+          "min": 10815639.9,
+          "median": 10815730.15,
+          "max": 10815820.4
+        },
+        "after": {
+          "values": [
+            10404674.9,
+            10402309.4
+          ],
+          "complete": true,
+          "min": 10402309.4,
+          "median": 10403492.15,
+          "max": 10404674.9
+        },
+        "percent_of_medians": -3.8114671342831197,
+        "paired_percent": {
+          "values": [
+            -3.79972894622721,
+            -3.823205126446072
+          ],
+          "complete": true,
+          "min": -3.823205126446072,
+          "median": -3.8114670363366407,
+          "max": -3.79972894622721
+        },
+        "paired_saved": {
+          "values": [
+            410965.0,
+            413511.0
+          ],
+          "complete": true,
+          "min": 410965.0,
+          "median": 412238.0,
+          "max": 413511.0
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "server_stream",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 10815639.9,
+            "after": 10404674.9,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "server_stream",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 10815820.4,
+            "after": 10402309.4,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "native",
+            "prost",
+            "tonic",
+            "prost"
+          ],
+          "shape": "bidi",
+          "payload_bytes": 65536,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "client",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            12115906.0,
+            12144906.3
+          ],
+          "complete": true,
+          "min": 12115906.0,
+          "median": 12130406.15,
+          "max": 12144906.3
+        },
+        "after": {
+          "values": [
+            11561473.5,
+            11560123.4
+          ],
+          "complete": true,
+          "min": 11560123.4,
+          "median": 11560798.45,
+          "max": 11561473.5
+        },
+        "percent_of_medians": -4.695701800553486,
+        "paired_percent": {
+          "values": [
+            -4.576071323102049,
+            -4.815046617527219
+          ],
+          "complete": true,
+          "min": -4.815046617527219,
+          "median": -4.695558970314634,
+          "max": -4.576071323102049
+        },
+        "paired_saved": {
+          "values": [
+            554432.5,
+            584782.9000000004
+          ],
+          "complete": true,
+          "min": 554432.5,
+          "median": 569607.7000000002,
+          "max": 584782.9000000004
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "bidi",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 12115906.0,
+            "after": 11561473.5,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "bidi",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 12144906.3,
+            "after": 11560123.4,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "tonic",
+            "prost",
+            "native",
+            "prost"
+          ],
+          "shape": "bidi",
+          "payload_bytes": 65536,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "server",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            12055846.8,
+            12060123.9
+          ],
+          "complete": true,
+          "min": 12055846.8,
+          "median": 12057985.350000001,
+          "max": 12060123.9
+        },
+        "after": {
+          "values": [
+            11501248.8,
+            11500605.9
+          ],
+          "complete": true,
+          "min": 11500605.9,
+          "median": 11500927.350000001,
+          "max": 11501248.8
+        },
+        "percent_of_medians": -4.61982647872432,
+        "paired_percent": {
+          "values": [
+            -4.600240938695411,
+            -4.639405072778735
+          ],
+          "complete": true,
+          "min": -4.639405072778735,
+          "median": -4.619823005737073,
+          "max": -4.600240938695411
+        },
+        "paired_saved": {
+          "values": [
+            554598.0,
+            559518.0
+          ],
+          "complete": true,
+          "min": 554598.0,
+          "median": 557058.0,
+          "max": 559518.0
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "bidi",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 12055846.8,
+            "after": 11501248.8,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "bidi",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 12060123.9,
+            "after": 11500605.9,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "native",
+            "prost",
+            "tonic",
+            "prost"
+          ],
+          "shape": "bidi_pipelined",
+          "payload_bytes": 65536,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "client",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            12103663.7,
+            12121593.4
+          ],
+          "complete": true,
+          "min": 12103663.7,
+          "median": 12112628.55,
+          "max": 12121593.4
+        },
+        "after": {
+          "values": [
+            11575124.4,
+            11633349.7
+          ],
+          "complete": true,
+          "min": 11575124.4,
+          "median": 11604237.05,
+          "max": 11633349.7
+        },
+        "percent_of_medians": -4.1972021011079335,
+        "paired_percent": {
+          "values": [
+            -4.366771195072106,
+            -4.027883825900325
+          ],
+          "complete": true,
+          "min": -4.366771195072106,
+          "median": -4.1973275104862156,
+          "max": -4.027883825900325
+        },
+        "paired_saved": {
+          "values": [
+            528539.2999999989,
+            488243.7000000011
+          ],
+          "complete": true,
+          "min": 488243.7000000011,
+          "median": 508391.5,
+          "max": 528539.2999999989
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "bidi_pipelined",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 12103663.7,
+            "after": 11575124.4,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "bidi_pipelined",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "client",
+            "metric": "instructions",
+            "before": 12121593.4,
+            "after": 11633349.7,
+            "ledger_disposition": "win"
+          }
+        ]
+      },
+      {
+        "comparison": "batch->tonic",
+        "cell": {
+          "pair": [
+            "tonic",
+            "prost",
+            "native",
+            "prost"
+          ],
+          "shape": "bidi_pipelined",
+          "payload_bytes": 65536,
+          "tls": false,
+          "compression": "gzip",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "server",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            12031824.6,
+            12030143.6
+          ],
+          "complete": true,
+          "min": 12030143.6,
+          "median": 12030984.1,
+          "max": 12031824.6
+        },
+        "after": {
+          "values": [
+            11479895.2,
+            11483519.2
+          ],
+          "complete": true,
+          "min": 11479895.2,
+          "median": 11481707.2,
+          "max": 11483519.2
+        },
+        "percent_of_medians": -4.5655192911442715,
+        "paired_percent": {
+          "values": [
+            -4.58724606075126,
+            -4.543789485605143
+          ],
+          "complete": true,
+          "min": -4.58724606075126,
+          "median": -4.565517773178202,
+          "max": -4.543789485605143
+        },
+        "paired_saved": {
+          "values": [
+            551929.4000000004,
+            546624.4000000004
+          ],
+          "complete": true,
+          "min": 546624.4000000004,
+          "median": 549276.9000000004,
+          "max": 551929.4000000004
+        },
+        "directions": {
+          "lower": 2
+        },
+        "any_positive_cost_repeat": false,
+        "positive_cost_median": false,
+        "repeats": [
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "bidi_pipelined",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 12031824.6,
+            "after": 11479895.2,
+            "ledger_disposition": "win"
+          },
+          {
+            "comparison": "batch->tonic",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "bidi_pipelined",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "gzip",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 12030143.6,
+            "after": 11483519.2,
+            "ledger_disposition": "win"
+          }
+        ]
+      }
+    ],
+    "source_cost_examples": [
+      {
+        "comparison": "baseline->batch",
+        "cell": {
+          "pair": [
+            "tonic",
+            "prost",
+            "native",
+            "prost"
+          ],
+          "shape": "unary",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "identity",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "server",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            30442.1,
+            38574.1
+          ],
+          "complete": true,
+          "min": 30442.1,
+          "median": 34508.1,
+          "max": 38574.1
+        },
+        "after": {
+          "values": [
+            41117.7,
+            39685.1
+          ],
+          "complete": true,
+          "min": 39685.1,
+          "median": 40401.399999999994,
+          "max": 41117.7
+        },
+        "percent_of_medians": 17.078019363569695,
+        "paired_percent": {
+          "values": [
+            35.06853994960926,
+            2.8801708918678504
+          ],
+          "complete": true,
+          "min": 2.8801708918678504,
+          "median": 18.974355420738554,
+          "max": 35.06853994960926
+        },
+        "paired_saved": {
+          "values": [
+            -10675.599999999999,
+            -1111.0
+          ],
+          "complete": true,
+          "min": -10675.599999999999,
+          "median": -5893.299999999999,
+          "max": -1111.0
+        },
+        "directions": {
+          "higher": 2
+        },
+        "any_positive_cost_repeat": true,
+        "positive_cost_median": true,
+        "repeats": [
+          {
+            "comparison": "baseline->batch",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "unary",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 30442.1,
+            "after": 41117.7
+          },
+          {
+            "comparison": "baseline->batch",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "unary",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 38574.1,
+            "after": 39685.1
+          }
+        ]
+      },
+      {
+        "comparison": "baseline->batch",
+        "cell": {
+          "pair": [
+            "tonic",
+            "prost",
+            "native",
+            "prost"
+          ],
+          "shape": "client_stream",
+          "payload_bytes": 1024,
+          "tls": false,
+          "compression": "identity",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "server",
+        "metric": "instructions",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            38186.0,
+            36982.1
+          ],
+          "complete": true,
+          "min": 36982.1,
+          "median": 37584.05,
+          "max": 38186.0
+        },
+        "after": {
+          "values": [
+            42066.4,
+            46375.9
+          ],
+          "complete": true,
+          "min": 42066.4,
+          "median": 44221.15,
+          "max": 46375.9
+        },
+        "percent_of_medians": 17.659352837174282,
+        "paired_percent": {
+          "values": [
+            10.161839417587593,
+            25.400937210163853
+          ],
+          "complete": true,
+          "min": 10.161839417587593,
+          "median": 17.781388313875723,
+          "max": 25.400937210163853
+        },
+        "paired_saved": {
+          "values": [
+            -3880.4000000000015,
+            -9393.800000000003
+          ],
+          "complete": true,
+          "min": -9393.800000000003,
+          "median": -6637.100000000002,
+          "max": -3880.4000000000015
+        },
+        "directions": {
+          "higher": 2
+        },
+        "any_positive_cost_repeat": true,
+        "positive_cost_median": true,
+        "repeats": [
+          {
+            "comparison": "baseline->batch",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "client_stream",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 38186.0,
+            "after": 42066.4
+          },
+          {
+            "comparison": "baseline->batch",
+            "cell": {
+              "pair": [
+                "tonic",
+                "prost",
+                "native",
+                "prost"
+              ],
+              "shape": "client_stream",
+              "payload_bytes": 1024,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "server",
+            "metric": "instructions",
+            "before": 36982.1,
+            "after": 46375.9
+          }
+        ]
+      },
+      {
+        "comparison": "safety->batch",
+        "cell": {
+          "pair": [
+            "native",
+            "prost",
+            "tonic",
+            "prost"
+          ],
+          "shape": "bidi_pipelined",
+          "payload_bytes": 65536,
+          "tls": false,
+          "compression": "identity",
+          "connections": 1,
+          "in_flight": 1
+        },
+        "side": "client",
+        "metric": "allocations",
+        "native_endpoint": true,
+        "before": {
+          "values": [
+            46.44,
+            43.92
+          ],
+          "complete": true,
+          "min": 43.92,
+          "median": 45.18,
+          "max": 46.44
+        },
+        "after": {
+          "values": [
+            47.48,
+            50.64
+          ],
+          "complete": true,
+          "min": 47.48,
+          "median": 49.06,
+          "max": 50.64
+        },
+        "percent_of_medians": 8.587870739265169,
+        "paired_percent": {
+          "values": [
+            2.239448751076667,
+            15.300546448087427
+          ],
+          "complete": true,
+          "min": 2.239448751076667,
+          "median": 8.769997599582048,
+          "max": 15.300546448087427
+        },
+        "paired_saved": {
+          "values": [
+            -1.0399999999999991,
+            -6.719999999999999
+          ],
+          "complete": true,
+          "min": -6.719999999999999,
+          "median": -3.879999999999999,
+          "max": -1.0399999999999991
+        },
+        "directions": {
+          "higher": 2
+        },
+        "any_positive_cost_repeat": true,
+        "positive_cost_median": true,
+        "repeats": [
+          {
+            "comparison": "safety->batch",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "bidi_pipelined",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 0
+            },
+            "side": "client",
+            "metric": "allocations",
+            "before": 46.44,
+            "after": 47.48
+          },
+          {
+            "comparison": "safety->batch",
+            "cell": {
+              "pair": [
+                "native",
+                "prost",
+                "tonic",
+                "prost"
+              ],
+              "shape": "bidi_pipelined",
+              "payload_bytes": 65536,
+              "tls": false,
+              "compression": "identity",
+              "connections": 1,
+              "in_flight": 1,
+              "repeat": 1
+            },
+            "side": "client",
+            "metric": "allocations",
+            "before": 43.92,
+            "after": 50.64
+          }
+        ]
+      }
+    ],
+    "bulk_server64": {
+      "rows": [
+        {
+          "stream_messages": 64,
+          "cell": {
+            "pair": [
+              "tonic",
+              "prost",
+              "native",
+              "prost"
+            ],
+            "shape": "bidi_pipelined",
+            "payload_bytes": 1024,
+            "tls": false,
+            "compression": "identity",
+            "connections": 1,
+            "in_flight": 1,
+            "stream_messages": 64,
+            "repeat": 0
+          },
+          "side": "server",
+          "safety_per_rpc": {
+            "allocations": 231.32,
+            "requested_bytes": 288603.12
+          },
+          "batch_per_rpc": {
+            "allocations": 241.32,
+            "requested_bytes": 365813.96
+          },
+          "batch_tonic_per_rpc": {
+            "allocations": 239.16,
+            "requested_bytes": 288270.36
+          },
+          "batch_over_safety": {
+            "allocations": 1.0432301573577727,
+            "requested_bytes": 1.2675329358878726
+          },
+          "batch_over_tonic": {
+            "allocations": 1.0090316106372303,
+            "requested_bytes": 1.2689960910306561
+          },
+          "batch_minus_safety": {
+            "allocations": 10.0,
+            "requested_bytes": 77210.84000000003
+          }
+        },
+        {
+          "stream_messages": 64,
+          "cell": {
+            "pair": [
+              "tonic",
+              "prost",
+              "native",
+              "prost"
+            ],
+            "shape": "bidi_pipelined",
+            "payload_bytes": 1024,
+            "tls": false,
+            "compression": "identity",
+            "connections": 1,
+            "in_flight": 1,
+            "stream_messages": 64,
+            "repeat": 1
+          },
+          "side": "server",
+          "safety_per_rpc": {
+            "allocations": 240.84,
+            "requested_bytes": 365404.2
+          },
+          "batch_per_rpc": {
+            "allocations": 239.8,
+            "requested_bytes": 369617.36
+          },
+          "batch_tonic_per_rpc": {
+            "allocations": 244.16,
+            "requested_bytes": 319550.0
+          },
+          "batch_over_safety": {
+            "allocations": 0.9956817804351437,
+            "requested_bytes": 1.0115301356689386
+          },
+          "batch_over_tonic": {
+            "allocations": 0.9821428571428572,
+            "requested_bytes": 1.1566808324205915
+          },
+          "batch_minus_safety": {
+            "allocations": -1.039999999999992,
+            "requested_bytes": 4213.159999999974
+          }
+        }
+      ],
+      "before_median_bytes": 327003.66000000003,
+      "after_median_bytes": 367715.66000000003,
+      "median_change_percent": 12.45001355642319,
+      "paired_change_percent": [
+        26.753293588787265,
+        1.1530135668938568
+      ]
+    },
+    "full_group_counts": {
+      "native_source": 864,
+      "native_tonic": 576,
+      "cpu_source": 810,
+      "cpu_tonic": 540
+    },
+    "all_increases_retained": true,
+    "cost_cutoff_percent": 0,
+    "capacity_model_and_observed_isolate": {
+      "plan": {
+        "path": "work/qualification/architecture-c12c-single-ready-batch-attribution-plan.json",
+        "sha256": "2b08771624137c7f86b2a486d1a13897a5e80f300a95a3f34006d78cd80770e2",
+        "bytes": 5886,
+        "archive_path": "qualification/architecture-c12c-single-ready-batch-attribution-plan.json"
+      },
+      "source_model": {
+        "conditions": "Four 1KiB identity ping-pong sends, each on a fresh singleton batch; ordinary Prost protobuf fields from benchmark templates.",
+        "request_grpc_frame_bytes": 1040,
+        "response_grpc_frame_bytes": 1035,
+        "old_singleton_capacity_factor": 4,
+        "new_singleton_capacity_factor": 1,
+        "predicted_requested_capacity_reduction_per_rpc": {
+          "client": 12480,
+          "server": 12420
+        },
+        "owners": [
+          "pbrs-grpc/src/wire/encode.rs::append_frame -> SegSink::reserve_new",
+          "pbrs-grpc/src/wire/out_batch.rs::{take_frame,flush} transfer and replace the whole sink",
+          "pbrs-grpc/src/client/streaming.rs::pump_outbound_budget",
+          "pbrs-grpc/src/server/drain.rs::drain_to_wire"
+        ],
+        "limits": "Model is not a measured candidate win or complete attribution of aggregate byte gaps. Allocation-owner metadata, transport/app allocations and scheduling remain included in observed totals."
+      },
+      "actual_isolated_stage_checks": [
+        {
+          "side": "client",
+          "cell": {
+            "pair": [
+              "native",
+              "prost",
+              "tonic",
+              "prost"
+            ],
+            "shape": "bidi",
+            "payload_bytes": 1024,
+            "tls": false,
+            "compression": "identity",
+            "connections": 1,
+            "in_flight": 1
+          },
+          "conditional_model_bytes_per_rpc": 12480,
+          "observed_saved_bytes_per_rpc": {
+            "values": [
+              12080.36,
+              11395.760000000002
+            ],
+            "complete": true,
+            "min": 11395.760000000002,
+            "median": 11738.060000000001,
+            "max": 12080.36
+          },
+          "observed_minus_model": {
+            "values": [
+              -399.6399999999994,
+              -1084.239999999998
+            ],
+            "complete": true,
+            "min": -1084.239999999998,
+            "median": -741.9399999999987,
+            "max": -399.6399999999994
+          }
+        },
+        {
+          "side": "server",
+          "cell": {
+            "pair": [
+              "tonic",
+              "prost",
+              "native",
+              "prost"
+            ],
+            "shape": "bidi",
+            "payload_bytes": 1024,
+            "tls": false,
+            "compression": "identity",
+            "connections": 1,
+            "in_flight": 1
+          },
+          "conditional_model_bytes_per_rpc": 12420,
+          "observed_saved_bytes_per_rpc": {
+            "values": [
+              12433.760000000002,
+              12415.519999999997
+            ],
+            "complete": true,
+            "min": 12415.519999999997,
+            "median": 12424.64,
+            "max": 12433.760000000002
+          },
+          "observed_minus_model": {
+            "values": [
+              13.760000000002037,
+              -4.480000000003201
+            ],
+            "complete": true,
+            "min": -4.480000000003201,
+            "median": 4.639999999999418,
+            "max": 13.760000000002037
+          }
+        }
+      ],
+      "allocation_site_attribution_proven": false,
+      "scope": "Conditional four-singleton 1KiB identity ping-pong model: client12480/server12420B per RPC IF all four sends flush individually. Actual safety->batch deltas and both repeats are independent observations; no exact model match or allocation-site proof is asserted."
+    },
+    "original_shipping_unary_server": {
+      "scope": "Identity1KiB, one connection/one in-flight call, two Tokio workers, N5000/10000, feature-off binaries, shared host.",
+      "raw_cpu_microseconds_per_rpc_at_10000": {
+        "native": [
+          51,
+          51
+        ],
+        "tonic": [
+          31,
+          33
+        ],
+        "native_over_tonic": [
+          1.6451612903225807,
+          1.5454545454545454
+        ]
+      },
+      "cpu_slope_microseconds_per_rpc": {
+        "native": [
+          52,
+          50
+        ],
+        "tonic": [
+          18,
+          24
+        ],
+        "native_over_tonic": [
+          2.888888888888889,
+          2.0833333333333335
+        ]
+      },
+      "native_throughput_lower_percent_at_10000": [
+        13.6,
+        18.3
+      ],
+      "timing_qualified": false,
+      "controls_shifted": true
+    },
+    "shipping_unary_server": {
+      "scope": "Quiet same-source identity1KiB unary replay; one connection/one in-flight call, two Tokio workers, four paired repeats, N5000/10000; feature-off933 source.",
+      "raw_cpu_microseconds_per_rpc_at_10000": {
+        "native": [
+          57,
+          60,
+          53,
+          54
+        ],
+        "tonic": [
+          41,
+          41,
+          45,
+          40
+        ],
+        "native_over_tonic": [
+          1.3902439024390243,
+          1.4634146341463414,
+          1.1777777777777778,
+          1.35
+        ]
+      },
+      "cpu_slope_microseconds_per_rpc": {
+        "native": [
+          62,
+          68,
+          46,
+          52
+        ],
+        "tonic": [
+          40,
+          38,
+          46,
+          38
+        ],
+        "native_over_tonic": [
+          1.55,
+          1.7894736842105263,
+          1.0,
+          1.368421052631579
+        ]
+      },
+      "timing_qualified": false,
+      "raw_cpu_loss_all_four_repeats": true,
+      "one_slope_pair_equal": true,
+      "previous_slope_magnitude_reproduced": false
+    }
+  },
+  "history": {
+    "ordinary_owner_drop": {
+      "path": "work/qualification/architecture-c13-owner-summary.md",
+      "archive_path": "qualification/architecture-c13-owner-summary.md",
+      "bytes": 7730,
+      "sha256": "917510a60946031d8b79e9aa0486bf3ecff93d24c2f1bb56effe50ec259c52a9"
+    },
+    "kernel_causal": {
+      "path": "work/qualification/kernel-unknown-group-focused-qualification.json",
+      "archive_path": "qualification/kernel-unknown-group-focused-qualification.json",
+      "bytes": 5980,
+      "sha256": "ad1244eb88990bc44735e23d217495be33f9c6d03d6cd3c29ab3d4b5ba0e3701"
+    },
+    "native_postprocess_failure_preserved": true,
+    "c12_days_interrupted": {
+      "path": "work/qualification/architecture-c13-c12c-day-interruption-20261024/report.json",
+      "archive_path": "qualification/architecture-c13-c12c-day-interruption-20261024/report.json",
+      "bytes": 17538,
+      "sha256": "61e7d1eff4fb3e55599cc3bef9b45a19c763dd80bbb87d3114792efd17a49621"
+    },
+    "older_capsules_unchanged": true
+  },
+  "resource_days": {
+    "source": "933bf8775b70d24d91fb46a7992eae343b60f0ea",
+    "state": "running_results_pending",
+    "preview_state": "passed",
+    "day_pass": false,
+    "prepared_generation": {
+      "path": "work/qualification/architecture-c13-soaks-prepared.json",
+      "archive_path": "qualification/architecture-c13-soaks-prepared.json",
+      "bytes": 5217,
+      "sha256": "4889c3a748f12f5ce9149b28dfdda7af54449c8efea451dde88a0e94b3dba73b"
+    },
+    "prior_source_day_attempts": "7c02 days interrupted without terminal reports; exit cause unavailable, no application failure established.",
+    "observed_utc": "2026-10-24T22:48:16.652444+00:00",
+    "previews": {
+      "general_measured_seconds": 34.37034075799602,
+      "general_cycles": 10,
+      "deadline_measured_seconds": 30.796168209,
+      "deadline_cycles": 31,
+      "deadline_cases_per_cycle": 30,
+      "repeated_cases_are_not_distinct_tests": true,
+      "record": {
+        "path": "work/qualification/architecture-c13-soak-previews-actual.json",
+        "archive_path": "qualification/architecture-c13-soak-previews-actual.json",
+        "bytes": 10724,
+        "sha256": "88bf5c49e498015b757c99ef6fc63636a0e939ae67cd104fa65f065a5d4c67bc"
+      }
+    },
+    "active_days_snapshot": {
+      "path": "work/qualification/architecture-c13-days-active-20261024T224816Z.json",
+      "archive_path": "qualification/architecture-c13-days-active-20261024T224816Z.json",
+      "bytes": 86624,
+      "sha256": "ddda80494730d2e04a15a983aa76475d89a77541a1e82262a6e452bc43c0ae35"
+    },
+    "mapped_executable_observation": {
+      "path": "work/qualification/architecture-c13-days-executable-observation-20261024T224912Z.json",
+      "archive_path": "qualification/architecture-c13-days-executable-observation-20261024T224912Z.json",
+      "bytes": 1289,
+      "sha256": "0ac7fedef7d1a55577046d2b2723fd30f9f7c086f324782370bfe93c4c53d61d"
+    },
+    "actual_kernel_limits": {
+      "address_space_bytes": 1073741824,
+      "file_descriptors": 128,
+      "same_uid_processes": 4096,
+      "cpu_seconds": 86430
+    },
+    "cycle_observations": {
+      "general": [
+        43,
+        44
+      ],
+      "deadline": [
+        128,
+        132
+      ]
+    },
+    "scope": "Closed dated snapshots only. Actual workers advance with matched boot, PID start ticks and generation, intended kernel limits and balanced observed cleanup. Mapped executable reads are unavailable; retained ELF hashes and argv are verified. No terminal day result or host-retention guarantee."
+  },
+  "remaining": [
+    "Complete the running current-source general/deadline 24-hour days.",
+    "Unary-server shipping CPU/throughput loss and scheduling attribution.",
+    "Remaining identity/gzip byte losses and bulk tradeoffs.",
+    "Current-source cold-process, entropy, read-all, overload, physical-network and full client/server coverage.",
+    "Required features, credentials, telemetry, typed extensions, platform/consumer/release qualification."
+  ],
+  "limits": [
+    "Source/runtime/phase scopes are explicit; no instruction-count to shipping-CPU inference.",
+    "All source/control increases, losing cells, unresolved metrics and repeat ranges remain in hash-linked full records.",
+    "Requested bytes are cumulative allocation requests, not RSS or retained capacity.",
+    "Historical source-only capacity arithmetic is conditional, not an allocation-site attribution proof.",
+    "Tracing distinguishes eventfd/TCP and wait operation signatures; it does not prove task wakes/migrations or the complete CPU cause.",
+    "Old failed/prepared/in-progress records are retained chronologically; later records never relabel them as passed.",
+    "ELF bytes are omitted from the publication archive; build/source/tool hashes and raw command logs remain."
+  ]
+}
