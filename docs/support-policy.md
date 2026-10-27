@@ -23,6 +23,10 @@ crate. MSRV floors are enforced by the CI jobs above; raising a floor
 is a maintainer-level decision and must update the manifest, this
 table, and the release notes together.
 
+The `pbrs-grpc` minimum applies to its default features. Optional `zstd` needs
+Rust 1.87; `tonic` and `tonic-gzip` need Rust 1.88. Native gzip remains available
+with the default features; `tonic-gzip` enables Tonic's separate gzip decoder.
+
 ## Deprecation
 
 The integration surface listed below is stable now, including in the current

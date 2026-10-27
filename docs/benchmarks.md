@@ -57,3 +57,7 @@ The [earlier gRPC tables](benchmarks/grpc-20261024.md) retain instruction
 counts and previous CPU, allocation and bulk results at their original pins.
 The [benchmark contract](benchmark-contract.md) defines the stronger evidence
 needed for a performance claim.
+
+[Compatibility checks](evidence/grpc-compatibility-fallback-20261026/README.md)
+cover trait objects, native MSRV profiles and consumer gates. Their earlier
+encode experiment retains its own source and measurement scope.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run original Google rust/test/shared integration suites in rust_out_shared.
 #
-# Validates that all 19 official shared test suites compile and pass against
+# Validates the 19 official shared suites and the local recursion suite against
 # the pure-protobuf (pbrs) kernel via `extern crate pbrs as protobuf` and
 # `grpc_remap/protobuf-shim`.
 #
@@ -60,36 +60,11 @@ if [[ ! -d "$ROOT/third_party/protobuf/rust/test" ]]; then
   "$ROOT/scripts/fetch-protobuf.sh"
 fi
 
-# Verify the upstream shared inventory is fully accounted for: every
-# *_test.rs file must be either an included crate or a documented exclusion.
-# This fails loudly on upstream drift instead of silently skipping new suites.
+# One inventory distinguishes original upstream suites from local regressions.
+# Both disk contents and executed suite identities must match it exactly.
 SHARED_DIR="$ROOT/third_party/protobuf/rust/test/shared"
-INCLUDED_TESTS="accessors_map_test accessors_proto3_test accessors_repeated_test accessors_test bad_names_test child_parent_test edition2023_test enum_test fields_with_imported_types_test import_public_test message_copy_merge_test message_generics_test nested_types_test package_test proto_macro_test serialization_test simple_nested_test threading_test utf8_test"
-EXCLUDED_TESTS="ctype_cord_test extensions_test gtest_matchers_test no_internal_access_test package_disambiguation_test"
-echo "Verifying upstream shared inventory is fully accounted for..."
-UNACCOUNTED=0
-for uf in "$SHARED_DIR"/*_test.rs "$SHARED_DIR"/utf8/utf8_test.rs; do
-  [[ -f "$uf" ]] || continue
-  stem="$(basename "$uf" .rs)"
-  case " $INCLUDED_TESTS $EXCLUDED_TESTS " in
-    *" $stem "*) ;;
-    *)
-      echo "ERROR: upstream shared test '$stem' is neither included nor a documented exclusion" >&2
-      UNACCOUNTED=1
-      ;;
-  esac
-done
-for stem in $INCLUDED_TESTS; do
-  if [[ ! -f "$ROOT/rust_out_shared/tests/$stem.rs" ]]; then
-    echo "ERROR: expected included test crate '$stem' missing from rust_out_shared/tests/" >&2
-    UNACCOUNTED=1
-  fi
-done
-if [[ "$UNACCOUNTED" -ne 0 ]]; then
-  echo "ERROR: upstream shared inventory changed; update the included/excluded lists and docs/codegen-compatibility.md" >&2
-  exit 1
-fi
-echo "Inventory OK: 19 included crates + 5 documented file exclusions cover all upstream shared tests."
+python3 "$ROOT/scripts/shared_consumer_inventory.py" --root "$ROOT" --upstream "$SHARED_DIR"
+EXPECTED_COUNT="$(python3 "$ROOT/scripts/shared_consumer_inventory.py" --count)"
 
 # Validate grpc_remap/protobuf-shim compiles against pbrs
 echo "Validating grpc_remap/protobuf-shim..."
@@ -129,7 +104,7 @@ echo " Test Results by Crate"
 echo "============================================================"
 
 # Ignore terminal color when parsing retained Cargo output.
-PARSER_RESULT="$(python3 "$ROOT/scripts/shared_consumer_report.py" "$TMP_OUT")"
+PARSER_RESULT="$(python3 "$ROOT/scripts/shared_consumer_report.py" "$TMP_OUT" --require-inventory)"
 
 echo "$PARSER_RESULT" | grep -v '^__.*__=' || true
 
@@ -155,7 +130,7 @@ cat << 'SKIPS'
       Owner: Upstream. Reason: Empty test stub in pinned upstream Google protobuf v35.1 release.
       Task: N/A (no tests present).
   - extensions_test.rs:
-      Owner: Codegen. Reason: Tests Edition 2024 custom extensions (extensions.proto).
+      Owner: Codegen. Reason: Pinned v35.1 license-only stub; typed Edition 2024 extension support is tracked separately.
       Task: CG-13, CG-14 (pending Edition 2024 descriptor/extension support).
   - edition2023 str_view cpp VIEW:
       Owner: Codegen. Reason: C++ string_view (pb.cpp.string_type=VIEW); tested as standard string.
@@ -170,7 +145,7 @@ echo "   not application API behavior; see docs/codegen-compatibility.md section
 echo "============================================================"
 echo " Summary"
 echo "============================================================"
-echo "  Crates tested: $CRATES_COUNT / 19"
+echo "  Crates tested: $CRATES_COUNT / $EXPECTED_COUNT"
 echo "  Total passed:  $TOTAL_PASSED"
 echo "  Total failed:  $TOTAL_FAILED"
 echo "  Exclusions documented: 7 (5 files + 2 scoped; each with owner/reason/task)"
@@ -182,14 +157,14 @@ if [[ "$TEST_STATUS" -ne 0 || "$TOTAL_FAILED" -gt 0 ]]; then
 fi
 
 if [[ "$CRATES_COUNT" -eq 0 || "$TOTAL_PASSED" -eq 0 ]]; then
-  echo "ERROR: Zero tests ran! Expected 19 test crates and >0 passed tests." >&2
+  echo "ERROR: Zero tests ran! Expected $EXPECTED_COUNT test suites and >0 passed tests." >&2
   exit 1
 fi
 
-if [[ "$CRATES_COUNT" -ne 19 ]]; then
-  echo "ERROR: Expected 19 crates to run, but found $CRATES_COUNT" >&2
+if [[ "$CRATES_COUNT" -ne "$EXPECTED_COUNT" ]]; then
+  echo "ERROR: Expected $EXPECTED_COUNT suites to run, but found $CRATES_COUNT" >&2
   exit 1
 fi
 
-echo "SUCCESS: All 19 original upstream shared test crates passed against pbrs."
+echo "SUCCESS: All $EXPECTED_COUNT suites passed against pbrs (19 upstream + 1 local regression)."
 exit 0

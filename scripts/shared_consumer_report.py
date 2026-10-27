@@ -1,4 +1,4 @@
-"""Summarize the original Google rust_out test crates from Cargo output."""
+"""Summarize shared-consumer Cargo output and validate executed suite identities."""
 
 import re
 import sys
@@ -6,7 +6,8 @@ from pathlib import Path
 
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
-RUNNING = re.compile(r"Running tests/([a-zA-Z0-9_]+)\.rs")
+RUNNING = re.compile(r"\bRunning\s+(.+)$")
+INTEGRATION_SOURCE = re.compile(r"tests/([a-zA-Z0-9_]+)\.rs")
 RESULT = re.compile(r"test result: (ok|FAILED)\. (\d+) passed; (\d+) failed")
 
 
@@ -18,7 +19,15 @@ def parse_results(output: str) -> dict[str, tuple[str, int, int]]:
         if run:
             if current is not None:
                 raise ValueError(f"missing test result for {current}")
-            current = run.group(1)
+            source, separator, executable = run.group(1).partition(" (")
+            if not separator or not executable.endswith(")") or executable == ")":
+                raise ValueError(f"malformed Cargo Running event: {run.group(1)}")
+            if source.startswith("unittests "):
+                continue
+            integration = INTEGRATION_SOURCE.fullmatch(source)
+            if integration is None:
+                raise ValueError(f"unrecognized integration test path: {source}")
+            current = integration.group(1)
         result = RESULT.search(line)
         if result and current is not None:
             if current in crates:
@@ -34,8 +43,14 @@ def parse_results(output: str) -> dict[str, tuple[str, int, int]]:
     return crates
 
 
-def main(path: Path) -> None:
+def main(path: Path, require_inventory: bool = False) -> None:
     crates = parse_results(path.read_text(encoding="utf-8"))
+    if require_inventory:
+        if __package__:
+            from .shared_consumer_inventory import validate_results
+        else:
+            from shared_consumer_inventory import validate_results
+        validate_results(crates)
     for name, (status, passed, failed) in sorted(crates.items()):
         mark = "+" if status == "ok" and failed == 0 else "!"
         print(f"  {mark} {name:<35} {status:>6} ({passed} passed, {failed} failed)")
@@ -45,9 +60,9 @@ def main(path: Path) -> None:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        sys.exit("usage: shared_consumer_report.py <cargo-test-log>")
+    if len(sys.argv) not in (2, 3) or (len(sys.argv) == 3 and sys.argv[2] != "--require-inventory"):
+        sys.exit("usage: shared_consumer_report.py <cargo-test-log> [--require-inventory]")
     try:
-        main(Path(sys.argv[1]))
+        main(Path(sys.argv[1]), require_inventory=len(sys.argv) == 3)
     except (OSError, ValueError) as exc:
         sys.exit(f"shared consumer report: {exc}")

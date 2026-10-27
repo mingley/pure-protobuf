@@ -54,8 +54,13 @@ pub trait WireOut {
     ///
     /// The default encodes into a temporary buffer and copies it in. Sinks
     /// that already have a `BytesMut` override this and skip that copy.
+    /// This generic helper requires a sized sink; the other methods remain
+    /// available through `dyn WireOut`.
     #[inline]
-    fn write_contiguous<R>(&mut self, write: impl FnOnce(&mut BytesMut) -> R) -> R {
+    fn write_contiguous<R>(&mut self, write: impl FnOnce(&mut BytesMut) -> R) -> R
+    where
+        Self: Sized,
+    {
         let mut buf = BytesMut::new();
         let result = write(&mut buf);
         self.put_slice(&buf);

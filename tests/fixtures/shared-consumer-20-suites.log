@@ -1,0 +1,41 @@
+# Captured from main e7595eb7, GitHub job 121944846522, 2026-10-27 UTC.
+     Running tests/accessors_map_test.rs (target/debug/deps/accessors_map_test-dbd712eb4e3163c9)
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/accessors_proto3_test.rs (target/debug/deps/accessors_proto3_test-1a58f0d654e825ca)
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/accessors_repeated_test.rs (target/debug/deps/accessors_repeated_test-39a51b444891183f)
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/accessors_test.rs (target/debug/deps/accessors_test-e4c22141c33a33a6)
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/arena_recursion.rs (target/debug/deps/arena_recursion-c6e1791114b81dfd)
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/bad_names_test.rs (target/debug/deps/bad_names_test-017c595f9a4599fd)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/child_parent_test.rs (target/debug/deps/child_parent_test-d52b7a31cd65bf4b)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/edition2023_test.rs (target/debug/deps/edition2023_test-c8798ee7552b25dc)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/enum_test.rs (target/debug/deps/enum_test-65ad7b828ae79463)
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/fields_with_imported_types_test.rs (target/debug/deps/fields_with_imported_types_test-ef0387c7ae72f273)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/import_public_test.rs (target/debug/deps/import_public_test-db4d504259e59ead)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/message_copy_merge_test.rs (target/debug/deps/message_copy_merge_test-14505d775eb806b9)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/message_generics_test.rs (target/debug/deps/message_generics_test-cd3ffdf1a4553513)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/nested_types_test.rs (target/debug/deps/nested_types_test-9dc9eb45b8fe4f2c)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/package_test.rs (target/debug/deps/package_test-3caef0a74c818a2e)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/proto_macro_test.rs (target/debug/deps/proto_macro_test-455a0308d2ec0d5d)
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/serialization_test.rs (target/debug/deps/serialization_test-ae3b3239d3f5ec2a)
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/simple_nested_test.rs (target/debug/deps/simple_nested_test-942bad14dc459ad4)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/threading_test.rs (target/debug/deps/threading_test-cd910fb68a9fb76f)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/utf8_test.rs (target/debug/deps/utf8_test-fadf93be43942d61)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

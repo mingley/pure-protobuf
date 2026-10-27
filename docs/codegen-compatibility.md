@@ -162,13 +162,13 @@ The first command verifies the upstream source SHA and reuses the cached CMake c
 
 The script:
 
-- runs `cargo test` across all 19 crates in `rust_out_shared/`, using `--offline` where appropriate;
+- runs `cargo test` across 19 upstream suites plus the local `arena_recursion` regression suite, using `--offline` where appropriate;
 - validates `grpc_remap/protobuf-shim`;
-- fails if 0 tests run or any crate fails;
+- requires every expected suite to run a nonempty passing test set, rejecting missing, renamed, unexpected or duplicate suites;
 - derives exact pins at run time: protoc `vendor/google/PIN` @ `vendor/google/SHA`, generator flags `--rust_opt=experimental-codegen=enabled,kernel=upb`, the `pbrs` version from the root `Cargo.toml`, and the repo SHA with a dirty-worktree marker when needed;
 - reports per-crate results;
 - prints every exclusion with owner, reason, and task;
-- verifies the upstream `rust/test/shared` inventory is fully accounted for: 19 included files plus 5 excluded files, so new upstream suites cannot be silently skipped.
+- uses one shared inventory for local files, pinned upstream sources and executed Cargo suite names: 19 upstream files, one local regression file and five documented upstream exclusions. Local regressions do not need a fictitious upstream source.
 
 ### Automated CI workflow
 
@@ -176,7 +176,7 @@ The script:
 
 It:
 
-- builds or restores the pinned protoc with built-in Rust output before running `./scripts/test-rust-out-shared.sh` across all 19 crates, including the scheduled Miri lane's shared-consumer subset;
+- builds or restores the pinned protoc with built-in Rust output before running `./scripts/test-rust-out-shared.sh` across all 20 suites (19 upstream and one local regression), including the scheduled Miri lane's shared-consumer subset;
 - verifies upstream pin integrity (`vendor/google/PIN`, `vendor/google/SHA`);
 - verifies proto schema and shared test source drift against the upstream pin;
 - runs committed output and stub flavour drift checks;

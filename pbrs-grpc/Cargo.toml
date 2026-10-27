@@ -92,6 +92,10 @@ tower = ["dep:h2", "dep:http-body", "dep:http-body-util", "dep:tower"]
 # separate from the lightweight Tower adapter so tonic stays out of the
 # default and `tower` dependency graphs.
 tonic = ["tower", "dep:tonic"]
+# Tonic's gzip decoder is separate from native gzip support. Keep its
+# independent compatibility oracle opt-in so default MSRV tests do not build
+# the optional Tonic dependency (which requires Rust 1.88).
+tonic-gzip = ["tonic", "tonic/gzip"]
 # HTTP/2 gRPC-Web server responses. Off by default; native gRPC behavior and
 # default dependency graph stay unchanged.
 grpc-web = []
@@ -109,9 +113,6 @@ http = "1"
 # the minimal feature set above.
 tokio = { version = "1.49", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util", "test-util"] }
 tokio-stream = { version = "0.1", features = ["net"] }
-# Exercise the independent tonic gzip decoder in opaque-adapter tests.
-# Production's optional tonic dependency keeps its feature set above.
-tonic = { version = "0.14.6", default-features = false, features = ["gzip"] }
 
 [[bin]]
 name = "pbrs-grpc-hello"

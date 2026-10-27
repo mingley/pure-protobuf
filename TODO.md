@@ -35,7 +35,9 @@ RPCs and 180 counters-off CPU captures / 272,160 successful RPCs. Large compress
 streams reuse bounded plaintext storage and avoid compressed-output overshoot;
 an early-response race is fixed. Allocation costs fall in the measured large
 gzip cases. CPU remains mixed, noise traffic still allocates more than tonic,
-and a 64-message identity client case regresses. Keep those losses in scope.
+and a 64-message identity client case regresses. Keep those losses in scope. The separate
+[compatibility repair](docs/evidence/grpc-compatibility-fallback-20261026/README.md)
+restores `dyn WireOut`, the default native MSRV profile and consumer gate checks.
 
 Source `af00f348` fixes required-field checks after singular proto2 message merges.
 Split child fields, same-case oneofs, maps, groups, MessageSet extensions, cold
@@ -50,6 +52,10 @@ official conformance runs, each passing 5,631 binary/JSON and 909 text cases.
 Benchmark `eac85b04` adds checked zero/noise payloads for Prost TestService: five
 unit checks, 24 positive captures / 48 RPCs and eight expected rejection controls
 pass. These are correctness checks, not performance results.
+
+The [compatibility follow-up](docs/evidence/grpc-compatibility-fallback-20261026/README.md)
+records the hosted public-API, MSRV and shared-suite inventory failures and their
+repairs. Full hosted CI remains separate from the recorded local checks.
 
 The earlier runtime `933bf877` passes 3,840 all-feature workspace tests and 961
 selected ASAN/leak tests. Its [dated record](docs/evidence/grpc-ownership-20261024/README.md)
