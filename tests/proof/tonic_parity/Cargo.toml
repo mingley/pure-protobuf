@@ -1,0 +1,28 @@
+[package]
+name = "tonic-parity-proof"
+version = "0.0.0"
+edition = "2024"
+publish = false
+build = "../../interop/tonic/build.rs"
+
+[workspace]
+
+[dependencies]
+bytes = "1"
+futures-util = "0.3"
+h2 = "0.4"
+http = "1"
+pbrs-grpc = { path = "../../../pbrs-grpc", features = ["prost"] }
+pbrs-grpc-example-tonic-ports = { path = "../../../examples/tonic-ports" }
+prost = "=0.14.4"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync"] }
+tokio-stream = { version = "0.1", features = ["net"] }
+tonic = { version = "=0.14.6", default-features = false, features = ["transport", "codegen", "router"] }
+tonic-prost = "=0.14.6"
+
+[build-dependencies]
+tonic-prost-build = "=0.14.6"
+
+[[test]]
+name = "missing_message"
+path = "missing_message.rs"

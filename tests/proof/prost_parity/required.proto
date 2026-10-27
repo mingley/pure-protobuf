@@ -1,0 +1,5 @@
+syntax = "proto2";
+package required;
+message Required { required int32 value = 1; }
+enum State { ZERO = 0; ONE = 1; }
+message Closed { optional State state = 1; }

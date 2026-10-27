@@ -1,0 +1,6 @@
+syntax = "proto3";
+package proof.shared;
+message Outer {
+  message Inner { int64 value = 1; }
+  enum State { STATE_UNSPECIFIED = 0; STATE_READY = 1; }
+}

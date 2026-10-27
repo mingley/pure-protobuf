@@ -1,0 +1,33 @@
+syntax = "proto3";
+package proof;
+message Child {
+  int32 left = 1;
+  string right = 2;
+  Child nested = 3;
+}
+enum State { ZERO = 0; ONE = 1; }
+message Corpus {
+  int32 i32 = 1;
+  uint32 u32 = 2;
+  int64 i64 = 3;
+  uint64 u64 = 4;
+  sint32 s32 = 5;
+  sint64 s64 = 6;
+  fixed32 f32 = 7;
+  fixed64 f64 = 8;
+  sfixed32 sf32 = 9;
+  sfixed64 sf64 = 10;
+  float float_value = 11;
+  double double_value = 12;
+  bool flag = 13;
+  string text = 14;
+  bytes data = 15;
+  repeated int32 packed = 16;
+  repeated fixed32 fixed = 17;
+  Child child = 18;
+  repeated Child children = 19;
+  map<uint32, Child> by_id = 20;
+  State state = 21;
+  optional int32 present = 22;
+  oneof choice { Child selected = 23; int32 other = 24; }
+}

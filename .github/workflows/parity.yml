@@ -1,0 +1,67 @@
+name: Parity audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: parity-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_BUILD_JOBS: "2"
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: "0"
+
+jobs:
+  audit:
+    name: Differential controls and known gaps
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: thumbv7em-none-eabi
+      - name: Install protobuf compiler
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Fetch locked consumer dependencies
+        run: |
+          for manifest in \
+            tests/proof/prost_parity/Cargo.toml \
+            tests/proof/codegen_parity/Cargo.toml \
+            tests/proof/codegen_parity/no_std/prost/Cargo.toml \
+            tests/proof/codegen_parity/no_std/pbrs/Cargo.toml \
+            tests/proof/tonic_parity/Cargo.toml; do
+            cargo fetch --locked --manifest-path "$manifest"
+          done
+      - name: Record tool and source versions
+        run: |
+          mkdir -p work/parity-audit
+          git rev-parse HEAD > work/parity-audit/source.txt
+          rustc --version > work/parity-audit/rustc.txt
+          protoc --version > work/parity-audit/protoc.txt
+      - name: Reproduce the exact known protobuf differences
+        run: |
+          cargo run --locked --offline --manifest-path tests/proof/prost_parity/Cargo.toml \
+            -- --check-known-differences > work/parity-audit/wire.jsonl
+          cargo test --locked --offline --manifest-path tests/proof/prost_parity/Cargo.toml
+      - name: Check generated consumers and reproduce build gaps
+        run: python3 tests/proof/codegen_parity/run.py --output work/parity-audit/codegen
+      - name: Compare gRPC message presence with tonic
+        run: |
+          cargo test --locked --offline --manifest-path tests/proof/tonic_parity/Cargo.toml \
+            -- --nocapture > work/parity-audit/messages.log 2>&1
+      - name: Check performance evidence rejection rules
+        run: python3 -B -m unittest tests.test_performance_claim -q
+      - name: Retain audit results, including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: parity-audit
+          path: work/parity-audit/

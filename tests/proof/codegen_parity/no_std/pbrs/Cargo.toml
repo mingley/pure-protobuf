@@ -1,0 +1,10 @@
+[package]
+name = "pbrs-no-std-parity-counterexample"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+pbrs = { path = "../../../../..", default-features = false }

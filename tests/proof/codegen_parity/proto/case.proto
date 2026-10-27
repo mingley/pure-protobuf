@@ -1,0 +1,15 @@
+syntax = "proto3";
+package proof.case;
+import "imported.proto";
+import "external.proto";
+import "google/protobuf/timestamp.proto";
+message Payload {
+  bytes blob = 1;
+  map<string, uint32> counts = 2;
+  optional uint32 optional_id = 3;
+  proof.shared.Outer.Inner nested = 4;
+  proof.shared.Outer.State state = 5;
+  oneof choice { string note = 6; int32 code = 7; }
+  google.protobuf.Timestamp when = 8;
+  proof.external.External external = 9;
+}
