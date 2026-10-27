@@ -19,9 +19,11 @@ one call in flight.
 | Native client | 0.344 | 0.326 | −5.20% |
 | Native server | 0.317 | 0.328 | +3.79% |
 
-Repeats range from −11.58% to +1.18% on the client and −2.27% to +9.86% on
-the server. A separate counters-off run of 1 KiB unary calls gives native-server
-CPU medians of 46 and 38 µs/RPC, versus 30 µs for the fresh tonic/prost control.
+The change is the median of each paired change, not the ratio of the two
+displayed medians. Repeats range from −11.58% to +1.18% on the client and
+−2.27% to +9.86% on the server. A separate counters-off run of 1 KiB unary
+calls gives native-server CPU medians of 46 and 38 µs/RPC, versus 30 µs for
+the fresh tonic/prost control.
 The shared host and coarse CPU sampling limit timing conclusions. The
 [dated source and raw captures](evidence/grpc-parity-and-costs-20261027/README.md)
 include all repeats, controls and smaller isolated measurements.

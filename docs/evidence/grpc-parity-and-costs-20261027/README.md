@@ -38,7 +38,9 @@ counters and profilers disabled. The CPU clock is sampled in 10 ms ticks.
 | Server, 1 KiB identity unary; requested bytes/RPC | 15,059 | 14,438 | −4.12% |
 | Server, 1 KiB identity unary; CPU µs/RPC | 46 | 38 | −13.04% |
 
-Allocation changes are medians of two paired repeats. The 64-message client
+Before and after values are medians; each paired change is the median of the
+per-pair changes, so it need not equal the ratio of those two medians.
+Allocation changes use two paired repeats. The 64-message client
 repeats span −11.58% to +1.18%; server repeats span −2.27% to +9.86%. A fresh
 tonic/prost control uses 21.72 MiB/client RPC and 20.71 MiB/server RPC for
 the noise gzip cell, so the native stack still requests more in that workload.
