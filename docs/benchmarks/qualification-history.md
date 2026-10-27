@@ -68,4 +68,3 @@ diagnostic exists. An `invalid` historical measurement cannot support a ranking.
 For performance categories, `win`, `tie`, or `loss` requires contract §6–§10
 evidence. Correctness gates are listed separately: implemented checks and old
 passing reports do not establish that an arbitrary current revision is green.
-
