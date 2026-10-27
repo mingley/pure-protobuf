@@ -1,5 +1,30 @@
 # Implementation status
 
+The latest implementation adds [transport controls](guides/transport-controls.md)
+for native TCP_NODELAY, idle keepalive policy and connection executors. It also
+adds [codegen options](guides/codegen.md) for type names, type URL domains and
+retained enum prefixes, with named-message `Any` conversions. Typed map views
+now iterate borrowed entries directly instead of building a projection vector.
+The [transport, codegen and map record](evidence/parity-and-maps-20261027/README.md)
+contains the source pins and complete measurements.
+Median CPU falls in all 42 direct map iteration rows; full-message CPU remains
+mixed, including an owned-profile regression. See the
+[benchmark guide](benchmarks.md#typed-map-iteration-october-27) for the costs.
+
+The final run at `12cfd09f` passes 3,963 all-feature workspace tests with zero
+failures and nine existing ignores, strict core/transport linting, Rust 1.85
+native/Tower/owned checks, all 18 message-presence comparisons and 41 mixed-peer
+tests. Both lazy and regenerated owned bindings pass three pinned official
+conformance runs each: 5,631 binary/JSON and 909 text cases, zero skips or
+failures, maximum Edition 2023. Default regeneration leaves all 13 bindings
+unchanged. The new codegen audit passes nine original roundtrips plus 27
+configured Prost controls.
+
+The remaining migration gaps include `btree_map`, `bytes` and `boxed` codegen
+controls, an alloc-only runtime, and custom executors in the static balanced
+channel helpers. The [parity summary](parity.md) and
+[comparison](guides/comparison.md) describe their scope.
+
 The [server and nested-message follow-up](evidence/performance-fixes-20261027/README.md)
 adds coalesced connection wakes and an explicit owned-message codegen profile.
 Five local pairs show lower native-server CPU; owned storage avoids repeated
@@ -8,7 +33,7 @@ preserves its partial-read and unchanged-forwarding behavior. See the
 [benchmark guide](benchmarks.md) for costs and the
 [codegen guide](guides/codegen.md#owned-nested-message-fields) to select a profile.
 
-The [direct parity audit](evidence/parity-proof-20261027/README.md) at
+The earlier [direct parity audit](evidence/parity-proof-20261027/README.md) at
 `e14cccb5` passes 3,921 all-feature workspace tests with nine existing ignores,
 strict linting, Rust 1.85 native/Tower checks and official protobuf conformance.
 All 18 raw-wire tonic comparisons and 41 mixed-peer tests pass after two

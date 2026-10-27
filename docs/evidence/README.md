@@ -5,6 +5,14 @@ stopped. They are dated investigations, usually local diagnostics. A result
 belongs to its recorded revision, host, workload, and peer versions; it does
 not automatically describe today's code.
 
+The [transport, codegen and map follow-up](parity-and-maps-20261027/README.md)
+adds connection executor hooks, idle keepalive
+policy and native TCP_NODELAY controls, plus named-message and enum-prefix
+codegen options. Independent Prost comparisons and complete map measurements
+record both the added coverage and the remaining gaps. Median CPU falls in
+all 42 direct map iteration rows, while full-message CPU results include
+regressions.
+
 The [server and nested-message fixes](performance-fixes-20261027/README.md)
 record lower server CPU from coalesced connection wakes and an explicit owned
 message profile. Full, partial and encode comparisons retain their tradeoffs,

@@ -3,12 +3,71 @@
 [Run benchmarks](benchmarks/running.md) · [Earlier results](benchmarks/grpc-20261024.md)
 · [Qualification](scoreboard.md)
 
+[Maps](#typed-map-iteration-october-27) · [RPC and nested messages](#server-scheduling-and-nested-messages-october-27)
+· [Codec and codegen](#codec-and-codegen-comparisons)
+
 The measurements below show lower allocation costs in some workloads and losses
 in others. CPU results are mixed. There is no qualified overall performance ranking.
 
+## Typed map iteration, October 27
+
+Typed map views now project borrowed entries as they are read instead of
+building a temporary vector. Iterator size hints use conservative bounds
+instead of rescanning duplicate keys. Small-map lookups compare borrowed keys
+without cloning them.
+
+The map-only comparison against `77f361eb` uses five randomized process pairs
+per row. These rows time already-built maps; parsing, map construction and
+index construction are outside the measured loop. The control is a standard
+`HashMap`, the map representation Prost uses. Median CPU falls in all 42
+direct iteration rows; collecting a map into a vector uses 11.1–44.2% less CPU. Iterating every distinct entry gives:
+
+| Map entries | Before | After | Standard HashMap | Median paired CPU change |
+|---|---:|---:|---:|---:|
+| 4 | 27.4 ns | 8.9 ns | 6.2 ns | −67.7% |
+| 64 | 525.5 ns | 345.1 ns | 64.5 ns | −34.5% |
+| 256 | 2,441.6 ns | 1,919.6 ns | 245.1 ns | −21.7% |
+
+These gains leave substantial losses to the `HashMap` control, especially on
+larger maps. Full-message reads also show why a direct iteration win does not establish
+an overall codec win:
+
+| Mixed-message parse, read and drop | Before | After | Median paired CPU change |
+|---|---:|---:|---:|
+| Default lazy fields | 914.5 ns | 870.2 ns | −3.62% |
+| Owned message fields | 917.3 ns | 955.6 ns | +5.85% |
+
+Both profiles remove one allocation and 128 requested bytes per mixed-message
+read. Lazy full reads are near Prost locally, with a paired CPU ratio of
+1.006. Owned full reads cost 1.128 times Prost's CPU. Owned mixed parsing alone
+regresses 16.3%, and sparse-message full reads regress about 20% in both
+profiles. CPU and allocation measurements use separate binaries.
+
+The [complete record](evidence/parity-and-maps-20261027/README.md) retains all
+32 codec rows, all 42 map rows, every process pair and the
+intermediate map implementation's collection regressions. These shared-host
+results guide the next optimization; they do not establish a ranking.
+
+## Default transport costs, October 27
+
+The new transport controls also have a separate comparison with their defaults
+unchanged, using Prost on both endpoints. All 120 captures complete:
+1,890,000 successful RPCs across 1 KiB unary and 64 × 1 KiB pipeline calls.
+Five before/after pairs include fresh Tonic controls. Every native endpoint's
+before/after CPU ratio spans one across the repeats, so this run establishes
+neither a CPU improvement nor zero overhead from the added controls. The
+[complete record](evidence/parity-and-maps-20261027/README.md) retains all
+repeats, including substantial control variation.
+
+Against the fresh tonic control, the candidate unary client uses 19.5 versus
+65.5 µs/RPC and the server uses 25.5 versus 31.0 µs/RPC. Median paired ratios
+are 0.294 and 0.823; all five unary pairs favor native on both endpoints.
+These are scoped endpoint-CPU results under the stated closed-loop settings,
+not an overall implementation ranking.
+
 ## Server scheduling and nested messages, October 27
 
-The [latest performance fixes](evidence/performance-fixes-20261027/README.md)
+The [earlier server and nested-message fixes](evidence/performance-fixes-20261027/README.md)
 follow the [direct parity audit](parity.md). Coalescing connection wakes lowers
 native-server CPU in five local before/after pairs: unary 1 KiB medians move
 from 45 to 23.5 µs/RPC, a median paired reduction of 54.8%. A 64 × 1 KiB
@@ -29,8 +88,9 @@ full reads, partial reads and encoding before recommending either profile.
 | Mixed RPC-shaped message | 908 ns | 906 ns | 860 ns | 1.053 |
 
 The deep-64 owned read is about 19.6 times faster than the lazy read locally,
-while the mixed-message read still loses to Prost. Owned deep-64 parsing alone
-costs more than lazy parsing, because it constructs the tree immediately.
+while the mixed-message read loses to Prost at that source pin. Owned deep-64
+parsing alone costs more than lazy parsing, because it constructs the tree
+immediately.
 
 Encoding favors lazy storage in these fixtures. At depth 64, owned first
 encode costs 567 ns versus lazy's 26 ns and Prost's 6,831 ns. Cached encode

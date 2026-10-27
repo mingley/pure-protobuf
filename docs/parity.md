@@ -1,11 +1,13 @@
 # Tonic/prost parity and performance proof
 
-The audit found concrete gaps and performance losses. The follow-up fixes
-server scheduling costs and adds an owned-message profile for applications
-that read nested messages. Full tonic/prost parity and a world performance
-ranking remain open. The [original audit](evidence/parity-proof-20261027/README.md)
+The audit found concrete gaps and performance losses. The follow-ups fix
+server scheduling costs, add owned nested-message storage, close three
+codegen configuration gaps and add native transport scheduling controls.
+Full tonic/prost parity and a world performance ranking remain open. The [original audit](evidence/parity-proof-20261027/README.md)
 and [performance fixes](evidence/performance-fixes-20261027/README.md) retain
-failures, controls, source pins and all measured rows.
+failures, controls, source pins and all measured rows. The latest source is
+`12cfd09f`; its [transport and map record](evidence/parity-and-maps-20261027/README.md)
+retains the latest validation and all performance rows.
 
 ## Compatibility
 
@@ -13,7 +15,7 @@ failures, controls, source pins and all measured rows.
 |---|---|
 | Protobuf parse and merge against prost 0.14.4 | 652 of 654 proto3 operations agree. The other two use the same wrong-wire-type input. |
 | Missing proto2 required field | pbrs rejects it; prost accepts it. |
-| Generated consumers | Nine same-schema roundtrips pass, including imports, oneof, presence, maps, bytes, Timestamp and external mappings. |
+| Generated consumers | Nine original roundtrips plus 27 naming, type-URL, Any and enum controls pass against pinned Prost. |
 | Embedded, alloc-only runtime | Prost compiles for `thumbv7em-none-eabi`; pbrs requires `std` and fails. |
 | gRPC message presence against tonic 0.14.6 | All 18 raw-wire comparisons pass after the repair. |
 | Existing mixed-peer suite | All 41 tests pass after restoring native connection information in the tonic service adapter. |
@@ -23,22 +25,43 @@ rejected by prost. Missing required-field handling also differs. These are
 measured policy differences, not evidence that pbrs should abandon protobuf
 conformance to imitate prost.
 
-Full functionality also needs custom executors, an independent idle keepalive
-policy, and configurable TCP_NODELAY. Those tonic capabilities have no native
-equivalent today. Six `prost-build` configuration probes reproduce API and
-representation customization gaps; these alone do not establish wire failures.
-HTTP/1.1 gRPC-Web is available through the documented Tower/Hyper recipe.
+The native transport now supports configurable TCP_NODELAY, client idle
+keepalive policy and custom connection-driver executors. The
+[transport guide](guides/transport-controls.md) explains defaults and scope.
+Executor selection does not replace Tokio I/O, timers or helper tasks; static
+balance helpers reject per-endpoint executors.
+
+Code generation supports `enable_type_names`, `type_name_domain` and
+`retain_enum_prefix`, with configured behavior checked against Prost. Shared
+well-known `Any` messages support typed `from_msg` and `to_msg` conversion.
+Three configuration probes still reproduce representation/customization gaps:
+`btree_map`, `bytes` and `boxed`. These are distinct from wire-format failures.
+The alloc-only runtime also remains unsupported. HTTP/1.1 gRPC-Web is available
+through the documented Tower/Hyper recipe.
 
 Both lazy and owned bindings pass the pinned protobuf 35.1 binary/JSON and
 text conformance suite through maximum Edition 2023. The
-[follow-up record](evidence/performance-fixes-20261027/README.md) retains the
-isolated owned regeneration and the unchanged default-binding checks.
+[latest record](evidence/parity-and-maps-20261027/README.md) retains the
+fresh isolated owned regeneration and unchanged default-binding checks at
+`12cfd09f`. Its full workspace run passes 3,963 tests with nine existing ignores.
 
 The [comparison guide](guides/comparison.md) covers the broader migration
 surface. Passing a finite corpus establishes its tested behavior; it cannot
 establish every possible schema, API or wire input.
 
 ## Performance
+
+The latest map-only comparison against `77f361eb` improves all 42 warm typed
+iteration rows. Collection uses 11.1–44.2% less CPU. Full mixed-message reads
+remove one allocation and 128 requested bytes in both storage profiles. Lazy
+read CPU improves 3.62%; owned read CPU regresses 5.85%, and owned parsing
+regresses 16.3%. Sparse reads regress about 20%. Large-map iteration also
+remains slower than the standard HashMap representation used by Prost. See
+[benchmarks](benchmarks.md#typed-map-iteration-october-27) for the table and
+measurement scope. Allocation reductions do not establish a CPU improvement.
+
+The earlier server and nested-message results below describe their pinned
+source in the performance-fixes record.
 
 The server now coalesces wakes that arrive while its connection task is
 running. A bounded number of local polls can make progress before rescheduling;
@@ -75,8 +98,8 @@ For nested messages, choose storage when generating code:
 The deep-64 owned read is about 19.6 times faster than the lazy read in
 this comparison. It requests 1,512 allocation bytes versus lazy's 5,344 and
 Prost's 1,008. Parsing alone does more work up front: deep-64 owned CPU is
-1,441 ns versus lazy's 809 ns. The mixed-message full read still loses to
-Prost. These are five randomized process pairs per row, using separate CPU
+1,441 ns versus lazy's 809 ns. The mixed-message full read loses to
+Prost at that source pin. These are five randomized process pairs per row, using separate CPU
 and allocation builds; the complete record includes every fixture and repeat.
 
 Encoding favors the default layout for these nested fixtures. At depth 64,

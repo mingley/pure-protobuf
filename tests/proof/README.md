@@ -26,8 +26,9 @@ cargo fetch --locked --manifest-path tests/proof/codegen_parity/no_std/pbrs/Carg
 
 The codegen runner uses the downloaded dependencies offline. The embedded
 control checks compilation; it does not execute on embedded hardware.
-Its six compile-fail binaries deliberately request absent pbrs configuration
-methods. Use the runner or the named consumer binary rather than building
+The configured consumer also checks type names, type URLs, `Any` conversions
+and retained enum prefixes against Prost. Three compile-fail binaries
+deliberately request absent `btree_map`, `bytes` and `boxed` methods. Use the runner or the named consumer binary rather than building
 every binary in that package.
 
 The packages have independent lockfiles and stay outside the root workspace.

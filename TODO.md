@@ -14,7 +14,10 @@ lowers native-server CPU in five local pairs. The explicit
 avoids the repeated validation measured by PK-27/PK-29. Keep the default lazy
 profile for its sparse-read and forwarding advantages; neither profile wins
 every workload. The [parity summary](docs/parity.md) retains remaining gaps,
-including alloc-only runtime support, custom executors and idle keepalive policy.
+including alloc-only runtime support, configurable field representations, and
+executor coverage for static balanced endpoints. Native TCP_NODELAY, idle
+keepalive policy and connection executors are now available; see the
+[transport guide](docs/guides/transport-controls.md).
 
 Michael Ingley coordinates assignments and reviews. A card marked `done`
 means its recorded deliverable was accepted; it does not certify the whole
@@ -37,6 +40,15 @@ and reconciliation gates. It excludes claimed and blocked work. It is a list
 of eligible work, not an instruction to start every lane at once.
 
 ## Current priorities
+
+The latest map changes remove a projection vector and improve all 42 warm
+iteration rows. They still leave large-map iteration slower than standard
+HashMap, owned mixed-message parsing 16.3% slower than its prior revision, and
+sparse reads about 20% slower. Large-map iteration currently searches the
+last-wins index for every entry; evaluate bypassing that search when the index
+already proves that every key is unique. Prioritize those measured losses alongside the
+remaining `btree_map`, `bytes`, `boxed` and alloc-only migration gaps. A direct
+iteration gain must also survive the full parse/read/drop comparison.
 
 The [allocation and generator follow-up](docs/evidence/efficiency-20261027/README.md)
 removes MiniTable length-calculation buffers and repeated imported-path work.

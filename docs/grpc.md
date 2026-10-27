@@ -236,6 +236,9 @@ all browser origins.
 
 ## Production Capabilities & How-to Guides
 
+The [transport controls guide](guides/transport-controls.md) covers TCP_NODELAY,
+idle keepalive and custom connection executors.
+
 The sections below summarize what ships and point to the detailed guides.
 
 <a id="tls"></a>

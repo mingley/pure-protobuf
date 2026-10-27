@@ -210,7 +210,7 @@ do not bound application allocations or total process memory. See the
 |---|---|---|
 | Addressing | `host:port` string or opt-in resolver URI | Tonic uses `http://` or `https://` URIs. gRPC-Go also supports xDS resolver schemes; `pbrs-grpc` does not. |
 | Concurrency | `ServerConfig::max_concurrent_rpcs` enforces a cap | Overflow fails fast with `RESOURCE_EXHAUSTED` instead of unbounded queuing. |
-| Keepalive | HTTP/2 PINGs and TCP OS keepalives are configured separately | Idle PINGs are enabled once an interval is set. |
+| Keepalive | HTTP/2 PINGs and TCP OS keepalives are configured separately | Idle PINGs default on once an interval is set; `ChannelConfig::keep_alive_while_idle(false)` limits them to active RPCs. |
 | Retries | Transparent retry is at most once; service-config retry/hedging is opt-in and bounded | Application retries still use `Code::is_retryable` when no service-config policy applies. |
 
 xDS targets and async OAuth2/JWT credential providers are planned work.
