@@ -19,6 +19,10 @@ counters-off CPU captures. It includes remaining noise, CPU and pipeline losses.
 adds dynamic and MiniTable merge controls, direct Tower input, frame-copy and
 generator measurements, and fresh endpoint comparisons with their losses.
 
+[MiniTable groups and unknown fields](minitable-groups-20261027/README.md)
+records group round trips, unknown-field preservation and the remaining
+non-group parsing cost.
+
 The [2026-10-22 day campaign](grpc-resource-soak-20261022/README.md) now has a
 terminal resource outcome. Its recorded revision and qualification limits apply.
 

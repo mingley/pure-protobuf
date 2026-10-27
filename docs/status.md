@@ -6,6 +6,9 @@ workspace tests passed, with nine existing ignores; official protobuf
 conformance and five Rust 1.85 library profiles passed. The workspace run
 began one test-only commit earlier, as the record explains. That revision
 also has source-pinned RPC comparisons and retains its measured losses.
+The subsequent [MiniTable group and unknown-field follow-up](evidence/minitable-groups-20261027/README.md)
+passed targeted checks, Rust 1.85 profiles and official conformance at
+`6fba2435`.
 
 These checks are not a production certification. Complete protobuf and gRPC
 feature coverage, sustained-resource testing and broader performance

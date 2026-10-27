@@ -77,6 +77,10 @@ every field, and owned messages from borrowed views. The
 generated output size and downstream build costs, including pbrs losses.
 Use the [benchmark commands](benchmarks/running.md) to run either harness.
 
+A later [MiniTable compatibility repair](evidence/minitable-groups-20261027/README.md)
+preserves groups and unknown fields. Its 100-fragment non-group fixture costs
+about 5% more time in a local diagnostic; group-body timing was not measured.
+
 The [earlier gRPC tables](benchmarks/grpc-20261024.md) retain instruction
 counts and previous CPU, allocation and bulk results at their original pins.
 The [benchmark contract](benchmark-contract.md) defines the stronger evidence

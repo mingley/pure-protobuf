@@ -1,0 +1,3143 @@
+{
+  "schema": "pbrs.minitable-groups.v1",
+  "qualified": false,
+  "source": {
+    "commit": "6fba243571e269bd7a54e3d3b905567902823f99",
+    "files": {
+      "src/runtime/decode.rs": "7aa4a0e638628a94cd5629a24bce9b6b1c2e5d4e808926eb619802ac9b50c02b",
+      "src/runtime/encode.rs": "baaa2cd41acde3553800e430460c611464a484cd0e894ac90fa2dd001aa969de",
+      "tests/upb_kernel/decode.rs": "1c233079172f86050f73407757dbafd2a6c2b2a4fd173424a08fa523f27ad85a"
+    }
+  },
+  "diagnostic": {
+    "scope": "Single-process parse-only allocation and shared-host timing diagnostic; same six-field MiniTable schema; no cross-library ranking",
+    "samples": 5,
+    "iterations_per_sample": 10000,
+    "source": {
+      "baseline_commit": "a24c0e3561c44c3ae03f57641e806ac7331b4df4",
+      "baseline_dependency_path": "/workspace/pure-protobuf",
+      "candidate_dependency_path": "/workspace/pure-protobuf/work/minitable_groups",
+      "fixture_sha256": "90196dde096ac718d6276d6c8de151cd4a6a9d1eb9c79ff49542183c3c1061ed",
+      "source_hashes": {
+        "baseline": {
+          "src/runtime/decode.rs": "f8130a99b0803dbf31d27352bf6fc25b9054de029f326f5c7942d38998559b44",
+          "src/runtime/encode.rs": "b838c2d3e43dcc005adff0879989faba94be8fe2a7dad0edf96c44f87de3ff80"
+        },
+        "candidate": {
+          "src/runtime/decode.rs": "7aa4a0e638628a94cd5629a24bce9b6b1c2e5d4e808926eb619802ac9b50c02b",
+          "src/runtime/encode.rs": "baaa2cd41acde3553800e430460c611464a484cd0e894ac90fa2dd001aa969de"
+        }
+      }
+    },
+    "non_group": [
+      {
+        "fragments": 1,
+        "baseline": {
+          "median_parse_ns": 107.7982,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "candidate": {
+          "median_parse_ns": 108.385,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "time_change_percent": 0.5443504622526296
+      },
+      {
+        "fragments": 100,
+        "baseline": {
+          "median_parse_ns": 4144.3281,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "candidate": {
+          "median_parse_ns": 4457.5725,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "time_change_percent": 7.5583880533010905
+      }
+    ],
+    "unknown": [
+      {
+        "mode": "varint",
+        "baseline": {
+          "median_parse_ns": 115.1851,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154,
+          "retained_root_unknowns": 0
+        },
+        "candidate": {
+          "median_parse_ns": 349.6864,
+          "allocations_per_parse": 6,
+          "requested_bytes_per_parse": 306,
+          "retained_root_unknowns": 1
+        },
+        "time_change_percent": 203.58648818293338
+      },
+      {
+        "mode": "len",
+        "baseline": {
+          "median_parse_ns": 115.145,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154,
+          "retained_root_unknowns": 0
+        },
+        "candidate": {
+          "median_parse_ns": 149.794,
+          "allocations_per_parse": 7,
+          "requested_bytes_per_parse": 310,
+          "retained_root_unknowns": 1
+        },
+        "time_change_percent": 30.09162360501978
+      },
+      {
+        "mode": "nested_groups",
+        "baseline": {
+          "median_parse_ns": 127.6124,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154,
+          "retained_root_unknowns": 0
+        },
+        "candidate": {
+          "median_parse_ns": 206.3563,
+          "allocations_per_parse": 10,
+          "requested_bytes_per_parse": 610,
+          "retained_root_unknowns": 1
+        },
+        "time_change_percent": 61.70552391460391
+      }
+    ],
+    "checks": {
+      "kernel_tests_passed": 46,
+      "runtime_unit_tests_passed": 8,
+      "strict_clippy": "passed",
+      "decode_baseline_new_controls_failed": 7,
+      "encode_baseline_control_failed": 1,
+      "unknown_intermediate_controls_failed": 3
+    }
+  },
+  "alternating": {
+    "source": {
+      "baseline_commit": "a24c0e3561c44c3ae03f57641e806ac7331b4df4",
+      "baseline_dependency_path": "/workspace/pure-protobuf",
+      "candidate_dependency_path": "/workspace/pure-protobuf/work/minitable_groups",
+      "fixture_sha256": "90196dde096ac718d6276d6c8de151cd4a6a9d1eb9c79ff49542183c3c1061ed",
+      "source_hashes": {
+        "baseline": {
+          "src/runtime/decode.rs": "f8130a99b0803dbf31d27352bf6fc25b9054de029f326f5c7942d38998559b44",
+          "src/runtime/encode.rs": "b838c2d3e43dcc005adff0879989faba94be8fe2a7dad0edf96c44f87de3ff80"
+        },
+        "candidate": {
+          "src/runtime/decode.rs": "7aa4a0e638628a94cd5629a24bce9b6b1c2e5d4e808926eb619802ac9b50c02b",
+          "src/runtime/encode.rs": "baaa2cd41acde3553800e430460c611464a484cd0e894ac90fa2dd001aa969de"
+        }
+      }
+    },
+    "binaries": {
+      "baseline": {
+        "path": "/workspace/pure-protobuf/work/bench-target/release/kernel-groups-baseline",
+        "sha256": "cf76d47403d0ccd26e847948dc948d5bed228f90d4ff04d529dda611e7fc3493",
+        "mtime_ns": 1793107060272577548
+      },
+      "candidate": {
+        "path": "/workspace/pure-protobuf/work/bench-target/release/kernel-groups-candidate",
+        "sha256": "ea0931b8068af8bb720bcc276714db2406def930698072e6c2b7a2f38eef13a3",
+        "mtime_ns": 1793107166787465638
+      }
+    },
+    "candidate_decoder_mtime_ns": 1793107107913869626,
+    "pairs": 6,
+    "order": "baseline,candidate for even pairs; candidate,baseline for odd pairs; direct executable runs; no builds",
+    "pair_summaries": [
+      {
+        "pair": 0,
+        "first": "baseline",
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline_median_parse_ns": 111.323,
+            "candidate_median_parse_ns": 109.8202,
+            "change_percent": -1.3499456536385068
+          },
+          {
+            "fragments": 100,
+            "baseline_median_parse_ns": 4281.7874,
+            "candidate_median_parse_ns": 4504.6638,
+            "change_percent": 5.205218736455719
+          }
+        ]
+      },
+      {
+        "pair": 1,
+        "first": "candidate",
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline_median_parse_ns": 110.5752,
+            "candidate_median_parse_ns": 117.1823,
+            "change_percent": 5.975209631092682
+          },
+          {
+            "fragments": 100,
+            "baseline_median_parse_ns": 4286.683,
+            "candidate_median_parse_ns": 4551.0465,
+            "change_percent": 6.167087699277052
+          }
+        ]
+      },
+      {
+        "pair": 2,
+        "first": "baseline",
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline_median_parse_ns": 111.7085,
+            "candidate_median_parse_ns": 108.7196,
+            "change_percent": -2.675624504849672
+          },
+          {
+            "fragments": 100,
+            "baseline_median_parse_ns": 4232.2977,
+            "candidate_median_parse_ns": 4698.8295,
+            "change_percent": 11.023132895401
+          }
+        ]
+      },
+      {
+        "pair": 3,
+        "first": "candidate",
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline_median_parse_ns": 108.8118,
+            "candidate_median_parse_ns": 108.8476,
+            "change_percent": 0.032900843474692465
+          },
+          {
+            "fragments": 100,
+            "baseline_median_parse_ns": 4200.2613,
+            "candidate_median_parse_ns": 4452.4555,
+            "change_percent": 6.004250259382671
+          }
+        ]
+      },
+      {
+        "pair": 4,
+        "first": "baseline",
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline_median_parse_ns": 108.4572,
+            "candidate_median_parse_ns": 108.6136,
+            "change_percent": 0.1442043497342782
+          },
+          {
+            "fragments": 100,
+            "baseline_median_parse_ns": 4296.8671,
+            "candidate_median_parse_ns": 4494.0601,
+            "change_percent": 4.5892273465939715
+          }
+        ]
+      },
+      {
+        "pair": 5,
+        "first": "candidate",
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline_median_parse_ns": 110.3854,
+            "candidate_median_parse_ns": 117.9842,
+            "change_percent": 6.883881382864043
+          },
+          {
+            "fragments": 100,
+            "baseline_median_parse_ns": 4356.9412,
+            "candidate_median_parse_ns": 4504.0676,
+            "change_percent": 3.3768277616415876
+          }
+        ]
+      }
+    ],
+    "overall": [
+      {
+        "fragments": 1,
+        "baseline_median_parse_ns": 110.22665,
+        "candidate_median_parse_ns": 110.04679999999999,
+        "change_percent": -0.16316380838936606,
+        "allocations_per_parse_both": 4,
+        "requested_bytes_per_parse_both": 154
+      },
+      {
+        "fragments": 100,
+        "baseline_median_parse_ns": 4285.21155,
+        "candidate_median_parse_ns": 4513.2024,
+        "change_percent": 5.32041061076669,
+        "allocations_per_parse_both": 4,
+        "requested_bytes_per_parse_both": 154
+      }
+    ]
+  },
+  "cold_combined": {
+    "base_commit": "a24c0e3561c44c3ae03f57641e806ac7331b4df4",
+    "fixture_sha256": "90196dde096ac718d6276d6c8de151cd4a6a9d1eb9c79ff49542183c3c1061ed",
+    "source_hashes": {
+      "current": {
+        "src/runtime/decode.rs": "7aa4a0e638628a94cd5629a24bce9b6b1c2e5d4e808926eb619802ac9b50c02b",
+        "src/runtime/encode.rs": "baaa2cd41acde3553800e430460c611464a484cd0e894ac90fa2dd001aa969de",
+        "tests/upb_kernel/decode.rs": "1c233079172f86050f73407757dbafd2a6c2b2a4fd173424a08fa523f27ad85a"
+      },
+      "experiment": {
+        "src/runtime/decode.rs": "74919caaf3c5deca56379020ba57e1b80ca28a32bbb6f56f4c874f6fbd40321e",
+        "src/runtime/encode.rs": "baaa2cd41acde3553800e430460c611464a484cd0e894ac90fa2dd001aa969de",
+        "tests/upb_kernel/decode.rs": "1c233079172f86050f73407757dbafd2a6c2b2a4fd173424a08fa523f27ad85a"
+      }
+    },
+    "baseline_source_hashes": {
+      "src/runtime/decode.rs": "f8130a99b0803dbf31d27352bf6fc25b9054de029f326f5c7942d38998559b44",
+      "src/runtime/encode.rs": "b838c2d3e43dcc005adff0879989faba94be8fe2a7dad0edf96c44f87de3ff80"
+    },
+    "binaries": {
+      "baseline": {
+        "path": "/workspace/pure-protobuf/work/bench-target/release/kernel-groups-baseline",
+        "sha256": "cf76d47403d0ccd26e847948dc948d5bed228f90d4ff04d529dda611e7fc3493",
+        "mtime_ns": 1793107060272577548
+      },
+      "current": {
+        "path": "/workspace/pure-protobuf/work/bench-target/release/kernel-groups-candidate",
+        "sha256": "ea0931b8068af8bb720bcc276714db2406def930698072e6c2b7a2f38eef13a3",
+        "mtime_ns": 1793107166787465638
+      },
+      "experiment": {
+        "path": "/workspace/pure-protobuf/work/bench-target/release/kernel-groups-cold",
+        "sha256": "cd9b4938f216952af1b8c0937290af63457d7bb7c5cf2ae48b7479f3dd65189e",
+        "mtime_ns": 1793107513096856413
+      }
+    },
+    "group_body_timing": "unmeasured: fixture has no equivalent known-group benchmark mode",
+    "non_group": [
+      {
+        "fragments": 1,
+        "baseline": {
+          "median_parse_ns": 111.49745,
+          "min_parse_ns": 106.883,
+          "max_parse_ns": 413.2435,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "current": {
+          "median_parse_ns": 111.6548,
+          "min_parse_ns": 106.6748,
+          "max_parse_ns": 125.6951,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "experiment": {
+          "median_parse_ns": 112.57755,
+          "min_parse_ns": 107.637,
+          "max_parse_ns": 415.1936,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "experiment_vs_current_percent": 0.8264311073057362,
+        "current_vs_baseline_percent": 0.14112430373967033,
+        "experiment_vs_baseline_percent": 0.9687217061914888
+      },
+      {
+        "fragments": 100,
+        "baseline": {
+          "median_parse_ns": 4326.98705,
+          "min_parse_ns": 4187.3567,
+          "max_parse_ns": 5519.3643,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "current": {
+          "median_parse_ns": 4520.91255,
+          "min_parse_ns": 4390.3743,
+          "max_parse_ns": 7829.8076,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "experiment": {
+          "median_parse_ns": 4720.863649999999,
+          "min_parse_ns": 4614.2971,
+          "max_parse_ns": 7538.0893,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "experiment_vs_current_percent": 4.422803975715017,
+        "current_vs_baseline_percent": 4.481767515343038,
+        "experiment_vs_baseline_percent": 9.102791282908962
+      }
+    ],
+    "unknown": [
+      {
+        "mode": "varint",
+        "current": {
+          "median_parse_ns": 155.17264999999998,
+          "min_parse_ns": 145.2663,
+          "max_parse_ns": 304.7965,
+          "allocations_per_parse": 6,
+          "requested_bytes_per_parse": 306
+        },
+        "experiment": {
+          "median_parse_ns": 151.29155,
+          "min_parse_ns": 143.7832,
+          "max_parse_ns": 176.2074,
+          "allocations_per_parse": 6,
+          "requested_bytes_per_parse": 306
+        },
+        "experiment_vs_current_percent": -2.5011495260279237
+      },
+      {
+        "mode": "len",
+        "current": {
+          "median_parse_ns": 148.3072,
+          "min_parse_ns": 144.2775,
+          "max_parse_ns": 274.9885,
+          "allocations_per_parse": 7,
+          "requested_bytes_per_parse": 310
+        },
+        "experiment": {
+          "median_parse_ns": 149.3933,
+          "min_parse_ns": 145.3626,
+          "max_parse_ns": 387.5797,
+          "allocations_per_parse": 7,
+          "requested_bytes_per_parse": 310
+        },
+        "experiment_vs_current_percent": 0.7323312691494444
+      },
+      {
+        "mode": "nested_groups",
+        "current": {
+          "median_parse_ns": 213.163,
+          "min_parse_ns": 207.4422,
+          "max_parse_ns": 308.7972,
+          "allocations_per_parse": 10,
+          "requested_bytes_per_parse": 610
+        },
+        "experiment": {
+          "median_parse_ns": 217.74175,
+          "min_parse_ns": 211.0593,
+          "max_parse_ns": 241.1587,
+          "allocations_per_parse": 10,
+          "requested_bytes_per_parse": 610
+        },
+        "experiment_vs_current_percent": 2.1480041095311986
+      }
+    ],
+    "non_group_trials": [
+      {
+        "trial": 0,
+        "order": [
+          "baseline",
+          "current",
+          "experiment"
+        ],
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline": {
+              "median_parse_ns": 110.4197,
+              "min_parse_ns": 108.9217,
+              "max_parse_ns": 118.45,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 110.6308,
+              "min_parse_ns": 109.257,
+              "max_parse_ns": 125.6951,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment": {
+              "median_parse_ns": 114.3767,
+              "min_parse_ns": 111.9017,
+              "max_parse_ns": 123.092,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment_vs_current_percent": 3.3859467707003876,
+            "current_vs_baseline_percent": 0.19117965363064648,
+            "experiment_vs_baseline_percent": 3.58359966563937
+          },
+          {
+            "fragments": 100,
+            "baseline": {
+              "median_parse_ns": 4536.9165,
+              "min_parse_ns": 4479.4773,
+              "max_parse_ns": 4562.1971,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 4485.6883,
+              "min_parse_ns": 4396.4771,
+              "max_parse_ns": 7829.8076,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment": {
+              "median_parse_ns": 4766.1302,
+              "min_parse_ns": 4674.5972,
+              "max_parse_ns": 4914.6625,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment_vs_current_percent": 6.251925707811656,
+            "current_vs_baseline_percent": -1.1291413452286458,
+            "experiment_vs_baseline_percent": 5.052191284543128
+          }
+        ]
+      },
+      {
+        "trial": 1,
+        "order": [
+          "baseline",
+          "experiment",
+          "current"
+        ],
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline": {
+              "median_parse_ns": 110.9764,
+              "min_parse_ns": 107.9751,
+              "max_parse_ns": 413.2435,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 120.3387,
+              "min_parse_ns": 112.3457,
+              "max_parse_ns": 122.2334,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment": {
+              "median_parse_ns": 313.3814,
+              "min_parse_ns": 107.637,
+              "max_parse_ns": 415.1936,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment_vs_current_percent": 160.41614210557364,
+            "current_vs_baseline_percent": 8.43629816789877,
+            "experiment_vs_baseline_percent": 182.38562433093884
+          },
+          {
+            "fragments": 100,
+            "baseline": {
+              "median_parse_ns": 4520.7757,
+              "min_parse_ns": 4353.6485,
+              "max_parse_ns": 5519.3643,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 4479.8053,
+              "min_parse_ns": 4466.6991,
+              "max_parse_ns": 4548.6132,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment": {
+              "median_parse_ns": 4867.0458,
+              "min_parse_ns": 4621.2428,
+              "max_parse_ns": 7538.0893,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment_vs_current_percent": 8.644136833357475,
+            "current_vs_baseline_percent": -0.9062692493237434,
+            "experiment_vs_baseline_percent": 7.6595284300435384
+          }
+        ]
+      },
+      {
+        "trial": 2,
+        "order": [
+          "current",
+          "baseline",
+          "experiment"
+        ],
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline": {
+              "median_parse_ns": 115.6404,
+              "min_parse_ns": 108.6443,
+              "max_parse_ns": 126.7044,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 110.7992,
+              "min_parse_ns": 108.8631,
+              "max_parse_ns": 117.639,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment": {
+              "median_parse_ns": 110.5744,
+              "min_parse_ns": 108.7262,
+              "max_parse_ns": 113.345,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment_vs_current_percent": -0.20288955154911248,
+            "current_vs_baseline_percent": -4.186426197073001,
+            "experiment_vs_baseline_percent": -4.380821927284928
+          },
+          {
+            "fragments": 100,
+            "baseline": {
+              "median_parse_ns": 4242.149,
+              "min_parse_ns": 4215.3769,
+              "max_parse_ns": 4303.5571,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 4563.9049,
+              "min_parse_ns": 4445.6174,
+              "max_parse_ns": 4706.0902,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment": {
+              "median_parse_ns": 4687.9396,
+              "min_parse_ns": 4614.2971,
+              "max_parse_ns": 4846.5684,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment_vs_current_percent": 2.717731914177257,
+            "current_vs_baseline_percent": 7.584738301271354,
+            "experiment_vs_baseline_percent": 10.508603068869093
+          }
+        ]
+      },
+      {
+        "trial": 3,
+        "order": [
+          "current",
+          "experiment",
+          "baseline"
+        ],
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline": {
+              "median_parse_ns": 112.4112,
+              "min_parse_ns": 111.5821,
+              "max_parse_ns": 121.3629,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 108.606,
+              "min_parse_ns": 106.6748,
+              "max_parse_ns": 117.4867,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment": {
+              "median_parse_ns": 111.8491,
+              "min_parse_ns": 111.3365,
+              "max_parse_ns": 116.8235,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment_vs_current_percent": 2.986114947608809,
+            "current_vs_baseline_percent": -3.385071950125962,
+            "experiment_vs_baseline_percent": -0.5000391420071915
+          },
+          {
+            "fragments": 100,
+            "baseline": {
+              "median_parse_ns": 4209.5866,
+              "min_parse_ns": 4192.4556,
+              "max_parse_ns": 4287.8238,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 4465.4924,
+              "min_parse_ns": 4427.908,
+              "max_parse_ns": 4515.2354,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment": {
+              "median_parse_ns": 4719.8848,
+              "min_parse_ns": 4631.3325,
+              "max_parse_ns": 4814.2124,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment_vs_current_percent": 5.696849915140367,
+            "current_vs_baseline_percent": 6.079119503088504,
+            "experiment_vs_baseline_percent": 12.122287732481851
+          }
+        ]
+      },
+      {
+        "trial": 4,
+        "order": [
+          "experiment",
+          "baseline",
+          "current"
+        ],
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline": {
+              "median_parse_ns": 111.4128,
+              "min_parse_ns": 108.4816,
+              "max_parse_ns": 117.5882,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 114.259,
+              "min_parse_ns": 113.0784,
+              "max_parse_ns": 120.1287,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment": {
+              "median_parse_ns": 112.6078,
+              "min_parse_ns": 108.2113,
+              "max_parse_ns": 123.9861,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment_vs_current_percent": -1.4451378009609717,
+            "current_vs_baseline_percent": 2.554643631611442,
+            "experiment_vs_baseline_percent": 1.0725877098502146
+          },
+          {
+            "fragments": 100,
+            "baseline": {
+              "median_parse_ns": 4328.1344,
+              "min_parse_ns": 4187.3567,
+              "max_parse_ns": 4598.8337,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 5116.6427,
+              "min_parse_ns": 4904.3365,
+              "max_parse_ns": 5180.3504,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment": {
+              "median_parse_ns": 4718.3244,
+              "min_parse_ns": 4677.9303,
+              "max_parse_ns": 4834.7127,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment_vs_current_percent": -7.784758939685199,
+            "current_vs_baseline_percent": 18.218202743426826,
+            "experiment_vs_baseline_percent": 9.015200637022748
+          }
+        ]
+      },
+      {
+        "trial": 5,
+        "order": [
+          "experiment",
+          "current",
+          "baseline"
+        ],
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline": {
+              "median_parse_ns": 109.0656,
+              "min_parse_ns": 106.883,
+              "max_parse_ns": 113.1301,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 111.111,
+              "min_parse_ns": 108.9914,
+              "max_parse_ns": 111.5206,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment": {
+              "median_parse_ns": 111.4957,
+              "min_parse_ns": 108.4246,
+              "max_parse_ns": 122.597,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment_vs_current_percent": 0.3462303462303362,
+            "current_vs_baseline_percent": 1.875385089340731,
+            "experiment_vs_baseline_percent": 2.2281085878590456
+          },
+          {
+            "fragments": 100,
+            "baseline": {
+              "median_parse_ns": 4309.8859,
+              "min_parse_ns": 4200.9747,
+              "max_parse_ns": 4587.4862,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 4453.4799,
+              "min_parse_ns": 4390.3743,
+              "max_parse_ns": 4633.8227,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment": {
+              "median_parse_ns": 4816.3369,
+              "min_parse_ns": 4705.8919,
+              "max_parse_ns": 4920.7215,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "experiment_vs_current_percent": 8.147718371873648,
+            "current_vs_baseline_percent": 3.3317355338803756,
+            "experiment_vs_baseline_percent": 11.750914333950234
+          }
+        ]
+      }
+    ],
+    "unknown_trials": [
+      {
+        "trial": 0,
+        "first": "current",
+        "cases": [
+          {
+            "mode": "varint",
+            "current": {
+              "median_parse_ns": 153.1305,
+              "min_parse_ns": 147.7895,
+              "max_parse_ns": 244.4316,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "experiment": {
+              "median_parse_ns": 153.4701,
+              "min_parse_ns": 150.7746,
+              "max_parse_ns": 159.4154,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "experiment_vs_current_percent": 0.22177162616199286
+          },
+          {
+            "mode": "len",
+            "current": {
+              "median_parse_ns": 147.6155,
+              "min_parse_ns": 144.2775,
+              "max_parse_ns": 149.2938,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "experiment": {
+              "median_parse_ns": 150.2044,
+              "min_parse_ns": 145.3626,
+              "max_parse_ns": 161.0897,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "experiment_vs_current_percent": 1.7538131158313375
+          },
+          {
+            "mode": "nested_groups",
+            "current": {
+              "median_parse_ns": 213.1257,
+              "min_parse_ns": 211.4112,
+              "max_parse_ns": 242.4666,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "experiment": {
+              "median_parse_ns": 218.5601,
+              "min_parse_ns": 211.7135,
+              "max_parse_ns": 226.7886,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "experiment_vs_current_percent": 2.549856727743305
+          }
+        ]
+      },
+      {
+        "trial": 1,
+        "first": "experiment",
+        "cases": [
+          {
+            "mode": "varint",
+            "current": {
+              "median_parse_ns": 189.4708,
+              "min_parse_ns": 184.1662,
+              "max_parse_ns": 212.2366,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "experiment": {
+              "median_parse_ns": 152.8749,
+              "min_parse_ns": 148.9296,
+              "max_parse_ns": 158.0312,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "experiment_vs_current_percent": -19.31479679190672
+          },
+          {
+            "mode": "len",
+            "current": {
+              "median_parse_ns": 151.2728,
+              "min_parse_ns": 147.7387,
+              "max_parse_ns": 211.0924,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "experiment": {
+              "median_parse_ns": 148.4427,
+              "min_parse_ns": 146.9016,
+              "max_parse_ns": 166.7286,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "experiment_vs_current_percent": -1.8708584755487978
+          },
+          {
+            "mode": "nested_groups",
+            "current": {
+              "median_parse_ns": 282.1481,
+              "min_parse_ns": 215.9759,
+              "max_parse_ns": 308.7972,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "experiment": {
+              "median_parse_ns": 221.3186,
+              "min_parse_ns": 216.0241,
+              "max_parse_ns": 241.1587,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "experiment_vs_current_percent": -21.55942216162363
+          }
+        ]
+      },
+      {
+        "trial": 2,
+        "first": "current",
+        "cases": [
+          {
+            "mode": "varint",
+            "current": {
+              "median_parse_ns": 252.8954,
+              "min_parse_ns": 230.1559,
+              "max_parse_ns": 304.7965,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "experiment": {
+              "median_parse_ns": 146.7349,
+              "min_parse_ns": 143.7832,
+              "max_parse_ns": 151.6563,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "experiment_vs_current_percent": -41.978027279262484
+          },
+          {
+            "mode": "len",
+            "current": {
+              "median_parse_ns": 212.8417,
+              "min_parse_ns": 156.5683,
+              "max_parse_ns": 274.9885,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "experiment": {
+              "median_parse_ns": 146.7941,
+              "min_parse_ns": 145.3927,
+              "max_parse_ns": 155.2025,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "experiment_vs_current_percent": -31.03132515855681
+          },
+          {
+            "mode": "nested_groups",
+            "current": {
+              "median_parse_ns": 213.2003,
+              "min_parse_ns": 207.9102,
+              "max_parse_ns": 231.41,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "experiment": {
+              "median_parse_ns": 215.2942,
+              "min_parse_ns": 213.0717,
+              "max_parse_ns": 217.6796,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "experiment_vs_current_percent": 0.9821280739285898
+          }
+        ]
+      },
+      {
+        "trial": 3,
+        "first": "experiment",
+        "cases": [
+          {
+            "mode": "varint",
+            "current": {
+              "median_parse_ns": 147.8002,
+              "min_parse_ns": 145.2663,
+              "max_parse_ns": 163.0185,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "experiment": {
+              "median_parse_ns": 152.6671,
+              "min_parse_ns": 145.5545,
+              "max_parse_ns": 176.2074,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "experiment_vs_current_percent": 3.2928913492674683
+          },
+          {
+            "mode": "len",
+            "current": {
+              "median_parse_ns": 147.2196,
+              "min_parse_ns": 145.3185,
+              "max_parse_ns": 151.4122,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "experiment": {
+              "median_parse_ns": 147.2596,
+              "min_parse_ns": 146.2988,
+              "max_parse_ns": 182.4045,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "experiment_vs_current_percent": 0.027170295259604238
+          },
+          {
+            "mode": "nested_groups",
+            "current": {
+              "median_parse_ns": 212.3768,
+              "min_parse_ns": 209.5529,
+              "max_parse_ns": 217.7297,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "experiment": {
+              "median_parse_ns": 233.3143,
+              "min_parse_ns": 218.276,
+              "max_parse_ns": 239.4433,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "experiment_vs_current_percent": 9.858656877775719
+          }
+        ]
+      },
+      {
+        "trial": 4,
+        "first": "current",
+        "cases": [
+          {
+            "mode": "varint",
+            "current": {
+              "median_parse_ns": 150.5137,
+              "min_parse_ns": 150.0571,
+              "max_parse_ns": 154.2325,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "experiment": {
+              "median_parse_ns": 149.9543,
+              "min_parse_ns": 147.6743,
+              "max_parse_ns": 153.1834,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "experiment_vs_current_percent": -0.3716605199393874
+          },
+          {
+            "mode": "len",
+            "current": {
+              "median_parse_ns": 147.8711,
+              "min_parse_ns": 146.2156,
+              "max_parse_ns": 149.0099,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "experiment": {
+              "median_parse_ns": 150.8057,
+              "min_parse_ns": 148.1036,
+              "max_parse_ns": 387.5797,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "experiment_vs_current_percent": 1.9845662878006598
+          },
+          {
+            "mode": "nested_groups",
+            "current": {
+              "median_parse_ns": 215.2644,
+              "min_parse_ns": 211.2525,
+              "max_parse_ns": 228.4521,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "experiment": {
+              "median_parse_ns": 217.6591,
+              "min_parse_ns": 211.0593,
+              "max_parse_ns": 233.0142,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "experiment_vs_current_percent": 1.1124459037351375
+          }
+        ]
+      },
+      {
+        "trial": 5,
+        "first": "experiment",
+        "cases": [
+          {
+            "mode": "varint",
+            "current": {
+              "median_parse_ns": 156.1128,
+              "min_parse_ns": 148.2385,
+              "max_parse_ns": 157.8811,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "experiment": {
+              "median_parse_ns": 150.9168,
+              "min_parse_ns": 145.5176,
+              "max_parse_ns": 155.5813,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "experiment_vs_current_percent": -3.3283625686042373
+          },
+          {
+            "mode": "len",
+            "current": {
+              "median_parse_ns": 147.7307,
+              "min_parse_ns": 144.7951,
+              "max_parse_ns": 158.138,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "experiment": {
+              "median_parse_ns": 151.2122,
+              "min_parse_ns": 148.5822,
+              "max_parse_ns": 163.338,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "experiment_vs_current_percent": 2.356653017957666
+          },
+          {
+            "mode": "nested_groups",
+            "current": {
+              "median_parse_ns": 209.7125,
+              "min_parse_ns": 207.4422,
+              "max_parse_ns": 217.2,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "experiment": {
+              "median_parse_ns": 215.8447,
+              "min_parse_ns": 212.1275,
+              "max_parse_ns": 227.1588,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "experiment_vs_current_percent": 2.924098468140901
+          }
+        ]
+      }
+    ]
+  },
+  "choice": {
+    "adopted": "original correct groups.patch",
+    "patch": "original-correct/groups.patch",
+    "patch_sha256": "a790143884917c104ba31b51c756803d520829273f770766763d35c6c36ff34e",
+    "decoder_sha256": "7aa4a0e638628a94cd5629a24bce9b6b1c2e5d4e808926eb619802ac9b50c02b",
+    "reason": "Neither combined nor split experiment consistently improved the non-group100-fragment case. Preserve correctness patch and measured loss. No further tuning.",
+    "group_body_timing": "unmeasured",
+    "checks": {
+      "original": "46 kernel tests,8 runtime unit tests, strict Clippy pass",
+      "both_changes": "46 kernel tests,8 runtime unit tests, strict Clippy pass",
+      "helpers_only": "release build passed; no qualifying speed improvement, so additional correctness/Clippy not run",
+      "combined_only": "release build passed; no qualifying speed improvement, so additional correctness/Clippy not run"
+    }
+  },
+  "helpers_only": {
+    "source": {
+      "base_commit": "a24c0e3561c44c3ae03f57641e806ac7331b4df4",
+      "variant": "helpers",
+      "source_tree": "/workspace/pure-protobuf/work/minitable_groups_helpers",
+      "fixture_sha256": "90196dde096ac718d6276d6c8de151cd4a6a9d1eb9c79ff49542183c3c1061ed",
+      "patch_sha256": "e6ca1705a83140fb049c9af88441dced138074cf08997c66ce59d28c5167bc1a",
+      "source_hashes": {
+        "src/runtime/decode.rs": "b7cc0333e7dfe6f8379eae5b8b54cfb7390640f178e2595cf63fb8af03057857",
+        "src/runtime/encode.rs": "baaa2cd41acde3553800e430460c611464a484cd0e894ac90fa2dd001aa969de",
+        "tests/upb_kernel/decode.rs": "1c233079172f86050f73407757dbafd2a6c2b2a4fd173424a08fa523f27ad85a"
+      }
+    },
+    "binaries": {
+      "baseline": {
+        "path": "/workspace/pure-protobuf/work/bench-target/release/kernel-groups-baseline",
+        "sha256": "cf76d47403d0ccd26e847948dc948d5bed228f90d4ff04d529dda611e7fc3493",
+        "mtime_ns": 1793107060272577548
+      },
+      "current": {
+        "path": "/workspace/pure-protobuf/work/bench-target/release/kernel-groups-candidate",
+        "sha256": "ea0931b8068af8bb720bcc276714db2406def930698072e6c2b7a2f38eef13a3",
+        "mtime_ns": 1793107166787465638
+      },
+      "helpers": {
+        "path": "/workspace/pure-protobuf/work/bench-target/release/kernel-groups-helpers",
+        "sha256": "1048d194b4f1ca6a3a9e3fc236773ed3834341e6d562bbef46b210363c81bde2",
+        "mtime_ns": 1793107717958409512
+      }
+    },
+    "group_body_timing": "unmeasured",
+    "non_group": [
+      {
+        "fragments": 1,
+        "baseline": {
+          "median_parse_ns": 108.51765,
+          "min_parse_ns": 106.1572,
+          "max_parse_ns": 134.2048,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "current": {
+          "median_parse_ns": 108.80815000000001,
+          "min_parse_ns": 105.5872,
+          "max_parse_ns": 122.9859,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "helpers": {
+          "median_parse_ns": 108.92285,
+          "min_parse_ns": 106.008,
+          "max_parse_ns": 125.3544,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "variant_vs_current_percent": 0.10541489768918222,
+        "variant_vs_baseline_percent": 0.3733954799058026,
+        "current_vs_baseline_percent": 0.2676983882345496
+      },
+      {
+        "fragments": 100,
+        "baseline": {
+          "median_parse_ns": 4229.95035,
+          "min_parse_ns": 4122.1394,
+          "max_parse_ns": 4310.4798,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "current": {
+          "median_parse_ns": 4467.3428,
+          "min_parse_ns": 4373.7639,
+          "max_parse_ns": 5874.6502,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "helpers": {
+          "median_parse_ns": 4549.505349999999,
+          "min_parse_ns": 4446.9552,
+          "max_parse_ns": 4701.9098,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "variant_vs_current_percent": 1.8391816719325549,
+        "variant_vs_baseline_percent": 7.554580398325461,
+        "current_vs_baseline_percent": 5.6121805306769135
+      }
+    ],
+    "unknown": [
+      {
+        "mode": "varint",
+        "current": {
+          "median_parse_ns": 151.38585,
+          "min_parse_ns": 142.5871,
+          "max_parse_ns": 497.1457,
+          "allocations_per_parse": 6,
+          "requested_bytes_per_parse": 306
+        },
+        "helpers": {
+          "median_parse_ns": 149.70589999999999,
+          "min_parse_ns": 145.2062,
+          "max_parse_ns": 164.4127,
+          "allocations_per_parse": 6,
+          "requested_bytes_per_parse": 306
+        },
+        "variant_vs_current_percent": -1.1097140188465526
+      },
+      {
+        "mode": "len",
+        "current": {
+          "median_parse_ns": 145.88445000000002,
+          "min_parse_ns": 143.0414,
+          "max_parse_ns": 352.5688,
+          "allocations_per_parse": 7,
+          "requested_bytes_per_parse": 310
+        },
+        "helpers": {
+          "median_parse_ns": 148.28095000000002,
+          "min_parse_ns": 144.639,
+          "max_parse_ns": 184.4784,
+          "allocations_per_parse": 7,
+          "requested_bytes_per_parse": 310
+        },
+        "variant_vs_current_percent": 1.6427384824085012
+      },
+      {
+        "mode": "nested_groups",
+        "current": {
+          "median_parse_ns": 211.03565,
+          "min_parse_ns": 202.4417,
+          "max_parse_ns": 248.7754,
+          "allocations_per_parse": 10,
+          "requested_bytes_per_parse": 610
+        },
+        "helpers": {
+          "median_parse_ns": 214.0759,
+          "min_parse_ns": 206.3495,
+          "max_parse_ns": 228.9945,
+          "allocations_per_parse": 10,
+          "requested_bytes_per_parse": 610
+        },
+        "variant_vs_current_percent": 1.4406333716601827
+      }
+    ],
+    "non_group_trials": [
+      {
+        "trial": 0,
+        "order": [
+          "baseline",
+          "current",
+          "helpers"
+        ],
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline": {
+              "median_parse_ns": 108.5257,
+              "min_parse_ns": 106.6366,
+              "max_parse_ns": 110.1127,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 112.5322,
+              "min_parse_ns": 106.6032,
+              "max_parse_ns": 113.6284,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "helpers": {
+              "median_parse_ns": 108.768,
+              "min_parse_ns": 107.2786,
+              "max_parse_ns": 109.276,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": -3.344998142753808,
+            "variant_vs_baseline_percent": 0.22326508836156833,
+            "current_vs_baseline_percent": 3.6917522761889643
+          },
+          {
+            "fragments": 100,
+            "baseline": {
+              "median_parse_ns": 4228.7158,
+              "min_parse_ns": 4194.7218,
+              "max_parse_ns": 4255.5422,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 4454.3465,
+              "min_parse_ns": 4412.1574,
+              "max_parse_ns": 4469.6629,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "helpers": {
+              "median_parse_ns": 4597.3164,
+              "min_parse_ns": 4549.5212,
+              "max_parse_ns": 4624.2085,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": 3.209671721766605,
+            "variant_vs_baseline_percent": 8.716608479576692,
+            "current_vs_baseline_percent": 5.335678978473779
+          }
+        ]
+      },
+      {
+        "trial": 1,
+        "order": [
+          "baseline",
+          "helpers",
+          "current"
+        ],
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline": {
+              "median_parse_ns": 110.6767,
+              "min_parse_ns": 108.7629,
+              "max_parse_ns": 113.2682,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 119.6661,
+              "min_parse_ns": 114.3703,
+              "max_parse_ns": 122.9859,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "helpers": {
+              "median_parse_ns": 107.6783,
+              "min_parse_ns": 106.6124,
+              "max_parse_ns": 110.0864,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": -10.017707604743542,
+            "variant_vs_baseline_percent": -2.709151971462831,
+            "current_vs_baseline_percent": 8.12221542564966
+          },
+          {
+            "fragments": 100,
+            "baseline": {
+              "median_parse_ns": 4267.0545,
+              "min_parse_ns": 4246.548,
+              "max_parse_ns": 4271.5457,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 5727.8531,
+              "min_parse_ns": 5692.5522,
+              "max_parse_ns": 5874.6502,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "helpers": {
+              "median_parse_ns": 4648.391,
+              "min_parse_ns": 4605.8572,
+              "max_parse_ns": 4701.9098,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": -18.84584121055759,
+            "variant_vs_baseline_percent": 8.936761881058697,
+            "current_vs_baseline_percent": 34.234355338090936
+          }
+        ]
+      },
+      {
+        "trial": 2,
+        "order": [
+          "current",
+          "baseline",
+          "helpers"
+        ],
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline": {
+              "median_parse_ns": 108.5096,
+              "min_parse_ns": 107.2958,
+              "max_parse_ns": 110.835,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 108.2284,
+              "min_parse_ns": 105.5872,
+              "max_parse_ns": 108.7183,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "helpers": {
+              "median_parse_ns": 108.7219,
+              "min_parse_ns": 107.8845,
+              "max_parse_ns": 118.5457,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": 0.4559801309083511,
+            "variant_vs_baseline_percent": 0.19565089171833527,
+            "current_vs_baseline_percent": -0.25914757772584895
+          },
+          {
+            "fragments": 100,
+            "baseline": {
+              "median_parse_ns": 4139.4193,
+              "min_parse_ns": 4137.3299,
+              "max_parse_ns": 4166.91,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 4506.5942,
+              "min_parse_ns": 4461.9503,
+              "max_parse_ns": 4511.0825,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "helpers": {
+              "median_parse_ns": 4576.6421,
+              "min_parse_ns": 4549.4895,
+              "max_parse_ns": 4672.9465,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": 1.5543423013325786,
+            "variant_vs_baseline_percent": 10.562418743131442,
+            "current_vs_baseline_percent": 8.870203122452459
+          }
+        ]
+      },
+      {
+        "trial": 3,
+        "order": [
+          "current",
+          "helpers",
+          "baseline"
+        ],
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline": {
+              "median_parse_ns": 106.3952,
+              "min_parse_ns": 106.3218,
+              "max_parse_ns": 109.608,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 108.6234,
+              "min_parse_ns": 108.5573,
+              "max_parse_ns": 117.2637,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "helpers": {
+              "median_parse_ns": 109.2529,
+              "min_parse_ns": 108.1599,
+              "max_parse_ns": 111.9282,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": 0.5795252220055724,
+            "variant_vs_baseline_percent": 2.6859294404258716,
+            "current_vs_baseline_percent": 2.094267410559869
+          },
+          {
+            "fragments": 100,
+            "baseline": {
+              "median_parse_ns": 4269.0392,
+              "min_parse_ns": 4126.7782,
+              "max_parse_ns": 4310.4798,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 4573.2609,
+              "min_parse_ns": 4543.8099,
+              "max_parse_ns": 4587.3514,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "helpers": {
+              "median_parse_ns": 4533.8663,
+              "min_parse_ns": 4501.5633,
+              "max_parse_ns": 4586.9389,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": -0.8614116023863971,
+            "variant_vs_baseline_percent": 6.203435658309231,
+            "current_vs_baseline_percent": 7.1262334625552315
+          }
+        ]
+      },
+      {
+        "trial": 4,
+        "order": [
+          "helpers",
+          "baseline",
+          "current"
+        ],
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline": {
+              "median_parse_ns": 108.2642,
+              "min_parse_ns": 106.7568,
+              "max_parse_ns": 121.8938,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 108.775,
+              "min_parse_ns": 107.0016,
+              "max_parse_ns": 112.6161,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "helpers": {
+              "median_parse_ns": 111.1335,
+              "min_parse_ns": 108.5574,
+              "max_parse_ns": 125.3544,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": 2.1682371868535943,
+            "variant_vs_baseline_percent": 2.6502758991430175,
+            "current_vs_baseline_percent": 0.47180877889458905
+          },
+          {
+            "fragments": 100,
+            "baseline": {
+              "median_parse_ns": 4136.0872,
+              "min_parse_ns": 4122.1394,
+              "max_parse_ns": 4232.0967,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 4416.5667,
+              "min_parse_ns": 4373.7639,
+              "max_parse_ns": 4439.6267,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "helpers": {
+              "median_parse_ns": 4486.1142,
+              "min_parse_ns": 4446.9552,
+              "max_parse_ns": 4494.1198,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": 1.5746960189687575,
+            "variant_vs_baseline_percent": 8.462756781336722,
+            "current_vs_baseline_percent": 6.7812762748328925
+          }
+        ]
+      },
+      {
+        "trial": 5,
+        "order": [
+          "helpers",
+          "current",
+          "baseline"
+        ],
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline": {
+              "median_parse_ns": 107.7944,
+              "min_parse_ns": 106.1572,
+              "max_parse_ns": 134.2048,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 108.5422,
+              "min_parse_ns": 107.6284,
+              "max_parse_ns": 111.0458,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "helpers": {
+              "median_parse_ns": 109.1447,
+              "min_parse_ns": 106.008,
+              "max_parse_ns": 118.6232,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": 0.5550836448865004,
+            "variant_vs_baseline_percent": 1.2526624759727767,
+            "current_vs_baseline_percent": 0.6937280600847417
+          },
+          {
+            "fragments": 100,
+            "baseline": {
+              "median_parse_ns": 4254.4688,
+              "min_parse_ns": 4208.8737,
+              "max_parse_ns": 4262.5374,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 4405.3235,
+              "min_parse_ns": 4389.7852,
+              "max_parse_ns": 4443.7591,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "helpers": {
+              "median_parse_ns": 4500.8611,
+              "min_parse_ns": 4471.6574,
+              "max_parse_ns": 4506.2359,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": 2.168685228224443,
+            "variant_vs_baseline_percent": 5.791376352319255,
+            "current_vs_baseline_percent": 3.545794013109238
+          }
+        ]
+      }
+    ],
+    "unknown_trials": [
+      {
+        "trial": 0,
+        "first": "current",
+        "cases": [
+          {
+            "mode": "varint",
+            "current": {
+              "median_parse_ns": 149.9183,
+              "min_parse_ns": 146.246,
+              "max_parse_ns": 152.3521,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "helpers": {
+              "median_parse_ns": 153.4349,
+              "min_parse_ns": 148.831,
+              "max_parse_ns": 164.4127,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "variant_vs_current_percent": 2.3456776124062273
+          },
+          {
+            "mode": "len",
+            "current": {
+              "median_parse_ns": 145.5111,
+              "min_parse_ns": 143.3311,
+              "max_parse_ns": 156.481,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "helpers": {
+              "median_parse_ns": 149.0811,
+              "min_parse_ns": 145.6166,
+              "max_parse_ns": 184.4784,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "variant_vs_current_percent": 2.4534210792166222
+          },
+          {
+            "mode": "nested_groups",
+            "current": {
+              "median_parse_ns": 211.3299,
+              "min_parse_ns": 205.9515,
+              "max_parse_ns": 215.891,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "helpers": {
+              "median_parse_ns": 215.8599,
+              "min_parse_ns": 213.2698,
+              "max_parse_ns": 221.9151,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "variant_vs_current_percent": 2.143567947554992
+          }
+        ]
+      },
+      {
+        "trial": 1,
+        "first": "helpers",
+        "cases": [
+          {
+            "mode": "varint",
+            "current": {
+              "median_parse_ns": 165.5255,
+              "min_parse_ns": 157.5952,
+              "max_parse_ns": 181.6055,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "helpers": {
+              "median_parse_ns": 148.4834,
+              "min_parse_ns": 146.0115,
+              "max_parse_ns": 152.1922,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "variant_vs_current_percent": -10.295755034722752
+          },
+          {
+            "mode": "len",
+            "current": {
+              "median_parse_ns": 158.7501,
+              "min_parse_ns": 155.8215,
+              "max_parse_ns": 165.0578,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "helpers": {
+              "median_parse_ns": 145.2677,
+              "min_parse_ns": 144.639,
+              "max_parse_ns": 149.9407,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "variant_vs_current_percent": -8.49284504387715
+          },
+          {
+            "mode": "nested_groups",
+            "current": {
+              "median_parse_ns": 219.3779,
+              "min_parse_ns": 215.7143,
+              "max_parse_ns": 225.7178,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "helpers": {
+              "median_parse_ns": 213.1713,
+              "min_parse_ns": 210.1609,
+              "max_parse_ns": 214.2486,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "variant_vs_current_percent": -2.8291819732069623
+          }
+        ]
+      },
+      {
+        "trial": 2,
+        "first": "current",
+        "cases": [
+          {
+            "mode": "varint",
+            "current": {
+              "median_parse_ns": 147.1526,
+              "min_parse_ns": 142.5871,
+              "max_parse_ns": 151.3994,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "helpers": {
+              "median_parse_ns": 150.9655,
+              "min_parse_ns": 148.8166,
+              "max_parse_ns": 161.831,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "variant_vs_current_percent": 2.5911196947930204
+          },
+          {
+            "mode": "len",
+            "current": {
+              "median_parse_ns": 143.9565,
+              "min_parse_ns": 143.2387,
+              "max_parse_ns": 144.6702,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "helpers": {
+              "median_parse_ns": 147.2379,
+              "min_parse_ns": 145.5557,
+              "max_parse_ns": 149.0885,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "variant_vs_current_percent": 2.2794385804044914
+          },
+          {
+            "mode": "nested_groups",
+            "current": {
+              "median_parse_ns": 208.5741,
+              "min_parse_ns": 207.21,
+              "max_parse_ns": 210.6073,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "helpers": {
+              "median_parse_ns": 213.0378,
+              "min_parse_ns": 211.7114,
+              "max_parse_ns": 215.1701,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "variant_vs_current_percent": 2.1401027260815386
+          }
+        ]
+      },
+      {
+        "trial": 3,
+        "first": "helpers",
+        "cases": [
+          {
+            "mode": "varint",
+            "current": {
+              "median_parse_ns": 154.8218,
+              "min_parse_ns": 152.4591,
+              "max_parse_ns": 497.1457,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "helpers": {
+              "median_parse_ns": 149.6334,
+              "min_parse_ns": 148.4996,
+              "max_parse_ns": 151.8113,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "variant_vs_current_percent": -3.3512076464683904
+          },
+          {
+            "mode": "len",
+            "current": {
+              "median_parse_ns": 345.8576,
+              "min_parse_ns": 143.0414,
+              "max_parse_ns": 352.5688,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "helpers": {
+              "median_parse_ns": 149.4153,
+              "min_parse_ns": 147.1988,
+              "max_parse_ns": 152.3017,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "variant_vs_current_percent": -56.79860728808619
+          },
+          {
+            "mode": "nested_groups",
+            "current": {
+              "median_parse_ns": 214.0906,
+              "min_parse_ns": 209.0745,
+              "max_parse_ns": 216.3692,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "helpers": {
+              "median_parse_ns": 213.9032,
+              "min_parse_ns": 213.3707,
+              "max_parse_ns": 228.9945,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "variant_vs_current_percent": -0.08753303507953447
+          }
+        ]
+      },
+      {
+        "trial": 4,
+        "first": "current",
+        "cases": [
+          {
+            "mode": "varint",
+            "current": {
+              "median_parse_ns": 144.3107,
+              "min_parse_ns": 143.4146,
+              "max_parse_ns": 145.9917,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "helpers": {
+              "median_parse_ns": 150.2286,
+              "min_parse_ns": 148.5576,
+              "max_parse_ns": 151.8486,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "variant_vs_current_percent": 4.1008047220337795
+          },
+          {
+            "mode": "len",
+            "current": {
+              "median_parse_ns": 144.1101,
+              "min_parse_ns": 143.9536,
+              "max_parse_ns": 146.975,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "helpers": {
+              "median_parse_ns": 148.8798,
+              "min_parse_ns": 146.7185,
+              "max_parse_ns": 152.9974,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "variant_vs_current_percent": 3.309761078508733
+          },
+          {
+            "mode": "nested_groups",
+            "current": {
+              "median_parse_ns": 205.7457,
+              "min_parse_ns": 202.4417,
+              "max_parse_ns": 209.6902,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "helpers": {
+              "median_parse_ns": 217.5335,
+              "min_parse_ns": 214.9607,
+              "max_parse_ns": 218.7895,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "variant_vs_current_percent": 5.729305642839688
+          }
+        ]
+      },
+      {
+        "trial": 5,
+        "first": "helpers",
+        "cases": [
+          {
+            "mode": "varint",
+            "current": {
+              "median_parse_ns": 155.0746,
+              "min_parse_ns": 147.1113,
+              "max_parse_ns": 157.2246,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "helpers": {
+              "median_parse_ns": 148.3223,
+              "min_parse_ns": 145.2062,
+              "max_parse_ns": 148.5051,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "variant_vs_current_percent": -4.354226933359806
+          },
+          {
+            "mode": "len",
+            "current": {
+              "median_parse_ns": 150.0382,
+              "min_parse_ns": 145.8797,
+              "max_parse_ns": 159.2725,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "helpers": {
+              "median_parse_ns": 148.1339,
+              "min_parse_ns": 145.5213,
+              "max_parse_ns": 149.7453,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "variant_vs_current_percent": -1.2692101078258577
+          },
+          {
+            "mode": "nested_groups",
+            "current": {
+              "median_parse_ns": 213.4813,
+              "min_parse_ns": 208.685,
+              "max_parse_ns": 248.7754,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "helpers": {
+              "median_parse_ns": 213.8672,
+              "min_parse_ns": 206.3495,
+              "max_parse_ns": 218.8658,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "variant_vs_current_percent": 0.18076524735421984
+          }
+        ]
+      }
+    ]
+  },
+  "combined_only": {
+    "source": {
+      "base_commit": "a24c0e3561c44c3ae03f57641e806ac7331b4df4",
+      "variant": "combined",
+      "source_tree": "/workspace/pure-protobuf/work/minitable_groups_combined",
+      "fixture_sha256": "90196dde096ac718d6276d6c8de151cd4a6a9d1eb9c79ff49542183c3c1061ed",
+      "patch_sha256": "56eda0b33fe8d40da423e2f97bab58ffa9a84f1cb96bd5eaa5314de34a237146",
+      "source_hashes": {
+        "src/runtime/decode.rs": "87e5dec84874a873b678c2ff15b8d762d529b72a55c5351a38f365311e1732de",
+        "src/runtime/encode.rs": "baaa2cd41acde3553800e430460c611464a484cd0e894ac90fa2dd001aa969de",
+        "tests/upb_kernel/decode.rs": "1c233079172f86050f73407757dbafd2a6c2b2a4fd173424a08fa523f27ad85a"
+      }
+    },
+    "binaries": {
+      "baseline": {
+        "path": "/workspace/pure-protobuf/work/bench-target/release/kernel-groups-baseline",
+        "sha256": "cf76d47403d0ccd26e847948dc948d5bed228f90d4ff04d529dda611e7fc3493",
+        "mtime_ns": 1793107060272577548
+      },
+      "current": {
+        "path": "/workspace/pure-protobuf/work/bench-target/release/kernel-groups-candidate",
+        "sha256": "ea0931b8068af8bb720bcc276714db2406def930698072e6c2b7a2f38eef13a3",
+        "mtime_ns": 1793107166787465638
+      },
+      "combined": {
+        "path": "/workspace/pure-protobuf/work/bench-target/release/kernel-groups-combined",
+        "sha256": "8497540c76eb288a79cd2caf8ed289b9fcd083ce8ff124323a693735f1e3ba06",
+        "mtime_ns": 1793107771513727661
+      }
+    },
+    "group_body_timing": "unmeasured",
+    "non_group": [
+      {
+        "fragments": 1,
+        "baseline": {
+          "median_parse_ns": 112.07865000000001,
+          "min_parse_ns": 106.2381,
+          "max_parse_ns": 141.6591,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "current": {
+          "median_parse_ns": 110.1853,
+          "min_parse_ns": 106.9209,
+          "max_parse_ns": 227.6235,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "combined": {
+          "median_parse_ns": 110.17945,
+          "min_parse_ns": 106.3177,
+          "max_parse_ns": 270.4281,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "variant_vs_current_percent": -0.005309238165163155,
+        "variant_vs_baseline_percent": -1.6945243362585183,
+        "current_vs_baseline_percent": -1.6893047873078548
+      },
+      {
+        "fragments": 100,
+        "baseline": {
+          "median_parse_ns": 4217.1229,
+          "min_parse_ns": 4117.0554,
+          "max_parse_ns": 4469.264,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "current": {
+          "median_parse_ns": 4475.5134,
+          "min_parse_ns": 4373.6986,
+          "max_parse_ns": 4669.6205,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "combined": {
+          "median_parse_ns": 4516.264,
+          "min_parse_ns": 4418.6156,
+          "max_parse_ns": 4672.2828,
+          "allocations_per_parse": 4,
+          "requested_bytes_per_parse": 154
+        },
+        "variant_vs_current_percent": 0.91052347201106,
+        "variant_vs_baseline_percent": 7.093487837406864,
+        "current_vs_baseline_percent": 6.127174998859997
+      }
+    ],
+    "unknown": [
+      {
+        "mode": "varint",
+        "current": {
+          "median_parse_ns": 151.18615,
+          "min_parse_ns": 143.0851,
+          "max_parse_ns": 223.6568,
+          "allocations_per_parse": 6,
+          "requested_bytes_per_parse": 306
+        },
+        "combined": {
+          "median_parse_ns": 149.85415,
+          "min_parse_ns": 140.794,
+          "max_parse_ns": 156.4089,
+          "allocations_per_parse": 6,
+          "requested_bytes_per_parse": 306
+        },
+        "variant_vs_current_percent": -0.8810330840490321
+      },
+      {
+        "mode": "len",
+        "current": {
+          "median_parse_ns": 147.23000000000002,
+          "min_parse_ns": 141.9167,
+          "max_parse_ns": 205.4766,
+          "allocations_per_parse": 7,
+          "requested_bytes_per_parse": 310
+        },
+        "combined": {
+          "median_parse_ns": 145.01845,
+          "min_parse_ns": 140.7091,
+          "max_parse_ns": 181.9301,
+          "allocations_per_parse": 7,
+          "requested_bytes_per_parse": 310
+        },
+        "variant_vs_current_percent": -1.5021055491408086
+      },
+      {
+        "mode": "nested_groups",
+        "current": {
+          "median_parse_ns": 210.56765000000001,
+          "min_parse_ns": 205.0626,
+          "max_parse_ns": 237.117,
+          "allocations_per_parse": 10,
+          "requested_bytes_per_parse": 610
+        },
+        "combined": {
+          "median_parse_ns": 208.54739999999998,
+          "min_parse_ns": 202.7135,
+          "max_parse_ns": 453.6684,
+          "allocations_per_parse": 10,
+          "requested_bytes_per_parse": 610
+        },
+        "variant_vs_current_percent": -0.9594303778382107
+      }
+    ],
+    "non_group_trials": [
+      {
+        "trial": 0,
+        "order": [
+          "baseline",
+          "current",
+          "combined"
+        ],
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline": {
+              "median_parse_ns": 109.1619,
+              "min_parse_ns": 106.9154,
+              "max_parse_ns": 121.6448,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 109.929,
+              "min_parse_ns": 106.9209,
+              "max_parse_ns": 151.6384,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "combined": {
+              "median_parse_ns": 111.2534,
+              "min_parse_ns": 107.1812,
+              "max_parse_ns": 118.4308,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": 1.204777629197018,
+            "variant_vs_baseline_percent": 1.9159615213732994,
+            "current_vs_baseline_percent": 0.7027177064525159
+          },
+          {
+            "fragments": 100,
+            "baseline": {
+              "median_parse_ns": 4229.7855,
+              "min_parse_ns": 4215.8458,
+              "max_parse_ns": 4376.4809,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 4556.4948,
+              "min_parse_ns": 4521.7583,
+              "max_parse_ns": 4669.6205,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "combined": {
+              "median_parse_ns": 4496.7504,
+              "min_parse_ns": 4418.6156,
+              "max_parse_ns": 4575.8488,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": -1.3111921031930152,
+            "variant_vs_baseline_percent": 6.311547003979268,
+            "current_vs_baseline_percent": 7.724015792290184
+          }
+        ]
+      },
+      {
+        "trial": 1,
+        "order": [
+          "baseline",
+          "combined",
+          "current"
+        ],
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline": {
+              "median_parse_ns": 112.4398,
+              "min_parse_ns": 107.3603,
+              "max_parse_ns": 114.4511,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 110.9613,
+              "min_parse_ns": 109.4136,
+              "max_parse_ns": 117.9701,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "combined": {
+              "median_parse_ns": 110.5144,
+              "min_parse_ns": 107.6319,
+              "max_parse_ns": 270.4281,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": -0.402753031912928,
+            "variant_vs_baseline_percent": -1.7123829818267322,
+            "current_vs_baseline_percent": -1.314925853656812
+          },
+          {
+            "fragments": 100,
+            "baseline": {
+              "median_parse_ns": 4199.6548,
+              "min_parse_ns": 4195.9708,
+              "max_parse_ns": 4210.6381,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 4474.4479,
+              "min_parse_ns": 4456.4527,
+              "max_parse_ns": 4497.3203,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "combined": {
+              "median_parse_ns": 4532.4592,
+              "min_parse_ns": 4461.9922,
+              "max_parse_ns": 4672.2828,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": 1.2965018544522477,
+            "variant_vs_baseline_percent": 7.924565609535339,
+            "current_vs_baseline_percent": 6.543230648385667
+          }
+        ]
+      },
+      {
+        "trial": 2,
+        "order": [
+          "current",
+          "baseline",
+          "combined"
+        ],
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline": {
+              "median_parse_ns": 111.7887,
+              "min_parse_ns": 106.2381,
+              "max_parse_ns": 114.5557,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 108.1669,
+              "min_parse_ns": 107.4323,
+              "max_parse_ns": 113.9132,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "combined": {
+              "median_parse_ns": 111.021,
+              "min_parse_ns": 107.1495,
+              "max_parse_ns": 184.7075,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": 2.6386075592440994,
+            "variant_vs_baseline_percent": -0.6867420410113012,
+            "current_vs_baseline_percent": -3.239862347446576
+          },
+          {
+            "fragments": 100,
+            "baseline": {
+              "median_parse_ns": 4351.0945,
+              "min_parse_ns": 4197.8867,
+              "max_parse_ns": 4375.6722,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 4409.5573,
+              "min_parse_ns": 4400.8849,
+              "max_parse_ns": 4554.1899,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "combined": {
+              "median_parse_ns": 4561.6391,
+              "min_parse_ns": 4526.9889,
+              "max_parse_ns": 4659.1801,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": 3.448913114248442,
+            "variant_vs_baseline_percent": 4.8388882383501475,
+            "current_vs_baseline_percent": 1.3436343430371478
+          }
+        ]
+      },
+      {
+        "trial": 3,
+        "order": [
+          "current",
+          "combined",
+          "baseline"
+        ],
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline": {
+              "median_parse_ns": 112.3686,
+              "min_parse_ns": 110.1102,
+              "max_parse_ns": 116.255,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 109.4058,
+              "min_parse_ns": 108.0613,
+              "max_parse_ns": 112.7835,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "combined": {
+              "median_parse_ns": 112.6388,
+              "min_parse_ns": 106.8747,
+              "max_parse_ns": 122.5958,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": 2.9550535712000725,
+            "variant_vs_baseline_percent": 0.24045863346167096,
+            "current_vs_baseline_percent": -2.6366796418216487
+          },
+          {
+            "fragments": 100,
+            "baseline": {
+              "median_parse_ns": 4131.2067,
+              "min_parse_ns": 4117.0554,
+              "max_parse_ns": 4173.6208,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 4507.3948,
+              "min_parse_ns": 4476.5789,
+              "max_parse_ns": 4573.6981,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "combined": {
+              "median_parse_ns": 4495.4171,
+              "min_parse_ns": 4423.7112,
+              "max_parse_ns": 4541.2667,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": -0.2657344326705169,
+            "variant_vs_baseline_percent": 8.816077878649843,
+            "current_vs_baseline_percent": 9.106010115640073
+          }
+        ]
+      },
+      {
+        "trial": 4,
+        "order": [
+          "combined",
+          "baseline",
+          "current"
+        ],
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline": {
+              "median_parse_ns": 128.1634,
+              "min_parse_ns": 126.6292,
+              "max_parse_ns": 141.6591,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 113.2838,
+              "min_parse_ns": 108.9772,
+              "max_parse_ns": 116.8223,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "combined": {
+              "median_parse_ns": 112.0752,
+              "min_parse_ns": 108.4698,
+              "max_parse_ns": 114.8487,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": -1.0668780531726596,
+            "variant_vs_baseline_percent": -12.552881711939602,
+            "current_vs_baseline_percent": -11.60986677943937
+          },
+          {
+            "fragments": 100,
+            "baseline": {
+              "median_parse_ns": 4251.3299,
+              "min_parse_ns": 4230.503,
+              "max_parse_ns": 4347.9583,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 4426.2561,
+              "min_parse_ns": 4410.3699,
+              "max_parse_ns": 4511.5732,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "combined": {
+              "median_parse_ns": 4500.9368,
+              "min_parse_ns": 4483.9469,
+              "max_parse_ns": 4596.7647,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": 1.6872204931838608,
+            "variant_vs_baseline_percent": 5.8712663065738635,
+            "current_vs_baseline_percent": 4.1146230500719305
+          }
+        ]
+      },
+      {
+        "trial": 5,
+        "order": [
+          "combined",
+          "current",
+          "baseline"
+        ],
+        "cases": [
+          {
+            "fragments": 1,
+            "baseline": {
+              "median_parse_ns": 110.4834,
+              "min_parse_ns": 107.4587,
+              "max_parse_ns": 114.5541,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 110.4416,
+              "min_parse_ns": 108.4636,
+              "max_parse_ns": 227.6235,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "combined": {
+              "median_parse_ns": 107.1033,
+              "min_parse_ns": 106.3177,
+              "max_parse_ns": 109.4854,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": -3.022683481586641,
+            "variant_vs_baseline_percent": -3.0593736253591075,
+            "current_vs_baseline_percent": -0.03783373791901301
+          },
+          {
+            "fragments": 100,
+            "baseline": {
+              "median_parse_ns": 4196.1895,
+              "min_parse_ns": 4184.3108,
+              "max_parse_ns": 4469.264,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "current": {
+              "median_parse_ns": 4389.9315,
+              "min_parse_ns": 4373.6986,
+              "max_parse_ns": 4514.3114,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "combined": {
+              "median_parse_ns": 4504.683,
+              "min_parse_ns": 4490.7687,
+              "max_parse_ns": 4532.6798,
+              "allocations_per_parse": 4,
+              "requested_bytes_per_parse": 154
+            },
+            "variant_vs_current_percent": 2.6139701724275266,
+            "variant_vs_baseline_percent": 7.351753299034747,
+            "current_vs_baseline_percent": 4.617093675106876
+          }
+        ]
+      }
+    ],
+    "unknown_trials": [
+      {
+        "trial": 0,
+        "first": "current",
+        "cases": [
+          {
+            "mode": "varint",
+            "current": {
+              "median_parse_ns": 152.1547,
+              "min_parse_ns": 145.276,
+              "max_parse_ns": 161.3624,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "combined": {
+              "median_parse_ns": 153.4478,
+              "min_parse_ns": 149.7585,
+              "max_parse_ns": 155.2698,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "variant_vs_current_percent": 0.8498587293064297
+          },
+          {
+            "mode": "len",
+            "current": {
+              "median_parse_ns": 147.456,
+              "min_parse_ns": 146.3219,
+              "max_parse_ns": 148.498,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "combined": {
+              "median_parse_ns": 144.9633,
+              "min_parse_ns": 142.4043,
+              "max_parse_ns": 166.8084,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "variant_vs_current_percent": -1.6904703776041585
+          },
+          {
+            "mode": "nested_groups",
+            "current": {
+              "median_parse_ns": 208.8112,
+              "min_parse_ns": 207.4441,
+              "max_parse_ns": 212.3227,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "combined": {
+              "median_parse_ns": 206.3497,
+              "min_parse_ns": 202.7135,
+              "max_parse_ns": 208.1557,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "variant_vs_current_percent": -1.1788160788310242
+          }
+        ]
+      },
+      {
+        "trial": 1,
+        "first": "combined",
+        "cases": [
+          {
+            "mode": "varint",
+            "current": {
+              "median_parse_ns": 207.0426,
+              "min_parse_ns": 145.2278,
+              "max_parse_ns": 223.6568,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "combined": {
+              "median_parse_ns": 147.562,
+              "min_parse_ns": 140.794,
+              "max_parse_ns": 154.41,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "variant_vs_current_percent": -28.72867709350635
+          },
+          {
+            "mode": "len",
+            "current": {
+              "median_parse_ns": 144.6191,
+              "min_parse_ns": 143.0737,
+              "max_parse_ns": 205.4766,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "combined": {
+              "median_parse_ns": 142.2749,
+              "min_parse_ns": 140.7091,
+              "max_parse_ns": 145.7034,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "variant_vs_current_percent": -1.6209477171410969
+          },
+          {
+            "mode": "nested_groups",
+            "current": {
+              "median_parse_ns": 212.9681,
+              "min_parse_ns": 208.3128,
+              "max_parse_ns": 215.3777,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "combined": {
+              "median_parse_ns": 203.8828,
+              "min_parse_ns": 203.2752,
+              "max_parse_ns": 209.7159,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "variant_vs_current_percent": -4.266037965310288
+          }
+        ]
+      },
+      {
+        "trial": 2,
+        "first": "current",
+        "cases": [
+          {
+            "mode": "varint",
+            "current": {
+              "median_parse_ns": 146.8905,
+              "min_parse_ns": 146.4593,
+              "max_parse_ns": 154.1134,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "combined": {
+              "median_parse_ns": 145.7082,
+              "min_parse_ns": 142.6776,
+              "max_parse_ns": 147.4952,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "variant_vs_current_percent": -0.8048852716819654
+          },
+          {
+            "mode": "len",
+            "current": {
+              "median_parse_ns": 147.1475,
+              "min_parse_ns": 144.8667,
+              "max_parse_ns": 147.9369,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "combined": {
+              "median_parse_ns": 144.3485,
+              "min_parse_ns": 142.9219,
+              "max_parse_ns": 146.4323,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "variant_vs_current_percent": -1.902172989687223
+          },
+          {
+            "mode": "nested_groups",
+            "current": {
+              "median_parse_ns": 209.6279,
+              "min_parse_ns": 205.5793,
+              "max_parse_ns": 214.7702,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "combined": {
+              "median_parse_ns": 206.4703,
+              "min_parse_ns": 203.3312,
+              "max_parse_ns": 213.8511,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "variant_vs_current_percent": -1.506288046581583
+          }
+        ]
+      },
+      {
+        "trial": 3,
+        "first": "combined",
+        "cases": [
+          {
+            "mode": "varint",
+            "current": {
+              "median_parse_ns": 154.1273,
+              "min_parse_ns": 149.3442,
+              "max_parse_ns": 157.0054,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "combined": {
+              "median_parse_ns": 149.6168,
+              "min_parse_ns": 146.2197,
+              "max_parse_ns": 150.7029,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "variant_vs_current_percent": -2.9264770095888126
+          },
+          {
+            "mode": "len",
+            "current": {
+              "median_parse_ns": 150.4081,
+              "min_parse_ns": 149.7116,
+              "max_parse_ns": 151.1156,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "combined": {
+              "median_parse_ns": 142.2516,
+              "min_parse_ns": 141.0009,
+              "max_parse_ns": 146.3585,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "variant_vs_current_percent": -5.4229127287692585
+          },
+          {
+            "mode": "nested_groups",
+            "current": {
+              "median_parse_ns": 213.6942,
+              "min_parse_ns": 209.1639,
+              "max_parse_ns": 218.4261,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "combined": {
+              "median_parse_ns": 209.4357,
+              "min_parse_ns": 207.5297,
+              "max_parse_ns": 214.8172,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "variant_vs_current_percent": -1.9928009276807712
+          }
+        ]
+      },
+      {
+        "trial": 4,
+        "first": "current",
+        "cases": [
+          {
+            "mode": "varint",
+            "current": {
+              "median_parse_ns": 150.1075,
+              "min_parse_ns": 148.5106,
+              "max_parse_ns": 157.7605,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "combined": {
+              "median_parse_ns": 150.5194,
+              "min_parse_ns": 149.0544,
+              "max_parse_ns": 156.4089,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "variant_vs_current_percent": 0.2744033442699356
+          },
+          {
+            "mode": "len",
+            "current": {
+              "median_parse_ns": 147.9092,
+              "min_parse_ns": 145.2629,
+              "max_parse_ns": 152.7949,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "combined": {
+              "median_parse_ns": 149.2031,
+              "min_parse_ns": 145.0736,
+              "max_parse_ns": 177.5948,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "variant_vs_current_percent": 0.8747934543625435
+          },
+          {
+            "mode": "nested_groups",
+            "current": {
+              "median_parse_ns": 209.6521,
+              "min_parse_ns": 207.1584,
+              "max_parse_ns": 215.6574,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "combined": {
+              "median_parse_ns": 221.7507,
+              "min_parse_ns": 219.0009,
+              "max_parse_ns": 453.6684,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "variant_vs_current_percent": 5.770798384561848
+          }
+        ]
+      },
+      {
+        "trial": 5,
+        "first": "combined",
+        "cases": [
+          {
+            "mode": "varint",
+            "current": {
+              "median_parse_ns": 146.7604,
+              "min_parse_ns": 143.0851,
+              "max_parse_ns": 153.4303,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "combined": {
+              "median_parse_ns": 150.8055,
+              "min_parse_ns": 145.7953,
+              "max_parse_ns": 153.4317,
+              "allocations_per_parse": 6,
+              "requested_bytes_per_parse": 306
+            },
+            "variant_vs_current_percent": 2.7562612257802543
+          },
+          {
+            "mode": "len",
+            "current": {
+              "median_parse_ns": 143.8743,
+              "min_parse_ns": 141.9167,
+              "max_parse_ns": 145.6754,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "combined": {
+              "median_parse_ns": 146.6543,
+              "min_parse_ns": 141.624,
+              "max_parse_ns": 181.9301,
+              "allocations_per_parse": 7,
+              "requested_bytes_per_parse": 310
+            },
+            "variant_vs_current_percent": 1.9322422420126495
+          },
+          {
+            "mode": "nested_groups",
+            "current": {
+              "median_parse_ns": 210.4701,
+              "min_parse_ns": 205.0626,
+              "max_parse_ns": 237.117,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "combined": {
+              "median_parse_ns": 209.5056,
+              "min_parse_ns": 206.7821,
+              "max_parse_ns": 225.9647,
+              "allocations_per_parse": 10,
+              "requested_bytes_per_parse": 610
+            },
+            "variant_vs_current_percent": -0.45825986684094877
+          }
+        ]
+      }
+    ]
+  },
+  "validation": {
+    "source": "6fba243571e269bd7a54e3d3b905567902823f99",
+    "checks": [
+      {
+        "name": "format",
+        "command": [
+          "cargo",
+          "fmt",
+          "--all",
+          "--check"
+        ],
+        "exit_code": 0,
+        "seconds": 2.02735712199501,
+        "log": "format.log"
+      },
+      {
+        "name": "core-tests",
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "-p",
+          "pbrs",
+          "--all-features",
+          "--lib",
+          "--test",
+          "upb_kernel",
+          "--test",
+          "dynamic_required_merge",
+          "--test",
+          "depth",
+          "--test",
+          "unknown_group_depth"
+        ],
+        "exit_code": 0,
+        "seconds": 31.709905710995372,
+        "log": "core-tests.log"
+      },
+      {
+        "name": "core-clippy",
+        "command": [
+          "cargo",
+          "clippy",
+          "--locked",
+          "-p",
+          "pbrs",
+          "--all-features",
+          "--lib",
+          "--test",
+          "upb_kernel",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "exit_code": 0,
+        "seconds": 9.673213670001132,
+        "log": "core-clippy.log"
+      },
+      {
+        "name": "workspace-check",
+        "command": [
+          "cargo",
+          "check",
+          "--locked",
+          "--workspace",
+          "--all-features"
+        ],
+        "exit_code": 0,
+        "seconds": 26.169104296001024,
+        "log": "workspace-check.log"
+      },
+      {
+        "name": "msrv-minimal",
+        "command": [
+          "cargo",
+          "+1.85.0",
+          "check",
+          "--locked",
+          "-p",
+          "pbrs",
+          "--no-default-features",
+          "--lib"
+        ],
+        "exit_code": 0,
+        "seconds": 0.5864651489973767,
+        "log": "msrv-minimal.log"
+      },
+      {
+        "name": "msrv-reflect",
+        "command": [
+          "cargo",
+          "+1.85.0",
+          "check",
+          "--locked",
+          "-p",
+          "pbrs",
+          "--no-default-features",
+          "--features",
+          "reflect",
+          "--lib"
+        ],
+        "exit_code": 0,
+        "seconds": 0.8503304749974632,
+        "log": "msrv-reflect.log"
+      },
+      {
+        "name": "msrv-core",
+        "command": [
+          "cargo",
+          "+1.85.0",
+          "check",
+          "--locked",
+          "-p",
+          "pbrs",
+          "--lib"
+        ],
+        "exit_code": 0,
+        "seconds": 10.260213397996267,
+        "log": "msrv-core.log"
+      },
+      {
+        "name": "msrv-grpc",
+        "command": [
+          "cargo",
+          "+1.85.0",
+          "check",
+          "--locked",
+          "-p",
+          "pbrs-grpc",
+          "--lib"
+        ],
+        "exit_code": 0,
+        "seconds": 30.151744864000648,
+        "log": "msrv-grpc.log"
+      },
+      {
+        "name": "msrv-tower",
+        "command": [
+          "cargo",
+          "+1.85.0",
+          "check",
+          "--locked",
+          "-p",
+          "pbrs-grpc",
+          "--features",
+          "tower",
+          "--lib"
+        ],
+        "exit_code": 0,
+        "seconds": 11.816738318993885,
+        "log": "msrv-tower.log"
+      },
+      {
+        "name": "conformance",
+        "command": [
+          "./scripts/conformance.sh"
+        ],
+        "exit_code": 0,
+        "seconds": 61.78597387000627,
+        "log": "conformance.log"
+      }
+    ],
+    "complete": true,
+    "clean_after": true
+  }
+}
