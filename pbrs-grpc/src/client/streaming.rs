@@ -483,6 +483,10 @@ impl ResetSend {
 enum ClosedUpload {
     /// Every request byte and the half-close are queued.
     Sent,
+    /// The peer completed its response and stopped accepting the upload with
+    /// RST_STREAM(NO_ERROR). Read and validate that response before deciding
+    /// the RPC result; a local CANCEL here would discard queued trailers.
+    PeerFinished,
     /// A prefix may already be queued. `rest` is the unsent payload, in order.
     Rest(EncodedUpload),
 }
@@ -549,7 +553,12 @@ fn write_closed_upload<T: CodecMessage>(
     while let Some(seg) = remaining.next() {
         match send.try_send_data(seg, false) {
             Ok(Ok(())) => {}
-            Ok(Err(err)) => return Err(fail(send, Status::from_h2_send(err))),
+            Ok(Err(err)) => {
+                if err.is_remote() && err.is_reset() && err.reason() == Some(Reason::NO_ERROR) {
+                    return Ok(ClosedUpload::PeerFinished);
+                }
+                return Err(fail(send, Status::from_h2_send(err)));
+            }
             Err(seg) => {
                 // Rebuild the unsent suffix once, only when the send buffer
                 // blocks. Consuming the queued prefix never shifts segments.
@@ -564,6 +573,9 @@ fn write_closed_upload<T: CodecMessage>(
         }
     }
     if let Err(err) = send.send_data(Bytes::new(), true) {
+        if err.is_remote() && err.is_reset() && err.reason() == Some(Reason::NO_ERROR) {
+            return Ok(ClosedUpload::PeerFinished);
+        }
         return Err(fail(send, Status::from_h2_send(err)));
     }
     if let Some(tap) = tap {
@@ -967,12 +979,12 @@ where
         // they fit in the HTTP/2 send buffer.
         if let Some(items) = rx.drain_closed_channel() {
             match write_closed_upload(&mut send_stream, items, wire, &budget, &tap, socket) {
-                Ok(ClosedUpload::Sent) if deadline.is_none() => {
+                Ok(ClosedUpload::Sent | ClosedUpload::PeerFinished) if deadline.is_none() => {
                     let ready =
                         wait_ready_bidi_http(resp_fut, send_stream, cancel_rx, tap.clone()).await;
                     return finish_ready_bidi(ready, wire, tap, socket);
                 }
-                Ok(ClosedUpload::Sent) => {
+                Ok(ClosedUpload::Sent | ClosedUpload::PeerFinished) => {
                     return box_bidi_deadline(
                         resp_fut,
                         send_stream,
@@ -1895,7 +1907,7 @@ impl super::Channel {
                                 &tap,
                                 channelz_socket,
                             ) {
-                                Ok(ClosedUpload::Sent) => {
+                                Ok(ClosedUpload::Sent | ClosedUpload::PeerFinished) => {
                                     await_closed_client_response(
                                         resp_fut,
                                         send,
@@ -2199,7 +2211,7 @@ impl super::Channel {
                             &tap,
                             channelz_socket,
                         ) {
-                            Ok(ClosedUpload::Sent) => {
+                            Ok(ClosedUpload::Sent | ClosedUpload::PeerFinished) => {
                                 let ready = wait_ready_bidi_http(
                                     resp_fut,
                                     send,

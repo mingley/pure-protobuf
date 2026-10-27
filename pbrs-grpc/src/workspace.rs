@@ -1,10 +1,12 @@
-//! Capacity accounting for idle decoded-message scratch.
+//! Capacity accounting for idle message scratch.
 //!
 //! These private cache limits are an initial retention policy: at most 4 MiB
-//! per buffer and 16 MiB across the process. They do not bound active decode
-//! output, application-owned messages, codec scratch, or total process memory.
+//! per buffer and 16 MiB across the process, independently for decode and large
+//! encode scratch. They do not bound active output, application-owned messages,
+//! small encode scratch, codec state, or total process memory.
 //! A full cache only prevents retention; it never fails an RPC.
 
+use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 const RETAINED_DECODE_CAPACITY: usize = 16 * 1024 * 1024;
@@ -12,6 +14,30 @@ const MAX_RETAINED_DECODE_BUFFER: usize = 4 * 1024 * 1024;
 
 static RETAINED_DECODE_BUDGET: Budget =
     Budget::new(RETAINED_DECODE_CAPACITY, MAX_RETAINED_DECODE_BUFFER);
+
+static RETAINED_ENCODE_BUDGET: Budget = Budget::new(16 * 1024 * 1024, 4 * 1024 * 1024);
+
+/// Full capacity of a canonical Vec allocation idle between compressed sends.
+/// Store the allocation before its lease so storage is destroyed first.
+#[derive(Debug)]
+pub(crate) struct RetainedEncodeLease {
+    capacity: NonZeroUsize,
+}
+
+impl RetainedEncodeLease {
+    pub(crate) fn try_acquire(capacity: usize) -> Option<Self> {
+        let capacity = NonZeroUsize::new(capacity)?;
+        RETAINED_ENCODE_BUDGET
+            .try_acquire(capacity.get())
+            .then(|| Self { capacity })
+    }
+}
+
+impl Drop for RetainedEncodeLease {
+    fn drop(&mut self) {
+        RETAINED_ENCODE_BUDGET.release(self.capacity.get());
+    }
+}
 
 /// A charge for one idle, uniquely owned decoded-message allocation.
 ///
@@ -225,11 +251,30 @@ pub(crate) fn retained_decode_counts() -> RetainedDecodeCounts {
     RETAINED_DECODE_BUDGET.snapshot()
 }
 
+/// Independent large encode-scratch ledger. Small scratch and active encoding
+/// are excluded. Fields have the same sampling semantics as decode counters.
+#[cfg(feature = "copy-counts")]
+pub type RetainedEncodeCounts = RetainedDecodeCounts;
+
+#[cfg(feature = "copy-counts")]
+pub(crate) fn retained_encode_counts() -> RetainedEncodeCounts {
+    RETAINED_ENCODE_BUDGET.snapshot()
+}
+
 #[cfg(test)]
 mod tests {
     use super::Budget;
     use std::sync::Barrier;
     use std::thread;
+
+    #[test]
+    fn rejected_encode_leases_do_not_release_uncharged_capacity() {
+        for capacity in [0, 4 * 1024 * 1024 + 1, usize::MAX] {
+            assert!(super::RetainedEncodeLease::try_acquire(capacity).is_none());
+            let counts = super::RETAINED_ENCODE_BUDGET.snapshot();
+            assert!(counts.retained_capacity <= counts.capacity_limit);
+        }
+    }
 
     struct LocalLease<'a> {
         budget: &'a Budget,

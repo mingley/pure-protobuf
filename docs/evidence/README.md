@@ -11,6 +11,10 @@ then the [scoreboard](../scoreboard.md) for qualification status and
 [benchmark contract](../benchmark-contract.md) before turning any record into a
 comparative claim. No category currently has a qualified performance win.
 
+[Bounded encoding and early streaming responses](grpc-encode-reuse-20261026/README.md)
+records 3,855 passing workspace tests, 448 allocation captures and 180 separate
+counters-off CPU captures. It includes remaining noise, CPU and pipeline losses.
+
 The [2026-10-22 day campaign](grpc-resource-soak-20261022/README.md) now has a
 terminal resource outcome. Its recorded revision and qualification limits apply.
 

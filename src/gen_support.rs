@@ -841,6 +841,8 @@ macro_rules! impl_typed_message {
             }
         }
         impl $crate::Serialize for $Owned {
+            const ENCODE_APPEND_ONLY: bool = true;
+
             #[inline]
             fn serialize(&self) -> Result<Vec<u8>, $crate::SerializeError> {
                 let mut out = Vec::with_capacity(self.compute_size() as usize);
@@ -862,6 +864,8 @@ macro_rules! impl_typed_message {
             }
         }
         impl $crate::Serialize for $View<'_> {
+            const ENCODE_APPEND_ONLY: bool = <$Owned as $crate::Serialize>::ENCODE_APPEND_ONLY;
+
             fn serialize(&self) -> Result<Vec<u8>, $crate::SerializeError> {
                 $crate::Serialize::serialize(self.0)
             }
@@ -876,6 +880,8 @@ macro_rules! impl_typed_message {
             }
         }
         impl $crate::Serialize for $Mut<'_> {
+            const ENCODE_APPEND_ONLY: bool = <$Owned as $crate::Serialize>::ENCODE_APPEND_ONLY;
+
             fn serialize(&self) -> Result<Vec<u8>, $crate::SerializeError> {
                 $crate::Serialize::serialize(self.0)
             }

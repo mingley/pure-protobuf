@@ -29,6 +29,14 @@ of eligible work, not an instruction to start every lane at once.
 
 ## Current priorities
 
+The [bounded encoding and streaming record](docs/evidence/grpc-encode-reuse-20261026/README.md)
+adds 3,855 passing workspace tests, 448 allocation captures / 83,160 successful
+RPCs and 180 counters-off CPU captures / 272,160 successful RPCs. Large compressed
+streams reuse bounded plaintext storage and avoid compressed-output overshoot;
+an early-response race is fixed. Allocation costs fall in the measured large
+gzip cases. CPU remains mixed, noise traffic still allocates more than tonic,
+and a 64-message identity client case regresses. Keep those losses in scope.
+
 Source `af00f348` fixes required-field checks after singular proto2 message merges.
 Split child fields, same-case oneofs, maps, groups, MessageSet extensions, cold
 fields and parallel generation have detecting controls. Affected consumer bindings
@@ -49,18 +57,18 @@ also has 1,116 native/instruction captures / 29,700 successful RPCs; bulk,
 shipping-build and tracing controls remain separate. Those results do not
 qualify later source changes.
 
-The [benchmarks](docs/benchmarks.md) identify the next costs. Unary-server shipping
-CPU still loses to tonic; the quiet four-repeat replay uses 53–60 µs/call
-versus tonic's 40–45 µs at 10,000 calls. Identity bidi client bytes remain 5.70% higher; 1 MiB gzip bidi bytes are
-16.40% higher on the client / 17.43% on the server. The 64-message pipelined server
-byte changes are +1.15% and +26.75% versus the safety source. All 30 instrumented
-instruction groups use fewer instructions than tonic in both repeats; 22 of 30
-instruction medians rise versus `7c02eb38`. These metrics answer different questions.
+The [benchmarks](docs/benchmarks.md) identify the next costs. Native-server
+1 KiB identity unary CPU slopes are 30–56 µs/RPC versus fresh tonic's 24–30.
+Four-message 1 MiB noise bidi still requests 35.53% more client bytes and
+37.23% more server bytes than tonic/prost; zero-filled traffic now requests
+13.50% / 14.39% fewer bytes. The 64 × 1 KiB identity pipeline client requests
+2.98% more bytes than baseline. Earlier instruction counts and source regressions
+retain their own pins in the [historical tables](docs/benchmarks/grpc-20261024.md).
 
 | Work | Next result | Completion criterion |
 |---|---|---|
-| Unary-server CPU and scheduling | Find a repeatable CPU improvement with fresh tonic controls. | The latest wake proxy passes 100 focused checks and 360,000 RPCs, but CPU is mixed; adoption remains deferred. A later affinity diagnostic cannot open a local listener in this session and records no RPCs. |
-| Identity/gzip bytes and bulk | Measure bounded encode reuse across endpoints, zero/noise and cold/warm streams. | The candidate passes 738 library checks and reduces four 1 MiB Prost scratch requests by 75%; custom contiguous codecs add allocations/copies. Endpoint comparisons are unrun, so it is not adopted. Keep the 64-message loss in scope. |
+| Unary-server CPU and scheduling | Find a repeatable CPU improvement with fresh tonic controls. | The new counters-off campaign completes 272,160 successful RPCs; repeats remain mixed and native unary-server CPU still loses to tonic in two of three paired slopes. Earlier wake experiments remain unadopted. |
+| Identity/gzip bytes and bulk | Reduce remaining noise and small-pipeline costs. | Bounded reuse now has endpoint measurements across zero/noise and one/four/64-message streams. Custom contiguous codecs keep their original path. Preserve the remaining noise and 64-message identity-client losses. |
 | QG-06: sustained resources | Run full exact-source general/deadline days on a host retained for at least 24 hours. | Both `933bf877` attempts are interrupted, not running. Deadline progress ends at 12.35 measured hours; general progress ends at 13,673 cancellation cycles without a final duration. Preserve finite limits, ownership and recovery. |
 | Remaining backend destruction | Audit generic current-frame panic, queue-clear, reset and EOF owners beyond the repaired retired DATA frames. | Independent bounded controls before broader safety claims; no hidden work detached from resource ownership. |
 | Required-field merge coverage | Extend final-tree initialization checks to DynamicMessage and MiniTable singular merges. | Keep explicit split-field, oneof/map, recursion and malformed-wire controls; generated-code conformance does not prove every kernel path. |

@@ -50,6 +50,13 @@ where
 
 /// Operations related to reading a message.
 pub trait Serialize: SealedInternal {
+    /// Whether `encode` efficiently appends to a generic byte buffer.
+    ///
+    /// Field-wise generated messages opt in. The default preserves the
+    /// contiguous-buffer path for older and custom serializers that use
+    /// [`crate::WireOut::write_contiguous`].
+    const ENCODE_APPEND_ONLY: bool = false;
+
     fn serialize(&self) -> Result<Vec<u8>, SerializeError>;
     fn serialized_len(&self) -> usize;
     /// Write the binary payload into `out` without a per-call `Vec`.

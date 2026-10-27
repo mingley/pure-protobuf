@@ -5,8 +5,10 @@ use crate::codec::CodecMessage;
 use crate::compression::CompressionAlgorithm;
 use crate::limits::MessageLimits;
 use crate::status::Status;
+use crate::workspace::RetainedEncodeLease;
 use bytes::{BufMut, Bytes, BytesMut};
 use pbrs::rt::WireOut;
+use std::io::{self, Write};
 
 /// Segmented outbound sink (PK-11): small writes accumulate in `head`;
 /// large shared field buffers handed to `put_shared` become their own
@@ -181,10 +183,18 @@ impl WireOut for SegSink {
 /// Reusable protobuf bytes for independently compressed stream messages.
 ///
 /// This buffer belongs to one outbound stream, so concurrent RPCs never share
-/// mutable codec state. Large messages release their scratch allocation after
-/// compression instead of retaining a message-sized buffer for the RPC lifetime.
+/// mutable codec state. Append-only codecs may retain large canonical buffers
+/// under an independent finite capacity budget. Custom contiguous codecs keep
+/// their existing path and release large buffers after compression.
 pub(crate) struct EncodeScratch {
     bytes: BytesMut,
+    append: Option<Box<AppendWorkspace>>,
+}
+
+// Field order frees the allocation before releasing its idle-capacity charge.
+struct AppendWorkspace {
+    bytes: Vec<u8>,
+    lease: Option<RetainedEncodeLease>,
 }
 
 const MAX_RETAINED_SCRATCH_BYTES: usize = 64 * 1024;
@@ -193,7 +203,12 @@ impl EncodeScratch {
     pub(crate) fn new() -> Self {
         Self {
             bytes: BytesMut::new(),
+            append: None,
         }
+    }
+
+    pub(crate) fn discard(&mut self) {
+        *self = Self::new();
     }
 
     fn with_payload<T: CodecMessage, R>(
@@ -202,16 +217,48 @@ impl EncodeScratch {
         len: usize,
         use_payload: impl FnOnce(&[u8]) -> Result<R, Status>,
     ) -> Result<R, Status> {
-        self.bytes.clear();
-        self.bytes.reserve(len);
-        let result = msg.encode_payload(self).and_then(|()| {
-            crate::copy_counts::note_serialize(self.bytes.len());
-            use_payload(&self.bytes)
+        // Arbitrary codec/compressor code may unwind. Leave no allocation in
+        // self until encoding and compression succeed and retention is charged.
+        let mut active = std::mem::replace(self, Self::new());
+        if T::ENCODE_APPEND_ONLY && (len > MAX_RETAINED_SCRATCH_BYTES || active.append.is_some()) {
+            active.bytes = BytesMut::new();
+            let mut workspace = active.append.take().unwrap_or_else(|| {
+                Box::new(AppendWorkspace {
+                    bytes: Vec::new(),
+                    lease: None,
+                })
+            });
+            // This storage is now active encoding, governed by message limits.
+            workspace.lease = None;
+            workspace.bytes.clear();
+            workspace.bytes.reserve(len);
+            let result = msg
+                .encode_payload_bufmut(&mut workspace.bytes)
+                .and_then(|()| {
+                    crate::copy_counts::note_serialize(workspace.bytes.len());
+                    use_payload(&workspace.bytes)
+                });
+            if result.is_ok() {
+                if let Some(lease) = RetainedEncodeLease::try_acquire(workspace.bytes.capacity()) {
+                    workspace.bytes.clear();
+                    workspace.lease = Some(lease);
+                    active.append = Some(workspace);
+                    *self = active;
+                }
+                // Oversize/full retention is a cache miss, never an RPC error.
+            }
+            return result;
+        }
+        active.append = None;
+        active.bytes.clear();
+        active.bytes.reserve(len);
+        let result = msg.encode_payload(&mut active).and_then(|()| {
+            crate::copy_counts::note_serialize(active.bytes.len());
+            use_payload(&active.bytes)
         });
-        if self.bytes.capacity() > MAX_RETAINED_SCRATCH_BYTES {
-            self.bytes = BytesMut::new();
-        } else {
-            self.bytes.clear();
+        if result.is_ok() && active.bytes.capacity() <= MAX_RETAINED_SCRATCH_BYTES {
+            active.bytes.clear();
+            *self = active;
         }
         result
     }
@@ -316,20 +363,83 @@ pub(crate) fn encode_msg<T: CodecMessage>(
     };
     let body = msg.encode_to_vec()?;
     crate::copy_counts::note_serialize(body.len());
-    // Compress straight into the framed buffer: one allocation instead of
-    // two, and no second copy of the compressed bytes. The length prefix
-    // is patched once the stream ends. The gzip path stays contiguous.
-    let mut buf = BytesMut::with_capacity(codec::HEADER_LEN + body.len() / 2 + 32);
-    BufMut::put_u8(&mut buf, 1);
-    buf.put_u32(0);
-    {
-        let mut writer = (&mut buf).writer();
-        codec.encode_into(&body, gzip_level, &mut writer)?;
-    }
-    let len = u32::try_from(buf.len() - codec::HEADER_LEN)
-        .map_err(|_| Status::internal("message too large"))?;
-    patch_frame_len(&mut buf, 0, len);
+    let mut buf = BytesMut::new();
+    append_compressed(&mut buf, &body, codec, gzip_level)?;
     Ok(SegFrame::single(buf.freeze()))
+}
+
+const COMPRESSED_LOOKAHEAD_BYTES: usize = 4096;
+
+/// Grow toward the known plaintext size once output reaches half that size.
+/// Smaller output grows normally, including highly compressed multi-MiB bodies.
+/// This is a capacity hint, not a codec bound: unusual output
+/// can still grow normally. A half-size initial guess previously doubled just
+/// short of a complete incompressible frame, then doubled again for its footer.
+struct CompressedWriter<'a> {
+    buffer: &'a mut BytesMut,
+    growth_target: usize,
+    grow_after: usize,
+}
+
+impl Write for CompressedWriter<'_> {
+    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+        if self.buffer.capacity() - self.buffer.len() < data.len() {
+            let additional = if self.buffer.len().saturating_add(data.len()) >= self.grow_after {
+                self.growth_target.saturating_sub(self.buffer.len())
+            } else {
+                data.len()
+            };
+            self.buffer.reserve(additional.max(data.len()));
+        }
+        self.buffer.extend_from_slice(data);
+        Ok(data.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Compress directly into the final frame. Small messages keep their existing
+/// capacity policy; large output starts small and grows only when needed.
+fn append_compressed(
+    buffer: &mut BytesMut,
+    body: &[u8],
+    codec: CompressionAlgorithm,
+    level: u32,
+) -> Result<usize, Status> {
+    let initial = codec::HEADER_LEN + (body.len() / 2 + 32).min(COMPRESSED_LOOKAHEAD_BYTES);
+    if buffer.capacity() == 0 {
+        *buffer = BytesMut::with_capacity(initial);
+    } else {
+        buffer.reserve(initial);
+    }
+    let at = buffer.len();
+    BufMut::put_u8(buffer, 1);
+    buffer.put_u32(0);
+    if body.len() <= COMPRESSED_LOOKAHEAD_BYTES {
+        codec.encode_into(body, level, &mut (&mut *buffer).writer())?;
+    } else {
+        let growth_target = buffer
+            .len()
+            .saturating_add(body.len())
+            .saturating_add(body.len() / 16)
+            .saturating_add(64);
+        let grow_after = buffer.len().saturating_add(body.len() / 2);
+        codec.encode_into(
+            body,
+            level,
+            &mut CompressedWriter {
+                buffer,
+                growth_target,
+                grow_after,
+            },
+        )?;
+    }
+    let len = u32::try_from(buffer.len() - at - codec::HEADER_LEN)
+        .map_err(|_| Status::internal("message too large"))?;
+    patch_frame_len(buffer, at, len);
+    Ok(buffer.len() - at)
 }
 
 /// Write `len` into the length prefix of the frame starting at `at`.
@@ -370,19 +480,7 @@ pub(crate) fn append_frame_with_ready<T: CodecMessage>(
     limits.check_encode(len)?;
     if let Some(codec) = codec {
         return scratch.with_payload(msg, len, |body| {
-            let head = sink.head_mut();
-            head.reserve(codec::HEADER_LEN + body.len() / 2 + 32);
-            let at = head.len();
-            BufMut::put_u8(&mut *head, 1);
-            head.put_u32(0);
-            {
-                let mut writer = (&mut *head).writer();
-                codec.encode_into(body, gzip_level, &mut writer)?;
-            }
-            let len = u32::try_from(head.len() - at - codec::HEADER_LEN)
-                .map_err(|_| Status::internal("message too large"))?;
-            patch_frame_len(head, at, len);
-            let wrote = head.len() - at;
+            let wrote = append_compressed(sink.head_mut(), body, codec, gzip_level)?;
             sink.note_head_wrote(wrote);
             Ok(())
         });
@@ -431,6 +529,57 @@ mod tests {
 
     const ONE_MIB: usize = 1024 * 1024;
 
+    #[test]
+    fn large_compressed_output_preserves_bytes_without_geometric_overshoot() {
+        let mut noise = vec![0u8; ONE_MIB];
+        let mut state = 0x8f67_31abu32;
+        for byte in &mut noise {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            *byte = state.to_le_bytes().first().copied().unwrap_or_default();
+        }
+        let algorithms = [CompressionAlgorithm::Gzip, CompressionAlgorithm::Deflate];
+        #[cfg(feature = "zstd")]
+        let algorithms = algorithms.into_iter().chain([CompressionAlgorithm::Zstd]);
+        for algorithm in algorithms {
+            for body in [vec![0u8; ONE_MIB], noise.clone(), vec![0u8; 5 * ONE_MIB]] {
+                let mut frame = BytesMut::new();
+                append_compressed(&mut frame, &body, algorithm, 6).expect("framed output");
+                // A well-compressed payload should not reserve a half-megabyte
+                // slab; incompressible output should not grow to two megabytes.
+                if body.iter().all(|byte| *byte == 0) {
+                    assert!(frame.capacity() < 64 * 1024);
+                } else {
+                    assert!(frame.capacity() < ONE_MIB + ONE_MIB / 4);
+                }
+                let framed = codec::pop(&mut frame).expect("framing").expect("complete");
+                assert!(frame.is_empty());
+                let mut reference = Vec::new();
+                algorithm
+                    .encode_into(&body, 6, &mut reference)
+                    .expect("independent encoder");
+                assert_eq!(framed.payload.as_ref(), reference);
+                assert_eq!(algorithm.decode(&framed.payload).expect("decode"), body);
+            }
+        }
+    }
+
+    #[test]
+    fn compressed_output_growth_hint_is_not_an_output_limit() {
+        let mut buffer = BytesMut::new();
+        let mut writer = CompressedWriter {
+            buffer: &mut buffer,
+            growth_target: 17,
+            grow_after: 0,
+        };
+        for data in [b"prefix".as_slice(), &[0xAB; 8192], b"suffix".as_slice()] {
+            writer.write_all(data).expect("hint can be exceeded");
+        }
+        let expected = [b"prefix".as_slice(), &[0xAB; 8192], b"suffix".as_slice()].concat();
+        assert_eq!(buffer.as_ref(), expected);
+    }
+
     struct ContiguousMessage(usize);
 
     impl CodecMessage for ContiguousMessage {
@@ -439,8 +588,17 @@ mod tests {
         }
 
         fn encode_payload<W: WireOut>(&self, out: &mut W) -> Result<(), Status> {
-            out.write_contiguous(|buf| buf.resize(buf.len() + self.0, 0xAB));
+            out.write_contiguous(|buf| {
+                // A temporary created by WireOut's generic fallback would
+                // have no capacity. Legacy codecs must retain direct access.
+                assert!(buf.capacity() - buf.len() >= self.0);
+                buf.resize(buf.len() + self.0, 0xAB);
+            });
             Ok(())
+        }
+
+        fn encode_payload_bufmut<B: BufMut>(&self, _: &mut B) -> Result<(), Status> {
+            panic!("legacy contiguous codecs must not enter the append-only path");
         }
 
         fn decode_payload(payload: Bytes) -> Result<Self, Status> {
@@ -449,6 +607,128 @@ mod tests {
 
         fn empty() -> Self {
             Self(0)
+        }
+    }
+
+    #[test]
+    fn generated_large_scratch_is_reused_across_flushes_and_mixed_sizes() {
+        assert!(<Payload as CodecMessage>::ENCODE_APPEND_ONLY);
+        let mut scratch = EncodeScratch::new();
+        let mut previous = None;
+        for size in [ONE_MIB, ONE_MIB, 17, 0, ONE_MIB] {
+            let mut message = Payload::new();
+            message.set_body(vec![0xAB; size]);
+            let expected = pbrs::Serialize::serialize(&message).expect("payload");
+            let pointer = scratch
+                .with_payload(&message, expected.len(), |body| {
+                    assert_eq!(body, expected);
+                    Ok(body.as_ptr())
+                })
+                .expect("serialize");
+            if let Some(previous) = previous {
+                assert_eq!(pointer, previous, "same canonical allocation reused");
+            }
+            previous = Some(pointer);
+            let workspace = scratch.append.as_ref().expect("retained large allocation");
+            assert!(workspace.bytes.is_empty());
+            assert!(workspace.lease.is_some());
+            assert_eq!(scratch.bytes.capacity(), 0);
+        }
+    }
+
+    #[test]
+    fn custom_contiguous_codecs_keep_direct_encoding_and_release_large_scratch() {
+        let mut scratch = EncodeScratch::new();
+        for size in [32, ONE_MIB, 0, 70 * 1024, 7] {
+            scratch
+                .with_payload(&ContiguousMessage(size), size, |body| {
+                    assert_eq!(body.len(), size);
+                    assert!(body.iter().all(|byte| *byte == 0xAB));
+                    Ok(())
+                })
+                .expect("legacy contiguous codec");
+            assert!(scratch.append.is_none());
+            assert!(scratch.bytes.capacity() <= MAX_RETAINED_SCRATCH_BYTES);
+        }
+    }
+
+    #[test]
+    fn oversize_retention_is_a_successful_cache_miss() {
+        let mut message = Payload::new();
+        message.set_body(vec![0xAB; 5 * ONE_MIB]);
+        let mut scratch = EncodeScratch::new();
+        let len = message.encoded_len();
+        scratch
+            .with_payload(&message, len, |body| {
+                assert_eq!(body.len(), len);
+                Ok(())
+            })
+            .expect("message limits and cache limits are independent");
+        assert!(scratch.append.is_none());
+        assert_eq!(scratch.bytes.capacity(), 0);
+    }
+
+    struct FailingAppend(u8);
+
+    impl CodecMessage for FailingAppend {
+        const ENCODE_APPEND_ONLY: bool = true;
+
+        fn encoded_len(&self) -> usize {
+            ONE_MIB
+        }
+
+        fn encode_payload<W: WireOut>(&self, _: &mut W) -> Result<(), Status> {
+            panic!("large append-capable codecs must use their direct encoder");
+        }
+
+        fn encode_payload_bufmut<B: BufMut>(&self, out: &mut B) -> Result<(), Status> {
+            out.put_u8(0xAB);
+            match self.0 {
+                1 => Err(Status::internal("partial encode")),
+                2 => panic!("codec panic"),
+                _ => Ok(()),
+            }
+        }
+
+        fn decode_payload(_: Bytes) -> Result<Self, Status> {
+            Ok(Self(0))
+        }
+
+        fn empty() -> Self {
+            Self(0)
+        }
+    }
+
+    #[test]
+    fn encode_and_compressor_failures_discard_warm_scratch_even_when_unwinding() {
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        for mode in 1..=4 {
+            let mut scratch = EncodeScratch::new();
+            scratch
+                .with_payload(&FailingAppend(0), ONE_MIB, |_| Ok(()))
+                .expect("warm scratch");
+            assert!(scratch.append.is_some());
+            let result = catch_unwind(AssertUnwindSafe(|| {
+                scratch.with_payload(&FailingAppend(mode), ONE_MIB, |_| match mode {
+                    3 => Err(Status::internal("compressor failure")),
+                    4 => panic!("compressor panic"),
+                    _ => Ok(()),
+                })
+            }));
+            if mode == 2 || mode == 4 {
+                assert!(result.is_err());
+            } else {
+                assert!(result.expect("error without panic").is_err());
+            }
+            assert!(scratch.append.is_none());
+            assert_eq!(scratch.bytes.capacity(), 0);
+            scratch
+                .with_payload(&FailingAppend(0), ONE_MIB, |body| {
+                    assert_eq!(body, [0xAB]);
+                    Ok(())
+                })
+                .expect("reuse after caught error");
         }
     }
 
@@ -684,6 +964,69 @@ mod tests {
             );
         }
         assert_eq!(sink.finish().concat(), expected);
+    }
+
+    #[test]
+    #[cfg(feature = "prost")]
+    fn reusable_large_frames_match_separate_encodes_for_both_message_families() {
+        #[derive(Clone, PartialEq, prost::Message)]
+        struct Sample {
+            #[prost(bytes = "vec", tag = "1")]
+            payload: Vec<u8>,
+        }
+
+        fn check<T: CodecMessage>(
+            message: &T,
+            scratch: &mut EncodeScratch,
+            compression: CompressionAlgorithm,
+        ) {
+            let mut sink = SegSink::new();
+            append_frame(
+                &mut sink,
+                scratch,
+                message,
+                Some(compression),
+                MessageLimits::unlimited(),
+                6,
+            )
+            .expect("reusable compressed frame");
+            let expected = encode_msg(message, Some(compression), MessageLimits::unlimited(), 6)
+                .expect("independent compressed frame");
+            assert_eq!(sink.finish().concat(), expected.concat());
+        }
+
+        let algorithms = [CompressionAlgorithm::Gzip, CompressionAlgorithm::Deflate];
+        #[cfg(feature = "zstd")]
+        let algorithms = algorithms.into_iter().chain([CompressionAlgorithm::Zstd]);
+        for compression in algorithms {
+            for noise in [false, true] {
+                let mut native_scratch = EncodeScratch::new();
+                let mut prost_scratch = EncodeScratch::new();
+                for size in [ONE_MIB, 0, 1, 70 * 1024, ONE_MIB] {
+                    let mut state = 0x1234_5678u32;
+                    let body: Vec<u8> = (0..size)
+                        .map(|_| {
+                            state ^= state << 13;
+                            state ^= state >> 17;
+                            state ^= state << 5;
+                            if noise {
+                                state.to_le_bytes().first().copied().unwrap_or_default()
+                            } else {
+                                0
+                            }
+                        })
+                        .collect();
+                    let mut native = Payload::new();
+                    native.set_body(body.clone());
+                    check(&native, &mut native_scratch, compression);
+                    check(
+                        &crate::codec::prost::Message(Sample { payload: body }),
+                        &mut prost_scratch,
+                        compression,
+                    );
+                }
+            }
+        }
     }
 
     #[test]

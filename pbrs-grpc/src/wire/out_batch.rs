@@ -59,6 +59,8 @@ impl OutBatch {
         ) {
             // Keep earlier complete frames flushable before the error trailer.
             self.sink.rollback(&checkpoint);
+            // A size limit may fail before scratch encoding starts.
+            self.scratch.discard();
             return Err(status);
         }
         if let Some(tap) = &self.tap {

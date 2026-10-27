@@ -63,7 +63,7 @@ owner, limit and release point.
 | **Zstd History Window** | Optional Zstd decoder | 8 MiB default logical window cap, plus capacity/block/decoder overhead | `MessageLimits::with_max_zstd_window`; independent of output and frame-count caps | Scratch is reused within a message and released afterward |
 | **Compressed Member/Frame Setup** | Compression decoder | At most 1,024 admissions per message by default | `MessageLimits::with_max_compression_frames`; includes empty gzip members and Zstd skippable frames | Count resets for each gRPC message |
 | **Outbound Frame Serialization** | Transport (`wire::frame_from_msg`) | Serialized payload length | `MessageLimits::max_encoding` / application message size | Dropped after wire enqueue |
-| **Compressed Streaming Scratch** | Transport (`wire::OutBatch`) | Up to 64 KiB retained per outbound compressed stream; larger scratch is released after each encode | Finite encoding limits and admitted stream count; outside byte-budget permits | Stream destruction, or immediately after a large encode |
+| **Compressed Streaming Scratch** | Transport (`wire::OutBatch`) | Up to 64 KiB per outbound stream; append-capable codecs can retain larger buffers, at most 4 MiB each and 16 MiB process-wide | Independent encode-cache capacity ledger; finite encoding limits govern active storage; outside byte-budget permits | Stream destruction, encode/compression failure or panic; oversize/full-cache buffers are released after encoding |
 | **Unconfigured Transparent Retry Replay Buffer** | Client unary/server-streaming executor | One segmented request frame, with no finite default outbound cap | `encode_msg` and existing outbound message limits | Held across a proven-unprocessed replacement; dropped on terminal outcome |
 | **Policy Retry Replay Buffer** | Client unary/server-streaming executor | Encoded payload up to the selected finite outbound cap, otherwise 4 MiB, plus five-byte framing | [Service-config §6.3](service-config.md#63-replay-byte-budget-rt-06); shared backing allocations and segment metadata are separate costs | Over-budget calls transfer ownership to the first upload and commit; eligible buffers survive backoff and release on terminal status |
 | **Streaming Channel Queue** | Transport / Application (`mpsc::channel`) | `buffer` $\times$ message size | `Streaming::channel(buffer)`, `ChannelConfig::stream_buffer` | Dropped as consumer reads |
@@ -84,6 +84,24 @@ storage between messages; active decoding, codec state and application messages
 remain separate costs. Reusing a larger allocation does not raise the next
 message's decoded-byte limit. Cancellation through a separate call handle
 releases cached storage when the reader observes it or the stream is dropped.
+
+Large encode scratch uses a separate 16 MiB ledger from decoded storage. Only
+append-capable codecs enter this cache: Prost and field-wise pbrs messages opt
+in through `CodecMessage::ENCODE_APPEND_ONLY`. The codec receives a generic
+`BufMut`, which cannot replace, split or retain the transport's allocation.
+Custom codecs default to the existing contiguous path, without an additional
+temporary buffer or copy. Admission charges full `Vec` capacity after both
+serialization and compression succeed; active encoding is uncharged. An error
+or unwind discards the active allocation. Cache exhaustion never fails an RPC.
+The small 64 KiB allowance, active output, and compression state remain separate
+costs; these two cache ledgers are not a process memory cap.
+
+Compressed output starts with at most 4 KiB of payload lookahead. If output
+approaches half the known plaintext size, growth anticipates the full size plus
+headroom, avoiding an extra doubling for incompressible data's footer. Smaller
+output grows normally, so a highly compressed multi-MiB message does not trigger
+a plaintext-sized reservation. The growth target is a capacity hint; larger
+output remains valid and still grows under the existing message/framing rules.
 
 Outbound gRPC messages can be larger than the configured HTTP/2 send buffer or
 the peer's stream window. `wire::send_bytes` queues small frames directly when
@@ -183,6 +201,7 @@ process memory ≈ base runtime and allocator overhead
                + connection count × measured connection state
                + open stream count × measured stream state
                + live transport buffers and replay buffers
+               + idle decode/encode caches and per-stream small scratch
                + application messages, queues, caches, and handler state
                + allocator retention and safety margin
 ```

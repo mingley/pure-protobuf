@@ -32,11 +32,29 @@ pub const HEADER_LEN: usize = 5;
 /// Other message families can implement this trait without changing the
 /// transport or the four RPC shapes.
 pub trait CodecMessage: Sized {
+    /// Opt in to reusable large encode storage through an append-only sink.
+    ///
+    /// Set this only when [`Self::encode_payload_bufmut`] efficiently writes
+    /// to generic [`BufMut`]. The default keeps custom contiguous encoders on
+    /// their existing path, without a temporary buffer and copy.
+    const ENCODE_APPEND_ONLY: bool = false;
+
     /// Return the uncompressed protobuf payload length.
     fn encoded_len(&self) -> usize;
 
     /// Encode the uncompressed protobuf payload into `out`.
     fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status>;
+
+    /// Append the same payload as [`Self::encode_payload`] to `out`.
+    ///
+    /// Used only with [`Self::ENCODE_APPEND_ONLY`]. The transport owns the
+    /// allocation and exposes only append access, so the codec cannot split,
+    /// replace or retain its backing storage. Partial writes on error are
+    /// discarded. The default adapts `WireOut`; codecs such as Prost override
+    /// this method to write directly without `write_contiguous` scratch.
+    fn encode_payload_bufmut<B: BufMut>(&self, out: &mut B) -> Result<(), Status> {
+        self.encode_payload(out)
+    }
 
     /// Materialize the same uncompressed protobuf payload as [`Self::encode_payload`].
     ///
@@ -71,6 +89,8 @@ impl<T> CodecMessage for T
 where
     T: Parse + Serialize + Default,
 {
+    const ENCODE_APPEND_ONLY: bool = <T as Serialize>::ENCODE_APPEND_ONLY;
+
     fn encoded_len(&self) -> usize {
         Serialize::serialized_len(self)
     }

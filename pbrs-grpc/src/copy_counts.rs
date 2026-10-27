@@ -24,7 +24,7 @@
 //! context switches, application tasks, or task completion.
 
 #[cfg(feature = "copy-counts")]
-pub use crate::workspace::RetainedDecodeCounts;
+pub use crate::workspace::{RetainedDecodeCounts, RetainedEncodeCounts};
 
 /// Read the process-wide idle decoded-buffer reservations and capacity gauges.
 ///
@@ -34,6 +34,16 @@ pub use crate::workspace::RetainedDecodeCounts;
 #[cfg(feature = "copy-counts")]
 pub fn retained_decode_counts() -> RetainedDecodeCounts {
     crate::workspace::retained_decode_counts()
+}
+
+/// Read the independent large encode-scratch reservations and capacity gauges.
+///
+/// At most 4 MiB per buffer and 16 MiB process-wide are retained. Active
+/// encoding and the existing small (at most 64 KiB per stream) scratch are
+/// excluded. This is not a process memory limit.
+#[cfg(feature = "copy-counts")]
+pub fn retained_encode_counts() -> RetainedEncodeCounts {
+    crate::workspace::retained_encode_counts()
 }
 
 /// Process-wide counts of named library task spawn expressions (RX-10a).

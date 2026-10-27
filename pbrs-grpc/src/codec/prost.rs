@@ -67,6 +67,8 @@ impl<T> CodecMessage for Message<T>
 where
     T: ProstMessage + Default,
 {
+    const ENCODE_APPEND_ONLY: bool = true;
+
     fn encoded_len(&self) -> usize {
         self.0.encoded_len()
     }
@@ -92,6 +94,12 @@ where
             .encode(&mut out)
             .map_err(|e| Status::internal(e.to_string()))?;
         Ok(out)
+    }
+
+    fn encode_payload_bufmut<B: bytes::BufMut>(&self, out: &mut B) -> Result<(), Status> {
+        self.0
+            .encode(out)
+            .map_err(|e| Status::internal(e.to_string()))
     }
 
     fn decode_payload(payload: Bytes) -> Result<Self, Status> {

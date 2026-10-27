@@ -23,6 +23,12 @@ The [gRPC guide](../docs/grpc.md) links the longer tutorials and contracts.
 - TLS, compression, routing, and configurable resource limits.
 - Optional adapters for existing Prost messages and Tower services.
 
+Compressed streams reuse large serialization buffers for Prost and field-wise
+pbrs messages. Retention is limited to 4 MiB per buffer and 16 MiB process-wide,
+independently from decoded storage. Custom codecs keep their contiguous encoding
+path unless they opt in to append-only encoding. See the
+[resource ownership and capacity rules](../docs/resource-budgets.md#2-buffer-ownership).
+
 ## Optional features
 
 Features are opt-in:

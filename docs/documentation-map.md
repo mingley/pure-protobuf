@@ -4,6 +4,8 @@ Start with the task you want to finish. Guides explain how to use the
 libraries; reference pages define exact behavior; evidence records what was
 measured at a particular revision.
 
+For a shorter starting point, use the [documentation home](README.md).
+
 ## Build or operate an application
 
 | I want to… | Start here | Runnable code |
@@ -67,7 +69,7 @@ The JSON cards own live dependencies and status; Markdown explains priorities.
 
 ## Read or reproduce measurements
 
-Start with the [benchmark guide](benchmarks.md), then use the
+Start with [benchmark results](benchmarks.md) and [run commands](benchmarks/running.md), then use the
 [scoreboard](scoreboard.md) and [evidence index](evidence/README.md).
 The [benchmark contract](benchmark-contract.md) defines valid comparisons.
 The [profiling guide](profiling.md) explains how to identify a limiting path.
