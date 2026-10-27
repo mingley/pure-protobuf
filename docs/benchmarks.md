@@ -71,6 +71,12 @@ not support a universal CPU or latency claim. See the
 
 ## Codec and codegen comparisons
 
+The [latest component follow-up](evidence/efficiency-20261027/README.md) removes
+MiniTable length-calculation allocations and lowers generator allocation
+requests by 7.60–13.17% in the measured multi-file cases. Generator timing is
+mixed, and some parallel cases use more peak live memory. These component
+results do not update the endpoint tables above.
+
 The [codec survey](../tonic-bench/README.md) separates parsing from reading
 every field, and owned messages from borrowed views. The
 [codegen matrix](evidence/sb09-codegen-matrix.md) records generator time,

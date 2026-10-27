@@ -9,6 +9,10 @@ also has source-pinned RPC comparisons and retains its measured losses.
 The subsequent [MiniTable group and unknown-field follow-up](evidence/minitable-groups-20261027/README.md)
 passed targeted checks, Rust 1.85 profiles and official conformance at
 `6fba2435`.
+The [allocation and generator follow-up](evidence/efficiency-20261027/README.md)
+at `31e7d69d` passed 202 targeted core tests, 750 gRPC library tests, strict
+linting, Rust 1.85 profiles and official conformance. Its component performance
+results include the remaining timing and memory losses.
 
 These checks are not a production certification. Complete protobuf and gRPC
 feature coverage, sustained-resource testing and broader performance

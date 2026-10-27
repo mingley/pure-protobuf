@@ -29,6 +29,11 @@ of eligible work, not an instruction to start every lane at once.
 
 ## Current priorities
 
+The [allocation and generator follow-up](docs/evidence/efficiency-20261027/README.md)
+removes MiniTable length-calculation buffers and repeated imported-path work.
+Cold generator timing and peak-memory losses remain, and a dense parser lookup
+was rejected after slowing every repeated-fragment pair.
+
 The [message merging and gRPC costs record](docs/evidence/grpc-parity-and-costs-20261027/README.md)
 adds final-tree required checks for dynamic and MiniTable messages, direct Tower
 stream input, less frame copying and shared generator metadata. It keeps the

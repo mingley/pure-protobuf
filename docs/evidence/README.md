@@ -5,6 +5,11 @@ stopped. They are dated investigations, usually local diagnostics. A result
 belongs to its recorded revision, host, workload, and peer versions; it does
 not automatically describe today's code.
 
+The [allocation and generator follow-up](efficiency-20261027/README.md)
+records allocation-free MiniTable length calculation, canonical unsigned map
+keys, imported-path caching and lazy server timing. It preserves cold-codegen,
+peak-memory and rejected parser-lookup results.
+
 Start with the [repository audit](../audit-2026-09-29.md) for current priorities,
 then the [scoreboard](../scoreboard.md) for qualification status and
 [benchmarks](../benchmarks.md) for the main performance findings. Use the
