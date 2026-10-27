@@ -44,7 +44,7 @@ fn migration_guide_pins_every_branch_sensitive_behavior() {
         "channel_oversize_outbound_is_resource_exhausted",
         "request_send_window_stall_obeys_deadline_for_both_single_request_shapes",
         "request_send_window_stall_obeys_cancellation",
-        "an_empty_body_decodes_to_a_default_message",
+        "a_missing_unary_message_is_rejected_but_a_framed_empty_message_is_valid",
         "trailers_only_rejection_survives_early_request_body_reset",
         "metadata_keys_follow_lowercase_http2_rules",
         "h2c_keepalive_still_serves",

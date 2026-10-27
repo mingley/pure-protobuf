@@ -363,8 +363,8 @@ fn decode_stream_frame<T: CodecMessage>(
 
 /// Read the single message of a unary request or response.
 ///
-/// An empty body decodes to `T::default()`, matching gRPC's treatment of a
-/// zero-field message. More than one message is a protocol violation.
+/// An absent message remains `None`, distinct from a framed zero-length
+/// protobuf message. More than one message is a protocol violation.
 pub(crate) async fn read_one_message<T: CodecMessage>(
     recv: &mut backend::RecvStream,
     limits: MessageLimits,
@@ -372,7 +372,7 @@ pub(crate) async fn read_one_message<T: CodecMessage>(
     codec: Option<CompressionAlgorithm>,
     tap: Option<&CallLogger>,
     response: bool,
-) -> Result<Framed<T>, Status> {
+) -> Result<Option<Framed<T>>, Status> {
     let mut reader = FrameReader::new(limits);
     let mut found: Option<Framed<T>> = None;
     while let Some(chunk) = next_data_released(recv).await? {
@@ -402,7 +402,7 @@ pub(crate) async fn read_one_message<T: CodecMessage>(
     if let Some(tap) = tap.filter(|tap| matches!(tap.role(), Logger::Server)) {
         tap.log_half_close();
     }
-    Ok(found.unwrap_or_else(|| Framed::new(T::empty())))
+    Ok(found)
 }
 
 /// Drain trailers so the HTTP/2 stream closes cleanly.
@@ -834,6 +834,11 @@ async fn complete_unary<Resp: CodecMessage>(
         }
         None => (status_from(&parts.headers, None), Metadata::new()),
     };
+    let status = if status.code() == Code::Ok && framed.is_none() {
+        Status::internal("Missing response message.")
+    } else {
+        status
+    };
     let header_md = metadata_from_response(parts.headers, stock_response);
     if let Some(tap) = tap {
         tap.log_trailer(&trailers_md, &status);
@@ -841,6 +846,7 @@ async fn complete_unary<Resp: CodecMessage>(
     if status.code() != Code::Ok {
         return Err(status);
     }
+    let framed = framed.ok_or_else(|| Status::internal("Missing response message."))?;
     Ok(crate::request::Response::from_parts_compress(
         framed.message,
         header_md,

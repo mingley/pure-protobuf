@@ -440,7 +440,7 @@ pub(crate) async fn read_one_text_message<T: CodecMessage>(
     if let Some(tap) = tap.filter(|tap| matches!(tap.role(), Logger::Server)) {
         tap.log_half_close();
     }
-    Ok(found.unwrap_or_else(|| Framed::new(T::empty())))
+    found.ok_or_else(|| Status::internal("Missing request message."))
 }
 
 fn trailer_frame(status: &Status) -> Result<Bytes, Status> {

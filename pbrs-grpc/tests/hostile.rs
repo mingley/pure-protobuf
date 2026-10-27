@@ -688,10 +688,13 @@ async fn a_malformed_path_is_unimplemented_not_a_panic() {
 }
 
 #[tokio::test]
-async fn an_empty_body_decodes_to_a_default_message() {
+async fn a_missing_unary_message_is_rejected_but_a_framed_empty_message_is_valid() {
     let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
     let mut peer = RawPeer::connect(addr).await;
     let answer = peer.call(SAY_HELLO, Bytes::new()).await;
+    answer.expect_code(Code::Internal);
+    assert_eq!(answer.payload_frames, 0);
+    let answer = peer.call(SAY_HELLO, frame(&[])).await;
     answer.expect_code(Code::Ok);
     assert_eq!(answer.payload_frames, 1);
 }

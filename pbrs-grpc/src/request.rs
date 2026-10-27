@@ -124,7 +124,7 @@ impl<T> TlsConnectInfo<T> {
     }
 }
 
-fn insert_connect_info(
+pub(crate) fn insert_connect_info(
     map: &mut http::Extensions,
     scheme: Option<&str>,
     remote_addr: Option<SocketAddr>,

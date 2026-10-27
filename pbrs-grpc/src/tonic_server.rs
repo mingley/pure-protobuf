@@ -155,7 +155,17 @@ where
 {
     const NAME: &'static str = N::NAME;
 
-    async fn call(&self, rpc: Rpc) {
+    async fn call(&self, mut rpc: Rpc) {
+        // Native typed requests materialize these fields lazily. This opaque
+        // adapter forwards HTTP extensions directly, so stamp them here too.
+        let scheme = (rpc.scheme() == Some("https")).then_some("https");
+        crate::request::insert_connect_info(
+            &mut rpc.extensions,
+            scheme,
+            rpc.remote_addr,
+            rpc.local_addr,
+            rpc.peer_identity.as_ref(),
+        );
         if rpc.limits() != ServerConfig::default().limits()
             || !rpc.config.accepts_compressed()
             || outbound::requested(rpc.config.as_ref())

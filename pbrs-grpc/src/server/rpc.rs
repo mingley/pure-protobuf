@@ -1717,7 +1717,9 @@ impl InboundRpc {
             )
             .await;
         }
-        read_one_message::<Req>(recv, limits, accept, codec, self.binlog.as_ref(), false).await
+        read_one_message::<Req>(recv, limits, accept, codec, self.binlog.as_ref(), false)
+            .await?
+            .ok_or_else(|| Status::internal("Missing request message."))
     }
 
     async fn read_streaming<Req, T, F, Fut>(&mut self, handler: F) -> Result<T, Status>

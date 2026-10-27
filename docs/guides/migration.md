@@ -205,17 +205,18 @@ needed for the current differences, so pbrs-grpc does not expose one.
 | Outbound message exceeds the encoding/response decoding limit | The endpoint enforcing its configured limit returns `RESOURCE_EXHAUSTED`. | Returns `RESOURCE_EXHAUSTED` for configured encode/decode limits. | `message_size::server_oversize_encode_is_resource_exhausted` and `message_size::channel_oversize_outbound_is_resource_exhausted` |
 | Client timeout | Expiry returns `DEADLINE_EXCEEDED`, including while request flow control is stalled. | Expiry returns `DEADLINE_EXCEEDED`. | `retry_safety::request_send_window_stall_obeys_deadline_for_both_single_request_shapes` |
 | Explicit client cancellation | `CallHandle::cancel` returns `CANCELLED`; it is not reported as a deadline. | Dropping/cancelling the request reports `CANCELLED` when a status is observable. | `retry_safety::request_send_window_stall_obeys_cancellation` |
-| Empty or missing unary request message | A zero-byte body is accepted as the protobuf default message. A framed zero-length protobuf message is also the default. | A framed zero-length message is the protobuf default, but a body containing no message is rejected as an internal “Missing request message” error. | `hostile::an_empty_body_decodes_to_a_default_message` |
+| Empty or missing unary request message | A framed zero-length message is the protobuf default. A body containing no message returns `INTERNAL`. | A framed zero-length message is the protobuf default; a body containing no message returns `INTERNAL`. | `hostile::a_missing_unary_message_is_rejected_but_a_framed_empty_message_is_valid` |
 | Trailers-only error | Reads `grpc-status` and percent-decodes `grpc-message` from the initial headers, even when the peer resets the request body early. | Reads trailers-only status from the initial headers. | `retry_safety::trailers_only_rejection_survives_early_request_body_reset` |
 | Metadata key normalization | Valid ASCII metadata keys are normalized to lowercase HTTP/2 names; invalid, reserved, or incorrectly suffixed binary keys return `INVALID_ARGUMENT`. | Metadata keys are lowercase on the wire; its typed metadata API likewise rejects invalid names. | `tonic_behavior::metadata_keys_follow_lowercase_http2_rules` and `regress_metadata::regression_bad_metadata_encodings_safely_rejected` |
 | `grpc-message` encoding | Emits percent-encoded bytes and decodes percent escapes; spaces therefore arrive as spaces rather than literal `%20`. | Uses the same gRPC percent-encoding rules. | `retry_safety::trailers_only_rejection_survives_early_request_body_reset` |
 | Keepalive and GOAWAY | Keepalive PING interval/timeout are explicit channel/server settings. Graceful GOAWAY stops new streams on that connection; a safe unary or server-streaming attempt can redial, while an ambiguous committed attempt is not replayed. | Keepalive is configured on `Endpoint`/`Server`; GOAWAY drains the connection and reconnects for later calls, without replaying a committed request. | `tls::h2c_keepalive_still_serves` and `retry_safety::scenario_c_unary_response_headers_committed_no_retry_on_stream_error` |
 
-The missing-body row is the only semantic difference in this table that can
-change an application branch. During a staged migration, validate required
-request fields in the handler rather than relying on transport rejection; that
-works identically for a default message produced by an empty frame and by a
-missing body. Timeout and cancellation remain distinct: use
+Both transports distinguish a missing message from a valid empty message.
+Unary and server-streaming requests require one message; client-streaming
+and bidirectional requests may contain none. Unary and client-streaming
+responses require one message when the peer reports success. A peer error
+keeps its status even when the response contains no message.
+Timeout and cancellation remain distinct: use
 `Code::DeadlineExceeded` for elapsed deadlines and `Code::Cancelled` for an
 explicit caller cancellation.
 
