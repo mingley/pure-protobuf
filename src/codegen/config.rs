@@ -254,6 +254,10 @@ thread_local! {
     pub(crate) static DISABLE_COMMENTS: Cell<bool> = const { Cell::new(false) };
     pub(crate) static SKIP_DEBUG: Cell<bool> = const { Cell::new(false) };
     pub(crate) static CURRENT_TARGET: RefCell<String> = const { RefCell::new(String::new()) };
+    // Imported type paths depend on the target's local identifier set. Keep
+    // their formatting work once per target, separate from local identifiers.
+    pub(crate) static TYPE_PATHS: RefCell<std::collections::BTreeMap<String, String>> =
+        const { RefCell::new(std::collections::BTreeMap::new()) };
     // Immutable for one request. Worker threads share the type/file/package
     // index instead of deep-cloning every name and BTreeMap node.
     pub(crate) static TYPE_FILES: RefCell<Option<std::sync::Arc<TypeFileIndex>>> =
@@ -310,6 +314,7 @@ impl CodegenStateGuard {
         DISABLE_COMMENTS.with(|c| c.set(false));
         SKIP_DEBUG.with(|c| c.set(false));
         CURRENT_TARGET.with(|c| c.borrow_mut().clear());
+        TYPE_PATHS.with(|c| c.borrow_mut().clear());
         TYPE_FILES.with(|c| *c.borrow_mut() = None);
         REQUIRED_MESSAGE_TYPES.with(|c| *c.borrow_mut() = None);
         EXTERN_PATHS.with(|c| c.borrow_mut().clear());

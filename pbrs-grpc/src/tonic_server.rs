@@ -737,7 +737,7 @@ impl Drop for Accounting {
             self.server,
             self.socket,
             &status,
-            std::time::Duration::ZERO,
+            || std::time::Duration::ZERO,
         );
     }
 }

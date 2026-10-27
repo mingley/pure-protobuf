@@ -227,7 +227,7 @@ impl Drop for Owner {
                 self.channelz_server,
                 self.channelz_socket,
                 &Status::cancelled(),
-                self.accepted_at.elapsed(),
+                || self.accepted_at.elapsed(),
             );
         }
     }
@@ -401,7 +401,7 @@ pub(crate) fn serve<R: Runtime, D: Dispatch>(
                 channelz_server,
                 channelz_socket,
                 &status,
-                accepted_at.elapsed(),
+                || accepted_at.elapsed(),
             );
         }
     }

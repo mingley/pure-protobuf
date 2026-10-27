@@ -609,7 +609,7 @@ impl Rpc {
             self.channelz_server,
             self.channelz_socket,
             &status,
-            self.accepted_at.elapsed(),
+            || self.accepted_at.elapsed(),
         );
     }
 
@@ -730,7 +730,7 @@ impl Rpc {
                         channelz_server,
                         channelz_socket,
                         &status,
-                        call_start.elapsed(),
+                        || call_start.elapsed(),
                     );
                 }
                 Ok(response) => {
@@ -798,7 +798,7 @@ impl Rpc {
                         channelz_server,
                         channelz_socket,
                         &final_status,
-                        call_start.elapsed(),
+                        || call_start.elapsed(),
                     );
                 }
             }
@@ -918,7 +918,7 @@ impl Rpc {
                         channelz_server,
                         channelz_socket,
                         &status,
-                        call_start.elapsed(),
+                        || call_start.elapsed(),
                     );
                 }
                 Ok(response) => {
@@ -946,7 +946,7 @@ impl Rpc {
                         channelz_server,
                         channelz_socket,
                         &final_status,
-                        call_start.elapsed(),
+                        || call_start.elapsed(),
                     );
                 }
             }
@@ -1078,7 +1078,7 @@ impl Rpc {
                         channelz_server,
                         channelz_socket,
                         &status,
-                        call_start.elapsed(),
+                        || call_start.elapsed(),
                     );
                 }
                 Ok(response) => {
@@ -1149,7 +1149,7 @@ impl Rpc {
                         channelz_server,
                         channelz_socket,
                         &final_status,
-                        call_start.elapsed(),
+                        || call_start.elapsed(),
                     );
                 }
             }
@@ -1303,7 +1303,7 @@ impl Rpc {
                         channelz_server,
                         channelz_socket,
                         &status,
-                        call_start.elapsed(),
+                        || call_start.elapsed(),
                     );
                 }
                 Ok(response) => {
@@ -1332,7 +1332,7 @@ impl Rpc {
                         channelz_server,
                         channelz_socket,
                         &final_status,
-                        call_start.elapsed(),
+                        || call_start.elapsed(),
                     );
                 }
             }
@@ -1903,9 +1903,12 @@ pub(crate) fn end_call(
     server: Option<crate::channelz::ServerId>,
     socket: Option<crate::channelz::SocketId>,
     status: &Status,
-    elapsed: Duration,
+    elapsed: impl FnOnce() -> Duration,
 ) {
     if flag.deadline.end() {
+        // Reading the clock is useful only for the first observed end. Sample
+        // before accounting and observer callbacks add their own work.
+        let elapsed = observer.map(|_| elapsed());
         channelz_end(server, socket, status.is_ok());
         if let Some(observer) = observer {
             if status.code() == Code::DeadlineExceeded && flag.deadline.record_cancellation() {
@@ -1917,7 +1920,7 @@ pub(crate) fn end_call(
             observer.on_server_call_end(
                 labels.unwrap_or(&CallLabels::UNLABELED_SERVER),
                 status,
-                elapsed,
+                elapsed.unwrap_or_default(),
             );
         }
     }
@@ -1942,5 +1945,54 @@ mod layout_tests {
             bytes < rpc / 2,
             "the already heap-owned request record must not be copied into the read future"
         );
+    }
+
+    #[test]
+    fn terminal_elapsed_is_sampled_once_only_for_an_observed_end() {
+        use std::cell::Cell;
+        use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+
+        #[derive(Default)]
+        struct Observer {
+            ends: AtomicUsize,
+            elapsed_nanos: AtomicU64,
+        }
+
+        impl LifecycleObserver for Observer {
+            fn on_server_call_end(&self, _: &CallLabels<'_>, status: &Status, elapsed: Duration) {
+                assert!(status.is_ok());
+                self.ends.fetch_add(1, Ordering::Relaxed);
+                self.elapsed_nanos.store(
+                    elapsed.as_nanos().try_into().unwrap_or(0),
+                    Ordering::Relaxed,
+                );
+            }
+        }
+
+        let reads = Cell::new(0);
+        let elapsed = || {
+            reads.set(reads.get() + 1);
+            Duration::from_millis(7)
+        };
+        let unobserved = super::super::drain::CancelFlag::new();
+        end_call(&unobserved, None, None, None, None, &Status::ok(), elapsed);
+        assert_eq!(reads.get(), 0, "unobserved ends do not read the clock");
+
+        let observer = Observer::default();
+        let observed = super::super::drain::CancelFlag::new();
+        for _ in 0..2 {
+            end_call(
+                &observed,
+                Some(&observer),
+                None,
+                None,
+                None,
+                &Status::ok(),
+                elapsed,
+            );
+        }
+        assert_eq!(reads.get(), 1, "duplicate ends do not read the clock");
+        assert_eq!(observer.ends.load(Ordering::Relaxed), 1);
+        assert_eq!(observer.elapsed_nanos.load(Ordering::Relaxed), 7_000_000);
     }
 }

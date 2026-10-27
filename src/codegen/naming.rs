@@ -181,6 +181,9 @@ pub(crate) fn rust_type_path(s: &str) -> String {
     if let Some(id) = IDENTS.with(|c| c.borrow().get(key).cloned()) {
         return id;
     }
+    if let Some(path) = TYPE_PATHS.with(|paths| paths.borrow().get(key).cloned()) {
+        return path;
+    }
     // Resolve inside the table borrow: cloning the (file, package) pair
     // plus the current target on every field-type lookup showed up hot.
     // Only the emitted path is allocated.
@@ -217,6 +220,9 @@ pub(crate) fn rust_type_path(s: &str) -> String {
             Some(format!("crate::{last}"))
         }
     }) {
+        TYPE_PATHS.with(|paths| {
+            paths.borrow_mut().insert(key.to_owned(), path.clone());
+        });
         return path;
     }
     ident_last(key)
@@ -760,5 +766,41 @@ pub(crate) fn to_snake(s: &str) -> String {
         format!("r#{out}")
     } else {
         out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn imported_paths_keep_local_identifiers_and_request_options_separate() {
+        {
+            let _guard = CodegenStateGuard::new();
+            let key = "pkg.Parent.Child";
+            let index = TypeFileIndex::from([(
+                key.to_string(),
+                ("dependency.proto".to_string(), "pkg".to_string()),
+            )]);
+            TYPE_FILES.with(|files| *files.borrow_mut() = Some(std::sync::Arc::new(index)));
+            CURRENT_TARGET.with(|target| *target.borrow_mut() = "consumer.proto".to_string());
+            for _ in 0..3 {
+                assert_eq!(rust_type_path(key), "crate::pkg::parent::Child");
+                assert_eq!(rust_ident(key), "Child");
+            }
+            IDENTS.with(|ids| {
+                ids.borrow_mut()
+                    .insert(key.to_string(), "FlatChild".to_string());
+            });
+            assert_eq!(rust_type_path(key), "FlatChild");
+            EXTERN_PATHS.with(|paths| {
+                paths
+                    .borrow_mut()
+                    .push((".pkg".to_string(), "::external".to_string()));
+            });
+            assert_eq!(rust_type_path(key), "::external::parent::Child");
+        }
+        let _guard = CodegenStateGuard::new();
+        assert_eq!(rust_type_path("pkg.Parent.Child"), "Child");
     }
 }

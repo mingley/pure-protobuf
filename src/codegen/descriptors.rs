@@ -378,6 +378,7 @@ pub fn generate_from_code_generator_request(
         let mut partial: Vec<(String, String)> = Vec::new();
         let norm_target = normalize_proto_path_str(target);
         CURRENT_TARGET.with(|c| *c.borrow_mut() = norm_target.clone());
+        TYPE_PATHS.with(|c| c.borrow_mut().clear());
         let safe_target = norm_target.replace(['/', '.', '-'], "_");
         let gen_mod = format!("__gen_{safe_target}");
         // `wanted` was a singleton set holding `target`; test it directly.
