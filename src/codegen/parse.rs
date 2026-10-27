@@ -176,8 +176,10 @@ pub(crate) fn emit_codec(
         .values()
         .filter(|f| !is_light_merge_field(f))
         .collect();
-    let split_heavy =
-        !desc.message_set_wire_format && (1..=4).contains(&lights.len()) && !heavies.is_empty();
+    let split_heavy = !desc.message_set_wire_format
+        && (1..=4).contains(&lights.len())
+        && !heavies.is_empty()
+        && !OWNED_MESSAGE_FIELDS.with(|owned| owned.get());
     let _ = writeln!(src, "        while *pos < data.len() {{");
     let _ = writeln!(
         src,
@@ -644,6 +646,13 @@ pub(crate) fn emit_merge_arm(
 ) {
     let st = cold.store_mut(f);
     let num = f.number;
+    let child_wire = if matches!(f.field_type, FieldType::Message | FieldType::Group)
+        && OWNED_MESSAGE_FIELDS.with(|owned| owned.get())
+    {
+        "wire.as_ref().map(|source| source.window(s, e))"
+    } else {
+        "None"
+    };
     if f.is_map {
         let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{");
         let _ = writeln!(
@@ -685,7 +694,7 @@ pub(crate) fn emit_merge_arm(
             } else {
                 let _ = writeln!(
                     src,
-                    "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let rest = data.len().saturating_sub(e); if rest > 2 {{ {st}.reserve(1 + rest / (e - s + 4).max(1)); }} let mut inner = {t}::default(); let mut ip = 0; let mut sw = None; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, None)?; {st}.push(inner); while *pos < data.len() {{ let save = *pos; match pbrs::rt::decode_tag(data, pos) {{ Ok((n2, w2)) if n2 == {num} && w2 == pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut inner = {t}::default(); let mut ip = 0; let mut sw = None; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, None)?; {st}.push(inner); }} Ok(_) => {{ *pos = save; break; }} Err(e) => return Err(e), }} }} }}"
+                    "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let rest = data.len().saturating_sub(e); if rest > 2 {{ {st}.reserve(1 + rest / (e - s + 4).max(1)); }} let mut inner = {t}::default(); let mut ip = 0; let mut sw = {child_wire}; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, None)?; {st}.push(inner); while *pos < data.len() {{ let save = *pos; match pbrs::rt::decode_tag(data, pos) {{ Ok((n2, w2)) if n2 == {num} && w2 == pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut inner = {t}::default(); let mut ip = 0; let mut sw = {child_wire}; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, None)?; {st}.push(inner); }} Ok(_) => {{ *pos = save; break; }} Err(e) => return Err(e), }} }} }}"
                 );
             }
         } else if f.field_type.is_packable() {
@@ -749,14 +758,14 @@ pub(crate) fn emit_merge_arm(
                 } else {
                     let _ = writeln!(
                         src,
-                        "                    if {st}.is_some() {{ let mut ip = 0; let mut sw = None; {st}.get_or_insert().merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; }} else {{ let mut ip = 0; {t}::validate_inner(&pbrs::rt::Wire::ensure(wire, data).window(s, e), &mut ip, depth + 1)?; {st} = pbrs::rt::LazyMsg::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e)); }}"
+                        "                    if {st}.is_some() {{ let mut ip = 0; let mut sw = {child_wire}; {st}.get_or_insert().merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; }} else {{ let mut ip = 0; {t}::validate_inner(&pbrs::rt::Wire::ensure(wire, data).window(s, e), &mut ip, depth + 1)?; {st} = pbrs::rt::LazyMsg::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e)); }}"
                     );
                 }
             } else {
                 let enforce = !field_needs_initialization(f);
                 let _ = writeln!(
                     src,
-                    "                    match &mut {st} {{ Some(existing) => {{ let mut ip = 0; let mut sw = None; existing.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, None)?; }} None => {{ let mut inner = {t}::default(); let mut ip = 0; let mut sw = None; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, None)?; {st} = Some(Box::new(inner)); }} }}"
+                    "                    match &mut {st} {{ Some(existing) => {{ let mut ip = 0; let mut sw = {child_wire}; existing.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, None)?; }} None => {{ let mut inner = {t}::default(); let mut ip = 0; let mut sw = {child_wire}; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, None)?; {st} = Some(Box::new(inner)); }} }}"
                 );
             }
             let _ = writeln!(src, "                    }}");
@@ -903,9 +912,14 @@ pub(crate) fn emit_map_decoders(
                 .as_ref()
                 .and_then(|entry| entry.field(2))
                 .is_some_and(field_needs_initialization);
+            let child_wire = if OWNED_MESSAGE_FIELDS.with(|owned| owned.get()) {
+                "Some(wire.window(s, e))"
+            } else {
+                "None"
+            };
             let _ = writeln!(
                 src,
-                "        (2, pbrs::rt::WIRE_LEN) => {{ if depth >= pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }} let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; let mut ip = 0; let mut sw = None; val.get_or_insert_with({v}::default).merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, None)?; }},"
+                "        (2, pbrs::rt::WIRE_LEN) => {{ if depth >= pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }} let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; let mut ip = 0; let mut sw = {child_wire}; val.get_or_insert_with({v}::default).merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, None)?; }},"
             );
         } else {
             emit_map_scalar_decode(src, 2, "val", vty, val_utf8);

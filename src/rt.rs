@@ -1,6 +1,6 @@
 //! Runtime helpers for generated code. Not a Google upb kernel.
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 pub use crate::error::{ParseError, SerializeError};
 pub use crate::lazy::{LazyBytes, LazyMsg, LazyStr, MergeBytes, Wire, require_utf8};
@@ -65,6 +65,61 @@ impl PartialEq for CachedSize {
 }
 impl Eq for CachedSize {}
 
+/// Compact encoded-size cache for generated messages.
+///
+/// Sizes below `u32::MAX` are cached exactly. Larger sizes remain uncached;
+/// they are still computed and returned as `u64` by the message. This does
+/// not impose a message-size limit. Cache state is ignored by `PartialEq`.
+#[derive(Debug)]
+#[repr(transparent)]
+pub struct CachedSize32(AtomicU32);
+
+impl CachedSize32 {
+    const DIRTY: u32 = u32::MAX;
+
+    #[inline]
+    pub fn get(&self) -> Option<u64> {
+        let value = self.0.load(Ordering::Relaxed);
+        if value == Self::DIRTY {
+            None
+        } else {
+            Some(u64::from(value))
+        }
+    }
+
+    #[inline]
+    pub fn set(&self, size: u64) {
+        let cached = u32::try_from(size).unwrap_or(Self::DIRTY);
+        self.0.store(cached, Ordering::Relaxed);
+    }
+
+    #[inline]
+    pub fn dirty(&self) {
+        self.0.store(Self::DIRTY, Ordering::Relaxed);
+    }
+}
+
+impl Default for CachedSize32 {
+    /// Zero remains a valid cached size for an empty message.
+    #[inline]
+    fn default() -> Self {
+        Self(AtomicU32::new(0))
+    }
+}
+
+impl Clone for CachedSize32 {
+    fn clone(&self) -> Self {
+        Self(AtomicU32::new(self.0.load(Ordering::Relaxed)))
+    }
+}
+
+impl PartialEq for CachedSize32 {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+impl Eq for CachedSize32 {}
+
 /// Explicit `optional bool` / oneof bool. 0 = unset so `mem::zeroed` is None
 /// (`Option<bool>` lays out `Some(false)` as all-zero).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -116,4 +171,55 @@ impl OptBool {
 #[inline(always)]
 pub unsafe fn zeroed_message<T>() -> T {
     unsafe { std::mem::zeroed() }
+}
+
+#[cfg(test)]
+mod cache_tests {
+    use super::{CachedSize, CachedSize32};
+
+    #[test]
+    fn compact_cache_keeps_exact_sizes_and_does_not_truncate_large_sizes() {
+        let cache = CachedSize32::default();
+        for size in [
+            0,
+            1,
+            u64::from(u32::MAX) - 1,
+            u64::from(u32::MAX),
+            u64::from(u32::MAX) + 1,
+            u64::MAX,
+        ] {
+            cache.set(size);
+            let expected = (size < u64::from(u32::MAX)).then_some(size);
+            assert_eq!(cache.get(), expected, "size {size}");
+            assert_eq!(cache.clone().get(), expected, "cloned size {size}");
+        }
+        // A large value is a miss, rather than a sticky overflow state.
+        cache.set(123);
+        assert_eq!(cache.get(), Some(123));
+    }
+
+    #[test]
+    fn compact_cache_preserves_zero_dirty_clone_and_equality_contracts() {
+        fn send_sync<T: Send + Sync>() {}
+        send_sync::<CachedSize32>();
+        let cache = CachedSize32::default();
+        assert_eq!(cache.get(), Some(0));
+        assert_eq!(std::mem::size_of::<CachedSize32>(), 4);
+        cache.set(9);
+        let copy = cache.clone();
+        cache.dirty();
+        assert_eq!(cache.get(), None);
+        assert_eq!(cache.clone().get(), None);
+        assert_eq!(copy.get(), Some(9));
+        assert_eq!(cache, copy, "cache state is not message state");
+
+        // AtomicU32's zero representation is the valid empty-message cache.
+        let zero = CachedSize32(std::sync::atomic::AtomicU32::new(0));
+        assert_eq!(zero.get(), Some(0));
+
+        // Existing generated code retains the full-width cache's behavior.
+        let legacy = CachedSize::default();
+        legacy.set(u64::from(u32::MAX) + 1);
+        assert_eq!(legacy.get(), Some(u64::from(u32::MAX) + 1));
+    }
 }

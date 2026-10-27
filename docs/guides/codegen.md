@@ -98,6 +98,31 @@ uses the bundled conformance pool and cannot be combined with active shared
 descriptor-set generation. This option changes descriptor storage only; wire
 formats, message APIs, JSON, and text behavior remain the same.
 
+### Owned nested message fields
+
+Use `owned_message_fields(true)` when applications read or mutate most of a
+nested message tree:
+
+```rust
+pbrs::codegen::Config::new()
+    .owned_message_fields(true)
+    .compile_protos(&["proto/service.proto"], &["proto"])?;
+```
+
+This profile constructs singular nested messages during parsing. The default
+is `false`: nested messages are validated first and constructed when accessed,
+which can save work and memory when they stay unread. Both profiles keep the
+message accessors, protobuf semantics, formats, validation and recursion limits.
+
+The option changes generated storage layout. Imported or extern-mapped child
+types keep their own layout; generate those schemas with the same profile to
+construct the complete tree during parsing. Owned children serialize from their
+fields, so untouched child wire may be canonicalized instead of reused.
+Its compact size cache leaves sizes at least `u32::MAX` uncached; serialization
+still computes and returns their full `u64` sizes.
+The plugin equivalent is `owned_message_fields=true`; there is no environment
+variable for this option.
+
 ### Basic Compilation
 
 Compile your `.proto` files during the build:
@@ -320,6 +345,7 @@ Supported `--pbrs_opt` options:
 - `stubs=tonic`: Emit `tonic` stubs.
 - `stubs=none`: Emit messages only.
 - `emit_deps=true`: Emit imported non-WKT definitions.
+- `owned_message_fields=true`: Construct singular nested messages during parsing.
 - `no_wkt=true`: Suppress Well-Known Types emission.
 
 ---

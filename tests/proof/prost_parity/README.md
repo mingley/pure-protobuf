@@ -10,6 +10,11 @@ or a source-compatible replacement for `prost::Message`.
 cargo run --locked --manifest-path tests/proof/prost_parity/Cargo.toml > prost-parity.jsonl
 ```
 
+Add `--features owned-messages` to test the owned nested-message profile through
+`Config::owned_message_fields(true)`. The default tests lazy storage. Both use
+the same descriptor set, corpus and Prost controls. The summary records the
+selected profile as `message_storage`.
+
 Install `protoc` or set `PROTOC` before running. The checked-in lockfile fixes
 Rust dependencies. Record `protoc --version`, `rustc --version`, the repository
 revision and generated schema hashes with the output for an evidence campaign.
@@ -49,6 +54,7 @@ controls, run:
 
 ```sh
 cargo run --locked --manifest-path tests/proof/prost_parity/Cargo.toml -- --check-known-differences
+cargo run --locked --manifest-path tests/proof/prost_parity/Cargo.toml --features owned-messages -- --check-known-differences
 ```
 
 This explicit mode succeeds only when the two named proto3 differences have

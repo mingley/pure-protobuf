@@ -34,6 +34,7 @@ jobs:
         run: |
           for manifest in \
             tests/proof/prost_parity/Cargo.toml \
+            tests/proof/owned_messages/Cargo.toml \
             tests/proof/codegen_parity/Cargo.toml \
             tests/proof/codegen_parity/no_std/prost/Cargo.toml \
             tests/proof/codegen_parity/no_std/pbrs/Cargo.toml \
@@ -52,6 +53,14 @@ jobs:
           cargo run --locked --offline --manifest-path tests/proof/prost_parity/Cargo.toml \
             -- --check-known-differences > work/parity-audit/wire.jsonl
           cargo test --locked --offline --manifest-path tests/proof/prost_parity/Cargo.toml
+      - name: Check owned-message storage and wire behavior
+        run: |
+          cargo run --locked --offline --manifest-path tests/proof/prost_parity/Cargo.toml \
+            --features owned-messages -- --check-known-differences > work/parity-audit/wire-owned.jsonl
+          cargo test --locked --offline --manifest-path tests/proof/prost_parity/Cargo.toml \
+            --features owned-messages
+          cargo run --locked --offline --manifest-path tests/proof/owned_messages/Cargo.toml \
+            > work/parity-audit/owned-messages.log 2>&1
       - name: Check generated consumers and reproduce build gaps
         run: python3 tests/proof/codegen_parity/run.py --output work/parity-audit/codegen
       - name: Compare gRPC message presence with tonic

@@ -8,6 +8,7 @@ fn main() {
         fs::create_dir_all(out.join(name)).unwrap();
     }
     pbrs::codegen::Config::new()
+        .owned_message_fields(env::var_os("CARGO_FEATURE_OWNED_MESSAGES").is_some())
         .out_dir(out.join("pbrs"))
         .compile_protos(&[&proto], &[&include])
         .unwrap();

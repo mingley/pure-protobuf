@@ -4,6 +4,13 @@ This small diagnostic compares generated pbrs messages with Prost 0.14.4 on
 one schema. Both codecs parse the same borrowed byte slice into an owned
 result and drop that result inside the measured loop.
 
+The default uses lazy nested fields. Add `--features owned-messages` when
+building to select the public `Config::owned_message_fields(true)` profile.
+For the instrumented build, use `--features owned-messages,allocations`.
+Keep separate binary copies for each profile; the JSON records its selection.
+The owned profile constructs children during parsing and keeps smaller size
+caches. The lazy profile can reuse original nested wire bytes when encoding.
+
 `parse_owned` measures parsing alone. pbrs can defer nested materialization.
 `read_all` also visits every populated field, nested descendant and payload
 byte. Read those rows separately. Neither operation measures RPC performance.

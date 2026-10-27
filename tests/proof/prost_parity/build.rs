@@ -13,15 +13,13 @@ fn main() {
         .status()
         .expect("run protoc (set PROTOC if not on PATH)");
     assert!(status.success(), "protoc descriptor generation failed");
-    let bytes = fs::read(&descriptor).unwrap();
-    for (name, source) in pbrs::codegen::generate_from_file_descriptor_set(
-        &bytes,
-        &["proof.proto".into(), "required.proto".into()],
-    )
-    .expect("pbrs code generation")
-    {
-        fs::write(out.join(format!("pbrs_{name}")), source).unwrap();
-    }
+    let native = out.join("pbrs");
+    fs::create_dir_all(&native).unwrap();
+    pbrs::codegen::Config::new()
+        .owned_message_fields(env::var_os("CARGO_FEATURE_OWNED_MESSAGES").is_some())
+        .out_dir(native)
+        .compile_descriptor_set(&descriptor, &["proof.proto", "required.proto"], &["."])
+        .expect("pbrs code generation");
     prost_build::Config::new()
         .btree_map(["."])
         .compile_protos(&["proof.proto", "required.proto"], &["."])

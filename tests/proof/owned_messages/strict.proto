@@ -1,0 +1,18 @@
+syntax = "proto3";
+package strict;
+message StrictNode {
+  StrictNode child = 1;
+  string text = 2;
+}
+message CompactNode {
+  int32 n = 1;
+  CompactNode child = 2;
+}
+message Blob {
+  bytes data = 1;
+}
+message BlobRoot {
+  Blob child = 1;
+  repeated Blob children = 2;
+  map<int32, Blob> values = 3;
+}

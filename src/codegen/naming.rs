@@ -499,6 +499,7 @@ pub(crate) fn is_lazy_msg(f: &FieldDescriptor) -> bool {
         && f.cardinality != Cardinality::Repeated
         && f.field_type == FieldType::Message
         && !f.delimited
+        && !OWNED_MESSAGE_FIELDS.with(|owned| owned.get())
 }
 
 pub(crate) fn is_wkt_msg(f: &FieldDescriptor) -> bool {

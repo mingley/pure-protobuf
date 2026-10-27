@@ -545,7 +545,11 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
         let _ = writeln!(src, "    cold: Option<Box<{cold_name}>>,");
     }
     let _ = writeln!(src, "    unknown: UnknownFields,");
-    let _ = writeln!(src, "    cached_size: pbrs::rt::CachedSize,");
+    if OWNED_MESSAGE_FIELDS.with(|owned| owned.get()) {
+        src.push_str("    cached_size: pbrs::rt::CachedSize32,\n");
+    } else {
+        src.push_str("    cached_size: pbrs::rt::CachedSize,\n");
+    }
     let _ = writeln!(src, "}}");
     let _ = writeln!(src, "impl PartialEq for {name} {{");
     let _ = writeln!(src, "    fn eq(&self, other: &Self) -> bool {{");

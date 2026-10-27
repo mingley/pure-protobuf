@@ -867,6 +867,7 @@ fn bundled_wkt_type(name: &str) -> bool {
 pub(crate) fn apply_resolved_config(resolved: &ResolvedConfig) {
     STUBS.with(|c| c.set(resolved.stubs));
     EMIT_DEPS.with(|c| c.set(resolved.emit_deps));
+    OWNED_MESSAGE_FIELDS.with(|c| c.set(resolved.owned_message_fields));
     NO_WKT.with(|c| c.set(resolved.no_wkt));
     SHARED_POOL.with(|c| c.set(resolved.shared_pool));
     NO_REFLECT.with(|c| c.set(resolved.no_reflect));

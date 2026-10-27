@@ -242,6 +242,7 @@ thread_local! {
         const { RefCell::new(std::collections::BTreeMap::new()) };
     pub(crate) static STUBS: Cell<StubStyle> = const { Cell::new(StubStyle::Kernel) };
     pub(crate) static EMIT_DEPS: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static OWNED_MESSAGE_FIELDS: Cell<bool> = const { Cell::new(false) };
     pub(crate) static NO_WKT: Cell<bool> = const { Cell::new(false) };
     pub(crate) static SHARED_POOL: Cell<bool> = const { Cell::new(false) };
     pub(crate) static NO_REFLECT: Cell<bool> = const { Cell::new(false) };
@@ -302,6 +303,7 @@ impl CodegenStateGuard {
         FIELD_RAWS.with(|c| c.borrow_mut().clear());
         STUBS.with(|c| c.set(StubStyle::Kernel));
         EMIT_DEPS.with(|c| c.set(false));
+        OWNED_MESSAGE_FIELDS.with(|c| c.set(false));
         NO_WKT.with(|c| c.set(false));
         SHARED_POOL.with(|c| c.set(false));
         NO_REFLECT.with(|c| c.set(false));
@@ -391,6 +393,7 @@ pub(crate) struct ExplicitOptions {
     pub(crate) typed_extensions: Vec<String>,
     stubs: Option<StubStyle>,
     emit_deps: Option<bool>,
+    owned_message_fields: Option<bool>,
     no_wkt: Option<bool>,
     shared_pool: Option<bool>,
     shared_descriptor_set: Option<bool>,
@@ -423,6 +426,7 @@ pub(crate) struct ResolvedConfig {
     pub(crate) typed_extensions: Vec<String>,
     pub(crate) stubs: StubStyle,
     pub(crate) emit_deps: bool,
+    pub(crate) owned_message_fields: bool,
     pub(crate) no_wkt: bool,
     pub(crate) shared_pool: bool,
     pub(crate) shared_descriptor_set: bool,
@@ -522,6 +526,10 @@ pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions,
             }
             "emit_deps" => {
                 explicit.emit_deps = Some(parse_bool_param("emit_deps", val)?);
+            }
+            "owned_message_fields" => {
+                explicit.owned_message_fields =
+                    Some(parse_bool_param("owned_message_fields", val)?);
             }
             "no_wkt" => {
                 explicit.no_wkt = Some(parse_bool_param("no_wkt", val)?);
@@ -870,6 +878,7 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
         typed_extensions: explicit.typed_extensions.clone(),
         stubs,
         emit_deps,
+        owned_message_fields: explicit.owned_message_fields.unwrap_or(false),
         no_wkt,
         shared_pool,
         shared_descriptor_set: explicit.shared_descriptor_set.unwrap_or(false),
@@ -1031,6 +1040,7 @@ pub struct Config {
     out_dir: Option<PathBuf>,
     stubs: Option<StubStyle>,
     emit_deps: Option<bool>,
+    owned_message_fields: Option<bool>,
     no_wkt: Option<bool>,
     shared_pool: Option<bool>,
     shared_descriptor_set: Option<bool>,
@@ -1231,6 +1241,26 @@ impl Config {
     /// remains the plugin/env equivalent.
     pub fn emit_deps(&mut self, enable: bool) -> &mut Self {
         self.emit_deps = Some(enable);
+        self
+    }
+
+    /// Construct singular message fields during parsing instead of on first access.
+    ///
+    /// Defaults to `false`. Enable this profile when applications read or mutate
+    /// most nested fields. The default profile defers nested construction and
+    /// can use less work and memory when those fields stay unread. Both profiles
+    /// preserve protobuf semantics, validation and recursion limits.
+    ///
+    /// This changes the generated storage layout, not the message accessors.
+    /// Imported or extern-mapped child types keep their own generated layout;
+    /// use this profile for those schemas too to construct complete trees in
+    /// one pass. Untouched nested messages are serialized from their owned
+    /// fields rather than reusing their original wire representation.
+    /// A compact size cache leaves sizes at least `u32::MAX` uncached; message
+    /// sizes are still computed and returned as `u64` without truncation.
+    /// The protoc plugin equivalent is `owned_message_fields=true`.
+    pub fn owned_message_fields(&mut self, enable: bool) -> &mut Self {
+        self.owned_message_fields = Some(enable);
         self
     }
 
@@ -1511,6 +1541,9 @@ impl Config {
         }
         if let Some(emit_deps) = self.emit_deps {
             opts.push(format!("emit_deps={emit_deps}"));
+        }
+        if let Some(owned_message_fields) = self.owned_message_fields {
+            opts.push(format!("owned_message_fields={owned_message_fields}"));
         }
         if let Some(no_wkt) = self.no_wkt {
             opts.push(format!("no_wkt={no_wkt}"));
@@ -1944,4 +1977,131 @@ pub(crate) fn write_file_atomic_if_changed(
     }
 
     Ok(true)
+}
+
+#[cfg(test)]
+mod owned_message_profile_tests {
+    use super::*;
+    use crate::wire::{encode_len_field, encode_tag, encode_varint};
+
+    fn number(out: &mut Vec<u8>, field: u32, value: u64) {
+        encode_tag(out, field, 0);
+        encode_varint(out, value);
+    }
+
+    fn request(parameter: &str) -> Vec<u8> {
+        let mut request = Vec::new();
+        encode_len_field(&mut request, 2, parameter.as_bytes());
+        for index in 0..2 {
+            let file_name = format!("profile_{index}.proto");
+            let package = format!("profile.p{index}");
+            encode_len_field(&mut request, 1, file_name.as_bytes());
+            let mut child = Vec::new();
+            encode_len_field(&mut child, 1, b"Child");
+            let mut value = Vec::new();
+            encode_len_field(&mut value, 1, b"value");
+            number(&mut value, 3, 1);
+            number(&mut value, 4, 1);
+            number(&mut value, 5, 5);
+            encode_len_field(&mut child, 2, &value);
+            let mut parent = Vec::new();
+            encode_len_field(&mut parent, 1, b"Parent");
+            let mut nested = Vec::new();
+            encode_len_field(&mut nested, 1, b"child");
+            number(&mut nested, 3, 1);
+            number(&mut nested, 4, 1);
+            number(&mut nested, 5, 11);
+            encode_len_field(&mut nested, 6, format!(".{package}.Child").as_bytes());
+            encode_len_field(&mut parent, 2, &nested);
+            let mut file = Vec::new();
+            encode_len_field(&mut file, 1, file_name.as_bytes());
+            encode_len_field(&mut file, 2, package.as_bytes());
+            encode_len_field(&mut file, 4, &child);
+            encode_len_field(&mut file, 4, &parent);
+            encode_len_field(&mut file, 12, b"proto3");
+            encode_len_field(&mut request, 15, &file);
+        }
+        request
+    }
+
+    #[test]
+    fn builder_and_plugin_resolve_the_owned_layout_explicitly() {
+        let mut config = Config::new();
+        assert!(config.to_parameter_string().is_empty());
+        assert!(!resolve_options(&ExplicitOptions::default()).owned_message_fields);
+        config.owned_message_fields(true);
+        assert_eq!(config.to_parameter_string(), "owned_message_fields=true");
+        let explicit = parse_plugin_parameter(&config.to_parameter_string()).expect("owned option");
+        assert!(resolve_options(&explicit).owned_message_fields);
+        config.owned_message_fields(false);
+        let explicit = parse_plugin_parameter(&config.to_parameter_string()).expect("lazy option");
+        assert!(!resolve_options(&explicit).owned_message_fields);
+        assert!(matches!(
+            parse_plugin_parameter("owned_message_fields=perhaps"),
+            Err(CodegenError::InvalidParameter { key, .. }) if key == "owned_message_fields"
+        ));
+    }
+
+    #[test]
+    fn layout_selection_does_not_leak_between_requests_or_targets() {
+        let generate = |parameter: &str| {
+            crate::codegen::generate_from_code_generator_request(&request(parameter))
+                .expect("generate profile")
+        };
+        let default = generate("stubs=none");
+        let owned = generate("stubs=none,owned_message_fields=true");
+        let source_files = |files: &Vec<(String, String)>| {
+            files
+                .iter()
+                .filter(|(name, _)| name != "mod.rs")
+                .map(|(_, source)| source.clone())
+                .collect::<Vec<_>>()
+        };
+        let lazy_sources = source_files(&default);
+        let owned_sources = source_files(&owned);
+        assert_eq!(lazy_sources.len(), 2);
+        assert_eq!(owned_sources.len(), 2);
+        assert!(
+            lazy_sources
+                .iter()
+                .all(|source| source.contains("child: pbrs::rt::LazyMsg<Child>"))
+        );
+        assert!(
+            owned_sources
+                .iter()
+                .all(|source| source.contains("child: Option<Box<Child>>"))
+        );
+        assert!(
+            lazy_sources
+                .iter()
+                .all(|source| source.contains("cached_size: pbrs::rt::CachedSize,"))
+        );
+        assert!(
+            owned_sources
+                .iter()
+                .all(|source| source.contains("cached_size: pbrs::rt::CachedSize32,"))
+        );
+        assert_eq!(default, generate("stubs=none,owned_message_fields=false"));
+        assert_eq!(default, generate("stubs=none"));
+        assert!(!OWNED_MESSAGE_FIELDS.with(Cell::get));
+    }
+
+    #[test]
+    fn worker_state_and_guard_reset_the_layout_profile() {
+        let resolved = resolve_options(
+            &parse_plugin_parameter("owned_message_fields=true").expect("owned option"),
+        );
+        std::thread::spawn(move || {
+            assert!(!OWNED_MESSAGE_FIELDS.with(Cell::get));
+            {
+                let _guard = CodegenStateGuard::new();
+                crate::codegen::apply_resolved_config(&resolved);
+                assert!(OWNED_MESSAGE_FIELDS.with(Cell::get));
+            }
+            assert!(!OWNED_MESSAGE_FIELDS.with(Cell::get));
+        })
+        .join()
+        .expect("profile worker");
+        assert!(!OWNED_MESSAGE_FIELDS.with(Cell::get));
+    }
 }

@@ -6,6 +6,9 @@ publish = false
 
 [workspace]
 
+[features]
+owned-messages = []
+
 [dependencies]
 pbrs = { path = "../../.." }
 prost = "=0.14.4"

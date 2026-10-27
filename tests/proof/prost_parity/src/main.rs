@@ -3,13 +3,13 @@ use prost::Message;
 use serde_json::json;
 
 mod native {
-    include!(concat!(env!("OUT_DIR"), "/pbrs_proof.rs"));
+    include!(concat!(env!("OUT_DIR"), "/pbrs/proof.rs"));
 }
 mod reference {
     include!(concat!(env!("OUT_DIR"), "/proof.rs"));
 }
 mod native_required {
-    include!(concat!(env!("OUT_DIR"), "/pbrs_required.rs"));
+    include!(concat!(env!("OUT_DIR"), "/pbrs/required.rs"));
 }
 mod reference_required {
     include!(concat!(env!("OUT_DIR"), "/required.rs"));
@@ -355,7 +355,8 @@ fn main() {
     };
     println!(
         "{}",
-        json!({"summary":true,"proto3_wire_cases":cases.len(),"proto3_operations":operations,
+        json!({"summary":true,"message_storage":if cfg!(feature="owned-messages") {"owned"} else {"lazy"},
+        "proto3_wire_cases":cases.len(),"proto3_operations":operations,
         "proto3_mismatches":mismatches.len(),"required_missing_divergence":empty_prost!=empty_pbrs,
         "parity_equivalent":parity_equivalent,"harness_passed":harness_passed,
         "known_differences_match":known_differences_match,"check_known_differences_mode":check_known})

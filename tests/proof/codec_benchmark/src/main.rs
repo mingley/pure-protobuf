@@ -362,6 +362,7 @@ fn run<P, R, TP, TR>(
         serde_json::json!({"schema": "codec-proof/1", "case": case, "backend": backend,
         "operation": op, "input": "borrowed byte slice, each result owned and dropped", "wire_bytes": wire.len(),
         "wire_fnv1a64": hash(&wire), "checksum": checksum, "semantic_prechecks": true,
+        "message_storage": if cfg!(feature = "owned-messages") { "owned" } else { "lazy" },
         "allocation_instrumentation": cfg!(feature = "allocations"), "samples": results})
     );
 }
