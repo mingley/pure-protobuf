@@ -1,10 +1,13 @@
 # gRPC execution and ownership
 
-Source `933bf877` retires completed DATA owners outside backend locks, preserves
-pre-shape reset ownership and adjusts singleton/bulk reservations. The
-[current record](../evidence/grpc-ownership-20261024/README.md) retains detecting
-failures, source snapshots and actual endpoint costs. Full workspace validation
-passes 3,840 tests; source-bound sanitizers, conformance and toolchain checks pass.
+Source `af00f348` fixes required-field validation after proto2 message merging;
+[its checks](../evidence/grpc-required-merge-20261026/README.md) retain the detecting
+failures and consumer-regeneration requirement. Required-reachable validation can
+allocate a temporary tree. The earlier transport at `933bf877` retires completed
+DATA owners outside backend locks, preserves pre-shape reset ownership and adjusts
+batch reservations. Its [dated record](../evidence/grpc-ownership-20261024/README.md)
+has 3,840 passing workspace tests and source-bound sanitizer/toolchain results.
+Those broader checks do not qualify later source changes.
 
 Unary-server shipping CPU still loses to tonic. Lower allocation and Callgrind
 instruction counts describe other costs. A separate ready-set experiment passes

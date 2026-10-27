@@ -254,6 +254,8 @@ thread_local! {
     pub(crate) static CURRENT_TARGET: RefCell<String> = const { RefCell::new(String::new()) };
     pub(crate) static TYPE_FILES: RefCell<std::collections::BTreeMap<String, (String, String)>> =
         const { RefCell::new(std::collections::BTreeMap::new()) };
+    pub(crate) static REQUIRED_MESSAGE_TYPES: RefCell<Option<std::sync::Arc<std::collections::BTreeSet<String>>>> =
+        const { RefCell::new(None) };
     pub(crate) static EXTERN_PATHS: RefCell<Vec<(String, String)>> =
         const { RefCell::new(Vec::new()) };
     pub(crate) static RUNTIME_CRATE: RefCell<Option<String>> =
@@ -305,6 +307,7 @@ impl CodegenStateGuard {
         SKIP_DEBUG.with(|c| c.set(false));
         CURRENT_TARGET.with(|c| c.borrow_mut().clear());
         TYPE_FILES.with(|c| c.borrow_mut().clear());
+        REQUIRED_MESSAGE_TYPES.with(|c| *c.borrow_mut() = None);
         EXTERN_PATHS.with(|c| c.borrow_mut().clear());
         RUNTIME_CRATE.with(|c| *c.borrow_mut() = None);
         GRPC_CRATE.with(|c| *c.borrow_mut() = None);

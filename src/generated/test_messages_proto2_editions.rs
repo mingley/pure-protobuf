@@ -3723,6 +3723,18 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
             if self.default_bytes.is_none() {
                 return Err(ParseError::new("missing required field"));
             }
+            if let Some(child) = self.required_nested_message.as_deref() {
+                child.check_required()?;
+            }
+            if let Some(child) = self.recursive_message.as_deref() {
+                child.check_required()?;
+            }
+            if let Some(child) = self.optional_recursive_message.as_deref() {
+                child.check_required()?;
+            }
+            if let Some(child) = self.data.as_deref() {
+                child.check_required()?;
+            }
             Ok(())
         }
         pub fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
@@ -3963,28 +3975,20 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     18 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            if self.required_nested_message.is_some() {
-                                let mut ip = 0;
-                                let mut sw = None;
-                                self.required_nested_message.get_or_insert().merge_inner(
-                                    &data[s..e],
-                                    &mut sw,
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            } else {
-                                let mut ip = 0;
-                                NestedMessage::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                )?;
-                                self.required_nested_message = pbrs::rt::LazyMsg::from_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                );
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
                             }
+                            let child = self.required_nested_message.get_or_insert();
+                            let mut ip = 0;
+                            let mut sw = wire.as_ref().map(|source| source.window(s, e));
+                            child.merge_inner(
+                                &data[s..e],
+                                &mut sw,
+                                &mut ip,
+                                depth + 1,
+                                false,
+                                None,
+                            )?;
                         }
                         _ => self
                             .unknown
@@ -4081,28 +4085,20 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     27 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            if self.recursive_message.is_some() {
-                                let mut ip = 0;
-                                let mut sw = None;
-                                self.recursive_message.get_or_insert().merge_inner(
-                                    &data[s..e],
-                                    &mut sw,
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            } else {
-                                let mut ip = 0;
-                                TestAllRequiredTypesProto2::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                )?;
-                                self.recursive_message = pbrs::rt::LazyMsg::from_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                );
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
                             }
+                            let child = self.recursive_message.get_or_insert();
+                            let mut ip = 0;
+                            let mut sw = wire.as_ref().map(|source| source.window(s, e));
+                            child.merge_inner(
+                                &data[s..e],
+                                &mut sw,
+                                &mut ip,
+                                depth + 1,
+                                false,
+                                None,
+                            )?;
                         }
                         _ => self
                             .unknown
@@ -4114,30 +4110,20 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     28 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            if self.optional_recursive_message.is_some() {
-                                let mut ip = 0;
-                                let mut sw = None;
-                                self.optional_recursive_message
-                                    .get_or_insert()
-                                    .merge_inner(
-                                        &data[s..e],
-                                        &mut sw,
-                                        &mut ip,
-                                        depth + 1,
-                                        true,
-                                        None,
-                                    )?;
-                            } else {
-                                let mut ip = 0;
-                                TestAllRequiredTypesProto2::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                )?;
-                                self.optional_recursive_message = pbrs::rt::LazyMsg::from_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                );
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
                             }
+                            let child = self.optional_recursive_message.get_or_insert();
+                            let mut ip = 0;
+                            let mut sw = wire.as_ref().map(|source| source.window(s, e));
+                            child.merge_inner(
+                                &data[s..e],
+                                &mut sw,
+                                &mut ip,
+                                depth + 1,
+                                false,
+                                None,
+                            )?;
                         }
                         _ => self
                             .unknown
@@ -4374,321 +4360,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
             if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
-            let data = wire.as_slice();
-            let mut seen = 0u64;
-            while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
-                        if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
-                        }
-                        return Ok(());
-                    }
-                }
-                match n {
-                    1 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
-                            seen |= 1 << 0;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    2 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? as i64;
-                            seen |= 1 << 1;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    3 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? as u32;
-                            seen |= 1 << 2;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    4 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)?;
-                            seen |= 1 << 3;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    5 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, pos)?);
-                            seen |= 1 << 4;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    6 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, pos)?);
-                            seen |= 1 << 5;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    7 => match w {
-                        pbrs::rt::WIRE_I32 => {
-                            let _ = pbrs::rt::read_fixed32(data, pos)?;
-                            seen |= 1 << 6;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    8 => match w {
-                        pbrs::rt::WIRE_I64 => {
-                            let _ = pbrs::rt::read_fixed64(data, pos)?;
-                            seen |= 1 << 7;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    9 => match w {
-                        pbrs::rt::WIRE_I32 => {
-                            let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
-                            seen |= 1 << 8;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    10 => match w {
-                        pbrs::rt::WIRE_I64 => {
-                            let _ = pbrs::rt::read_fixed64(data, pos)? as i64;
-                            seen |= 1 << 9;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    11 => match w {
-                        pbrs::rt::WIRE_I32 => {
-                            let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
-                            seen |= 1 << 10;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    12 => match w {
-                        pbrs::rt::WIRE_I64 => {
-                            let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
-                            seen |= 1 << 11;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    13 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
-                            seen |= 1 << 12;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    14 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            seen |= 1 << 13;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    15 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            pbrs::rt::read_len_span(data, pos)?;
-                            seen |= 1 << 14;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    18 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            let mut ip = 0;
-                            NestedMessage::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
-                            seen |= 1 << 15;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    19 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            let mut ip = 0;
-                            ForeignMessageProto2::validate_inner(
-                                &wire.window(s, e),
-                                &mut ip,
-                                depth + 1,
-                            )?;
-                            seen |= 1 << 16;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    21 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
-                            seen |= 1 << 17;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    22 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
-                            seen |= 1 << 18;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    24 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            seen |= 1 << 19;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    25 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            seen |= 1 << 20;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    27 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            let mut ip = 0;
-                            TestAllRequiredTypesProto2::validate_inner(
-                                &wire.window(s, e),
-                                &mut ip,
-                                depth + 1,
-                            )?;
-                            seen |= 1 << 21;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    28 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            let mut ip = 0;
-                            TestAllRequiredTypesProto2::validate_inner(
-                                &wire.window(s, e),
-                                &mut ip,
-                                depth + 1,
-                            )?;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    201 => match w {
-                        pbrs::rt::WIRE_SGROUP => {
-                            Data::validate_until(wire, pos, depth + 1, Some(201))?;
-                            seen |= 1 << 22;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    241 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
-                            seen |= 1 << 23;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    242 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? as i64;
-                            seen |= 1 << 24;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    243 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? as u32;
-                            seen |= 1 << 25;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    244 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)?;
-                            seen |= 1 << 26;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    245 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, pos)?);
-                            seen |= 1 << 27;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    246 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, pos)?);
-                            seen |= 1 << 28;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    247 => match w {
-                        pbrs::rt::WIRE_I32 => {
-                            let _ = pbrs::rt::read_fixed32(data, pos)?;
-                            seen |= 1 << 29;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    248 => match w {
-                        pbrs::rt::WIRE_I64 => {
-                            let _ = pbrs::rt::read_fixed64(data, pos)?;
-                            seen |= 1 << 30;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    249 => match w {
-                        pbrs::rt::WIRE_I32 => {
-                            let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
-                            seen |= 1 << 31;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    250 => match w {
-                        pbrs::rt::WIRE_I64 => {
-                            let _ = pbrs::rt::read_fixed64(data, pos)? as i64;
-                            seen |= 1 << 32;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    251 => match w {
-                        pbrs::rt::WIRE_I32 => {
-                            let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
-                            seen |= 1 << 33;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    252 => match w {
-                        pbrs::rt::WIRE_I64 => {
-                            let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
-                            seen |= 1 << 34;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    253 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
-                            seen |= 1 << 35;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    254 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            seen |= 1 << 36;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    255 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            pbrs::rt::read_len_span(data, pos)?;
-                            seen |= 1 << 37;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                }
-            }
-            if until.is_some() {
-                return Err(ParseError::new("truncated group"));
-            }
-            if seen != 274877906943 {
-                return Err(ParseError::new("missing required field"));
-            }
-            Ok(())
+            let mut value = Self::default();
+            let mut source = Some(wire.clone());
+            value.merge_inner(wire.as_slice(), &mut source, pos, depth, false, until)?;
+            value.check_required()
         }
         pub fn compute_size(&self) -> u64 {
             if let Some(n) = self.cached_size.get() {
@@ -5265,43 +4940,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
             if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
-            let data = wire.as_slice();
-            let mut seen = 0u64;
-            while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
-                        if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
-                        }
-                        return Ok(());
-                    }
-                }
-                match n {
-                    202 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
-                            seen |= 1 << 0;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    203 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? as u32;
-                            seen |= 1 << 1;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                }
-            }
-            if until.is_some() {
-                return Err(ParseError::new("truncated group"));
-            }
-            if seen != 3 {
-                return Err(ParseError::new("missing required field"));
-            }
-            Ok(())
+            let mut value = Self::default();
+            let mut source = Some(wire.clone());
+            value.merge_inner(wire.as_slice(), &mut source, pos, depth, false, until)?;
+            value.check_required()
         }
         pub fn compute_size(&self) -> u64 {
             if let Some(n) = self.cached_size.get() {
@@ -5564,6 +5206,12 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
         }
         #[inline(always)]
         pub fn check_required(&self) -> Result<(), ParseError> {
+            if let Some(child) = self.message_set_extension.as_deref() {
+                child.check_required()?;
+            }
+            if let Some(child) = self.message_set_extension_4135312.as_deref() {
+                child.check_required()?;
+            }
             Ok(())
         }
         pub fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
@@ -5675,10 +5323,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                     if self.message_set_extension.is_some() {
                                         self.message_set_extension
                                             .get_or_insert()
-                                            .merge_bytes(&payload, depth + 1)?;
+                                            .merge_bytes_dont_enforce(&payload, depth + 1)?;
                                     } else {
                                         let mut inner = MessageSetCorrectExtension1::default();
-                                        inner.merge_bytes(&payload, depth + 1)?;
+                                        inner.merge_bytes_dont_enforce(&payload, depth + 1)?;
                                         self.message_set_extension =
                                             pbrs::rt::LazyMsg::from_owned(inner);
                                     }
@@ -5687,10 +5335,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                                     if self.message_set_extension_4135312.is_some() {
                                         self.message_set_extension_4135312
                                             .get_or_insert()
-                                            .merge_bytes(&payload, depth + 1)?;
+                                            .merge_bytes_dont_enforce(&payload, depth + 1)?;
                                     } else {
                                         let mut inner = MessageSetCorrectExtension2::default();
-                                        inner.merge_bytes(&payload, depth + 1)?;
+                                        inner.merge_bytes_dont_enforce(&payload, depth + 1)?;
                                         self.message_set_extension_4135312 =
                                             pbrs::rt::LazyMsg::from_owned(inner);
                                     }
@@ -5722,28 +5370,20 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     1547769 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            if self.message_set_extension.is_some() {
-                                let mut ip = 0;
-                                let mut sw = None;
-                                self.message_set_extension.get_or_insert().merge_inner(
-                                    &data[s..e],
-                                    &mut sw,
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            } else {
-                                let mut ip = 0;
-                                MessageSetCorrectExtension1::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                )?;
-                                self.message_set_extension = pbrs::rt::LazyMsg::from_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                );
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
                             }
+                            let child = self.message_set_extension.get_or_insert();
+                            let mut ip = 0;
+                            let mut sw = wire.as_ref().map(|source| source.window(s, e));
+                            child.merge_inner(
+                                &data[s..e],
+                                &mut sw,
+                                &mut ip,
+                                depth + 1,
+                                false,
+                                None,
+                            )?;
                         }
                         _ => self
                             .unknown
@@ -5755,30 +5395,20 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                     4135312 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            if self.message_set_extension_4135312.is_some() {
-                                let mut ip = 0;
-                                let mut sw = None;
-                                self.message_set_extension_4135312
-                                    .get_or_insert()
-                                    .merge_inner(
-                                        &data[s..e],
-                                        &mut sw,
-                                        &mut ip,
-                                        depth + 1,
-                                        true,
-                                        None,
-                                    )?;
-                            } else {
-                                let mut ip = 0;
-                                MessageSetCorrectExtension2::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                )?;
-                                self.message_set_extension_4135312 = pbrs::rt::LazyMsg::from_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                );
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
                             }
+                            let child = self.message_set_extension_4135312.get_or_insert();
+                            let mut ip = 0;
+                            let mut sw = wire.as_ref().map(|source| source.window(s, e));
+                            child.merge_inner(
+                                &data[s..e],
+                                &mut sw,
+                                &mut ip,
+                                depth + 1,
+                                false,
+                                None,
+                            )?;
                         }
                         _ => self
                             .unknown
@@ -5819,66 +5449,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
             if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
-            let data = wire.as_slice();
-            while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
-                        if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
-                        }
-                        return Ok(());
-                    }
-                }
-                match n {
-                    1 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let inner = pbrs::rt::read_len_bytes(data, pos)?;
-                            let mut ip = 0;
-                            while ip < inner.len() {
-                                let (nn, ww) = pbrs::rt::decode_tag(inner, &mut ip)?;
-                                pbrs::rt::skip_field_with_number_and_depth(
-                                    inner,
-                                    &mut ip,
-                                    nn,
-                                    ww,
-                                    depth + 1,
-                                )?;
-                            }
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    1547769 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            let mut ip = 0;
-                            MessageSetCorrectExtension1::validate_inner(
-                                &wire.window(s, e),
-                                &mut ip,
-                                depth + 1,
-                            )?;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    4135312 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            let mut ip = 0;
-                            MessageSetCorrectExtension2::validate_inner(
-                                &wire.window(s, e),
-                                &mut ip,
-                                depth + 1,
-                            )?;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                }
-            }
-            if until.is_some() {
-                return Err(ParseError::new("truncated group"));
-            }
-            Ok(())
+            let mut value = Self::default();
+            let mut source = Some(wire.clone());
+            value.merge_inner(wire.as_slice(), &mut source, pos, depth, false, until)?;
+            value.check_required()
         }
         pub fn compute_size(&self) -> u64 {
             if let Some(n) = self.cached_size.get() {
@@ -6245,36 +5819,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
             if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
-            let data = wire.as_slice();
-            let mut seen = 0u64;
-            while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
-                        if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
-                        }
-                        return Ok(());
-                    }
-                }
-                match n {
-                    25 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            seen |= 1 << 0;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                }
-            }
-            if until.is_some() {
-                return Err(ParseError::new("truncated group"));
-            }
-            if seen != 1 {
-                return Err(ParseError::new("missing required field"));
-            }
-            Ok(())
+            let mut value = Self::default();
+            let mut source = Some(wire.clone());
+            value.merge_inner(wire.as_slice(), &mut source, pos, depth, false, until)?;
+            value.check_required()
         }
         pub fn compute_size(&self) -> u64 {
             if let Some(n) = self.cached_size.get() {
@@ -6553,36 +6101,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
             if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
-            let data = wire.as_slice();
-            let mut seen = 0u64;
-            while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
-                        if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
-                        }
-                        return Ok(());
-                    }
-                }
-                match n {
-                    9 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
-                            seen |= 1 << 0;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                }
-            }
-            if until.is_some() {
-                return Err(ParseError::new("truncated group"));
-            }
-            if seen != 1 {
-                return Err(ParseError::new("missing required field"));
-            }
-            Ok(())
+            let mut value = Self::default();
+            let mut source = Some(wire.clone());
+            value.merge_inner(wire.as_slice(), &mut source, pos, depth, false, until)?;
+            value.check_required()
         }
         pub fn compute_size(&self) -> u64 {
             if let Some(n) = self.cached_size.get() {
@@ -6848,6 +6370,12 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
             if self.corecursive.is_none() {
                 return Err(ParseError::new("missing required field"));
             }
+            if let Some(child) = self.corecursive.as_deref() {
+                child.check_required()?;
+            }
+            if let Some(child) = self.optional_corecursive.as_deref() {
+                child.check_required()?;
+            }
             Ok(())
         }
         pub fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
@@ -6942,28 +6470,13 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                 2 => match w {
                     pbrs::rt::WIRE_LEN => {
                         let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                        if self.corecursive.is_some() {
-                            let mut ip = 0;
-                            let mut sw = None;
-                            self.corecursive.get_or_insert().merge_inner(
-                                &data[s..e],
-                                &mut sw,
-                                &mut ip,
-                                depth + 1,
-                                true,
-                                None,
-                            )?;
-                        } else {
-                            let mut ip = 0;
-                            TestAllRequiredTypesProto2::validate_inner(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                &mut ip,
-                                depth + 1,
-                            )?;
-                            self.corecursive = pbrs::rt::LazyMsg::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            );
+                        if depth >= pbrs::RECURSION_LIMIT {
+                            return Err(ParseError::new("recursion limit exceeded"));
                         }
+                        let child = self.corecursive.get_or_insert();
+                        let mut ip = 0;
+                        let mut sw = wire.as_ref().map(|source| source.window(s, e));
+                        child.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, false, None)?;
                     }
                     _ => self
                         .unknown
@@ -6975,28 +6488,13 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
                 3 => match w {
                     pbrs::rt::WIRE_LEN => {
                         let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                        if self.optional_corecursive.is_some() {
-                            let mut ip = 0;
-                            let mut sw = None;
-                            self.optional_corecursive.get_or_insert().merge_inner(
-                                &data[s..e],
-                                &mut sw,
-                                &mut ip,
-                                depth + 1,
-                                true,
-                                None,
-                            )?;
-                        } else {
-                            let mut ip = 0;
-                            TestAllRequiredTypesProto2::validate_inner(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                &mut ip,
-                                depth + 1,
-                            )?;
-                            self.optional_corecursive = pbrs::rt::LazyMsg::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            );
+                        if depth >= pbrs::RECURSION_LIMIT {
+                            return Err(ParseError::new("recursion limit exceeded"));
                         }
+                        let child = self.optional_corecursive.get_or_insert();
+                        let mut ip = 0;
+                        let mut sw = wire.as_ref().map(|source| source.window(s, e));
+                        child.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, false, None)?;
                     }
                     _ => self
                         .unknown
@@ -7030,61 +6528,10 @@ mod __gen_editions_golden_test_messages_proto2_editions_proto {
             if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
-            let data = wire.as_slice();
-            let mut seen = 0u64;
-            while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
-                        if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
-                        }
-                        return Ok(());
-                    }
-                }
-                match n {
-                    1 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
-                            seen |= 1 << 0;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    2 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            let mut ip = 0;
-                            TestAllRequiredTypesProto2::validate_inner(
-                                &wire.window(s, e),
-                                &mut ip,
-                                depth + 1,
-                            )?;
-                            seen |= 1 << 1;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    3 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            let mut ip = 0;
-                            TestAllRequiredTypesProto2::validate_inner(
-                                &wire.window(s, e),
-                                &mut ip,
-                                depth + 1,
-                            )?;
-                        }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                    },
-                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
-                }
-            }
-            if until.is_some() {
-                return Err(ParseError::new("truncated group"));
-            }
-            if seen != 3 {
-                return Err(ParseError::new("missing required field"));
-            }
-            Ok(())
+            let mut value = Self::default();
+            let mut source = Some(wire.clone());
+            value.merge_inner(wire.as_slice(), &mut source, pos, depth, false, until)?;
+            value.check_required()
         }
         pub fn compute_size(&self) -> u64 {
             if let Some(n) = self.cached_size.get() {

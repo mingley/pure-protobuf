@@ -72,6 +72,7 @@ pub mod prost_gen {
 }
 
 pub mod native_prost;
+pub mod payload;
 
 pub mod native_prost_gen {
     #![allow(missing_docs, unused, reason = "generated native prost TestService")]
@@ -248,6 +249,8 @@ pub struct LoadCliArgs {
     pub distribution: Option<load::LoadDistribution>,
     pub rate: Option<f64>,
     pub seed: Option<u64>,
+    pub payload_pattern: payload::Pattern,
+    pub payload_seed: u64,
     pub max_in_flight: Option<usize>,
     pub rpc_count: Option<u64>,
     pub duration_secs: Option<f64>,
@@ -389,6 +392,23 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
         Some(s)
     } else {
         None
+    };
+
+    let payload_pattern = match get_arg_val(args, "--payload-pattern") {
+        Some(value) => value.parse::<payload::Pattern>()?,
+        None if has_flag(args, "--payload-pattern") => {
+            return Err("--payload-pattern needs zero or noise".into());
+        }
+        None => payload::Pattern::Zero,
+    };
+    let payload_seed = match get_arg_val(args, "--payload-seed") {
+        Some(value) => value
+            .parse::<u64>()
+            .map_err(|error| format!("invalid --payload-seed '{value}': {error}"))?,
+        None if has_flag(args, "--payload-seed") => {
+            return Err("--payload-seed needs an unsigned integer".into());
+        }
+        None => payload::DEFAULT_SEED,
     };
 
     let max_in_flight = if let Some(val) =
@@ -607,11 +627,24 @@ pub fn parse_load_cli_args(args: &[String]) -> Result<LoadCliArgs, String> {
         None
     };
 
+    if payload_pattern == payload::Pattern::Noise {
+        if codec != Some(LoadCodec::Prost) || benchmark_service {
+            return Err("noise payloads currently require --codec=prost and TestService".into());
+        }
+        if req_bytes.is_none() || resp_bytes.is_none() {
+            return Err(
+                "noise payloads require explicit --req-bytes and --resp-bytes on both peers".into(),
+            );
+        }
+    }
+
     Ok(LoadCliArgs {
         rpc_count,
         distribution,
         rate,
         seed,
+        payload_pattern,
+        payload_seed,
         max_in_flight,
         duration_secs,
         server_addr,
@@ -644,6 +677,8 @@ pub fn extended_usage() -> String {
            --distribution <MODE>    Load distribution: closed, constant, or poisson (default: closed)\n  \
            --rate <QPS>             Target offered rate in queries per second (for constant/poisson)\n  \
            --seed <SEED>            Random seed for Poisson arrival schedule\n  \
+           --payload-pattern <P>   zero (default) or noise; noise requires Prost and explicit sizes on both peers\n  \
+           --payload-seed <SEED>   Deterministic noise seed, independent of arrival scheduling\n  \
            --max-in-flight <CAP>    Maximum in-flight calls before queue overflow (default: 1000)\n  \
            --duration-secs <SECS>   Duration of load test in seconds\n  \
            --benchmark-service      Target BenchmarkService.UnaryCall instead of TestService.UnaryCall\n  \
@@ -795,7 +830,7 @@ fn unary_prost_request(req_bytes: usize, resp_bytes: usize) -> prost_gen::Simple
         response_size: resp_bytes as i32,
         payload: if req_bytes > 0 {
             Some(prost_gen::Payload {
-                body: vec![0u8; req_bytes],
+                body: payload::request_body(req_bytes),
                 ..Default::default()
             })
         } else {
@@ -820,7 +855,7 @@ fn stream_prost_req(msgs: i32, size: i32) -> prost_gen::StreamingOutputCallReque
 fn upload_prost_req(size: i32) -> prost_gen::StreamingInputCallRequest {
     prost_gen::StreamingInputCallRequest {
         payload: Some(prost_gen::Payload {
-            body: vec![0u8; usize::try_from(size.max(0)).unwrap_or(0)],
+            body: payload::request_body(usize::try_from(size.max(0)).unwrap_or(0)),
             ..Default::default()
         }),
         ..Default::default()
@@ -834,7 +869,7 @@ fn bidi_prost_request(
     let mut request = stream_prost_req(1, resp_bytes as i32);
     if req_bytes > 0 {
         request.payload = Some(prost_gen::Payload {
-            body: vec![0; req_bytes],
+            body: payload::request_body(req_bytes),
             ..Default::default()
         });
     }
@@ -843,6 +878,16 @@ fn bidi_prost_request(
 
 fn prost_payload_len(payload: &Option<prost_gen::Payload>) -> usize {
     payload.as_ref().map(|p| p.body.len()).unwrap_or(0)
+}
+
+fn prost_payload_body(payload: &Option<prost_gen::Payload>) -> &[u8] {
+    payload
+        .as_ref()
+        .map_or(&[], |payload| payload.body.as_slice())
+}
+
+fn validate_prost_response(payload: &Option<prost_gen::Payload>) -> Result<(), load::RpcCallError> {
+    payload::validate_response(prost_payload_body(payload)).map_err(load::RpcCallError::Other)
 }
 
 trait VerifyLoadCompression: Sized {
@@ -1196,10 +1241,15 @@ impl prost_gen::test_service_server::TestService for ProstInterop {
         &self,
         req: tonic::Request<prost_gen::SimpleRequest>,
     ) -> Result<tonic::Response<prost_gen::SimpleResponse>, tonic::Status> {
-        let n = req.into_inner().response_size;
+        let request = req.into_inner();
+        payload::validate_request(prost_payload_body(&request.payload))
+            .map_err(tonic::Status::invalid_argument)?;
+        let n = request.response_size;
+        drop(request);
         Ok(tonic::Response::new(prost_gen::SimpleResponse {
             payload: Some(prost_gen::Payload {
-                body: vec![0u8; usize::try_from(n.max(0)).unwrap_or(0)],
+                body: payload::response_body(usize::try_from(n.max(0)).unwrap_or(0))
+                    .map_err(tonic::Status::invalid_argument)?,
                 ..Default::default()
             }),
             ..Default::default()
@@ -1221,18 +1271,24 @@ impl prost_gen::test_service_server::TestService for ProstInterop {
         &self,
         req: tonic::Request<prost_gen::StreamingOutputCallRequest>,
     ) -> Result<tonic::Response<Self::StreamingOutputCallStream>, tonic::Status> {
-        let sizes: Vec<i32> = req
-            .into_inner()
-            .response_parameters
-            .iter()
-            .map(|p| p.size)
-            .collect();
+        let request = req.into_inner();
+        payload::validate_request(prost_payload_body(&request.payload))
+            .map_err(tonic::Status::invalid_argument)?;
+        let sizes: Vec<i32> = request.response_parameters.iter().map(|p| p.size).collect();
+        drop(request);
         let (tx, rx) = tokio::sync::mpsc::channel(8);
         tokio::spawn(async move {
             for size in sizes {
+                let body = match payload::response_body(usize::try_from(size.max(0)).unwrap_or(0)) {
+                    Ok(body) => body,
+                    Err(error) => {
+                        let _ = tx.send(Err(tonic::Status::invalid_argument(error))).await;
+                        return;
+                    }
+                };
                 let msg = prost_gen::StreamingOutputCallResponse {
                     payload: Some(prost_gen::Payload {
-                        body: vec![0u8; usize::try_from(size.max(0)).unwrap_or(0)],
+                        body,
                         ..Default::default()
                     }),
                     ..Default::default()
@@ -1254,6 +1310,8 @@ impl prost_gen::test_service_server::TestService for ProstInterop {
         let mut inbound = req.into_inner();
         let mut total: i32 = 0;
         while let Some(item) = inbound.message().await? {
+            payload::validate_request(prost_payload_body(&item.payload))
+                .map_err(tonic::Status::invalid_argument)?;
             let n = i32::try_from(prost_payload_len(&item.payload)).unwrap_or(i32::MAX);
             total = total.saturating_add(n);
         }
@@ -1278,13 +1336,26 @@ impl prost_gen::test_service_server::TestService for ProstInterop {
             loop {
                 match inbound.message().await {
                     Ok(Some(msg)) => {
+                        if let Err(error) =
+                            payload::validate_request(prost_payload_body(&msg.payload))
+                        {
+                            let _ = tx.send(Err(tonic::Status::invalid_argument(error))).await;
+                            return;
+                        }
                         for param in &msg.response_parameters {
+                            let body = match payload::response_body(
+                                usize::try_from(param.size.max(0)).unwrap_or(0),
+                            ) {
+                                Ok(body) => body,
+                                Err(error) => {
+                                    let _ =
+                                        tx.send(Err(tonic::Status::invalid_argument(error))).await;
+                                    return;
+                                }
+                            };
                             let out = prost_gen::StreamingOutputCallResponse {
                                 payload: Some(prost_gen::Payload {
-                                    body: vec![
-                                        0u8;
-                                        usize::try_from(param.size.max(0)).unwrap_or(0)
-                                    ],
+                                    body,
                                     ..Default::default()
                                 }),
                                 ..Default::default()
@@ -1554,16 +1625,31 @@ async fn run_load_server(args: &[String], opts: LoadCliArgs) -> Result<(), Strin
     } else {
         None
     };
+    payload::configure(
+        opts.payload_pattern,
+        opts.payload_seed,
+        opts.req_bytes.unwrap_or(0),
+        opts.resp_bytes.unwrap_or(0),
+    )?;
     let listener = TcpListener::bind(format!("{host}:{port}"))
         .await
         .map_err(|e| e.to_string())?;
     let addr = listener.local_addr().map_err(|e| e.to_string())?;
     println!(
-        "READY port={} addr={} transport={} compression={}",
+        "READY port={} addr={} transport={} compression={} payload_pattern={} payload_seed={} payload_validation={} payload_request_bytes={} payload_response_bytes={}",
         addr.port(),
         addr,
         transport,
-        if opts.gzip { "gzip" } else { "identity" }
+        if opts.gzip { "gzip" } else { "identity" },
+        opts.payload_pattern,
+        opts.payload_seed,
+        if opts.payload_pattern == payload::Pattern::Noise {
+            "full-body"
+        } else {
+            "length-only"
+        },
+        opts.req_bytes.unwrap_or(0),
+        opts.resp_bytes.unwrap_or(0),
     );
     match transport {
         LoadTransport::Native => {
@@ -1925,7 +2011,9 @@ async fn run_load_prost(
                             .await
                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?;
                         let resp = resp.verify_load_compression(gzip)?;
-                        let got = prost_payload_len(&resp.into_inner().payload);
+                        let response = resp.into_inner();
+                        let got = prost_payload_len(&response.payload);
+                        validate_prost_response(&response.payload)?;
                         if got != resp_bytes {
                             return Err(load::RpcCallError::Other(format!(
                                 "response size mismatch: got {got}, want {resp_bytes}"
@@ -1941,7 +2029,7 @@ async fn run_load_prost(
             let mut template = stream_prost_req(stream_msgs as i32, resp_bytes as i32);
             if req_bytes > 0 {
                 template.payload = Some(prost_gen::Payload {
-                    body: vec![0u8; req_bytes],
+                    body: payload::request_body(req_bytes),
                     ..Default::default()
                 });
             }
@@ -1969,6 +2057,7 @@ async fn run_load_prost(
                                     prost_payload_len(&msg.payload)
                                 )));
                             }
+                            validate_prost_response(&msg.payload)?;
                             n += 1;
                         }
                         if n != stream_msgs {
@@ -2083,6 +2172,7 @@ async fn run_load_prost(
                                             "pipeline response size mismatch".into(),
                                         ));
                                     }
+                                    validate_prost_response(&reply.payload)?;
                                     received += 1;
                                 }
                                 if received != stream_msgs {
@@ -2120,6 +2210,7 @@ async fn run_load_prost(
                                     prost_payload_len(&reply.payload)
                                 )));
                             }
+                            validate_prost_response(&reply.payload)?;
                         }
                         drop(tx);
                         if inbound
@@ -2252,6 +2343,12 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
         LoadShape::Unary => 0,
     });
 
+    payload::configure(
+        opts.payload_pattern,
+        opts.payload_seed,
+        req_bytes,
+        resp_bytes,
+    )?;
     println!(
         "running load benchmark: distribution={distribution}, rate={rate:?}, duration={duration:.1}s, max_in_flight={}, shape={shape}, transport={transport}, codec={codec}, req_bytes={req_bytes}, resp_bytes={resp_bytes}, stream_msgs={stream_msgs}, tls={} window_mode={} latency_rtt_ms={}",
         cfg.max_in_flight,
@@ -2437,14 +2534,38 @@ async fn run_load_benchmark(_args: &[String], opts: LoadCliArgs) -> Result<(), S
         );
     }
 
+    let mut output_metrics =
+        serde_json::to_value(&metrics).map_err(|error| format!("serialization error: {error}"))?;
+    let workload = output_metrics
+        .as_object_mut()
+        .expect("RpcMetrics serializes as object");
+    workload.insert(
+        "payload_pattern".into(),
+        serde_json::json!(opts.payload_pattern.to_string()),
+    );
+    workload.insert("payload_seed".into(), serde_json::json!(opts.payload_seed));
+    workload.insert("payload_request_bytes".into(), serde_json::json!(req_bytes));
+    workload.insert(
+        "payload_response_bytes".into(),
+        serde_json::json!(resp_bytes),
+    );
+    workload.insert(
+        "payload_validation".into(),
+        serde_json::json!(if opts.payload_pattern == payload::Pattern::Noise {
+            "full-body"
+        } else {
+            "length-only"
+        }),
+    );
+
     if opts.print_json {
-        let json = serde_json::to_string_pretty(&metrics)
+        let json = serde_json::to_string_pretty(&output_metrics)
             .map_err(|e| format!("serialization error: {e}"))?;
         println!("{json}");
     }
 
     if let Some(ref path) = opts.output_file {
-        let json = serde_json::to_string_pretty(&metrics)
+        let json = serde_json::to_string_pretty(&output_metrics)
             .map_err(|e| format!("serialization error: {e}"))?;
         std::fs::write(path, json).map_err(|e| format!("failed to write output to {path}: {e}"))?;
         println!("saved metrics to {path}");
@@ -3262,6 +3383,53 @@ mod tests {
         let mut args = vec!["rpc-bench".to_string(), "load".to_string()];
         args.extend(extra.iter().map(|s| s.to_string()));
         args
+    }
+
+    #[test]
+    fn test_noise_payload_cli_requires_matched_supported_workload_and_uses_own_seed() {
+        let opts = parse_load_cli_args(&load_args(&[
+            "--payload-pattern=noise",
+            "--payload-seed=0",
+            "--seed=99",
+            "--codec=prost",
+            "--req-bytes=1024",
+            "--resp-bytes=65536",
+            "--stream-msgs=1",
+        ]))
+        .unwrap();
+        assert_eq!(opts.payload_pattern, payload::Pattern::Noise);
+        assert_eq!(opts.payload_seed, 0);
+        assert_eq!(opts.seed, Some(99));
+        assert_eq!(opts.stream_msgs, Some(1));
+        for extra in [
+            vec!["--payload-pattern"],
+            vec!["--payload-pattern=random"],
+            vec!["--payload-seed"],
+            vec!["--payload-seed=-1"],
+            vec!["--payload-pattern=noise"],
+            vec!["--payload-pattern=noise", "--codec=prost"],
+            vec![
+                "--payload-pattern=noise",
+                "--codec=pbrs",
+                "--req-bytes=1024",
+                "--resp-bytes=1024",
+            ],
+            vec![
+                "--payload-pattern=noise",
+                "--benchmark-service",
+                "--codec=prost",
+                "--req-bytes=1024",
+                "--resp-bytes=1024",
+            ],
+        ] {
+            assert!(
+                parse_load_cli_args(&load_args(&extra)).is_err(),
+                "{extra:?}"
+            );
+        }
+        let opts = parse_load_cli_args(&load_args(&[])).unwrap();
+        assert_eq!(opts.payload_pattern, payload::Pattern::Zero);
+        assert_eq!(opts.payload_seed, payload::DEFAULT_SEED);
     }
 
     #[test]

@@ -915,9 +915,6 @@ macro_rules! impl_typed_message {
             #[inline(always)]
             fn merge_from_bytes(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
                 if data.is_empty() {
-                    if $Owned::EMPTY_PARSE_OK {
-                        return Ok(());
-                    }
                     return self.check_required();
                 }
                 self.merge_bytes(data, 0)
@@ -927,9 +924,6 @@ macro_rules! impl_typed_message {
                 data: $crate::rt::Bytes,
             ) -> Result<(), $crate::ParseError> {
                 if data.is_empty() {
-                    if $Owned::EMPTY_PARSE_OK {
-                        return Ok(());
-                    }
                     return self.check_required();
                 }
                 // Pre-fill the Wire slot with shared backing: large fields

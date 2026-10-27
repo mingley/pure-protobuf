@@ -9,8 +9,9 @@
     reason = "benchmark load operations"
 )]
 use crate::{
-    LoadShape, VerifyLoadCompression, bidi_prost_request, load, native_prost_gen, process,
-    prost_gen, prost_payload_len, stream_prost_req, unary_prost_request, upload_prost_req,
+    LoadShape, VerifyLoadCompression, bidi_prost_request, load, native_prost_gen, payload, process,
+    prost_gen, prost_payload_body, prost_payload_len, stream_prost_req, unary_prost_request,
+    upload_prost_req, validate_prost_response,
 };
 use pbrs_grpc::codec::prost::Streaming;
 use pbrs_grpc::{Channel, Request, Response, Status};
@@ -42,7 +43,9 @@ pub async fn run(
                             .await
                             .map_err(|e| load::RpcCallError::Other(e.to_string()))?
                             .verify_load_compression(gzip)?;
-                        let got = prost_payload_len(&resp.into_inner().payload);
+                        let response = resp.into_inner();
+                        let got = prost_payload_len(&response.payload);
+                        validate_prost_response(&response.payload)?;
                         if got != resp_bytes {
                             return Err(load::RpcCallError::Other(format!(
                                 "response size mismatch: got {got}, want {resp_bytes}"
@@ -58,7 +61,7 @@ pub async fn run(
             let mut template = stream_prost_req(stream_msgs as i32, resp_bytes as i32);
             if req_bytes > 0 {
                 template.payload = Some(prost_gen::Payload {
-                    body: vec![0u8; req_bytes],
+                    body: payload::request_body(req_bytes),
                     ..Default::default()
                 });
             }
@@ -85,6 +88,7 @@ pub async fn run(
                                     prost_payload_len(&msg.payload)
                                 )));
                             }
+                            validate_prost_response(&msg.payload)?;
                             n += 1;
                         }
                         if n != stream_msgs {
@@ -191,6 +195,7 @@ pub async fn run(
                                             "pipeline response size mismatch".into(),
                                         ));
                                     }
+                                    validate_prost_response(&reply.payload)?;
                                     received += 1;
                                 }
                                 if received != stream_msgs {
@@ -228,6 +233,7 @@ pub async fn run(
                                     prost_payload_len(&reply.payload)
                                 )));
                             }
+                            validate_prost_response(&reply.payload)?;
                         }
                         tx.close();
                         if inbound
@@ -262,10 +268,14 @@ impl native_prost_gen::TestService for Interop {
         &self,
         request: Request<prost_gen::SimpleRequest>,
     ) -> Result<Response<prost_gen::SimpleResponse>, Status> {
-        let n = usize::try_from(request.into_inner().response_size.max(0)).unwrap_or(0);
+        let request = request.into_inner();
+        payload::validate_request(prost_payload_body(&request.payload))
+            .map_err(Status::invalid_argument)?;
+        let n = usize::try_from(request.response_size.max(0)).unwrap_or(0);
+        drop(request);
         Ok(Response::new(prost_gen::SimpleResponse {
             payload: Some(prost_gen::Payload {
-                body: vec![0; n],
+                body: payload::response_body(n).map_err(Status::invalid_argument)?,
                 ..Default::default()
             }),
             ..Default::default()
@@ -276,18 +286,24 @@ impl native_prost_gen::TestService for Interop {
         &self,
         request: Request<prost_gen::StreamingOutputCallRequest>,
     ) -> Result<Response<Streaming<prost_gen::StreamingOutputCallResponse>>, Status> {
-        let sizes: Vec<i32> = request
-            .into_inner()
-            .response_parameters
-            .iter()
-            .map(|p| p.size)
-            .collect();
+        let request = request.into_inner();
+        payload::validate_request(prost_payload_body(&request.payload))
+            .map_err(Status::invalid_argument)?;
+        let sizes: Vec<i32> = request.response_parameters.iter().map(|p| p.size).collect();
+        drop(request);
         let (tx, stream) = Streaming::channel(8);
         tokio::spawn(async move {
             for size in sizes {
+                let body = match payload::response_body(usize::try_from(size.max(0)).unwrap_or(0)) {
+                    Ok(body) => body,
+                    Err(error) => {
+                        tx.fail(Status::invalid_argument(error)).await;
+                        return;
+                    }
+                };
                 let response = prost_gen::StreamingOutputCallResponse {
                     payload: Some(prost_gen::Payload {
-                        body: vec![0; usize::try_from(size.max(0)).unwrap_or(0)],
+                        body,
                         ..Default::default()
                     }),
                     ..Default::default()
@@ -307,6 +323,8 @@ impl native_prost_gen::TestService for Interop {
         let mut inbound = request.into_inner();
         let mut total: i32 = 0;
         while let Some(item) = inbound.message().await? {
+            payload::validate_request(prost_payload_body(&item.payload))
+                .map_err(Status::invalid_argument)?;
             total = total.saturating_add(
                 i32::try_from(prost_payload_len(&item.payload)).unwrap_or(i32::MAX),
             );
@@ -326,10 +344,25 @@ impl native_prost_gen::TestService for Interop {
             loop {
                 match inbound.message().await {
                     Ok(Some(msg)) => {
+                        if let Err(error) =
+                            payload::validate_request(prost_payload_body(&msg.payload))
+                        {
+                            tx.fail(Status::invalid_argument(error)).await;
+                            return;
+                        }
                         for param in &msg.response_parameters {
+                            let body = match payload::response_body(
+                                usize::try_from(param.size.max(0)).unwrap_or(0),
+                            ) {
+                                Ok(body) => body,
+                                Err(error) => {
+                                    tx.fail(Status::invalid_argument(error)).await;
+                                    return;
+                                }
+                            };
                             let out = prost_gen::StreamingOutputCallResponse {
                                 payload: Some(prost_gen::Payload {
-                                    body: vec![0; usize::try_from(param.size.max(0)).unwrap_or(0)],
+                                    body,
                                     ..Default::default()
                                 }),
                                 ..Default::default()

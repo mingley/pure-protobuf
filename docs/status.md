@@ -1,9 +1,26 @@
 # Implementation status
 
-Source `933bf877` repairs completed DATA-owner retirement, pre-shape reset ownership
-and malformed unknown-group validation, and changes singleton/bulk reservations.
-[The current record](evidence/grpc-ownership-20261024/README.md) retains actual
-sources, detecting failures, checks and [endpoint costs](benchmarks.md).
+Source `af00f348` fixes required-field validation after merging proto2 messages.
+Affected consumer bindings need regeneration. The [October 26 record](evidence/grpc-required-merge-20261026/README.md)
+keeps detecting failures, regenerated bindings, reference checks and deferred
+experiments. Required-reachable validation can allocate a temporary tree.
+Benchmark `eac85b04` adds checked noise payloads for Prost TestService.
+
+| New-source check | Result |
+|---|---:|
+| Generated consumers | 30 single-target + 3 parallel/imported checks pass |
+| Core / runtime / MiniTable-upb | 113 / 26 / 18 checks pass |
+| Official conformance | Required twice and recommended once; each 5,631 binary/JSON + 909 text pass |
+| Bundled binding regeneration | 11 outputs unchanged; 2 proto2 outputs regenerated |
+| All-feature workspace compilation | `cargo check --locked --workspace --all-features` passes; tests were not run |
+| Benchmark correctness | 5 unit checks, 24 positive captures / 48 RPCs, 8 expected rejections |
+
+These selected checks do not replace full workspace, sanitizer, endpoint and
+sustained-resource qualification for the combined source. A new LeakSanitizer
+attempt passes 113 core tests before exiting fatally and printing its ptrace
+limitation; the precise cause is unavailable. Separate AddressSanitizer-only
+checks pass 190 cases with leak detection disabled. Neither is a leak-check pass. The following broader
+checks belong to the earlier [ownership source](evidence/grpc-ownership-20261024/README.md).
 
 | Check | Actual source/scope | Result |
 |---|---|---|
@@ -12,7 +29,7 @@ sources, detecting failures, checks and [endpoint costs](benchmarks.md).
 | Official protobuf conformance | Pinned upstream v35.1; maximum Edition 2023 | Required twice and recommended once: each **5,631 binary/JSON + 909 text**, zero skipped/expected/unexpected failures |
 | Lint, formatting and docs | Source-bound precommit snapshots; clean final rustdoc | Strict workspace Clippy/fmt and warning-strict rustdoc pass; equivalence proof binds tested batch/kernel files to final Git blobs |
 | Minimum Rust profiles | Clean `933bf877` | Rust **1.85** core and **1.87** optional Zstd pass |
-| Native / Callgrind counters | `7c02eb38` → safety `ca4ef720` → current `933bf877` | **576 / 540 captures**, 21,600 / 8,100 successful RPCs; all accounting errors zero |
+| Native / Callgrind counters | `7c02eb38` → safety `ca4ef720` → measured `933bf877` | **576 / 540 captures**, 21,600 / 8,100 successful RPCs; all accounting errors zero |
 | Separate bulk / shipping / quiet replay | Explicit source/feature scopes | **240 / 48 / 16 captures**, 9,000 / 360,000 / 120,000 successful RPCs; CPU/byte losses remain |
 | Separate syscall / fd traces | Own-child tracing, timing unqualified | **8 / 8 captures**, 12,000 / 600 successful RPCs; raw errors and unresolved teardown calls retained |
 
@@ -29,14 +46,22 @@ bytes exceed it by 16.40% client / 17.43% server. All 30 native instruction grou
 are lower in both repeats, while 22 medians rise against the previous runtime.
 The benchmark page separates those results and keeps every source/control increase.
 
-Current-source release previews pass **34.370 / 30.796 seconds**. The deadline
-preview repeats the same 30 cases for 31 cycles. Both 24-hour runs are **running,
-results pending**, with advancing cycles verified at **2026-10-24 22:48:16 UTC**.
-The observed processes have the intended kernel limits and balanced cleanup;
-no full-duration pass is claimed.
-The earlier `7c02eb38` general/deadline attempts are interrupted with no terminal
-report, no 24-hour pass and no established application failure; the exit cause is
-unavailable. Earlier `beb4ecd9` general/cache days passed only their own source.
+Earlier runtime release previews pass **34.370 / 30.796 seconds**. Both
+`933bf877` 24-hour attempts are now **interrupted and incomplete** after an
+environment restart. Deadline progress ends at **12.35 measured hours** and
+43,781 repetitions of the same 30 cases. General progress ends at 13,673
+cancellation cycles without a final measured duration. No terminal process result
+survives, the exit cause is unknown, and no application failure is established.
+Fresh same-source retry grants are prepared but have not launched. Earlier
+`7c02eb38` attempts are also interrupted; `beb4ecd9` general/cache passes apply
+only to their recorded source.
+
+The latest wake proxy passes 100 focused checks and 360,000 RPCs but has mixed
+CPU results, so it remains unadopted. Bounded encode scratch passes 738 library
+checks and reduces a measured scratch allocation site by 75%; it adds copies for
+custom contiguous codecs and its endpoint matrix is unrun. A later CPU diagnostic
+fails before RPCs because this session denies local listeners. Neither experiment
+is included in the current runtime.
 
 Stream decode reuse keeps the 4 MiB per-buffer / 16 MiB process idle-capacity limit.
 Retained Bytes/lazy pbrs input keeps ownership. Active decoding, application

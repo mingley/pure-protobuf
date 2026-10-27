@@ -12,11 +12,12 @@ gRPC over HTTP/2 and `protobuf-tonic` for using pbrs messages with tonic 0.14+.
 Edition 2024 generation supports a [defined subset](docs/edition-2024.md).
 The gRPC crates are previews; see the [support policy](docs/support-policy.md)
 for supported versions and deployment guidance.
-The [ownership and batching record](docs/evidence/grpc-ownership-20261024/README.md)
-records completed DATA-owner destruction outside backend locks, reset ownership,
-protobuf group validation and batch reservations at source `933bf877`.
-The full workspace passes 3,840 tests. The [benchmark tables](docs/benchmarks.md)
-show remaining CPU, byte and bulk losses alongside lower instruction counts.
+The latest [merge checks](docs/evidence/grpc-required-merge-20261026/README.md)
+cover required fields split across proto2 message occurrences. Regenerate affected
+bindings to get the fix. Earlier [ownership and batching checks](docs/evidence/grpc-ownership-20261024/README.md)
+belong to source `933bf877`, including its 3,840 passing workspace tests.
+The [benchmark tables](docs/benchmarks.md) show remaining CPU, byte and bulk losses
+alongside lower instruction counts. Full exact-source qualification remains open.
 See [implementation status](docs/status.md) for checks and unfinished qualification.
 For contributors, start with [what to work on next](TODO.md) and the
 [2026-09-29 repository audit](docs/audit-2026-09-29.md).

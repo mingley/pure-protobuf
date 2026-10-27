@@ -80,6 +80,10 @@ pub fn generate_from_code_generator_request(
     // Collected once: the per-target loops below used to re-clone the full
     // name lists (and rebuild the message-name set) for every target.
     let msg_names: Vec<String> = pool.collect_names();
+    let required_types = required_message_types(&pool, &msg_names);
+    REQUIRED_MESSAGE_TYPES.with(|types| {
+        *types.borrow_mut() = (!required_types.is_empty()).then(|| Arc::new(required_types));
+    });
     let enum_names: Vec<String> = pool.collect_enum_names();
     let msg_set: std::collections::BTreeSet<String> = msg_names.iter().cloned().collect();
     let mut file_packages: std::collections::BTreeMap<String, String> =
@@ -742,12 +746,14 @@ use pbrs::UnknownFields;\n\n"
         // Move the shared map out of this thread's TLS; each worker takes a
         // clone for its own TLS. Nothing after this point reads it here.
         let type_files_snapshot = TYPE_FILES.with(|c| c.take());
+        let required_types_snapshot = REQUIRED_MESSAGE_TYPES.with(|types| types.take());
         let chunk_size = targets.len().div_ceil(worker_count);
         // Shared references for the workers (bound outside so the `move`
         // closures copy references instead of moving owned values).
         let emit_ref = &emit_one;
         let resolved_ref = &resolved;
         let snapshot_ref = &type_files_snapshot;
+        let required_snapshot_ref = &required_types_snapshot;
         let ordered: Vec<TargetEmission> = std::thread::scope(|s| {
             let mut handles = Vec::new();
             for (chunk_idx, group) in targets.chunks(chunk_size).enumerate() {
@@ -756,6 +762,8 @@ use pbrs::UnknownFields;\n\n"
                     let _guard = CodegenStateGuard::new();
                     apply_resolved_config(resolved_ref);
                     TYPE_FILES.with(|c| *c.borrow_mut() = snapshot_ref.clone());
+                    REQUIRED_MESSAGE_TYPES
+                        .with(|types| *types.borrow_mut() = required_snapshot_ref.clone());
                     let mut part = Vec::with_capacity(group.len());
                     for (offset, target) in group.iter().enumerate() {
                         part.push((base + offset, emit_ref(target)));

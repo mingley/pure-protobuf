@@ -1,0 +1,101 @@
+{
+  "adopted_benchmark": "eac85b04",
+  "adopted_kernel": "af00f348",
+  "benchmark_correctness": {
+    "expected_negative_captures": 8,
+    "performance_evidence": false,
+    "positive_captures": 24,
+    "profile": "debug",
+    "successful_rpcs": 48,
+    "unit_tests": 5
+  },
+  "broad_superiority": false,
+  "bytes_experiment": {
+    "adopted": false,
+    "baseline": "eac85b04368ac3589f99fe96f693e52de83f39ce",
+    "custom_contiguous_bridge": "temporary allocation and copy every message",
+    "decoded_messages": 88,
+    "endpoint_matrix": "not built or captured",
+    "library_ignores": 1,
+    "library_passes": 738,
+    "scratch_requested_bytes_four_1mib": {
+      "before": 4194320,
+      "candidate": 1048580
+    },
+    "site_cases": 34,
+    "source": "06ec9f23d1f1a40af4c6b4b4e1def2f4064dfcb2"
+  },
+  "kernel": {
+    "conformance": {
+      "binary_json_per_run": 5631,
+      "max_edition": 2023,
+      "runner": "v35.1",
+      "runs": 3,
+      "text_per_run": 909
+    },
+    "limits": [
+      "Affected validation can allocate a final tree.",
+      "Consumer bindings must be regenerated."
+    ],
+    "mini_table_upb": 18,
+    "parallel_imported": 3,
+    "regenerated_outputs": 2,
+    "root_core": 113,
+    "runtime": 26,
+    "single_target": 30,
+    "unchanged_outputs": 11
+  },
+  "limits": [
+    "Earlier broad workspace and ASAN results belong to their recorded source.",
+    "Shipping endpoint performance, sustained resources and platform qualification remain open.",
+    "Raw absolute paths are original execution paths; patches and bundles retain source.",
+    "Prepared plans, gates and grants are not executed campaign outcomes."
+  ],
+  "omitted_executable_files": 57,
+  "production_ready": false,
+  "qualified": false,
+  "resource_days": {
+    "application_failure_established": false,
+    "deadline_cycles": 43781,
+    "deadline_last_measured_seconds": 44453.35918689,
+    "exit_cause": "unavailable",
+    "general_cancelled_cycles": 13673,
+    "general_final_measured_seconds": null,
+    "pass": false,
+    "retries_launched": false,
+    "source": "933bf8775b70d24d91fb46a7992eae343b60f0ea",
+    "state": "interrupted"
+  },
+  "root_integration": {
+    "address_sanitizer": {
+      "detect_leaks": false,
+      "executables": 5,
+      "passed": 190
+    },
+    "leak_sanitizer": {
+      "core_tests_before_fatal": 113,
+      "diagnostic_hint": "ptrace limitation; ptracing not independently established",
+      "pass": false,
+      "precise_fatal_cause": "unavailable",
+      "process_exit": 1
+    },
+    "runtime_source": "af00f3484d1e79867bbd55ef002418d384f06b07",
+    "test_isolation_source": "b20c413af657014cb5bf0b54b2dae8cebedb48e6",
+    "workspace_all_features_cargo_check": "passed; no full workspace test run"
+  },
+  "root_integration_proof": {
+    "bytes": 7614,
+    "path": "qualification/architecture-c15-root-kernel-proof.json",
+    "sha256": "ab675b325a77fd5193bd9031ce7eb2f6eef947be82757967ff01e317c9a9c955"
+  },
+  "schema": "pbrs.c15-required-merge-publication.v1",
+  "wake_experiment": {
+    "adopted": false,
+    "affinity_diagnostic": "listener denied before RPCs; no CPU result",
+    "consistent_cpu_improvement": false,
+    "focused_passes": 100,
+    "shipping_captures": 48,
+    "shipping_successful_rpcs": 360000,
+    "source": "9235cb825947a39527b860d1dac2333f4b94642f"
+  }
+}

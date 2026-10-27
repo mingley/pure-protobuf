@@ -1,8 +1,98 @@
-//! MX-01 split of `super`: parse (mechanical move, no behavior change).
+//! Generated binary parsing, validation and required-field checks.
 
 use super::*;
-use crate::dynamic::{Cardinality, FieldDescriptor, FieldType, MessageDescriptor};
+use crate::dynamic::{Cardinality, DescriptorPool, FieldDescriptor, FieldType, MessageDescriptor};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::PathBuf;
+
+/// Required initialization follows the final live message tree. Resolve this
+/// graph once during generation, including cycles and imported/map-entry types.
+/// Required-free schemas retain the existing validation and lazy parse paths.
+pub(crate) fn required_message_types(pool: &DescriptorPool, names: &[String]) -> BTreeSet<String> {
+    let mut required: BTreeSet<_> = names
+        .iter()
+        .filter_map(|name| {
+            pool.get_message(name)
+                .filter(|message| {
+                    message
+                        .fields
+                        .values()
+                        .any(|field| field.cardinality == Cardinality::Required)
+                })
+                .map(|_| name.clone())
+        })
+        .collect();
+    if required.is_empty() {
+        return required;
+    }
+    let mut parents: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for name in names {
+        if let Some(message) = pool.get_message(name) {
+            for target in message.fields.values().filter_map(field_message_name) {
+                parents
+                    .entry(target.trim_start_matches('.').to_owned())
+                    .or_default()
+                    .push(name.clone());
+            }
+        }
+    }
+    let mut pending: VecDeque<_> = required.iter().cloned().collect();
+    while let Some(name) = pending.pop_front() {
+        if let Some(ancestors) = parents.get(&name) {
+            for parent in ancestors {
+                if required.insert(parent.clone()) {
+                    pending.push_back(parent.clone());
+                }
+            }
+        }
+    }
+    required
+}
+
+fn field_message_name(field: &FieldDescriptor) -> Option<&str> {
+    if !matches!(field.field_type, FieldType::Message | FieldType::Group) {
+        return None;
+    }
+    field.type_name.as_deref().or_else(|| {
+        field
+            .message
+            .as_ref()
+            .map(|message| message.full_name.as_str())
+    })
+}
+
+fn needs_initialization(name: &str) -> bool {
+    REQUIRED_MESSAGE_TYPES.with(|types| {
+        types
+            .borrow()
+            .as_ref()
+            .is_some_and(|types| types.contains(name.trim_start_matches('.')))
+    })
+}
+
+fn field_needs_initialization(field: &FieldDescriptor) -> bool {
+    field_message_name(field).is_some_and(needs_initialization)
+}
+
+fn emit_child_required_check(src: &mut String, field: &FieldDescriptor, owner: &str) {
+    let slot = format!("{owner}.{}", field_id(field));
+    if field.is_map {
+        let _ = writeln!(
+            src,
+            "        for (_, child) in {slot}.iter() {{ child.check_required()?; }}"
+        );
+    } else if field.cardinality == Cardinality::Repeated {
+        let _ = writeln!(
+            src,
+            "        for child in {slot}.iter() {{ child.check_required()?; }}"
+        );
+    } else {
+        let _ = writeln!(
+            src,
+            "        if let Some(child) = {slot}.as_deref() {{ child.check_required()?; }}"
+        );
+    }
+}
 
 pub(crate) fn emit_codec(
     src: &mut String,
@@ -10,6 +100,7 @@ pub(crate) fn emit_codec(
     edition2024: bool,
     cold: ColdPlacement,
 ) {
+    let initialize_tree = needs_initialization(&desc.full_name);
     let required: Vec<_> = desc
         .fields
         .values()
@@ -22,11 +113,35 @@ pub(crate) fn emit_codec(
     for f in &required {
         let id = field_id(f);
         if is_option(f) {
+            let missing = if cold.stored_cold(f) {
+                format!("self.cold.as_deref().is_none_or(|c| c.{id}.is_none())")
+            } else {
+                format!("self.{id}.is_none()")
+            };
             let _ = writeln!(
                 src,
-                "        if self.{id}.is_none() {{ return Err(ParseError::new(\"missing required field\")); }}"
+                "        if {missing} {{ return Err(ParseError::new(\"missing required field\")); }}"
             );
         }
+    }
+    for field in desc
+        .fields
+        .values()
+        .filter(|field| cold.stored_hot(field) && field_needs_initialization(field))
+    {
+        emit_child_required_check(src, field, "self");
+    }
+    let cold_children: Vec<_> = desc
+        .fields
+        .values()
+        .filter(|field| cold.stored_cold(field) && field_needs_initialization(field))
+        .collect();
+    if !cold_children.is_empty() {
+        let _ = writeln!(src, "        if let Some(c) = self.cold.as_deref() {{");
+        for field in cold_children {
+            emit_child_required_check(src, field, "c");
+        }
+        let _ = writeln!(src, "        }}");
     }
     let _ = writeln!(src, "        Ok(())");
     let _ = writeln!(src, "    }}");
@@ -157,64 +272,74 @@ pub(crate) fn emit_codec(
         src,
         "        if depth > pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }}"
     );
-    let _ = writeln!(src, "        let data = wire.as_slice();");
-    if !required.is_empty() {
-        let _ = writeln!(src, "        let mut seen = 0u64;");
-    }
-    let _ = writeln!(src, "        while *pos < data.len() {{");
-    let _ = writeln!(
-        src,
-        "            let (n, w) = pbrs::rt::decode_tag(data, pos)?;"
-    );
-    let _ = writeln!(
-        src,
-        "            if let Some(g) = until {{ if w == pbrs::rt::WIRE_EGROUP {{ if n != g {{ return Err(ParseError::new(\"mismatched end-group\")); }} return Ok(()); }} }}"
-    );
-    let _ = writeln!(src, "            match n {{");
-    if desc.message_set_wire_format {
-        let _ = writeln!(src, "            1 => match w {{");
+    if initialize_tree {
+        // A stateless per-occurrence validator cannot initialize a split
+        // singular message or discard a replaced oneof/map value correctly.
         let _ = writeln!(
             src,
-            "                pbrs::rt::WIRE_LEN => {{ let inner = pbrs::rt::read_len_bytes(data, pos)?; let mut ip = 0; while ip < inner.len() {{ let (nn, ww) = pbrs::rt::decode_tag(inner, &mut ip)?; pbrs::rt::skip_field_with_number_and_depth(inner, &mut ip, nn, ww, depth + 1)?; }} }}"
+            "        let mut value = Self::default(); let mut source = Some(wire.clone()); value.merge_inner(wire.as_slice(), &mut source, pos, depth, false, until)?; value.check_required()"
         );
-        let _ = writeln!(
-            src,
-            "                _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,"
-        );
-        let _ = writeln!(src, "            }}");
-    }
-    for f in desc.fields.values() {
-        if desc.message_set_wire_format && f.number == 1 {
-            continue;
+        let _ = writeln!(src, "    }}");
+    } else {
+        let _ = writeln!(src, "        let data = wire.as_slice();");
+        if !required.is_empty() {
+            let _ = writeln!(src, "        let mut seen = 0u64;");
         }
-        let bit = required.iter().position(|r| r.number == f.number);
-        let _ = writeln!(src, "            {} => match w {{", f.number);
-        emit_validate_arm(src, f, bit);
+        let _ = writeln!(src, "        while *pos < data.len() {{");
+        let _ = writeln!(
+            src,
+            "            let (n, w) = pbrs::rt::decode_tag(data, pos)?;"
+        );
+        let _ = writeln!(
+            src,
+            "            if let Some(g) = until {{ if w == pbrs::rt::WIRE_EGROUP {{ if n != g {{ return Err(ParseError::new(\"mismatched end-group\")); }} return Ok(()); }} }}"
+        );
+        let _ = writeln!(src, "            match n {{");
+        if desc.message_set_wire_format {
+            let _ = writeln!(src, "            1 => match w {{");
+            let _ = writeln!(
+                src,
+                "                pbrs::rt::WIRE_LEN => {{ let inner = pbrs::rt::read_len_bytes(data, pos)?; let mut ip = 0; while ip < inner.len() {{ let (nn, ww) = pbrs::rt::decode_tag(inner, &mut ip)?; pbrs::rt::skip_field_with_number_and_depth(inner, &mut ip, nn, ww, depth + 1)?; }} }}"
+            );
+            let _ = writeln!(
+                src,
+                "                _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,"
+            );
+            let _ = writeln!(src, "            }}");
+        }
+        for f in desc.fields.values() {
+            if desc.message_set_wire_format && f.number == 1 {
+                continue;
+            }
+            let bit = required.iter().position(|r| r.number == f.number);
+            let _ = writeln!(src, "            {} => match w {{", f.number);
+            emit_validate_arm(src, f, bit);
+            let _ = writeln!(
+                src,
+                "                _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,"
+            );
+            let _ = writeln!(src, "            }}");
+        }
         let _ = writeln!(
             src,
             "                _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,"
         );
         let _ = writeln!(src, "            }}");
-    }
-    let _ = writeln!(
-        src,
-        "                _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,"
-    );
-    let _ = writeln!(src, "            }}");
-    let _ = writeln!(src, "        }}");
-    let _ = writeln!(
-        src,
-        "        if until.is_some() {{ return Err(ParseError::new(\"truncated group\")); }}"
-    );
-    if !required.is_empty() {
-        let all = (1u64 << required.len()) - 1;
+        let _ = writeln!(src, "        }}");
         let _ = writeln!(
             src,
-            "        if seen != {all} {{ return Err(ParseError::new(\"missing required field\")); }}"
+            "        if until.is_some() {{ return Err(ParseError::new(\"truncated group\")); }}"
         );
+        if !required.is_empty() {
+            let all = (1u64 << required.len()) - 1;
+            let _ = writeln!(
+                src,
+                "        if seen != {all} {{ return Err(ParseError::new(\"missing required field\")); }}"
+            );
+        }
+        let _ = writeln!(src, "        Ok(())");
+        let _ = writeln!(src, "    }}");
     }
-    let _ = writeln!(src, "        Ok(())");
-    let _ = writeln!(src, "    }}");
 
     let _ = writeln!(src, "    pub fn compute_size(&self) -> u64 {{");
     let _ = writeln!(
@@ -286,15 +411,20 @@ pub(crate) fn emit_message_set_merge(src: &mut String, desc: &MessageDescriptor)
         let id = field_id(f);
         let t = scalar_type(f);
         let num = f.number;
+        let merge = if field_needs_initialization(f) {
+            "merge_bytes_dont_enforce"
+        } else {
+            "merge_bytes"
+        };
         if is_lazy_msg(f) {
             let _ = writeln!(
                 src,
-                "                        {num} => {{ if self.{id}.is_some() {{ self.{id}.get_or_insert().merge_bytes(&payload, depth + 1)?; }} else {{ let mut inner = {t}::default(); inner.merge_bytes(&payload, depth + 1)?; self.{id} = pbrs::rt::LazyMsg::from_owned(inner); }} }}"
+                "                        {num} => {{ if self.{id}.is_some() {{ self.{id}.get_or_insert().{merge}(&payload, depth + 1)?; }} else {{ let mut inner = {t}::default(); inner.{merge}(&payload, depth + 1)?; self.{id} = pbrs::rt::LazyMsg::from_owned(inner); }} }}"
             );
         } else {
             let _ = writeln!(
                 src,
-                "                        {num} => {{ match &mut self.{id} {{ Some(existing) => existing.merge_bytes(&payload, depth + 1)?, None => {{ let mut inner = {t}::default(); inner.merge_bytes(&payload, depth + 1)?; self.{id} = Some(Box::new(inner)); }} }} }}"
+                "                        {num} => {{ match &mut self.{id} {{ Some(existing) => existing.{merge}(&payload, depth + 1)?, None => {{ let mut inner = {t}::default(); inner.{merge}(&payload, depth + 1)?; self.{id} = Some(Box::new(inner)); }} }} }}"
             );
         }
     }
@@ -542,6 +672,7 @@ pub(crate) fn emit_merge_arm(
             );
         } else if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
             let t = scalar_type(f);
+            let enforce = !field_needs_initialization(f);
             if f.field_type == FieldType::Group || f.delimited {
                 let _ = writeln!(
                     src,
@@ -550,7 +681,7 @@ pub(crate) fn emit_merge_arm(
             } else {
                 let _ = writeln!(
                     src,
-                    "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let rest = data.len().saturating_sub(e); if rest > 2 {{ {st}.reserve(1 + rest / (e - s + 4).max(1)); }} let mut inner = {t}::default(); let mut ip = 0; let mut sw = None; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; {st}.push(inner); while *pos < data.len() {{ let save = *pos; match pbrs::rt::decode_tag(data, pos) {{ Ok((n2, w2)) if n2 == {num} && w2 == pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut inner = {t}::default(); let mut ip = 0; let mut sw = None; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; {st}.push(inner); }} Ok(_) => {{ *pos = save; break; }} Err(e) => return Err(e), }} }} }}"
+                    "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let rest = data.len().saturating_sub(e); if rest > 2 {{ {st}.reserve(1 + rest / (e - s + 4).max(1)); }} let mut inner = {t}::default(); let mut ip = 0; let mut sw = None; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, None)?; {st}.push(inner); while *pos < data.len() {{ let save = *pos; match pbrs::rt::decode_tag(data, pos) {{ Ok((n2, w2)) if n2 == {num} && w2 == pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut inner = {t}::default(); let mut ip = 0; let mut sw = None; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, None)?; {st}.push(inner); }} Ok(_) => {{ *pos = save; break; }} Err(e) => return Err(e), }} }} }}"
                 );
             }
         } else if f.field_type.is_packable() {
@@ -606,14 +737,22 @@ pub(crate) fn emit_merge_arm(
                 "                    let (s, e) = pbrs::rt::read_len_span(data, pos)?;"
             );
             if is_lazy_msg(f) {
-                let _ = writeln!(
-                    src,
-                    "                    if {st}.is_some() {{ let mut ip = 0; let mut sw = None; {st}.get_or_insert().merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; }} else {{ let mut ip = 0; {t}::validate_inner(&pbrs::rt::Wire::ensure(wire, data).window(s, e), &mut ip, depth + 1)?; {st} = pbrs::rt::LazyMsg::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e)); }}"
-                );
+                if field_needs_initialization(f) {
+                    let _ = writeln!(
+                        src,
+                        "                    if depth >= pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }} let child = {st}.get_or_insert(); let mut ip = 0; let mut sw = wire.as_ref().map(|source| source.window(s, e)); child.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, false, None)?;"
+                    );
+                } else {
+                    let _ = writeln!(
+                        src,
+                        "                    if {st}.is_some() {{ let mut ip = 0; let mut sw = None; {st}.get_or_insert().merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; }} else {{ let mut ip = 0; {t}::validate_inner(&pbrs::rt::Wire::ensure(wire, data).window(s, e), &mut ip, depth + 1)?; {st} = pbrs::rt::LazyMsg::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e)); }}"
+                    );
+                }
             } else {
+                let enforce = !field_needs_initialization(f);
                 let _ = writeln!(
                     src,
-                    "                    match &mut {st} {{ Some(existing) => {{ let mut ip = 0; let mut sw = None; existing.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; }} None => {{ let mut inner = {t}::default(); let mut ip = 0; let mut sw = None; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; {st} = Some(Box::new(inner)); }} }}"
+                    "                    match &mut {st} {{ Some(existing) => {{ let mut ip = 0; let mut sw = None; existing.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, None)?; }} None => {{ let mut inner = {t}::default(); let mut ip = 0; let mut sw = None; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, None)?; {st} = Some(Box::new(inner)); }} }}"
                 );
             }
             let _ = writeln!(src, "                    }}");
@@ -755,9 +894,14 @@ pub(crate) fn emit_map_decoders(
         );
         emit_map_scalar_decode(src, 1, "key", kty, key_utf8);
         if message_value {
+            let enforce = !f
+                .message
+                .as_ref()
+                .and_then(|entry| entry.field(2))
+                .is_some_and(field_needs_initialization);
             let _ = writeln!(
                 src,
-                "        (2, pbrs::rt::WIRE_LEN) => {{ if depth >= pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }} let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; let mut ip = 0; let mut sw = None; val.get_or_insert_with({v}::default).merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; }},"
+                "        (2, pbrs::rt::WIRE_LEN) => {{ if depth >= pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }} let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; let mut ip = 0; let mut sw = None; val.get_or_insert_with({v}::default).merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, None)?; }},"
             );
         } else {
             emit_map_scalar_decode(src, 2, "val", vty, val_utf8);
@@ -888,5 +1032,98 @@ pub(crate) fn emit_map_scalar_decode(
                 "        ({n}, pbrs::rt::WIRE_VARINT) => {var} = pbrs::rt::decode_varint(data, &mut pos)? as i32,"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dynamic::Presence;
+
+    fn child(number: u32, target: &str) -> FieldDescriptor {
+        let mut field = FieldDescriptor::new(
+            format!("child{number}"),
+            number,
+            FieldType::Message,
+            Cardinality::Optional,
+            Presence::Explicit,
+        );
+        field.type_name = Some(format!(".{target}"));
+        field
+    }
+
+    #[test]
+    fn required_graph_follows_imported_types_cycles_and_map_values() {
+        let mut pool = DescriptorPool::new();
+        let mut imported = MessageDescriptor::builder("foreign.Required")
+            .field(FieldDescriptor::new(
+                "value",
+                1,
+                FieldType::Int32,
+                Cardinality::Required,
+                Presence::Explicit,
+            ))
+            .build();
+        imported.file_name = "dependency.proto".into();
+        pool.register_message(imported);
+        pool.register_message(
+            MessageDescriptor::builder("local.A")
+                .field(child(1, "local.B"))
+                .build(),
+        );
+        pool.register_message(
+            MessageDescriptor::builder("local.B")
+                .field(child(1, "local.A"))
+                .field(child(2, "foreign.Required"))
+                .build(),
+        );
+        let mut entry = MessageDescriptor::builder("local.Entry")
+            .field(child(2, "foreign.Required"))
+            .build();
+        entry.is_map_entry = true;
+        pool.register_message(entry);
+        let mut map = child(1, "local.Entry");
+        map.is_map = true;
+        map.cardinality = Cardinality::Repeated;
+        pool.register_message(
+            MessageDescriptor::builder("local.MapParent")
+                .field(map)
+                .build(),
+        );
+        pool.register_message(
+            MessageDescriptor::builder("free.A")
+                .field(child(1, "free.B"))
+                .build(),
+        );
+        pool.register_message(
+            MessageDescriptor::builder("free.B")
+                .field(child(1, "free.A"))
+                .build(),
+        );
+        let names = pool.collect_names();
+        assert_eq!(
+            required_message_types(&pool, &names),
+            [
+                "foreign.Required",
+                "local.A",
+                "local.B",
+                "local.Entry",
+                "local.MapParent"
+            ]
+            .into_iter()
+            .map(str::to_owned)
+            .collect()
+        );
+    }
+
+    #[test]
+    fn required_free_recursive_graph_needs_no_initialization_walk() {
+        let mut pool = DescriptorPool::new();
+        pool.register_message(
+            MessageDescriptor::builder("Self")
+                .field(child(1, "Self"))
+                .build(),
+        );
+        assert!(required_message_types(&pool, &pool.collect_names()).is_empty());
     }
 }

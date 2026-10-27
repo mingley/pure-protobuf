@@ -29,18 +29,25 @@ of eligible work, not an instruction to start every lane at once.
 
 ## Current priorities
 
-Source `933bf877` fixes completed DATA-owner retirement, pre-shape reset ownership
-and malformed unknown-group acceptance, then adjusts singleton/bulk reservations.
-[The current record](docs/evidence/grpc-ownership-20261024/README.md) keeps detecting
-failures, source snapshots and every measured loss.
+Source `af00f348` fixes required-field checks after singular proto2 message merges.
+Split child fields, same-case oneofs, maps, groups, MessageSet extensions, cold
+fields and parallel generation have detecting controls. Affected consumer bindings
+must be regenerated. The two affected bundled proto2 outputs are regenerated;
+eleven other outputs are byte-identical. Required-reachable validation can now
+allocate a temporary tree.
 
-The full all-feature workspace passes **3,840 tests**, zero failures and nine
-existing ignores across 145 target summaries. ASAN/leak checks pass **961 tests**
-(one existing ignore) across 13 selected ELFs. Three official conformance passes
-through Edition 2023 each pass 5,631 binary/JSON and 909 text cases. Strict lint,
-formatting, warning-strict docs and the recorded Rust 1.85 / 1.87 profiles pass.
-Native/instruction counters complete 1,116 captures / 29,700 successful RPCs;
-bulk, shipping-build and tracing controls remain separate.
+The [October 26 record](docs/evidence/grpc-required-merge-20261026/README.md) has
+33 generated-consumer checks, 113 core checks, 44 runtime/kernel checks and three
+official conformance runs, each passing 5,631 binary/JSON and 909 text cases.
+Benchmark `eac85b04` adds checked zero/noise payloads for Prost TestService: five
+unit checks, 24 positive captures / 48 RPCs and eight expected rejection controls
+pass. These are correctness checks, not performance results.
+
+The earlier runtime `933bf877` passes 3,840 all-feature workspace tests and 961
+selected ASAN/leak tests. Its [dated record](docs/evidence/grpc-ownership-20261024/README.md)
+also has 1,116 native/instruction captures / 29,700 successful RPCs; bulk,
+shipping-build and tracing controls remain separate. Those results do not
+qualify later source changes.
 
 The [benchmarks](docs/benchmarks.md) identify the next costs. Unary-server shipping
 CPU still loses to tonic; the quiet four-repeat replay uses 53–60 µs/call
@@ -52,19 +59,21 @@ instruction medians rise versus `7c02eb38`. These metrics answer different quest
 
 | Work | Next result | Completion criterion |
 |---|---|---|
-| Unary-server CPU and scheduling | Test notification forwarding and executor work with a separate wake/cancellation correctness model. | The [ready-set experiment](docs/evidence/grpc-ready-set-20261024/README.md) passes 87 focused checks and 360,000 RPCs but has mixed CPU results; adoption is deferred. Preserve status, flow control, cancellation, deadlines, owner destruction and every losing control. |
-| Identity/gzip bytes and bulk | Attribute remaining buffers and copies, including the 64-message pipeline loss. | Keep cold/bulk tradeoffs, finite retention budgets and every losing cell; capacity arithmetic is separate from measured allocation sites. |
-| QG-06: sustained resources | Complete the running general/deadline days. | Previews pass 34.37 / 30.80 seconds; both `933bf877` days are advancing in the 22:48:16 UTC snapshot. Full-duration results remain pending; keep finite limits, balanced ownership and recovery. |
+| Unary-server CPU and scheduling | Find a repeatable CPU improvement with fresh tonic controls. | The latest wake proxy passes 100 focused checks and 360,000 RPCs, but CPU is mixed; adoption remains deferred. A later affinity diagnostic cannot open a local listener in this session and records no RPCs. |
+| Identity/gzip bytes and bulk | Measure bounded encode reuse across endpoints, zero/noise and cold/warm streams. | The candidate passes 738 library checks and reduces four 1 MiB Prost scratch requests by 75%; custom contiguous codecs add allocations/copies. Endpoint comparisons are unrun, so it is not adopted. Keep the 64-message loss in scope. |
+| QG-06: sustained resources | Run full exact-source general/deadline days on a host retained for at least 24 hours. | Both `933bf877` attempts are interrupted, not running. Deadline progress ends at 12.35 measured hours; general progress ends at 13,673 cancellation cycles without a final duration. Preserve finite limits, ownership and recovery. |
 | Remaining backend destruction | Audit generic current-frame panic, queue-clear, reset and EOF owners beyond the repaired retired DATA frames. | Independent bounded controls before broader safety claims; no hidden work detached from resource ownership. |
+| Required-field merge coverage | Extend final-tree initialization checks to DynamicMessage and MiniTable singular merges. | Keep explicit split-field, oneof/map, recursion and malformed-wire controls; generated-code conformance does not prove every kernel path. |
 | PK-27, PK-29: owned read-all decode | Compare one checked singular merge with lazy access on equal sparse/read-all corpora. | Preserve required/merge/oneof/extensions/unknown/recursion semantics and retention; repeated Query children already parse eagerly. |
 | Handler isolation and SB-27 | Complete per-side shipping CPU, latency, throughput, entropy, field-access, overload and physical-network comparisons. | Keep inline/task handoff costs, sibling fairness, actual concurrency and all losing scopes. |
 | CH-12, credentials and telemetry | Finish discovery/xDS, async OAuth2/JWT, typed extensions and remaining instruments. | Supported external consumers, bounded refresh/cancellation/labels and wire-compatible behavior. |
 | Platforms and release | Complete required feature/platform/consumer profiles and dedicated-host headroom/statistics. | Exact-source release checks and claimed workload scopes pass. |
 
-The earlier `7c02eb38` day attempts are **interrupted**, with no terminal resource
+Both `933bf877` days and the earlier `7c02eb38` attempts are **interrupted**, with no terminal resource
 outcome or application failure established. Preserved progress and the newer boot
 indicate an environment discontinuity; the exit cause is unavailable. They are
-not running and cannot qualify `933bf877`. Older `beb4ecd9` general/cache days passed
+not running and cannot qualify the current source. Fresh `933bf877` retry grants
+are prepared but have not launched. Older `beb4ecd9` general/cache days passed
 only their recorded source and scope. The [execution decision](docs/decisions/grpc-execution.md)
 explains ownership and comparison boundaries; [the benchmark contract](docs/benchmark-contract.md)
 sets performance requirements. Production readiness, full specification coverage

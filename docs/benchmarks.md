@@ -2,8 +2,10 @@
 
 The native unary server still uses more CPU than tonic in the measured shipping build.
 Some allocation and instruction counts are lower; remaining losses are listed first.
+The latest code also fixes proto2 message merging and adds checked noise payloads.
+[October 26 checks and experiments](evidence/grpc-required-merge-20261026/README.md) are separate from the older performance measurements below.
 
-**Current `933bf877` · safety `ca4ef720` · before `7c02eb38`** · 2026-10-24 UTC · Linux x86_64 · Rust 1.99.1 · shared host.
+**Measured runtime `933bf877` · safety `ca4ef720` · before `7c02eb38`** · 2026-10-24 UTC · Linux x86_64 · Rust 1.99.1 · shared host.
 
 ## Shipping-build loss
 
@@ -77,13 +79,14 @@ Against before, 22 of 30 instruction medians rise. The ±2% ledger band is not a
 
 Native N=25/50; Callgrind N=10/20; two paired repeats. The native controller failed after capture on missing plan files; separate recovery rebuilt reports without recapture.
 Gzip level 6, zero-filled payloads, four streaming messages, 400 KiB server send buffers, queues 16. Bulk partitions use 1/2/3/4/64 messages.
-Current-source cold-process, entropy/read-all, overload, physical networks and broader platform/feature coverage remain open; older C12 cold results are not inherited.
+New-source cold-process, entropy/read-all, overload, physical networks and broader platform/feature coverage remain open; older cold results are not inherited. Checked noise payloads now support Prost TestService, but their performance matrix has not run.
 
 [Results, dated source and raw captures](evidence/grpc-ownership-20261024/README.md) · [Benchmark contract](benchmark-contract.md)
 
 ## Reproduce
 
 Use a clean checkout and keep outputs outside it. Exact paired commands, profiles and source pins are in the record.
+For Prost TestService noise runs, pass matching `--payload-pattern noise`, `--payload-seed`, `--req-bytes` and `--resp-bytes` to both `load` and `load-server`. The noise mode checks full request/response bodies; use identical benchmark source on both transports.
 
 ```sh
 source_commit=$(git rev-parse HEAD)
@@ -98,7 +101,10 @@ python3 scripts/grpc-counter-campaign.py \
   --payloads 1024,65536 --load-levels 1:1,1:16 --repeats 3
 ```
 
-**Validation:** 3,840 workspace tests pass (nine existing ignores); selected ASAN/leak checks pass 961 (one existing ignore). Resource previews pass 34.37 / 30.80 seconds; both 24-hour runs are advancing in the 22:48:16 UTC snapshot, with results pending.
-Older `7c02eb38` days are interrupted, with no terminal outcome or known exit cause. Production readiness and broad superiority remain unproved. [Next work](../TODO.md#current-priorities)
+**Earlier runtime validation:** `933bf877` passes 3,840 workspace tests (nine existing ignores) and 961 selected ASAN/leak checks (one existing ignore). Both 24-hour attempts are now interrupted after an environment restart. The deadline run last recorded 12.35 hours; the general run has no final measured duration. Neither is a 24-hour pass.
+
+**Latest changes:** `af00f348` fixes required-field checks after merging proto2 messages. Its focused consumers and official conformance checks pass; the older workspace/resource results do not qualify the new source. The unadopted scratch candidate reduces one measured allocation site by 75%, but adds copies for custom contiguous codecs. Its endpoint matrix is unrun. A follow-up wake CPU diagnostic stopped before RPCs because this session denies local listeners.
+
+Production readiness and broad superiority remain unproved. [Next work](../TODO.md#current-priorities)
 
 [Separate ready-set experiment](evidence/grpc-ready-set-20261024/README.md): 87 focused checks and 360,000 RPCs pass, but CPU results are mixed; the change is not adopted.
