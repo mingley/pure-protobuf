@@ -302,6 +302,10 @@ jobs:
       - name: Install protoc
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - run: cargo test -p protobuf-tonic
+      - name: Native tonic adapters without upstream gzip
+        run: cargo test --locked -p pbrs-grpc --features tonic --test tonic_opaque_transport
+      - name: Independent tonic gzip decoder compatibility
+        run: cargo test --locked -p pbrs-grpc --features tonic-gzip --test tonic_opaque_transport
 
   # Source-bind proof must run here: Linux CI never saw the macOS
   # AddrNotAvailable failure. Do not treat bind failure as success.

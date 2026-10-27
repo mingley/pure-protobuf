@@ -1,0 +1,32 @@
+{
+  "files": [
+    {
+      "bytes": 5620,
+      "path": "README.md",
+      "sha256": "1b38467c403c5b6d2a82777c60692f96c34337f36d8f110ccbfa97ac4ed6c8a9"
+    },
+    {
+      "bytes": 2723,
+      "path": "check.py",
+      "sha256": "fef5e4114e46d33e3f41212a19f8a465e00aa30e44d8ebd3f27dc400c0179d4c"
+    },
+    {
+      "bytes": 5158,
+      "path": "results.json",
+      "sha256": "f2d2e97aefd24fa9969a7b1b4e11b2c172639d5eb4ac357660ced51daa349f54"
+    },
+    {
+      "bytes": 1589740,
+      "path": "records.json",
+      "sha256": "aa714f7af90cc0eef766ebf68af6641acb41cf9f6a0eaa5c8193a7cb2c6bd055"
+    },
+    {
+      "bytes": 20686,
+      "path": "source.patch.json",
+      "sha256": "1b088aef25731bbc7e6ec821cf477e3703f465f8739247a9d728204a5bdda1e1"
+    }
+  ],
+  "production_ready": false,
+  "qualified": false,
+  "schema": "pbrs.c16-readable-capsule.v1"
+}

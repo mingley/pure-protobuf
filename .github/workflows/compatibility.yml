@@ -17,6 +17,9 @@ on:
     paths:
       - 'rust_out_shared/**'
       - 'scripts/test-rust-out-shared.sh'
+      - 'scripts/shared_consumer_*.py'
+      - 'tests/test_shared_consumer_report.py'
+      - 'tests/fixtures/shared-consumer-20-suites.log'
       - 'scripts/fetch-protobuf.sh'
       - 'scripts/check-upstream-cases.py'
       - 'tests/interop/**'
@@ -30,7 +33,7 @@ permissions:
   contents: read
 
 jobs:
-  # Run original Google rust/test/shared integration suites (19 crates, 0 failures)
+  # Run 19 original Google shared suites plus the local arena recursion suite.
   # against protoc --rust_out kernel=upb and pure-protobuf (pbrs) runtime.
   shared-consumers:
     runs-on: ubuntu-latest
@@ -54,7 +57,7 @@ jobs:
           key: pinned-protoc-${{ runner.os }}-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
       - name: Build pinned protoc
         run: ./scripts/build-pinned-protoc.sh
-      - name: Run original shared consumer tests (19 crates)
+      - name: Run shared consumer tests (19 upstream + 1 local)
         env:
           PROTOC: ${{ github.workspace }}/target/pinned-protoc-build/protoc
         run: ./scripts/test-rust-out-shared.sh
@@ -89,20 +92,8 @@ jobs:
       - name: Check shared test files drift against upstream pin
         run: |
           set -euo pipefail
-          # Check all 19 test files exist in upstream pin
-          for f in rust_out_shared/tests/*.rs; do
-            fname="$(basename "$f")"
-            if [[ "$fname" == "utf8_test.rs" ]]; then
-              src="third_party/protobuf/rust/test/shared/utf8/utf8_test.rs"
-            else
-              src="third_party/protobuf/rust/test/shared/$fname"
-            fi
-            if [[ ! -f "$src" ]]; then
-              echo "Missing upstream source for $fname at $src" >&2
-              exit 1
-            fi
-          done
-          echo "All 19 test crate sources verified against upstream pin."
+          python3 scripts/shared_consumer_inventory.py \
+            --root "$PWD" --upstream third_party/protobuf/rust/test/shared
       - name: Committed copies and stub flavours drift
         run: |
           set -euo pipefail

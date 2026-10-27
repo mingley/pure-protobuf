@@ -43,6 +43,10 @@ Benchmark `eac85b04` adds checked zero/noise payloads for Prost TestService: fiv
 unit checks, 24 positive captures / 48 RPCs and eight expected rejection controls
 pass. These are correctness checks, not performance results.
 
+The [compatibility follow-up](docs/evidence/grpc-compatibility-fallback-20261026/README.md)
+records the hosted public-API, MSRV and shared-suite inventory failures and their
+repairs. Full hosted CI remains separate from the recorded local checks.
+
 The earlier runtime `933bf877` passes 3,840 all-feature workspace tests and 961
 selected ASAN/leak tests. Its [dated record](docs/evidence/grpc-ownership-20261024/README.md)
 also has 1,116 native/instruction captures / 29,700 successful RPCs; bulk,
@@ -60,7 +64,7 @@ instruction medians rise versus `7c02eb38`. These metrics answer different quest
 | Work | Next result | Completion criterion |
 |---|---|---|
 | Unary-server CPU and scheduling | Find a repeatable CPU improvement with fresh tonic controls. | The latest wake proxy passes 100 focused checks and 360,000 RPCs, but CPU is mixed; adoption remains deferred. A later affinity diagnostic cannot open a local listener in this session and records no RPCs. |
-| Identity/gzip bytes and bulk | Measure bounded encode reuse across endpoints, zero/noise and cold/warm streams. | The candidate passes 738 library checks and reduces four 1 MiB Prost scratch requests by 75%; custom contiguous codecs add allocations/copies. Endpoint comparisons are unrun, so it is not adopted. Keep the 64-message loss in scope. |
+| Identity/gzip bytes and bulk | Measure bounded encode reuse across endpoints, zero/noise and cold/warm streams. | The opt-in follow-up removes custom-codec bridge copies while retaining the 75% Prost scratch-site reduction. It passes 706 selected checks (34 listener cases filtered), but layout grows by 8 B and endpoint results are unmeasured. It is not adopted. Keep the 64-message loss in scope. |
 | QG-06: sustained resources | Run full exact-source general/deadline days on a host retained for at least 24 hours. | Both `933bf877` attempts are interrupted, not running. Deadline progress ends at 12.35 measured hours; general progress ends at 13,673 cancellation cycles without a final duration. Preserve finite limits, ownership and recovery. |
 | Remaining backend destruction | Audit generic current-frame panic, queue-clear, reset and EOF owners beyond the repaired retired DATA frames. | Independent bounded controls before broader safety claims; no hidden work detached from resource ownership. |
 | Required-field merge coverage | Extend final-tree initialization checks to DynamicMessage and MiniTable singular merges. | Keep explicit split-field, oneof/map, recursion and malformed-wire controls; generated-code conformance does not prove every kernel path. |

@@ -1,0 +1,151 @@
+{
+  "base": "e7595eb7640c60d5dfdaa708017ca9378e5e5332",
+  "broad_superiority": false,
+  "combined_root_checks": {
+    "core_and_dynamic_consumer": {
+      "bytes": 1496,
+      "record": "architecture-c16-root-core-dyn.json",
+      "sha256": "128dfd024e711922f61559ea1349fbb4b9dc8c2b85e96f6422d4152b15214b94"
+    },
+    "core_passed": 113,
+    "inventory_contracts": {
+      "bytes": 1260,
+      "record": "architecture-c16-root-ci-contracts-v2.json",
+      "sha256": "8667a4232c2550a4cceae1b4b5176e1e6b24820c2bd18519902c1ffce4bd05b3"
+    },
+    "pinned_inventory": {
+      "bytes": 1218,
+      "record": "architecture-c16-root-ci-inventory-v2.json",
+      "sha256": "12d90baf73f03c6120e27551dc9c449b4c80238281d41a54ef080bb15368bf6a"
+    },
+    "public_consumer_passed": 2,
+    "socket_runtime_and_full_workspace_tests_claimed": false,
+    "workspace_all_features_compilation": {
+      "bytes": 1412,
+      "record": "architecture-c16-root-workspace-check.json",
+      "sha256": "7e3958c09416fae5f05b2e472faf048a38fcd6a014b3b355a16ecdf4a9a712c9"
+    }
+  },
+  "compatibility_repairs": {
+    "native_msrv": {
+      "default_compiled_tonic": false,
+      "default_compiler": "1.85.0",
+      "default_full_socket_runtime_pass": false,
+      "default_library_compiles": true,
+      "default_memory_checks": 62,
+      "lockfile_changed": false,
+      "optional_adapter_compiler": "1.88.0",
+      "plain_tonic_memory_checks": 33,
+      "proof": {
+        "bytes": 4871,
+        "record": "architecture-c16-msrv-proof.json",
+        "sha256": "4d801d24427b195aa363ff6b851829b93378c8348e6f7149239df42de7970740"
+      },
+      "tonic_gzip_memory_checks": 34
+    },
+    "shared_consumers": {
+      "captured_ci_execution_failures": 0,
+      "captured_ci_execution_passed_tests": 248,
+      "captured_ci_execution_suites": 20,
+      "excluded_upstream_suites": 5,
+      "local_suites": 1,
+      "log_replay_is_new_rust_execution": false,
+      "nested_review_detector_before_failed": 3,
+      "proof": {
+        "bytes": 4986,
+        "record": "architecture-c16-ci-proof-v2.json",
+        "sha256": "8fc2b7c75089aa27ace4a9018c61beaf2c9fe2815c3fecc901a0d9e20fa568f0"
+      },
+      "python_contract_checks": 14,
+      "same_detector_after_passed": 3,
+      "upstream_suites": 19
+    },
+    "wire_out_dynamic": {
+      "baseline_compile_error": "E0038",
+      "fixed_core_checks": 113,
+      "fixed_public_consumer_checks": 2,
+      "full_local_semver_cli_pass": false,
+      "helper_runtime_body_unchanged": true,
+      "proof": {
+        "bytes": 4045,
+        "record": "architecture-c16-semver-dyn-proof.json",
+        "sha256": "2e8b88a54f4c6838e2aabf1d31d3d7f89dcf200c77315c7dc89ede001d1eced0"
+      }
+    }
+  },
+  "experimental_encode": {
+    "adopted": false,
+    "base": "06ec9f23d1f1a40af4c6b4b4e1def2f4064dfcb2",
+    "custom_scratch_plus_serialization_bytes_four_messages": {
+      "body_1kib": [
+        5167,
+        1027
+      ],
+      "body_1mib": [
+        5242932,
+        4194320
+      ]
+    },
+    "custom_serialization_allocations_four_messages": [
+      8,
+      0
+    ],
+    "decoded_frames_per_version": 88,
+    "existing_ignores": 1,
+    "full_library_pass": false,
+    "lease_acquired": 14,
+    "lease_released": 14,
+    "listener_cases_filtered": 34,
+    "paired_cases_per_version": 34,
+    "patch": {
+      "decoded_sha256": "1895fbd76de274a2f21957959412ba0a8da6d9454f7b39e0724dc9c257ab00a7",
+      "path": "source.patch.json"
+    },
+    "proof": {
+      "bytes": 12415,
+      "record": "architecture-c16-bytes-fallback-summary.json",
+      "sha256": "fec6fea5f6b091d808b19aa520dd19caed05171b913779536ddc8327d0cacdce"
+    },
+    "prost_plaintext_scratch_bytes_four_1mib_messages": [
+      1048580,
+      1048580
+    ],
+    "prost_rows_exactly_equal": true,
+    "prost_rows_per_version": 32,
+    "raw_site_rows": {
+      "bytes": 43288,
+      "record": "architecture-c16-bytes-fallback-site-analysis.json",
+      "sha256": "c832b788373c37ce1f1f412ff4903a86ed9f6a5e2486a14338a4a5f534f6a578"
+    },
+    "selected_library_failed": 0,
+    "selected_library_passed": 706,
+    "shipping_endpoint_result": false,
+    "test_profile_encode_scratch_bytes": [
+      32,
+      40
+    ],
+    "test_profile_out_batch_bytes": [
+      192,
+      200
+    ]
+  },
+  "hosted_failure_scope": {
+    "ci_run": 40429928826,
+    "compatibility_run": 40429928970,
+    "corrected_hosted_run_pass_claimed": false,
+    "head": "e7595eb7640c60d5dfdaa708017ca9378e5e5332",
+    "msrv_job": 121944846241,
+    "semver_job": 121944846163,
+    "shared_consumer_job": 121944846522,
+    "upstream_drift_job": 121944846461
+  },
+  "limits": [
+    "The complete corrected hosted CI and downstream semver gates must still run.",
+    "The encode candidate remains isolated and unadopted; endpoint CPU, latency, throughput and retention qualification remain open.",
+    "Existing resource-day interruptions and leak-check limitations are not resolved by these compatibility repairs.",
+    "No production-readiness or broad tonic/prost superiority result is established."
+  ],
+  "production_ready": false,
+  "qualified": false,
+  "schema": "pbrs.c16-compatibility-fallback-publication.v1"
+}

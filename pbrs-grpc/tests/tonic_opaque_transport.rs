@@ -2,7 +2,9 @@
 
 #![cfg(feature = "tonic")]
 
-use bytes::{Buf, Bytes, BytesMut};
+#[cfg(feature = "tonic-gzip")]
+use bytes::Buf;
+use bytes::{Bytes, BytesMut};
 use http::{Request, Response};
 use http_body::{Body, Frame};
 use pbrs_grpc::tonic_server::TonicServerExt;
@@ -38,10 +40,13 @@ struct State {
     dropped: AtomicUsize,
     input_dropped: AtomicUsize,
     input_content_length: AtomicUsize,
+    #[cfg(feature = "tonic-gzip")]
     decoded_calls: AtomicUsize,
 }
 
+#[cfg(feature = "tonic-gzip")]
 struct HelloDecoder;
+#[cfg(feature = "tonic-gzip")]
 impl tonic::codec::Decoder for HelloDecoder {
     type Item = pbrs_grpc::hello::HelloRequest;
     type Error = tonic::Status;
@@ -92,19 +97,26 @@ impl Service<Request<TonicBody>> for Probe {
         Box::pin(async move {
             let mut frames = VecDeque::new();
             if probe.decode_input {
-                let _guard = InputDrop(probe.state.clone());
-                let mut input = tonic::Streaming::new_request(
-                    HelloDecoder,
-                    request.into_body(),
-                    Some(tonic::codec::CompressionEncoding::Gzip),
-                    None,
-                );
-                while let Some(message) = input.message().await? {
-                    let encoded = pbrs::Serialize::serialize(&message)
-                        .map_err(|error| tonic::Status::internal(error.to_string()))?;
-                    frames.push_back(Ok(Frame::data(identity_wire(&encoded))));
-                    probe.state.decoded_calls.fetch_add(1, Ordering::SeqCst);
+                #[cfg(feature = "tonic-gzip")]
+                {
+                    let _guard = InputDrop(probe.state.clone());
+                    let mut input = tonic::Streaming::new_request(
+                        HelloDecoder,
+                        request.into_body(),
+                        Some(tonic::codec::CompressionEncoding::Gzip),
+                        None,
+                    );
+                    while let Some(message) = input.message().await? {
+                        let encoded = pbrs::Serialize::serialize(&message)
+                            .map_err(|error| tonic::Status::internal(error.to_string()))?;
+                        frames.push_back(Ok(Frame::data(identity_wire(&encoded))));
+                        probe.state.decoded_calls.fetch_add(1, Ordering::SeqCst);
+                    }
                 }
+                #[cfg(not(feature = "tonic-gzip"))]
+                return Err(tonic::Status::unimplemented(
+                    "the independent gzip oracle requires tonic-gzip",
+                ));
             } else if probe.read_input {
                 let _guard = InputDrop(probe.state.clone());
                 let mut body = request.into_body();
@@ -812,6 +824,7 @@ async fn finite_inbound_gzip_cap_normalizes_a_complete_message() {
     assert_eq!(fixture.state.calls.load(Ordering::SeqCst), 1);
 }
 
+#[cfg(feature = "tonic-gzip")]
 #[tokio::test]
 async fn gzip_members_reach_tonics_decoder_as_one_complete_protobuf_message() {
     // Fixed HelloRequest { name: "abc" } protobuf bytes. Splitting inside its

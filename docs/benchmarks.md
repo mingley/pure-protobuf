@@ -103,7 +103,7 @@ python3 scripts/grpc-counter-campaign.py \
 
 **Earlier runtime validation:** `933bf877` passes 3,840 workspace tests (nine existing ignores) and 961 selected ASAN/leak checks (one existing ignore). Both 24-hour attempts are now interrupted after an environment restart. The deadline run last recorded 12.35 hours; the general run has no final measured duration. Neither is a 24-hour pass.
 
-**Latest changes:** `af00f348` fixes required-field checks after merging proto2 messages. Its focused consumers and official conformance checks pass; the older workspace/resource results do not qualify the new source. The unadopted scratch candidate reduces one measured allocation site by 75%, but adds copies for custom contiguous codecs. Its endpoint matrix is unrun. A follow-up wake CPU diagnostic stopped before RPCs because this session denies local listeners.
+**Latest changes:** `af00f348` fixes required-field checks after merging proto2 messages. Its focused consumers and official conformance checks pass; the older workspace/resource results do not qualify the new source. The initial scratch candidate reduces one measured allocation site by 75%, but adds custom-codec copies. An [opt-in follow-up](evidence/grpc-compatibility-fallback-20261026/README.md) removes that bridge while preserving Prost site counts; its layout grows by 8 B. Both endpoint matrices remain unrun. A follow-up wake CPU diagnostic stopped before RPCs because this session denies local listeners.
 
 Production readiness and broad superiority remain unproved. [Next work](../TODO.md#current-priorities)
 

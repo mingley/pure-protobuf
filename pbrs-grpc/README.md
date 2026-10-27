@@ -31,6 +31,8 @@ Features are opt-in:
 |---|---|
 | `prost` | Existing `prost::Message` types on the native transport. |
 | `tower` | Client middleware or server co-hosting with axum/Hyper. |
+| `tonic` | Tonic transport adapters; requires Rust 1.88. |
+| `tonic-gzip` | Tonic's gzip codec; requires Rust 1.88. Native gzip needs no feature. |
 | `grpc-web` | Unary and server-streaming gRPC-Web on the native HTTP/2 listener. |
 | `otel` | OpenTelemetry metrics and traces with explicitly installed observers. |
 | `native-roots` | Client certificate trust from the operating system. |
