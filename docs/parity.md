@@ -1,9 +1,11 @@
 # Tonic/prost parity and performance proof
 
-The full claim does not pass. Direct comparisons found missing functionality,
-behavior differences and a substantial codec performance loss. Two transport
-bugs found by the audit are fixed. The [dated evidence](evidence/parity-proof-20261027/README.md)
-contains the raw failures, successful controls, source pins and all benchmark rows.
+The audit found concrete gaps and performance losses. The follow-up fixes
+server scheduling costs and adds an owned-message profile for applications
+that read nested messages. Full tonic/prost parity and a world performance
+ranking remain open. The [original audit](evidence/parity-proof-20261027/README.md)
+and [performance fixes](evidence/performance-fixes-20261027/README.md) retain
+failures, controls, source pins and all measured rows.
 
 ## Compatibility
 
@@ -27,39 +29,82 @@ equivalent today. Six `prost-build` configuration probes reproduce API and
 representation customization gaps; these alone do not establish wire failures.
 HTTP/1.1 gRPC-Web is available through the documented Tower/Hyper recipe.
 
+Both lazy and owned bindings pass the pinned protobuf 35.1 binary/JSON and
+text conformance suite through maximum Edition 2023. The
+[follow-up record](evidence/performance-fixes-20261027/README.md) retains the
+isolated owned regeneration and the unchanged default-binding checks.
+
 The [comparison guide](guides/comparison.md) covers the broader migration
 surface. Passing a finite corpus establishes its tested behavior; it cannot
 establish every possible schema, API or wire input.
 
 ## Performance
 
-The current codec comparison includes parsing, reading every populated field
-and dropping each result. Both backends receive the same bytes. Five randomized
-process pairs per row use separate CPU and allocation builds.
+The server now coalesces wakes that arrive while its connection task is
+running. A bounded number of local polls can make progress before rescheduling;
+Tokio's cooperative budget still limits work. This removes redundant scheduler
+round trips without changing codecs or handlers.
 
-| Work | pbrs CPU | Prost CPU | Median paired pbrs/prost ratio |
+| Same-Prost-codec work | Native server before | Native server after | Median paired CPU change |
 |---|---:|---:|---:|
-| 8-level message, read every field | 671 ns | 149 ns | 4.47× |
-| 64-level message, read every field | 28,914 ns | 1,722 ns | 16.92× |
-| 64-level message, parse only | 791 ns | 1,644 ns | 0.48× |
+| 1 KiB unary RPC | 45 µs/RPC | 23.5 µs/RPC | −54.8% |
+| 64 × 1 KiB pipeline RPC | 270 µs/RPC | 200 µs/RPC | −28.0% |
 
-Ratios above one are losses. Parsing alone leaves work deferred. Source review
-found that reading each nested child validates its remaining descendants again;
-a 64-node chain causes 2,016 validation visits before counting materialization.
-That repeated work needs repair. Scalar and packed-field rows do better than
-prost; the complete evidence retains all wins and losses.
+Five before/after pairs complete 1,890,000 RPCs with no terminal errors. Fresh
+tonic controls have a unary server median of 32.5 µs/RPC; the paired
+native/tonic ratio is 0.723, with one pair above one. The client before/after
+result is inconclusive. Paired changes differ from ratios of displayed medians.
+These shared-host measurements establish a local improvement, not a ranking.
 
-A separate same-Prost-codec 1 KiB unary comparison gives native client CPU
-medians of 21 µs/RPC versus tonic’s 66 µs, and native server medians of
-46 µs versus 31 µs. Pipeline results vary widely. These are local endpoint
-diagnostics; all repeats and measurement limits are in the dated record.
+For nested messages, choose storage when generating code:
+
+- The default lazy profile validates child wire during parsing and constructs
+  child messages on access. It is useful for partial reads and forwarding
+  messages unchanged, including cached encoding.
+- `Config::owned_message_fields(true)` constructs singular children during
+  parsing. Reading the resulting tree avoids repeated descendant validation.
+  Use it when applications read or mutate most of a nested tree. Imported
+  message types keep the profile with which they were generated.
+
+| Parse, read and drop | Default lazy CPU | Owned CPU | Prost CPU | Paired owned/prost |
+|---|---:|---:|---:|---:|
+| 8-level message | 660 ns | 130 ns | 144 ns | 0.902 |
+| 64-level message | 29,925 ns | 1,523 ns | 1,594 ns | 0.963 |
+| Mixed RPC-shaped message | 908 ns | 906 ns | 860 ns | 1.053 |
+
+The deep-64 owned read is about 19.6 times faster than the lazy read in
+this comparison. It requests 1,512 allocation bytes versus lazy's 5,344 and
+Prost's 1,008. Parsing alone does more work up front: deep-64 owned CPU is
+1,441 ns versus lazy's 809 ns. The mixed-message full read still loses to
+Prost. These are five randomized process pairs per row, using separate CPU
+and allocation builds; the complete record includes every fixture and repeat.
+
+Encoding favors the default layout for these nested fixtures. At depth 64,
+owned first encode costs 567 ns versus lazy's 26 ns and Prost's 6,831 ns;
+owned cached encode costs 329 ns versus 30 ns and 6,750 ns. The owned profile
+also allocates the full tree during a partial read. These tradeoffs are why
+the default remains lazy.
+
+The [codegen guide](guides/codegen.md#owned-nested-message-fields) shows the
+builder and plugin options. Owned messages use a compact size cache; very
+large sizes are recomputed rather than truncated. This does not impose a
+message-size limit. Default generated output remains unchanged.
+
+The [complete performance record](evidence/performance-fixes-20261027/README.md)
+separates parsing, full and partial reads, encoding, requested allocation bytes
+and endpoint CPU. It retains slower cases and rejected experiments. The
+[original audit](evidence/parity-proof-20261027/README.md) explains why lazy
+read-all traversal is expensive: a 64-node chain revalidates 2,016 descendant
+nodes before materialization. The owned profile avoids that traversal; it does
+not change the default lazy layout.
 
 The compiler audit checks generated behavior, not generator or consumer build
 speed. The [earlier codegen matrix](evidence/sb09-codegen-matrix.md) retains
 build-cost losses; it does not establish a ranking for the current generator.
+A follow-up output-buffer experiment reduced peak RSS but increased CPU in all
+six measured generator cases, so it was rejected.
 
-These measurements ran on one shared x86_64 VM. They identify an engineering
-problem; they do not establish a performance ranking. A scoped leadership claim
+These measurements ran on one shared x86_64 VM. A scoped leadership claim
 needs matched competitors, workloads, resources, successful calls and repeated
 measurements on controlled hosts. The [benchmark contract](benchmark-contract.md)
 defines those requirements. Comparing against tonic and prost alone cannot

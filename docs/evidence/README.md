@@ -5,10 +5,16 @@ stopped. They are dated investigations, usually local diagnostics. A result
 belongs to its recorded revision, host, workload, and peer versions; it does
 not automatically describe today's code.
 
+The [server and nested-message fixes](performance-fixes-20261027/README.md)
+record lower server CPU from coalesced connection wakes and an explicit owned
+message profile. Full, partial and encode comparisons retain their tradeoffs,
+along with rejected decoder and generator experiments.
+
 The [direct parity audit](parity-proof-20261027/README.md) retains protobuf
 behavior and embedded-runtime counterexamples, two transport repairs, all
-3,921 passing workspace tests, and complete codec/RPC comparisons. Deep
-read-all performance loses to prost; no overall ranking is established.
+3,921 passing workspace tests, and the earlier codec/RPC comparisons. Its
+lazy read-all loss motivated the profile above. Neither record establishes
+full parity or an overall ranking.
 
 The [allocation and generator follow-up](efficiency-20261027/README.md)
 records allocation-free MiniTable length calculation, canonical unsigned map

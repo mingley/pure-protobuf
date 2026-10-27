@@ -6,15 +6,43 @@
 The measurements below show lower allocation costs in some workloads and losses
 in others. CPU results are mixed. There is no qualified overall performance ranking.
 
-## Direct comparison, October 27
+## Server scheduling and nested messages, October 27
 
-The [parity and performance audit](parity.md) tests the broad claim directly.
-The current runtime's depth-64 parse-and-read-all workload uses 16.92× prost's
-CPU in five local pairs, despite winning parse-only. Depth 8 costs 4.47×.
-The [complete record](evidence/parity-proof-20261027/README.md) retains all
-16 codec rows, separate endpoint measurements, failures and source pins.
-These are shared-host diagnostics. The codegen audit checks compatibility;
-it does not establish a generator-speed ranking.
+The [latest performance fixes](evidence/performance-fixes-20261027/README.md)
+follow the [direct parity audit](parity.md). Coalescing connection wakes lowers
+native-server CPU in five local before/after pairs: unary 1 KiB medians move
+from 45 to 23.5 µs/RPC, a median paired reduction of 54.8%. A 64 × 1 KiB
+pipeline moves from 270 to 200 µs/RPC, a paired reduction of 28.0%. All
+1,890,000 RPCs complete without terminal errors. Fresh tonic controls and
+client results, including inconclusive comparisons, remain in the record.
+
+An explicit [owned-message codegen profile](guides/codegen.md#owned-nested-message-fields)
+constructs nested messages during parsing and avoids repeated validation when
+reading their fields. The default lazy profile preserves its advantages for
+partial reads and forwarding unchanged messages. The complete record compares
+full reads, partial reads and encoding before recommending either profile.
+
+| Parse, read and drop | Default lazy | Owned | Prost | Paired owned/prost CPU |
+|---|---:|---:|---:|---:|
+| 8-level message | 660 ns | 130 ns | 144 ns | 0.902 |
+| 64-level message | 29,925 ns | 1,523 ns | 1,594 ns | 0.963 |
+| Mixed RPC-shaped message | 908 ns | 906 ns | 860 ns | 1.053 |
+
+The deep-64 owned read is about 19.6 times faster than the lazy read locally,
+while the mixed-message read still loses to Prost. Owned deep-64 parsing alone
+costs more than lazy parsing, because it constructs the tree immediately.
+
+Encoding favors lazy storage in these fixtures. At depth 64, owned first
+encode costs 567 ns versus lazy's 26 ns and Prost's 6,831 ns. Cached encode
+costs 329 ns versus 30 ns and 6,750 ns. The
+[complete record](evidence/performance-fixes-20261027/README.md#partial-reads-and-encoding)
+includes partial reads, first-child mutation, lifecycle costs and allocations.
+
+These are shared-host diagnostics, not a qualified ranking. The
+[original audit](evidence/parity-proof-20261027/README.md) retains the earlier
+16 codec rows, including the lazy depth-64 read-all loss of 16.92× prost's CPU.
+That result still describes the default layout at its source pin. The codegen
+audit checks compatibility; it does not establish a generator-speed ranking.
 
 ## Integrated changes, October 27
 

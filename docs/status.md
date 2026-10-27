@@ -1,5 +1,13 @@
 # Implementation status
 
+The [server and nested-message follow-up](evidence/performance-fixes-20261027/README.md)
+adds coalesced connection wakes and an explicit owned-message codegen profile.
+Five local pairs show lower native-server CPU; owned storage avoids repeated
+validation when applications read nested fields. The default lazy layout
+preserves its partial-read and unchanged-forwarding behavior. See the
+[benchmark guide](benchmarks.md) for costs and the
+[codegen guide](guides/codegen.md#owned-nested-message-fields) to select a profile.
+
 The [direct parity audit](evidence/parity-proof-20261027/README.md) at
 `e14cccb5` passes 3,921 all-feature workspace tests with nine existing ignores,
 strict linting, Rust 1.85 native/Tower checks and official protobuf conformance.

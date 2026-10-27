@@ -46,8 +46,10 @@ The [RPC harness guide](../../rpc-bench/README.md) covers all call shapes,
 compression, TLS, open-loop arrivals and independent peers. For noise payloads,
 both endpoints need matching `--payload-pattern=noise`, `--payload-seed`,
 `--req-bytes` and `--resp-bytes`; that mode currently requires Prost messages.
-The [latest evidence capsule](../evidence/grpc-encode-reuse-20261026/README.md)
+The [encode evidence capsule](../evidence/grpc-encode-reuse-20261026/README.md)
 retains the exact drivers and commands for the one/four/64-message comparisons.
+The [server CPU follow-up](../evidence/performance-fixes-20261027/README.md)
+adds separate CPU captures for wake coalescing.
 
 ## Message codecs
 
@@ -55,6 +57,23 @@ Use the [codec survey](../../tonic-bench/README.md) for encode, decode and
 field-access comparisons. Keep parse-only, parse-and-read, owned messages and
 borrowed views separate. Include first encode and unchanged repeated encode;
 they exercise different work.
+
+For a quick depth-64 read-all probe using the pinned Prost harness:
+
+```sh
+cargo run --locked --release --manifest-path tests/proof/codec_benchmark/Cargo.toml \
+  -- nested_64 pbrs read_all 10000 3
+cargo run --locked --release --manifest-path tests/proof/codec_benchmark/Cargo.toml \
+  --features owned-messages -- nested_64 pbrs read_all 10000 3
+cargo run --locked --release --manifest-path tests/proof/codec_benchmark/Cargo.toml \
+  --features owned-messages -- nested_64 prost read_all 10000 3
+```
+
+Use the [codec harness guide](../../tests/proof/codec_benchmark/README.md) for
+complete paired runs and separate allocation builds. The
+[storage guide](../guides/codegen.md#owned-nested-message-fields) explains how
+to choose the application's profile. Keep parsing, full reads, partial reads
+and encoding separate; a quick single-row probe cannot establish a ranking.
 
 ## Code generation and consumer builds
 

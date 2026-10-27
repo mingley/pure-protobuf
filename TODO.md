@@ -7,12 +7,14 @@ followed by measured improvements to client and server efficiency. The
 comparisons and checks; [task cards](docs/plan/world-class/tasks.json) carry
 acceptance criteria and dependencies.
 
-The [direct parity audit](docs/parity.md) supplies current counterexamples.
-PK-27/PK-29 now have a reproducible deep read-all loss: a 64-node chain costs
-16.92× prost CPU locally because lazy materialization repeats descendant
-validation. Compare a one-pass owned path with the sparse path while preserving
-required-field, merge, malformed-input and recursion checks. Alloc-only runtime
-support, custom executors and idle keepalive policy also remain parity work.
+The [latest performance fixes](docs/evidence/performance-fixes-20261027/README.md)
+address server scheduling and nested-message reads. Connection wake coalescing
+lowers native-server CPU in five local pairs. The explicit
+`owned_message_fields(true)` profile constructs children during parsing and
+avoids the repeated validation measured by PK-27/PK-29. Keep the default lazy
+profile for its sparse-read and forwarding advantages; neither profile wins
+every workload. The [parity summary](docs/parity.md) retains remaining gaps,
+including alloc-only runtime support, custom executors and idle keepalive policy.
 
 Michael Ingley coordinates assignments and reviews. A card marked `done`
 means its recorded deliverable was accepted; it does not certify the whole
@@ -80,8 +82,10 @@ also has 1,116 native/instruction captures / 29,700 successful RPCs; bulk,
 shipping-build and tracing controls remain separate. Those results do not
 qualify later source changes.
 
-The [benchmarks](docs/benchmarks.md) identify the next costs. Native-server
-1 KiB identity unary CPU slopes are 30–56 µs/RPC versus fresh tonic's 24–30.
+The [benchmarks](docs/benchmarks.md) identify the next costs. The latest
+1 KiB unary server comparison improves from 45 to 23.5 µs/RPC, with a fresh
+tonic median of 32.5 µs/RPC. Broader concurrency, transport and latency
+comparisons remain open. Earlier allocation measurements retain their own pins.
 Four-message 1 MiB noise bidi still requests 35.53% more client bytes and
 37.23% more server bytes than tonic/prost; zero-filled traffic now requests
 13.50% / 14.39% fewer bytes. The 64 × 1 KiB identity pipeline client requests
@@ -90,13 +94,13 @@ retain their own pins in the [historical tables](docs/benchmarks/grpc-20261024.m
 
 | Work | Next result | Completion criterion |
 |---|---|---|
-| Unary-server CPU and scheduling | Find a repeatable CPU improvement with fresh tonic controls. | The new counters-off campaign completes 272,160 successful RPCs; repeats remain mixed and native unary-server CPU still loses to tonic in two of three paired slopes. Earlier wake experiments remain unadopted. |
+| Unary-server CPU and scheduling | Extend the measured wake-coalescing improvement to broader workloads. | Five unary and pipeline server pairs improve, across 1,890,000 successful RPCs. Keep fresh controls, sibling fairness, cancellation, cooperative scheduling and all losing repeats; dedicated-host qualification remains open. |
 | Identity/gzip bytes and bulk | Reduce remaining noise and small-pipeline costs. | Bounded reuse now has endpoint measurements across zero/noise and one/four/64-message streams. Custom contiguous codecs keep their original path. Preserve the remaining noise and 64-message identity-client losses. |
 | QG-06: sustained resources | Run full exact-source general/deadline days on a host retained for at least 24 hours. | Both `933bf877` attempts are interrupted, not running. Deadline progress ends at 12.35 measured hours; general progress ends at 13,673 cancellation cycles without a final duration. Preserve finite limits, ownership and recovery. |
 | Remaining backend destruction | Audit generic current-frame panic, queue-clear, reset and EOF owners beyond the repaired retired DATA frames. | Independent bounded controls before broader safety claims; no hidden work detached from resource ownership. |
 | Remaining protobuf compatibility | Extend the cross-runtime corpus for groups, extensions, unknowns and the remaining upb kernel. | Keep split-field, oneof/map, recursion and malformed-wire controls; generated-code conformance does not prove every kernel path. |
 | MiniTable parse cost | Reduce the measured cost of the group and unknown-field repair. | The 100-fragment non-group fixture rises about 5% with no allocation increase. Preserve unknowns, required fields, recursion and group framing; three attempted layout changes did not improve it. |
-| PK-27, PK-29: owned read-all decode | Compare one checked singular merge with lazy access on equal sparse/read-all corpora. | Preserve required/merge/oneof/extensions/unknown/recursion semantics and retention; repeated Query children already parse eagerly. |
+| PK-27, PK-29: owned read-all decode | Extend the explicit owned profile and investigate sparse lazy traversal without repeated validation. | Preserve required/merge/oneof/extensions/unknown/recursion semantics and retention. Keep full-read, partial-read and encode costs separate; default lazy storage is unchanged. |
 | Handler isolation and SB-27 | Complete per-side shipping CPU, latency, throughput, entropy, field-access, overload and physical-network comparisons. | Keep inline/task handoff costs, sibling fairness, actual concurrency and all losing scopes. |
 | CH-12, credentials and telemetry | Finish discovery/xDS, async OAuth2/JWT, typed extensions and remaining instruments. | Supported external consumers, bounded refresh/cancellation/labels and wire-compatible behavior. |
 | Platforms and release | Complete required feature/platform/consumer profiles and dedicated-host headroom/statistics. | Exact-source release checks and claimed workload scopes pass. |
