@@ -20,8 +20,9 @@ CPU, allocation and bulk losses. Each result names the source it tested;
 full performance and release qualification remain open.
 See [implementation status](docs/status.md) for compatibility details.
 
-If you use proto2 messages with required children, regenerate bindings to get
-the [required-field merge fix](docs/evidence/grpc-required-merge-20261026/README.md).
+If you use proto2 messages with required children or MessageSet, regenerate
+bindings to get the [merge](docs/evidence/grpc-required-merge-20261026/README.md)
+and [MessageSet](docs/evidence/grpc-parity-and-costs-20261027/README.md) fixes.
 Contributors should start with [what to work on next](TODO.md).
 
 <a id="why-use-pbrs"></a>

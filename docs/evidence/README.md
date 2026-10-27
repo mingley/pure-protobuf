@@ -15,6 +15,10 @@ comparative claim. No category currently has a qualified performance win.
 records 3,855 passing workspace tests, 448 allocation captures and 180 separate
 counters-off CPU captures. It includes remaining noise, CPU and pipeline losses.
 
+[Message merging and gRPC costs](grpc-parity-and-costs-20261027/README.md)
+adds dynamic and MiniTable merge controls, direct Tower input, frame-copy and
+generator measurements, and fresh endpoint comparisons with their losses.
+
 The [2026-10-22 day campaign](grpc-resource-soak-20261022/README.md) now has a
 terminal resource outcome. Its recorded revision and qualification limits apply.
 

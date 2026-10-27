@@ -3,15 +3,37 @@
 [Run benchmarks](benchmarks/running.md) · [Earlier results](benchmarks/grpc-20261024.md)
 · [Qualification](scoreboard.md)
 
-The latest measured implementation reduces large compressed-stream allocations
-and fixes an early-response race. CPU results are mixed, and several workloads
-still cost more than tonic/prost. There is no qualified overall performance ranking.
+The measurements below show lower allocation costs in some workloads and losses
+in others. CPU results are mixed. There is no qualified overall performance ranking.
 
-These results describe **`1d773f97` versus `e7595eb7`**, Linux x86_64, Rust 1.99.1,
-on a shared host. Both endpoints use Prost unless stated otherwise. Each result
-has a [dated source and raw captures](evidence/grpc-encode-reuse-20261026/README.md).
+## Integrated changes, October 27
 
-## Allocation bytes
+On a shared Linux x86_64 host with Rust 1.99.1, compare `a24c0e35` with the
+previous `1d773f97` implementation. Both endpoints use Prost. Allocation rows
+are median paired changes across two N/2N runs; they measure requested bytes,
+not resident memory. Each stream has 64 messages of 1 KiB, one connection and
+one call in flight.
+
+| Identity bidi pipeline | Before, MiB/RPC | After, MiB/RPC | Paired change |
+|---|---:|---:|---:|
+| Native client | 0.344 | 0.326 | −5.20% |
+| Native server | 0.317 | 0.328 | +3.79% |
+
+Repeats range from −11.58% to +1.18% on the client and −2.27% to +9.86% on
+the server. A separate counters-off run of 1 KiB unary calls gives native-server
+CPU medians of 46 and 38 µs/RPC, versus 30 µs for the fresh tonic/prost control.
+The shared host and coarse CPU sampling limit timing conclusions. The
+[dated source and raw captures](evidence/grpc-parity-and-costs-20261027/README.md)
+include all repeats, controls and smaller isolated measurements.
+
+## Compressed streams, October 26
+
+These results describe `1d773f97` versus `e7595eb7`, on a shared Linux x86_64
+host with Rust 1.99.1. Both endpoints use Prost unless stated otherwise. The
+[full record](evidence/grpc-encode-reuse-20261026/README.md) contains its own
+source and raw captures.
+
+### Allocation bytes
 
 Requested MiB per RPC, lower is better. These are allocator requests, not RSS.
 Four-message streams use 1 MiB bodies, gzip level 6, one connection and one RPC
@@ -32,7 +54,7 @@ bytes and 37.23% more server bytes**. Identity pipelined client bytes for
 64 × 1 KiB rise 2.98% versus baseline. All controls and repeated values remain
 in the complete record: 448 captures and 83,160 successful RPCs.
 
-## CPU
+### CPU
 
 A separate build with counters and profilers disabled completes 180 captures
 and 272,160 successful RPCs. Three repeats show mixed CPU changes. In 1 MiB

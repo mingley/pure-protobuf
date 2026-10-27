@@ -29,6 +29,11 @@ of eligible work, not an instruction to start every lane at once.
 
 ## Current priorities
 
+The [message merging and gRPC costs record](docs/evidence/grpc-parity-and-costs-20261027/README.md)
+adds final-tree required checks for dynamic and MiniTable messages, direct Tower
+stream input, less frame copying and shared generator metadata. It keeps the
+map-validation, codegen timing and endpoint losses alongside the improvements.
+
 The [bounded encoding and streaming record](docs/evidence/grpc-encode-reuse-20261026/README.md)
 adds 3,855 passing workspace tests, 448 allocation captures / 83,160 successful
 RPCs and 180 counters-off CPU captures / 272,160 successful RPCs. Large compressed
@@ -77,7 +82,7 @@ retain their own pins in the [historical tables](docs/benchmarks/grpc-20261024.m
 | Identity/gzip bytes and bulk | Reduce remaining noise and small-pipeline costs. | Bounded reuse now has endpoint measurements across zero/noise and one/four/64-message streams. Custom contiguous codecs keep their original path. Preserve the remaining noise and 64-message identity-client losses. |
 | QG-06: sustained resources | Run full exact-source general/deadline days on a host retained for at least 24 hours. | Both `933bf877` attempts are interrupted, not running. Deadline progress ends at 12.35 measured hours; general progress ends at 13,673 cancellation cycles without a final duration. Preserve finite limits, ownership and recovery. |
 | Remaining backend destruction | Audit generic current-frame panic, queue-clear, reset and EOF owners beyond the repaired retired DATA frames. | Independent bounded controls before broader safety claims; no hidden work detached from resource ownership. |
-| Required-field merge coverage | Extend final-tree initialization checks to DynamicMessage and MiniTable singular merges. | Keep explicit split-field, oneof/map, recursion and malformed-wire controls; generated-code conformance does not prove every kernel path. |
+| Remaining protobuf compatibility | Complete MiniTable group decoding and extend the cross-runtime corpus. | Keep split-field, oneof/map, recursion and malformed-wire controls; generated-code conformance does not prove every kernel path. |
 | PK-27, PK-29: owned read-all decode | Compare one checked singular merge with lazy access on equal sparse/read-all corpora. | Preserve required/merge/oneof/extensions/unknown/recursion semantics and retention; repeated Query children already parse eagerly. |
 | Handler isolation and SB-27 | Complete per-side shipping CPU, latency, throughput, entropy, field-access, overload and physical-network comparisons. | Keep inline/task handoff costs, sibling fairness, actual concurrency and all losing scopes. |
 | CH-12, credentials and telemetry | Finish discovery/xDS, async OAuth2/JWT, typed extensions and remaining instruments. | Supported external consumers, bounded refresh/cancellation/labels and wire-compatible behavior. |
@@ -127,7 +132,7 @@ card's `notes`.
 | TC-25 | P0 | TLS hard-wires the graviola provider; callers cannot pass rustls configs, providers or cert resolvers. |
 | GN-11 | P1 | Each generated file carries private well-known-type copies; `::pbrs::wkt` in the docs does not exist. |
 | TC-26 | P1 | Services cannot mount in tonic-typed frameworks (`NamedService`, tonic connect-info types). |
-| TC-27 | P1 | The Tower client adapter covers unary calls only. |
+| TC-27 | P1 | The original adapter covered unary only; all four shapes now have typed Tower adapters. Continue checking stream ownership and middleware lifetime semantics. |
 | TC-28 | P1 | The config-only `codec_path` route from tonic-prost-build works but is untested and undocumented. |
 | PK-28 | P2 | Serialized field order differs from prost, C++ and Go. |
 
