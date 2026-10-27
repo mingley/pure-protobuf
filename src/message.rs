@@ -115,6 +115,36 @@ pub trait MessageName {
     const FULL_NAME: &'static str;
 }
 
+/// Optional protobuf names and configured type URL for a generated message.
+///
+/// Enable emission with `pbrs::codegen::Config::enable_type_names` when the
+/// `codegen` feature is enabled. Unlike the always-on [`MessageName`], this
+/// trait also records the source package and a configurable type URL domain.
+/// Its naming and URL behavior follows Prost's `Name` API; it is a pbrs trait,
+/// not an implementation of `prost::Message`.
+///
+/// `pbrs::wkt::Any::from_msg(&message)` uses the configured URL when packing
+/// a message. With the gRPC helper type, pass `T::type_url()` explicitly to
+/// `pbrs_grpc::pb::Any::pack_with`.
+pub trait Name: Message + MessageName {
+    /// Simple message name exactly as written in its source `.proto`.
+    const NAME: &'static str;
+    /// Declared source package, excluding enclosing message names.
+    const PACKAGE: &'static str;
+
+    /// Full protobuf name, including enclosing messages and excluding a leading dot.
+    fn full_name() -> String {
+        Self::FULL_NAME.to_owned()
+    }
+
+    /// Configured domain followed by `/` and the full protobuf name.
+    ///
+    /// Without a matching domain rule, this has just the leading slash.
+    fn type_url() -> String {
+        format!("/{}", Self::full_name())
+    }
+}
+
 /// Marker implemented only by message types.
 pub trait MessageType {}
 

@@ -551,6 +551,15 @@ pub(crate) fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Set TCP_NODELAY on accepted TCP sockets, including TLS. Defaults to true. See [`{G}::ServerConfig::tcp_nodelay`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn tcp_nodelay(mut self, enabled: bool) -> Self {{ self.config = self.config.tcp_nodelay(enabled); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// TCP `SO_KEEPALIVE`. Applies to every call shape. See [`{G}::ServerConfig::tcp_keepalive`]."
     );
     let _ = writeln!(src, "    #[must_use]");
@@ -603,6 +612,15 @@ pub(crate) fn emit_kernel_server(
     let _ = writeln!(
         src,
         "    pub fn handshake_timeout(mut self, timeout: ::std::time::Duration) -> Self {{ self.config = self.config.handshake_timeout(timeout); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// Schedule accepted HTTP/2 connection drivers on `executor`. See [`{G}::Executor`] for runtime and helper-task scope."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn executor<E: {G}::Executor>(self, executor: E) -> {G}::Server<Self> {{ self.into_server().executor(executor) }}"
     );
     let _ = writeln!(
         src,

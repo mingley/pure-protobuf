@@ -232,6 +232,7 @@ impl From<&String> for Target {
 pub struct Endpoint {
     uri: Uri,
     config: ChannelConfig,
+    executor: crate::executor::TaskExecutor,
 }
 
 impl Endpoint {
@@ -271,6 +272,7 @@ impl Endpoint {
         Ok(Self {
             uri,
             config: ChannelConfig::default(),
+            executor: crate::executor::TaskExecutor::default(),
         })
     }
 
@@ -278,6 +280,19 @@ impl Endpoint {
     #[must_use]
     pub fn with_config(mut self, config: ChannelConfig) -> Self {
         self.config = config;
+        self
+    }
+
+    /// Schedule this endpoint's HTTP/2 connection drivers on `executor`.
+    ///
+    /// Applies to eager and lazy connections, reconnections and custom
+    /// connectors. Other helper tasks and Tokio IO/timers retain their existing
+    /// runtime requirements. See [`crate::Executor`]. Per-endpoint executors
+    /// are not supported by the static balance helpers; those helpers reject
+    /// such endpoints instead of silently discarding the override.
+    #[must_use]
+    pub fn executor(mut self, executor: impl crate::Executor) -> Self {
+        self.executor = crate::executor::TaskExecutor::new(executor);
         self
     }
 
@@ -290,21 +305,15 @@ impl Endpoint {
     /// Connect using the endpoint's scheme.
     pub async fn connect(&self) -> Result<Channel, Status> {
         let target = self.target()?;
-        if self.is_https() {
-            Channel::connect_tls_with(target, self.config, self.client_tls()?).await
-        } else {
-            Channel::connect_with(target, self.config).await
-        }
+        let tls = self.is_https().then(|| self.client_tls()).transpose()?;
+        pool::connect_inner_with_executor(target, self.config, tls, self.executor.clone()).await
     }
 
     /// Build a lazy channel using the endpoint's scheme.
     pub fn connect_lazy(&self) -> Result<Channel, Status> {
         let target = self.target()?;
-        if self.is_https() {
-            Channel::connect_tls_lazy_with(target, self.config, self.client_tls()?)
-        } else {
-            Channel::connect_lazy_with(target, self.config)
-        }
+        let tls = self.is_https().then(|| self.client_tls()).transpose()?;
+        pool::connect_lazy_inner_with_executor(target, self.config, tls, self.executor.clone())
     }
 
     /// Connect through a custom connector that returns an already-open IO.
@@ -319,7 +328,13 @@ impl Endpoint {
         Fut: Future<Output = Result<IO, Status>>,
     {
         let io = connector(self.uri.clone()).await?;
-        let channel = Channel::from_io_with(io, self.target()?, self.config).await?;
+        let channel = Channel::from_io_with_task_executor(
+            io,
+            self.target()?,
+            self.config,
+            self.executor.clone(),
+        )
+        .await?;
         Ok(if self.is_https() {
             channel.https_scheme()
         } else {
@@ -457,6 +472,11 @@ fn endpoint_socket_addrs(endpoints: &[Endpoint]) -> Result<Vec<SocketAddr>, Stat
     }
     let mut out = Vec::with_capacity(endpoints.len());
     for endpoint in endpoints {
+        if endpoint.executor.is_custom() {
+            return Err(Status::invalid_argument(
+                "balance_list/balance_channel do not support per-endpoint executors",
+            ));
+        }
         if endpoint.is_https() {
             return Err(Status::invalid_argument(
                 "balance_list/balance_channel currently support plaintext http endpoints; use Channel::connect_tls_uri for resolver-managed TLS",
@@ -568,9 +588,9 @@ pub(crate) struct ChannelLocal {
 /// SETTINGS. A peer that accepts the socket and never speaks fails with
 /// [`Code::Unavailable`] instead of hanging forever. Connection refused
 /// still fails immediately.
-/// TCP sockets always set `TCP_NODELAY` (Nagle off) at connect; Unix and
-/// [`Self::from_io`] skip that. There is no `tcp_nodelay` setter. Distinct
-/// from tonic, which defaults Nagle off but lets you turn it back on.
+/// TCP sockets default to `TCP_NODELAY` (Nagle off) at connect. Configure
+/// [`ChannelConfig::tcp_nodelay`] to change that policy; Unix and
+/// [`Self::from_io`] leave supplied transport options alone.
 /// There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by
 /// default; that DialOption disables it. TCP dials consult `HTTPS_PROXY`
 /// / `NO_PROXY` and tunnel through HTTP CONNECT; there is no per-channel
@@ -1034,11 +1054,56 @@ impl super::Channel {
     where
         IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
     {
+        Self::from_io_with_task_executor(
+            io,
+            authority,
+            config,
+            crate::executor::TaskExecutor::default(),
+        )
+        .await
+    }
+
+    /// [`Self::from_io_with`] with an explicit connection-driver executor.
+    ///
+    /// The caller supplies connected IO; the executor drives HTTP/2 after the
+    /// handshake. As with [`Self::from_io`], this channel cannot redial.
+    pub async fn from_io_with_executor<IO>(
+        io: IO,
+        authority: impl Into<Target>,
+        config: ChannelConfig,
+        executor: impl crate::Executor,
+    ) -> Result<Self, Status>
+    where
+        IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+    {
+        Self::from_io_with_task_executor(
+            io,
+            authority,
+            config,
+            crate::executor::TaskExecutor::new(executor),
+        )
+        .await
+    }
+
+    async fn from_io_with_task_executor<IO>(
+        io: IO,
+        authority: impl Into<Target>,
+        config: ChannelConfig,
+        executor: crate::executor::TaskExecutor,
+    ) -> Result<Self, Status>
+    where
+        IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+    {
         let target = authority.into();
         let parsed = target.parse()?;
         let config = config.connections(1);
         let timeout = config.handshake_timeout();
-        let send = match tokio::time::timeout(timeout, pool::finish_h2(config, io)).await {
+        let send = match tokio::time::timeout(
+            timeout,
+            pool::finish_h2_with_executor(config, io, &executor),
+        )
+        .await
+        {
             Ok(result) => result?,
             Err(_) => {
                 return Err(Status::unavailable(format!(
@@ -1049,7 +1114,7 @@ impl super::Channel {
         let endpoint = PoolEndpoint::Once;
         let channelz = pool::register_channel_for(&endpoint);
         let channel_id = channelz.id();
-        Ok(pool::finish_channel(
+        Ok(pool::finish_channel_with_executor(
             endpoint,
             parsed,
             config,
@@ -1059,6 +1124,7 @@ impl super::Channel {
             SharedServiceConfig::default(),
             None,
             channelz,
+            executor,
         ))
     }
 

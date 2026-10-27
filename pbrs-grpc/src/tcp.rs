@@ -2,9 +2,7 @@
 //!
 //! `socket2` is a safe wrapper around the same libc syscalls tokio already
 //! issues. It does not compile C. Unix domain sockets skip this module.
-//! `TCP_NODELAY` is always on for TCP connect and accept (Nagle off).
-//! There is no `tcp_nodelay(bool)` setter. Distinct from tonic, which
-//! defaults Nagle off but lets you turn it back on.
+//! `TCP_NODELAY` defaults on and is configurable on both client and server.
 
 use std::io::{Error, ErrorKind};
 use std::net::SocketAddr;
@@ -101,18 +99,19 @@ async fn bind_connect(local: SocketAddr, remote: SocketAddr) -> std::io::Result<
     socket.connect(remote).await
 }
 
-/// `TCP_NODELAY` always; `SO_KEEPALIVE` when `keepalive` is `Some`.
+/// Apply `TCP_NODELAY`; `SO_KEEPALIVE` when `keepalive` is `Some`.
 /// `keepalive_interval` is `TCP_KEEPINTVL` after that idle time.
 /// `keepalive_retries` is `TCP_KEEPCNT`. Neither turns `SO_KEEPALIVE` on by
 /// itself. `TCP_USER_TIMEOUT` (A18, Linux only) comes from
 /// `PBRS_TCP_USER_TIMEOUT_MS`; a `ChannelConfig` surface is a follow-up.
 pub(crate) fn tune(
     tcp: &TcpStream,
+    nodelay: bool,
     keepalive: Option<Duration>,
     keepalive_interval: Option<Duration>,
     keepalive_retries: Option<u32>,
 ) -> std::io::Result<()> {
-    tcp.set_nodelay(true)?;
+    tcp.set_nodelay(nodelay)?;
     apply_user_timeout(tcp)?;
     if let Some(time) = keepalive {
         let ka = socket2::TcpKeepalive::new().with_time(time);
@@ -333,6 +332,7 @@ mod tests {
 
         tune(
             &client,
+            true,
             Some(Duration::from_secs(15)),
             Some(Duration::from_secs(5)),
             Some(3),
@@ -341,7 +341,9 @@ mod tests {
         assert!(client.nodelay().unwrap());
         assert!(socket2::SockRef::from(&client).keepalive().unwrap());
 
-        tune(&server, None, Some(Duration::from_secs(5)), Some(3)).unwrap();
+        tune(&server, false, None, Some(Duration::from_secs(5)), Some(3)).unwrap();
+        assert!(!server.nodelay().unwrap());
+        tune(&server, true, None, None, None).unwrap();
         assert!(server.nodelay().unwrap());
         assert!(!socket2::SockRef::from(&server).keepalive().unwrap());
     }

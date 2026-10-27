@@ -196,6 +196,7 @@ pub(crate) fn peer_cred_of(io: &UnixStream) -> Option<PeerCred> {
 pub struct Server<S> {
     service: Arc<S>,
     config: ServerConfig,
+    executor: crate::executor::TaskExecutor,
     interceptor: Option<Arc<dyn crate::Interceptor>>,
     response_interceptor: Option<crate::interceptor::ResponseHook>,
     observer: Option<Arc<dyn LifecycleObserver>>,
@@ -208,6 +209,7 @@ impl<S> Clone for Server<S> {
         Self {
             service: Arc::clone(&self.service),
             config: self.config,
+            executor: self.executor.clone(),
             interceptor: self.interceptor.clone(),
             response_interceptor: self.response_interceptor.clone(),
             observer: self.observer.clone(),
@@ -240,6 +242,7 @@ impl<S: Service> Server<S> {
         Self {
             service,
             config: ServerConfig::default(),
+            executor: crate::executor::TaskExecutor::default(),
             interceptor: None,
             response_interceptor: None,
             observer: None,
@@ -260,12 +263,28 @@ impl<S: Service> Server<S> {
         Self {
             service: Arc::new(service),
             config: ServerConfig::default(),
+            executor: crate::executor::TaskExecutor::default(),
             interceptor: None,
             response_interceptor: None,
             observer: None,
             byte_budget: ByteBudgetTracker::default(),
             binlog: None,
         }
+    }
+
+    /// Schedule accepted HTTP/2 connection drivers on `executor`.
+    ///
+    /// Handler futures are polled by their connection driver. Applies to TCP,
+    /// TLS, Unix and custom incoming accept loops, and is retained by clones
+    /// and conversion to a router. [`Self::serve_connection`] is explicitly
+    /// caller-driven and does not spawn a connection task.
+    /// A custom executor also overrides per-core connection placement; the
+    /// accept loops themselves stay on their configured shards.
+    /// See [`crate::Executor`] for Tokio IO, timer and helper-task scope.
+    #[must_use]
+    pub fn executor(mut self, executor: impl crate::Executor) -> Self {
+        self.executor = crate::executor::TaskExecutor::new(executor);
+        self
     }
 
     /// Byte budget tracker in effect.
@@ -648,6 +667,14 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Set TCP_NODELAY on accepted TCP sockets, including TLS.
+    /// Defaults to `true`. See [`ServerConfig::tcp_nodelay`].
+    #[must_use]
+    pub fn tcp_nodelay(mut self, enabled: bool) -> Self {
+        self.config = self.config.tcp_nodelay(enabled);
+        self
+    }
+
     /// TCP `SO_KEEPALIVE`. Applies to every call shape.
     /// See [`ServerConfig::tcp_keepalive`].
     #[must_use]
@@ -918,6 +945,7 @@ impl<S: Service> Server<S> {
         (
             Single {
                 service: self.service,
+                executor: self.executor,
                 interceptor: self.interceptor,
                 response_interceptor: self.response_interceptor,
                 observer: self.observer,
@@ -965,6 +993,7 @@ impl<S: Service> Server<S> {
         router.observer = self.observer;
         router.byte_budget = self.byte_budget;
         router.binlog = self.binlog;
+        router.executor = self.executor;
         router
     }
 
@@ -1720,9 +1749,11 @@ pub(crate) async fn accept_loop_with_slots<D: Dispatch>(
                 let tls = tls.clone();
                 let rpcs = rpcs.clone();
                 let config = Arc::new(config);
-                drop(tokio::spawn(async move {
+                let executor = dispatch.executor().clone();
+                executor.spawn(async move {
                     crate::tcp::tune(
                         &tcp,
+                        config.tcp_nodelay_enabled(),
                         config.tcp_keepalive_period(),
                         config.tcp_keepalive_probe_interval(),
                         config.tcp_keepalive_probe_retries(),
@@ -1770,7 +1801,7 @@ pub(crate) async fn accept_loop_with_slots<D: Dispatch>(
                     }
                     drop(permit);
                     drop(drain);
-                }));
+                });
             }
             Err(e) => {
                 result = Err(Status::unavailable(e.to_string()));
@@ -1851,7 +1882,8 @@ pub(crate) async fn accept_unix_loop<D: Dispatch>(
                 let rpcs = rpcs.clone();
                 let cred = peer_cred_of(&io);
                 let config = Arc::new(config);
-                drop(tokio::spawn(async move {
+                let executor = dispatch.executor().clone();
+                executor.spawn(async move {
                     let connection = ConnectionInfo::unix(cred, Some(peer_addr));
                     #[cfg(feature = "tonic")]
                     let connection = connection
@@ -1859,7 +1891,7 @@ pub(crate) async fn accept_unix_loop<D: Dispatch>(
                     drop(serve_io(dispatch, io, connection, config, goaway, rpcs).await);
                     drop(permit);
                     drop(drain);
-                }));
+                });
             }
             Err(e) => {
                 result = Err(Status::unavailable(e.to_string()));
@@ -1927,11 +1959,12 @@ pub(crate) async fn accept_incoming<D: Dispatch, I: Incoming>(
                 let rpcs = rpcs.clone();
                 let info = incoming.peer(&io, peer);
                 let config = Arc::new(config);
-                drop(tokio::spawn(async move {
+                let executor = dispatch.executor().clone();
+                executor.spawn(async move {
                     drop(serve_io(dispatch, io, info, config, goaway, rpcs).await);
                     drop(permit);
                     drop(drain);
-                }));
+                });
             }
             Err(e) => {
                 result = Err(e);

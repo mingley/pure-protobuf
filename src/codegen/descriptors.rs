@@ -868,6 +868,9 @@ pub(crate) fn apply_resolved_config(resolved: &ResolvedConfig) {
     STUBS.with(|c| c.set(resolved.stubs));
     EMIT_DEPS.with(|c| c.set(resolved.emit_deps));
     OWNED_MESSAGE_FIELDS.with(|c| c.set(resolved.owned_message_fields));
+    ENABLE_TYPE_NAMES.with(|c| c.set(resolved.enable_type_names));
+    RETAIN_ENUM_PREFIX.with(|c| c.set(resolved.retain_enum_prefix));
+    TYPE_NAME_DOMAINS.with(|c| *c.borrow_mut() = resolved.type_name_domains.clone());
     NO_WKT.with(|c| c.set(resolved.no_wkt));
     SHARED_POOL.with(|c| c.set(resolved.shared_pool));
     NO_REFLECT.with(|c| c.set(resolved.no_reflect));

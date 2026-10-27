@@ -476,6 +476,7 @@ pub struct MapIter<'msg, K, V> {
 
 impl<'msg, K: MapKey, V> Iterator for MapIter<'msg, K, V> {
     type Item = (&'msg K, &'msg V);
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         // Indexed path yields the same last-occurrence order as the scan:
         // position `i` is yielded exactly when no later duplicate exists.
@@ -581,9 +582,12 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
             return unsafe { crate::runtime::kernel_map_get_bytes::<V>(raw, &kb, self.enum_codec) };
         }
         let entries = self.inner?;
-        if self.index.is_some() {
+        if let Some(index) = hot_index(entries, self.index) {
             let owned = key.to_owned_key();
-            return last_wins_get(entries, self.index, &owned).map(crate::proxied::AsView::as_view);
+            return index
+                .get(&owned)
+                .and_then(|pos| entries.get(pos))
+                .map(|(_, value)| crate::proxied::AsView::as_view(value));
         }
         entries
             .iter()
@@ -622,6 +626,7 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
         self.iter().map(|(_, v)| v)
     }
 
+    #[inline]
     pub fn iter(self) -> MapViewIter<'msg, K, V>
     where
         K: crate::proxied::Proxied + 'static,
@@ -994,13 +999,31 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
     }
 }
 
+/// Iterator over map views in last-occurrence wire order.
+///
+/// Typed entries are borrowed and projected when yielded. Their size hint is
+/// conservative because duplicate keys are filtered during iteration.
 pub struct MapViewIter<
     'msg,
     K: MapKey + crate::proxied::Proxied,
     V: MapValue + crate::proxied::Proxied,
 > {
-    items: Vec<Option<(crate::proxied::View<'msg, K>, crate::proxied::View<'msg, V>)>>,
-    i: usize,
+    storage: MapViewIterStorage<'msg, K, V>,
+}
+
+enum MapViewIterStorage<
+    'msg,
+    K: MapKey + crate::proxied::Proxied,
+    V: MapValue + crate::proxied::Proxied,
+> {
+    // Typed views already borrow stable entries. Project values only when
+    // yielded, without allocating a second collection of those same views.
+    Typed(MapIter<'msg, K, V>),
+    // Arena storage keeps its established snapshot and lifetime handling.
+    Raw {
+        items: Vec<Option<(crate::proxied::View<'msg, K>, crate::proxied::View<'msg, V>)>>,
+        i: usize,
+    },
 }
 
 impl<
@@ -1009,56 +1032,53 @@ impl<
     V: MapValue + crate::proxied::Proxied + 'static,
 > MapViewIter<'msg, K, V>
 {
+    #[inline]
     fn from_view(view: MapView<'msg, K, V>) -> Self {
-        let mut items = Vec::new();
         if let Some(raw) = view.raw {
-            unsafe {
-                let entries = (*raw).entries.borrow();
-                for (i, (kb, fk)) in entries.iter().enumerate() {
-                    if entries[i + 1..].iter().any(|(k2, _)| k2 == kb) {
-                        continue;
-                    }
-                    // SAFETY: raw map views borrow their arena-owned keys for 'msg;
-                    // safe callers cannot remove a key while a yielded view is live.
-                    let key_bytes: &'msg [u8] = std::slice::from_raw_parts(kb.as_ptr(), kb.len());
-                    let Some(k) = crate::runtime::kernel_bytes_to_view::<K>(key_bytes) else {
-                        continue;
-                    };
-                    let Some(v) = crate::runtime::kernel_collection_value_to_view::<'msg, V>(
-                        *fk,
-                        view.enum_codec,
-                    ) else {
-                        continue;
-                    };
-                    items.push(Some((k, v)));
+            return Self::from_raw_view(view, raw);
+        }
+        let items = view.inner.unwrap_or(&[]);
+        Self {
+            storage: MapViewIterStorage::Typed(MapIter {
+                items,
+                index: if items.is_empty() {
+                    None
+                } else {
+                    hot_index(items, view.index)
+                },
+                i: 0,
+            }),
+        }
+    }
+
+    // Keep the raw projection loop out of the small borrowed constructor.
+    #[inline(never)]
+    fn from_raw_view(view: MapView<'msg, K, V>, raw: crate::runtime::RawMap) -> Self {
+        let mut items = Vec::new();
+        unsafe {
+            let entries = (*raw).entries.borrow();
+            for (i, (kb, fk)) in entries.iter().enumerate() {
+                if entries[i + 1..].iter().any(|(k2, _)| k2 == kb) {
+                    continue;
                 }
-            }
-        } else if let Some(inner) = view.inner {
-            // Same last-occurrence order either way; the index turns the
-            // per-position duplicate check from a scan into a binary search.
-            if let Some(idx) = hot_index(inner, view.index) {
-                for (i, (k, v)) in inner.iter().enumerate() {
-                    if !idx.is_last(k, i) {
-                        continue;
-                    }
-                    items.push(Some((
-                        crate::proxied::AsView::as_view(k),
-                        crate::proxied::AsView::as_view(v),
-                    )));
-                }
-            } else {
-                for (i, (k, v)) in inner.iter().enumerate() {
-                    if inner[i + 1..].iter().any(|(k2, _)| k2 == k) {
-                        continue;
-                    }
-                    items.push(Some((
-                        crate::proxied::AsView::as_view(k),
-                        crate::proxied::AsView::as_view(v),
-                    )));
-                }
+                // SAFETY: raw map views borrow their arena-owned keys for 'msg;
+                // safe callers cannot remove a key while a yielded view is live.
+                let key_bytes: &'msg [u8] = std::slice::from_raw_parts(kb.as_ptr(), kb.len());
+                let Some(k) = crate::runtime::kernel_bytes_to_view::<K>(key_bytes) else {
+                    continue;
+                };
+                let Some(v) = crate::runtime::kernel_collection_value_to_view::<'msg, V>(
+                    *fk,
+                    view.enum_codec,
+                ) else {
+                    continue;
+                };
+                items.push(Some((k, v)));
             }
         }
-        Self { items, i: 0 }
+        Self {
+            storage: MapViewIterStorage::Raw { items, i: 0 },
+        }
     }
 }
 
@@ -1068,17 +1088,35 @@ where
     V: MapValue + crate::proxied::Proxied,
 {
     type Item = (crate::proxied::View<'msg, K>, crate::proxied::View<'msg, V>);
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if self.i >= self.items.len() {
-            return None;
+        match &mut self.storage {
+            MapViewIterStorage::Typed(iter) => iter.next().map(|(k, v)| {
+                (
+                    crate::proxied::AsView::as_view(k),
+                    crate::proxied::AsView::as_view(v),
+                )
+            }),
+            MapViewIterStorage::Raw { items, i } => {
+                let item = items.get_mut(*i)?.take();
+                *i += 1;
+                item
+            }
         }
-        let item = self.items[self.i].take();
-        self.i += 1;
-        item
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let n = self.items.len().saturating_sub(self.i);
-        (n, Some(n))
+        match &self.storage {
+            MapViewIterStorage::Typed(iter) => {
+                // Counting exact unique keys would duplicate next's scan and
+                // penalize collect. Unvisited wire entries are a cheap upper
+                // bound; no second pass or temporary collection is required.
+                (0, Some(iter.items.len().saturating_sub(iter.i)))
+            }
+            MapViewIterStorage::Raw { items, i } => {
+                let remaining = items.len().saturating_sub(*i);
+                (remaining, Some(remaining))
+            }
+        }
     }
 }
 
@@ -1090,6 +1128,7 @@ impl<
 {
     type Item = (crate::proxied::View<'msg, K>, crate::proxied::View<'msg, V>);
     type IntoIter = MapViewIter<'msg, K, V>;
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         MapViewIter::from_view(self)
     }

@@ -243,6 +243,9 @@ thread_local! {
     pub(crate) static STUBS: Cell<StubStyle> = const { Cell::new(StubStyle::Kernel) };
     pub(crate) static EMIT_DEPS: Cell<bool> = const { Cell::new(false) };
     pub(crate) static OWNED_MESSAGE_FIELDS: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static ENABLE_TYPE_NAMES: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static RETAIN_ENUM_PREFIX: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static TYPE_NAME_DOMAINS: RefCell<Vec<(String, String)>> = const { RefCell::new(Vec::new()) };
     pub(crate) static NO_WKT: Cell<bool> = const { Cell::new(false) };
     pub(crate) static SHARED_POOL: Cell<bool> = const { Cell::new(false) };
     pub(crate) static NO_REFLECT: Cell<bool> = const { Cell::new(false) };
@@ -304,6 +307,9 @@ impl CodegenStateGuard {
         STUBS.with(|c| c.set(StubStyle::Kernel));
         EMIT_DEPS.with(|c| c.set(false));
         OWNED_MESSAGE_FIELDS.with(|c| c.set(false));
+        ENABLE_TYPE_NAMES.with(|c| c.set(false));
+        RETAIN_ENUM_PREFIX.with(|c| c.set(false));
+        TYPE_NAME_DOMAINS.with(|c| c.borrow_mut().clear());
         NO_WKT.with(|c| c.set(false));
         SHARED_POOL.with(|c| c.set(false));
         NO_REFLECT.with(|c| c.set(false));
@@ -394,6 +400,9 @@ pub(crate) struct ExplicitOptions {
     stubs: Option<StubStyle>,
     emit_deps: Option<bool>,
     owned_message_fields: Option<bool>,
+    enable_type_names: Option<bool>,
+    retain_enum_prefix: Option<bool>,
+    type_name_domains: Vec<(String, String)>,
     no_wkt: Option<bool>,
     shared_pool: Option<bool>,
     shared_descriptor_set: Option<bool>,
@@ -427,6 +436,9 @@ pub(crate) struct ResolvedConfig {
     pub(crate) stubs: StubStyle,
     pub(crate) emit_deps: bool,
     pub(crate) owned_message_fields: bool,
+    pub(crate) enable_type_names: bool,
+    pub(crate) retain_enum_prefix: bool,
+    pub(crate) type_name_domains: Vec<(String, String)>,
     pub(crate) no_wkt: bool,
     pub(crate) shared_pool: bool,
     pub(crate) shared_descriptor_set: bool,
@@ -485,6 +497,70 @@ pub(crate) fn typed_extension_name(value: Option<&str>) -> Result<String, Codege
     Ok(name.to_string())
 }
 
+fn parameter_hex(value: &str) -> String {
+    let mut out = String::with_capacity(value.len() * 2);
+    for byte in value.bytes() {
+        out.push(char::from(HEX_DIGITS[usize::from(byte >> 4)]));
+        out.push(char::from(HEX_DIGITS[usize::from(byte & 15)]));
+    }
+    out
+}
+
+fn decode_parameter_hex(value: &str) -> Result<String, CodegenError> {
+    let bad = || CodegenError::InvalidParameter {
+        key: "type_name_domain_hex".to_owned(),
+        detail: "expected hexadecimal UTF-8 matcher and domain".to_owned(),
+    };
+    if value.len() % 2 != 0 {
+        return Err(bad());
+    }
+    let mut bytes = Vec::with_capacity(value.len() / 2);
+    for pair in value.as_bytes().chunks_exact(2) {
+        let high = char::from(pair[0]).to_digit(16).ok_or_else(bad)?;
+        let low = char::from(pair[1]).to_digit(16).ok_or_else(bad)?;
+        bytes.push((high * 16 + low) as u8);
+    }
+    String::from_utf8(bytes).map_err(|_| bad())
+}
+
+/// Resolve a type URL domain with Prost's exact/suffix/prefix/global priority.
+pub(crate) fn type_name_domain(full_name: &str) -> String {
+    TYPE_NAME_DOMAINS.with(|domains| {
+        let domains = domains.borrow();
+        let full = format!(".{}", full_name.trim_start_matches('.'));
+        let lookup = |name: &str| {
+            domains
+                .iter()
+                .find(|(matcher, _)| matcher == name)
+                .map(|(_, domain)| domain.clone())
+        };
+        if let Some(domain) = lookup(&full) {
+            return domain;
+        }
+        let mut suffix = full.as_str();
+        while let Some((_, rest)) = suffix.split_once('.') {
+            if rest.is_empty() {
+                break;
+            }
+            if let Some(domain) = lookup(rest) {
+                return domain;
+            }
+            suffix = rest;
+        }
+        let mut prefix = full.as_str();
+        while let Some((rest, _)) = prefix.rsplit_once('.') {
+            if rest.is_empty() {
+                break;
+            }
+            if let Some(domain) = lookup(rest) {
+                return domain;
+            }
+            prefix = rest;
+        }
+        lookup(".").unwrap_or_default()
+    })
+}
+
 pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions, CodegenError> {
     let mut explicit = ExplicitOptions::default();
     for item in parameter.split(',') {
@@ -526,6 +602,29 @@ pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions,
             }
             "emit_deps" => {
                 explicit.emit_deps = Some(parse_bool_param("emit_deps", val)?);
+            }
+            "enable_type_names" => {
+                explicit.enable_type_names = Some(parse_bool_param("enable_type_names", val)?);
+            }
+            "retain_enum_prefix" => {
+                explicit.retain_enum_prefix = Some(parse_bool_param("retain_enum_prefix", val)?);
+            }
+            "type_name_domain" | "type_name_domain_hex" => {
+                let value = val.and_then(|value| value.split_once('=')).ok_or_else(|| {
+                    CodegenError::InvalidParameter {
+                        key: key.to_owned(),
+                        detail: "expected 'matcher=domain'".to_owned(),
+                    }
+                })?;
+                let (matcher, domain) = if key == "type_name_domain_hex" {
+                    (
+                        decode_parameter_hex(value.0)?,
+                        decode_parameter_hex(value.1)?,
+                    )
+                } else {
+                    (value.0.to_owned(), value.1.to_owned())
+                };
+                explicit.type_name_domains.push((matcher, domain));
             }
             "owned_message_fields" => {
                 explicit.owned_message_fields =
@@ -879,6 +978,9 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
         stubs,
         emit_deps,
         owned_message_fields: explicit.owned_message_fields.unwrap_or(false),
+        enable_type_names: explicit.enable_type_names.unwrap_or(false),
+        retain_enum_prefix: explicit.retain_enum_prefix.unwrap_or(false),
+        type_name_domains: explicit.type_name_domains.clone(),
         no_wkt,
         shared_pool,
         shared_descriptor_set: explicit.shared_descriptor_set.unwrap_or(false),
@@ -1041,6 +1143,9 @@ pub struct Config {
     stubs: Option<StubStyle>,
     emit_deps: Option<bool>,
     owned_message_fields: Option<bool>,
+    enable_type_names: Option<bool>,
+    retain_enum_prefix: Option<bool>,
+    type_name_domains: Vec<(String, String)>,
     no_wkt: Option<bool>,
     shared_pool: Option<bool>,
     shared_descriptor_set: Option<bool>,
@@ -1241,6 +1346,51 @@ impl Config {
     /// remains the plugin/env equivalent.
     pub fn emit_deps(&mut self, enable: bool) -> &mut Self {
         self.emit_deps = Some(enable);
+        self
+    }
+
+    /// Emit [`crate::Name`] implementations with message names and type URLs.
+    ///
+    /// This is opt-in. The existing [`crate::MessageName`] and generated
+    /// `FULL_NAME` constants remain available regardless of this setting.
+    /// `pbrs::wkt::Any::from_msg` uses the configured URL when packing a message.
+    /// The separate `pbrs_grpc::pb::Any::pack_with` accepts this URL explicitly;
+    /// its ordinary `pack` method keeps its Google domain default.
+    /// The plugin equivalent is `enable_type_names=true`.
+    pub fn enable_type_names(&mut self) -> &mut Self {
+        self.enable_type_names = Some(true);
+        self
+    }
+
+    /// Keep the enum's name prefix in generated associated value constants.
+    ///
+    /// By default `STATE_READY` is exposed as `State::Ready`. Enabling
+    /// this option exposes `State::StateReady` instead. The open-enum integer
+    /// representation, protobuf spelling, numeric values and aliases are unchanged.
+    /// The plugin equivalent is `retain_enum_prefix=true`.
+    pub fn retain_enum_prefix(&mut self) -> &mut Self {
+        self.retain_enum_prefix = Some(true);
+        self
+    }
+
+    /// Set the domain used by [`crate::Name::type_url`] for matching messages.
+    ///
+    /// Call [`Self::enable_type_names`] to emit the trait. Matching follows
+    /// Prost's order: exact fully-qualified name, suffixes, package/parent
+    /// prefixes, then `.` for every message. The first rule for the selected
+    /// matcher wins. An unmatched message uses an empty domain, producing
+    /// `/package.Message`. Domains are used verbatim, including trailing `/`.
+    /// The plugin spelling is `type_name_domain=matcher=domain`.
+    pub fn type_name_domain<I, S, D>(&mut self, paths: I, domain: D) -> &mut Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+        D: AsRef<str>,
+    {
+        for path in paths {
+            self.type_name_domains
+                .push((path.as_ref().to_owned(), domain.as_ref().to_owned()));
+        }
         self
     }
 
@@ -1541,6 +1691,29 @@ impl Config {
         }
         if let Some(emit_deps) = self.emit_deps {
             opts.push(format!("emit_deps={emit_deps}"));
+        }
+        if let Some(enable_type_names) = self.enable_type_names {
+            opts.push(format!("enable_type_names={enable_type_names}"));
+        }
+        if let Some(retain_enum_prefix) = self.retain_enum_prefix {
+            opts.push(format!("retain_enum_prefix={retain_enum_prefix}"));
+        }
+        for (matcher, domain) in &self.type_name_domains {
+            // The plugin parameter list uses commas and trims whitespace.
+            // An encoded form preserves arbitrary Config strings losslessly.
+            if matcher.contains([',', '='])
+                || matcher.trim() != matcher
+                || domain.contains(',')
+                || domain.trim() != domain
+            {
+                opts.push(format!(
+                    "type_name_domain_hex={}={}",
+                    parameter_hex(matcher),
+                    parameter_hex(domain)
+                ));
+            } else {
+                opts.push(format!("type_name_domain={matcher}={domain}"));
+            }
         }
         if let Some(owned_message_fields) = self.owned_message_fields {
             opts.push(format!("owned_message_fields={owned_message_fields}"));
@@ -2103,5 +2276,96 @@ mod owned_message_profile_tests {
         .join()
         .expect("profile worker");
         assert!(!OWNED_MESSAGE_FIELDS.with(Cell::get));
+    }
+}
+
+#[cfg(test)]
+mod type_name_config_tests {
+    use super::*;
+
+    #[test]
+    fn builders_and_plugin_preserve_name_options_and_domain_strings() {
+        let mut config = Config::new();
+        config
+            .enable_type_names()
+            .retain_enum_prefix()
+            .type_name_domain([".", ".pkg.Foo"], "types.example")
+            .type_name_domain([".pkg.WithEscapes"], "  λ,\"quoted\"/\\domain  ");
+        let explicit = parse_plugin_parameter(&config.to_parameter_string()).expect("name options");
+        let resolved = resolve_options(&explicit);
+        assert!(resolved.enable_type_names);
+        assert!(resolved.retain_enum_prefix);
+        assert_eq!(resolved.type_name_domains, config.type_name_domains);
+        assert!(parse_plugin_parameter("type_name_domain=missing_separator").is_err());
+        assert!(parse_plugin_parameter("type_name_domain_hex=00=ff").is_err());
+        assert!(parse_plugin_parameter("type_name_domain_hex=.=00").is_err());
+        assert!(parse_plugin_parameter("enable_type_names=maybe").is_err());
+        assert!(parse_plugin_parameter("retain_enum_prefix=maybe").is_err());
+    }
+
+    #[test]
+    fn domain_selection_uses_exact_then_suffix_then_prefix_then_global() {
+        let _guard = CodegenStateGuard::new();
+        let rules = [
+            (".", "global"),
+            (".pkg", "package"),
+            (".pkg.Outer", "parent"),
+            ("Inner", "short suffix"),
+            ("Outer.Inner", "long suffix"),
+            (".pkg.Outer.Inner", "exact"),
+            (".pkg.Outer.Inner", "later duplicate"),
+        ];
+        TYPE_NAME_DOMAINS.with(|domains| {
+            *domains.borrow_mut() = rules
+                .iter()
+                .map(|(p, d)| (p.to_string(), d.to_string()))
+                .collect()
+        });
+        assert_eq!(type_name_domain("pkg.Outer.Inner"), "exact");
+        TYPE_NAME_DOMAINS.with(|domains| {
+            domains
+                .borrow_mut()
+                .retain(|(p, _)| p != ".pkg.Outer.Inner")
+        });
+        assert_eq!(type_name_domain("pkg.Outer.Inner"), "long suffix");
+        TYPE_NAME_DOMAINS.with(|domains| domains.borrow_mut().retain(|(p, _)| p != "Outer.Inner"));
+        assert_eq!(type_name_domain("pkg.Outer.Inner"), "short suffix");
+        TYPE_NAME_DOMAINS.with(|domains| domains.borrow_mut().retain(|(p, _)| p != "Inner"));
+        assert_eq!(type_name_domain("pkg.Outer.Inner"), "parent");
+        assert_eq!(type_name_domain("pkg.Other"), "package");
+        assert_eq!(type_name_domain("elsewhere.Other"), "global");
+        TYPE_NAME_DOMAINS.with(|domains| domains.borrow_mut().clear());
+        assert_eq!(type_name_domain("Bare"), "");
+    }
+
+    #[test]
+    fn guard_and_workers_reset_names_and_enum_prefixes() {
+        let resolved = resolve_options(
+            &parse_plugin_parameter(
+                "enable_type_names=true,retain_enum_prefix=true,type_name_domain=.=example.com",
+            )
+            .expect("name options"),
+        );
+        std::thread::spawn(move || {
+            {
+                let _guard = CodegenStateGuard::new();
+                crate::codegen::apply_resolved_config(&resolved);
+                assert!(ENABLE_TYPE_NAMES.with(Cell::get));
+                assert_eq!(type_name_domain("pkg.Foo"), "example.com");
+                let values = crate::codegen::rust_enum_values(
+                    "State",
+                    &[(0, "STATE_READY".into()), (0, "STATE_ALIAS".into())],
+                );
+                assert_eq!(values[0].name, "StateReady");
+                assert_eq!(values[0].aliases, ["StateAlias"]);
+            }
+            assert!(!ENABLE_TYPE_NAMES.with(Cell::get));
+            assert!(!RETAIN_ENUM_PREFIX.with(Cell::get));
+            assert_eq!(type_name_domain("pkg.Foo"), "");
+            let values = crate::codegen::rust_enum_values("State", &[(0, "STATE_READY".into())]);
+            assert_eq!(values[0].name, "Ready");
+        })
+        .join()
+        .expect("name worker");
     }
 }

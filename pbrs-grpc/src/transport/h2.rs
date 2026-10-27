@@ -541,6 +541,15 @@ impl<IO> ClientConnection<IO> {
         Self { inner, ping: None }
     }
 
+    pub(crate) fn set_keepalive_activity(
+        &mut self,
+        activity: Option<std::sync::Arc<crate::keepalive::Busy>>,
+    ) {
+        if let Some(driver) = &mut self.ping {
+            driver.set_keepalive_activity(activity);
+        }
+    }
+
     fn install_ping_driver(&mut self, driver: bdp::Driver) {
         self.ping = Some(driver);
     }

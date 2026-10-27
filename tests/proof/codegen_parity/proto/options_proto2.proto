@@ -1,0 +1,14 @@
+syntax = "proto2";
+package proof.options;
+
+enum Mood {
+  option allow_alias = true;
+  MOOD_FIVE = 5;
+  MOOD_READY = 9;
+  MOOD_REST = 9;
+}
+
+message Defaults {
+  optional Mood mood = 1 [default = MOOD_READY];
+  repeated Mood moods = 2 [packed = true];
+}

@@ -116,6 +116,15 @@ pub(crate) struct Driver {
     bdp: Bdp,
     keep_alive: Option<KeepAlive>,
     wake: Option<PinSleep>,
+    activity: Option<Arc<crate::keepalive::Busy>>,
+}
+
+impl Drop for Driver {
+    fn drop(&mut self) {
+        if let Some(busy) = &self.activity {
+            busy.clear_keepalive();
+        }
+    }
 }
 
 type PinSleep = std::pin::Pin<Box<Sleep>>;
@@ -144,13 +153,21 @@ impl Driver {
                 timeout_at: None,
             }),
             wake: None,
+            activity: None,
         };
         (recorder, driver)
+    }
+
+    pub(crate) fn set_keepalive_activity(&mut self, activity: Option<Arc<crate::keepalive::Busy>>) {
+        self.activity = activity;
     }
 
     /// Poll for a BDP size update or keepalive timeout.
     pub(crate) fn poll(&mut self, cx: &mut Context<'_>) -> Poll<Result<Event, Error>> {
         let now = Instant::now();
+        if let Some(busy) = &self.activity {
+            busy.register_keepalive(cx.waker());
+        }
         if let Some(event) = self.poll_pong(cx, now)? {
             return Poll::Ready(Ok(event));
         }
@@ -201,11 +218,11 @@ impl Driver {
         let Some(keep_alive) = &mut self.keep_alive else {
             return Ok(None);
         };
-        if keep_alive
-            .timeout_at
-            .is_some_and(|deadline| now >= deadline)
-        {
-            return Ok(Some(Event::KeepAliveTimedOut));
+        if let Some(deadline) = keep_alive.timeout_at {
+            return Ok((now >= deadline).then_some(Event::KeepAliveTimedOut));
+        }
+        if self.activity.as_ref().is_some_and(|busy| busy.count() == 0) {
+            return Ok(None);
         }
         if now < keep_alive.next_ping_at {
             return Ok(None);
@@ -252,7 +269,8 @@ impl Driver {
     fn next_timer_deadline(&self) -> Option<Instant> {
         let keep_alive = self.keep_alive.as_ref()?;
         match keep_alive.timeout_at {
-            Some(timeout_at) => Some(timeout_at.min(keep_alive.next_ping_at)),
+            Some(timeout_at) => Some(timeout_at),
+            None if self.activity.as_ref().is_some_and(|busy| busy.count() == 0) => None,
             None => Some(keep_alive.next_ping_at),
         }
     }

@@ -123,6 +123,68 @@ still computes and returns their full `u64` sizes.
 The plugin equivalent is `owned_message_fields=true`; there is no environment
 variable for this option.
 
+### Message names, type URLs and enum prefixes
+
+Enable `pbrs::Name` implementations when generating messages that will be
+packed into `Any`:
+
+```rust
+pbrs::codegen::Config::new()
+    .enable_type_names()
+    .type_name_domain(["."], "types.example")
+    .retain_enum_prefix()
+    .compile_protos(&["proto/service.proto"], &["proto"])?;
+```
+
+Type names and prefix retention are independent, opt-in settings. Existing
+`MessageName` implementations and `FULL_NAME` constants remain available
+without either option. `retain_enum_prefix()` exposes `STATE_READY` as
+`State::StateReady`, instead of the default `State::Ready`. Numeric values,
+unknown values and protobuf spelling stay unchanged. Aliases remain available
+with the same numeric values.
+
+For `example.Outer.Inner`, `Name::NAME` is `"Inner"`, `Name::PACKAGE` is
+`"example"`, and `Name::full_name()` returns `"example.Outer.Inner"`.
+Without a matching domain rule, `Name::type_url()` returns
+`"/example.Outer.Inner"`, matching Prost's generated default. The example
+above produces `"types.example/example.Outer.Inner"`. Setting a domain does
+not enable trait emission by itself.
+
+Domain selectors use the protobuf name, before any Rust identifier changes.
+Selection tries the exact fully-qualified name, suffixes, package or parent
+prefixes, then `.`. For example, `.example.Outer.Inner` selects one message,
+`Inner` matches a suffix, and `.example` matches that package. The first rule
+for the selected matcher wins. Domains are used verbatim, including a trailing
+slash. The plugin equivalents are:
+
+```bash
+--pbrs_opt=enable_type_names=true,retain_enum_prefix=true,type_name_domain=.=types.example
+```
+
+The shared runtime WKT types already implement `Name` with the
+`type.googleapis.com` domain. Typed `Any` conversion uses the message's URL:
+
+```rust
+use pbrs::wkt::{Any, Timestamp};
+
+let mut timestamp = Timestamp::new();
+timestamp.set_seconds(42);
+let packed = Any::from_msg(&timestamp)?;
+let decoded = packed.to_msg::<Timestamp>()?;
+assert_eq!(decoded, timestamp);
+```
+
+These helpers require the runtime's default-enabled `conformance` feature,
+which provides `pbrs::wkt`. `to_msg` checks the full name after the final slash
+and parses the payload; it accepts a different domain for the same type.
+For the separate gRPC helper type, use
+`pbrs_grpc::pb::Any::pack_with(T::type_url(), &message)`.
+
+Imported and extern-mapped types keep their own trait implementations and
+URLs. Generate imported types with `enable_type_names()` when their `Name`
+implementation is needed; a rule in the importing configuration does not
+change an external type's implementation.
+
 ### Basic Compilation
 
 Compile your `.proto` files during the build:

@@ -82,6 +82,7 @@ pub(crate) fn split_path(path: &str) -> (&str, &str) {
 pub struct Router {
     routes: HashMap<&'static str, Arc<dyn DynService>>,
     config: ServerConfig,
+    pub(crate) executor: crate::executor::TaskExecutor,
     pub(crate) interceptor: Option<Arc<dyn crate::Interceptor>>,
     pub(crate) response_interceptor: Option<crate::interceptor::ResponseHook>,
     pub(crate) observer: Option<Arc<dyn LifecycleObserver>>,
@@ -117,6 +118,7 @@ impl Clone for Router {
         Self {
             routes: self.routes.clone(),
             config: self.config,
+            executor: self.executor.clone(),
             interceptor: self.interceptor.clone(),
             response_interceptor: self.response_interceptor.clone(),
             observer: self.observer.clone(),
@@ -194,6 +196,7 @@ impl Router {
         Self {
             routes: HashMap::new(),
             config: ServerConfig::default(),
+            executor: crate::executor::TaskExecutor::default(),
             interceptor: None,
             response_interceptor: None,
             observer: None,
@@ -201,6 +204,19 @@ impl Router {
             binlog: None,
             channelz: None,
         }
+    }
+
+    /// Schedule accepted HTTP/2 connection drivers on `executor`.
+    ///
+    /// Mounted services run inside those driver tasks. Explicit
+    /// [`Self::serve_connection`] futures remain caller-driven.
+    /// A custom executor overrides per-core connection placement while accept
+    /// loops stay on their configured shards.
+    /// See [`crate::Executor`] for runtime and helper-task scope.
+    #[must_use]
+    pub fn executor(mut self, executor: impl crate::Executor) -> Self {
+        self.executor = crate::executor::TaskExecutor::new(executor);
+        self
     }
 
     /// Whether `path` is under `/<service>/` without allocating or hashing.
@@ -613,6 +629,14 @@ impl Router {
     #[must_use]
     pub fn keep_alive_timeout(mut self, timeout: Duration) -> Self {
         self.config = self.config.keep_alive_timeout(timeout);
+        self
+    }
+
+    /// Set TCP_NODELAY on accepted TCP sockets, including TLS.
+    /// Defaults to `true`. See [`ServerConfig::tcp_nodelay`].
+    #[must_use]
+    pub fn tcp_nodelay(mut self, enabled: bool) -> Self {
+        self.config = self.config.tcp_nodelay(enabled);
         self
     }
 
@@ -1099,6 +1123,10 @@ impl Future for RouterDispatch<'_> {
 }
 
 impl Dispatch for Router {
+    fn executor(&self) -> &crate::executor::TaskExecutor {
+        &self.executor
+    }
+
     fn dispatch(&self, mut rpc: Rpc) -> impl Future<Output = ()> + Send {
         rpc.response_interceptor = self.response_interceptor.clone();
         rpc.observer = self.observer.clone();

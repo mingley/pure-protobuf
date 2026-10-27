@@ -677,8 +677,16 @@ fn strip_enum_prefix_with<'a>(prefixes: &[String; 3], value_name: &'a str) -> &'
     value_name
 }
 
-fn enum_value_rs_name_with(prefixes: &[String; 3], value_name: &str) -> String {
-    let stripped = strip_enum_prefix_with(prefixes, value_name);
+fn enum_value_rs_name_with(
+    prefixes: &[String; 3],
+    value_name: &str,
+    retain_prefix: bool,
+) -> String {
+    let stripped = if retain_prefix {
+        value_name
+    } else {
+        strip_enum_prefix_with(prefixes, value_name)
+    };
     let mut name = screaming_snake_to_upper_camel(stripped);
     if name.is_empty() {
         name = screaming_snake_to_upper_camel(value_name);
@@ -702,11 +710,12 @@ pub(crate) struct RustEnumValue {
 pub(crate) fn rust_enum_values(enum_name: &str, listed: &[(i32, String)]) -> Vec<RustEnumValue> {
     // Prefixes depend only on the enum, not the value: build once.
     let prefixes = enum_prefixes(enum_name);
+    let retain_prefix = RETAIN_ENUM_PREFIX.with(|enabled| enabled.get());
     let mut seen_name = std::collections::BTreeSet::new();
     let mut by_number: std::collections::BTreeMap<i32, usize> = std::collections::BTreeMap::new();
     let mut out: Vec<RustEnumValue> = Vec::new();
     for (number, proto_name) in listed {
-        let rust_name = enum_value_rs_name_with(&prefixes, proto_name);
+        let rust_name = enum_value_rs_name_with(&prefixes, proto_name, retain_prefix);
         if !seen_name.insert(rust_name.clone()) {
             continue;
         }

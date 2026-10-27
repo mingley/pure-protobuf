@@ -156,6 +156,7 @@ pub struct ServerConfig {
     reset_stream_duration: Duration,
     keep_alive_interval: Option<Duration>,
     keep_alive_timeout: Duration,
+    tcp_nodelay: bool,
     tcp_keepalive: Option<Duration>,
     tcp_keepalive_interval: Option<Duration>,
     tcp_keepalive_retries: Option<u32>,
@@ -196,6 +197,7 @@ impl Default for ServerConfig {
             reset_stream_duration: DEFAULT_RESET_STREAM_DURATION,
             keep_alive_interval: None,
             keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
+            tcp_nodelay: true,
             tcp_keepalive: None,
             tcp_keepalive_interval: None,
             tcp_keepalive_retries: None,
@@ -431,7 +433,7 @@ impl ServerConfig {
     }
 
     /// Send an HTTP/2 PING every `interval` so a dead peer is noticed before
-    /// the next RPC. Disabled by default.
+    /// the next RPC. Disabled by default. Intervals below 1 ms are raised to 1 ms.
     ///
     /// This is not TCP keepalive. PINGs run on Unix sockets and TLS
     /// (including mTLS); they do not reset [`Self::max_connection_idle`]
@@ -444,12 +446,11 @@ impl ServerConfig {
     /// client PINGs are not GOAWAY'd. Distinct from [`Self::data_frame_budget`],
     /// which is `ENHANCE_YOUR_CALM` (`too_many_data_frames`) for tiny DATA,
     /// not PING rate (`too_many_pings`). Distinct from
-    /// [`ChannelConfig::keep_alive_interval`]: that sends client PINGs (and
-    /// already Distincts tonic `http2_keep_alive_while_idle` / grpc-go
-    /// `PermitWithoutStream`).
+    /// [`ChannelConfig::keep_alive_interval`]: that sends client PINGs, with
+    /// idle behavior controlled by [`ChannelConfig::keep_alive_while_idle`].
     #[must_use]
     pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
-        self.keep_alive_interval = Some(interval);
+        self.keep_alive_interval = Some(interval.max(Duration::from_millis(1)));
         self
     }
 
@@ -462,12 +463,22 @@ impl ServerConfig {
         self
     }
 
+    /// Set TCP_NODELAY on connected or accepted TCP sockets, including TLS.
+    ///
+    /// Defaults to `true`, disabling Nagle's algorithm. Unix sockets and
+    /// caller-provided I/O do not have TCP options applied.
+    #[must_use]
+    pub fn tcp_nodelay(mut self, enabled: bool) -> Self {
+        self.tcp_nodelay = enabled;
+        self
+    }
+
     /// Enable TCP keepalive after this idle duration. Disabled by default.
     ///
     /// Values below 1 ms are raised to 1 ms. Probe spacing and count use
     /// [`Self::tcp_keepalive_interval`] and [`Self::tcp_keepalive_retries`].
     /// This applies to TCP sockets, including TLS; Unix and in-memory I/O
-    /// skip TCP tuning. `TCP_NODELAY` is always enabled on TCP sockets.
+    /// skip TCP tuning. See [`Self::tcp_nodelay`] for Nagle's algorithm.
     #[must_use]
     pub fn tcp_keepalive(mut self, time: Duration) -> Self {
         self.tcp_keepalive = Some(time.max(Duration::from_millis(1)));
@@ -744,6 +755,12 @@ impl ServerConfig {
         self.keep_alive_timeout
     }
 
+    /// Whether TCP_NODELAY is enabled. See [`Self::tcp_nodelay`].
+    #[must_use]
+    pub fn tcp_nodelay_enabled(self) -> bool {
+        self.tcp_nodelay
+    }
+
     /// Configured TCP keepalive idle time, if any. See [`Self::tcp_keepalive`].
     #[must_use]
     pub fn tcp_keepalive_period(self) -> Option<Duration> {
@@ -993,6 +1010,8 @@ pub struct ChannelConfig {
     stream_buffer: usize,
     keep_alive_interval: Option<Duration>,
     keep_alive_timeout: Duration,
+    keep_alive_while_idle: bool,
+    tcp_nodelay: bool,
     tcp_keepalive: Option<Duration>,
     tcp_keepalive_interval: Option<Duration>,
     tcp_keepalive_retries: Option<u32>,
@@ -1035,6 +1054,8 @@ impl Default for ChannelConfig {
             stream_buffer: DEFAULT_STREAM_BUFFER,
             keep_alive_interval: None,
             keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
+            keep_alive_while_idle: true,
+            tcp_nodelay: true,
             tcp_keepalive: None,
             tcp_keepalive_interval: None,
             tcp_keepalive_retries: None,
@@ -1269,23 +1290,30 @@ impl ChannelConfig {
     }
 
     /// Send an HTTP/2 PING every `interval` so a dead peer is noticed before
-    /// the next RPC. Disabled by default. PINGs are sent while idle as well
-    /// as while RPCs are in flight. They do not reset
-    /// [`Self::max_connection_idle`] and they do not postpone
+    /// the next RPC. Disabled by default. Intervals below 1 ms are raised to
+    /// 1 ms. [`Self::keep_alive_while_idle`] controls idle connections.
+    /// PINGs do not reset [`Self::max_connection_idle`] or postpone
     /// [`Self::max_connection_age`] (age is wall-clock from the handshake).
-    /// There is no `http2_keep_alive_while_idle` setter: once this interval
-    /// is set, idle connections PING too. Distinct from tonic's
-    /// `Endpoint::http2_keep_alive_while_idle`, which defaults off so a
-    /// client interval does not PING an idle socket. Distinct from grpc-go
-    /// `PermitWithoutStream`, which is that same idle-PING flag (omitted
-    /// because this behavior is already on).
     ///
     /// This is not TCP keepalive. PINGs run on Unix sockets, TLS (including
     /// mTLS), and [`crate::Channel::from_io`]. For `SO_KEEPALIVE` on TCP
     /// sockets, see [`Self::tcp_keepalive`]. Applies to every call shape.
     #[must_use]
     pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
-        self.keep_alive_interval = Some(interval);
+        self.keep_alive_interval = Some(interval.max(Duration::from_millis(1)));
+        self
+    }
+
+    /// Permit HTTP/2 keepalive PINGs when no RPC is outstanding.
+    ///
+    /// Defaults to `true` to preserve pbrs behavior. Tonic defaults this
+    /// policy to `false`. Setting it does not enable keepalive; configure
+    /// [`Self::keep_alive_interval`] as well. A response stream remains an
+    /// outstanding RPC until it finishes or is dropped. Adaptive-window
+    /// DATA probes are independent of this keepalive policy.
+    #[must_use]
+    pub fn keep_alive_while_idle(mut self, enabled: bool) -> Self {
+        self.keep_alive_while_idle = enabled;
         self
     }
 
@@ -1298,12 +1326,22 @@ impl ChannelConfig {
         self
     }
 
+    /// Set TCP_NODELAY on connected or accepted TCP sockets, including TLS.
+    ///
+    /// Defaults to `true`, disabling Nagle's algorithm. Unix sockets and
+    /// caller-provided I/O do not have TCP options applied.
+    #[must_use]
+    pub fn tcp_nodelay(mut self, enabled: bool) -> Self {
+        self.tcp_nodelay = enabled;
+        self
+    }
+
     /// Enable TCP keepalive after this idle duration. Disabled by default.
     ///
     /// Values below 1 ms are raised to 1 ms. Probe spacing and count use
     /// [`Self::tcp_keepalive_interval`] and [`Self::tcp_keepalive_retries`].
     /// This applies to TCP sockets, including TLS; Unix and in-memory I/O
-    /// skip TCP tuning. `TCP_NODELAY` is always enabled on TCP sockets.
+    /// skip TCP tuning. See [`Self::tcp_nodelay`] for Nagle's algorithm.
     #[must_use]
     pub fn tcp_keepalive(mut self, time: Duration) -> Self {
         self.tcp_keepalive = Some(time.max(Duration::from_millis(1)));
@@ -1591,6 +1629,19 @@ impl ChannelConfig {
         self.keep_alive_timeout
     }
 
+    /// Whether TCP_NODELAY is enabled. See [`Self::tcp_nodelay`].
+    #[must_use]
+    pub fn tcp_nodelay_enabled(self) -> bool {
+        self.tcp_nodelay
+    }
+
+    /// Whether configured keepalive PINGs are allowed without an RPC.
+    /// See [`Self::keep_alive_while_idle`].
+    #[must_use]
+    pub fn keep_alive_while_idle_enabled(self) -> bool {
+        self.keep_alive_while_idle
+    }
+
     /// Configured TCP keepalive idle time, if any. See [`Self::tcp_keepalive`].
     #[must_use]
     pub fn tcp_keepalive_period(self) -> Option<Duration> {
@@ -1865,6 +1916,34 @@ impl ChannelConfig {
 mod tests {
     use super::{ChannelConfig, ServerConfig};
     use std::time::Duration;
+
+    #[test]
+    fn socket_and_idle_ping_policies_preserve_defaults_and_remain_independent() {
+        assert!(ServerConfig::new().tcp_nodelay_enabled());
+        assert!(ChannelConfig::new().tcp_nodelay_enabled());
+        assert!(!ServerConfig::new().tcp_nodelay(false).tcp_nodelay_enabled());
+        assert!(
+            !ChannelConfig::new()
+                .tcp_nodelay(false)
+                .tcp_nodelay_enabled()
+        );
+        assert!(ChannelConfig::new().keep_alive_while_idle_enabled());
+        let active_only = ChannelConfig::new().keep_alive_while_idle(false);
+        assert!(!active_only.keep_alive_while_idle_enabled());
+        assert_eq!(active_only.keep_alive_ping_interval(), None);
+        assert_eq!(
+            active_only
+                .keep_alive_interval(Duration::ZERO)
+                .keep_alive_ping_interval(),
+            Some(Duration::from_millis(1)),
+        );
+        assert_eq!(
+            ServerConfig::new()
+                .keep_alive_interval(Duration::ZERO)
+                .keep_alive_ping_interval(),
+            Some(Duration::from_millis(1)),
+        );
+    }
 
     #[test]
     fn server_defaults_are_safe() {

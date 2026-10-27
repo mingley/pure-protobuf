@@ -315,6 +315,8 @@ mod client;
 
 mod config;
 #[forbid(unsafe_code)]
+mod executor;
+#[forbid(unsafe_code)]
 mod interceptor;
 #[forbid(unsafe_code)]
 mod keepalive;
@@ -392,6 +394,7 @@ pub use config::{
 pub use copy_counts::{CopyCounts, copy_counts, reset_copy_counts};
 #[cfg(feature = "copy-counts")]
 pub use copy_counts::{SchedulerCounts, reset_scheduler_counts, scheduler_counts};
+pub use executor::{Executor, ExecutorFuture};
 /// `futures_core::Stream`, so [`Streaming`] can be driven with `StreamExt`.
 pub use futures_core::Stream;
 /// `futures_core::future::FusedFuture`, so a finished [`Call`] is skipped by

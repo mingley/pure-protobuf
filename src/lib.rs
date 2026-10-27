@@ -30,6 +30,9 @@
 
 extern crate self as pbrs;
 
+#[cfg(feature = "conformance")]
+mod any;
+
 #[doc(hidden)]
 pub use paste as __paste;
 
@@ -46,7 +49,7 @@ pub use crate::extension::{Extension, ExtensionHost, ExtensionValue};
 pub use crate::map::{Map, MapIter, MapKey, MapMut, MapValue, MapView};
 pub use crate::message::{
     Clear, ClearAndParse, CopyFrom, Enum, MergeFrom, Message, MessageMut, MessageName, MessageType,
-    MessageView, Parse, Serialize, TakeFrom, UnknownEnumValue, message_eq,
+    MessageView, Name, Parse, Serialize, TakeFrom, UnknownEnumValue, message_eq,
 };
 pub use crate::proxied::{
     AsMut, AsView, IntoMut, IntoProxied, IntoView, Mut, MutProxied, Proxied, View,

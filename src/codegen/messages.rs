@@ -616,6 +616,22 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
     }
     let _ = writeln!(src, "}}");
     let _ = writeln!(src, "pbrs::impl_typed_message!({name}, {view}, {mut_});");
+    if ENABLE_TYPE_NAMES.with(|enabled| enabled.get()) {
+        let package = TYPE_FILES.with(|files| {
+            files
+                .borrow()
+                .as_ref()
+                .and_then(|files| files.get(&desc.full_name))
+                .map(|(_, package)| package.clone())
+                .unwrap_or_default()
+        });
+        let type_url = format!("{}/{}", type_name_domain(&desc.full_name), desc.full_name);
+        let _ = writeln!(src, "impl pbrs::Name for {name} {{");
+        let _ = writeln!(src, "    const NAME: &'static str = {:?};", desc.name);
+        let _ = writeln!(src, "    const PACKAGE: &'static str = {package:?};");
+        let _ = writeln!(src, "    fn type_url() -> String {{ {type_url:?}.into() }}");
+        let _ = writeln!(src, "}}");
+    }
 }
 
 pub(crate) fn emit_oneof_clear(

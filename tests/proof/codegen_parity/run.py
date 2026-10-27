@@ -18,10 +18,7 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
-METHODS = [
-    "btree_map", "bytes", "boxed", "retain_enum_prefix",
-    "enable_type_names", "type_name_domain",
-]
+METHODS = ["btree_map", "bytes", "boxed"]
 
 
 def sha(path):
@@ -34,7 +31,9 @@ def main():
     parser.add_argument("--embedded-target", default="thumbv7em-none-eabi")
     args = parser.parse_args()
     output = args.output.resolve()
-    output.mkdir(parents=True, exist_ok=True)
+    if output.exists():
+        parser.error("choose a new output directory to preserve earlier evidence")
+    output.mkdir(parents=True)
     env = dict(os.environ, CARGO_BUILD_JOBS="1", CARGO_INCREMENTAL="0")
     env.setdefault("CARGO_TARGET_DIR", str(ROOT / "target"))
     selected_protoc = shutil.which(env.get("PROTOC", "protoc"), path=env.get("PATH"))
@@ -42,7 +41,11 @@ def main():
         parser.error("protoc must be available via PROTOC or PATH")
     env["PROTOC"] = selected_protoc
     manifest = HERE / "Cargo.toml"
-    source_paths = sorted(path for path in HERE.rglob("*") if path.is_file() and ".git" not in path.parts)
+    source_paths = sorted(
+        path for path in HERE.rglob("*")
+        if path.is_file()
+        and not any(part in (".git", "target", "__pycache__") for part in path.relative_to(HERE).parts)
+    )
     source_paths += sorted((ROOT / "src").rglob("*.rs"))
     source_paths += [ROOT / path for path in ["Cargo.toml", "build.rs"]]
     before_hashes = {str(path.relative_to(ROOT)): sha(path) for path in source_paths}
@@ -66,6 +69,23 @@ def main():
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(path, destination)
                 generated[str(relative)] = sha(path)
+    result, options = run("configured-options", ["cargo", "run", "--locked", "--offline", "--manifest-path", str(manifest), "--bin", "pbrs_configured_options"])
+    options["passed"] = result.returncode == 0
+    options["name_cases_passed"] = result.stdout.count(b"PASS configured-name ")
+    options["any_cases_passed"] = result.stdout.count(b"PASS configured-any ")
+    options["any_url_cases_passed"] = result.stdout.count(b"PASS configured-any-url ")
+    options["any_malformed_cases_passed"] = result.stdout.count(b"PASS configured-any-malformed ")
+    options["enum_cases_passed"] = result.stdout.count(b"PASS configured-enum ")
+    options["scope"] = "same-schema name and type URL selection, retained enum spelling and cross-codec wire values"
+    options["semantic_controls_match"] = options["passed"] and all(
+        options[key] == expected for key, expected in {
+            "name_cases_passed": 8,
+            "any_cases_passed": 4,
+            "any_url_cases_passed": 12,
+            "any_malformed_cases_passed": 1,
+            "enum_cases_passed": 2,
+        }.items()
+    )
     probes = []
     for method in METHODS:
         result, probe = run(method, ["cargo", "check", "--locked", "--offline", "--manifest-path", str(manifest), "--bin", f"pbrs_{method}"])
@@ -95,6 +115,7 @@ def main():
         "protoc_sha256": sha(Path(selected_protoc)),
         "consumer": consumer,
         "configuration_probes": probes,
+        "configured_options": options,
         "alloc_only_target": no_std,
         "source_sha256": after_hashes,
         "changed_source_files": [name for name in before_hashes if before_hashes[name] != after_hashes[name]],
@@ -109,9 +130,15 @@ def main():
             "No timing or ranking conclusion is drawn from build execution.",
         ],
     }
-    report["harness_passed"] = consumer["passed"] and consumer["cases_passed"] == 9 and all(p["gap_reproduced"] for p in probes) and no_std["functional_gap_reproduced"] and not report["changed_source_files"]
+    report["harness_passed"] = (
+        consumer["passed"] and consumer["cases_passed"] == 9
+        and options["semantic_controls_match"]
+        and all(probe["gap_reproduced"] for probe in probes)
+        and no_std["functional_gap_reproduced"]
+        and not report["changed_source_files"]
+    )
     (output / "results.json").write_text(json.dumps(report, indent=2) + "\n")
-    print(json.dumps({"harness_passed": report["harness_passed"], "consumer_cases": consumer["cases_passed"], "configuration_gaps": sum(p["gap_reproduced"] for p in probes), "alloc_only_gap": no_std["functional_gap_reproduced"]}))
+    print(json.dumps({"harness_passed": report["harness_passed"], "consumer_cases": consumer["cases_passed"], "name_cases": options["name_cases_passed"], "any_cases": options["any_cases_passed"], "enum_cases": options["enum_cases_passed"], "configuration_gaps": sum(p["gap_reproduced"] for p in probes), "alloc_only_gap": no_std["functional_gap_reproduced"]}))
     return 0 if report["harness_passed"] else 1
 
 

@@ -96,6 +96,9 @@ impl<S: Service> DynService for S {
 /// What the accept loop hands each stream. A [`Server`] selects its service
 /// statically; a [`Router`] looks it up. Both use per-method boxed futures.
 pub(crate) trait Dispatch: Send + Sync + 'static {
+    fn executor(&self) -> &crate::executor::TaskExecutor {
+        &crate::executor::TOKIO_EXECUTOR
+    }
     fn dispatch(&self, rpc: Rpc) -> impl Future<Output = ()> + Send;
     fn byte_budget(&self) -> ByteBudgetTracker {
         ByteBudgetTracker::default()
@@ -137,6 +140,7 @@ fn start_service_call<'a, S: Service>(
 /// Newtype so the monomorphic path gets its own [`Dispatch`] impl.
 pub(crate) struct Single<S> {
     pub(crate) service: Arc<S>,
+    pub(crate) executor: crate::executor::TaskExecutor,
     pub(crate) interceptor: Option<Arc<dyn crate::Interceptor>>,
     pub(crate) response_interceptor: Option<crate::interceptor::ResponseHook>,
     pub(crate) observer: Option<Arc<dyn LifecycleObserver>>,
@@ -169,6 +173,10 @@ impl Future for SingleDispatch<'_> {
 }
 
 impl<S: Service> Dispatch for Single<S> {
+    fn executor(&self) -> &crate::executor::TaskExecutor {
+        &self.executor
+    }
+
     fn dispatch(&self, mut rpc: Rpc) -> impl Future<Output = ()> + Send {
         rpc.response_interceptor = self.response_interceptor.clone();
         rpc.observer = self.observer.clone();

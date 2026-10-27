@@ -179,6 +179,7 @@ impl RrTable {
 const WAIT_FOR_READY_BACKOFF_MS: &[u64] = &[20, 40, 80, 160, 320, 640, 1000];
 
 pub(crate) struct ChannelInner {
+    pub(crate) executor: crate::executor::TaskExecutor,
     pub(crate) slots: Vec<Mutex<ConnSlot>>,
     pub(crate) loads: Vec<Arc<SlotLoad>>,
     pub(crate) next: AtomicUsize,
@@ -250,17 +251,32 @@ pub(crate) async fn connect_inner(
     config: ChannelConfig,
     tls: Option<ClientTls>,
 ) -> Result<Channel, Status> {
+    connect_inner_with_executor(
+        target,
+        config,
+        tls,
+        crate::executor::TaskExecutor::default(),
+    )
+    .await
+}
+
+pub(crate) async fn connect_inner_with_executor(
+    target: Target,
+    config: ChannelConfig,
+    tls: Option<ClientTls>,
+    executor: crate::executor::TaskExecutor,
+) -> Result<Channel, Status> {
     let endpoint = Endpoint::Tcp(target.authority().to_owned());
     let authority = target.parse()?;
     let n = config.connection_count();
     let mut sends = Vec::with_capacity(n);
     for _ in 0..n {
-        sends.push(handshake(&endpoint, config, tls.as_ref()).await?);
+        sends.push(handshake_with_executor(&endpoint, config, tls.as_ref(), &executor).await?);
     }
     let channelz = register_channel_for(&endpoint);
     let channel_id = channelz.id();
     let secure = tls.is_some();
-    Ok(finish_channel(
+    Ok(finish_channel_with_executor(
         endpoint,
         authority,
         config,
@@ -270,6 +286,7 @@ pub(crate) async fn connect_inner(
         SharedServiceConfig::default(),
         None,
         channelz,
+        executor,
     ))
 }
 
@@ -278,10 +295,24 @@ pub(crate) fn connect_lazy_inner(
     config: ChannelConfig,
     tls: Option<ClientTls>,
 ) -> Result<Channel, Status> {
+    connect_lazy_inner_with_executor(
+        target,
+        config,
+        tls,
+        crate::executor::TaskExecutor::default(),
+    )
+}
+
+pub(crate) fn connect_lazy_inner_with_executor(
+    target: Target,
+    config: ChannelConfig,
+    tls: Option<ClientTls>,
+    executor: crate::executor::TaskExecutor,
+) -> Result<Channel, Status> {
     let endpoint = Endpoint::Tcp(target.authority().to_owned());
     let authority = target.parse()?;
     let channelz = register_channel_for(&endpoint);
-    Ok(finish_channel(
+    Ok(finish_channel_with_executor(
         endpoint,
         authority,
         config,
@@ -291,6 +322,7 @@ pub(crate) fn connect_lazy_inner(
         SharedServiceConfig::default(),
         None,
         channelz,
+        executor,
     ))
 }
 
@@ -605,11 +637,42 @@ pub(crate) fn finish_channel(
     rr: Option<Arc<RrTable>>,
     channelz: crate::channelz::ChannelHandle,
 ) -> Channel {
+    finish_channel_with_executor(
+        endpoint,
+        authority,
+        config,
+        tls,
+        slots,
+        resolver,
+        service_config,
+        rr,
+        channelz,
+        crate::executor::TaskExecutor::default(),
+    )
+}
+
+#[allow(
+    clippy::too_many_arguments,
+    reason = "channel assembly plus the connection-driver executor"
+)]
+pub(crate) fn finish_channel_with_executor(
+    endpoint: Endpoint,
+    authority: Authority,
+    config: ChannelConfig,
+    tls: Option<ClientTls>,
+    slots: Vec<Mutex<ConnSlot>>,
+    resolver: Option<ResolverHandle>,
+    service_config: SharedServiceConfig,
+    rr: Option<Arc<RrTable>>,
+    channelz: crate::channelz::ChannelHandle,
+    executor: crate::executor::TaskExecutor,
+) -> Channel {
     let https = tls.is_some();
     let loads = (0..slots.len())
         .map(|_| Arc::new(SlotLoad::new()))
         .collect();
     let inner = Arc::new(ChannelInner {
+        executor,
         slots,
         loads,
         next: AtomicUsize::new(0),
@@ -2800,7 +2863,14 @@ fn drive_direct_redial<'a>(
     Box::pin(async move {
         let dial_start = tokio::time::Instant::now();
         inner.note_channel_dial_start();
-        match handshake(&inner.endpoint, inner.dial, inner.tls.as_ref()).await {
+        match handshake_with_executor(
+            &inner.endpoint,
+            inner.dial,
+            inner.tls.as_ref(),
+            &inner.executor,
+        )
+        .await
+        {
             Ok(dialed) => {
                 if let Some(obs) = observer {
                     if generation > 0 || attempt > 0 {
@@ -2883,8 +2953,23 @@ async fn handshake(
     config: ChannelConfig,
     tls: Option<&ClientTls>,
 ) -> Result<Dialed, Status> {
+    handshake_with_executor(
+        endpoint,
+        config,
+        tls,
+        &crate::executor::TaskExecutor::default(),
+    )
+    .await
+}
+
+async fn handshake_with_executor(
+    endpoint: &Endpoint,
+    config: ChannelConfig,
+    tls: Option<&ClientTls>,
+    executor: &crate::executor::TaskExecutor,
+) -> Result<Dialed, Status> {
     let timeout = config.handshake_timeout();
-    match tokio::time::timeout(timeout, handshake_io(endpoint, config, tls)).await {
+    match tokio::time::timeout(timeout, handshake_io(endpoint, config, tls, executor)).await {
         Ok(result) => result,
         Err(_) => Err(Status::unavailable(format!(
             "connect {}: timed out after {timeout:?}",
@@ -2897,13 +2982,14 @@ async fn handshake_io(
     endpoint: &Endpoint,
     config: ChannelConfig,
     tls: Option<&ClientTls>,
+    executor: &crate::executor::TaskExecutor,
 ) -> Result<Dialed, Status> {
     match endpoint {
         Endpoint::Tcp(host) => {
             let tcp = crate::tcp::connect(host, config.bound_local_address())
                 .await
                 .map_err(|e| Status::unavailable(format!("connect {host}: {e}")))?;
-            finish_tcp(tcp, config, tls).await
+            finish_tcp(tcp, config, tls, executor).await
         }
         Endpoint::Resolved {
             display, current, ..
@@ -2914,7 +3000,7 @@ async fn handshake_io(
                     "resolve {display}: no addresses in current snapshot"
                 ))
             })?;
-            dial_resolved(display, addr, config, tls).await
+            dial_resolved_with_executor(display, addr, config, tls, executor).await
         }
         #[cfg(unix)]
         Endpoint::Unix(path) => {
@@ -2926,7 +3012,7 @@ async fn handshake_io(
             let io = UnixStream::connect(path).await.map_err(|e| {
                 Status::unavailable(format!("connect {}: {e}", endpoint.describe()))
             })?;
-            finish_h2(config, io).await
+            finish_h2_with_executor(config, io, executor).await
         }
         Endpoint::Once => Err(Status::unavailable("channel has no address to redial")),
     }
@@ -2938,9 +3024,11 @@ async fn finish_tcp(
     tcp: tokio::net::TcpStream,
     config: ChannelConfig,
     tls: Option<&ClientTls>,
+    executor: &crate::executor::TaskExecutor,
 ) -> Result<Dialed, Status> {
     crate::tcp::tune(
         &tcp,
+        config.tcp_nodelay_enabled(),
         config.tcp_keepalive_period(),
         config.tcp_keepalive_probe_interval(),
         config.tcp_keepalive_probe_retries(),
@@ -2954,16 +3042,18 @@ async fn finish_tcp(
         .map(crate::channelz::EndpointAddr::Tcp);
     let peer_addr = tcp.peer_addr().ok().map(crate::channelz::EndpointAddr::Tcp);
     let mut dialed = match tls {
-        None => finish_h2(config, tcp).await?,
+        None => finish_h2_with_executor(config, tcp, executor).await?,
         Some(tls) => {
             let tls_stream = tls.connect(tcp).await?;
-            finish_h2(config, tls_stream).await.map_err(|e| {
-                if e.to_string().contains("connection closed") {
-                    Status::unauthenticated("tls: peer closed after handshake")
-                } else {
-                    e
-                }
-            })?
+            finish_h2_with_executor(config, tls_stream, executor)
+                .await
+                .map_err(|e| {
+                    if e.to_string().contains("connection closed") {
+                        Status::unauthenticated("tls: peer closed after handshake")
+                    } else {
+                        e
+                    }
+                })?
         }
     };
     dialed.local_addr = local_addr;
@@ -2979,12 +3069,29 @@ async fn dial_resolved(
     config: ChannelConfig,
     tls: Option<&ClientTls>,
 ) -> Result<Dialed, Status> {
+    dial_resolved_with_executor(
+        display,
+        addr,
+        config,
+        tls,
+        &crate::executor::TaskExecutor::default(),
+    )
+    .await
+}
+
+async fn dial_resolved_with_executor(
+    display: &str,
+    addr: ResolvedAddress,
+    config: ChannelConfig,
+    tls: Option<&ClientTls>,
+    executor: &crate::executor::TaskExecutor,
+) -> Result<Dialed, Status> {
     match addr {
         ResolvedAddress::Tcp(sock) => {
             let tcp = crate::tcp::connect_addr(sock, config.bound_local_address())
                 .await
                 .map_err(|e| Status::unavailable(format!("connect {display} [{sock}]: {e}")))?;
-            finish_tcp(tcp, config, tls).await
+            finish_tcp(tcp, config, tls, executor).await
         }
         ResolvedAddress::Unix(path) => {
             #[cfg(unix)]
@@ -2997,7 +3104,7 @@ async fn dial_resolved(
                 let io = UnixStream::connect(path)
                     .await
                     .map_err(|e| Status::unavailable(format!("connect {display}: {e}")))?;
-                finish_h2(config, io).await
+                finish_h2_with_executor(config, io, executor).await
             }
             #[cfg(not(unix))]
             {
@@ -3052,7 +3159,7 @@ async fn dial_resolved(
                 // A failed nonblocking connect surfaces here, not above.
                 io.peer_addr()
                     .map_err(|e| Status::unavailable(format!("connect {display}: {e}")))?;
-                finish_h2(config, io).await
+                finish_h2_with_executor(config, io, executor).await
             }
             #[cfg(not(target_os = "linux"))]
             {
@@ -3612,7 +3719,11 @@ async fn wait_for_health(
     }
 }
 
-pub(crate) async fn finish_h2<IO>(config: ChannelConfig, io: IO) -> Result<Dialed, Status>
+pub(crate) async fn finish_h2_with_executor<IO>(
+    config: ChannelConfig,
+    io: IO,
+    executor: &crate::executor::TaskExecutor,
+) -> Result<Dialed, Status>
 where
     IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
@@ -3622,7 +3733,20 @@ where
         .await
         .map_err(|e| Status::unavailable(e.to_string()))?;
     let (interval, timeout) = config.keepalive();
-    let dead = crate::keepalive::spawn_if(|| conn.ping_pong(), interval, timeout);
+    let active_keepalive = interval.is_some() && !config.keep_alive_while_idle_enabled();
+    let busy = (config.connection_idle().is_some()
+        || config.connection_age().is_some()
+        || active_keepalive)
+        .then(|| {
+            if active_keepalive && config.adaptive_window_enabled() {
+                crate::keepalive::Busy::new_for_adaptive_keepalive()
+            } else {
+                crate::keepalive::Busy::new()
+            }
+        });
+    let activity = if active_keepalive { busy.clone() } else { None };
+    conn.set_keepalive_activity(activity.clone());
+    let dead = crate::keepalive::spawn_if(|| conn.ping_pong(), interval, timeout, activity);
     // `SendRequest::ready` does not wait for SETTINGS. Drive the connection
     // until send capacity leaves 0, which is when the peer's preface has
     // been applied. Dropping this future on connect_timeout drops `conn`.
@@ -3648,11 +3772,9 @@ where
     })
     .await?;
     let (stop_tx, mut stop_rx) = watch::channel(false);
-    let busy = (config.connection_idle().is_some() || config.connection_age().is_some())
-        .then(crate::keepalive::Busy::new);
     #[cfg(feature = "copy-counts")]
     crate::copy_counts::note_spawn(crate::copy_counts::SpawnSite::ClientConnectionDriver);
-    drop(tokio::spawn(async move {
+    executor.spawn(async move {
         let keepalive = dead.is_some();
         tokio::select! {
             r = conn => {
@@ -3665,7 +3787,7 @@ where
             // to read a bool that stays false. A version change is the stop.
             _ = stop_rx.changed() => {}
         }
-    }));
+    });
     Ok(Dialed {
         send,
         stop: stop_tx,
