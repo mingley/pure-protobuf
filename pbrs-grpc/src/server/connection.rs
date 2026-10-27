@@ -418,7 +418,24 @@ where
 }
 
 /// [`serve_io`] on runtime `R`; production callers use Tokio.
-pub(crate) async fn serve_io_in<R: Runtime, D, IO>(
+pub(crate) fn serve_io_in<R: Runtime, D, IO>(
+    dispatch: Arc<D>,
+    io: IO,
+    peer: ConnectionInfo,
+    config: Arc<ServerConfig>,
+    goaway: watch::Receiver<bool>,
+    rpc_slots: Option<Arc<Semaphore>>,
+) -> impl Future<Output = Result<(), Status>>
+where
+    D: Dispatch,
+    IO: crate::rt::Io,
+{
+    super::coalesced::Coalesced::new(serve_io_core_in::<R, D, IO>(
+        dispatch, io, peer, config, goaway, rpc_slots,
+    ))
+}
+
+async fn serve_io_core_in<R: Runtime, D, IO>(
     dispatch: Arc<D>,
     io: IO,
     peer: ConnectionInfo,

@@ -6,6 +6,7 @@
 //! kernel you cannot drive by hand is a kernel you cannot debug.
 
 pub(crate) mod accept;
+mod coalesced;
 pub(crate) mod connection;
 pub(crate) mod deadline;
 pub(crate) mod dispatch;
