@@ -133,7 +133,7 @@ fn bundled_messageset_handlers_keep_the_first_payload() {
             assert_eq!(parsed.serialize().unwrap(), expected);
             assert!(parsed.clear_and_parse(&malformed).is_err());
             parsed.clear_and_parse(&prefix).unwrap();
-            assert_eq!(parsed.serialize().unwrap(), []);
+            assert!(parsed.serialize().unwrap().is_empty());
         }};
     }
     check!(pbrs::gencode::TestAllTypesProto2);
