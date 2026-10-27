@@ -1220,7 +1220,6 @@ impl DynamicMessage {
         &self.desc
     }
 
-    #[cfg(any(feature = "json", feature = "text"))]
     pub(crate) fn raw_fields(&self) -> &BTreeMap<u32, FieldValue> {
         &self.fields
     }
@@ -1305,6 +1304,11 @@ impl DynamicMessage {
     /// Singular assignment with pre-resolved oneof membership from the parse
     /// table. Identical to [`Self::set`] without the descriptor lookup.
     pub(crate) fn set_prepared(&mut self, number: u32, oneof: Option<&[u32]>, value: Value) {
+        self.clear_prepared_oneof(number, oneof);
+        self.fields.insert(number, FieldValue::Singular(value));
+    }
+
+    pub(crate) fn clear_prepared_oneof(&mut self, number: u32, oneof: Option<&[u32]>) {
         if let Some(members) = oneof {
             for other in members {
                 if *other != number {
@@ -1312,24 +1316,30 @@ impl DynamicMessage {
                 }
             }
         }
-        self.fields.insert(number, FieldValue::Singular(value));
     }
 
-    /// Singular-message last-wins merge: fold `incoming` into an existing
-    /// message value, else assign (with oneof replacement).
-    pub(crate) fn merge_singular_message(
+    /// Reuse a singular child's final storage while parsing another occurrence.
+    /// The flag identifies a new child to discard if its wire parse fails.
+    /// The caller clears oneof siblings once the occurrence parses correctly.
+    pub(crate) fn message_mut_prepared(
         &mut self,
         number: u32,
-        oneof: Option<&[u32]>,
-        incoming: DynamicMessage,
-    ) {
+        desc: Arc<MessageDescriptor>,
+        pool: Option<&Arc<DescriptorPool>>,
+    ) -> Result<(&mut DynamicMessage, bool), ParseError> {
+        let created = !matches!(
+            self.fields.get(&number),
+            Some(FieldValue::Singular(Value::Message(_)))
+        );
+        if created {
+            let mut child = Self::new(desc);
+            child.pool = pool.cloned();
+            self.fields
+                .insert(number, FieldValue::Singular(Value::Message(child)));
+        }
         match self.fields.get_mut(&number) {
-            Some(FieldValue::Singular(Value::Message(existing))) => {
-                existing.merge_from_dyn(&incoming);
-            }
-            _ => {
-                self.set_prepared(number, oneof, Value::Message(incoming));
-            }
+            Some(FieldValue::Singular(Value::Message(child))) => Ok((child, created)),
+            _ => Err(ParseError::new("dynamic message storage mismatch")),
         }
     }
 
@@ -1470,6 +1480,20 @@ impl DynamicMessage {
 
     pub(crate) fn merge_from_dyn(&mut self, src: &DynamicMessage) {
         for (n, val) in &src.fields {
+            if matches!(val, FieldValue::Singular(_)) {
+                if let Some(members) = self
+                    .desc
+                    .field(*n)
+                    .and_then(|field| field.oneof_index)
+                    .and_then(|index| self.desc.oneofs.get(index as usize))
+                {
+                    for member in members {
+                        if member != n {
+                            self.fields.remove(member);
+                        }
+                    }
+                }
+            }
             match val {
                 FieldValue::Singular(Value::Message(child)) => match self.fields.get_mut(n) {
                     Some(FieldValue::Singular(Value::Message(dst))) => dst.merge_from_dyn(child),
@@ -2020,6 +2044,9 @@ impl ClearAndParse for DynamicMessageMut<'_> {
     }
     fn merge_from_bytes(&mut self, data: &[u8]) -> Result<(), ParseError> {
         self.inner.merge_from_bytes(data)
+    }
+    fn merge_from_bytes_dont_enforce_required(&mut self, data: &[u8]) -> Result<(), ParseError> {
+        self.inner.merge_from_bytes_dont_enforce_required(data)
     }
 }
 

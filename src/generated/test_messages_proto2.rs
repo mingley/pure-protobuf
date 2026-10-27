@@ -5267,8 +5267,8 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                 match n {
                     1 => match w {
                         pbrs::rt::WIRE_SGROUP | pbrs::rt::WIRE_LEN => {
-                            let mut type_id = 0u32;
-                            let mut payload: Vec<u8> = Vec::new();
+                            let mut type_id: Option<u32> = None;
+                            let mut payload: Option<&[u8]> = None;
                             if w == pbrs::rt::WIRE_LEN {
                                 let inner = pbrs::rt::read_len_bytes(data, pos)?;
                                 let mut p = 0;
@@ -5276,11 +5276,22 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                     let (n, ww) = pbrs::rt::decode_tag(inner, &mut p)?;
                                     match (n, ww) {
                                         (2, pbrs::rt::WIRE_VARINT) => {
-                                            type_id = pbrs::rt::decode_varint(inner, &mut p)? as u32
+                                            let number =
+                                                pbrs::rt::decode_varint(inner, &mut p)? as u32;
+                                            if number == 0 {
+                                                return Err(ParseError::new(
+                                                    "invalid message set type id",
+                                                ));
+                                            }
+                                            if type_id.is_none() {
+                                                type_id = Some(number);
+                                            }
                                         }
                                         (3, pbrs::rt::WIRE_LEN) => {
-                                            payload =
-                                                pbrs::rt::read_len_bytes(inner, &mut p)?.to_vec()
+                                            let body = pbrs::rt::read_len_bytes(inner, &mut p)?;
+                                            if payload.is_none() {
+                                                payload = Some(body);
+                                            }
                                         }
                                         _ => pbrs::rt::skip_field_with_number_and_depth(
                                             inner,
@@ -5299,10 +5310,21 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                     }
                                     match (n, ww) {
                                         (2, pbrs::rt::WIRE_VARINT) => {
-                                            type_id = pbrs::rt::decode_varint(data, pos)? as u32
+                                            let number = pbrs::rt::decode_varint(data, pos)? as u32;
+                                            if number == 0 {
+                                                return Err(ParseError::new(
+                                                    "invalid message set type id",
+                                                ));
+                                            }
+                                            if type_id.is_none() {
+                                                type_id = Some(number);
+                                            }
                                         }
                                         (3, pbrs::rt::WIRE_LEN) => {
-                                            payload = pbrs::rt::read_len_bytes(data, pos)?.to_vec()
+                                            let body = pbrs::rt::read_len_bytes(data, pos)?;
+                                            if payload.is_none() {
+                                                payload = Some(body);
+                                            }
                                         }
                                         _ => pbrs::rt::skip_field_with_number_and_depth(
                                             data,
@@ -5314,15 +5336,18 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                     }
                                 }
                             }
+                            let (Some(type_id), Some(payload)) = (type_id, payload) else {
+                                continue;
+                            };
                             match type_id {
                                 1547769 => {
                                     if self.message_set_extension.is_some() {
                                         self.message_set_extension
                                             .get_or_insert()
-                                            .merge_bytes_dont_enforce(&payload, depth + 1)?;
+                                            .merge_bytes_dont_enforce(payload, depth + 1)?;
                                     } else {
                                         let mut inner = MessageSetCorrectExtension1::default();
-                                        inner.merge_bytes_dont_enforce(&payload, depth + 1)?;
+                                        inner.merge_bytes_dont_enforce(payload, depth + 1)?;
                                         self.message_set_extension =
                                             pbrs::rt::LazyMsg::from_owned(inner);
                                     }
@@ -5331,10 +5356,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                     if self.message_set_extension_4135312.is_some() {
                                         self.message_set_extension_4135312
                                             .get_or_insert()
-                                            .merge_bytes_dont_enforce(&payload, depth + 1)?;
+                                            .merge_bytes_dont_enforce(payload, depth + 1)?;
                                     } else {
                                         let mut inner = MessageSetCorrectExtension2::default();
-                                        inner.merge_bytes_dont_enforce(&payload, depth + 1)?;
+                                        inner.merge_bytes_dont_enforce(payload, depth + 1)?;
                                         self.message_set_extension_4135312 =
                                             pbrs::rt::LazyMsg::from_owned(inner);
                                     }
@@ -5347,7 +5372,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                     });
                                     u.fields.push(pbrs::rt::UnknownField::LengthDelimited {
                                         number: 3,
-                                        value: payload,
+                                        value: payload.to_vec(),
                                     });
                                     self.unknown.fields.push(pbrs::rt::UnknownField::Group {
                                         number: 1,
@@ -19148,8 +19173,8 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                     1 => {
                         match w {
                             pbrs::rt::WIRE_SGROUP | pbrs::rt::WIRE_LEN => {
-                                let mut type_id = 0u32;
-                                let mut payload: Vec<u8> = Vec::new();
+                                let mut type_id: Option<u32> = None;
+                                let mut payload: Option<&[u8]> = None;
                                 if w == pbrs::rt::WIRE_LEN {
                                     let inner = pbrs::rt::read_len_bytes(data, pos)?;
                                     let mut p = 0;
@@ -19157,12 +19182,22 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                         let (n, ww) = pbrs::rt::decode_tag(inner, &mut p)?;
                                         match (n, ww) {
                                             (2, pbrs::rt::WIRE_VARINT) => {
-                                                type_id =
-                                                    pbrs::rt::decode_varint(inner, &mut p)? as u32
+                                                let number =
+                                                    pbrs::rt::decode_varint(inner, &mut p)? as u32;
+                                                if number == 0 {
+                                                    return Err(ParseError::new(
+                                                        "invalid message set type id",
+                                                    ));
+                                                }
+                                                if type_id.is_none() {
+                                                    type_id = Some(number);
+                                                }
                                             }
                                             (3, pbrs::rt::WIRE_LEN) => {
-                                                payload = pbrs::rt::read_len_bytes(inner, &mut p)?
-                                                    .to_vec()
+                                                let body = pbrs::rt::read_len_bytes(inner, &mut p)?;
+                                                if payload.is_none() {
+                                                    payload = Some(body);
+                                                }
                                             }
                                             _ => pbrs::rt::skip_field_with_number_and_depth(
                                                 inner,
@@ -19181,11 +19216,22 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                         }
                                         match (n, ww) {
                                             (2, pbrs::rt::WIRE_VARINT) => {
-                                                type_id = pbrs::rt::decode_varint(data, pos)? as u32
+                                                let number =
+                                                    pbrs::rt::decode_varint(data, pos)? as u32;
+                                                if number == 0 {
+                                                    return Err(ParseError::new(
+                                                        "invalid message set type id",
+                                                    ));
+                                                }
+                                                if type_id.is_none() {
+                                                    type_id = Some(number);
+                                                }
                                             }
                                             (3, pbrs::rt::WIRE_LEN) => {
-                                                payload =
-                                                    pbrs::rt::read_len_bytes(data, pos)?.to_vec()
+                                                let body = pbrs::rt::read_len_bytes(data, pos)?;
+                                                if payload.is_none() {
+                                                    payload = Some(body);
+                                                }
                                             }
                                             _ => pbrs::rt::skip_field_with_number_and_depth(
                                                 data,
@@ -19197,15 +19243,18 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                         }
                                     }
                                 }
+                                let (Some(type_id), Some(payload)) = (type_id, payload) else {
+                                    continue;
+                                };
                                 match type_id {
                                     1547769 => {
                                         if self.message_set_extension.is_some() {
                                             self.message_set_extension
                                                 .get_or_insert()
-                                                .merge_bytes(&payload, depth + 1)?;
+                                                .merge_bytes(payload, depth + 1)?;
                                         } else {
                                             let mut inner = TestAllTypesProto2MessageSetCorrectExtension1::default();
-                                            inner.merge_bytes(&payload, depth + 1)?;
+                                            inner.merge_bytes(payload, depth + 1)?;
                                             self.message_set_extension =
                                                 pbrs::rt::LazyMsg::from_owned(inner);
                                         }
@@ -19214,10 +19263,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                         if self.message_set_extension_4135312.is_some() {
                                             self.message_set_extension_4135312
                                                 .get_or_insert()
-                                                .merge_bytes(&payload, depth + 1)?;
+                                                .merge_bytes(payload, depth + 1)?;
                                         } else {
                                             let mut inner = TestAllTypesProto2MessageSetCorrectExtension2::default();
-                                            inner.merge_bytes(&payload, depth + 1)?;
+                                            inner.merge_bytes(payload, depth + 1)?;
                                             self.message_set_extension_4135312 =
                                                 pbrs::rt::LazyMsg::from_owned(inner);
                                         }
@@ -19226,10 +19275,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                         if self.extension_with_oneof.is_some() {
                                             self.extension_with_oneof
                                                 .get_or_insert()
-                                                .merge_bytes(&payload, depth + 1)?;
+                                                .merge_bytes(payload, depth + 1)?;
                                         } else {
                                             let mut inner = ExtensionWithOneof::default();
-                                            inner.merge_bytes(&payload, depth + 1)?;
+                                            inner.merge_bytes(payload, depth + 1)?;
                                             self.extension_with_oneof =
                                                 pbrs::rt::LazyMsg::from_owned(inner);
                                         }
@@ -19242,7 +19291,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                         });
                                         u.fields.push(pbrs::rt::UnknownField::LengthDelimited {
                                             number: 3,
-                                            value: payload,
+                                            value: payload.to_vec(),
                                         });
                                         self.unknown.fields.push(pbrs::rt::UnknownField::Group {
                                             number: 1,

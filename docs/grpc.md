@@ -190,10 +190,11 @@ Request metadata, compression settings and gRPC deadlines are preserved.
 Returned futures are native `Call`s, including their cancellation handles.
 Response streams retain native trailers and deadline enforcement; dropping
 one before EOF cancels the RPC. Client-streaming and bidirectional adapters
-use one forwarding task per RPC with the channel's bounded stream buffer.
-That task stops on cancellation or a closed native sender, including while
-the input producer is idle. Bidirectional forwarding continues after the
-Tower future resolves at response headers.
+own the input stream without polling it until the returned call is polled.
+Client-streaming reads input on the calling task. Bidirectional input uses
+the native upload pump and continues after response headers arrive. Neither
+adapter adds a forwarding task or an intermediate queue. HTTP/2 flow control,
+cancellation and deadlines bound input consumption, including idle producers.
 
 A live request stream cannot be replayed by a retry layer. Configure the
 policy's `clone_request` to return `None` for these streams, or supply a

@@ -67,8 +67,16 @@ impl CallDeadline {
 
     /// Reset only when the cancellation allocation is uniquely owned.
     pub(crate) fn reset(&self) {
-        self.close();
-        self.inner.lock().unwrap_or_else(|p| p.into_inner()).at = None;
+        let flags = self.flags.load(Ordering::Acquire);
+        // The terminal owner normally closes the call before pooling it.
+        // Repeating close would lock and detach state already released there.
+        // Unclosed guards still need their original cleanup path.
+        if flags & Self::CLOSED == 0 {
+            self.close();
+        }
+        if flags & Self::ACTIVE != 0 {
+            self.inner.lock().unwrap_or_else(|p| p.into_inner()).at = None;
+        }
         self.flags.store(0, Ordering::Release);
     }
 
@@ -797,5 +805,52 @@ mod tests {
         assert!(!next.deadline.ended());
         assert_eq!(next.deadline.inner.lock().unwrap().web_carry.1, 0);
         assert_eq!(next.deadline.flags.load(Ordering::Acquire), 0);
+    }
+
+    #[test]
+    fn resetting_an_already_closed_call_without_a_deadline_does_not_lock_state() {
+        let deadline = CallDeadline::new();
+        deadline.start();
+        deadline.end();
+        deadline.close();
+        // A held state lock detects redundant cleanup directly. The bounded
+        // worker always joins after releasing it, including on the old path.
+        let (started_tx, started_rx) = std::sync::mpsc::sync_channel(1);
+        let (finished_tx, finished_rx) = std::sync::mpsc::sync_channel(1);
+        let guard = deadline.inner.lock().unwrap();
+        let completed = std::thread::scope(|scope| {
+            let worker = scope.spawn(|| {
+                started_tx.send(()).unwrap();
+                deadline.reset();
+                finished_tx.send(()).unwrap();
+            });
+            started_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+            let completed = finished_rx.recv_timeout(Duration::from_secs(1)).is_ok();
+            drop(guard);
+            worker.join().unwrap();
+            completed
+        });
+        assert!(
+            completed,
+            "a closed, deadline-free call has no state left to clean"
+        );
+        assert!(deadline.at().is_none());
+        assert!(deadline.start(), "the next call owns a new lifecycle");
+        assert!(deadline.end());
+    }
+
+    #[test]
+    fn resetting_an_already_closed_finite_deadline_still_clears_it() {
+        let deadline = CallDeadline::new();
+        let at = Instant::now() + Duration::from_secs(5);
+        assert_eq!(deadline.tighten(Some(at)), Some(at));
+        deadline.close();
+        deadline.reset();
+        assert!(deadline.at().is_none());
+        assert!(deadline.inner.lock().unwrap().at.is_none());
+        assert_eq!(
+            deadline.tighten(Some(at + Duration::from_secs(5))),
+            Some(at + Duration::from_secs(5))
+        );
     }
 }

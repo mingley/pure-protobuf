@@ -186,7 +186,7 @@ pub(crate) fn rust_type_path(s: &str) -> String {
     // Only the emitted path is allocated.
     if let Some(path) = TYPE_FILES.with(|c| {
         let map = c.borrow();
-        let (type_file, pkg) = map.get(key)?;
+        let (type_file, pkg) = map.as_ref()?.get(key)?;
         let same_file = CURRENT_TARGET.with(|t| {
             let current = t.borrow();
             !current.is_empty() && file_matches_single(&current, type_file)

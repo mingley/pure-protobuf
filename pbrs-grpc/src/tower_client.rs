@@ -24,9 +24,8 @@
 //! per-call telemetry/retry accounting is not emitted by this HTTP adapter.
 
 use crate::codec::CodecMessage;
-use crate::{Call, Channel, Request, Response, Status, StreamSender, Streaming};
+use crate::{Call, Channel, Request, Response, Status, Streaming};
 use futures_core::Stream;
-use std::future::poll_fn;
 use std::marker::PhantomData;
 use std::task::{Context, Poll};
 use tower::Service;
@@ -155,8 +154,8 @@ streaming_service!(
     ///
     /// Accepts a [`Request`] containing any sendable [`Stream`] of
     /// `Result<Req, Status>`, including [`Streaming::channel`] streams.
-    /// A bounded forwarding task feeds the native request sender and exits
-    /// when the input ends, the RPC ends or the [`Call`] is cancelled.
+    /// The native RPC pump reads the owned input directly when the [`Call`]
+    /// is polled. No forwarding task or intermediate message queue is added.
     /// Live streams cannot be cloned for automatic middleware retries.
     ///
     /// ```no_run
@@ -187,8 +186,8 @@ streaming_service!(
     /// A Tower service for one bidirectional gRPC method.
     ///
     /// Accepts the same request streams as [`ClientStreamingService`].
-    /// Request forwarding continues after response headers arrive. Dropping
-    /// the received [`Streaming`] cancels the RPC and stops forwarding, even
+    /// The native upload pump continues after response headers arrive. Dropping
+    /// the received [`Streaming`] cancels the RPC and releases input, even
     /// when the request producer is idle. Native trailers and deadlines apply.
     BidiService
 );
@@ -258,12 +257,8 @@ where
     }
 
     fn call(&mut self, request: Request<S>) -> Self::Future {
-        let (stream, parts) = request.into_message_and_parts();
-        let (sender, call) = self
-            .channel
-            .client_streaming(self.path, Request::<()>::from_message_and_parts((), parts));
-        forward_requests(stream, sender);
-        call
+        self.channel
+            .client_streaming_from_stream(self.path, request)
     }
 }
 
@@ -282,45 +277,8 @@ where
     }
 
     fn call(&mut self, request: Request<S>) -> Self::Future {
-        let (stream, parts) = request.into_message_and_parts();
-        let (sender, call) = self
-            .channel
-            .bidi(self.path, Request::<()>::from_message_and_parts((), parts));
-        forward_requests(stream, sender);
-        call
+        self.channel.bidi_from_stream(self.path, request)
     }
-}
-
-fn forward_requests<Req, S>(stream: S, sender: StreamSender<Req>)
-where
-    Req: CodecMessage + Send + 'static,
-    S: Stream<Item = Result<Req, Status>> + Send + 'static,
-{
-    // No unbounded queue: send waits on the native channel's stream buffer.
-    // Watch the receiver as well as the input so an idle producer cannot
-    // keep this task alive after native deadline/cancellation/early response.
-    drop(tokio::spawn(async move {
-        tokio::pin!(stream);
-        loop {
-            let next = tokio::select! {
-                biased;
-                () = sender.closed() => return,
-                next = poll_fn(|cx| stream.as_mut().poll_next(cx)) => next,
-            };
-            match next {
-                Some(Ok(message)) => {
-                    if sender.send(message).await.is_err() {
-                        return;
-                    }
-                }
-                Some(Err(status)) => {
-                    sender.fail(status).await;
-                    return;
-                }
-                None => return,
-            }
-        }
-    }));
 }
 
 #[cfg(feature = "tonic")]

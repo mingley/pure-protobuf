@@ -1118,11 +1118,63 @@ pub(crate) fn merge_dynamic_loop(
         return Err(ParseError::new("truncated group"));
     }
     if enforce {
-        for number in &table.required {
-            if !msg.has(*number) {
-                return Err(ParseError::new("missing required field"));
+        check_dynamic_initialized(ctx, table, msg, depth)?;
+    }
+    Ok(())
+}
+
+/// Validate only the final tree. Singular occurrences and values within one
+/// map entry may complete each other; replaced oneofs and map entries are gone.
+#[cfg(feature = "reflect")]
+fn check_dynamic_initialized(
+    ctx: &mut DynamicParseCtx,
+    table: &Arc<DynamicTable>,
+    msg: &DynamicMessage,
+    depth: u32,
+) -> Result<(), ParseError> {
+    use crate::dynamic::FieldValue;
+
+    for number in &table.required {
+        if !msg.has(*number) {
+            return Err(ParseError::new("missing required field"));
+        }
+    }
+    // An omitted map message value creates an empty default without entering
+    // another wire level. It still owes its required fields, but no traversal.
+    if msg.raw_fields().is_empty() {
+        return Ok(());
+    }
+    if depth > RECURSION_LIMIT {
+        return Err(ParseError::new("recursion limit exceeded"));
+    }
+    for field in msg.raw_fields().values() {
+        match field {
+            FieldValue::Singular(value) => check_dynamic_child(ctx, value, depth + 1)?,
+            FieldValue::Repeated(values) => {
+                for value in values {
+                    check_dynamic_child(ctx, value, depth + 1)?;
+                }
+            }
+            FieldValue::Map(values) => {
+                for value in values.values() {
+                    // The synthetic map-entry message consumes one level too.
+                    check_dynamic_child(ctx, value, depth + 2)?;
+                }
             }
         }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "reflect")]
+fn check_dynamic_child(
+    ctx: &mut DynamicParseCtx,
+    value: &Value,
+    depth: u32,
+) -> Result<(), ParseError> {
+    if let Value::Message(child) = value {
+        let table = ctx.table_for(child.descriptor());
+        check_dynamic_initialized(ctx, &table, child, depth)?;
     }
     Ok(())
 }
@@ -1216,12 +1268,28 @@ fn merge_dynamic_entry(
         msg.push(number, value);
         return Ok(());
     }
+    if matches!(entry.kind, FieldKind::Message | FieldKind::Group) {
+        let mut inner_pos = 0;
+        let (input, cursor, until) = if entry.kind == FieldKind::Group {
+            (data, pos, Some(number))
+        } else {
+            (read_len_bytes(data, pos)?, &mut inner_pos, None)
+        };
+        let (desc, nested) = ctx.resolve_nested(table, index, number)?;
+        let (child, created) = msg.message_mut_prepared(number, desc, ctx.pool.as_ref())?;
+        let result =
+            merge_dynamic_loop(ctx, &nested, child, input, cursor, depth + 1, false, until);
+        if result.is_err() && created {
+            // A failed deep parse must not poison later merges with a newly
+            // stored over-limit subtree.
+            msg.clear_field(number);
+        } else if result.is_ok() {
+            msg.clear_prepared_oneof(number, oneof);
+        }
+        return result;
+    }
     let value = decode_dynamic_leaf(ctx, table, index, entry, data, pos, wire_type, depth)?;
     if divert_closed_unknown(table, index, msg, number, &value) {
-        return Ok(());
-    }
-    if let Value::Message(incoming) = value {
-        msg.merge_singular_message(number, oneof, incoming);
         return Ok(());
     }
     msg.set_prepared(number, oneof, value);
@@ -1263,7 +1331,7 @@ fn decode_dynamic_leaf(
                 payload,
                 &mut inner_pos,
                 depth + 1,
-                true,
+                false,
                 None,
             )?;
             Ok(Value::Message(inner))
@@ -1301,9 +1369,8 @@ fn decode_dynamic_leaf(
     }
 }
 
-/// Decode one group body by running the loop over the group descriptor with
-/// `until` set to the group number and the caller's cursor. Required checks
-/// stay off inside group bodies, exactly as before.
+/// Decode one repeated or map group body with the caller's cursor. Required
+/// checks are deferred to validation of the final owning message tree.
 #[cfg(feature = "reflect")]
 fn decode_dynamic_group(
     ctx: &mut DynamicParseCtx,
@@ -1524,7 +1591,8 @@ fn decode_dynamic_map_entry_direct(
 /// Merge one MessageSet item, including the two historical quirks:
 /// length-delimited inner unknowns are dropped while group-form inner
 /// unknowns land in the parent unknown list. The item parses directly into
-/// the loop with required checks off.
+/// the loop with required checks off. The first type ID and payload win;
+/// every explicit type ID is checked, and incomplete items have no value.
 #[cfg(feature = "reflect")]
 fn merge_dynamic_message_set(
     ctx: &mut DynamicParseCtx,
@@ -1535,16 +1603,29 @@ fn merge_dynamic_message_set(
     wire_type: u32,
     depth: u32,
 ) -> Result<(), ParseError> {
-    let mut type_id = 0u32;
-    let mut payload = Vec::new();
+    let mut type_id: Option<u32> = None;
+    let mut payload: Option<&[u8]> = None;
     if wire_type == WIRE_LEN {
         let inner = read_len_bytes(data, pos)?;
         let mut item = 0;
         while item < inner.len() {
             let (number, wire) = dyn_decode_tag(inner, &mut item)?;
             match (number, wire) {
-                (2, WIRE_VARINT) => type_id = decode_varint(inner, &mut item)? as u32,
-                (3, WIRE_LEN) => payload = read_len_bytes(inner, &mut item)?.to_vec(),
+                (2, WIRE_VARINT) => {
+                    let number = decode_varint(inner, &mut item)? as u32;
+                    if number == 0 {
+                        return Err(ParseError::new("invalid message set type id"));
+                    }
+                    if type_id.is_none() {
+                        type_id = Some(number);
+                    }
+                }
+                (3, WIRE_LEN) => {
+                    let bytes = read_len_bytes(inner, &mut item)?;
+                    if payload.is_none() {
+                        payload = Some(bytes);
+                    }
+                }
                 _ => {
                     dyn_skip_field_with_number_and_depth(inner, &mut item, number, wire, depth + 1)?
                 }
@@ -1560,8 +1641,21 @@ fn merge_dynamic_message_set(
                 break;
             }
             match (number, wire) {
-                (2, WIRE_VARINT) => type_id = decode_varint(data, pos)? as u32,
-                (3, WIRE_LEN) => payload = read_len_bytes(data, pos)?.to_vec(),
+                (2, WIRE_VARINT) => {
+                    let number = decode_varint(data, pos)? as u32;
+                    if number == 0 {
+                        return Err(ParseError::new("invalid message set type id"));
+                    }
+                    if type_id.is_none() {
+                        type_id = Some(number);
+                    }
+                }
+                (3, WIRE_LEN) => {
+                    let bytes = read_len_bytes(data, pos)?;
+                    if payload.is_none() {
+                        payload = Some(bytes);
+                    }
+                }
                 _ => {
                     let unknown = capture_unknown_with_depth(data, pos, number, wire, depth + 1)?;
                     msg.unknown_mut().fields.push(unknown);
@@ -1573,9 +1667,9 @@ fn merge_dynamic_message_set(
         msg.unknown_mut().fields.push(unknown);
         return Ok(());
     }
-    if type_id == 0 {
+    let (Some(type_id), Some(payload)) = (type_id, payload) else {
         return Ok(());
-    }
+    };
     let Ok(index) = table
         .entries
         .binary_search_by_key(&type_id, |entry| entry.number)
@@ -1590,7 +1684,7 @@ fn merge_dynamic_message_set(
                 });
                 group.fields.push(UnknownField::LengthDelimited {
                     number: 3,
-                    value: payload,
+                    value: payload.to_vec(),
                 });
                 group
             },
@@ -1598,24 +1692,25 @@ fn merge_dynamic_message_set(
         return Ok(());
     };
     let (desc, nested) = ctx.resolve_nested(table, index, type_id)?;
-    let mut inner = DynamicMessage::new(desc);
-    if let Some(pool) = ctx.pool.clone() {
-        inner.set_pool(pool);
-    }
+    let oneof = table.oneof.get(index).and_then(|o| o.as_deref());
+    let (inner, created) = msg.message_mut_prepared(type_id, desc, ctx.pool.as_ref())?;
     let mut inner_pos = 0;
-    merge_dynamic_loop(
+    let result = merge_dynamic_loop(
         ctx,
         &nested,
-        &mut inner,
-        &payload,
+        inner,
+        payload,
         &mut inner_pos,
         depth + 1,
         false,
         None,
-    )?;
-    let oneof = table.oneof.get(index).and_then(|o| o.as_deref());
-    msg.set_prepared(type_id, oneof, Value::Message(inner));
-    Ok(())
+    );
+    if result.is_err() && created {
+        msg.clear_field(type_id);
+    } else if result.is_ok() {
+        msg.clear_prepared_oneof(type_id, oneof);
+    }
+    result
 }
 
 #[cfg(test)]

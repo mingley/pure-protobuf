@@ -1745,8 +1745,54 @@ impl super::Channel {
     pub fn client_streaming<Req, Resp>(
         &self,
         path: &'static str,
-        mut req: Request<()>,
+        req: Request<()>,
     ) -> (StreamSender<Req>, Call<Response<Resp>>)
+    where
+        Req: CodecMessage + Send + 'static,
+        Resp: CodecMessage + Send + 'static,
+    {
+        self.client_streaming_with_input(path, req, |wire, compress| {
+            let (tx, rx) = Streaming::channel(self.local.config.stream_buffer_size());
+            (tx.with_limits(wire.limits).with_compress(compress), rx)
+        })
+    }
+
+    #[cfg(feature = "tower")]
+    pub(crate) fn client_streaming_from_stream<Req, Resp, S>(
+        &self,
+        path: &'static str,
+        request: Request<S>,
+    ) -> Call<Response<Resp>>
+    where
+        Req: CodecMessage + Send + 'static,
+        Resp: CodecMessage + Send + 'static,
+        S: futures_core::Stream<Item = Result<Req, Status>> + Send + 'static,
+    {
+        let (stream, parts) = request.into_message_and_parts();
+        self.client_streaming_with_input(
+            path,
+            Request::<()>::from_message_and_parts((), parts),
+            |wire, compress| {
+                (
+                    (),
+                    Streaming::from_input(
+                        stream,
+                        wire.limits,
+                        compress,
+                        self.local.config.stream_buffer_size(),
+                    ),
+                )
+            },
+        )
+        .1
+    }
+
+    fn client_streaming_with_input<Req, Resp, Input>(
+        &self,
+        path: &'static str,
+        mut req: Request<()>,
+        input: impl FnOnce(Wire, bool) -> (Input, Streaming<Req>),
+    ) -> (Input, Call<Response<Resp>>)
     where
         Req: CodecMessage + Send + 'static,
         Resp: CodecMessage + Send + 'static,
@@ -1754,8 +1800,7 @@ impl super::Channel {
         let state = self.local.service_config.get();
         let prepared = self.prepare_outbound(path, &mut req, state.as_deref());
         let wire = self.wire_for(path, state.as_deref());
-        let (tx, rx) = Streaming::channel(self.local.config.stream_buffer_size());
-        let tx = tx.with_limits(wire.limits).with_compress(req.compress());
+        let (tx, rx) = input(wire, req.compress());
         let cancel = crate::rpc_cancel::RpcCancel::new();
         let cancel_rx = cancel.clone();
         let channel = self.clone();
@@ -2044,8 +2089,54 @@ impl super::Channel {
     pub fn bidi<Req, Resp>(
         &self,
         path: &'static str,
-        mut req: Request<()>,
+        req: Request<()>,
     ) -> (StreamSender<Req>, Call<Response<Streaming<Resp>>>)
+    where
+        Req: CodecMessage + Send + 'static,
+        Resp: CodecMessage + Send + 'static,
+    {
+        self.bidi_with_input(path, req, |wire, compress| {
+            let (tx, rx) = Streaming::channel(self.local.config.stream_buffer_size());
+            (tx.with_limits(wire.limits).with_compress(compress), rx)
+        })
+    }
+
+    #[cfg(feature = "tower")]
+    pub(crate) fn bidi_from_stream<Req, Resp, S>(
+        &self,
+        path: &'static str,
+        request: Request<S>,
+    ) -> Call<Response<Streaming<Resp>>>
+    where
+        Req: CodecMessage + Send + 'static,
+        Resp: CodecMessage + Send + 'static,
+        S: futures_core::Stream<Item = Result<Req, Status>> + Send + 'static,
+    {
+        let (stream, parts) = request.into_message_and_parts();
+        self.bidi_with_input(
+            path,
+            Request::<()>::from_message_and_parts((), parts),
+            |wire, compress| {
+                (
+                    (),
+                    Streaming::from_input(
+                        stream,
+                        wire.limits,
+                        compress,
+                        self.local.config.stream_buffer_size(),
+                    ),
+                )
+            },
+        )
+        .1
+    }
+
+    fn bidi_with_input<Req, Resp, Input>(
+        &self,
+        path: &'static str,
+        mut req: Request<()>,
+        input: impl FnOnce(Wire, bool) -> (Input, Streaming<Req>),
+    ) -> (Input, Call<Response<Streaming<Resp>>>)
     where
         Req: CodecMessage + Send + 'static,
         Resp: CodecMessage + Send + 'static,
@@ -2054,9 +2145,7 @@ impl super::Channel {
         let state = channel.local.service_config.get();
         let prepared = channel.prepare_outbound(path, &mut req, state.as_deref());
         let wire = channel.wire_for(path, state.as_deref());
-        let buffer = channel.local.config.stream_buffer_size();
-        let (tx, rx) = Streaming::channel(buffer);
-        let tx = tx.with_limits(wire.limits).with_compress(req.compress());
+        let (tx, rx) = input(wire, req.compress());
         let cancel = crate::rpc_cancel::RpcCancel::new();
         let cancel_rx = cancel.clone();
         let reset = cancel.clone();

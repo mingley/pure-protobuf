@@ -226,7 +226,9 @@ pub fn generate_from_code_generator_request(
             });
         }
     }
-    TYPE_FILES.with(|c| *c.borrow_mut() = type_files);
+    TYPE_FILES.with(|c| {
+        *c.borrow_mut() = (!type_files.is_empty()).then(|| Arc::new(type_files));
+    });
 
     // A single input keeps self-contained WKT copies for include! consumers.
     // Multi-input builds give imported google.protobuf files one owner in the
@@ -743,8 +745,9 @@ use pbrs::UnknownFields;\n\n"
             out_files.extend(emit_one(target)?);
         }
     } else {
-        // Move the shared map out of this thread's TLS; each worker takes a
-        // clone for its own TLS. Nothing after this point reads it here.
+        // Move the immutable index out of this thread's TLS; each worker
+        // clones its Arc rather than the map and its strings. Nothing after
+        // this point reads it here.
         let type_files_snapshot = TYPE_FILES.with(|c| c.take());
         let required_types_snapshot = REQUIRED_MESSAGE_TYPES.with(|types| types.take());
         let chunk_size = targets.len().div_ceil(worker_count);
@@ -1567,6 +1570,54 @@ mod tests {
         for _ in 0..25 {
             let again = generate_from_file_descriptor_set(&fds, &targets).expect("generate");
             assert_eq!(again, first, "parallel emission must be deterministic");
+        }
+    }
+
+    #[test]
+    fn parallel_targets_resolve_cross_file_types_without_request_state_leaks() {
+        let mut message_a = Vec::new();
+        encode_string_field(&mut message_a, 1, "MsgA");
+        let mut reference = Vec::new();
+        encode_string_field(&mut reference, 1, "child");
+        for (number, value) in [(3, 1), (4, 1), (5, 11)] {
+            wire::encode_tag(&mut reference, number, wire::WIRE_VARINT);
+            wire::encode_varint(&mut reference, value);
+        }
+        encode_string_field(&mut reference, 6, ".pkg.MsgA");
+        let mut message_b = Vec::new();
+        encode_string_field(&mut message_b, 1, "MsgB");
+        encode_len_field(&mut message_b, 2, &reference);
+        let mut file_a = Vec::new();
+        encode_string_field(&mut file_a, 1, "a.proto");
+        encode_string_field(&mut file_a, 2, "pkg");
+        encode_len_field(&mut file_a, 4, &message_a);
+        let mut file_b = Vec::new();
+        encode_string_field(&mut file_b, 1, "b.proto");
+        encode_string_field(&mut file_b, 2, "pkg");
+        encode_string_field(&mut file_b, 3, "a.proto");
+        encode_len_field(&mut file_b, 4, &message_b);
+        let mut fds = Vec::new();
+        encode_len_field(&mut fds, 1, &file_a);
+        encode_len_field(&mut fds, 1, &file_b);
+        let targets = ["a.proto".to_string(), "b.proto".to_string()];
+        let expected = generate_from_file_descriptor_set(&fds, &targets).expect("cross-file types");
+        let file_b = expected
+            .iter()
+            .find(|(name, _)| name == "b.rs")
+            .expect("b.rs");
+        assert!(
+            file_b.1.contains("crate::pkg::MsgA"),
+            "cross-file field must use its owner's path"
+        );
+
+        for _ in 0..4 {
+            // Interleave an unrelated request to exercise the requesting
+            // thread's state guard as well as worker-local initialization.
+            generate_from_file_descriptor_set(&two_file_fds(), &["a.proto".into()])
+                .expect("independent single target");
+            let reversed = ["b.proto".to_string(), "a.proto".to_string()];
+            let actual = generate_from_file_descriptor_set(&fds, &reversed).expect("next request");
+            assert_eq!(actual, expected);
         }
     }
 }

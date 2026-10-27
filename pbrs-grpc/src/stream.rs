@@ -66,6 +66,114 @@ enum Source<T> {
     Channel(mpsc::Receiver<Item<T>>),
     /// Decoded straight off an HTTP/2 stream, with no pump task in between.
     Wire(Box<crate::wire::WireStream<T>>),
+    /// Cold Tower input path. The outer box keeps the default stream layout
+    /// unchanged rather than placing a fat stream pointer in every source.
+    #[cfg(feature = "tower")]
+    External(Box<External<T>>),
+}
+
+#[cfg(feature = "tower")]
+struct External<T> {
+    // A Send input need not be Sync, while Streaming has always been Sync
+    // when T permits it. Exclusive polls use get_mut, so this preserves that
+    // auto-trait without acquiring a lock on the outbound message path.
+    #[allow(
+        clippy::disallowed_types,
+        reason = "Sync wrapper accessed only with get_mut; no lock or guard is created"
+    )]
+    stream: std::sync::Mutex<Pin<Box<dyn Stream<Item = Item<T>> + Send>>>,
+    done: bool,
+    max_batch: usize,
+}
+
+#[cfg(feature = "tower")]
+impl<T> External<T> {
+    fn poll_next(&mut self, cx: &mut Context<'_>) -> Poll<Option<Item<T>>> {
+        if self.done {
+            return Poll::Ready(None);
+        }
+        let result = self
+            .stream
+            .get_mut()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .as_mut()
+            .poll_next(cx);
+        if matches!(&result, Poll::Ready(None | Some(Err(_)))) {
+            self.done = true;
+        }
+        result
+    }
+
+    fn poll_many(
+        &mut self,
+        cx: &mut Context<'_>,
+        out: &mut Vec<Item<T>>,
+        limit: usize,
+    ) -> Poll<usize> {
+        let before = out.len();
+        let limit = limit.min(self.max_batch);
+        if limit == 0 {
+            return Poll::Ready(0);
+        }
+        // Replacing a receiver must retain its cooperative scheduling point:
+        // an always-ready application stream may otherwise monopolize the
+        // upload pump while a peer concurrently drains its send buffer.
+        let budget = std::task::ready!(tokio::task::coop::poll_proceed(cx));
+        while out.len() - before < limit {
+            match self.poll_next(cx) {
+                Poll::Ready(Some(item)) => {
+                    let failed = item.is_err();
+                    out.push(item);
+                    if failed {
+                        break;
+                    }
+                }
+                Poll::Ready(None) => break,
+                Poll::Pending if out.len() == before => return Poll::Pending,
+                Poll::Pending => break,
+            }
+        }
+        if out.len() != before {
+            budget.made_progress();
+        }
+        Poll::Ready(out.len() - before)
+    }
+}
+
+#[cfg(feature = "tower")]
+pin_project_lite::pin_project! {
+    struct FramedInput<S> {
+        #[pin]
+        stream: S,
+        limits: MessageLimits,
+        compress: bool,
+    }
+}
+
+#[cfg(feature = "tower")]
+impl<T, S> Stream for FramedInput<S>
+where
+    T: CodecMessage,
+    S: Stream<Item = Result<T, Status>>,
+{
+    type Item = Item<T>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let this = self.project();
+        this.stream.poll_next(cx).map(|item| {
+            item.map(|item| {
+                item.and_then(|message| {
+                    if this.limits.max_encoding().is_some() {
+                        this.limits.check_encode(message.encoded_len())?;
+                    }
+                    Ok(Framed {
+                        message,
+                        compressed: *this.compress,
+                    })
+                })
+            })
+        })
+    }
 }
 
 /// A sequence of decoded gRPC messages.
@@ -164,6 +272,45 @@ fn channelz_binding(
 }
 
 impl<T> Streaming<T> {
+    /// An owned application stream read directly by the outbound RPC pump.
+    /// No intermediate channel or producer task is created.
+    #[cfg(feature = "tower")]
+    pub(crate) fn from_input<S>(
+        stream: S,
+        limits: MessageLimits,
+        compress: bool,
+        buffer: usize,
+    ) -> Self
+    where
+        T: CodecMessage + Send + 'static,
+        S: Stream<Item = Result<T, Status>> + Send + 'static,
+    {
+        let stream: Pin<Box<dyn Stream<Item = Item<T>> + Send>> = Box::pin(FramedInput {
+            stream,
+            limits,
+            compress,
+        });
+        #[allow(
+            clippy::disallowed_types,
+            reason = "Sync wrapper accessed only with get_mut; no lock or guard is created"
+        )]
+        let stream = std::sync::Mutex::new(stream);
+        Self {
+            source: Source::External(Box::new(External {
+                stream,
+                done: false,
+                max_batch: buffer.max(1),
+            })),
+            lease: None,
+            driver: None,
+            reset: None,
+            outbound_completion: None,
+            rpc_slot: None,
+            terminated: false,
+            channelz: None,
+        }
+    }
+
     /// A connected [`StreamSender`] / [`Streaming`] pair holding `buffer`
     /// messages in flight.
     ///
@@ -324,6 +471,8 @@ impl<T> Streaming<T> {
         match &self.source {
             Source::Channel(_) => true,
             Source::Wire(wire) => wire.finished(),
+            #[cfg(feature = "tower")]
+            Source::External(_) => true,
         }
     }
 
@@ -371,6 +520,8 @@ impl<T> Streaming<T> {
     /// Poll without counting messages: `trailers()` discards unread ones.
     fn poll_source(&mut self, cx: &mut Context<'_>) -> Poll<Result<Option<Framed<T>>, Status>> {
         match &mut self.source {
+            #[cfg(feature = "tower")]
+            Source::External(input) => input.poll_next(cx).map(|item| item.transpose()),
             Source::Channel(rx) => match rx.poll_recv(cx) {
                 Poll::Pending => Poll::Pending,
                 Poll::Ready(None) => Poll::Ready(Ok(None)),
@@ -430,7 +581,7 @@ impl<T> Streaming<T> {
     /// trailers: this returns empty metadata without consuming remaining
     /// messages.
     pub async fn trailers(&mut self) -> Result<Metadata, Status> {
-        if matches!(&self.source, Source::Channel(_)) {
+        if !matches!(&self.source, Source::Wire(_)) {
             return Ok(Metadata::new());
         }
         let result = loop {
@@ -440,6 +591,8 @@ impl<T> Streaming<T> {
                     break Ok(match &self.source {
                         Source::Wire(wire) => wire.trailers().clone(),
                         Source::Channel(_) => Metadata::new(),
+                        #[cfg(feature = "tower")]
+                        Source::External(_) => Metadata::new(),
                     });
                 }
                 Err(status) => break Err(status),
@@ -461,6 +614,8 @@ impl<T> Streaming<T> {
     /// or zero at end of stream.
     pub(crate) async fn recv_many(&mut self, out: &mut Vec<Item<T>>, limit: usize) -> usize {
         match &mut self.source {
+            #[cfg(feature = "tower")]
+            Source::External(input) => poll_fn(|cx| input.poll_many(cx, out, limit)).await,
             Source::Channel(rx) => rx.recv_many(out, limit).await,
             Source::Wire(wire) => match wire.next().await.transpose() {
                 None => 0,
@@ -506,6 +661,8 @@ impl<T> Streaming<T> {
         match &self.source {
             Source::Channel(rx) => rx.is_closed(),
             Source::Wire(_) => true,
+            #[cfg(feature = "tower")]
+            Source::External(_) => true,
         }
     }
 
@@ -536,6 +693,8 @@ impl<T> std::fmt::Debug for Streaming<T> {
         let source = match &self.source {
             Source::Channel(_) => "channel",
             Source::Wire(_) => "wire",
+            #[cfg(feature = "tower")]
+            Source::External(_) => "external",
         };
         f.debug_struct("Streaming")
             .field("source", &source)
@@ -748,6 +907,97 @@ mod tests {
     use crate::hello::HelloReply;
     use crate::status::{Code, Status};
     use futures_core::stream::FusedStream;
+
+    #[cfg(feature = "tower")]
+    #[tokio::test]
+    async fn external_input_accepts_send_without_sync_and_preserves_stream_auto_traits() {
+        struct SendInput(std::cell::Cell<bool>, std::marker::PhantomPinned);
+
+        impl futures_core::Stream for SendInput {
+            type Item = Result<HelloReply, Status>;
+
+            fn poll_next(
+                self: std::pin::Pin<&mut Self>,
+                _: &mut std::task::Context<'_>,
+            ) -> std::task::Poll<Option<Self::Item>> {
+                std::task::Poll::Ready((!self.0.replace(true)).then(|| Ok(reply("send"))))
+            }
+        }
+
+        fn assert_auto_traits<T: Send + Sync + Unpin>() {}
+        assert_auto_traits::<Streaming<HelloReply>>();
+        let mut stream = Streaming::from_input(
+            SendInput(std::cell::Cell::new(false), std::marker::PhantomPinned),
+            crate::MessageLimits::unlimited(),
+            false,
+            1,
+        );
+        assert_eq!(
+            text(&stream.message().await.expect("item").expect("message")),
+            "send"
+        );
+        assert!(stream.message().await.expect("end").is_none());
+    }
+
+    #[cfg(feature = "tower")]
+    #[tokio::test]
+    async fn external_input_bursts_respect_the_configured_message_bound() {
+        for bound in [1, 2, 16] {
+            let input =
+                crate::compat::iter((0..128).map(|_| Ok::<_, crate::Status>(reply("ready"))));
+            let mut stream =
+                Streaming::from_input(input, crate::MessageLimits::unlimited(), false, bound);
+            let mut batch = Vec::new();
+            assert_eq!(stream.recv_many(&mut batch, 64).await, bound);
+            assert_eq!(batch.len(), bound);
+            assert!(
+                batch
+                    .into_iter()
+                    .all(|item| !item.expect("valid message").compressed)
+            );
+        }
+    }
+
+    #[cfg(feature = "tower")]
+    #[tokio::test]
+    async fn always_ready_external_input_observes_the_cooperative_budget() {
+        struct ReadyInput;
+
+        impl futures_core::Stream for ReadyInput {
+            type Item = Result<HelloReply, Status>;
+
+            fn poll_next(
+                self: std::pin::Pin<&mut Self>,
+                _: &mut std::task::Context<'_>,
+            ) -> std::task::Poll<Option<Self::Item>> {
+                std::task::Poll::Ready(Some(Ok(HelloReply::new())))
+            }
+        }
+
+        let mut stream =
+            Streaming::from_input(ReadyInput, crate::MessageLimits::unlimited(), false, 1);
+        let mut batch = Vec::new();
+        let mut batches = 0;
+        std::future::poll_fn(|cx| {
+            loop {
+                let result = {
+                    let mut receive = std::pin::pin!(stream.recv_many(&mut batch, 1));
+                    std::future::Future::poll(receive.as_mut(), cx)
+                };
+                if result.is_pending() {
+                    return std::task::Poll::Ready(());
+                }
+                batches += 1;
+                assert!(
+                    batches <= 256,
+                    "ready input must yield within a task budget"
+                );
+                batch.clear();
+            }
+        })
+        .await;
+        assert!(batches > 0, "the source made progress before yielding");
+    }
 
     fn reply(message: &str) -> HelloReply {
         let mut r = HelloReply::new();

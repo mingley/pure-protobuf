@@ -400,11 +400,15 @@ pub(crate) fn emit_message_set_merge(src: &mut String, desc: &MessageDescriptor)
     );
     let _ = writeln!(
         src,
-        "                    let mut type_id = 0u32; let mut payload: Vec<u8> = Vec::new();"
+        "                    let mut type_id: Option<u32> = None; let mut payload: Option<&[u8]> = None;"
     );
     let _ = writeln!(
         src,
-        "                    if w == pbrs::rt::WIRE_LEN {{ let inner = pbrs::rt::read_len_bytes(data, pos)?; let mut p = 0; while p < inner.len() {{ let (n, ww) = pbrs::rt::decode_tag(inner, &mut p)?; match (n, ww) {{ (2, pbrs::rt::WIRE_VARINT) => type_id = pbrs::rt::decode_varint(inner, &mut p)? as u32, (3, pbrs::rt::WIRE_LEN) => payload = pbrs::rt::read_len_bytes(inner, &mut p)?.to_vec(), _ => pbrs::rt::skip_field_with_number_and_depth(inner, &mut p, n, ww, depth + 1)?, }} }} }} else {{ loop {{ let (n, ww) = pbrs::rt::decode_tag(data, pos)?; if ww == pbrs::rt::WIRE_EGROUP && n == 1 {{ break; }} match (n, ww) {{ (2, pbrs::rt::WIRE_VARINT) => type_id = pbrs::rt::decode_varint(data, pos)? as u32, (3, pbrs::rt::WIRE_LEN) => payload = pbrs::rt::read_len_bytes(data, pos)?.to_vec(), _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, ww, depth + 1)?, }} }} }}"
+        "                    if w == pbrs::rt::WIRE_LEN {{ let inner = pbrs::rt::read_len_bytes(data, pos)?; let mut p = 0; while p < inner.len() {{ let (n, ww) = pbrs::rt::decode_tag(inner, &mut p)?; match (n, ww) {{ (2, pbrs::rt::WIRE_VARINT) => {{ let number = pbrs::rt::decode_varint(inner, &mut p)? as u32; if number == 0 {{ return Err(ParseError::new(\"invalid message set type id\")); }} if type_id.is_none() {{ type_id = Some(number); }} }}, (3, pbrs::rt::WIRE_LEN) => {{ let body = pbrs::rt::read_len_bytes(inner, &mut p)?; if payload.is_none() {{ payload = Some(body); }} }}, _ => pbrs::rt::skip_field_with_number_and_depth(inner, &mut p, n, ww, depth + 1)?, }} }} }} else {{ loop {{ let (n, ww) = pbrs::rt::decode_tag(data, pos)?; if ww == pbrs::rt::WIRE_EGROUP && n == 1 {{ break; }} match (n, ww) {{ (2, pbrs::rt::WIRE_VARINT) => {{ let number = pbrs::rt::decode_varint(data, pos)? as u32; if number == 0 {{ return Err(ParseError::new(\"invalid message set type id\")); }} if type_id.is_none() {{ type_id = Some(number); }} }}, (3, pbrs::rt::WIRE_LEN) => {{ let body = pbrs::rt::read_len_bytes(data, pos)?; if payload.is_none() {{ payload = Some(body); }} }}, _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, ww, depth + 1)?, }} }} }}"
+    );
+    let _ = writeln!(
+        src,
+        "                    let (Some(type_id), Some(payload)) = (type_id, payload) else {{ continue; }};"
     );
     let _ = writeln!(src, "                    match type_id {{");
     for f in desc.fields.values() {
@@ -419,18 +423,18 @@ pub(crate) fn emit_message_set_merge(src: &mut String, desc: &MessageDescriptor)
         if is_lazy_msg(f) {
             let _ = writeln!(
                 src,
-                "                        {num} => {{ if self.{id}.is_some() {{ self.{id}.get_or_insert().{merge}(&payload, depth + 1)?; }} else {{ let mut inner = {t}::default(); inner.{merge}(&payload, depth + 1)?; self.{id} = pbrs::rt::LazyMsg::from_owned(inner); }} }}"
+                "                        {num} => {{ if self.{id}.is_some() {{ self.{id}.get_or_insert().{merge}(payload, depth + 1)?; }} else {{ let mut inner = {t}::default(); inner.{merge}(payload, depth + 1)?; self.{id} = pbrs::rt::LazyMsg::from_owned(inner); }} }}"
             );
         } else {
             let _ = writeln!(
                 src,
-                "                        {num} => {{ match &mut self.{id} {{ Some(existing) => existing.{merge}(&payload, depth + 1)?, None => {{ let mut inner = {t}::default(); inner.{merge}(&payload, depth + 1)?; self.{id} = Some(Box::new(inner)); }} }} }}"
+                "                        {num} => {{ match &mut self.{id} {{ Some(existing) => existing.{merge}(payload, depth + 1)?, None => {{ let mut inner = {t}::default(); inner.{merge}(payload, depth + 1)?; self.{id} = Some(Box::new(inner)); }} }} }}"
             );
         }
     }
     let _ = writeln!(
         src,
-        "                        _ => {{ let mut u = pbrs::UnknownFields::default(); u.fields.push(pbrs::rt::UnknownField::Varint {{ number: 2, value: u64::from(type_id) }}); u.fields.push(pbrs::rt::UnknownField::LengthDelimited {{ number: 3, value: payload }}); self.unknown.fields.push(pbrs::rt::UnknownField::Group {{ number: 1, fields: u }}); }}"
+        "                        _ => {{ let mut u = pbrs::UnknownFields::default(); u.fields.push(pbrs::rt::UnknownField::Varint {{ number: 2, value: u64::from(type_id) }}); u.fields.push(pbrs::rt::UnknownField::LengthDelimited {{ number: 3, value: payload.to_vec() }}); self.unknown.fields.push(pbrs::rt::UnknownField::Group {{ number: 1, fields: u }}); }}"
     );
     let _ = writeln!(src, "                    }}");
     let _ = writeln!(src, "                }}");

@@ -15,17 +15,14 @@ gRPC over HTTP/2 and `protobuf-tonic` for using pbrs messages with tonic 0.14+.
 Edition 2024 generation supports a [defined subset](docs/edition-2024.md).
 The gRPC crates are previews; see the [support policy](docs/support-policy.md)
 for supported versions and deployment guidance.
-The [merge checks](docs/evidence/grpc-required-merge-20261026/README.md)
-cover required fields split across proto2 message occurrences. Regenerate affected
-bindings to get the fix. Earlier [ownership and batching checks](docs/evidence/grpc-ownership-20261024/README.md)
-belong to source `933bf877`, including its 3,840 passing workspace tests.
-The [encoding and streaming update](docs/evidence/grpc-encode-reuse-20261026/README.md)
-records 3,855 passing workspace tests and lower allocation costs for large
-compressed streams. The [benchmark tables](docs/benchmarks.md) include remaining
-CPU, allocation and bulk losses. Full exact-source qualification remains open.
-See [implementation status](docs/status.md) for checks and unfinished qualification.
-For contributors, start with [what to work on next](TODO.md) and the
-[2026-09-29 repository audit](docs/audit-2026-09-29.md).
+The [benchmark results](docs/benchmarks.md) show measured improvements and remaining
+CPU, allocation and bulk losses. Each result names the source it tested;
+full performance and release qualification remain open.
+See [implementation status](docs/status.md) for compatibility details.
+
+If you use proto2 messages with required children, regenerate bindings to get
+the [required-field merge fix](docs/evidence/grpc-required-merge-20261026/README.md).
+Contributors should start with [what to work on next](TODO.md).
 
 <a id="why-use-pbrs"></a>
 ## Features

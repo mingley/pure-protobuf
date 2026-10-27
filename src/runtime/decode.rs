@@ -10,14 +10,16 @@ use crate::internal::{Private, SealedInternal};
 use crate::message::{Clear, ClearAndParse, MergeFrom, Serialize};
 use crate::proxied::{AsView, View};
 use crate::wire::{
-    UnknownField, WIRE_LEN, WIRE_VARINT, decode_tag, decode_varint, decode_zigzag32,
-    decode_zigzag64, read_fixed32, read_fixed64, read_len_bytes, skip_field_with_number_and_depth,
+    UnknownField, WIRE_I32, WIRE_I64, WIRE_LEN, WIRE_SGROUP, WIRE_VARINT, decode_tag,
+    decode_varint, decode_zigzag32, decode_zigzag64, read_fixed32, read_fixed64, read_len_bytes,
+    skip_field_with_number_and_depth,
 };
+use std::collections::HashSet;
 use std::marker::PhantomData;
 
 use super::{
     Arena, AssociatedMiniTable, FieldKind, FieldType, MessagePtr, MiniField, MiniTablePtr, MsgData,
-    StringView, UpbGetArena, UpbGetMessagePtr, UpbGetMessagePtrMut,
+    RawMap, StringView, UpbGetArena, UpbGetMessagePtr, UpbGetMessagePtrMut,
 };
 
 fn descend(depth: u32) -> Result<u32, ParseError> {
@@ -27,11 +29,83 @@ fn descend(depth: u32) -> Result<u32, ParseError> {
     Ok(depth + 1)
 }
 
+fn field_wire_type(ty: FieldType) -> u32 {
+    match ty {
+        FieldType::Double | FieldType::Fixed64 | FieldType::SFixed64 => WIRE_I64,
+        FieldType::Float | FieldType::Fixed32 | FieldType::SFixed32 => WIRE_I32,
+        FieldType::String | FieldType::Bytes | FieldType::Message => WIRE_LEN,
+        FieldType::Group => WIRE_SGROUP,
+        _ => WIRE_VARINT,
+    }
+}
+
 fn parse_into(
     data: *mut MsgData,
     buf: &[u8],
     arena: &Arena,
     enforce_required: bool,
+    depth: u32,
+) -> Result<(), ParseError> {
+    let mut context = DecodeContext {
+        arena,
+        maps: Vec::new(),
+    };
+    let result = decode_into(data, buf, &mut context, depth);
+    // Normalize partial successful entries even when a later wire field fails.
+    // A subsequent merge must see the same logical map as this parse produced.
+    context.finish_maps();
+    result?;
+    if enforce_required {
+        // SAFETY: the caller owns this arena-backed tree for the entire parse;
+        // decoding has finished before the immutable validation walk starts.
+        check_initialized(unsafe { &*data }, depth)?;
+    }
+    Ok(())
+}
+
+struct DecodeContext<'a> {
+    arena: &'a Arena,
+    maps: Vec<RawMap>,
+}
+
+impl DecodeContext<'_> {
+    fn finish_maps(&mut self) {
+        self.maps.sort_unstable();
+        self.maps.dedup();
+        for &map in &self.maps {
+            // SAFETY: every recorded map belongs to the arena, which remains
+            // live through this parse. No decoding or entry mutation overlaps.
+            let mut entries = unsafe { (*map).entries.borrow_mut() };
+            if entries.len() < 2 {
+                continue;
+            }
+            // Borrow keys until the scan finishes, then compact in place. This
+            // avoids key clones and per-entry linear searches. Default hashing
+            // protects the expected linear pass from attacker-chosen keys.
+            let mut seen = HashSet::with_capacity(entries.len());
+            let mut keep = vec![false; entries.len()];
+            for ((key, _), retain) in entries.iter().rev().zip(keep.iter_mut().rev()) {
+                *retain = seen.insert(key.as_slice());
+            }
+            drop(seen);
+            let mut keep = keep.into_iter();
+            entries.retain(|(_, value)| {
+                let retain = keep.next().unwrap_or(false);
+                if !retain {
+                    // Only the independent string-owner list is borrowed here;
+                    // releasing a value does not borrow or mutate entries.
+                    super::kernel_map_release_value(map, *value);
+                }
+                retain
+            });
+        }
+    }
+}
+
+fn decode_into(
+    data: *mut MsgData,
+    buf: &[u8],
+    context: &mut DecodeContext<'_>,
     depth: u32,
 ) -> Result<(), ParseError> {
     let mt = unsafe { (*data).mt };
@@ -49,16 +123,81 @@ fn parse_into(
             skip_field_with_number_and_depth(buf, &mut pos, num, wire, depth)?;
             continue;
         };
-        decode_field(data, idx, f, buf, &mut pos, wire, arena, depth)?;
+        decode_field(data, idx, f, buf, &mut pos, wire, context, depth)?;
     }
-    if enforce_required {
-        unsafe {
-            let has = &(*data).has;
-            for (i, f) in table.fields.iter().enumerate() {
-                if f.required && !has.get(i).copied().unwrap_or(false) {
-                    return Err(ParseError::new("required"));
+    Ok(())
+}
+
+/// Initialization belongs to the final retained tree: a later fragment can
+/// complete a singular child, replace a oneof case, or replace a map entry.
+/// The walk uses existing arena storage and allocates no temporary tree.
+fn check_initialized(data: &MsgData, depth: u32) -> Result<(), ParseError> {
+    // SAFETY: linked MiniTables outlive their arena messages and are immutable.
+    let Some(table) = (unsafe { data.mt.0.as_ref() }) else {
+        return Ok(());
+    };
+    if depth > crate::RECURSION_LIMIT {
+        return Err(ParseError::new("recursion limit exceeded"));
+    }
+    for (index, field) in table.fields.iter().enumerate() {
+        let present = data.has.get(index).copied().unwrap_or(false);
+        if field.required && !present {
+            return Err(ParseError::new("required"));
+        }
+        if !present || !matches!(field.ty, FieldType::Message | FieldType::Group) {
+            continue;
+        }
+        match data.slots.get(index).copied().unwrap_or(FieldKind::Empty) {
+            FieldKind::Msg(raw) => {
+                // SAFETY: live child pointers are stable Boxes in the owning arena.
+                if let Some(child) = unsafe { raw.as_ref() } {
+                    check_initialized(child, descend(depth)?)?;
                 }
             }
+            FieldKind::Repeated(raw) => {
+                // SAFETY: the live arena owns this array and every message item.
+                if let Some(array) = unsafe { raw.as_ref() } {
+                    for value in array.items.borrow().iter() {
+                        if let FieldKind::Msg(raw) = *value {
+                            if let Some(child) = unsafe { raw.as_ref() } {
+                                check_initialized(child, descend(depth)?)?;
+                            }
+                        }
+                    }
+                }
+            }
+            FieldKind::Map(raw) => {
+                // SAFETY: this field's linked entry table and raw map remain
+                // live throughout the read-only validation walk.
+                if let Some(map) = unsafe { raw.as_ref() } {
+                    let value_field = unsafe { field.sub.0.as_ref() }
+                        .and_then(|entry| entry.fields.iter().find(|field| field.number == 2));
+                    let Some(value_field) = value_field
+                        .filter(|f| matches!(f.ty, FieldType::Message | FieldType::Group))
+                    else {
+                        continue;
+                    };
+                    let default_missing_required = unsafe { value_field.sub.0.as_ref() }
+                        .is_some_and(|table| table.fields.iter().any(|field| field.required));
+                    for (_, value) in map.entries.borrow().iter() {
+                        match *value {
+                            FieldKind::Msg(raw) => {
+                                if let Some(child) = unsafe { raw.as_ref() } {
+                                    check_initialized(child, descend(descend(depth)?)?)?;
+                                }
+                            }
+                            FieldKind::Empty if default_missing_required => {
+                                // An omitted message value is the empty default.
+                                // No message was present on the wire, so checking
+                                // its direct required fields consumes no depth.
+                                return Err(ParseError::new("required"));
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            _ => {}
         }
     }
     Ok(())
@@ -75,13 +214,21 @@ fn decode_field(
     buf: &[u8],
     pos: &mut usize,
     wire: u32,
-    arena: &Arena,
+    context: &mut DecodeContext<'_>,
     depth: u32,
 ) -> Result<(), ParseError> {
     let ptr = MessagePtr::<()> {
         raw: data,
         _phantom: PhantomData,
     };
+    let expected_wire = field_wire_type(f.ty);
+    let packable = expected_wire != WIRE_LEN && expected_wire != WIRE_SGROUP;
+    // An incompatible known-field tag is unknown wire data. Skip it before
+    // creating a collection or changing a oneof's active case/presence.
+    if wire != expected_wire && !(f.repeated && packable && wire == WIRE_LEN) {
+        skip_field_with_number_and_depth(buf, pos, f.number, wire, depth)?;
+        return Ok(());
+    }
     if f.is_map {
         if wire != WIRE_LEN {
             skip_field_with_number_and_depth(buf, pos, f.number, wire, depth)?;
@@ -89,10 +236,16 @@ fn decode_field(
         }
         let payload = read_len_bytes(buf, pos)?;
         let entry_depth = descend(depth)?;
-        if let Some((k, v)) = decode_map_entry(f.sub, payload, arena, entry_depth)? {
-            let map = unsafe { ptr.get_or_create_mutable_map_at_index(idx as u32, arena) }
+        if let Some((k, v)) = decode_map_entry(f.sub, payload, context, entry_depth)? {
+            let map = unsafe { ptr.get_or_create_mutable_map_at_index(idx as u32, context.arena) }
                 .ok_or_else(|| ParseError::new("map alloc"))?;
+            // Map entries replace earlier values for this key; message values
+            // merge only inside one entry, never across separate entries. Batch
+            // duplicate removal at the root keeps insertion constant time.
             unsafe { (*map).entries.borrow_mut().push((k, v)) };
+            if context.maps.last().copied() != Some(map) {
+                context.maps.push(map);
+            }
         } else {
             // A rejected closed enum invalidates the entire map entry, even
             // if another value in that entry is valid. Preserve its wire data
@@ -108,9 +261,10 @@ fn decode_field(
         return Ok(());
     }
     if f.repeated && !f.is_map {
-        let arr = unsafe { ptr.get_or_create_mutable_array_at_index(idx as u32, arena) }
+        let arr = unsafe { ptr.get_or_create_mutable_array_at_index(idx as u32, context.arena) }
             .ok_or_else(|| ParseError::new("array alloc"))?;
-        if (f.packed || f.ty == FieldType::Enum) && wire == WIRE_LEN {
+        // Protobuf readers accept both forms regardless of the packed option.
+        if packable && wire == WIRE_LEN {
             let payload = read_len_bytes(buf, pos)?;
             let mut p = 0usize;
             while p < payload.len() {
@@ -138,7 +292,7 @@ fn decode_field(
             };
             v
         } else {
-            decode_one(f, buf, pos, wire, arena, depth)?
+            decode_one(f, buf, pos, wire, context, depth)?
         };
         unsafe {
             (*arr).items.borrow_mut().push(v);
@@ -149,8 +303,11 @@ fn decode_field(
     if f.ty == FieldType::Message && !f.repeated {
         let payload = read_len_bytes(buf, pos)?;
         let child_depth = descend(depth)?;
-        let child = arena.alloc_msg(f.sub);
-        parse_into(child, payload, arena, true, child_depth)?;
+        let child = match ptr.slot(idx as u32) {
+            FieldKind::Msg(child) if !child.is_null() => child,
+            _ => context.arena.alloc_msg(f.sub),
+        };
+        decode_into(child, payload, context, child_depth)?;
         ptr.set_slot(idx as u32, FieldKind::Msg(child), true);
         return Ok(());
     }
@@ -184,7 +341,7 @@ fn decode_field(
         };
         v
     } else {
-        decode_one(f, buf, pos, wire, arena, depth)?
+        decode_one(f, buf, pos, wire, context, depth)?
     };
     ptr.set_slot(idx as u32, v, true);
     Ok(())
@@ -216,7 +373,7 @@ fn decode_enum(
 fn decode_map_entry(
     sub: MiniTablePtr,
     buf: &[u8],
-    arena: &Arena,
+    context: &mut DecodeContext<'_>,
     depth: u32,
 ) -> Result<Option<(Vec<u8>, FieldKind)>, ParseError> {
     if depth > crate::RECURSION_LIMIT {
@@ -240,6 +397,13 @@ fn decode_map_entry(
     while pos < buf.len() {
         let (num, wire) = decode_tag(buf, &mut pos)?;
         let field = table.and_then(|t| t.fields.iter().copied().find(|f| f.number == num));
+        if let Some(field) = field {
+            if wire != field_wire_type(field.ty) {
+                rejected_enum |= num == 2 && field.ty == FieldType::Enum;
+                skip_field_with_number_and_depth(buf, &mut pos, num, wire, depth)?;
+                continue;
+            }
+        }
         match num {
             1 => match field.map(|f| f.ty) {
                 Some(FieldType::String) | Some(FieldType::Bytes) | None => {
@@ -289,12 +453,23 @@ fn decode_map_entry(
             },
             2 => {
                 if let Some(f) = field {
+                    if f.ty == FieldType::Message {
+                        let payload = read_len_bytes(buf, &mut pos)?;
+                        let child_depth = descend(depth)?;
+                        let child = match val {
+                            FieldKind::Msg(child) if !child.is_null() => child,
+                            _ => context.arena.alloc_msg(f.sub),
+                        };
+                        decode_into(child, payload, context, child_depth)?;
+                        val = FieldKind::Msg(child);
+                        continue;
+                    }
                     if f.ty == FieldType::Enum && wire != WIRE_VARINT {
                         skip_field_with_number_and_depth(buf, &mut pos, num, wire, depth)?;
                         rejected_enum = true;
                         continue;
                     }
-                    val = decode_one(f, buf, &mut pos, wire, arena, depth)?;
+                    val = decode_one(f, buf, &mut pos, wire, context, depth)?;
                     if let FieldKind::I32(number) = val {
                         rejected_enum |= !f.accepts_enum(number);
                     }
@@ -306,6 +481,29 @@ fn decode_map_entry(
             }
             _ => skip_field_with_number_and_depth(buf, &mut pos, num, wire, depth)?,
         }
+    }
+    if key.is_empty() {
+        let key_type = table.and_then(|t| t.fields.iter().find(|f| f.number == 1).map(|f| f.ty));
+        // An omitted key equals an explicitly encoded default key. Use the same
+        // canonical bytes as the map accessors and the key decoder below.
+        key = match key_type {
+            Some(FieldType::Bool) => vec![0],
+            Some(
+                FieldType::Int64
+                | FieldType::UInt64
+                | FieldType::SInt64
+                | FieldType::Fixed64
+                | FieldType::SFixed64,
+            ) => 0u64.to_le_bytes().to_vec(),
+            Some(
+                FieldType::Int32
+                | FieldType::UInt32
+                | FieldType::SInt32
+                | FieldType::Fixed32
+                | FieldType::SFixed32,
+            ) => 0u32.to_le_bytes().to_vec(),
+            _ => Vec::new(),
+        };
     }
     Ok((!rejected_enum).then_some((key, val)))
 }
@@ -319,12 +517,10 @@ fn decode_packed_item(ty: FieldType, buf: &[u8], pos: &mut usize) -> Result<Fiel
         FieldType::SInt32 => Ok(FieldKind::I32(decode_zigzag32(decode_varint(buf, pos)?))),
         FieldType::SInt64 => Ok(FieldKind::I64(decode_zigzag64(decode_varint(buf, pos)?))),
         FieldType::Bool => Ok(FieldKind::Bool(decode_varint(buf, pos)? != 0)),
-        FieldType::Fixed32 | FieldType::SFixed32 | FieldType::Float => {
-            Ok(FieldKind::U32(read_fixed32(buf, pos)?))
-        }
-        FieldType::Fixed64 | FieldType::SFixed64 | FieldType::Double => {
-            Ok(FieldKind::U64(read_fixed64(buf, pos)?))
-        }
+        FieldType::Fixed32 | FieldType::SFixed32 => Ok(FieldKind::U32(read_fixed32(buf, pos)?)),
+        FieldType::Fixed64 | FieldType::SFixed64 => Ok(FieldKind::U64(read_fixed64(buf, pos)?)),
+        FieldType::Float => Ok(FieldKind::F32(f32::from_bits(read_fixed32(buf, pos)?))),
+        FieldType::Double => Ok(FieldKind::F64(f64::from_bits(read_fixed64(buf, pos)?))),
         _ => Err(ParseError::new("bad packed type")),
     }
 }
@@ -334,7 +530,7 @@ fn decode_one(
     buf: &[u8],
     pos: &mut usize,
     wire: u32,
-    arena: &Arena,
+    context: &mut DecodeContext<'_>,
     depth: u32,
 ) -> Result<FieldKind, ParseError> {
     match f.ty {
@@ -357,7 +553,7 @@ fn decode_one(
         FieldType::Double => Ok(FieldKind::F64(f64::from_bits(read_fixed64(buf, pos)?))),
         FieldType::String | FieldType::Bytes => {
             let p = read_len_bytes(buf, pos)?;
-            Ok(FieldKind::Bytes(arena.alloc_bytes(p.to_vec())))
+            Ok(FieldKind::Bytes(context.arena.alloc_bytes(p.to_vec())))
         }
         FieldType::Message => {
             if wire != WIRE_LEN {
@@ -366,8 +562,8 @@ fn decode_one(
             }
             let payload = read_len_bytes(buf, pos)?;
             let child_depth = descend(depth)?;
-            let child = arena.alloc_msg(f.sub);
-            parse_into(child, payload, arena, false, child_depth)?;
+            let child = context.arena.alloc_msg(f.sub);
+            decode_into(child, payload, context, child_depth)?;
             Ok(FieldKind::Msg(child))
         }
         _ => {
@@ -473,6 +669,10 @@ mod tests {
     #[test]
     fn message_value_at_the_limit_is_rejected_before_null_table_access() {
         let arena = Arena::new();
+        let mut context = DecodeContext {
+            arena: &arena,
+            maps: Vec::new(),
+        };
         let field = MiniField {
             ty: FieldType::Message,
             ..string_field(false)
@@ -488,7 +688,7 @@ mod tests {
                 &[0],
                 &mut pos,
                 WIRE_LEN,
-                &arena,
+                &mut context,
                 crate::RECURSION_LIMIT
             )
             .is_err()
@@ -499,9 +699,14 @@ mod tests {
     #[test]
     fn parsed_string_storage_is_owned_by_the_arena() {
         let arena = Arena::new();
+        let mut context = DecodeContext {
+            arena: &arena,
+            maps: Vec::new(),
+        };
         let mut pos = 0;
         let field = string_field(false);
-        let kind = decode_one(field, &[1, b'a'], &mut pos, WIRE_LEN, &arena, 0).expect("decode");
+        let kind =
+            decode_one(field, &[1, b'a'], &mut pos, WIRE_LEN, &mut context, 0).expect("decode");
         let mut encoded = Vec::new();
         encode_slot(&field, kind, &mut encoded);
         assert_eq!(encoded, [0x0a, 1, b'a']);

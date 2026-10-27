@@ -13,7 +13,7 @@ use crate::status::{Code, Status, parse_pushback_value};
 use crate::stream::{Framed, Streaming};
 use crate::transport::{Error as TransportError, RecvStream, h2 as backend};
 use crate::workspace::RetainedDecodeLease;
-use bytes::{Bytes, BytesMut};
+use bytes::{Buf, Bytes, BytesMut};
 use futures_util::future::Either;
 use http::{HeaderMap, StatusCode};
 use std::future::{Future, poll_fn};
@@ -167,9 +167,9 @@ pub(crate) fn h2_error(e: TransportError) -> Status {
 
 /// Splits inbound DATA chunks into gRPC frames.
 ///
-/// Invariant: `carry` is non-empty only while `chunk` is empty. A frame that
-/// arrived whole inside one DATA chunk is sliced out of it and never copied;
-/// only a frame straddling a chunk boundary passes through `carry`.
+/// `carry` precedes `chunk` on the wire. Only the bytes needed to complete a
+/// straddling frame enter `carry`; the remainder stays in `chunk`, so following
+/// whole frames retain the ordinary shared-buffer path.
 pub(crate) struct FrameReader {
     pub(crate) chunk: Bytes,
     pub(crate) carry: BytesMut,
@@ -186,17 +186,11 @@ impl FrameReader {
     }
 
     pub(crate) fn push(&mut self, next: Bytes) {
-        if self.carry.is_empty() && self.chunk.is_empty() {
-            self.chunk = next;
-            return;
-        }
         if !self.chunk.is_empty() {
             crate::copy_counts::note_carry(self.chunk.len());
             self.carry.extend_from_slice(&self.chunk);
-            self.chunk = Bytes::new();
         }
-        crate::copy_counts::note_carry(next.len());
-        self.carry.extend_from_slice(&next);
+        self.chunk = next;
         // NOTE (PK-09): a reserve-once here (Phase 1a) removes regrowth
         // copies in isolation (5x microbench win, fewer cycles/faults/RSS)
         // but reproducibly costs -18% on loopback 8 MiB RPCs: both sides do
@@ -207,13 +201,43 @@ impl FrameReader {
     }
 
     pub(crate) fn next_frame(&mut self) -> Result<Option<Frame>, Status> {
-        if !self.chunk.is_empty() {
+        if self.carry.is_empty() {
             return codec::pop_from_chunk(&mut self.chunk, self.limits);
         }
-        if !self.carry.is_empty() {
-            return codec::pop_limited(&mut self.carry, self.limits);
+        // Complete and validate the header before copying any more payload.
+        // This reserves only bytes that have already arrived, never the
+        // announced frame length.
+        if self.carry.len() < codec::HEADER_LEN {
+            self.copy_chunk_prefix(codec::HEADER_LEN - self.carry.len());
         }
-        Ok(None)
+        if let Some(frame) = codec::pop_limited(&mut self.carry, self.limits)? {
+            return Ok(Some(frame));
+        }
+        let Some(encoded_len) = self.carry.get(1..codec::HEADER_LEN) else {
+            return Ok(None);
+        };
+        if self.chunk.is_empty() {
+            return Ok(None);
+        }
+        let mut length = [0u8; 4];
+        length.copy_from_slice(encoded_len);
+        let payload_len = usize::try_from(u32::from_be_bytes(length))
+            .map_err(|_| Status::internal("message too large"))?;
+        let frame_len = codec::HEADER_LEN
+            .checked_add(payload_len)
+            .ok_or_else(|| Status::internal("message too large"))?;
+        self.copy_chunk_prefix(frame_len.saturating_sub(self.carry.len()));
+        codec::pop_limited(&mut self.carry, self.limits)
+    }
+
+    fn copy_chunk_prefix(&mut self, needed: usize) {
+        let count = needed.min(self.chunk.len());
+        if count != 0 {
+            crate::copy_counts::note_carry(count);
+            self.carry
+                .extend_from_slice(self.chunk.get(..count).unwrap_or_default());
+            self.chunk.advance(count);
+        }
     }
 
     /// A stream that ended mid-frame is a protocol violation, not an
@@ -951,6 +975,58 @@ mod tests {
         );
         buf.extend_from_slice(payload);
         buf
+    }
+
+    #[test]
+    fn fragmented_frame_does_not_copy_following_whole_frames() {
+        let first = framed(b"first");
+        let second = framed(&vec![0xCD; 64 * 1024]);
+        let mut tail = BytesMut::new();
+        tail.extend_from_slice(first.get(3..).expect("first tail"));
+        tail.extend_from_slice(&second);
+        let tail = tail.freeze();
+        let second_payload = tail
+            .as_ptr()
+            .wrapping_add(first.len() - 3 + codec::HEADER_LEN);
+        let mut reader = FrameReader::new(MessageLimits::unlimited());
+        reader.push(Bytes::copy_from_slice(
+            first.get(..3).expect("split header"),
+        ));
+        assert!(reader.next_frame().expect("partial header").is_none());
+        reader.push(tail.clone());
+        let got = reader.next_frame().expect("frame").expect("first");
+        assert_eq!(got.payload.as_ref(), b"first");
+        assert!(reader.carry.is_empty());
+        let got = reader.next_frame().expect("frame").expect("second");
+        assert_eq!(got.payload.as_ptr(), second_payload);
+        assert_eq!(got.payload.as_ref(), vec![0xCD; 64 * 1024]);
+        assert!(reader.next_frame().expect("clean end").is_none());
+        reader.finish().expect("no remainder");
+    }
+
+    #[test]
+    fn split_hostile_header_is_rejected_before_copying_its_body() {
+        for invalid_flag in [false, true] {
+            let mut wire = framed(&vec![0xAB; 64 * 1024]);
+            if invalid_flag {
+                *wire.first_mut().expect("flag") = 2;
+            } else {
+                wire.get_mut(1..codec::HEADER_LEN)
+                    .expect("length")
+                    .copy_from_slice(&u32::MAX.to_be_bytes());
+            }
+            let mut reader = FrameReader::new(MessageLimits::default());
+            reader.push(Bytes::copy_from_slice(
+                wire.get(..3).expect("header prefix"),
+            ));
+            assert!(reader.next_frame().expect("partial header").is_none());
+            reader.push(Bytes::copy_from_slice(
+                wire.get(3..).expect("header and body"),
+            ));
+            assert!(reader.next_frame().is_err());
+            assert_eq!(reader.carry.len(), codec::HEADER_LEN);
+            assert!(reader.carry.capacity() < 1024);
+        }
     }
 
     #[derive(Debug, PartialEq, Eq)]

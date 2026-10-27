@@ -1342,19 +1342,25 @@ impl Rpc {
     /// Read the single request message, then run `handler` under the deadline.
     ///
     /// `None` means the request was rejected and already answered.
-    async fn run_unary_request<Req, T, F, Fut>(self, handler: F) -> Option<Prepared<T>>
+    fn run_unary_request<Req, T, F, Fut>(
+        self,
+        handler: F,
+    ) -> impl Future<Output = Option<Prepared<T>>>
     where
         Req: CodecMessage,
         F: FnOnce(Request<Req>) -> Fut,
         Fut: Future<Output = Result<T, Status>>,
     {
-        // The live request state sits in one heap allocation. The future that
-        // the connection task polls only holds that pointer plus the read.
+        // Move the request record before constructing the read future. An
+        // async fn would retain another Rpc-sized argument slot until its
+        // first poll even though the live state already belongs on the heap.
         let mut inbound = InboundRpc::from_rpc(self);
-        // Box the read here, in a synchronous helper, so this future stores a
-        // pointer instead of the read state machine.
-        let outcome = read_unary_fut(&mut inbound, handler).await;
-        Some((*inbound).into_prepared(outcome))
+        async move {
+            // Box the read here, in a synchronous helper, so this future stores
+            // a pointer instead of the read state machine.
+            let outcome = read_unary_fut(&mut inbound, handler).await;
+            Some((*inbound).into_prepared(outcome))
+        }
     }
 
     /// Hand the request stream to `handler`, under the deadline.
@@ -1914,5 +1920,27 @@ pub(crate) fn end_call(
                 elapsed,
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod layout_tests {
+    use super::*;
+
+    fn future_size<A, F>(_: impl FnOnce(A) -> F) -> usize {
+        std::mem::size_of::<F>()
+    }
+
+    #[test]
+    fn unary_read_future_does_not_embed_the_rpc_record() {
+        let bytes = future_size(|rpc: Rpc| {
+            rpc.run_unary_request(|_: Request<crate::HelloRequest>| async { Ok::<(), Status>(()) })
+        });
+        let rpc = std::mem::size_of::<Rpc>();
+        println!("unary read layout: future={bytes}, Rpc={rpc}");
+        assert!(
+            bytes < rpc / 2,
+            "the already heap-owned request record must not be copied into the read future"
+        );
     }
 }

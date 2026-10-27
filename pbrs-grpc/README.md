@@ -52,10 +52,12 @@ pbrs-grpc = { version = "0.1.0-alpha.2", features = ["tower"] }
 
 With that feature, `Router::into_tower_service()` exposes native services as
 `tower::Service<http::Request<B>>` for axum/hyper co-hosting; health and
-reflection use the same router path. `Channel::tower_unary()` exposes one
-unary method as a tower service so caller-selected layers such as timeout,
-concurrency limit, load shed, and tracing wrap the client without adding a
-buffer to the default `Channel` path. See [the axum co-host example](../examples/axum-cohost/).
+reflection use the same router path. `Channel::tower_unary()`,
+`tower_server_streaming()`, `tower_client_streaming()` and `tower_bidi()` expose
+individual methods as Tower services. Caller-selected timeout, concurrency,
+load-shed and tracing layers wrap those services; the default `Channel` remains
+unbuffered. See [the gRPC guide](../docs/grpc.md#message-codecs-and-tower-integration)
+and [axum co-host example](../examples/axum-cohost/).
 
 Enable `zstd` only when you need `grpc-encoding: zstd`:
 

@@ -7,13 +7,23 @@ installed. Keep results in a new directory so older runs remain reproducible.
 
 ## gRPC client and server
 
-For a quick functional run:
+For a quick local comparison using only the Rust harness:
 
 ```sh
-./scripts/grpc-qps-interop.sh --scenario=protobuf_unary_ping_pong_empty --warmup=1 --duration=2
+bench_output=$(mktemp -d)
+cargo run --locked --release --manifest-path rpc-bench/Cargo.toml -- \
+  smoke --quick --output "$bench_output/quick.json"
 ```
 
-For separate client/server allocation and CPU measurements, start with a clean
+This runs both stacks in one process and prints its tables and gate results.
+It saves the report even when a fairness or performance gate returns a failure.
+Short smoke timings are diagnostics; inspect the failing rows before drawing a
+performance conclusion.
+Use separate endpoint processes for CPU attribution. The
+[official QPS runner](../../scripts/grpc-qps-interop.sh) additionally needs a
+Go or C++ driver and the pinned reference tools described in the RPC guide.
+
+For separate client/server allocation measurements, start with a clean
 checkout and freeze its executable:
 
 ```sh

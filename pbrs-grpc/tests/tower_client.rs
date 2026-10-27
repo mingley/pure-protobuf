@@ -473,3 +473,328 @@ async fn arbitrary_input_streams_work_and_early_replies_release_idle_inputs() {
         .await
         .unwrap();
 }
+
+struct ObservedInput {
+    polls: Arc<AtomicUsize>,
+    drops: Arc<AtomicUsize>,
+    first_task: Option<tokio::sync::oneshot::Sender<Option<tokio::task::Id>>>,
+    messages: std::vec::IntoIter<Result<HelloRequest, Status>>,
+}
+
+impl futures_core::Stream for ObservedInput {
+    type Item = Result<HelloRequest, Status>;
+
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        _: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        self.polls.fetch_add(1, Ordering::SeqCst);
+        if let Some(first_task) = self.first_task.take() {
+            let _receiver_may_have_dropped = first_task.send(tokio::task::try_id());
+        }
+        std::task::Poll::Ready(self.messages.next())
+    }
+}
+
+impl Drop for ObservedInput {
+    fn drop(&mut self) {
+        self.drops.fetch_add(1, Ordering::SeqCst);
+    }
+}
+
+#[tokio::test]
+async fn unpolled_streaming_calls_own_idle_inputs_without_starting_producers() {
+    let (channel, _guard) = channel(TaggedEcho::default()).await;
+    for bidi in [false, true] {
+        let polls = Arc::new(AtomicUsize::new(0));
+        let drops = Arc::new(AtomicUsize::new(0));
+        let input = ObservedInput {
+            polls: Arc::clone(&polls),
+            drops: Arc::clone(&drops),
+            first_task: None,
+            messages: vec![Ok(req("unstarted"))].into_iter(),
+        };
+        if bidi {
+            let mut service =
+                channel.tower_bidi::<HelloRequest, HelloReply>("/helloworld.Greeter/StreamHello");
+            let call = service.call(request(input));
+            tokio::task::yield_now().await;
+            assert_eq!(polls.load(Ordering::SeqCst), 0, "unpolled RPC is lazy");
+            drop(call);
+        } else {
+            let mut service = channel.tower_client_streaming::<HelloRequest, HelloReply>(
+                "/helloworld.Greeter/ClientHello",
+            );
+            let call = service.call(request(input));
+            tokio::task::yield_now().await;
+            assert_eq!(polls.load(Ordering::SeqCst), 0, "unpolled RPC is lazy");
+            drop(call);
+        }
+        assert_eq!(
+            drops.load(Ordering::SeqCst),
+            1,
+            "call drop owns input cleanup"
+        );
+    }
+}
+
+#[tokio::test]
+async fn client_streaming_polls_input_on_the_call_task() {
+    let (channel, _guard) = channel(TaggedEcho::default()).await;
+    let (first_task, observed_task) = tokio::sync::oneshot::channel();
+    let input = ObservedInput {
+        polls: Arc::new(AtomicUsize::new(0)),
+        drops: Arc::new(AtomicUsize::new(0)),
+        first_task: Some(first_task),
+        messages: vec![Ok(req("direct"))].into_iter(),
+    };
+    let service = channel
+        .tower_client_streaming::<HelloRequest, HelloReply>("/helloworld.Greeter/ClientHello");
+    let running = tokio::spawn(async move {
+        let task = tokio::task::try_id();
+        let response = service.oneshot(request(input)).await.unwrap();
+        assert_eq!(name_of(response.get_ref()), "direct");
+        task
+    });
+    let observed = observed_task.await.unwrap();
+    let owner = running.await.unwrap();
+    assert_eq!(observed, owner, "no intermediate request forwarding task");
+}
+
+struct InspectCompression;
+
+async fn inspect_input(request: Request<Streaming<HelloRequest>>) -> Result<usize, Status> {
+    let expected = request.metadata().get("x-compression") == Some("yes");
+    let mut input = request.into_inner();
+    let mut count = 0;
+    while let Some(frame) = input.next_framed().await? {
+        assert_eq!(
+            frame.compressed, expected,
+            "request compression applies to each frame"
+        );
+        count += 1;
+    }
+    Ok(count)
+}
+
+impl Greeter for InspectCompression {
+    async fn client_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let count = inspect_input(request).await?;
+        Ok(Response::new(common::reply(count.to_string())))
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        assert_eq!(inspect_input(request).await?, 2);
+        Ok(Response::new(Streaming::empty()))
+    }
+}
+
+fn force_compress(request: &mut pbrs_grpc::Outgoing<'_>) -> Result<(), Status> {
+    request.set_compress(true);
+    Ok(())
+}
+
+#[tokio::test]
+async fn direct_inputs_preserve_compression_overlays_and_encoding_limits() {
+    let (addr, _guard) = serve(InspectCompression, ServerConfig::default())
+        .await
+        .unwrap();
+    let base = until_ok("connect", || async { Channel::connect(addr).await }).await;
+    for intercept in [false, true] {
+        let channel = base.clone().send_compressed();
+        let channel = if intercept {
+            channel.intercept(force_compress)
+        } else {
+            channel
+        };
+        let input = || {
+            let mut request = Request::new(tokio_stream::iter([Ok(req("ada")), Ok(req("grace"))]));
+            request.set_compress(false);
+            request
+                .metadata_mut()
+                .insert("x-compression", if intercept { "yes" } else { "no" })
+                .unwrap();
+            request
+        };
+        let response = channel
+            .tower_client_streaming::<HelloRequest, HelloReply>("/helloworld.Greeter/ClientHello")
+            .oneshot(input())
+            .await
+            .unwrap();
+        assert_eq!(name_of(response.get_ref()), "2");
+        let mut replies = channel
+            .tower_bidi::<HelloRequest, HelloReply>("/helloworld.Greeter/StreamHello")
+            .oneshot(input())
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(replies.message().await.unwrap().is_none());
+    }
+
+    let channel = base.max_encoding_message_size(1);
+    let input = || Request::new(tokio_stream::iter([Ok(req("too large"))]));
+    let error = channel
+        .tower_client_streaming::<HelloRequest, HelloReply>("/helloworld.Greeter/ClientHello")
+        .oneshot(input())
+        .await
+        .unwrap_err();
+    assert_eq!(error.code(), Code::ResourceExhausted);
+    let error = channel
+        .tower_bidi::<HelloRequest, HelloReply>("/helloworld.Greeter/StreamHello")
+        .oneshot(input())
+        .await
+        .unwrap_err();
+    assert_eq!(error.code(), Code::ResourceExhausted);
+}
+
+struct ReadyUpload {
+    message: HelloRequest,
+    polls: Arc<AtomicUsize>,
+    drops: Arc<AtomicUsize>,
+}
+
+impl futures_core::Stream for ReadyUpload {
+    type Item = Result<HelloRequest, Status>;
+
+    fn poll_next(
+        self: std::pin::Pin<&mut Self>,
+        _: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        self.polls.fetch_add(1, Ordering::SeqCst);
+        std::task::Poll::Ready(Some(Ok(self.message.clone())))
+    }
+}
+
+impl Drop for ReadyUpload {
+    fn drop(&mut self) {
+        self.drops.fetch_add(1, Ordering::SeqCst);
+    }
+}
+
+struct HoldUpload {
+    started: Arc<tokio::sync::Notify>,
+    release: Arc<tokio::sync::Notify>,
+}
+
+impl Greeter for HoldUpload {
+    async fn client_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        self.started.notify_one();
+        self.release.notified().await;
+        drop(request);
+        Ok(Response::new(common::reply("early")))
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        self.started.notify_one();
+        self.release.notified().await;
+        drop(request);
+        Ok(Response::new(Streaming::empty()))
+    }
+}
+
+#[tokio::test]
+async fn direct_inputs_stop_at_upload_backpressure_and_release_pending_flushes() {
+    for bidi in [false, true] {
+        for end in ["cancel", "deadline", "early"] {
+            let started = Arc::new(tokio::sync::Notify::new());
+            let release = Arc::new(tokio::sync::Notify::new());
+            let (addr, _guard) = serve(
+                HoldUpload {
+                    started: started.clone(),
+                    release: release.clone(),
+                },
+                ServerConfig::default().initial_stream_window_size(1024),
+            )
+            .await
+            .unwrap();
+            let channel = until_ok("connect", || async { Channel::connect(addr).await })
+                .await
+                .stream_buffer(1);
+            let polls = Arc::new(AtomicUsize::new(0));
+            let drops = Arc::new(AtomicUsize::new(0));
+            let mut request = Request::new(ReadyUpload {
+                message: req(&"x".repeat(1024 * 1024)),
+                polls: polls.clone(),
+                drops: drops.clone(),
+            });
+            if end == "deadline" {
+                request.set_timeout(Duration::from_millis(500));
+            }
+            let (handle, running) = if bidi {
+                let mut service = channel
+                    .tower_bidi::<HelloRequest, HelloReply>("/helloworld.Greeter/StreamHello");
+                let call = service.call(request);
+                let handle = call.handle();
+                let running = tokio::spawn(async move {
+                    call.await?.into_inner().collect().await?;
+                    Ok::<(), Status>(())
+                });
+                (handle, running)
+            } else {
+                let mut service = channel.tower_client_streaming::<HelloRequest, HelloReply>(
+                    "/helloworld.Greeter/ClientHello",
+                );
+                let call = service.call(request);
+                let handle = call.handle();
+                let running = tokio::spawn(async move { call.await.map(|_| ()) });
+                (handle, running)
+            };
+            tokio::time::timeout(Duration::from_secs(2), started.notified())
+                .await
+                .unwrap();
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            let blocked_polls = polls.load(Ordering::SeqCst);
+            assert!(
+                (1..=2).contains(&blocked_polls),
+                "bounded upload prefetch: {blocked_polls}"
+            );
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            assert_eq!(
+                polls.load(Ordering::SeqCst),
+                blocked_polls,
+                "no polling without upload credit"
+            );
+            match end {
+                "cancel" => handle.cancel(),
+                "early" => release.notify_one(),
+                _ => {}
+            }
+            let result = tokio::time::timeout(Duration::from_secs(2), running)
+                .await
+                .unwrap()
+                .unwrap();
+            match end {
+                "cancel" => assert_eq!(result.unwrap_err().code(), Code::Cancelled),
+                "deadline" => assert_eq!(result.unwrap_err().code(), Code::DeadlineExceeded),
+                _ => result.unwrap(),
+            }
+            // A clean bidi EOF wakes the native upload pump; it need not
+            // finish dropping its input on the response reader's task.
+            tokio::time::timeout(Duration::from_secs(2), async {
+                while drops.load(Ordering::SeqCst) == 0 {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .unwrap();
+            assert_eq!(
+                drops.load(Ordering::SeqCst),
+                1,
+                "pending upload owns input cleanup"
+            );
+            release.notify_one();
+        }
+    }
+}
