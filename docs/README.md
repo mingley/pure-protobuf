@@ -8,7 +8,7 @@ Start with a working example, then open the guide for your task.
 | Build a gRPC service | [Greeter example](../examples/greeter/README.md), [gRPC guide](grpc.md) |
 | Use streaming calls | [RPC shapes](guides/rpc-shapes.md) |
 | Configure code generation | [Codegen guide](guides/codegen.md) |
-| Move from tonic/prost | [Migration guide](guides/migration.md), [comparison](guides/comparison.md) |
+| Move from tonic/prost | [Migration guide](guides/migration.md), [comparison](guides/comparison.md), [parity audit](parity.md) |
 | Add authentication and middleware | [Interceptors](guides/interceptors.md) |
 | Deploy and operate a service | [TLS, limits and shutdown](guides/production-service.md), [operations](guides/operations.md) |
 | Compare performance | [Results](benchmarks.md), [run benchmarks](benchmarks/running.md) |

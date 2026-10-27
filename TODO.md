@@ -7,6 +7,13 @@ followed by measured improvements to client and server efficiency. The
 comparisons and checks; [task cards](docs/plan/world-class/tasks.json) carry
 acceptance criteria and dependencies.
 
+The [direct parity audit](docs/parity.md) supplies current counterexamples.
+PK-27/PK-29 now have a reproducible deep read-all loss: a 64-node chain costs
+16.92× prost CPU locally because lazy materialization repeats descendant
+validation. Compare a one-pass owned path with the sparse path while preserving
+required-field, merge, malformed-input and recursion checks. Alloc-only runtime
+support, custom executors and idle keepalive policy also remain parity work.
+
 Michael Ingley coordinates assignments and reviews. A card marked `done`
 means its recorded deliverable was accepted; it does not certify the whole
 product. Older [foundation cards](docs/plan/tasks.json) remain authoritative

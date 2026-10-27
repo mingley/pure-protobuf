@@ -1,0 +1,2088 @@
+{
+  "schema": "pbrs.parity-proof-attempt.v1",
+  "baseline": "73e954c0610906f0f789ba3276241e3b3863a27b",
+  "transport_fix": "c1f7e9b433ddbbbd86a025e85d578c090c2f987f",
+  "proof_suite": "e14cccb5093dcbce78bcd094516718b4898f6319",
+  "qualified": false,
+  "full_functional_parity": false,
+  "strict_prost_behavior_parity": false,
+  "world_performance_ranking_established": false,
+  "workspace_test_counts": {
+    "passed": 3921,
+    "failed": 0,
+    "ignored": 9
+  },
+  "validation": {
+    "source": "e14cccb5093dcbce78bcd094516718b4898f6319",
+    "checks": [
+      {
+        "name": "format",
+        "command": [
+          "cargo",
+          "fmt",
+          "--all",
+          "--check"
+        ],
+        "exit_code": 0,
+        "expected_exit": 0,
+        "seconds": 2.0471271310016164,
+        "log": "format.log"
+      },
+      {
+        "name": "workspace",
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "--workspace",
+          "--all-features"
+        ],
+        "exit_code": 0,
+        "expected_exit": 0,
+        "seconds": 854.831251288997,
+        "log": "workspace.log"
+      },
+      {
+        "name": "core-clippy",
+        "command": [
+          "cargo",
+          "clippy",
+          "--locked",
+          "-p",
+          "pbrs",
+          "--all-targets",
+          "--all-features",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "exit_code": 0,
+        "expected_exit": 0,
+        "seconds": 0.08616440700279782,
+        "log": "core-clippy.log"
+      },
+      {
+        "name": "transport-clippy",
+        "command": [
+          "cargo",
+          "clippy",
+          "--locked",
+          "--lib",
+          "--all-features",
+          "-p",
+          "pbrs-grpc",
+          "-p",
+          "protobuf-tonic",
+          "-p",
+          "pbrs-grpc-example-greeter",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "exit_code": 0,
+        "expected_exit": 0,
+        "seconds": 26.474747885004035,
+        "log": "transport-clippy.log"
+      },
+      {
+        "name": "message-presence",
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "--manifest-path",
+          "tests/proof/tonic_parity/Cargo.toml",
+          "--",
+          "--nocapture"
+        ],
+        "exit_code": 0,
+        "expected_exit": 0,
+        "seconds": 23.5190661440065,
+        "log": "message-presence.log"
+      },
+      {
+        "name": "mixed-peers",
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "--manifest-path",
+          "tests/interop/tonic/Cargo.toml",
+          "--tests"
+        ],
+        "exit_code": 0,
+        "expected_exit": 0,
+        "seconds": 28.674738524998247,
+        "log": "mixed-peers.log"
+      },
+      {
+        "name": "prost-known",
+        "command": [
+          "cargo",
+          "run",
+          "--locked",
+          "--manifest-path",
+          "tests/proof/prost_parity/Cargo.toml",
+          "--",
+          "--check-known-differences"
+        ],
+        "exit_code": 0,
+        "expected_exit": 0,
+        "seconds": 0.12723651999840513,
+        "log": "prost-known.log"
+      },
+      {
+        "name": "prost-strict",
+        "command": [
+          "cargo",
+          "run",
+          "--locked",
+          "--manifest-path",
+          "tests/proof/prost_parity/Cargo.toml"
+        ],
+        "exit_code": 1,
+        "expected_exit": 1,
+        "seconds": 0.12239613300334895,
+        "log": "prost-strict.log"
+      },
+      {
+        "name": "prost-tests",
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "--manifest-path",
+          "tests/proof/prost_parity/Cargo.toml"
+        ],
+        "exit_code": 0,
+        "expected_exit": 0,
+        "seconds": 0.12396893899858696,
+        "log": "prost-tests.log"
+      },
+      {
+        "name": "codegen-proof",
+        "command": [
+          "python3",
+          "tests/proof/codegen_parity/run.py",
+          "--output",
+          "/workspace/pure-protobuf/work/proof-validation/codegen"
+        ],
+        "exit_code": 0,
+        "expected_exit": 0,
+        "seconds": 1.375294108001981,
+        "log": "codegen-proof.log"
+      },
+      {
+        "name": "claim-checker",
+        "command": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "tests.test_performance_claim",
+          "-q"
+        ],
+        "exit_code": 0,
+        "expected_exit": 0,
+        "seconds": 1.9750727790014935,
+        "log": "claim-checker.log"
+      },
+      {
+        "name": "msrv-native",
+        "command": [
+          "cargo",
+          "+1.85.0",
+          "check",
+          "--locked",
+          "-p",
+          "pbrs-grpc",
+          "--lib"
+        ],
+        "exit_code": 0,
+        "expected_exit": 0,
+        "seconds": 10.992881874997693,
+        "log": "msrv-native.log"
+      },
+      {
+        "name": "msrv-tower",
+        "command": [
+          "cargo",
+          "+1.85.0",
+          "check",
+          "--locked",
+          "-p",
+          "pbrs-grpc",
+          "--features",
+          "tower",
+          "--lib"
+        ],
+        "exit_code": 0,
+        "expected_exit": 0,
+        "seconds": 11.228108659001009,
+        "log": "msrv-tower.log"
+      },
+      {
+        "name": "conformance",
+        "command": [
+          "./scripts/conformance.sh"
+        ],
+        "exit_code": 0,
+        "expected_exit": 0,
+        "seconds": 5.125773163999838,
+        "log": "conformance.log"
+      }
+    ],
+    "complete": true,
+    "clean_after": true
+  },
+  "prost": {
+    "strict": {
+      "check_known_differences_mode": false,
+      "harness_passed": false,
+      "known_differences_match": true,
+      "parity_equivalent": false,
+      "proto3_mismatches": 2,
+      "proto3_operations": 654,
+      "proto3_wire_cases": 330,
+      "required_missing_divergence": true,
+      "summary": true
+    },
+    "known": {
+      "check_known_differences_mode": true,
+      "harness_passed": true,
+      "known_differences_match": true,
+      "parity_equivalent": false,
+      "proto3_mismatches": 2,
+      "proto3_operations": 654,
+      "proto3_wire_cases": 330,
+      "required_missing_divergence": true,
+      "summary": true
+    },
+    "counterexamples": [
+      {
+        "case": "wrong-known-wire",
+        "equivalent": false,
+        "initial": null,
+        "input": "0a00",
+        "operation": "parse",
+        "pbrs_accepts": true,
+        "pbrs_encode_error": null,
+        "pbrs_encoded": "0a00",
+        "pbrs_error": null,
+        "pbrs_normalized": null,
+        "prost_accepts": false,
+        "prost_error": "failed to decode Protobuf message: Corpus.i32: invalid wire type: LengthDelimited (expected Varint)",
+        "prost_normalized": null
+      },
+      {
+        "case": "wrong-known-wire",
+        "equivalent": false,
+        "initial": null,
+        "input": "0a00",
+        "operation": "merge-empty",
+        "pbrs_accepts": true,
+        "pbrs_encode_error": null,
+        "pbrs_encoded": "0a00",
+        "pbrs_error": null,
+        "pbrs_normalized": null,
+        "prost_accepts": false,
+        "prost_error": "failed to decode Protobuf message: Corpus.i32: invalid wire type: LengthDelimited (expected Varint)",
+        "prost_normalized": null
+      },
+      {
+        "case": "required-missing",
+        "equivalent": false,
+        "pbrs_accepts": false,
+        "prost_accepts": true
+      }
+    ],
+    "commands_match_expected_exits": true,
+    "harness_validation_passed": true
+  },
+  "tonic": {
+    "baseline_commit": "73e954c0610906f0f789ba3276241e3b3863a27b",
+    "peers": {
+      "tonic": "0.14.6",
+      "prost": "0.14.4"
+    },
+    "source_current_sha256": {
+      "pbrs-grpc/src/request.rs": "85f22afd76fdbbacf2f93c460a132009ce7bbb6238e77bcdfc5cc2b007f688a0",
+      "pbrs-grpc/src/tonic_server.rs": "e1a11912a479736200d32f96cc8d0744c0c384dc0b1caacd30ac0dd7d0930b3b",
+      "pbrs-grpc/src/wire/frame_reader.rs": "0da4a4c38c3abfb59088405f449aee5bc892bc3f73311f1da93b661087b73b65",
+      "pbrs-grpc/src/server/rpc.rs": "6679105c660c4ba66d97e90aa56f65387aa625d74602d09be8fccaf29a723dd9",
+      "pbrs-grpc/src/web/frame.rs": "418f8ba87ccff5ed0a2b18a7ac4cb07b0739b231ff34f6f4fca21a7d06ae528c",
+      "pbrs-grpc/tests/hostile.rs": "86858d20bdd4362e53be406099e3ba38bfd9ef283068a53533df5e6dd73127c1"
+    },
+    "source_note": "The two after runs precede only a five-line cold-path binary-log status-ordering adjustment in frame_reader.rs. Final root validation must cover that adjustment at its committed revision.",
+    "results": [
+      {
+        "log": "mixed-peer-tests.log",
+        "status": "failed",
+        "passed": 20,
+        "failed": 21,
+        "description": "Original full mixed-peer suite: 3 runner, 4 examples, 8 clients, 5 services pass; 21 generated service tests fail with missing native connect information."
+      },
+      {
+        "log": "typed-context-before-serial.log",
+        "status": "failed",
+        "passed": 0,
+        "failed": 1,
+        "description": "One failing all-shape generated-service test rerun serially reproduces failure, excluding parallel scheduling as the explanation."
+      },
+      {
+        "log": "missing-message-before.log",
+        "status": "failed",
+        "passed": 0,
+        "failed": 1,
+        "comparisons": 8,
+        "differences": 2,
+        "description": "Native accepts absent unary and server-streaming requests as default; tonic rejects INTERNAL. Framed empty and both empty-input streaming controls match."
+      },
+      {
+        "log": "missing-response-before.log",
+        "status": "failed",
+        "passed": 0,
+        "failed": 1,
+        "comparisons": 10,
+        "differences": 2,
+        "description": "Native accepts absent OK unary/client-streaming response as default; tonic rejects INTERNAL. Valid empty and error-precedence controls match."
+      },
+      {
+        "log": "missing-message-after.log",
+        "status": "passed",
+        "passed": 2,
+        "failed": 0,
+        "comparisons": 18
+      },
+      {
+        "log": "mixed-peer-tests-after.log",
+        "status": "passed",
+        "passed": 41,
+        "failed": 0
+      }
+    ],
+    "fixes": [
+      {
+        "id": "message-presence",
+        "change": "Preserve absent frame as None; require a request or successful response for single-message sides; preserve non-OK trailer precedence and zero-input streaming."
+      },
+      {
+        "id": "typed-connect-info",
+        "change": "Materialize native TCP/TLS connect information before forwarding the opaque HTTP request into tonic-generated service layers. Native typed-request fast path stays lazy."
+      }
+    ],
+    "remaining_functional_gaps": [
+      {
+        "id": "custom-executor",
+        "status": "missing",
+        "reference": "tonic Endpoint::executor",
+        "source": "pbrs-grpc/src/client/channel.rs Endpoint and channel constructors; no user executor hook",
+        "effect": "Cannot direct native connection-driver tasks to a supplied executor as tonic permits."
+      },
+      {
+        "id": "keepalive-idle-policy",
+        "status": "partial",
+        "reference": "tonic Endpoint::keep_alive_while_idle(false)",
+        "source": "pbrs-grpc/src/config.rs keep_alive_interval documentation",
+        "effect": "Native enabled keepalive sends PINGs while idle; there is no independent idle-off policy."
+      },
+      {
+        "id": "nagle-policy",
+        "status": "partial",
+        "reference": "tonic Endpoint::tcp_nodelay(false) and Server::tcp_nodelay(false)",
+        "source": "pbrs-grpc/src/client/channel.rs and socket accept paths",
+        "effect": "Native TCP_NODELAY is always enabled, with no policy to allow Nagle."
+      },
+      {
+        "id": "http1-grpc-web",
+        "status": "recipe-equivalent",
+        "reference": "tonic-web HTTP/1.1",
+        "source": "examples/axum-cohost/tests/grpc_web_http1.rs",
+        "effect": "HTTP/1.1 browser capability exists through Tower/Hyper recipe; it is not a native listener setting."
+      }
+    ],
+    "scope": "Finite protocol corpus and mixed-peer feature coverage; not a full tonic API equivalence proof, not production qualification, and not a performance ranking.",
+    "fixed_commit": "c1f7e9b433ddbbbd86a025e85d578c090c2f987f"
+  },
+  "codegen": {
+    "schema_version": 1,
+    "revision": "e14cccb5093dcbce78bcd094516718b4898f6319",
+    "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "protoc": "libprotoc 35.1",
+    "protoc_sha256": "d2c65c3ea5eeb59427f684ed3e0a0cd458386122fc9f1b98de946a7242b53d31",
+    "consumer": {
+      "command": [
+        "cargo",
+        "run",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "/workspace/pure-protobuf/tests/proof/codegen_parity/Cargo.toml",
+        "--bin",
+        "pbrs-codegen-parity-proof"
+      ],
+      "exit_code": 0,
+      "passed": true,
+      "cases_passed": 9
+    },
+    "configuration_probes": [
+      {
+        "command": [
+          "cargo",
+          "check",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "/workspace/pure-protobuf/tests/proof/codegen_parity/Cargo.toml",
+          "--bin",
+          "pbrs_btree_map"
+        ],
+        "exit_code": 101,
+        "method": "btree_map",
+        "gap_reproduced": true,
+        "scope": "build configuration / Rust API migration; not wire semantics"
+      },
+      {
+        "command": [
+          "cargo",
+          "check",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "/workspace/pure-protobuf/tests/proof/codegen_parity/Cargo.toml",
+          "--bin",
+          "pbrs_bytes"
+        ],
+        "exit_code": 101,
+        "method": "bytes",
+        "gap_reproduced": true,
+        "scope": "build configuration / Rust API migration; not wire semantics"
+      },
+      {
+        "command": [
+          "cargo",
+          "check",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "/workspace/pure-protobuf/tests/proof/codegen_parity/Cargo.toml",
+          "--bin",
+          "pbrs_boxed"
+        ],
+        "exit_code": 101,
+        "method": "boxed",
+        "gap_reproduced": true,
+        "scope": "build configuration / Rust API migration; not wire semantics"
+      },
+      {
+        "command": [
+          "cargo",
+          "check",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "/workspace/pure-protobuf/tests/proof/codegen_parity/Cargo.toml",
+          "--bin",
+          "pbrs_retain_enum_prefix"
+        ],
+        "exit_code": 101,
+        "method": "retain_enum_prefix",
+        "gap_reproduced": true,
+        "scope": "build configuration / Rust API migration; not wire semantics"
+      },
+      {
+        "command": [
+          "cargo",
+          "check",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "/workspace/pure-protobuf/tests/proof/codegen_parity/Cargo.toml",
+          "--bin",
+          "pbrs_enable_type_names"
+        ],
+        "exit_code": 101,
+        "method": "enable_type_names",
+        "gap_reproduced": true,
+        "scope": "build configuration / Rust API migration; not wire semantics"
+      },
+      {
+        "command": [
+          "cargo",
+          "check",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "/workspace/pure-protobuf/tests/proof/codegen_parity/Cargo.toml",
+          "--bin",
+          "pbrs_type_name_domain"
+        ],
+        "exit_code": 101,
+        "method": "type_name_domain",
+        "gap_reproduced": true,
+        "scope": "build configuration / Rust API migration; not wire semantics"
+      }
+    ],
+    "alloc_only_target": {
+      "target": "thumbv7em-none-eabi",
+      "prost": {
+        "command": [
+          "cargo",
+          "check",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "/workspace/pure-protobuf/tests/proof/codegen_parity/no_std/prost/Cargo.toml",
+          "--target",
+          "thumbv7em-none-eabi"
+        ],
+        "exit_code": 0,
+        "compiled": true,
+        "std_unavailable": false
+      },
+      "pbrs": {
+        "command": [
+          "cargo",
+          "check",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "/workspace/pure-protobuf/tests/proof/codegen_parity/no_std/pbrs/Cargo.toml",
+          "--target",
+          "thumbv7em-none-eabi"
+        ],
+        "exit_code": 101,
+        "compiled": false,
+        "std_unavailable": true
+      },
+      "functional_gap_reproduced": true
+    },
+    "source_sha256": {
+      "tests/proof/codegen_parity/Cargo.lock": "4db05a67f3702c24118cad85d967457bd924b651ae8d0844bee67ea4eb1e0161",
+      "tests/proof/codegen_parity/Cargo.toml": "763392daaddabe335e335da8c804cb0c229bcde903effaa68bd61691ee8676bd",
+      "tests/proof/codegen_parity/README.md": "084bc00245b2f9b4dd5e9a22465d2a9004b05eb864d378c1f19eced240dcc0a4",
+      "tests/proof/codegen_parity/build.rs": "2639879a92fdf66b4dbdb5c3edf871c963e242bb5d1708ad05f6f8aeb8e9bc8f",
+      "tests/proof/codegen_parity/no_std/pbrs/Cargo.lock": "34fef2d869435b41844dad620aa6880b6742d051d7f786c15055bbc8b96d0cd8",
+      "tests/proof/codegen_parity/no_std/pbrs/Cargo.toml": "a843cccb61426dfbbc120687efe31385ab47d010fc31afffd272594408946ba4",
+      "tests/proof/codegen_parity/no_std/pbrs/src/lib.rs": "5d40aae905d828ec11fd4ff77bd5a042ac389cb50d0a6469961f8dc49988c9ee",
+      "tests/proof/codegen_parity/no_std/prost/Cargo.lock": "94504e37566e9a65fe5d900531b903d4d0640923dcc13354ec73d3298a4b8954",
+      "tests/proof/codegen_parity/no_std/prost/Cargo.toml": "2dd32e7b5c9a09c399d8b4ef6f3f2fb69e0ea2b6f1c8c640b4253c5bb6adea86",
+      "tests/proof/codegen_parity/no_std/prost/src/lib.rs": "b1321db28f706e4f0fd7b5386930c80644c4eda74eb531df9fc01c4e7681d0eb",
+      "tests/proof/codegen_parity/proto/case.proto": "cb2d20bdd8b3d95eaa62dba3fdf471a9548aec21ed3753f53088617c7e05e0c3",
+      "tests/proof/codegen_parity/proto/external.proto": "f6e1403594360a19cf887c34f0ad0d31fba05bcf2baeb2a3cb50f4b845df8fd8",
+      "tests/proof/codegen_parity/proto/imported.proto": "69b4c3b1154274e65ab86657a88308970a5d4f74408fd4065c57005914ba8038",
+      "tests/proof/codegen_parity/run.py": "526f57acac4a119a87548c1fea23a36d08aaeb1d8504b8ce98d16f0bffa11df4",
+      "tests/proof/codegen_parity/src/bin/pbrs_boxed.rs": "e4abbc893b062e6eff8f973fad159b6464ff8f741ec22d630c7a74aaf89051d2",
+      "tests/proof/codegen_parity/src/bin/pbrs_btree_map.rs": "0e8b65f5cf0b2e9449dc722ae17a43dadfaea4754e83dc2d9a35b934442eaf20",
+      "tests/proof/codegen_parity/src/bin/pbrs_bytes.rs": "f18655bd3a3597c8c44f326e165afc418ac964aa1c45eef228f83175a20ec65e",
+      "tests/proof/codegen_parity/src/bin/pbrs_enable_type_names.rs": "6148cd03fb87786acd4ed200d34bbea031feede5d025285404ec4ee665a54c89",
+      "tests/proof/codegen_parity/src/bin/pbrs_retain_enum_prefix.rs": "cfb8600096a2cd7f88c1ac1f1736e712a3c72a8af4418e2413237f0a9bc15678",
+      "tests/proof/codegen_parity/src/bin/pbrs_type_name_domain.rs": "b06ec2646972a832b272b9e0ab2442da323f8ff78a402dd29e1fbb0d502ad357",
+      "tests/proof/codegen_parity/src/main.rs": "df62f9c0c169b267051f0ae9acfcba964cdb25ff0cbb232be33a966c109871a3",
+      "src/bin/conformance.rs": "13fb8e5a70075aabb5e675d886d9f238a9ac6a482442707f9f768ffc720a68a5",
+      "src/bin/protoc-gen-pbrs.rs": "2dce6e51e4995ed93b3edb210aacaaedca6752c66b694fde8b2e1f5f858f2301",
+      "src/codegen/compat_stubs.rs": "4337b7aeadd3930b5f304d42c03315cc07b8d2642a5590e588f616dcbc41122e",
+      "src/codegen/config.rs": "a792350ce9e64a6ea0ae8ccb316e0dcf02f49f3991466fb76403a83417b3edc5",
+      "src/codegen/descriptors.rs": "26579acac94142086e8f344c6a1670c92760ec4d96bc39d72a7f64b7e49d897d",
+      "src/codegen/encode.rs": "ce99c47de9fbc7e5999f1b6c42853119cdd2ee4453853c1d3e0ef18930c577c4",
+      "src/codegen/extensions.rs": "c2cb481d5f9f1e1c66476b022b84e864ff77bab8ad4a5f6521d0f28d0877103b",
+      "src/codegen/json.rs": "a9f0f9dc8a728bf899b389930c714b1cc0b787cacb8750d71f94a6b8ef8e800f",
+      "src/codegen/messages.rs": "b8c807fd144ab129bbc250b0b24a49d86fc2aef8c2e0e58025ff79ea5e2a63dd",
+      "src/codegen/naming.rs": "5f04cb9f6227fa8bb4af3ec4cc8041544f40fe3839a923c21b8d67f266d43594",
+      "src/codegen/native_stubs.rs": "cbbe84a4e0c598dab7b994d977ee031e0b2fb857b504edb61a55e9fc9ae370b3",
+      "src/codegen/parse.rs": "1858046f11dad342a6d00f676e53d9fc4dc19c99fc0acb6453a546fa69a183fa",
+      "src/codegen/prost_stubs.rs": "59b51e44b3b51c57f606b8ecf698bcd2e7f90171c144bb26696d61e01c8cd039",
+      "src/codegen/reflection.rs": "3d9a416f545c5355db0068807caa2e4a45b6a989fa3a91060367367fd3c7b93c",
+      "src/codegen/text.rs": "267d0fcd54876fd36426405c16b14944d69637ca206b347661ccb89070795ea2",
+      "src/codegen/tonic_stubs.rs": "8116559cb5abb04a9707a578c2eb9462ae60f33c32156c35273deafee764bfb1",
+      "src/codegen.rs": "cffb375686f169727cfeb2cec046534cc38f7e3da722d6a7bd50bfcb0d994ae2",
+      "src/copy_counts.rs": "ee039964bc33f60b68295e5b64ad0061fcbae61ae627504b3948cacf2485a186",
+      "src/dynamic.rs": "5e4da6d64d5b1ed488e3df0a1c07ed517f9322537c4f4baf016ec5d5b0dfe5cd",
+      "src/error.rs": "3e66e091af3a113060de346b251415b45fbd66e4aefb88d6e33c18a639eda3ff",
+      "src/extension.rs": "4c83afe9e59147cc597fb6bd051ad98ffb5a74b6626558082e11481142994189",
+      "src/gen_support.rs": "6d379026de838fee87e018c238b451360dc7693ce3610ec6f4278b1387c79195",
+      "src/gencode.rs": "052f8750f8d0640b0d741cb9793bb33f83d0097bfefa85d0663af31665a3599d",
+      "src/generated/any.rs": "959b2489886e7ce03eae90a8a0a9c45baadb119c5f8c33dbaa03920c591ec471",
+      "src/generated/duration.rs": "85826cdfd8711ed7378f873f901eb1bfcccb0000bc7bc2a28e8c69f2b1f4cac1",
+      "src/generated/empty.rs": "fce8407063b645596ae12d10cc2aaee59da81fe11a2b20ec339132a1033ae294",
+      "src/generated/field_mask.rs": "4faa8ad0b9ca1186855ed398bc110d1ca67f4d986cd3454194f8dabdce549381",
+      "src/generated/mod.rs": "c6b8a803152aed5db0065006955e633ee0852947df81adad6a36cfb1ca968d56",
+      "src/generated/struct.rs": "e95b15a94a7dea3aed8bd0c91a2f95b1aae8f97a2a5df8b1b27b80c5a8ec969c",
+      "src/generated/test_messages_edition2023.rs": "d6c3c7c5b3bd5a78ef1f0cdd27120931cfd49c56f19727244490a103cbcd68fd",
+      "src/generated/test_messages_edition_unstable.rs": "ffa8ace8dd8dbc97dec056d3734b21e41ee3ba387ac649c2f4998eb092f752d5",
+      "src/generated/test_messages_proto2.rs": "e8ef41e18680ef911ebbe67ea9596c6236179f615268339b06eed9686d059ec9",
+      "src/generated/test_messages_proto2_editions.rs": "0aa1ca39b5660245ac50d6b042398dda2a62b355810503fb746552a7f4b4c6d3",
+      "src/generated/test_messages_proto3.rs": "ed380796c6da02496ae519ca37059ade09ff90d345db83bcf10dffe9655458fe",
+      "src/generated/test_messages_proto3_editions.rs": "1c90550c449854c875fd0caaab781b9b228a6d8f16336000343372f0fa4d5cce",
+      "src/generated/timestamp.rs": "e3f9bdb88300f46e0be9b993fc7dcd7347ca4cf1407c106962305946a628eed0",
+      "src/generated/wrappers.rs": "0f5a468c98b91c8ad9f09492645c19033203dbbb716cfdc9eebc38d1783df068",
+      "src/internal.rs": "7c7742e6741b812acecc6e73f417cc82a6ecc2c3e78be9c571290b525d49b1f6",
+      "src/json.rs": "f74b312fe0b068a36bc73354f3eccde6b893e42fe1898a07e6238a3ff35f18a6",
+      "src/lazy.rs": "064df7d97f7fdb15867a593e671797c6bb372de55c85a67c9cc50c21c437af53",
+      "src/lib.rs": "a492d52d753c28933b1bdc158ed9e6e947a3af69eeb09962f65f95672c6569d1",
+      "src/map.rs": "0ab9e16c839e90de0d8be5b8891a242e2d4c6a8d8edb918741c65750ca2a7d9d",
+      "src/message.rs": "d3407ccf23bc812aefd7f553003dfc8a57f9c7a47368fa62abd297c44983d647",
+      "src/packed.rs": "b7ac525b9ca9feea00cf1283d8f4b5e5b67acd2c87c08b666d54b8432755d4be",
+      "src/prelude.rs": "c9d6ed979e77c8750d3a1ea1d59acb4529e134a89a621a4e15fd6e0c7ae02cf8",
+      "src/proxied.rs": "9b806723993ef715cbab70e9ea87e1a115c519bdabbd310d2a94ed1742ef963b",
+      "src/repeated.rs": "3680049c56aa2d51aea639f01067d331d73e1cdab941e7636ca90b82ae3b53b8",
+      "src/rt.rs": "12e853fd7f59e9dd55c051f5d03d9a712a0dafa34015d81ff59416dc97d4fcb1",
+      "src/runtime/arena.rs": "fd87e02ba0124271d57917b7d3b1b1313a7f5417874e07f1293aac91e8df4441",
+      "src/runtime/array.rs": "4429a8338d2d36a945468967ad70d474d9dcef3d3796c3649b8249efd21f6fea",
+      "src/runtime/decode.rs": "7aa4a0e638628a94cd5629a24bce9b6b1c2e5d4e808926eb619802ac9b50c02b",
+      "src/runtime/encode.rs": "7cc16f2237cd767591cff60152de91750ef2e33c67af74b5cc88f49f77ebf2f0",
+      "src/runtime/extension.rs": "fdc00552bf905b20f2fd76e214e33366520aa5936c9ee437f8705d8ef6c0bff7",
+      "src/runtime/layout.rs": "c57ee6eb3328f29100e76c21c6af283dc6ea6d18df576e4001a8a674845533ba",
+      "src/runtime/map.rs": "7ba1f715b268b545e2f1388903001183e4d5d1a431cb3580518b736db471c7e0",
+      "src/runtime/mini_table.rs": "1685c1a7a785d74aa1c693c8cdf19e5c2ac4876b1050e8eac8a4c1d8ad342728",
+      "src/runtime/reflect.rs": "fd3c58f3eb16035e5fd1641173f9ee197016ae37b4bc2b946c55198f77c5f1d6",
+      "src/runtime.rs": "874376b5de584c2972c11a85e523870d1bafcd762c4ed6fd868d9443f9c7b2da",
+      "src/string.rs": "3d9f0f1b124c90def37c4b4c5bda18410a8422b2d504c8404665303fed957c6e",
+      "src/table.rs": "6783ed7311bb3b64b93f2a9bc122fe75fa049097fc91d3639403ea846bc0d6bf",
+      "src/testdata.rs": "bc9e6cbe6c1f0244baa84d931ead6566c9febcec25efb632b3df5bb5ad8c6fa2",
+      "src/text.rs": "4422d387177590064af057dbc045d2ad07fe2a9f04aa35b8a1ac1c2c521b9fc5",
+      "src/wire.rs": "86470e8dd5617de35d84bc62886af13d1e0e2d4247dae5637551c6655e1e0241",
+      "Cargo.toml": "a55dc7d5d3f48f4ec5572ed21debe8fd5205c25fc44e9bfa10028c2f51c67dac",
+      "build.rs": "08f6ef959e88f4ab35c932dc4e3632ce9681ee4523896e8ba61ad1e9b88733bd"
+    },
+    "changed_source_files": [],
+    "generated_sha256": {
+      "native/case.rs": "a9d3212c934abf0a209b14a0d4d0724b1a144cc304ec38a5e00a22b0805a908c",
+      "native/google/protobuf/timestamp.rs": "12038f712a0f2653676fbbd9cef43af11ae092bfb951448720f445dc85b88868",
+      "native/imported.rs": "d032d49c3a0709db2ecd72bc5ca46f161090f6ec30196e1ca25cfaf8d1be48b6",
+      "native/mod.rs": "d5c2d2fee6b750b9bfa7613bd5e04cb53020221ff9df2db7ab49abcad0120c36",
+      "native-external/external.rs": "7fb167c59c3872ccfeb767e935e337b058784edccd1b12fafbe389babf51147d",
+      "native-external/mod.rs": "d063f6f932a9fd9d3d7a7be31d48583906de5a85abc53c5e0b06ab68b60957f6",
+      "prost/proof.case.rs": "64f1e73a99d3d8c991c1e643cb642c52b2988d3e62c7b1d4b1acef1b9fb35473",
+      "prost/proof.shared.rs": "25283d9ae7e460210e0ca85ff6e296c014272d3afbdb176e627cdd1874605320",
+      "prost-configured/proof.case.rs": "eae5ffabc0e95844cae407ef72238600cb96d0e0f6a1385fc7ddf40c5f4bcd52",
+      "prost-configured/proof.external.rs": "da90a59f9c9c1546c398b12c815562fd202bcec5ccfe80714d093fb755683815",
+      "prost-configured/proof.shared.rs": "bfb62486b290b1b30094297fe9bde0d9b8ae16fe76f1bfc6894bfc95a46c7ab4",
+      "prost-external/proof.external.rs": "8fa02d18bda71371911f39e2e4117322a9e20044a5b33ee45a50067272771dfd"
+    },
+    "verdict": "limited generated wire equivalence; alloc-only deployment and compiler API parity have counterexamples",
+    "limitations": [
+      "Nine generated roundtrip cases are not an exhaustive schema or malformed-input corpus.",
+      "Wire normalization uses prost value equality; map serialization order is not compared.",
+      "Configuration probes compare the public build APIs and selected generated representations.",
+      "pbrs uses its own map, byte storage and naming APIs; these failures do not prove a wire-format gap.",
+      "The alloc-only target control proves compilation availability, not execution on embedded hardware.",
+      "No timing or ranking conclusion is drawn from build execution."
+    ],
+    "harness_passed": true
+  },
+  "codec": [
+    {
+      "case": "empty",
+      "operation": "parse_owned",
+      "cpu_ns_per_op_process_means": {
+        "pbrs": [
+          2.9664403333333333,
+          2.91872,
+          2.928678,
+          3.070852,
+          2.950106
+        ],
+        "prost": [
+          4.134118333333333,
+          4.145455,
+          4.161936,
+          3.914172,
+          3.9214896666666665
+        ]
+      },
+      "cpu_ns_per_op_medians": {
+        "pbrs": 2.950106,
+        "prost": 4.134118333333333
+      },
+      "paired_cpu_ratios_pbrs_over_prost": [
+        0.7175509006152461,
+        0.704077115781018,
+        0.7036816520004152,
+        0.784547025526727,
+        0.752292177402992
+      ],
+      "median_paired_ratio": 0.7175509006152461,
+      "diagnostic_percentile_bootstrap_95_interval": [
+        0.7036816520004152,
+        0.784547025526727
+      ],
+      "interval_warning": "five pairs on one shared host; not an independent-host or leadership confidence interval",
+      "allocation_per_op": {
+        "pbrs": {
+          "allocation_calls": 0.0,
+          "requested_bytes": 0.0
+        },
+        "prost": {
+          "allocation_calls": 0.0,
+          "requested_bytes": 0.0
+        }
+      },
+      "wire_bytes": 0,
+      "wire_fnv1a64": "cbf29ce484222325",
+      "checksum": 0
+    },
+    {
+      "case": "empty",
+      "operation": "read_all",
+      "cpu_ns_per_op_process_means": {
+        "pbrs": [
+          3.2480876666666667,
+          3.497821,
+          3.3710999999999998,
+          3.267093,
+          3.2743636666666665
+        ],
+        "prost": [
+          4.168956333333333,
+          4.695747,
+          4.182046,
+          4.451845666666666,
+          4.460214666666666
+        ]
+      },
+      "cpu_ns_per_op_medians": {
+        "pbrs": 3.2743636666666665,
+        "prost": 4.451845666666666
+      },
+      "paired_cpu_ratios_pbrs_over_prost": [
+        0.77911290187816,
+        0.7448912814084746,
+        0.8060886943854755,
+        0.7338738232689559,
+        0.7341269224411022
+      ],
+      "median_paired_ratio": 0.7448912814084746,
+      "diagnostic_percentile_bootstrap_95_interval": [
+        0.7338738232689559,
+        0.8060886943854755
+      ],
+      "interval_warning": "five pairs on one shared host; not an independent-host or leadership confidence interval",
+      "allocation_per_op": {
+        "pbrs": {
+          "allocation_calls": 0.0,
+          "requested_bytes": 0.0
+        },
+        "prost": {
+          "allocation_calls": 0.0,
+          "requested_bytes": 0.0
+        }
+      },
+      "wire_bytes": 0,
+      "wire_fnv1a64": "cbf29ce484222325",
+      "checksum": 0
+    },
+    {
+      "case": "scalars",
+      "operation": "parse_owned",
+      "cpu_ns_per_op_process_means": {
+        "pbrs": [
+          29.15597,
+          25.050716666666666,
+          25.010655,
+          25.104628333333334,
+          27.384275
+        ],
+        "prost": [
+          36.26767666666667,
+          35.86895,
+          36.41327666666667,
+          35.052656666666664,
+          36.25711166666667
+        ]
+      },
+      "cpu_ns_per_op_medians": {
+        "pbrs": 25.104628333333334,
+        "prost": 36.25711166666667
+      },
+      "paired_cpu_ratios_pbrs_over_prost": [
+        0.8039106080042072,
+        0.6983955947042405,
+        0.6868553804962897,
+        0.7161975930117328,
+        0.7552801020599774
+      ],
+      "median_paired_ratio": 0.7161975930117328,
+      "diagnostic_percentile_bootstrap_95_interval": [
+        0.6868553804962897,
+        0.8039106080042072
+      ],
+      "interval_warning": "five pairs on one shared host; not an independent-host or leadership confidence interval",
+      "allocation_per_op": {
+        "pbrs": {
+          "allocation_calls": 0.0,
+          "requested_bytes": 0.0
+        },
+        "prost": {
+          "allocation_calls": 0.0,
+          "requested_bytes": 0.0
+        }
+      },
+      "wire_bytes": 22,
+      "wire_fnv1a64": "4d3aca35238ad259",
+      "checksum": 4631178160688057729
+    },
+    {
+      "case": "scalars",
+      "operation": "read_all",
+      "cpu_ns_per_op_process_means": {
+        "pbrs": [
+          24.76531,
+          25.895568333333333,
+          25.18632,
+          26.859265,
+          25.440126666666668
+        ],
+        "prost": [
+          35.47752333333333,
+          38.069015,
+          35.710233333333335,
+          35.733868333333334,
+          36.02682166666667
+        ]
+      },
+      "cpu_ns_per_op_medians": {
+        "pbrs": 25.440126666666668,
+        "prost": 35.733868333333334
+      },
+      "paired_cpu_ratios_pbrs_over_prost": [
+        0.6980563374538452,
+        0.6802269071929845,
+        0.705296987698204,
+        0.7516472817734399,
+        0.7061440751573376
+      ],
+      "median_paired_ratio": 0.705296987698204,
+      "diagnostic_percentile_bootstrap_95_interval": [
+        0.6802269071929845,
+        0.7516472817734399
+      ],
+      "interval_warning": "five pairs on one shared host; not an independent-host or leadership confidence interval",
+      "allocation_per_op": {
+        "pbrs": {
+          "allocation_calls": 0.0,
+          "requested_bytes": 0.0
+        },
+        "prost": {
+          "allocation_calls": 0.0,
+          "requested_bytes": 0.0
+        }
+      },
+      "wire_bytes": 22,
+      "wire_fnv1a64": "4d3aca35238ad259",
+      "checksum": 4631178160688057729
+    },
+    {
+      "case": "blob_4kib",
+      "operation": "parse_owned",
+      "cpu_ns_per_op_process_means": {
+        "pbrs": [
+          130.81023333333334,
+          127.13712222222222,
+          131.7504111111111,
+          133.3301888888889,
+          126.90866666666668
+        ],
+        "prost": [
+          145.62741111111112,
+          148.06815555555556,
+          146.4592,
+          158.69188888888888,
+          182.78717777777777
+        ]
+      },
+      "cpu_ns_per_op_medians": {
+        "pbrs": 130.81023333333334,
+        "prost": 148.06815555555556
+      },
+      "paired_cpu_ratios_pbrs_over_prost": [
+        0.8982528243499945,
+        0.8586391972345467,
+        0.8995707412788756,
+        0.840182758062969,
+        0.6942974239744267
+      ],
+      "median_paired_ratio": 0.8586391972345467,
+      "diagnostic_percentile_bootstrap_95_interval": [
+        0.6942974239744267,
+        0.8995707412788756
+      ],
+      "interval_warning": "five pairs on one shared host; not an independent-host or leadership confidence interval",
+      "allocation_per_op": {
+        "pbrs": {
+          "allocation_calls": 1.0,
+          "requested_bytes": 4120.0
+        },
+        "prost": {
+          "allocation_calls": 2.0,
+          "requested_bytes": 8192.0
+        }
+      },
+      "wire_bytes": 4099,
+      "wire_fnv1a64": "3cafdb02b038bee5",
+      "checksum": 505160
+    },
+    {
+      "case": "blob_4kib",
+      "operation": "read_all",
+      "cpu_ns_per_op_process_means": {
+        "pbrs": [
+          707.1595555555556,
+          687.6675666666666,
+          691.3818444444445,
+          681.4149666666667,
+          704.3043333333333
+        ],
+        "prost": [
+          774.6871,
+          870.6286333333334,
+          706.0562666666667,
+          712.1455222222222,
+          715.8624666666666
+        ]
+      },
+      "cpu_ns_per_op_medians": {
+        "pbrs": 691.3818444444445,
+        "prost": 715.8624666666666
+      },
+      "paired_cpu_ratios_pbrs_over_prost": [
+        0.9128324914091839,
+        0.78985176955854,
+        0.9792163558132541,
+        0.9568479270084266,
+        0.9838542543134682
+      ],
+      "median_paired_ratio": 0.9568479270084266,
+      "diagnostic_percentile_bootstrap_95_interval": [
+        0.78985176955854,
+        0.9838542543134682
+      ],
+      "interval_warning": "five pairs on one shared host; not an independent-host or leadership confidence interval",
+      "allocation_per_op": {
+        "pbrs": {
+          "allocation_calls": 1.0,
+          "requested_bytes": 4120.0
+        },
+        "prost": {
+          "allocation_calls": 2.0,
+          "requested_bytes": 8192.0
+        }
+      },
+      "wire_bytes": 4099,
+      "wire_fnv1a64": "3cafdb02b038bee5",
+      "checksum": 505160
+    },
+    {
+      "case": "packed_256",
+      "operation": "parse_owned",
+      "cpu_ns_per_op_process_means": {
+        "pbrs": [
+          73.16499333333334,
+          72.23821333333333,
+          72.61142666666667,
+          85.50748666666667,
+          72.73528666666667
+        ],
+        "prost": [
+          714.9708133333334,
+          722.1061866666666,
+          705.09624,
+          715.8342866666667,
+          718.3054133333334
+        ]
+      },
+      "cpu_ns_per_op_medians": {
+        "pbrs": 72.73528666666667,
+        "prost": 715.8342866666667
+      },
+      "paired_cpu_ratios_pbrs_over_prost": [
+        0.10233283928363995,
+        0.10003821413966006,
+        0.10298087345731226,
+        0.11945151029973482,
+        0.10125955522057785
+      ],
+      "median_paired_ratio": 0.10233283928363995,
+      "diagnostic_percentile_bootstrap_95_interval": [
+        0.10003821413966006,
+        0.11945151029973482
+      ],
+      "interval_warning": "five pairs on one shared host; not an independent-host or leadership confidence interval",
+      "allocation_per_op": {
+        "pbrs": {
+          "allocation_calls": 2.0,
+          "requested_bytes": 512.0
+        },
+        "prost": {
+          "allocation_calls": 7.0,
+          "requested_bytes": 4064.0
+        }
+      },
+      "wire_bytes": 387,
+      "wire_fnv1a64": "c968686acbdebe4c",
+      "checksum": 32640
+    },
+    {
+      "case": "packed_256",
+      "operation": "read_all",
+      "cpu_ns_per_op_process_means": {
+        "pbrs": [
+          282.5531,
+          271.97756,
+          248.14496666666668,
+          244.30259333333333,
+          251.90834
+        ],
+        "prost": [
+          846.6982066666667,
+          734.02458,
+          725.6540466666667,
+          721.15678,
+          724.5253666666666
+        ]
+      },
+      "cpu_ns_per_op_medians": {
+        "pbrs": 251.90834,
+        "prost": 725.6540466666667
+      },
+      "paired_cpu_ratios_pbrs_over_prost": [
+        0.33371170244043896,
+        0.3705292266915639,
+        0.3419604256415778,
+        0.3387648845696678,
+        0.34768739866066806
+      ],
+      "median_paired_ratio": 0.3419604256415778,
+      "diagnostic_percentile_bootstrap_95_interval": [
+        0.33371170244043896,
+        0.3705292266915639
+      ],
+      "interval_warning": "five pairs on one shared host; not an independent-host or leadership confidence interval",
+      "allocation_per_op": {
+        "pbrs": {
+          "allocation_calls": 7.0,
+          "requested_bytes": 4480.0
+        },
+        "prost": {
+          "allocation_calls": 7.0,
+          "requested_bytes": 4064.0
+        }
+      },
+      "wire_bytes": 387,
+      "wire_fnv1a64": "c968686acbdebe4c",
+      "checksum": 32640
+    },
+    {
+      "case": "nested_8",
+      "operation": "parse_owned",
+      "cpu_ns_per_op_process_means": {
+        "pbrs": [
+          137.51270666666667,
+          137.23028,
+          139.42460666666668,
+          134.63357333333335,
+          140.43543333333332
+        ],
+        "prost": [
+          174.30711333333335,
+          146.07218666666665,
+          146.21433333333334,
+          145.64342666666667,
+          149.06035333333335
+        ]
+      },
+      "cpu_ns_per_op_medians": {
+        "pbrs": 137.51270666666667,
+        "prost": 146.21433333333334
+      },
+      "paired_cpu_ratios_pbrs_over_prost": [
+        0.7889104697849967,
+        0.9394689237668243,
+        0.9535631937589338,
+        0.9244054223021577,
+        0.9421380681909916
+      ],
+      "median_paired_ratio": 0.9394689237668243,
+      "diagnostic_percentile_bootstrap_95_interval": [
+        0.7889104697849967,
+        0.9535631937589338
+      ],
+      "interval_warning": "five pairs on one shared host; not an independent-host or leadership confidence interval",
+      "allocation_per_op": {
+        "pbrs": {
+          "allocation_calls": 2.0,
+          "requested_bytes": 128.0
+        },
+        "prost": {
+          "allocation_calls": 7.0,
+          "requested_bytes": 112.0
+        }
+      },
+      "wire_bytes": 30,
+      "wire_fnv1a64": "75684f10f2ededa1",
+      "checksum": 36
+    },
+    {
+      "case": "nested_8",
+      "operation": "read_all",
+      "cpu_ns_per_op_process_means": {
+        "pbrs": [
+          883.4168666666667,
+          668.9395733333333,
+          671.4480266666667,
+          662.9891533333333,
+          676.1400466666666
+        ],
+        "prost": [
+          148.30890666666667,
+          148.35705333333334,
+          152.25816,
+          149.30738,
+          151.14705333333333
+        ]
+      },
+      "cpu_ns_per_op_medians": {
+        "pbrs": 671.4480266666667,
+        "prost": 149.30738
+      },
+      "paired_cpu_ratios_pbrs_over_prost": [
+        5.956600223964971,
+        4.508983956632912,
+        4.409931307896185,
+        4.440431232088684,
+        4.47339218168902
+      ],
+      "median_paired_ratio": 4.47339218168902,
+      "diagnostic_percentile_bootstrap_95_interval": [
+        4.409931307896185,
+        5.956600223964971
+      ],
+      "interval_warning": "five pairs on one shared host; not an independent-host or leadership confidence interval",
+      "allocation_per_op": {
+        "pbrs": {
+          "allocation_calls": 8.0,
+          "requested_bytes": 608.0
+        },
+        "prost": {
+          "allocation_calls": 7.0,
+          "requested_bytes": 112.0
+        }
+      },
+      "wire_bytes": 30,
+      "wire_fnv1a64": "75684f10f2ededa1",
+      "checksum": 36
+    },
+    {
+      "case": "nested_64",
+      "operation": "parse_owned",
+      "cpu_ns_per_op_process_means": {
+        "pbrs": [
+          810.3889666666666,
+          786.0608333333333,
+          791.4471666666667,
+          790.0327333333333,
+          798.0609666666667
+        ],
+        "prost": [
+          1740.2259,
+          1631.0891,
+          1644.3100333333334,
+          1650.8464,
+          1604.9700666666668
+        ]
+      },
+      "cpu_ns_per_op_medians": {
+        "pbrs": 791.4471666666667,
+        "prost": 1644.3100333333334
+      },
+      "paired_cpu_ratios_pbrs_over_prost": [
+        0.46568032728777725,
+        0.481923907978622,
+        0.48132478098564585,
+        0.4785622292499977,
+        0.4972435207618202
+      ],
+      "median_paired_ratio": 0.48132478098564585,
+      "diagnostic_percentile_bootstrap_95_interval": [
+        0.46568032728777725,
+        0.4972435207618202
+      ],
+      "interval_warning": "five pairs on one shared host; not an independent-host or leadership confidence interval",
+      "allocation_per_op": {
+        "pbrs": {
+          "allocation_calls": 2.0,
+          "requested_bytes": 384.0
+        },
+        "prost": {
+          "allocation_calls": 63.0,
+          "requested_bytes": 1008.0
+        }
+      },
+      "wire_bytes": 285,
+      "wire_fnv1a64": "96dc4a0199ae9e5a",
+      "checksum": 2080
+    },
+    {
+      "case": "nested_64",
+      "operation": "read_all",
+      "cpu_ns_per_op_process_means": {
+        "pbrs": [
+          28914.345633333334,
+          33692.953433333336,
+          28599.1584,
+          28461.039366666668,
+          29127.084633333332
+        ],
+        "prost": [
+          1971.6789333333334,
+          1809.2465,
+          1722.4892666666667,
+          1650.2836,
+          1721.3659333333333
+        ]
+      },
+      "cpu_ns_per_op_medians": {
+        "pbrs": 28914.345633333334,
+        "prost": 1722.4892666666667
+      },
+      "paired_cpu_ratios_pbrs_over_prost": [
+        14.664834697224538,
+        18.622643975452398,
+        16.603388452657605,
+        17.246150520229776,
+        16.920913833196575
+      ],
+      "median_paired_ratio": 16.920913833196575,
+      "diagnostic_percentile_bootstrap_95_interval": [
+        14.664834697224538,
+        18.622643975452398
+      ],
+      "interval_warning": "five pairs on one shared host; not an independent-host or leadership confidence interval",
+      "allocation_per_op": {
+        "pbrs": {
+          "allocation_calls": 64.0,
+          "requested_bytes": 5344.0
+        },
+        "prost": {
+          "allocation_calls": 63.0,
+          "requested_bytes": 1008.0
+        }
+      },
+      "wire_bytes": 285,
+      "wire_fnv1a64": "96dc4a0199ae9e5a",
+      "checksum": 2080
+    },
+    {
+      "case": "rpc_sparse",
+      "operation": "parse_owned",
+      "cpu_ns_per_op_process_means": {
+        "pbrs": [
+          9.605923333333333,
+          8.907888333333334,
+          9.187535,
+          8.660588333333333,
+          8.748685
+        ],
+        "prost": [
+          40.530026666666664,
+          40.61709,
+          40.542395,
+          40.37578166666667,
+          40.556783333333335
+        ]
+      },
+      "cpu_ns_per_op_medians": {
+        "pbrs": 8.907888333333334,
+        "prost": 40.542395
+      },
+      "paired_cpu_ratios_pbrs_over_prost": [
+        0.23700757496006253,
+        0.21931379951969318,
+        0.22661549718510712,
+        0.21449958306276753,
+        0.21571446946606135
+      ],
+      "median_paired_ratio": 0.21931379951969318,
+      "diagnostic_percentile_bootstrap_95_interval": [
+        0.21449958306276753,
+        0.23700757496006253
+      ],
+      "interval_warning": "five pairs on one shared host; not an independent-host or leadership confidence interval",
+      "allocation_per_op": {
+        "pbrs": {
+          "allocation_calls": 0.0,
+          "requested_bytes": 0.0
+        },
+        "prost": {
+          "allocation_calls": 0.0,
+          "requested_bytes": 0.0
+        }
+      },
+      "wire_bytes": 2,
+      "wire_fnv1a64": "084d5507b501e0fc",
+      "checksum": 99
+    },
+    {
+      "case": "rpc_sparse",
+      "operation": "read_all",
+      "cpu_ns_per_op_process_means": {
+        "pbrs": [
+          14.024355,
+          14.016661666666666,
+          14.711056666666666,
+          13.740636666666667,
+          13.795931666666666
+        ],
+        "prost": [
+          40.508763333333334,
+          41.38925166666667,
+          41.51453666666667,
+          39.39059,
+          41.25662
+        ]
+      },
+      "cpu_ns_per_op_medians": {
+        "pbrs": 14.016661666666666,
+        "prost": 41.25662
+      },
+      "paired_cpu_ratios_pbrs_over_prost": [
+        0.3462054589175725,
+        0.3386546289735205,
+        0.35435916784490185,
+        0.3488304355600326,
+        0.3343931632466903
+      ],
+      "median_paired_ratio": 0.3462054589175725,
+      "diagnostic_percentile_bootstrap_95_interval": [
+        0.3343931632466903,
+        0.35435916784490185
+      ],
+      "interval_warning": "five pairs on one shared host; not an independent-host or leadership confidence interval",
+      "allocation_per_op": {
+        "pbrs": {
+          "allocation_calls": 0.0,
+          "requested_bytes": 0.0
+        },
+        "prost": {
+          "allocation_calls": 0.0,
+          "requested_bytes": 0.0
+        }
+      },
+      "wire_bytes": 2,
+      "wire_fnv1a64": "084d5507b501e0fc",
+      "checksum": 99
+    },
+    {
+      "case": "rpc_mixed",
+      "operation": "parse_owned",
+      "cpu_ns_per_op_process_means": {
+        "pbrs": [
+          612.1724444444444,
+          823.3502333333333,
+          650.3248666666667,
+          607.6757555555556,
+          604.9062222222223
+        ],
+        "prost": [
+          825.8609444444445,
+          1043.8283888888889,
+          797.3474555555556,
+          831.5105555555556,
+          806.0724222222223
+        ]
+      },
+      "cpu_ns_per_op_medians": {
+        "pbrs": 612.1724444444444,
+        "prost": 825.8609444444445
+      },
+      "paired_cpu_ratios_pbrs_over_prost": [
+        0.7412536560331618,
+        0.7887793071136481,
+        0.8156103868338676,
+        0.7308094304943012,
+        0.7504365681616862
+      ],
+      "median_paired_ratio": 0.7504365681616862,
+      "diagnostic_percentile_bootstrap_95_interval": [
+        0.7308094304943012,
+        0.8156103868338676
+      ],
+      "interval_warning": "five pairs on one shared host; not an independent-host or leadership confidence interval",
+      "allocation_per_op": {
+        "pbrs": {
+          "allocation_calls": 8.0,
+          "requested_bytes": 1696.0
+        },
+        "prost": {
+          "allocation_calls": 23.0,
+          "requested_bytes": 976.0
+        }
+      },
+      "wire_bytes": 181,
+      "wire_fnv1a64": "203b3bce9d26e275",
+      "checksum": 123468418
+    },
+    {
+      "case": "rpc_mixed",
+      "operation": "read_all",
+      "cpu_ns_per_op_process_means": {
+        "pbrs": [
+          863.3469666666667,
+          869.6793666666666,
+          860.9902444444444,
+          855.2876777777777,
+          861.9012777777778
+        ],
+        "prost": [
+          956.0972222222222,
+          862.1126888888889,
+          885.6826333333333,
+          884.7288777777778,
+          855.7513666666666
+        ]
+      },
+      "cpu_ns_per_op_medians": {
+        "pbrs": 861.9012777777778,
+        "prost": 884.7288777777778
+      },
+      "paired_cpu_ratios_pbrs_over_prost": [
+        0.9029907697671379,
+        1.0087769010656018,
+        0.9721205000983736,
+        0.9667229128160153,
+        1.0071865630026
+      ],
+      "median_paired_ratio": 0.9721205000983736,
+      "diagnostic_percentile_bootstrap_95_interval": [
+        0.9029907697671379,
+        1.0087769010656018
+      ],
+      "interval_warning": "five pairs on one shared host; not an independent-host or leadership confidence interval",
+      "allocation_per_op": {
+        "pbrs": {
+          "allocation_calls": 11.0,
+          "requested_bytes": 1920.0
+        },
+        "prost": {
+          "allocation_calls": 23.0,
+          "requested_bytes": 976.0
+        }
+      },
+      "wire_bytes": 181,
+      "wire_fnv1a64": "203b3bce9d26e275",
+      "checksum": 123468418
+    }
+  ],
+  "rpc": {
+    "schema": "pbrs.rpc-proof-summary.v1",
+    "source": {
+      "commit": "c1f7e9b433ddbbbd86a025e85d578c090c2f987f",
+      "tree": "1d7c31c2ab26c1ce0c7db4b217b2ab706d8f7a03",
+      "locks": {
+        "Cargo.lock": "a5ca5a8efb2ba7f3ae0f0a62d5344e267c96794c69dd2d751321d0a0d6ab5c33",
+        "rpc-bench/Cargo.lock": "c2dae4366a138901369ee01b6c6989ad5de37a12141be64b1f3c411a4091728b"
+      }
+    },
+    "qualified": false,
+    "captures": 90,
+    "successful_rpcs": 454950,
+    "limitations": [
+      "single shared x86_64 VM",
+      "loopback",
+      "100 Hz process CPU counters",
+      "no open-loop SLO or sustained-throughput qualification",
+      "only tonic/prost competitor",
+      "startup and teardown included in process windows",
+      "no independent dedicated-host attestation"
+    ],
+    "results": [
+      {
+        "cell": "unary_1k",
+        "endpoint": "client",
+        "pairs": [
+          {
+            "repeat": 0,
+            "native_cpu_us_per_rpc": 14.000000000000002,
+            "tonic_cpu_us_per_rpc": 62.000000000000014,
+            "ratio": 0.2258064516129032
+          },
+          {
+            "repeat": 1,
+            "native_cpu_us_per_rpc": 12.0,
+            "tonic_cpu_us_per_rpc": 48.0,
+            "ratio": 0.25
+          },
+          {
+            "repeat": 2,
+            "native_cpu_us_per_rpc": 12.000000000000002,
+            "tonic_cpu_us_per_rpc": 51.0,
+            "ratio": 0.23529411764705885
+          },
+          {
+            "repeat": 3,
+            "native_cpu_us_per_rpc": 20.0,
+            "tonic_cpu_us_per_rpc": 77.00000000000001,
+            "ratio": 0.2597402597402597
+          },
+          {
+            "repeat": 4,
+            "native_cpu_us_per_rpc": 14.999999999999998,
+            "tonic_cpu_us_per_rpc": 74.00000000000001,
+            "ratio": 0.20270270270270263
+          }
+        ],
+        "native_cpu_us_per_rpc_median": 14.000000000000002,
+        "tonic_cpu_us_per_rpc_median": 62.000000000000014,
+        "median_paired_ratio": 0.23529411764705885,
+        "paired_ratio_range": [
+          0.20270270270270263,
+          0.2597402597402597
+        ],
+        "diagnostic_paired_bootstrap_95_interval": [
+          0.20270270270270263,
+          0.2597402597402597
+        ],
+        "all_slopes_positive": true
+      },
+      {
+        "cell": "unary_1k",
+        "endpoint": "server",
+        "pairs": [
+          {
+            "repeat": 0,
+            "native_cpu_us_per_rpc": 42.00000000000001,
+            "tonic_cpu_us_per_rpc": 28.999999999999996,
+            "ratio": 1.448275862068966
+          },
+          {
+            "repeat": 1,
+            "native_cpu_us_per_rpc": 45.99999999999999,
+            "tonic_cpu_us_per_rpc": 31.000000000000007,
+            "ratio": 1.4838709677419348
+          },
+          {
+            "repeat": 2,
+            "native_cpu_us_per_rpc": 42.00000000000001,
+            "tonic_cpu_us_per_rpc": 34.0,
+            "ratio": 1.235294117647059
+          },
+          {
+            "repeat": 3,
+            "native_cpu_us_per_rpc": 50.0,
+            "tonic_cpu_us_per_rpc": 28.999999999999993,
+            "ratio": 1.724137931034483
+          },
+          {
+            "repeat": 4,
+            "native_cpu_us_per_rpc": 32.00000000000001,
+            "tonic_cpu_us_per_rpc": 27.999999999999996,
+            "ratio": 1.1428571428571432
+          }
+        ],
+        "native_cpu_us_per_rpc_median": 42.00000000000001,
+        "tonic_cpu_us_per_rpc_median": 28.999999999999996,
+        "median_paired_ratio": 1.448275862068966,
+        "paired_ratio_range": [
+          1.1428571428571432,
+          1.724137931034483
+        ],
+        "diagnostic_paired_bootstrap_95_interval": [
+          1.1428571428571432,
+          1.724137931034483
+        ],
+        "all_slopes_positive": true
+      },
+      {
+        "cell": "pipeline_64x1k",
+        "endpoint": "client",
+        "pairs": [
+          {
+            "repeat": 0,
+            "native_cpu_us_per_rpc": 300.0,
+            "tonic_cpu_us_per_rpc": 399.99999999999994,
+            "ratio": 0.7500000000000001
+          },
+          {
+            "repeat": 1,
+            "native_cpu_us_per_rpc": 199.99999999999997,
+            "tonic_cpu_us_per_rpc": 500.0,
+            "ratio": 0.39999999999999997
+          },
+          {
+            "repeat": 2,
+            "native_cpu_us_per_rpc": 300.0,
+            "tonic_cpu_us_per_rpc": 0.0,
+            "ratio": null
+          },
+          {
+            "repeat": 3,
+            "native_cpu_us_per_rpc": 199.99999999999997,
+            "tonic_cpu_us_per_rpc": 300.0,
+            "ratio": 0.6666666666666665
+          },
+          {
+            "repeat": 4,
+            "native_cpu_us_per_rpc": 99.99999999999999,
+            "tonic_cpu_us_per_rpc": 300.0,
+            "ratio": 0.33333333333333326
+          }
+        ],
+        "native_cpu_us_per_rpc_median": 199.99999999999997,
+        "tonic_cpu_us_per_rpc_median": 300.0,
+        "median_paired_ratio": null,
+        "paired_ratio_range": null,
+        "diagnostic_paired_bootstrap_95_interval": null,
+        "all_slopes_positive": false
+      },
+      {
+        "cell": "pipeline_64x1k",
+        "endpoint": "server",
+        "pairs": [
+          {
+            "repeat": 0,
+            "native_cpu_us_per_rpc": 300.0,
+            "tonic_cpu_us_per_rpc": 300.0,
+            "ratio": 1.0
+          },
+          {
+            "repeat": 1,
+            "native_cpu_us_per_rpc": 500.0,
+            "tonic_cpu_us_per_rpc": 200.0,
+            "ratio": 2.5
+          },
+          {
+            "repeat": 2,
+            "native_cpu_us_per_rpc": 200.00000000000003,
+            "tonic_cpu_us_per_rpc": 0.0,
+            "ratio": null
+          },
+          {
+            "repeat": 3,
+            "native_cpu_us_per_rpc": 300.0,
+            "tonic_cpu_us_per_rpc": 99.99999999999999,
+            "ratio": 3.0000000000000004
+          },
+          {
+            "repeat": 4,
+            "native_cpu_us_per_rpc": 300.0,
+            "tonic_cpu_us_per_rpc": 399.99999999999994,
+            "ratio": 0.7500000000000001
+          }
+        ],
+        "native_cpu_us_per_rpc_median": 300.0,
+        "tonic_cpu_us_per_rpc_median": 200.0,
+        "median_paired_ratio": null,
+        "paired_ratio_range": null,
+        "diagnostic_paired_bootstrap_95_interval": null,
+        "all_slopes_positive": false
+      },
+      {
+        "cell": "gzip_bidi_4x1m_noise",
+        "endpoint": "client",
+        "pairs": [
+          {
+            "repeat": 0,
+            "native_cpu_us_per_rpc": 104000.00000000003,
+            "tonic_cpu_us_per_rpc": 119999.99999999997,
+            "ratio": 0.8666666666666671
+          },
+          {
+            "repeat": 1,
+            "native_cpu_us_per_rpc": 110000.00000000001,
+            "tonic_cpu_us_per_rpc": 106000.00000000001,
+            "ratio": 1.0377358490566038
+          },
+          {
+            "repeat": 2,
+            "native_cpu_us_per_rpc": 106000.00000000001,
+            "tonic_cpu_us_per_rpc": 124000.0,
+            "ratio": 0.8548387096774195
+          },
+          {
+            "repeat": 3,
+            "native_cpu_us_per_rpc": 129000.0,
+            "tonic_cpu_us_per_rpc": 108000.00000000001,
+            "ratio": 1.1944444444444442
+          },
+          {
+            "repeat": 4,
+            "native_cpu_us_per_rpc": 114999.99999999999,
+            "tonic_cpu_us_per_rpc": 111000.00000000001,
+            "ratio": 1.0360360360360357
+          }
+        ],
+        "native_cpu_us_per_rpc_median": 110000.00000000001,
+        "tonic_cpu_us_per_rpc_median": 111000.00000000001,
+        "median_paired_ratio": 1.0360360360360357,
+        "paired_ratio_range": [
+          0.8548387096774195,
+          1.1944444444444442
+        ],
+        "diagnostic_paired_bootstrap_95_interval": [
+          0.8548387096774195,
+          1.1944444444444442
+        ],
+        "all_slopes_positive": true
+      },
+      {
+        "cell": "gzip_bidi_4x1m_noise",
+        "endpoint": "server",
+        "pairs": [
+          {
+            "repeat": 0,
+            "native_cpu_us_per_rpc": 115999.99999999999,
+            "tonic_cpu_us_per_rpc": 116000.00000000001,
+            "ratio": 0.9999999999999998
+          },
+          {
+            "repeat": 1,
+            "native_cpu_us_per_rpc": 111000.00000000001,
+            "tonic_cpu_us_per_rpc": 105999.99999999999,
+            "ratio": 1.047169811320755
+          },
+          {
+            "repeat": 2,
+            "native_cpu_us_per_rpc": 115999.99999999997,
+            "tonic_cpu_us_per_rpc": 114999.99999999999,
+            "ratio": 1.008695652173913
+          },
+          {
+            "repeat": 3,
+            "native_cpu_us_per_rpc": 107000.00000000001,
+            "tonic_cpu_us_per_rpc": 110000.00000000001,
+            "ratio": 0.9727272727272728
+          },
+          {
+            "repeat": 4,
+            "native_cpu_us_per_rpc": 114999.99999999999,
+            "tonic_cpu_us_per_rpc": 108000.00000000001,
+            "ratio": 1.0648148148148144
+          }
+        ],
+        "native_cpu_us_per_rpc_median": 114999.99999999999,
+        "tonic_cpu_us_per_rpc_median": 110000.00000000001,
+        "median_paired_ratio": 1.008695652173913,
+        "paired_ratio_range": [
+          0.9727272727272728,
+          1.0648148148148144
+        ],
+        "diagnostic_paired_bootstrap_95_interval": [
+          0.9727272727272728,
+          1.0648148148148144
+        ],
+        "all_slopes_positive": true
+      }
+    ],
+    "interval_warning": "Five local pairs with process startup in the measurement windows; no independent-host confidence or leadership qualification",
+    "independent_review_limits": [
+      "Zero-filled unary/pipeline checks lengths and counts, not every body byte.",
+      "Native/pbrs server has richer Interop handler work than tonic/prost; server CPU includes this unequal handler work.",
+      "No per-capture FAIRNESS/socket attestation; transport settings are configured in source.",
+      "Compression verification checks encoding headers, not captured per-frame flags.",
+      "Client CPU is process lifetime; server CPU is post-READY through client exit; N/2N slopes are approximations."
+    ]
+  },
+  "rpc_matched": {
+    "schema": "pbrs.rpc-proof-summary.v1",
+    "source": {
+      "commit": "c1f7e9b433ddbbbd86a025e85d578c090c2f987f",
+      "tree": "1d7c31c2ab26c1ce0c7db4b217b2ab706d8f7a03",
+      "locks": {
+        "Cargo.lock": "a5ca5a8efb2ba7f3ae0f0a62d5344e267c96794c69dd2d751321d0a0d6ab5c33",
+        "rpc-bench/Cargo.lock": "c2dae4366a138901369ee01b6c6989ad5de37a12141be64b1f3c411a4091728b"
+      }
+    },
+    "qualified": false,
+    "captures": 60,
+    "successful_rpcs": 495000,
+    "limitations": [
+      "single shared x86_64 VM",
+      "loopback",
+      "100 Hz process CPU counters",
+      "no open-loop SLO or sustained-throughput qualification",
+      "only tonic/prost competitor",
+      "startup and teardown included in process windows",
+      "no independent dedicated-host attestation",
+      "matched settings configured in source; no per-capture FAIRNESS/socket attestation",
+      "zero payload validation checks message lengths and counts, not every body byte"
+    ],
+    "results": [
+      {
+        "cell": "unary_1k_prost",
+        "endpoint": "client",
+        "pairs": [
+          {
+            "repeat": 0,
+            "native_cpu_us_per_rpc": 13.999999999999998,
+            "tonic_cpu_us_per_rpc": 66.0,
+            "ratio": 0.2121212121212121
+          },
+          {
+            "repeat": 1,
+            "native_cpu_us_per_rpc": 20.0,
+            "tonic_cpu_us_per_rpc": 55.99999999999999,
+            "ratio": 0.3571428571428572
+          },
+          {
+            "repeat": 2,
+            "native_cpu_us_per_rpc": 21.0,
+            "tonic_cpu_us_per_rpc": 73.00000000000001,
+            "ratio": 0.28767123287671226
+          },
+          {
+            "repeat": 3,
+            "native_cpu_us_per_rpc": 23.0,
+            "tonic_cpu_us_per_rpc": 76.0,
+            "ratio": 0.3026315789473684
+          },
+          {
+            "repeat": 4,
+            "native_cpu_us_per_rpc": 22.0,
+            "tonic_cpu_us_per_rpc": 38.00000000000001,
+            "ratio": 0.5789473684210525
+          }
+        ],
+        "native_cpu_us_per_rpc_median": 21.0,
+        "tonic_cpu_us_per_rpc_median": 66.0,
+        "median_paired_ratio": 0.3026315789473684,
+        "paired_ratio_range": [
+          0.2121212121212121,
+          0.5789473684210525
+        ],
+        "diagnostic_paired_bootstrap_95_interval": [
+          0.2121212121212121,
+          0.5789473684210525
+        ],
+        "all_slopes_positive": true
+      },
+      {
+        "cell": "unary_1k_prost",
+        "endpoint": "server",
+        "pairs": [
+          {
+            "repeat": 0,
+            "native_cpu_us_per_rpc": 45.00000000000001,
+            "tonic_cpu_us_per_rpc": 32.0,
+            "ratio": 1.4062500000000002
+          },
+          {
+            "repeat": 1,
+            "native_cpu_us_per_rpc": 34.00000000000001,
+            "tonic_cpu_us_per_rpc": 31.0,
+            "ratio": 1.0967741935483872
+          },
+          {
+            "repeat": 2,
+            "native_cpu_us_per_rpc": 47.00000000000001,
+            "tonic_cpu_us_per_rpc": 27.999999999999996,
+            "ratio": 1.678571428571429
+          },
+          {
+            "repeat": 3,
+            "native_cpu_us_per_rpc": 50.0,
+            "tonic_cpu_us_per_rpc": 32.99999999999999,
+            "ratio": 1.5151515151515156
+          },
+          {
+            "repeat": 4,
+            "native_cpu_us_per_rpc": 45.99999999999999,
+            "tonic_cpu_us_per_rpc": 27.000000000000007,
+            "ratio": 1.703703703703703
+          }
+        ],
+        "native_cpu_us_per_rpc_median": 45.99999999999999,
+        "tonic_cpu_us_per_rpc_median": 31.0,
+        "median_paired_ratio": 1.5151515151515156,
+        "paired_ratio_range": [
+          1.0967741935483872,
+          1.703703703703703
+        ],
+        "diagnostic_paired_bootstrap_95_interval": [
+          1.0967741935483872,
+          1.703703703703703
+        ],
+        "all_slopes_positive": true
+      },
+      {
+        "cell": "pipeline_64x1k_prost",
+        "endpoint": "client",
+        "pairs": [
+          {
+            "repeat": 0,
+            "native_cpu_us_per_rpc": 199.99999999999997,
+            "tonic_cpu_us_per_rpc": 320.0,
+            "ratio": 0.6249999999999999
+          },
+          {
+            "repeat": 1,
+            "native_cpu_us_per_rpc": 170.0,
+            "tonic_cpu_us_per_rpc": 500.0,
+            "ratio": 0.34
+          },
+          {
+            "repeat": 2,
+            "native_cpu_us_per_rpc": 229.99999999999997,
+            "tonic_cpu_us_per_rpc": 330.00000000000006,
+            "ratio": 0.6969696969696968
+          },
+          {
+            "repeat": 3,
+            "native_cpu_us_per_rpc": 210.0,
+            "tonic_cpu_us_per_rpc": 79.99999999999997,
+            "ratio": 2.625000000000001
+          },
+          {
+            "repeat": 4,
+            "native_cpu_us_per_rpc": 160.0,
+            "tonic_cpu_us_per_rpc": 280.00000000000006,
+            "ratio": 0.5714285714285713
+          }
+        ],
+        "native_cpu_us_per_rpc_median": 199.99999999999997,
+        "tonic_cpu_us_per_rpc_median": 320.0,
+        "median_paired_ratio": 0.6249999999999999,
+        "paired_ratio_range": [
+          0.34,
+          2.625000000000001
+        ],
+        "diagnostic_paired_bootstrap_95_interval": [
+          0.34,
+          2.625000000000001
+        ],
+        "all_slopes_positive": true
+      },
+      {
+        "cell": "pipeline_64x1k_prost",
+        "endpoint": "server",
+        "pairs": [
+          {
+            "repeat": 0,
+            "native_cpu_us_per_rpc": 250.00000000000006,
+            "tonic_cpu_us_per_rpc": 359.99999999999994,
+            "ratio": 0.6944444444444448
+          },
+          {
+            "repeat": 1,
+            "native_cpu_us_per_rpc": 250.0,
+            "tonic_cpu_us_per_rpc": 329.99999999999994,
+            "ratio": 0.7575757575757577
+          },
+          {
+            "repeat": 2,
+            "native_cpu_us_per_rpc": 280.0,
+            "tonic_cpu_us_per_rpc": 350.0,
+            "ratio": 0.8
+          },
+          {
+            "repeat": 3,
+            "native_cpu_us_per_rpc": 329.99999999999994,
+            "tonic_cpu_us_per_rpc": 350.0,
+            "ratio": 0.9428571428571427
+          },
+          {
+            "repeat": 4,
+            "native_cpu_us_per_rpc": 230.00000000000003,
+            "tonic_cpu_us_per_rpc": 119.99999999999999,
+            "ratio": 1.9166666666666672
+          }
+        ],
+        "native_cpu_us_per_rpc_median": 250.00000000000006,
+        "tonic_cpu_us_per_rpc_median": 350.0,
+        "median_paired_ratio": 0.8,
+        "paired_ratio_range": [
+          0.6944444444444448,
+          1.9166666666666672
+        ],
+        "diagnostic_paired_bootstrap_95_interval": [
+          0.6944444444444448,
+          1.9166666666666672
+        ],
+        "all_slopes_positive": true
+      }
+    ],
+    "interval_warning": "Five local pairs with process startup in the measurement windows; no independent-host confidence or leadership qualification"
+  },
+  "preflight": {
+    "schema": "pbrs.rpc-cpu-preflight-development.v1",
+    "baseline": "73e954c0610906f0f789ba3276241e3b3863a27b",
+    "qualified": false,
+    "owned_files": {
+      "scripts/verify-performance-claim.py": "0bf33230ecfbeebbddeb4c18353a352e6fcc8455f50eb3c3c097e817ea01be6b",
+      "tests/test_performance_claim.py": "a0ffa85f7b641593c150369d089ca37da30bdcb49da63aef44ae816e6e8df35e",
+      "tests/proof/ranking/README.md": "81e3217a0f14b184f7433a8d550be3a80a620de9b41e19d10028bc15641f0b7c"
+    },
+    "tests": {
+      "command": "python3 -m unittest discover -s tests -p test_performance_claim.py -v",
+      "passed": 13,
+      "failed": 0,
+      "log": "tests.log"
+    },
+    "current_records": {
+      "command": "python3 work/proof-ranking/reproduce.py",
+      "rejected": 3,
+      "file": "published-record-rejections.json",
+      "meaning": "Published diagnostic summaries do not have frozen raw RPC CPU evidence in the supported schema. Rejection does not reinterpret their historical scoped measurements as losses."
+    },
+    "review": {
+      "agent": "/root/proof_review",
+      "status": "five concrete initial schema issues repaired; no further source-review blocker"
+    },
+    "scope": "C8/D4 numerical and source-consistency preflight only; independent external qualification remains required",
+    "synthetic": "Test fixtures are explicitly synthetic and cannot pass the evidence gate."
+  },
+  "conformance": {
+    "runner_pin": "v35.1",
+    "runner_sha": "35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03",
+    "git_commit": "e14cccb5093dcbce78bcd094516718b4898f6319",
+    "dirty_source": false,
+    "timestamp": "2026-10-27T18:55:31Z",
+    "maximum_edition": "2023",
+    "test_counts": {
+      "required_run_1": 5631,
+      "required_run_2": 5631,
+      "recommended": 5631,
+      "required_text_run_1": 909,
+      "required_text_run_2": 909,
+      "recommended_text": 909,
+      "total_failures": 0
+    },
+    "runs": {
+      "required_run_1": {
+        "status": "passed",
+        "successes": 5631,
+        "text_successes": 909,
+        "skipped": 0,
+        "text_skipped": 0,
+        "expected_failures": 0,
+        "text_expected_failures": 0,
+        "unexpected_failures": 0,
+        "text_unexpected_failures": 0
+      },
+      "required_run_2": {
+        "status": "passed",
+        "successes": 5631,
+        "text_successes": 909,
+        "skipped": 0,
+        "text_skipped": 0,
+        "expected_failures": 0,
+        "text_expected_failures": 0,
+        "unexpected_failures": 0,
+        "text_unexpected_failures": 0
+      },
+      "recommended": {
+        "status": "passed",
+        "successes": 5631,
+        "text_successes": 909,
+        "skipped": 0,
+        "text_skipped": 0,
+        "expected_failures": 0,
+        "text_expected_failures": 0,
+        "unexpected_failures": 0,
+        "text_unexpected_failures": 0
+      }
+    },
+    "validation_errors": [],
+    "overall_status": "passed",
+    "overall_passed": true
+  }
+}

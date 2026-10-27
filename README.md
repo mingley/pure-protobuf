@@ -10,6 +10,7 @@ gRPC over HTTP/2 and `protobuf-tonic` for using pbrs messages with tonic 0.14+.
 
 [Documentation](docs/README.md) · [gRPC example](examples/greeter/README.md)
 · [Benchmark results](docs/benchmarks.md) · [Run benchmarks](docs/benchmarks/running.md)
+· [Parity audit](docs/parity.md)
 
 **Status:** conformance is tested through Protocol Buffers Edition 2023.
 Edition 2024 generation supports a [defined subset](docs/edition-2024.md).

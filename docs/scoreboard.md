@@ -3,6 +3,8 @@
 No category has completed the controlled comparisons required by the
 [benchmark contract](benchmark-contract.md). Local measurements show useful
 improvements and remaining losses; they do not establish an overall ranking.
+The [direct parity audit](parity.md) now includes reproducible counterexamples
+and a 16.92× prost CPU loss on deep parse-and-read-all work.
 
 Start with [benchmark results](benchmarks.md) for readable tables and
 [benchmark commands](benchmarks/running.md) to reproduce them. The

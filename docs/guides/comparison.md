@@ -4,6 +4,8 @@ Use this guide to compare APIs and migration work. `pbrs-grpc` uses a direct
 HTTP/2 transport with explicit resource limits and optional integrations.
 xDS is planned but does not ship. This is an implementation snapshot, not a
 performance ranking; measured results belong in the [scoreboard](../scoreboard.md).
+The [direct parity audit](../parity.md) records tested counterexamples and
+current compatibility checks against tonic 0.14.6 and prost 0.14.4.
 
 ---
 

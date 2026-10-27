@@ -1,7 +1,15 @@
 # Implementation status
 
+The [direct parity audit](evidence/parity-proof-20261027/README.md) at
+`e14cccb5` passes 3,921 all-feature workspace tests with nine existing ignores,
+strict linting, Rust 1.85 native/Tower checks and official protobuf conformance.
+All 18 raw-wire tonic comparisons and 41 mixed-peer tests pass after two
+transport repairs. The audit also reproduces an unsupported alloc-only
+deployment profile, protobuf behavior differences and deep read-all performance
+losses. See the [short proof summary](parity.md) for what passes and what fails.
+
 The [October 27 record](evidence/grpc-parity-and-costs-20261027/README.md)
-collects the latest combined checks at source `a24c0e35`: 3,902 all-feature
+collects earlier combined checks at source `a24c0e35`: 3,902 all-feature
 workspace tests passed, with nine existing ignores; official protobuf
 conformance and five Rust 1.85 library profiles passed. The workspace run
 began one test-only commit earlier, as the record explains. That revision

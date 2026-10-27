@@ -6,6 +6,16 @@
 The measurements below show lower allocation costs in some workloads and losses
 in others. CPU results are mixed. There is no qualified overall performance ranking.
 
+## Direct comparison, October 27
+
+The [parity and performance audit](parity.md) tests the broad claim directly.
+The current runtime's depth-64 parse-and-read-all workload uses 16.92× prost's
+CPU in five local pairs, despite winning parse-only. Depth 8 costs 4.47×.
+The [complete record](evidence/parity-proof-20261027/README.md) retains all
+16 codec rows, separate endpoint measurements, failures and source pins.
+These are shared-host diagnostics. The codegen audit checks compatibility;
+it does not establish a generator-speed ranking.
+
 ## Integrated changes, October 27
 
 On a shared Linux x86_64 host with Rust 1.99.1, compare `a24c0e35` with the
