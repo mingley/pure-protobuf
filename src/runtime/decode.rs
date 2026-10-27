@@ -10,9 +10,9 @@ use crate::internal::{Private, SealedInternal};
 use crate::message::{Clear, ClearAndParse, MergeFrom, Serialize};
 use crate::proxied::{AsView, View};
 use crate::wire::{
-    UnknownField, WIRE_I32, WIRE_I64, WIRE_LEN, WIRE_SGROUP, WIRE_VARINT, decode_tag,
-    decode_varint, decode_zigzag32, decode_zigzag64, read_fixed32, read_fixed64, read_len_bytes,
-    skip_field_with_number_and_depth,
+    UnknownField, WIRE_EGROUP, WIRE_I32, WIRE_I64, WIRE_LEN, WIRE_SGROUP, WIRE_VARINT,
+    capture_unknown_with_depth, decode_tag, decode_varint, decode_zigzag32, decode_zigzag64,
+    read_fixed32, read_fixed64, read_len_bytes, skip_field_with_number_and_depth,
 };
 use std::collections::HashSet;
 use std::marker::PhantomData;
@@ -120,11 +120,61 @@ fn decode_into(
     while pos < buf.len() {
         let (num, wire) = decode_tag(buf, &mut pos)?;
         let Some((idx, f)) = table.field_by_number(num) else {
-            skip_field_with_number_and_depth(buf, &mut pos, num, wire, depth)?;
+            capture_unknown_into(data, buf, &mut pos, num, wire, depth)?;
             continue;
         };
         decode_field(data, idx, f, buf, &mut pos, wire, context, depth)?;
     }
+    Ok(())
+}
+
+fn decode_group_into(
+    data: *mut MsgData,
+    buf: &[u8],
+    pos: &mut usize,
+    number: u32,
+    context: &mut DecodeContext<'_>,
+    depth: u32,
+) -> Result<(), ParseError> {
+    if depth > crate::RECURSION_LIMIT {
+        return Err(ParseError::new("recursion limit exceeded"));
+    }
+    // SAFETY: the caller owns this arena-backed child and its linked table
+    // throughout decoding. A null table still requires valid group framing.
+    let table = unsafe { (*data).mt.0.as_ref() };
+    loop {
+        let (num, wire) = decode_tag(buf, pos)?;
+        if wire == WIRE_EGROUP {
+            return if num == number {
+                Ok(())
+            } else {
+                Err(ParseError::new("mismatched end-group"))
+            };
+        }
+        if let Some((index, field)) = table.and_then(|table| table.field_by_number(num)) {
+            decode_field(data, index, field, buf, pos, wire, context, depth)?;
+        } else if table.is_some() {
+            capture_unknown_into(data, buf, pos, num, wire, depth)?;
+        } else {
+            // A null MiniTable is an inert child, as for LEN messages. Discard
+            // its payload while still validating the group's wire framing.
+            skip_field_with_number_and_depth(buf, pos, num, wire, depth)?;
+        }
+    }
+}
+
+fn capture_unknown_into(
+    data: *mut MsgData,
+    buf: &[u8],
+    pos: &mut usize,
+    number: u32,
+    wire: u32,
+    depth: u32,
+) -> Result<(), ParseError> {
+    let field = capture_unknown_with_depth(buf, pos, number, wire, depth)?;
+    // SAFETY: parsing has exclusive access to this live message. Store the
+    // owned field only after its complete wire frame has been validated.
+    unsafe { (*data).unknown.fields.push(field) };
     Ok(())
 }
 
@@ -223,10 +273,10 @@ fn decode_field(
     };
     let expected_wire = field_wire_type(f.ty);
     let packable = expected_wire != WIRE_LEN && expected_wire != WIRE_SGROUP;
-    // An incompatible known-field tag is unknown wire data. Skip it before
+    // An incompatible known-field tag is unknown wire data. Preserve it before
     // creating a collection or changing a oneof's active case/presence.
     if wire != expected_wire && !(f.repeated && packable && wire == WIRE_LEN) {
-        skip_field_with_number_and_depth(buf, pos, f.number, wire, depth)?;
+        capture_unknown_into(data, buf, pos, f.number, wire, depth)?;
         return Ok(());
     }
     if f.is_map {
@@ -308,6 +358,16 @@ fn decode_field(
             _ => context.arena.alloc_msg(f.sub),
         };
         decode_into(child, payload, context, child_depth)?;
+        ptr.set_slot(idx as u32, FieldKind::Msg(child), true);
+        return Ok(());
+    }
+    if f.ty == FieldType::Group && !f.repeated {
+        let child_depth = descend(depth)?;
+        let child = match ptr.slot(idx as u32) {
+            FieldKind::Msg(child) if !child.is_null() => child,
+            _ => context.arena.alloc_msg(f.sub),
+        };
+        decode_group_into(child, buf, pos, f.number, context, child_depth)?;
         ptr.set_slot(idx as u32, FieldKind::Msg(child), true);
         return Ok(());
     }
@@ -566,9 +626,15 @@ fn decode_one(
             decode_into(child, payload, context, child_depth)?;
             Ok(FieldKind::Msg(child))
         }
-        _ => {
-            skip_field_with_number_and_depth(buf, pos, f.number, wire, depth)?;
-            Ok(FieldKind::Empty)
+        FieldType::Group => {
+            if wire != WIRE_SGROUP {
+                skip_field_with_number_and_depth(buf, pos, f.number, wire, depth)?;
+                return Ok(FieldKind::Empty);
+            }
+            let child_depth = descend(depth)?;
+            let child = context.arena.alloc_msg(f.sub);
+            decode_group_into(child, buf, pos, f.number, context, child_depth)?;
+            Ok(FieldKind::Msg(child))
         }
     }
 }

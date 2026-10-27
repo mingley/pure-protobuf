@@ -10,7 +10,7 @@ use pbrs::runtime::{
     Arena, FieldKind, FieldType, MessagePtr, MiniField, MiniTable, MiniTablePtr, MsgData,
     UpbGetArena, UpbGetMessagePtr, UpbGetMessagePtrMut,
 };
-use pbrs::{ClearAndParse, Parse};
+use pbrs::{ClearAndParse, Parse, Serialize};
 use std::ptr::NonNull;
 
 fn field(number: u32, ty: FieldType) -> MiniField {
@@ -123,6 +123,30 @@ impl Default for Fixture {
             repeated: true,
             ..field(10, FieldType::Double)
         });
+        parent.fields.extend([
+            MiniField {
+                sub: child_ptr,
+                ..field(11, FieldType::Group)
+            },
+            MiniField {
+                sub: child_ptr,
+                repeated: true,
+                ..field(12, FieldType::Group)
+            },
+            MiniField {
+                sub: child_ptr,
+                oneof_group: 2,
+                ..field(13, FieldType::Group)
+            },
+            MiniField {
+                oneof_group: 2,
+                ..field(14, FieldType::Int32)
+            },
+            MiniField {
+                sub: parent_ptr,
+                ..field(15, FieldType::Group)
+            },
+        ]);
         Self {
             root: Box::new(MsgData {
                 slots: vec![FieldKind::Empty; parent.fields.len()],
@@ -160,6 +184,13 @@ unsafe impl UpbGetArena for Fixture {
 fn len_field(number: u32, body: &[u8]) -> Vec<u8> {
     let mut bytes = Vec::new();
     pbrs::rt::encode_len_field(&mut bytes, number, body);
+    bytes
+}
+fn group_field(number: u32, body: &[u8]) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    pbrs::rt::encode_tag(&mut bytes, number, pbrs::rt::WIRE_SGROUP);
+    bytes.extend_from_slice(body);
+    pbrs::rt::encode_tag(&mut bytes, number, pbrs::rt::WIRE_EGROUP);
     bytes
 }
 fn child(data: &MsgData, index: usize) -> &MsgData {
@@ -466,4 +497,364 @@ fn dont_enforce_rejects_bad_wire_and_excessive_depth() {
     assert!(Fixture::parse_dont_enforce_required(&len_field(6, &bytes)).is_err());
     Fixture::parse(&[len_field(1, &[8, 11, 16, 22]), len_field(99, &[0x1b, 0x24])].concat())
         .unwrap();
+}
+
+#[test]
+fn known_groups_decode_contents_and_stop_before_parent_siblings() {
+    let message =
+        Fixture::parse(&[group_field(11, &[8, 11, 16, 22]), vec![32, 9]].concat()).unwrap();
+    assert_eq!(integer(child(&message.root, 10), 0), 11);
+    assert_eq!(integer(child(&message.root, 10), 1), 22);
+    assert_eq!(integer(&message.root, 3), 9);
+    assert!(message.root.has[10]);
+}
+
+#[test]
+fn singular_groups_merge_before_required_initialization() {
+    let complete = [
+        group_field(11, &[8, 11]),
+        group_field(11, &[16, 22]),
+        group_field(11, &[]),
+    ]
+    .concat();
+    let message = Fixture::parse(&complete).unwrap();
+    assert_eq!(integer(child(&message.root, 10), 0), 11);
+    assert_eq!(integer(child(&message.root, 10), 1), 22);
+
+    let mut message = Fixture::parse_dont_enforce_required(&group_field(11, &[8, 33])).unwrap();
+    assert!(message.merge_from_bytes(&[]).is_err());
+    message
+        .merge_from_bytes(&group_field(11, &[16, 44]))
+        .unwrap();
+    assert_eq!(integer(child(&message.root, 10), 0), 33);
+    assert_eq!(integer(child(&message.root, 10), 1), 44);
+    message
+        .clear_and_parse_dont_enforce_required(&group_field(11, &[8, 55]))
+        .unwrap();
+    assert!(message.merge_from_bytes(&[]).is_err());
+    assert!(!child(&message.root, 10).has[1]);
+    assert!(
+        message
+            .clear_and_parse(&group_field(11, &[16, 66]))
+            .is_err()
+    );
+}
+
+#[test]
+fn repeated_groups_keep_elements_independent_and_validate_each_one() {
+    let incomplete = [group_field(12, &[8, 11]), group_field(12, &[16, 22])].concat();
+    assert!(Fixture::parse(&incomplete).is_err());
+    let message = Fixture::parse_dont_enforce_required(&incomplete).unwrap();
+    let FieldKind::Repeated(raw) = message.root.slots[11] else {
+        panic!("expected group array")
+    };
+    let values = unsafe { (*raw).items.borrow() };
+    assert_eq!(values.len(), 2);
+    let FieldKind::Msg(first) = values[0] else {
+        panic!("expected first group")
+    };
+    let FieldKind::Msg(second) = values[1] else {
+        panic!("expected second group")
+    };
+    assert_ne!(first, second);
+    assert_eq!(integer(unsafe { &*first }, 0), 11);
+    assert!(!unsafe { &*first }.has[1]);
+    assert_eq!(integer(unsafe { &*second }, 1), 22);
+    assert!(!unsafe { &*second }.has[0]);
+
+    let message = Fixture::parse(
+        &[
+            group_field(12, &[8, 11, 16, 22]),
+            group_field(12, &[8, 33, 16, 44]),
+        ]
+        .concat(),
+    )
+    .unwrap();
+    let FieldKind::Repeated(raw) = message.root.slots[11] else {
+        panic!("expected group array")
+    };
+    assert_eq!(unsafe { (*raw).items.borrow().len() }, 2);
+}
+
+#[test]
+fn group_oneofs_merge_the_active_case_and_forget_replaced_children() {
+    let message =
+        Fixture::parse(&[group_field(13, &[8, 11]), group_field(13, &[16, 22])].concat()).unwrap();
+    assert_eq!(integer(child(&message.root, 12), 0), 11);
+    assert_eq!(integer(child(&message.root, 12), 1), 22);
+    assert!(message.root.has[12]);
+    assert!(!message.root.has[13]);
+
+    let message = Fixture::parse(&[group_field(13, &[8, 11]), vec![112, 9]].concat()).unwrap();
+    assert!(!message.root.has[12]);
+    assert!(message.root.has[13]);
+    assert_eq!(integer(&message.root, 13), 9);
+    assert!(
+        Fixture::parse(
+            &[
+                group_field(13, &[8, 11, 16, 22]),
+                vec![112, 9],
+                group_field(13, &[16, 33]),
+            ]
+            .concat(),
+        )
+        .is_err()
+    );
+
+    // Wrong-wire input for the group cannot clear an already selected scalar.
+    let message = Fixture::parse(&[vec![112, 9], len_field(13, &[0x7b])].concat()).unwrap();
+    assert_eq!(integer(&message.root, 13), 9);
+    assert!(!message.root.has[12]);
+}
+
+#[test]
+fn known_groups_reject_malformed_or_unmatched_end_tags_in_both_parse_modes() {
+    let malformed = [
+        vec![0x5b],                   // missing group 11 end
+        vec![0x5b, 8, 11],            // body parsed, end missing
+        vec![0x5b, 0x64],             // end for field 12
+        vec![0x5b, 0x5b, 0x64, 0x5c], // mismatched nested unknown group
+        vec![0x7b, 0x7b, 0x5c, 0x7c], // crossed known group ends
+        vec![0x5c],                   // end without a start
+        vec![0x5b, 0],                // illegal field zero inside group
+        vec![0x5b, 0x7b, 0x7c],       // inner valid, outer end missing
+        vec![0x5b, 8, 0x80, 0x5c],    // truncated value eats end as data
+        len_field(6, &[0x7b]),        // group must end inside its LEN frame
+    ];
+    for bytes in malformed {
+        assert!(Fixture::parse(&bytes).is_err(), "{bytes:02x?}");
+        assert!(
+            Fixture::parse_dont_enforce_required(&bytes).is_err(),
+            "{bytes:02x?}"
+        );
+    }
+    let message = Fixture::parse(
+        &[
+            group_field(15, &group_field(99, &[])),
+            group_field(11, &[8, 11, 16, 22]),
+        ]
+        .concat(),
+    )
+    .unwrap();
+    assert_eq!(integer(child(&message.root, 10), 1), 22);
+}
+
+#[test]
+fn required_group_presence_and_its_child_fields_are_checked_separately() {
+    let mut message = Fixture::default();
+    // Configure the table before the first parse; its stable Box address stays
+    // unchanged and the table is immutable while decoding uses it.
+    message._tables.last_mut().unwrap().fields[10].required = true;
+    assert!(message.merge_from_bytes(&[]).is_err());
+    assert!(message.merge_from_bytes(&group_field(11, &[])).is_err());
+    message
+        .merge_from_bytes(&group_field(11, &[8, 11, 16, 22]))
+        .unwrap();
+    assert!(message.root.has[10]);
+    assert_eq!(integer(child(&message.root, 10), 0), 11);
+}
+
+#[test]
+fn known_groups_share_recursion_budget_with_messages_and_unknown_groups() {
+    let mut groups = Vec::new();
+    for _ in 0..pbrs::RECURSION_LIMIT {
+        groups = group_field(15, &groups);
+    }
+    let message = Fixture::parse(&groups).unwrap();
+    let mut node = message.root.as_ref();
+    for _ in 0..pbrs::RECURSION_LIMIT {
+        node = child(node, 14);
+    }
+    assert!(!node.has[14]);
+    assert!(Fixture::parse_dont_enforce_required(&group_field(15, &groups)).is_err());
+    assert!(Fixture::parse_dont_enforce_required(&len_field(6, &groups)).is_err());
+
+    let mut mixed = Vec::new();
+    for _ in 0..pbrs::RECURSION_LIMIT / 2 {
+        mixed = len_field(6, &group_field(15, &mixed));
+    }
+    Fixture::parse(&mixed).unwrap();
+    assert!(Fixture::parse_dont_enforce_required(&group_field(15, &mixed)).is_err());
+    Fixture::parse(&group_field(15, &len_field(99, &groups))).unwrap();
+
+    let mut known_then_unknown = group_field(99, &[]);
+    for _ in 0..pbrs::RECURSION_LIMIT - 1 {
+        known_then_unknown = group_field(15, &known_then_unknown);
+    }
+    Fixture::parse(&known_then_unknown).unwrap();
+    assert!(Fixture::parse_dont_enforce_required(&group_field(15, &known_then_unknown)).is_err());
+}
+
+#[test]
+fn group_serialization_matches_protoc_and_roundtrips() {
+    let fragments = [
+        group_field(11, &[8, 11]),
+        group_field(11, &[16, 22]),
+        group_field(12, &[8, 33, 16, 44]),
+        group_field(12, &[8, 55, 16, 66]),
+    ]
+    .concat();
+    let message = Fixture::parse(&fragments).unwrap();
+    // protoc --encode for one Singular and two Repeated proto2 groups emits
+    // these start/body/end tags, with no length prefix around either body.
+    let expected = vec![
+        0x5b, 8, 11, 16, 22, 0x5c, 0x63, 8, 33, 16, 44, 0x64, 0x63, 8, 55, 16, 66, 0x64,
+    ];
+    let serialized = message.serialize().unwrap();
+    assert_eq!(serialized, expected);
+    assert_eq!(message.serialized_len(), expected.len());
+    let reparsed = Fixture::parse(&serialized).unwrap();
+    assert_eq!(integer(child(&reparsed.root, 10), 0), 11);
+    assert_eq!(integer(child(&reparsed.root, 10), 1), 22);
+    assert_eq!(reparsed.serialize().unwrap(), serialized);
+}
+
+#[test]
+fn nested_and_oneof_group_serialization_keeps_message_framing() {
+    let nested = group_field(15, &len_field(6, &group_field(11, &[8, 11, 16, 22])));
+    let message = Fixture::parse(&nested).unwrap();
+    assert_eq!(message.serialize().unwrap(), nested);
+    let reparsed = Fixture::parse(&message.serialize().unwrap()).unwrap();
+    assert_eq!(
+        integer(child(child(child(&reparsed.root, 14), 5), 10), 1),
+        22
+    );
+
+    let selected = group_field(13, &[8, 11, 16, 22]);
+    assert_eq!(
+        Fixture::parse(&selected).unwrap().serialize().unwrap(),
+        selected
+    );
+    let replaced = [selected, vec![112, 9]].concat();
+    assert_eq!(
+        Fixture::parse(&replaced).unwrap().serialize().unwrap(),
+        [112, 9]
+    );
+
+    let empty = group_field(15, &[]);
+    assert_eq!(Fixture::parse(&empty).unwrap().serialize().unwrap(), empty);
+    let normal_message = len_field(1, &[8, 11, 16, 22]);
+    assert_eq!(
+        Fixture::parse(&normal_message)
+            .unwrap()
+            .serialize()
+            .unwrap(),
+        normal_message,
+    );
+}
+
+fn varint_field(number: u32, value: u64) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    pbrs::rt::encode_tag(&mut bytes, number, pbrs::rt::WIRE_VARINT);
+    pbrs::rt::encode_varint(&mut bytes, value);
+    bytes
+}
+
+#[test]
+fn ordinary_unknown_fields_and_nested_groups_roundtrip() {
+    let bytes = [
+        len_field(1, &[8, 11, 16, 22]),
+        varint_field(99, 7),
+        len_field(100, &[0x7b]),
+        group_field(101, &group_field(102, &varint_field(1, 33))),
+    ]
+    .concat();
+    let message = Fixture::parse(&bytes).unwrap();
+    assert_eq!(message.root.unknown.fields.as_slice().len(), 3);
+    assert_eq!(message.serialize().unwrap(), bytes);
+    let reparsed = Fixture::parse(&message.serialize().unwrap()).unwrap();
+    assert_eq!(reparsed.root.unknown, message.root.unknown);
+}
+
+#[test]
+fn unknown_fields_inside_known_groups_roundtrip_with_their_own_framing() {
+    let body = [
+        vec![8, 11, 16, 22],
+        varint_field(99, 7),
+        group_field(100, &group_field(101, &varint_field(1, 33))),
+    ]
+    .concat();
+    let bytes = [group_field(11, &body), varint_field(14, 9)].concat();
+    let message = Fixture::parse(&bytes).unwrap();
+    assert!(message.root.unknown.fields.is_empty());
+    assert_eq!(child(&message.root, 10).unknown.fields.as_slice().len(), 2);
+    assert_eq!(message.serialize().unwrap(), bytes);
+    let reparsed = Fixture::parse(&bytes).unwrap();
+    assert_eq!(
+        child(&reparsed.root, 10).unknown,
+        child(&message.root, 10).unknown
+    );
+}
+
+#[test]
+fn wrong_wire_oneof_fields_roundtrip_without_changing_the_active_group() {
+    let bytes = [
+        group_field(13, &[8, 11, 16, 22]),
+        len_field(14, &[0x7b]),
+        varint_field(13, 7),
+    ]
+    .concat();
+    let message = Fixture::parse(&bytes).unwrap();
+    assert!(message.root.has[12]);
+    assert!(!message.root.has[13]);
+    assert_eq!(integer(child(&message.root, 12), 0), 11);
+    assert_eq!(message.root.unknown.fields.as_slice().len(), 2);
+    assert_eq!(message.serialize().unwrap(), bytes);
+    assert!(Fixture::parse(&[group_field(13, &[8, 11]), len_field(14, &[0x7b])].concat()).is_err());
+}
+
+#[test]
+fn malformed_group_merges_preserve_the_previous_oneof_and_complete_unknowns() {
+    for malformed in [
+        vec![0x6b, 8, 11, 16, 22, 0x64], // known group 13, wrong end 12
+        vec![0x6b, 8, 11, 16, 22],       // known group 13, missing end
+        vec![0x73, 8, 11, 0x7c],         // scalar 14 with malformed group wire
+    ] {
+        let mut message = Fixture::parse(&varint_field(14, 9)).unwrap();
+        assert!(
+            message
+                .merge_from_bytes_dont_enforce_required(&malformed)
+                .is_err()
+        );
+        assert!(!message.root.has[12]);
+        assert!(message.root.has[13]);
+        assert_eq!(integer(&message.root, 13), 9);
+        assert!(message.root.unknown.fields.is_empty());
+        assert_eq!(message.serialize().unwrap(), varint_field(14, 9));
+    }
+
+    let complete_unknown = varint_field(99, 7);
+    let mut message = Fixture::parse(&complete_unknown).unwrap();
+    let malformed = [varint_field(100, 8), vec![0x73, 8, 11, 0x7c]].concat();
+    assert!(
+        message
+            .merge_from_bytes_dont_enforce_required(&malformed)
+            .is_err()
+    );
+    // The completed unknown survives a later wire error. The incomplete group
+    // does not publish an unknown field or an active oneof case.
+    assert_eq!(message.root.unknown.fields.as_slice().len(), 2);
+    assert_eq!(
+        message.serialize().unwrap(),
+        [complete_unknown, varint_field(100, 8)].concat()
+    );
+}
+
+#[test]
+fn null_group_tables_keep_payloads_inert_but_validate_group_framing() {
+    let mut message = Fixture::default();
+    // Configure the null sentinel before parsing; no table is mutated while
+    // decode holds a linked-table reference.
+    message._tables.last_mut().unwrap().fields[10].sub = MiniTablePtr::dangling();
+    let body = [vec![8, 11, 16, 22], group_field(99, &varint_field(1, 33))].concat();
+    message.merge_from_bytes(&group_field(11, &body)).unwrap();
+    let inert = child(&message.root, 10);
+    assert!(inert.mt.0.is_null());
+    assert!(inert.unknown.fields.is_empty());
+    assert_eq!(message.serialize().unwrap(), group_field(11, &[]));
+    assert!(
+        message
+            .merge_from_bytes_dont_enforce_required(&[0x5b, 8, 11, 0x64])
+            .is_err()
+    );
 }

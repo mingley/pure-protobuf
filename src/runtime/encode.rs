@@ -8,7 +8,10 @@
 use crate::error::SerializeError;
 use crate::internal::{Private, SealedInternal};
 use crate::message::Serialize;
-use crate::wire::{WIRE_I32, WIRE_I64, WIRE_VARINT, encode_len_field, encode_tag, encode_varint};
+use crate::wire::{
+    WIRE_EGROUP, WIRE_I32, WIRE_I64, WIRE_SGROUP, WIRE_VARINT, encode_len_field, encode_tag,
+    encode_varint,
+};
 
 use super::{FieldKind, FieldType, MiniField, MiniTablePtr, MsgData, UpbGetMessagePtr};
 
@@ -216,9 +219,15 @@ pub(crate) fn encode_slot(f: &MiniField, slot: FieldKind, out: &mut Vec<u8>) {
             encode_len_field(out, f.number, &*p);
         },
         FieldKind::Msg(p) if !p.is_null() => {
-            let mut tmp = Vec::new();
-            encode_msg(p, &mut tmp);
-            encode_len_field(out, f.number, &tmp);
+            if f.ty == FieldType::Group {
+                encode_tag(out, f.number, WIRE_SGROUP);
+                encode_msg(p, out);
+                encode_tag(out, f.number, WIRE_EGROUP);
+            } else {
+                let mut tmp = Vec::new();
+                encode_msg(p, &mut tmp);
+                encode_len_field(out, f.number, &tmp);
+            }
         }
         FieldKind::Repeated(p) if !p.is_null() => unsafe {
             if f.packed {
