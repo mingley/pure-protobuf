@@ -72,8 +72,10 @@ candidate used the shared repository while other modules were changing; its
 decoder hashes and a reconstruction using only the decoder patch are in the
 archive. Generator warm-time medians varied by case, including a 16.81%
 increase for the 20-file full-output case. Its single-file fixture requests
-one extra allocation and 40 extra bytes. These results do not establish a
-generator or codec speed advantage over prost.
+one extra allocation and 40 extra bytes. Both generator builds used the same
+scratch lockfile, whose `serde_json` version was 1.0.154 rather than the
+repository lock's 1.0.151. These results do not establish a generator or codec
+speed advantage over prost.
 
 The server's already-closed, deadline-free reset avoids two redundant state
 locks in the measured lifecycle, and the private unary read future shrinks
