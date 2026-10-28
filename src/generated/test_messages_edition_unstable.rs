@@ -1331,6 +1331,30 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
+            self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, false)
+        }
+        #[doc(hidden)]
+        pub fn __pbrs_merge_prevalidated(
+            &mut self,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
+            pos: &mut usize,
+            depth: u32,
+            enforce: bool,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, true)
+        }
+        fn __pbrs_merge_mode(
+            &mut self,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
+            pos: &mut usize,
+            depth: u32,
+            enforce: bool,
+            until: Option<u32>,
+            prevalidated: bool,
+        ) -> Result<(), ParseError> {
             if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
@@ -1389,7 +1413,7 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                     }
                     continue;
                 }
-                self.merge_heavy(n, w, data, wire, pos, depth)?;
+                self.__pbrs_merge_heavy(n, w, data, wire, pos, depth, prevalidated)?;
             }
             if until.is_some() {
                 return Err(ParseError::new("truncated group"));
@@ -1400,7 +1424,7 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
             Ok(())
         }
         #[inline(never)]
-        fn merge_heavy(
+        fn __pbrs_merge_heavy(
             &mut self,
             n: u32,
             w: u32,
@@ -1408,6 +1432,7 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
             wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
+            prevalidated: bool,
         ) -> Result<(), ParseError> {
             match n {
                 2 => match w {
@@ -1429,14 +1454,20 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                                 )?;
                         } else {
                             let mut ip = 0;
-                            ForeignMessageEditionUnstable::validate_inner(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                &mut ip,
-                                depth + 1,
-                            )?;
-                            self.cold_mut().optional_foreign_message = pbrs::rt::LazyMsg::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            );
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            if !prevalidated {
+                                ForeignMessageEditionUnstable::validate_inner(
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                )?;
+                            }
+                            self.cold_mut().optional_foreign_message =
+                                pbrs::rt::LazyMsg::from_validated_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                         }
                     }
                     _ => self
@@ -1465,14 +1496,20 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                                 )?;
                         } else {
                             let mut ip = 0;
-                            TestAllTypesEditionUnstable::validate_inner(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                &mut ip,
-                                depth + 1,
-                            )?;
-                            self.cold_mut().recursive_message = pbrs::rt::LazyMsg::from_wire(
-                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                            );
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            if !prevalidated {
+                                TestAllTypesEditionUnstable::validate_inner(
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                )?;
+                            }
+                            self.cold_mut().recursive_message =
+                                pbrs::rt::LazyMsg::from_validated_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                         }
                     }
                     _ => self
@@ -1611,7 +1648,10 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                         let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         let (kk, vv) =
                             decode_map_entry_TestAllTypesEditionUnstable_map_int32_int32_8(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                data,
+                                wire,
+                                s,
+                                e,
                                 depth + 1,
                             )?;
                         self.cold_mut().map_int32_int32.push_entry(kk, vv);
@@ -1631,7 +1671,10 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                         let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         let (kk, vv) =
                             decode_map_entry_TestAllTypesEditionUnstable_map_bool_bool_9(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                data,
+                                wire,
+                                s,
+                                e,
                                 depth + 1,
                             )?;
                         self.cold_mut().map_bool_bool.push_entry(kk, vv);
@@ -1651,7 +1694,10 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                         let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         let (kk, vv) =
                             decode_map_entry_TestAllTypesEditionUnstable_map_string_string_10(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                data,
+                                wire,
+                                s,
+                                e,
                                 depth + 1,
                             )?;
                         self.cold_mut().map_string_string.push_entry(kk, vv);
@@ -1669,7 +1715,7 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                             return Err(ParseError::new("recursion limit exceeded"));
                         }
                         let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                        let (kk, vv) = decode_map_entry_TestAllTypesEditionUnstable_map_string_foreign_message_11(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
+                        let (kk, vv) = decode_map_entry_TestAllTypesEditionUnstable_map_string_foreign_message_11(data, wire, s, e, depth + 1)?;
                         self.cold_mut()
                             .map_string_foreign_message
                             .push_entry(kk, vv);
@@ -1687,7 +1733,7 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                             return Err(ParseError::new("recursion limit exceeded"));
                         }
                         let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                        let (kk, vv) = decode_map_entry_TestAllTypesEditionUnstable_map_string_foreign_enum_12(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
+                        let (kk, vv) = decode_map_entry_TestAllTypesEditionUnstable_map_string_foreign_enum_12(data, wire, s, e, depth + 1)?;
                         self.cold_mut().map_string_foreign_enum.push_entry(kk, vv);
                     }
                     _ => self
@@ -1755,7 +1801,10 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                         let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         let (kk, vv) =
                             decode_map_entry_TestAllTypesEditionUnstable_map_string_bytes_15(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                data,
+                                wire,
+                                s,
+                                e,
                                 depth + 1,
                             )?;
                         self.cold_mut().map_string_bytes.push_entry(kk, vv);
@@ -2361,16 +2410,20 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
     pbrs::impl_typed_message!(
         TestAllTypesEditionUnstable,
         TestAllTypesEditionUnstableView,
-        TestAllTypesEditionUnstableMut
+        TestAllTypesEditionUnstableMut,
+        __pbrs_merge_prevalidated
     );
     fn decode_map_entry_TestAllTypesEditionUnstable_map_int32_int32_8(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(i32, i32), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = i32::default();
         let mut val = i32::default();
         let mut pos = 0;
@@ -2385,13 +2438,16 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesEditionUnstable_map_bool_bool_9(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(bool, bool), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = bool::default();
         let mut val = bool::default();
         let mut pos = 0;
@@ -2406,13 +2462,16 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesEditionUnstable_map_string_string_10(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, pbrs::rt::LazyStr), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = pbrs::rt::LazyStr::default();
         let mut val = pbrs::rt::LazyStr::default();
         let mut pos = 0;
@@ -2422,12 +2481,22 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                 (1, pbrs::rt::WIRE_LEN) => {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     pbrs::rt::require_utf8(&data[s..e])?;
-                    key = pbrs::rt::LazyStr::from_span(wire, s, e);
+                    key = pbrs::rt::LazyStr::from_map_parse_span(
+                        wire,
+                        parent_data,
+                        start + s,
+                        start + e,
+                    );
                 }
                 (2, pbrs::rt::WIRE_LEN) => {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     pbrs::rt::require_utf8(&data[s..e])?;
-                    val = pbrs::rt::LazyStr::from_span(wire, s, e);
+                    val = pbrs::rt::LazyStr::from_map_parse_span(
+                        wire,
+                        parent_data,
+                        start + s,
+                        start + e,
+                    );
                 }
                 _ => pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
             }
@@ -2435,13 +2504,16 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesEditionUnstable_map_string_foreign_message_11(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, ForeignMessageEditionUnstable), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = pbrs::rt::LazyStr::default();
         let mut val: Option<ForeignMessageEditionUnstable> = None;
         let mut pos = 0;
@@ -2451,7 +2523,12 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                 (1, pbrs::rt::WIRE_LEN) => {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     pbrs::rt::require_utf8(&data[s..e])?;
-                    key = pbrs::rt::LazyStr::from_span(wire, s, e);
+                    key = pbrs::rt::LazyStr::from_map_parse_span(
+                        wire,
+                        parent_data,
+                        start + s,
+                        start + e,
+                    );
                 }
                 (2, pbrs::rt::WIRE_LEN) => {
                     if depth >= pbrs::RECURSION_LIMIT {
@@ -2469,13 +2546,16 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         Ok((key, val.unwrap_or_default()))
     }
     fn decode_map_entry_TestAllTypesEditionUnstable_map_string_foreign_enum_12(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, i32), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = pbrs::rt::LazyStr::default();
         let mut val = i32::default();
         let mut pos = 0;
@@ -2485,7 +2565,12 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                 (1, pbrs::rt::WIRE_LEN) => {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     pbrs::rt::require_utf8(&data[s..e])?;
-                    key = pbrs::rt::LazyStr::from_span(wire, s, e);
+                    key = pbrs::rt::LazyStr::from_map_parse_span(
+                        wire,
+                        parent_data,
+                        start + s,
+                        start + e,
+                    );
                 }
                 (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)? as i32,
                 _ => pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
@@ -2494,13 +2579,16 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesEditionUnstable_map_string_bytes_15(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, pbrs::rt::LazyBytes), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = pbrs::rt::LazyStr::default();
         let mut val = pbrs::rt::LazyBytes::default();
         let mut pos = 0;
@@ -2510,11 +2598,21 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                 (1, pbrs::rt::WIRE_LEN) => {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     pbrs::rt::require_utf8(&data[s..e])?;
-                    key = pbrs::rt::LazyStr::from_span(wire, s, e);
+                    key = pbrs::rt::LazyStr::from_map_parse_span(
+                        wire,
+                        parent_data,
+                        start + s,
+                        start + e,
+                    );
                 }
                 (2, pbrs::rt::WIRE_LEN) => {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
-                    val = pbrs::rt::LazyBytes::from_wire_span(wire, s, e);
+                    val = pbrs::rt::LazyBytes::from_parse_span(
+                        wire,
+                        parent_data,
+                        start + s,
+                        start + e,
+                    );
                 }
                 _ => pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
             }

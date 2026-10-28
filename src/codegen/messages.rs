@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::dynamic::{Cardinality, FieldDescriptor, FieldType, MessageDescriptor};
+use std::borrow::Cow;
 
 pub(crate) fn emit_zeroed_fields_struct<'a>(
     src: &mut String,
@@ -67,26 +68,26 @@ pub(crate) fn packed_storage_ty(f: &FieldDescriptor) -> &'static str {
     }
 }
 
-pub(crate) fn field_storage_ty(f: &FieldDescriptor) -> String {
+pub(crate) fn field_storage_ty(f: &FieldDescriptor) -> Cow<'static, str> {
     if f.is_map {
         let (k, v) = map_kv(f);
-        return format!("Map<{k}, {v}>");
+        return format!("Map<{k}, {v}>").into();
     }
     let t = scalar_type(f);
     if is_packed_scalar(f) {
         packed_storage_ty(f).into()
     } else if f.cardinality == Cardinality::Repeated {
-        format!("Repeated<{t}>")
+        format!("Repeated<{t}>").into()
     } else if is_lazy_msg(f) {
-        format!("pbrs::rt::LazyMsg<{t}>")
+        format!("pbrs::rt::LazyMsg<{t}>").into()
     } else if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
-        format!("Option<Box<{t}>>")
+        format!("Option<Box<{t}>>").into()
     } else if is_option(f) {
         match f.field_type {
             FieldType::Bool => "pbrs::rt::OptBool".into(),
             FieldType::String => "Option<Box<pbrs::rt::LazyStr>>".into(),
             FieldType::Bytes => "Option<Box<pbrs::rt::LazyBytes>>".into(),
-            _ => format!("Option<{t}>"),
+            _ => format!("Option<{t}>").into(),
         }
     } else {
         t
@@ -615,7 +616,14 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
         emit_json_text(src, desc);
     }
     let _ = writeln!(src, "}}");
-    let _ = writeln!(src, "pbrs::impl_typed_message!({name}, {view}, {mut_});");
+    if parse::uses_prevalidated_merge(desc) {
+        let _ = writeln!(
+            src,
+            "pbrs::impl_typed_message!({name}, {view}, {mut_}, __pbrs_merge_prevalidated);"
+        );
+    } else {
+        let _ = writeln!(src, "pbrs::impl_typed_message!({name}, {view}, {mut_});");
+    }
     if ENABLE_TYPE_NAMES.with(|enabled| enabled.get()) {
         let package = TYPE_FILES.with(|files| {
             files
@@ -928,7 +936,7 @@ pub(crate) fn emit_accessors(
     }
     let t = scalar_type(f);
     let enum_ty = enum_api_ty(f);
-    let get_ty = enum_ty.as_deref().unwrap_or(t.as_str());
+    let get_ty = enum_ty.as_deref().unwrap_or(t.as_ref());
     let wrap_open = enum_ty
         .as_ref()
         .map(|e| format!("{e}("))
@@ -936,7 +944,7 @@ pub(crate) fn emit_accessors(
     let wrap_close = if enum_ty.is_some() { ")" } else { "" };
     let def = scalar_default_expr(f);
     let set_ty = if enum_ty.is_some() {
-        format!("impl Into<{t}>")
+        format!("impl Into<{t}>").into()
     } else {
         t.clone()
     };

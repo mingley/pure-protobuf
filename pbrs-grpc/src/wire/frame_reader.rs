@@ -205,8 +205,7 @@ impl FrameReader {
             return codec::pop_from_chunk(&mut self.chunk, self.limits);
         }
         // Complete and validate the header before copying any more payload.
-        // This reserves only bytes that have already arrived, never the
-        // announced frame length.
+        // No reservation based on a claimed length precedes this validation.
         if self.carry.len() < codec::HEADER_LEN {
             self.copy_chunk_prefix(codec::HEADER_LEN - self.carry.len());
         }
@@ -226,7 +225,22 @@ impl FrameReader {
         let frame_len = codec::HEADER_LEN
             .checked_add(payload_len)
             .ok_or_else(|| Status::internal("message too large"))?;
-        self.copy_chunk_prefix(frame_len.saturating_sub(self.carry.len()));
+        let needed = frame_len.saturating_sub(self.carry.len());
+        let arriving = needed.min(self.chunk.len());
+        let observed = self.carry.len() + arriving;
+        if self.carry.first() == Some(&1)
+            && arriving > self.carry.capacity() - self.carry.len()
+            && frame_len - observed <= observed
+        {
+            // Compressed input must be contiguous before decoding. Once at
+            // least half has actually arrived, grow to its validated length
+            // rather than doubling just short of an incompressible footer.
+            // Keep early growth proportional to received bytes: a header
+            // alone must not reserve its entire claim, even without a cap.
+            // Identity retains its existing incremental/zero-copy policy.
+            self.carry.reserve(needed);
+        }
+        self.copy_chunk_prefix(needed);
         codec::pop_limited(&mut self.carry, self.limits)
     }
 
@@ -1033,6 +1047,114 @@ mod tests {
             assert_eq!(reader.carry.len(), codec::HEADER_LEN);
             assert!(reader.carry.capacity() < 1024);
         }
+    }
+
+    #[test]
+    fn fragmented_compressed_frame_avoids_a_final_geometric_growth() {
+        let payload = vec![0xAB; 1024 * 1024 + 17];
+        let mut wire = framed(&payload);
+        *wire.first_mut().expect("flag") = 1;
+        let frame_len = wire.len();
+        let mut reader =
+            FrameReader::new(MessageLimits::unlimited().with_max_decoding(payload.len()));
+        let mut anticipated = None;
+        let mut received = None;
+        for chunk in wire.chunks(16 * 1024) {
+            reader.push(Bytes::copy_from_slice(chunk));
+            if let Some(frame) = reader.next_frame().expect("valid frame") {
+                received = Some(frame);
+                continue;
+            }
+            if reader.carry.len() * 2 >= frame_len {
+                assert!(reader.carry.capacity() >= frame_len);
+                assert!(reader.carry.capacity() < frame_len + 16 * 1024);
+                if let Some((pointer, capacity)) = anticipated {
+                    assert_eq!(reader.carry.as_ptr(), pointer);
+                    assert_eq!(reader.carry.capacity(), capacity);
+                } else {
+                    anticipated = Some((reader.carry.as_ptr(), reader.carry.capacity()));
+                }
+            }
+        }
+        let frame = received.expect("complete frame");
+        assert!(frame.compressed);
+        assert_eq!(frame.payload.as_ref(), payload);
+        assert_eq!(
+            frame.payload.as_ptr(),
+            anticipated
+                .expect("growth before completion")
+                .0
+                .wrapping_add(codec::HEADER_LEN),
+            "the final bytes must not trigger another allocation"
+        );
+        assert!(reader.next_frame().expect("no following frame").is_none());
+        reader.finish().expect("complete input");
+    }
+
+    #[test]
+    fn compressed_length_claims_do_not_reserve_before_observed_body_bytes() {
+        for limits in [MessageLimits::default(), MessageLimits::unlimited()] {
+            // The full frame also fits 32-bit usize; it must not need memory
+            // proportional to this claim after receiving only one body byte.
+            let wire = [1, 0x7f, 0xff, 0xff, 0xff, 7];
+            let mut reader = FrameReader::new(limits);
+            reader.push(Bytes::copy_from_slice(&wire[..3]));
+            assert!(reader.next_frame().expect("partial header").is_none());
+            reader.push(Bytes::copy_from_slice(&wire[3..]));
+            let result = reader.next_frame();
+            if limits.max_decoding().is_some() {
+                assert_eq!(
+                    result.expect_err("cap checked first").code(),
+                    Code::ResourceExhausted
+                );
+                assert_eq!(reader.carry.len(), codec::HEADER_LEN);
+                assert_eq!(reader.chunk.as_ref(), &[7]);
+            } else {
+                assert!(result.expect("valid unlimited claim").is_none());
+                assert_eq!(reader.carry.as_ref(), wire);
+            }
+            assert!(reader.carry.capacity() < 1024);
+        }
+    }
+
+    #[test]
+    fn compressed_fragment_keeps_following_empty_and_identity_frames_shared() {
+        let payload = vec![0xAB; 64 * 1024 + 17];
+        let mut first = framed(&payload);
+        *first.first_mut().expect("flag") = 1;
+        let empty = [1, 0, 0, 0, 0];
+        let plain = framed(&vec![0xCD; 64 * 1024]);
+        let split = first.len() - 23;
+        let mut tail = BytesMut::from(first.get(split..).expect("first tail"));
+        tail.extend_from_slice(&empty);
+        tail.extend_from_slice(&plain);
+        let tail = tail.freeze();
+        let plain_pointer = tail
+            .as_ptr()
+            .wrapping_add(23 + empty.len() + codec::HEADER_LEN);
+        let mut reader = FrameReader::new(MessageLimits::unlimited());
+        for chunk in first.get(..split).expect("first prefix").chunks(4096) {
+            reader.push(Bytes::copy_from_slice(chunk));
+            assert!(reader.next_frame().expect("partial frame").is_none());
+        }
+        reader.push(tail);
+        let retained = reader.next_frame().expect("valid frame").expect("first");
+        assert!(retained.compressed);
+        assert_eq!(retained.payload.as_ref(), payload);
+        let empty = reader.next_frame().expect("valid empty").expect("second");
+        assert!(empty.compressed);
+        assert!(empty.payload.is_empty());
+        let plain = reader.next_frame().expect("valid identity").expect("third");
+        assert!(!plain.compressed);
+        assert_eq!(plain.payload.as_ptr(), plain_pointer);
+        assert_eq!(plain.payload.as_ref(), vec![0xCD; 64 * 1024]);
+        assert_eq!(
+            retained.payload.as_ref(),
+            payload,
+            "later frames preserve retained input"
+        );
+        assert!(reader.next_frame().expect("clean end").is_none());
+        reader.finish().expect("complete input");
     }
 
     #[derive(Debug, PartialEq, Eq)]

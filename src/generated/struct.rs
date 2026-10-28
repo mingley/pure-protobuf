@@ -618,10 +618,8 @@ mod __gen_google_protobuf_struct_proto {
                                 return Err(ParseError::new("recursion limit exceeded"));
                             }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            let (kk, vv) = decode_map_entry_Struct_fields_1(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                depth + 1,
-                            )?;
+                            let (kk, vv) =
+                                decode_map_entry_Struct_fields_1(data, wire, s, e, depth + 1)?;
                             self.fields.push_entry(kk, vv);
                         }
                         _ => self
@@ -805,13 +803,16 @@ mod __gen_google_protobuf_struct_proto {
     }
     pbrs::impl_typed_message!(Struct, StructView, StructMut);
     fn decode_map_entry_Struct_fields_1(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, PbValue), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = pbrs::rt::LazyStr::default();
         let mut val: Option<PbValue> = None;
         let mut pos = 0;
@@ -821,7 +822,12 @@ mod __gen_google_protobuf_struct_proto {
                 (1, pbrs::rt::WIRE_LEN) => {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     pbrs::rt::require_utf8(&data[s..e])?;
-                    key = pbrs::rt::LazyStr::from_span(wire, s, e);
+                    key = pbrs::rt::LazyStr::from_map_parse_span(
+                        wire,
+                        parent_data,
+                        start + s,
+                        start + e,
+                    );
                 }
                 (2, pbrs::rt::WIRE_LEN) => {
                     if depth >= pbrs::RECURSION_LIMIT {
@@ -1214,6 +1220,30 @@ mod __gen_google_protobuf_struct_proto {
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
+            self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, false)
+        }
+        #[doc(hidden)]
+        pub fn __pbrs_merge_prevalidated(
+            &mut self,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
+            pos: &mut usize,
+            depth: u32,
+            enforce: bool,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, true)
+        }
+        fn __pbrs_merge_mode(
+            &mut self,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
+            pos: &mut usize,
+            depth: u32,
+            enforce: bool,
+            until: Option<u32>,
+            prevalidated: bool,
+        ) -> Result<(), ParseError> {
             if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
@@ -1288,7 +1318,7 @@ mod __gen_google_protobuf_struct_proto {
                     }
                     continue;
                 }
-                self.merge_heavy(n, w, data, wire, pos, depth)?;
+                self.__pbrs_merge_heavy(n, w, data, wire, pos, depth, prevalidated)?;
             }
             if until.is_some() {
                 return Err(ParseError::new("truncated group"));
@@ -1299,7 +1329,7 @@ mod __gen_google_protobuf_struct_proto {
             Ok(())
         }
         #[inline(never)]
-        fn merge_heavy(
+        fn __pbrs_merge_heavy(
             &mut self,
             n: u32,
             w: u32,
@@ -1307,6 +1337,7 @@ mod __gen_google_protobuf_struct_proto {
             wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
+            prevalidated: bool,
         ) -> Result<(), ParseError> {
             match n {
                 3 => match w {
@@ -1349,12 +1380,17 @@ mod __gen_google_protobuf_struct_proto {
                             )?;
                         } else {
                             let mut ip = 0;
-                            Struct::validate_inner(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                &mut ip,
-                                depth + 1,
-                            )?;
-                            self.cold_mut().struct_value = pbrs::rt::LazyMsg::from_wire(
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            if !prevalidated {
+                                Struct::validate_inner(
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                )?;
+                            }
+                            self.cold_mut().struct_value = pbrs::rt::LazyMsg::from_validated_wire(
                                 pbrs::rt::Wire::ensure(wire, data).window(s, e),
                             );
                         }
@@ -1387,12 +1423,17 @@ mod __gen_google_protobuf_struct_proto {
                             )?;
                         } else {
                             let mut ip = 0;
-                            ListValue::validate_inner(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                &mut ip,
-                                depth + 1,
-                            )?;
-                            self.cold_mut().list_value = pbrs::rt::LazyMsg::from_wire(
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            if !prevalidated {
+                                ListValue::validate_inner(
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                )?;
+                            }
+                            self.cold_mut().list_value = pbrs::rt::LazyMsg::from_validated_wire(
                                 pbrs::rt::Wire::ensure(wire, data).window(s, e),
                             );
                         }
@@ -1622,7 +1663,7 @@ mod __gen_google_protobuf_struct_proto {
             <Self as pbrs::Parse>::parse(&b)
         }
     }
-    pbrs::impl_typed_message!(PbValue, PbValueView, PbValueMut);
+    pbrs::impl_typed_message!(PbValue, PbValueView, PbValueMut, __pbrs_merge_prevalidated);
 }
 #[allow(unused_imports, reason = "generated re-exports may not all be used")]
 pub use __gen_google_protobuf_struct_proto::*;

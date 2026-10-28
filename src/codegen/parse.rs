@@ -94,6 +94,12 @@ fn emit_child_required_check(src: &mut String, field: &FieldDescriptor, owner: &
     }
 }
 
+pub(crate) fn uses_prevalidated_merge(desc: &MessageDescriptor) -> bool {
+    desc.fields
+        .values()
+        .any(|field| is_lazy_msg(field) && !field_needs_initialization(field))
+}
+
 pub(crate) fn emit_codec(
     src: &mut String,
     desc: &MessageDescriptor,
@@ -157,10 +163,26 @@ pub(crate) fn emit_codec(
         src,
         "    pub fn merge_group(&mut self, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, num: u32, depth: u32) -> Result<(), ParseError> {{ self.merge_inner(data, wire, pos, depth, false, Some(num)) }}"
     );
-    let _ = writeln!(
-        src,
-        "    pub fn merge_inner(&mut self, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, depth: u32, enforce: bool, until: Option<u32>) -> Result<(), ParseError> {{"
-    );
+    let prevalidated = uses_prevalidated_merge(desc);
+    if prevalidated {
+        let _ = writeln!(
+            src,
+            "    pub fn merge_inner(&mut self, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, depth: u32, enforce: bool, until: Option<u32>) -> Result<(), ParseError> {{ self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, false) }}"
+        );
+        let _ = writeln!(
+            src,
+            "    #[doc(hidden)] pub fn __pbrs_merge_prevalidated(&mut self, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, depth: u32, enforce: bool, until: Option<u32>) -> Result<(), ParseError> {{ self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, true) }}"
+        );
+        let _ = writeln!(
+            src,
+            "    fn __pbrs_merge_mode(&mut self, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, depth: u32, enforce: bool, until: Option<u32>, prevalidated: bool) -> Result<(), ParseError> {{"
+        );
+    } else {
+        let _ = writeln!(
+            src,
+            "    pub fn merge_inner(&mut self, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, depth: u32, enforce: bool, until: Option<u32>) -> Result<(), ParseError> {{"
+        );
+    }
     let _ = writeln!(
         src,
         "        if depth > pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }} let _ = enforce;"
@@ -202,10 +224,17 @@ pub(crate) fn emit_codec(
             let _ = writeln!(src, "                continue;");
             let _ = writeln!(src, "            }}");
         }
-        let _ = writeln!(
-            src,
-            "            self.merge_heavy(n, w, data, wire, pos, depth)?;"
-        );
+        if prevalidated {
+            let _ = writeln!(
+                src,
+                "            self.__pbrs_merge_heavy(n, w, data, wire, pos, depth, prevalidated)?;"
+            );
+        } else {
+            let _ = writeln!(
+                src,
+                "            self.merge_heavy(n, w, data, wire, pos, depth)?;"
+            );
+        }
     } else {
         let _ = writeln!(src, "            match n {{");
         if desc.message_set_wire_format {
@@ -239,10 +268,17 @@ pub(crate) fn emit_codec(
     let _ = writeln!(src, "    }}");
     if split_heavy {
         let _ = writeln!(src, "    #[inline(never)]");
-        let _ = writeln!(
-            src,
-            "    fn merge_heavy(&mut self, n: u32, w: u32, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, depth: u32) -> Result<(), ParseError> {{"
-        );
+        if prevalidated {
+            let _ = writeln!(
+                src,
+                "    fn __pbrs_merge_heavy(&mut self, n: u32, w: u32, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, depth: u32, prevalidated: bool) -> Result<(), ParseError> {{"
+            );
+        } else {
+            let _ = writeln!(
+                src,
+                "    fn merge_heavy(&mut self, n: u32, w: u32, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, depth: u32) -> Result<(), ParseError> {{"
+            );
+        }
         let _ = writeln!(src, "        match n {{");
         for f in &heavies {
             let _ = writeln!(src, "            {} => match w {{", f.number);
@@ -665,7 +701,7 @@ pub(crate) fn emit_merge_arm(
         );
         let _ = writeln!(
             src,
-            "                    let (kk, vv) = decode_map_entry_{}_{}_{num}(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;",
+            "                    let (kk, vv) = decode_map_entry_{}_{}_{num}(data, wire, s, e, depth + 1)?;",
             rust_ident(&desc.full_name).replace("r#", ""),
             field_id(f).replace("r#", "")
         );
@@ -758,7 +794,7 @@ pub(crate) fn emit_merge_arm(
                 } else {
                     let _ = writeln!(
                         src,
-                        "                    if {st}.is_some() {{ let mut ip = 0; let mut sw = {child_wire}; {st}.get_or_insert().merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; }} else {{ let mut ip = 0; {t}::validate_inner(&pbrs::rt::Wire::ensure(wire, data).window(s, e), &mut ip, depth + 1)?; {st} = pbrs::rt::LazyMsg::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e)); }}"
+                        "                    if {st}.is_some() {{ let mut ip = 0; let mut sw = {child_wire}; {st}.get_or_insert().merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; }} else {{ let mut ip = 0; if depth >= pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }} if !prevalidated {{ {t}::validate_inner(&pbrs::rt::Wire::ensure(wire, data).window(s, e), &mut ip, depth + 1)?; }} {st} = pbrs::rt::LazyMsg::from_validated_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e)); }}"
                     );
                 }
             } else {
@@ -883,7 +919,7 @@ pub(crate) fn emit_map_decoders(
         let message_value = matches!(vty, FieldType::Message | FieldType::Group);
         let _ = writeln!(
             src,
-            "fn decode_map_entry_{msg}_{id}_{num}(wire: &pbrs::rt::Wire, depth: u32) -> Result<({k}, {v}), ParseError> {{"
+            "fn decode_map_entry_{msg}_{id}_{num}(parent_data: &[u8], wire: &mut Option<pbrs::rt::Wire>, start: usize, end: usize, depth: u32) -> Result<({k}, {v}), ParseError> {{"
         );
         let _ = writeln!(
             src,
@@ -891,7 +927,7 @@ pub(crate) fn emit_map_decoders(
         );
         let _ = writeln!(
             src,
-            "    let data = wire.as_slice(); let mut key = {k}::default();"
+            "    let data = &parent_data[start..end]; let mut key = {k}::default();"
         );
         if message_value {
             // A present value has its own wire frame. Defer construction until
@@ -913,7 +949,7 @@ pub(crate) fn emit_map_decoders(
                 .and_then(|entry| entry.field(2))
                 .is_some_and(field_needs_initialization);
             let child_wire = if OWNED_MESSAGE_FIELDS.with(|owned| owned.get()) {
-                "Some(wire.window(s, e))"
+                "Some(pbrs::rt::Wire::ensure(wire, parent_data).window(start + s, start + e))"
             } else {
                 "None"
             };
@@ -951,19 +987,19 @@ pub(crate) fn emit_map_scalar_decode(
             if utf8 {
                 let _ = writeln!(
                     src,
-                    "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; pbrs::rt::require_utf8(&data[s..e])?; {var} = pbrs::rt::LazyStr::from_span(wire, s, e); }},"
+                    "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; pbrs::rt::require_utf8(&data[s..e])?; {var} = pbrs::rt::LazyStr::from_map_parse_span(wire, parent_data, start + s, start + e); }},"
                 );
             } else {
                 let _ = writeln!(
                     src,
-                    "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; {var} = pbrs::rt::LazyStr::from_span(wire, s, e); }},"
+                    "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; {var} = pbrs::rt::LazyStr::from_map_parse_span(wire, parent_data, start + s, start + e); }},"
                 );
             }
         }
         FieldType::Bytes => {
             let _ = writeln!(
                 src,
-                "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; {var} = pbrs::rt::LazyBytes::from_wire_span(wire, s, e); }},"
+                "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; {var} = pbrs::rt::LazyBytes::from_parse_span(wire, parent_data, start + s, start + e); }},"
             );
         }
         FieldType::Message | FieldType::Group => {

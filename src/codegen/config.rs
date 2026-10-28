@@ -236,9 +236,9 @@ pub(crate) type TypeFileIndex = std::collections::BTreeMap<String, (String, Stri
 thread_local! {
     pub(crate) static IDENTS: RefCell<std::collections::BTreeMap<String, String>> =
         const { RefCell::new(std::collections::BTreeMap::new()) };
-    pub(crate) static FIELD_IDENTS: RefCell<std::collections::BTreeMap<u32, String>> =
+    pub(crate) static FIELD_IDENTS: RefCell<std::collections::BTreeMap<u32, std::rc::Rc<str>>> =
         const { RefCell::new(std::collections::BTreeMap::new()) };
-    pub(crate) static FIELD_RAWS: RefCell<std::collections::BTreeMap<u32, String>> =
+    pub(crate) static FIELD_RAWS: RefCell<std::collections::BTreeMap<u32, std::rc::Rc<str>>> =
         const { RefCell::new(std::collections::BTreeMap::new()) };
     pub(crate) static STUBS: Cell<StubStyle> = const { Cell::new(StubStyle::Kernel) };
     pub(crate) static EMIT_DEPS: Cell<bool> = const { Cell::new(false) };

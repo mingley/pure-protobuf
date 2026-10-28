@@ -4,6 +4,8 @@ use super::*;
 use crate::dynamic::{
     Cardinality, DescriptorPool, FieldDescriptor, FieldType, MessageDescriptor, Presence,
 };
+use std::borrow::Cow;
+use std::rc::Rc;
 
 pub(crate) fn ident_last(s: &str) -> String {
     let key = s.trim_start_matches('.');
@@ -133,12 +135,14 @@ pub(crate) fn emit_public_uses(
     }
 }
 
-pub(crate) fn field_raw(f: &FieldDescriptor) -> String {
+// Emitters reuse these names many times per field. Share the immutable
+// spelling within its worker instead of allocating a String on every lookup.
+pub(crate) fn field_raw(f: &FieldDescriptor) -> Rc<str> {
     FIELD_RAWS.with(|c| {
         c.borrow()
             .get(&f.number)
             .cloned()
-            .unwrap_or_else(|| f.name.clone())
+            .unwrap_or_else(|| Rc::from(f.name.as_str()))
     })
 }
 
@@ -353,6 +357,9 @@ pub(crate) fn field_name_with_collision_avoidance(
             | "merge_bytes"
             | "merge_bytes_dont_enforce"
             | "merge_inner"
+            | "__pbrs_merge_mode"
+            | "__pbrs_merge_prevalidated"
+            | "__pbrs_merge_heavy"
             | "write_to"
             | "compute_size"
             | "to_json"
@@ -400,6 +407,12 @@ pub(crate) fn bind_field_idents(desc: &MessageDescriptor) {
             id = format!("{}_{}", id.trim_start_matches("r#"), f.number);
             used.insert(id.clone());
         }
+        let raw: Rc<str> = Rc::from(raw);
+        let id = if id == raw.as_ref() {
+            Rc::clone(&raw)
+        } else {
+            Rc::from(id)
+        };
         out.insert(f.number, id);
         raws.insert(f.number, raw);
     }
@@ -407,12 +420,12 @@ pub(crate) fn bind_field_idents(desc: &MessageDescriptor) {
     FIELD_RAWS.with(|c| *c.borrow_mut() = raws);
 }
 
-pub(crate) fn field_id(f: &FieldDescriptor) -> String {
+pub(crate) fn field_id(f: &FieldDescriptor) -> Rc<str> {
     FIELD_IDENTS.with(|c| {
         c.borrow()
             .get(&f.number)
             .cloned()
-            .unwrap_or_else(|| field_ident_base(&f.name))
+            .unwrap_or_else(|| Rc::from(field_ident_base(&f.name)))
     })
 }
 
@@ -446,7 +459,7 @@ pub(crate) fn rust_ident_from_last(last: &str) -> String {
     id
 }
 
-pub(crate) fn scalar_type(field: &FieldDescriptor) -> String {
+pub(crate) fn scalar_type(field: &FieldDescriptor) -> Cow<'static, str> {
     match field.field_type {
         FieldType::Double => "f64".into(),
         FieldType::Float => "f32".into(),
@@ -465,11 +478,12 @@ pub(crate) fn scalar_type(field: &FieldDescriptor) -> String {
                 .as_deref()
                 .or_else(|| field.message.as_ref().map(|m| m.full_name.as_str()))
                 .unwrap_or("UnknownMsg"),
-        ),
+        )
+        .into(),
     }
 }
 
-pub(crate) fn map_kv(field: &FieldDescriptor) -> (String, String) {
+pub(crate) fn map_kv(field: &FieldDescriptor) -> (Cow<'static, str>, Cow<'static, str>) {
     let entry = field.message.as_ref();
     let k = entry
         .and_then(|e| e.field(1))

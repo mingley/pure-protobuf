@@ -204,6 +204,25 @@ impl LazyStr {
         }
     }
 
+    /// Parse a map string without constructing an intermediate entry window.
+    ///
+    /// The caller validates UTF-8 when the schema requires it. Inline strings
+    /// copy directly; longer strings retain the map decoder's existing shared
+    /// parent-window policy. Offsets refer to the complete parent frame.
+    #[inline]
+    pub fn from_map_parse_span(
+        slot: &mut Option<Wire>,
+        data: &[u8],
+        rel_start: usize,
+        rel_end: usize,
+    ) -> Self {
+        let bytes = &data[rel_start..rel_end];
+        if bytes.len() <= Self::INLINE {
+            return Self::from_bytes(bytes);
+        }
+        Self::from_span(Wire::ensure(slot, data), rel_start, rel_end)
+    }
+
     /// Parse a string span from the parent message bytes.
     ///
     /// `len <= 23` copies into inline [`ProtoString`] and does **not**
@@ -663,6 +682,23 @@ pub trait MergeBytes: Default + Sized {
         enforce: bool,
         until: Option<u32>,
     ) -> Result<(), crate::error::ParseError>;
+    /// Materialize wire that the generated parser has already validated.
+    ///
+    /// The default keeps older and handwritten implementations on their
+    /// checked merge path. New generated code skips redundant descendant
+    /// validation while retaining checked decoding of the materialized fields.
+    #[doc(hidden)]
+    fn merge_prevalidated(
+        &mut self,
+        wire: &Wire,
+        pos: &mut usize,
+        depth: u32,
+        enforce: bool,
+        until: Option<u32>,
+    ) -> Result<(), crate::error::ParseError> {
+        self.merge_inner(wire, pos, depth, enforce, until)
+    }
+
     fn validate_inner(
         wire: &Wire,
         pos: &mut usize,
@@ -676,6 +712,7 @@ pub trait MergeBytes: Default + Sized {
 struct LazyInner<T> {
     parsed: std::sync::OnceLock<T>,
     wire: Option<Wire>,
+    prevalidated: bool,
 }
 
 /// Nested LEN message. Empty is null (8 bytes, zero-valid). Parse stores wire
@@ -693,10 +730,25 @@ impl<T> Default for LazyMsg<T> {
 
 impl<T> LazyMsg<T> {
     pub fn from_wire(w: Wire) -> Self {
+        Self::from_wire_state(w, false)
+    }
+
+    /// Store a child whose complete wire was checked by generated validation.
+    ///
+    /// Internal generated-code support, not an input-validation entry point.
+    /// Raw or handwritten input should use `from_wire` and the ordinary checked
+    /// parse API. The provenance flag does not make this a validation function.
+    #[doc(hidden)]
+    pub fn from_validated_wire(w: Wire) -> Self {
+        Self::from_wire_state(w, true)
+    }
+
+    fn from_wire_state(w: Wire, prevalidated: bool) -> Self {
         Self {
             inner: Some(Box::new(LazyInner {
                 parsed: std::sync::OnceLock::new(),
                 wire: Some(w),
+                prevalidated,
             })),
         }
     }
@@ -708,6 +760,7 @@ impl<T> LazyMsg<T> {
             inner: Some(Box::new(LazyInner {
                 parsed,
                 wire: Some(w),
+                prevalidated: false,
             })),
         }
     }
@@ -716,7 +769,11 @@ impl<T> LazyMsg<T> {
         let parsed = std::sync::OnceLock::new();
         let _ = parsed.set(msg);
         Self {
-            inner: Some(Box::new(LazyInner { parsed, wire: None })),
+            inner: Some(Box::new(LazyInner {
+                parsed,
+                wire: None,
+                prevalidated: false,
+            })),
         }
     }
 
@@ -739,7 +796,11 @@ impl<T> LazyMsg<T> {
             let mut m = T::default();
             if let Some(w) = &inner.wire {
                 let mut pos = 0;
-                let _ = MergeBytes::merge_inner(&mut m, w, &mut pos, 0, true, None);
+                let _ = if inner.prevalidated {
+                    MergeBytes::merge_prevalidated(&mut m, w, &mut pos, 0, true, None)
+                } else {
+                    MergeBytes::merge_inner(&mut m, w, &mut pos, 0, true, None)
+                };
             }
             m
         }))
@@ -760,13 +821,18 @@ impl<T> LazyMsg<T> {
             Box::new(LazyInner {
                 parsed: std::sync::OnceLock::new(),
                 wire: None,
+                prevalidated: false,
             })
         });
         if inner.parsed.get().is_none() {
             let mut m = T::default();
             if let Some(w) = inner.wire.take() {
                 let mut pos = 0;
-                let _ = MergeBytes::merge_inner(&mut m, &w, &mut pos, 0, true, None);
+                let _ = if inner.prevalidated {
+                    MergeBytes::merge_prevalidated(&mut m, &w, &mut pos, 0, true, None)
+                } else {
+                    MergeBytes::merge_inner(&mut m, &w, &mut pos, 0, true, None)
+                };
             }
             let _ = inner.parsed.set(m);
         } else {
@@ -791,6 +857,7 @@ impl<T: Clone> Clone for LazyMsg<T> {
                 Box::new(LazyInner {
                     parsed,
                     wire: i.wire.clone(),
+                    prevalidated: i.prevalidated,
                 })
             }),
         }

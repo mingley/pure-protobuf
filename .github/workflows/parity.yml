@@ -36,6 +36,7 @@ jobs:
           for manifest in \
             tests/proof/prost_parity/Cargo.toml \
             tests/proof/owned_messages/Cargo.toml \
+            tests/proof/validated_lazy/Cargo.toml \
             tests/proof/codegen_parity/Cargo.toml \
             tests/proof/codegen_parity/no_std/prost/Cargo.toml \
             tests/proof/codegen_parity/no_std/pbrs/Cargo.toml \
@@ -62,6 +63,12 @@ jobs:
             --features owned-messages
           cargo run --locked --offline --manifest-path tests/proof/owned_messages/Cargo.toml \
             > work/parity-audit/owned-messages.log 2>&1
+      - name: Check lazy materialization and validation provenance
+        run: |
+          cargo run --locked --offline --manifest-path tests/proof/validated_lazy/Cargo.toml \
+            > work/parity-audit/validated-lazy.log 2>&1
+          cargo clippy --locked --offline --manifest-path tests/proof/validated_lazy/Cargo.toml \
+            -- -D warnings
       - name: Check generated consumers and reproduce build gaps
         run: python3 tests/proof/codegen_parity/run.py --output work/parity-audit/codegen
       - name: Compare gRPC message presence with tonic

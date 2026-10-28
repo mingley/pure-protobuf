@@ -360,7 +360,7 @@ fn method_collision(field: &FieldDescriptor) -> bool {
     let id = field_id(field);
     let raw = field_raw(field);
     [
-        id,
+        id.to_string(),
         format!("set_{raw}"),
         format!("has_{raw}"),
         format!("clear_{raw}"),

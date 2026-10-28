@@ -1,3 +1,5 @@
+mod map_spans;
+
 use pbrs::{ClearAndParse, Parse, Serialize};
 use prost::Message;
 use std::alloc::{GlobalAlloc, Layout, System};
@@ -302,6 +304,7 @@ fn reference_compact(wire: &[u8]) -> strict_reference::CompactNode {
 }
 
 fn main() {
+    map_spans::verify();
     verify_profile!(owned, true);
     verify_profile!(lazy, false);
     verify_profile!(defaulted, false);

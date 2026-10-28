@@ -15,6 +15,7 @@ use std::cell::Cell;
 thread_local! {
     static TRACKING: Cell<bool> = const { Cell::new(false) };
     static ALLOCATIONS: Cell<usize> = const { Cell::new(0) };
+    static KEY_COMPARISONS: Cell<usize> = const { Cell::new(0) };
 }
 
 struct CountedSystem;
@@ -231,4 +232,105 @@ fn supported_typed_iterators_keep_send_and_sync() {
             .as_view()
             .iter(),
     );
+}
+
+#[derive(Clone, Debug)]
+struct CountedKey(i32);
+
+impl PartialEq for CountedKey {
+    fn eq(&self, other: &Self) -> bool {
+        KEY_COMPARISONS.with(|count| count.set(count.get() + 1));
+        self.0 == other.0
+    }
+}
+
+impl Eq for CountedKey {}
+
+impl PartialOrd for CountedKey {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for CountedKey {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        KEY_COMPARISONS.with(|count| count.set(count.get() + 1));
+        self.0.cmp(&other.0)
+    }
+}
+
+impl pbrs::MapKey for CountedKey {}
+
+#[test]
+fn indexed_unique_iteration_neither_compares_keys_nor_allocates() {
+    for len in [16, 17, 64, 256] {
+        let mut map = Map::new();
+        for i in 0..len {
+            // Wire order deliberately differs from the sorted index order.
+            map.push_entry(CountedKey(len - i - 1), i);
+        }
+        assert_eq!(map.len(), usize::try_from(len).unwrap());
+        KEY_COMPARISONS.with(|count| count.set(0));
+        assert_eq!(
+            allocations(|| {
+                let mut iter = map.iter();
+                for i in 0..len {
+                    let remaining = usize::try_from(len - i).unwrap();
+                    assert_eq!(iter.size_hint(), (remaining, Some(remaining)));
+                    let (key, value) = iter.next().unwrap();
+                    assert_eq!(key.0, len - i - 1);
+                    assert_eq!(*value, i);
+                }
+                assert_eq!(iter.next(), None);
+                assert_eq!(iter.size_hint(), (0, Some(0)));
+            }),
+            0
+        );
+        assert_eq!(KEY_COMPARISONS.with(Cell::get), 0);
+    }
+}
+
+#[test]
+fn unique_index_hints_follow_owned_and_view_mutations() {
+    fn exact(map: &Map<i32, i32>) {
+        let expected = expected_last_wins(map.pairs());
+        let mut iter = map.as_view().iter();
+        for (i, pair) in expected.iter().enumerate() {
+            let remaining = expected.len() - i;
+            assert_eq!(iter.size_hint(), (remaining, Some(remaining)));
+            assert_eq!(iter.next(), Some(*pair));
+        }
+        assert_eq!(iter.size_hint(), (0, Some(0)));
+        assert_eq!(iter.next(), None);
+    }
+
+    let mut map = Map::new();
+    for i in 0..64 {
+        map.push_entry(63 - i, i);
+    }
+    exact(&map);
+    assert!(!map.insert(0, 900));
+    exact(&map);
+    assert!(map.insert(64, 901));
+    exact(&map);
+
+    // An appended duplicate invalidates the uniqueness proof. Its earlier
+    // value must be filtered, and the exact hint must become conservative.
+    map.push_entry(0, 902);
+    let expected = expected_last_wins(map.pairs());
+    let mut iter = map.as_view().iter();
+    assert_eq!(iter.size_hint(), (0, Some(map.pairs().len())));
+    for pair in expected {
+        assert_eq!(iter.next(), Some(pair));
+    }
+    assert_eq!(iter.next(), None);
+    assert_eq!(map.remove(&0), Some(902));
+    exact(&map);
+
+    assert!(map.as_mut().insert(65, 903));
+    assert!(!map.as_mut().insert(64, 904));
+    exact(&map);
+    assert!(map.as_mut().remove(65));
+    exact(&map);
+    exact(&map.clone());
 }

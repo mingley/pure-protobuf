@@ -481,6 +481,14 @@ impl<'msg, K: MapKey, V> Iterator for MapIter<'msg, K, V> {
         // Indexed path yields the same last-occurrence order as the scan:
         // position `i` is yielded exactly when no later duplicate exists.
         if let Some(idx) = self.index {
+            // The index has one entry per unique key. Equal cardinalities
+            // prove that no wire entry was shadowed, so iteration is just a
+            // borrowed slice walk, without a key search for every element.
+            if idx.pos.len() == self.items.len() {
+                let (k, v) = self.items.get(self.i)?;
+                self.i += 1;
+                return Some((k, v));
+            }
             while self.i < self.items.len() {
                 let (k, v) = &self.items[self.i];
                 let i = self.i;
@@ -499,6 +507,18 @@ impl<'msg, K: MapKey, V> Iterator for MapIter<'msg, K, V> {
             }
         }
         None
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.items.len().saturating_sub(self.i);
+        // Cardinality is already available in the shared index. Do not scan
+        // keys just to reserve output: unindexed or duplicate-containing maps
+        // retain conservative bounds.
+        let unique = self.items.len() <= 1
+            || self
+                .index
+                .is_some_and(|index| index.pos.len() == self.items.len());
+        (if unique { remaining } else { 0 }, Some(remaining))
     }
 }
 
@@ -1002,7 +1022,8 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
 /// Iterator over map views in last-occurrence wire order.
 ///
 /// Typed entries are borrowed and projected when yielded. Their size hint is
-/// conservative because duplicate keys are filtered during iteration.
+/// exact when the shared index proves every key unique, and conservative when
+/// duplicate keys may be filtered during iteration.
 pub struct MapViewIter<
     'msg,
     K: MapKey + crate::proxied::Proxied,
@@ -1106,12 +1127,7 @@ where
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         match &self.storage {
-            MapViewIterStorage::Typed(iter) => {
-                // Counting exact unique keys would duplicate next's scan and
-                // penalize collect. Unvisited wire entries are a cheap upper
-                // bound; no second pass or temporary collection is required.
-                (0, Some(iter.items.len().saturating_sub(iter.i)))
-            }
+            MapViewIterStorage::Typed(iter) => iter.size_hint(),
             MapViewIterStorage::Raw { items, i } => {
                 let remaining = items.len().saturating_sub(*i);
                 (remaining, Some(remaining))

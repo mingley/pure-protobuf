@@ -1,0 +1,15 @@
+[package]
+name = "pbrs-validated-lazy-proof"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+pbrs = { path = "../../.." }
+prost = "=0.14.4"
+
+[build-dependencies]
+pbrs = { path = "../../.." }
+prost-build = "=0.14.4"

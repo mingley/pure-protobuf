@@ -3772,6 +3772,30 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
+            self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, false)
+        }
+        #[doc(hidden)]
+        pub fn __pbrs_merge_prevalidated(
+            &mut self,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
+            pos: &mut usize,
+            depth: u32,
+            enforce: bool,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, true)
+        }
+        fn __pbrs_merge_mode(
+            &mut self,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
+            pos: &mut usize,
+            depth: u32,
+            enforce: bool,
+            until: Option<u32>,
+            prevalidated: bool,
+        ) -> Result<(), ParseError> {
             if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
@@ -4009,14 +4033,20 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                 )?;
                             } else {
                                 let mut ip = 0;
-                                ForeignMessageProto2::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                )?;
-                                self.required_foreign_message = pbrs::rt::LazyMsg::from_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                );
+                                if depth >= pbrs::RECURSION_LIMIT {
+                                    return Err(ParseError::new("recursion limit exceeded"));
+                                }
+                                if !prevalidated {
+                                    ForeignMessageProto2::validate_inner(
+                                        &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                        &mut ip,
+                                        depth + 1,
+                                    )?;
+                                }
+                                self.required_foreign_message =
+                                    pbrs::rt::LazyMsg::from_validated_wire(
+                                        pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    );
                             }
                         }
                         _ => self
@@ -4729,7 +4759,8 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     pbrs::impl_typed_message!(
         TestAllRequiredTypesProto2,
         TestAllRequiredTypesProto2View,
-        TestAllRequiredTypesProto2Mut
+        TestAllRequiredTypesProto2Mut,
+        __pbrs_merge_prevalidated
     );
     /// groups
     ///
@@ -10463,6 +10494,30 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
+            self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, false)
+        }
+        #[doc(hidden)]
+        pub fn __pbrs_merge_prevalidated(
+            &mut self,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
+            pos: &mut usize,
+            depth: u32,
+            enforce: bool,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, true)
+        }
+        fn __pbrs_merge_mode(
+            &mut self,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
+            pos: &mut usize,
+            depth: u32,
+            enforce: bool,
+            until: Option<u32>,
+            prevalidated: bool,
+        ) -> Result<(), ParseError> {
             if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
@@ -10675,14 +10730,20 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                 )?;
                             } else {
                                 let mut ip = 0;
-                                TestAllTypesProto2NestedMessage::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                )?;
-                                self.optional_nested_message = pbrs::rt::LazyMsg::from_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                );
+                                if depth >= pbrs::RECURSION_LIMIT {
+                                    return Err(ParseError::new("recursion limit exceeded"));
+                                }
+                                if !prevalidated {
+                                    TestAllTypesProto2NestedMessage::validate_inner(
+                                        &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                        &mut ip,
+                                        depth + 1,
+                                    )?;
+                                }
+                                self.optional_nested_message =
+                                    pbrs::rt::LazyMsg::from_validated_wire(
+                                        pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    );
                             }
                         }
                         _ => self
@@ -10708,14 +10769,20 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                 )?;
                             } else {
                                 let mut ip = 0;
-                                ForeignMessageProto2::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                )?;
-                                self.optional_foreign_message = pbrs::rt::LazyMsg::from_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                );
+                                if depth >= pbrs::RECURSION_LIMIT {
+                                    return Err(ParseError::new("recursion limit exceeded"));
+                                }
+                                if !prevalidated {
+                                    ForeignMessageProto2::validate_inner(
+                                        &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                        &mut ip,
+                                        depth + 1,
+                                    )?;
+                                }
+                                self.optional_foreign_message =
+                                    pbrs::rt::LazyMsg::from_validated_wire(
+                                        pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    );
                             }
                         }
                         _ => self
@@ -10793,12 +10860,17 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                 )?;
                             } else {
                                 let mut ip = 0;
-                                TestAllTypesProto2::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                )?;
-                                self.recursive_message = pbrs::rt::LazyMsg::from_wire(
+                                if depth >= pbrs::RECURSION_LIMIT {
+                                    return Err(ParseError::new("recursion limit exceeded"));
+                                }
+                                if !prevalidated {
+                                    TestAllTypesProto2::validate_inner(
+                                        &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                        &mut ip,
+                                        depth + 1,
+                                    )?;
+                                }
+                                self.recursive_message = pbrs::rt::LazyMsg::from_validated_wire(
                                     pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                 );
                             }
@@ -11679,7 +11751,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_int32_int32_56(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                data,
+                                wire,
+                                s,
+                                e,
                                 depth + 1,
                             )?;
                             self.map_int32_int32.push_entry(kk, vv);
@@ -11698,7 +11773,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_int64_int64_57(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                data,
+                                wire,
+                                s,
+                                e,
                                 depth + 1,
                             )?;
                             self.map_int64_int64.push_entry(kk, vv);
@@ -11718,7 +11796,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_uint32_uint32_58(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    data,
+                                    wire,
+                                    s,
+                                    e,
                                     depth + 1,
                                 )?;
                             self.map_uint32_uint32.push_entry(kk, vv);
@@ -11738,7 +11819,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_uint64_uint64_59(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    data,
+                                    wire,
+                                    s,
+                                    e,
                                     depth + 1,
                                 )?;
                             self.map_uint64_uint64.push_entry(kk, vv);
@@ -11758,7 +11842,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_sint32_sint32_60(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    data,
+                                    wire,
+                                    s,
+                                    e,
                                     depth + 1,
                                 )?;
                             self.map_sint32_sint32.push_entry(kk, vv);
@@ -11778,7 +11865,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_sint64_sint64_61(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    data,
+                                    wire,
+                                    s,
+                                    e,
                                     depth + 1,
                                 )?;
                             self.map_sint64_sint64.push_entry(kk, vv);
@@ -11798,7 +11888,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_fixed32_fixed32_62(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    data,
+                                    wire,
+                                    s,
+                                    e,
                                     depth + 1,
                                 )?;
                             self.map_fixed32_fixed32.push_entry(kk, vv);
@@ -11818,7 +11911,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_fixed64_fixed64_63(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    data,
+                                    wire,
+                                    s,
+                                    e,
                                     depth + 1,
                                 )?;
                             self.map_fixed64_fixed64.push_entry(kk, vv);
@@ -11838,7 +11934,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_sfixed32_sfixed32_64(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    data,
+                                    wire,
+                                    s,
+                                    e,
                                     depth + 1,
                                 )?;
                             self.map_sfixed32_sfixed32.push_entry(kk, vv);
@@ -11858,7 +11957,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_sfixed64_sfixed64_65(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    data,
+                                    wire,
+                                    s,
+                                    e,
                                     depth + 1,
                                 )?;
                             self.map_sfixed64_sfixed64.push_entry(kk, vv);
@@ -11877,7 +11979,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_int32_float_66(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                data,
+                                wire,
+                                s,
+                                e,
                                 depth + 1,
                             )?;
                             self.map_int32_float.push_entry(kk, vv);
@@ -11896,7 +12001,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_int32_double_67(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                data,
+                                wire,
+                                s,
+                                e,
                                 depth + 1,
                             )?;
                             self.map_int32_double.push_entry(kk, vv);
@@ -11915,7 +12023,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_bool_bool_68(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                data,
+                                wire,
+                                s,
+                                e,
                                 depth + 1,
                             )?;
                             self.map_bool_bool.push_entry(kk, vv);
@@ -11935,7 +12046,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_string_string_69(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    data,
+                                    wire,
+                                    s,
+                                    e,
                                     depth + 1,
                                 )?;
                             self.map_string_string.push_entry(kk, vv);
@@ -11954,7 +12068,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_string_bytes_70(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                data,
+                                wire,
+                                s,
+                                e,
                                 depth + 1,
                             )?;
                             self.map_string_bytes.push_entry(kk, vv);
@@ -11973,7 +12090,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                     return Err(ParseError::new("recursion limit exceeded"));
                                 }
                                 let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                                let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_string_nested_message_71(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
+                                let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_string_nested_message_71(data, wire, s, e, depth + 1)?;
                                 self.map_string_nested_message.push_entry(kk, vv);
                             }
                             _ => self
@@ -11991,7 +12108,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                     return Err(ParseError::new("recursion limit exceeded"));
                                 }
                                 let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                                let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_string_foreign_message_72(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
+                                let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_string_foreign_message_72(data, wire, s, e, depth + 1)?;
                                 self.map_string_foreign_message.push_entry(kk, vv);
                             }
                             _ => self
@@ -12010,7 +12127,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_string_nested_enum_73(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    data,
+                                    wire,
+                                    s,
+                                    e,
                                     depth + 1,
                                 )?;
                             self.map_string_nested_enum.push_entry(kk, vv);
@@ -12030,7 +12150,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_string_foreign_enum_74(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    data,
+                                    wire,
+                                    s,
+                                    e,
                                     depth + 1,
                                 )?;
                             self.map_string_foreign_enum.push_entry(kk, vv);
@@ -13138,7 +13261,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                     return Err(ParseError::new("recursion limit exceeded"));
                                 }
                                 let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                                let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_int32_nested_message_103(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
+                                let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_int32_nested_message_103(data, wire, s, e, depth + 1)?;
                                 self.map_int32_nested_message.push_entry(kk, vv);
                             }
                             _ => self
@@ -13156,7 +13279,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             }
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_int32_bool_104(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                data,
+                                wire,
+                                s,
+                                e,
                                 depth + 1,
                             )?;
                             self.map_int32_bool.push_entry(kk, vv);
@@ -13211,12 +13337,17 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                 )?;
                             } else {
                                 let mut ip = 0;
-                                TestAllTypesProto2NestedMessage::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                )?;
-                                self.oneof_nested_message = pbrs::rt::LazyMsg::from_wire(
+                                if depth >= pbrs::RECURSION_LIMIT {
+                                    return Err(ParseError::new("recursion limit exceeded"));
+                                }
+                                if !prevalidated {
+                                    TestAllTypesProto2NestedMessage::validate_inner(
+                                        &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                        &mut ip,
+                                        depth + 1,
+                                    )?;
+                                }
+                                self.oneof_nested_message = pbrs::rt::LazyMsg::from_validated_wire(
                                     pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                 );
                             }
@@ -13855,12 +13986,17 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                 )?;
                             } else {
                                 let mut ip = 0;
-                                TestAllTypesProto2MessageSetCorrect::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                )?;
-                                self.message_set_correct = pbrs::rt::LazyMsg::from_wire(
+                                if depth >= pbrs::RECURSION_LIMIT {
+                                    return Err(ParseError::new("recursion limit exceeded"));
+                                }
+                                if !prevalidated {
+                                    TestAllTypesProto2MessageSetCorrect::validate_inner(
+                                        &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                        &mut ip,
+                                        depth + 1,
+                                    )?;
+                                }
+                                self.message_set_correct = pbrs::rt::LazyMsg::from_validated_wire(
                                     pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                 );
                             }
@@ -17662,16 +17798,20 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     pbrs::impl_typed_message!(
         TestAllTypesProto2,
         TestAllTypesProto2View,
-        TestAllTypesProto2Mut
+        TestAllTypesProto2Mut,
+        __pbrs_merge_prevalidated
     );
     fn decode_map_entry_TestAllTypesProto2_map_int32_int32_56(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(i32, i32), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = i32::default();
         let mut val = i32::default();
         let mut pos = 0;
@@ -17686,13 +17826,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesProto2_map_int64_int64_57(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(i64, i64), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = i64::default();
         let mut val = i64::default();
         let mut pos = 0;
@@ -17707,13 +17850,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesProto2_map_uint32_uint32_58(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(u32, u32), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = u32::default();
         let mut val = u32::default();
         let mut pos = 0;
@@ -17728,13 +17874,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesProto2_map_uint64_uint64_59(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(u64, u64), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = u64::default();
         let mut val = u64::default();
         let mut pos = 0;
@@ -17749,13 +17898,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesProto2_map_sint32_sint32_60(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(i32, i32), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = i32::default();
         let mut val = i32::default();
         let mut pos = 0;
@@ -17774,13 +17926,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesProto2_map_sint64_sint64_61(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(i64, i64), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = i64::default();
         let mut val = i64::default();
         let mut pos = 0;
@@ -17799,13 +17954,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesProto2_map_fixed32_fixed32_62(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(u32, u32), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = u32::default();
         let mut val = u32::default();
         let mut pos = 0;
@@ -17820,13 +17978,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesProto2_map_fixed64_fixed64_63(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(u64, u64), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = u64::default();
         let mut val = u64::default();
         let mut pos = 0;
@@ -17841,13 +18002,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesProto2_map_sfixed32_sfixed32_64(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(i32, i32), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = i32::default();
         let mut val = i32::default();
         let mut pos = 0;
@@ -17862,13 +18026,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesProto2_map_sfixed64_sfixed64_65(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(i64, i64), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = i64::default();
         let mut val = i64::default();
         let mut pos = 0;
@@ -17883,13 +18050,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesProto2_map_int32_float_66(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(i32, f32), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = i32::default();
         let mut val = f32::default();
         let mut pos = 0;
@@ -17906,13 +18076,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesProto2_map_int32_double_67(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(i32, f64), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = i32::default();
         let mut val = f64::default();
         let mut pos = 0;
@@ -17929,13 +18102,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesProto2_map_bool_bool_68(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(bool, bool), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = bool::default();
         let mut val = bool::default();
         let mut pos = 0;
@@ -17950,13 +18126,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesProto2_map_string_string_69(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, pbrs::rt::LazyStr), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = pbrs::rt::LazyStr::default();
         let mut val = pbrs::rt::LazyStr::default();
         let mut pos = 0;
@@ -17965,11 +18144,21 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_LEN) => {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
-                    key = pbrs::rt::LazyStr::from_span(wire, s, e);
+                    key = pbrs::rt::LazyStr::from_map_parse_span(
+                        wire,
+                        parent_data,
+                        start + s,
+                        start + e,
+                    );
                 }
                 (2, pbrs::rt::WIRE_LEN) => {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
-                    val = pbrs::rt::LazyStr::from_span(wire, s, e);
+                    val = pbrs::rt::LazyStr::from_map_parse_span(
+                        wire,
+                        parent_data,
+                        start + s,
+                        start + e,
+                    );
                 }
                 _ => pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
             }
@@ -17977,13 +18166,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesProto2_map_string_bytes_70(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, pbrs::rt::LazyBytes), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = pbrs::rt::LazyStr::default();
         let mut val = pbrs::rt::LazyBytes::default();
         let mut pos = 0;
@@ -17992,11 +18184,21 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_LEN) => {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
-                    key = pbrs::rt::LazyStr::from_span(wire, s, e);
+                    key = pbrs::rt::LazyStr::from_map_parse_span(
+                        wire,
+                        parent_data,
+                        start + s,
+                        start + e,
+                    );
                 }
                 (2, pbrs::rt::WIRE_LEN) => {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
-                    val = pbrs::rt::LazyBytes::from_wire_span(wire, s, e);
+                    val = pbrs::rt::LazyBytes::from_parse_span(
+                        wire,
+                        parent_data,
+                        start + s,
+                        start + e,
+                    );
                 }
                 _ => pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
             }
@@ -18004,13 +18206,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesProto2_map_string_nested_message_71(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, TestAllTypesProto2NestedMessage), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = pbrs::rt::LazyStr::default();
         let mut val: Option<TestAllTypesProto2NestedMessage> = None;
         let mut pos = 0;
@@ -18019,7 +18224,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_LEN) => {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
-                    key = pbrs::rt::LazyStr::from_span(wire, s, e);
+                    key = pbrs::rt::LazyStr::from_map_parse_span(
+                        wire,
+                        parent_data,
+                        start + s,
+                        start + e,
+                    );
                 }
                 (2, pbrs::rt::WIRE_LEN) => {
                     if depth >= pbrs::RECURSION_LIMIT {
@@ -18037,13 +18247,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val.unwrap_or_default()))
     }
     fn decode_map_entry_TestAllTypesProto2_map_string_foreign_message_72(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, ForeignMessageProto2), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = pbrs::rt::LazyStr::default();
         let mut val: Option<ForeignMessageProto2> = None;
         let mut pos = 0;
@@ -18052,7 +18265,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_LEN) => {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
-                    key = pbrs::rt::LazyStr::from_span(wire, s, e);
+                    key = pbrs::rt::LazyStr::from_map_parse_span(
+                        wire,
+                        parent_data,
+                        start + s,
+                        start + e,
+                    );
                 }
                 (2, pbrs::rt::WIRE_LEN) => {
                     if depth >= pbrs::RECURSION_LIMIT {
@@ -18070,13 +18288,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val.unwrap_or_default()))
     }
     fn decode_map_entry_TestAllTypesProto2_map_string_nested_enum_73(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, i32), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = pbrs::rt::LazyStr::default();
         let mut val = i32::default();
         let mut pos = 0;
@@ -18085,7 +18306,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_LEN) => {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
-                    key = pbrs::rt::LazyStr::from_span(wire, s, e);
+                    key = pbrs::rt::LazyStr::from_map_parse_span(
+                        wire,
+                        parent_data,
+                        start + s,
+                        start + e,
+                    );
                 }
                 (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)? as i32,
                 _ => pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
@@ -18094,13 +18320,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesProto2_map_string_foreign_enum_74(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(pbrs::rt::LazyStr, i32), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = pbrs::rt::LazyStr::default();
         let mut val = i32::default();
         let mut pos = 0;
@@ -18109,7 +18338,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             match (n, w) {
                 (1, pbrs::rt::WIRE_LEN) => {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
-                    key = pbrs::rt::LazyStr::from_span(wire, s, e);
+                    key = pbrs::rt::LazyStr::from_map_parse_span(
+                        wire,
+                        parent_data,
+                        start + s,
+                        start + e,
+                    );
                 }
                 (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)? as i32,
                 _ => pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
@@ -18118,13 +18352,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesProto2_map_int32_nested_message_103(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(i32, TestAllTypesProto2NestedMessage), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = i32::default();
         let mut val: Option<TestAllTypesProto2NestedMessage> = None;
         let mut pos = 0;
@@ -18148,13 +18385,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         Ok((key, val.unwrap_or_default()))
     }
     fn decode_map_entry_TestAllTypesProto2_map_int32_bool_104(
-        wire: &pbrs::rt::Wire,
+        parent_data: &[u8],
+        wire: &mut Option<pbrs::rt::Wire>,
+        start: usize,
+        end: usize,
         depth: u32,
     ) -> Result<(i32, bool), ParseError> {
         if depth > pbrs::RECURSION_LIMIT {
             return Err(ParseError::new("recursion limit exceeded"));
         }
-        let data = wire.as_slice();
+        let data = &parent_data[start..end];
         let mut key = i32::default();
         let mut val = bool::default();
         let mut pos = 0;
@@ -19154,6 +19394,30 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
+            self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, false)
+        }
+        #[doc(hidden)]
+        pub fn __pbrs_merge_prevalidated(
+            &mut self,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
+            pos: &mut usize,
+            depth: u32,
+            enforce: bool,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, true)
+        }
+        fn __pbrs_merge_mode(
+            &mut self,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
+            pos: &mut usize,
+            depth: u32,
+            enforce: bool,
+            until: Option<u32>,
+            prevalidated: bool,
+        ) -> Result<(), ParseError> {
             if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
@@ -19308,48 +19572,14 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                 )?),
                         }
                     }
-                    1547769 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            if self.message_set_extension.is_some() {
-                                let mut ip = 0;
-                                let mut sw = None;
-                                self.message_set_extension.get_or_insert().merge_inner(
-                                    &data[s..e],
-                                    &mut sw,
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            } else {
-                                let mut ip = 0;
-                                TestAllTypesProto2MessageSetCorrectExtension1::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                )?;
-                                self.message_set_extension = pbrs::rt::LazyMsg::from_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                );
-                            }
-                        }
-                        _ => self
-                            .unknown
-                            .fields
-                            .push(pbrs::rt::capture_unknown_with_depth(
-                                data, pos, n, w, depth,
-                            )?),
-                    },
-                    4135312 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            if self.message_set_extension_4135312.is_some() {
-                                let mut ip = 0;
-                                let mut sw = None;
-                                self.message_set_extension_4135312
-                                    .get_or_insert()
-                                    .merge_inner(
+                    1547769 => {
+                        match w {
+                            pbrs::rt::WIRE_LEN => {
+                                let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                                if self.message_set_extension.is_some() {
+                                    let mut ip = 0;
+                                    let mut sw = None;
+                                    self.message_set_extension.get_or_insert().merge_inner(
                                         &data[s..e],
                                         &mut sw,
                                         &mut ip,
@@ -19357,25 +19587,67 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                         true,
                                         None,
                                     )?;
-                            } else {
-                                let mut ip = 0;
-                                TestAllTypesProto2MessageSetCorrectExtension2::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                )?;
-                                self.message_set_extension_4135312 = pbrs::rt::LazyMsg::from_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                );
+                                } else {
+                                    let mut ip = 0;
+                                    if depth >= pbrs::RECURSION_LIMIT {
+                                        return Err(ParseError::new("recursion limit exceeded"));
+                                    }
+                                    if !prevalidated {
+                                        TestAllTypesProto2MessageSetCorrectExtension1::validate_inner(&pbrs::rt::Wire::ensure(wire, data).window(s, e), &mut ip, depth + 1)?;
+                                    }
+                                    self.message_set_extension =
+                                        pbrs::rt::LazyMsg::from_validated_wire(
+                                            pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                        );
+                                }
                             }
+                            _ => self
+                                .unknown
+                                .fields
+                                .push(pbrs::rt::capture_unknown_with_depth(
+                                    data, pos, n, w, depth,
+                                )?),
                         }
-                        _ => self
-                            .unknown
-                            .fields
-                            .push(pbrs::rt::capture_unknown_with_depth(
-                                data, pos, n, w, depth,
-                            )?),
-                    },
+                    }
+                    4135312 => {
+                        match w {
+                            pbrs::rt::WIRE_LEN => {
+                                let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                                if self.message_set_extension_4135312.is_some() {
+                                    let mut ip = 0;
+                                    let mut sw = None;
+                                    self.message_set_extension_4135312
+                                        .get_or_insert()
+                                        .merge_inner(
+                                            &data[s..e],
+                                            &mut sw,
+                                            &mut ip,
+                                            depth + 1,
+                                            true,
+                                            None,
+                                        )?;
+                                } else {
+                                    let mut ip = 0;
+                                    if depth >= pbrs::RECURSION_LIMIT {
+                                        return Err(ParseError::new("recursion limit exceeded"));
+                                    }
+                                    if !prevalidated {
+                                        TestAllTypesProto2MessageSetCorrectExtension2::validate_inner(&pbrs::rt::Wire::ensure(wire, data).window(s, e), &mut ip, depth + 1)?;
+                                    }
+                                    self.message_set_extension_4135312 =
+                                        pbrs::rt::LazyMsg::from_validated_wire(
+                                            pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                        );
+                                }
+                            }
+                            _ => self
+                                .unknown
+                                .fields
+                                .push(pbrs::rt::capture_unknown_with_depth(
+                                    data, pos, n, w, depth,
+                                )?),
+                        }
+                    }
                     123456789 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
@@ -19392,12 +19664,17 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                 )?;
                             } else {
                                 let mut ip = 0;
-                                ExtensionWithOneof::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                )?;
-                                self.extension_with_oneof = pbrs::rt::LazyMsg::from_wire(
+                                if depth >= pbrs::RECURSION_LIMIT {
+                                    return Err(ParseError::new("recursion limit exceeded"));
+                                }
+                                if !prevalidated {
+                                    ExtensionWithOneof::validate_inner(
+                                        &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                        &mut ip,
+                                        depth + 1,
+                                    )?;
+                                }
+                                self.extension_with_oneof = pbrs::rt::LazyMsg::from_validated_wire(
                                     pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                 );
                             }
@@ -19631,7 +19908,8 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     pbrs::impl_typed_message!(
         TestAllTypesProto2MessageSetCorrect,
         TestAllTypesProto2MessageSetCorrectView,
-        TestAllTypesProto2MessageSetCorrectMut
+        TestAllTypesProto2MessageSetCorrectMut,
+        __pbrs_merge_prevalidated
     );
     /// The `protobuf_test_messages.proto2.TestAllTypesProto2.MessageSetCorrectExtension1` protobuf message.
     #[derive(Clone, Debug)]
@@ -20082,6 +20360,30 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
+            self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, false)
+        }
+        #[doc(hidden)]
+        pub fn __pbrs_merge_prevalidated(
+            &mut self,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
+            pos: &mut usize,
+            depth: u32,
+            enforce: bool,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, true)
+        }
+        fn __pbrs_merge_mode(
+            &mut self,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
+            pos: &mut usize,
+            depth: u32,
+            enforce: bool,
+            until: Option<u32>,
+            prevalidated: bool,
+        ) -> Result<(), ParseError> {
             if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
@@ -20111,7 +20413,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                     }
                     continue;
                 }
-                self.merge_heavy(n, w, data, wire, pos, depth)?;
+                self.__pbrs_merge_heavy(n, w, data, wire, pos, depth, prevalidated)?;
             }
             if until.is_some() {
                 return Err(ParseError::new("truncated group"));
@@ -20122,7 +20424,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             Ok(())
         }
         #[inline(never)]
-        fn merge_heavy(
+        fn __pbrs_merge_heavy(
             &mut self,
             n: u32,
             w: u32,
@@ -20130,6 +20432,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
+            prevalidated: bool,
         ) -> Result<(), ParseError> {
             match n {
                 10 => match w {
@@ -20148,12 +20451,17 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             )?;
                         } else {
                             let mut ip = 0;
-                            TestAllTypesProto2MessageSetCorrect::validate_inner(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                &mut ip,
-                                depth + 1,
-                            )?;
-                            self.sub_msg = pbrs::rt::LazyMsg::from_wire(
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            if !prevalidated {
+                                TestAllTypesProto2MessageSetCorrect::validate_inner(
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                )?;
+                            }
+                            self.sub_msg = pbrs::rt::LazyMsg::from_validated_wire(
                                 pbrs::rt::Wire::ensure(wire, data).window(s, e),
                             );
                         }
@@ -20323,7 +20631,8 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     pbrs::impl_typed_message!(
         TestAllTypesProto2MessageSetCorrectExtension2,
         TestAllTypesProto2MessageSetCorrectExtension2View,
-        TestAllTypesProto2MessageSetCorrectExtension2Mut
+        TestAllTypesProto2MessageSetCorrectExtension2Mut,
+        __pbrs_merge_prevalidated
     );
     /// The `protobuf_test_messages.proto2.TestAllTypesProto2.MultiWordGroupField` protobuf message.
     #[derive(Clone, Debug)]
@@ -20844,6 +21153,30 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
+            self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, false)
+        }
+        #[doc(hidden)]
+        pub fn __pbrs_merge_prevalidated(
+            &mut self,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
+            pos: &mut usize,
+            depth: u32,
+            enforce: bool,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, true)
+        }
+        fn __pbrs_merge_mode(
+            &mut self,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
+            pos: &mut usize,
+            depth: u32,
+            enforce: bool,
+            until: Option<u32>,
+            prevalidated: bool,
+        ) -> Result<(), ParseError> {
             if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
@@ -20873,7 +21206,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                     }
                     continue;
                 }
-                self.merge_heavy(n, w, data, wire, pos, depth)?;
+                self.__pbrs_merge_heavy(n, w, data, wire, pos, depth, prevalidated)?;
             }
             if until.is_some() {
                 return Err(ParseError::new("truncated group"));
@@ -20884,7 +21217,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             Ok(())
         }
         #[inline(never)]
-        fn merge_heavy(
+        fn __pbrs_merge_heavy(
             &mut self,
             n: u32,
             w: u32,
@@ -20892,6 +21225,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
+            prevalidated: bool,
         ) -> Result<(), ParseError> {
             match n {
                 2 => match w {
@@ -20910,12 +21244,17 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             )?;
                         } else {
                             let mut ip = 0;
-                            TestAllTypesProto2::validate_inner(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                &mut ip,
-                                depth + 1,
-                            )?;
-                            self.corecursive = pbrs::rt::LazyMsg::from_wire(
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            if !prevalidated {
+                                TestAllTypesProto2::validate_inner(
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                )?;
+                            }
+                            self.corecursive = pbrs::rt::LazyMsg::from_validated_wire(
                                 pbrs::rt::Wire::ensure(wire, data).window(s, e),
                             );
                         }
@@ -21075,7 +21414,8 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     pbrs::impl_typed_message!(
         TestAllTypesProto2NestedMessage,
         TestAllTypesProto2NestedMessageView,
-        TestAllTypesProto2NestedMessageMut
+        TestAllTypesProto2NestedMessageMut,
+        __pbrs_merge_prevalidated
     );
     /// The `protobuf_test_messages.proto2.TestLargeOneof` protobuf message.
     #[derive(Clone, Debug)]
@@ -21377,6 +21717,30 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
+            self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, false)
+        }
+        #[doc(hidden)]
+        pub fn __pbrs_merge_prevalidated(
+            &mut self,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
+            pos: &mut usize,
+            depth: u32,
+            enforce: bool,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, true)
+        }
+        fn __pbrs_merge_mode(
+            &mut self,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
+            pos: &mut usize,
+            depth: u32,
+            enforce: bool,
+            until: Option<u32>,
+            prevalidated: bool,
+        ) -> Result<(), ParseError> {
             if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
@@ -21413,12 +21777,17 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                 )?;
                             } else {
                                 let mut ip = 0;
-                                A1::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                )?;
-                                self.a1 = pbrs::rt::LazyMsg::from_wire(
+                                if depth >= pbrs::RECURSION_LIMIT {
+                                    return Err(ParseError::new("recursion limit exceeded"));
+                                }
+                                if !prevalidated {
+                                    A1::validate_inner(
+                                        &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                        &mut ip,
+                                        depth + 1,
+                                    )?;
+                                }
+                                self.a1 = pbrs::rt::LazyMsg::from_validated_wire(
                                     pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                 );
                             }
@@ -21450,12 +21819,17 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                 )?;
                             } else {
                                 let mut ip = 0;
-                                A2::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                )?;
-                                self.a2 = pbrs::rt::LazyMsg::from_wire(
+                                if depth >= pbrs::RECURSION_LIMIT {
+                                    return Err(ParseError::new("recursion limit exceeded"));
+                                }
+                                if !prevalidated {
+                                    A2::validate_inner(
+                                        &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                        &mut ip,
+                                        depth + 1,
+                                    )?;
+                                }
+                                self.a2 = pbrs::rt::LazyMsg::from_validated_wire(
                                     pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                 );
                             }
@@ -21487,12 +21861,17 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                 )?;
                             } else {
                                 let mut ip = 0;
-                                A3::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                )?;
-                                self.a3 = pbrs::rt::LazyMsg::from_wire(
+                                if depth >= pbrs::RECURSION_LIMIT {
+                                    return Err(ParseError::new("recursion limit exceeded"));
+                                }
+                                if !prevalidated {
+                                    A3::validate_inner(
+                                        &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                        &mut ip,
+                                        depth + 1,
+                                    )?;
+                                }
+                                self.a3 = pbrs::rt::LazyMsg::from_validated_wire(
                                     pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                 );
                             }
@@ -21524,12 +21903,17 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                 )?;
                             } else {
                                 let mut ip = 0;
-                                A4::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                )?;
-                                self.a4 = pbrs::rt::LazyMsg::from_wire(
+                                if depth >= pbrs::RECURSION_LIMIT {
+                                    return Err(ParseError::new("recursion limit exceeded"));
+                                }
+                                if !prevalidated {
+                                    A4::validate_inner(
+                                        &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                        &mut ip,
+                                        depth + 1,
+                                    )?;
+                                }
+                                self.a4 = pbrs::rt::LazyMsg::from_validated_wire(
                                     pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                 );
                             }
@@ -21561,12 +21945,17 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                                 )?;
                             } else {
                                 let mut ip = 0;
-                                A5::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                )?;
-                                self.a5 = pbrs::rt::LazyMsg::from_wire(
+                                if depth >= pbrs::RECURSION_LIMIT {
+                                    return Err(ParseError::new("recursion limit exceeded"));
+                                }
+                                if !prevalidated {
+                                    A5::validate_inner(
+                                        &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                        &mut ip,
+                                        depth + 1,
+                                    )?;
+                                }
+                                self.a5 = pbrs::rt::LazyMsg::from_validated_wire(
                                     pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                 );
                             }
@@ -22025,7 +22414,12 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             Ok(msg)
         }
     }
-    pbrs::impl_typed_message!(TestLargeOneof, TestLargeOneofView, TestLargeOneofMut);
+    pbrs::impl_typed_message!(
+        TestLargeOneof,
+        TestLargeOneofView,
+        TestLargeOneofMut,
+        __pbrs_merge_prevalidated
+    );
     /// The `protobuf_test_messages.proto2.TestLargeOneof.A1` protobuf message.
     #[derive(Clone, Debug)]
     pub struct A1 {
@@ -23445,6 +23839,30 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
+            self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, false)
+        }
+        #[doc(hidden)]
+        pub fn __pbrs_merge_prevalidated(
+            &mut self,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
+            pos: &mut usize,
+            depth: u32,
+            enforce: bool,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, true)
+        }
+        fn __pbrs_merge_mode(
+            &mut self,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
+            pos: &mut usize,
+            depth: u32,
+            enforce: bool,
+            until: Option<u32>,
+            prevalidated: bool,
+        ) -> Result<(), ParseError> {
             if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
@@ -23489,7 +23907,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                     }
                     continue;
                 }
-                self.merge_heavy(n, w, data, wire, pos, depth)?;
+                self.__pbrs_merge_heavy(n, w, data, wire, pos, depth, prevalidated)?;
             }
             if until.is_some() {
                 return Err(ParseError::new("truncated group"));
@@ -23500,7 +23918,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             Ok(())
         }
         #[inline(never)]
-        fn merge_heavy(
+        fn __pbrs_merge_heavy(
             &mut self,
             n: u32,
             w: u32,
@@ -23508,6 +23926,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
+            prevalidated: bool,
         ) -> Result<(), ParseError> {
             match n {
                 1002 => match w {
@@ -23540,12 +23959,17 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                             )?;
                         } else {
                             let mut ip = 0;
-                            ForeignMessageProto2::validate_inner(
-                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
-                                &mut ip,
-                                depth + 1,
-                            )?;
-                            self.cold_mut().nested_message = pbrs::rt::LazyMsg::from_wire(
+                            if depth >= pbrs::RECURSION_LIMIT {
+                                return Err(ParseError::new("recursion limit exceeded"));
+                            }
+                            if !prevalidated {
+                                ForeignMessageProto2::validate_inner(
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                )?;
+                            }
+                            self.cold_mut().nested_message = pbrs::rt::LazyMsg::from_validated_wire(
                                 pbrs::rt::Wire::ensure(wire, data).window(s, e),
                             );
                         }
@@ -23835,7 +24259,8 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     pbrs::impl_typed_message!(
         UnknownToTestAllTypes,
         UnknownToTestAllTypesView,
-        UnknownToTestAllTypesMut
+        UnknownToTestAllTypesMut,
+        __pbrs_merge_prevalidated
     );
     /// The `protobuf_test_messages.proto2.UnknownToTestAllTypes.OptionalGroup` protobuf message.
     #[derive(Clone, Debug)]

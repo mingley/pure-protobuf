@@ -1,0 +1,43 @@
+syntax = "proto2";
+package linear;
+message Node {
+  optional int32 n = 1;
+  optional Node child = 2;
+  optional string text = 3;
+  optional int32 merge_inner_mode = 4;
+  optional int32 __pbrs_merge_mode = 5;
+  optional int32 __pbrs_merge_prevalidated = 6;
+  optional int32 __pbrs_merge_heavy = 7;
+}
+message Required {
+  required int32 left = 1;
+  required int32 right = 2;
+}
+message Mixed {
+  optional Mixed child = 1;
+  repeated Node nodes = 2;
+  map<int32, Node> values = 3;
+  optional group Group = 4 {
+    optional Node node = 5;
+  }
+}
+message WithRequired {
+  optional WithRequired child = 1;
+  oneof choice {
+    Required required = 6;
+    int32 replacement = 7;
+  }
+}
+message FreeChoice {
+  optional FreeChoice child = 1;
+  oneof choice {
+    Node node = 2;
+    int32 replacement = 3;
+  }
+}
+
+message RequiredCollections {
+  map<int32, Required> values = 1;
+  repeated Required children = 2;
+  optional Required child = 3;
+}

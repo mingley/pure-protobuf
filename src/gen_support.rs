@@ -732,7 +732,7 @@ pub use dynamic_support::*;
 /// Trait impls for field-wise generated messages (`merge_bytes` / `write_to` / `compute_size`).
 #[macro_export]
 macro_rules! impl_typed_message {
-    ($Owned:ident, $View:ident, $Mut:ident) => {
+    ($Owned:ident, $View:ident, $Mut:ident $(, $prevalidated:ident)?) => {
         #[derive(Clone, Copy, Debug)]
         pub struct $View<'msg>(pub &'msg $Owned);
         pub struct $Mut<'msg>(pub &'msg mut $Owned);
@@ -789,6 +789,20 @@ macro_rules! impl_typed_message {
                 let mut w = Some(wire.clone());
                 $Owned::merge_inner(self, data, &mut w, pos, depth, enforce, until)
             }
+            $(
+                fn merge_prevalidated(
+                    &mut self,
+                    wire: &$crate::rt::Wire,
+                    pos: &mut usize,
+                    depth: u32,
+                    enforce: bool,
+                    until: Option<u32>,
+                ) -> Result<(), $crate::ParseError> {
+                    let data = wire.as_slice();
+                    let mut w = Some(wire.clone());
+                    $Owned::$prevalidated(self, data, &mut w, pos, depth, enforce, until)
+                }
+            )?
         }
         impl $crate::AsMut for $Owned {
             type MutProxied = Self;
