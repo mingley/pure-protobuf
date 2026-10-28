@@ -54,11 +54,12 @@ identity growth policy while investigating alternatives. Concrete next steps:
 
 - Closed uploads: [write_closed_upload](pbrs-grpc/src/client/streaming.rs)
   encodes the entire closed input before sending, so earlier frames keep their
-  backing alive during later compression. Interleave encoding and network
-  admission, stopping when the send buffer blocks. Bound encoding work and the
-  encoded suffix while leaving unsent input unencoded; preserve permits, order,
-  half-close, cancellation,
-  deadlines and early rejection, including the RST_STREAM(NO_ERROR) repair.
+  backing alive during later compression. Earlier sending can expose request
+  data before a later codec or budget error; deferred encoding can also let an
+  early success hide that error. Any change must preserve those semantics or
+  explicitly offer different ones. A shared compression slab needs an active
+  memory bound, not just the existing idle-cache limit, and comparisons for
+  noisy, compressible and mixed-size messages.
 - Downloads: [drain_to_wire](pbrs-grpc/src/server/drain.rs) can compress the next
   ready message after its last suffix is queued but before the shared
   [connection task](pbrs-grpc/src/server/connection.rs) flushes that suffix.

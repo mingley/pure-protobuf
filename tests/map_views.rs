@@ -112,6 +112,60 @@ fn typed_view_iteration_preserves_order_valid_hints_and_exhaustion() {
 }
 
 #[test]
+fn folds_preserve_order_after_partial_reads_and_support_short_circuiting() {
+    for len in [0, 1, 4, 15, 16, 64] {
+        for distribution in 0..3 {
+            let wire: Vec<_> = (0..len)
+                .map(|i| {
+                    let key = match distribution {
+                        0 => i,
+                        1 => i % 3,
+                        _ if i % 5 == 1 => 1_000 + i,
+                        _ => i % 4,
+                    };
+                    (key, i * 10)
+                })
+                .collect();
+            let expected = expected_last_wins(&wire);
+            let mut map = Map::new();
+            for &(key, value) in &wire {
+                map.push_entry(key, value);
+            }
+            // Exercise both a warmed typed map and an unindexed slice view.
+            for view in [map.as_view(), MapView::from_slice(&wire)] {
+                let mut iter = view.iter();
+                let first = iter.next();
+                assert_eq!(first, expected.first().copied());
+                let remaining = iter.fold(Vec::new(), |mut result, item| {
+                    result.push(item);
+                    result
+                });
+                assert_eq!(
+                    remaining,
+                    expected.iter().skip(1).copied().collect::<Vec<_>>()
+                );
+                let actual = view.iter().fold(u64::MAX, |acc, (k, v)| {
+                    acc.wrapping_add(u64::try_from(k).unwrap())
+                        .wrapping_add(u64::try_from(v).unwrap())
+                });
+                let oracle = expected.iter().fold(u64::MAX, |acc, (k, v)| {
+                    acc.wrapping_add(u64::try_from(*k).unwrap())
+                        .wrapping_add(u64::try_from(*v).unwrap())
+                });
+                assert_eq!(actual, oracle);
+                let mut iter = view.iter();
+                let result: Result<(), (i32, i32)> = iter.try_for_each(|entry| Err(entry));
+                assert_eq!(result.err(), expected.first().copied());
+                assert_eq!(
+                    iter.collect::<Vec<_>>(),
+                    expected.iter().skip(1).copied().collect::<Vec<_>>()
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn typed_view_iteration_does_not_allocate_a_projection_buffer() {
     for len in [0, 1, 4, 8, 15, 16, 64, 256] {
         let mut map = Map::new();
@@ -288,6 +342,43 @@ fn indexed_unique_iteration_neither_compares_keys_nor_allocates() {
         );
         assert_eq!(KEY_COMPARISONS.with(Cell::get), 0);
     }
+}
+
+#[test]
+fn indexed_duplicate_first_entry_preserves_order_without_allocating() {
+    let mut map = Map::new();
+    for i in 0..256 {
+        map.push_entry(CountedKey(i % 64), i);
+    }
+    assert_eq!(map.len(), 64);
+    KEY_COMPARISONS.with(|count| count.set(0));
+    assert_eq!(
+        allocations(|| {
+            let mut iter = map.iter();
+            let (key, value) = iter.next().unwrap();
+            assert_eq!(key.0, 0);
+            assert_eq!(*value, 192);
+        }),
+        0
+    );
+}
+
+#[test]
+fn indexed_duplicates_preserve_a_first_entry_that_survives() {
+    let mut map = Map::new();
+    map.push_entry(CountedKey(0), -1);
+    for i in 0..255 {
+        map.push_entry(CountedKey(1 + i % 63), i);
+    }
+    assert_eq!(map.len(), 64);
+    KEY_COMPARISONS.with(|count| count.set(0));
+    let (key, value) = map.iter().next().unwrap();
+    assert_eq!((key.0, *value), (0, -1));
+    assert!(KEY_COMPARISONS.with(Cell::get) <= 16);
+    assert!(map.insert(CountedKey(1000), 1000));
+    assert!(!map.insert(CountedKey(0), 42));
+    let (key, value) = map.iter().next().unwrap();
+    assert_eq!((key.0, *value), (0, 42));
 }
 
 #[test]

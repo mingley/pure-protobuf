@@ -412,15 +412,50 @@ impl SegFrame {
     }
 }
 
+/// Account for a stream message and its header without wrapping the budget.
+/// Configured encoding limits retain precedence when the addition overflows.
+#[inline]
+pub(crate) fn checked_budget_frame_len(len: usize, limits: MessageLimits) -> Result<usize, Status> {
+    match len.checked_add(codec::HEADER_LEN) {
+        Some(total) => Ok(total),
+        None => Err(frame_length_overflow(len, limits)),
+    }
+}
+
+#[cold]
+#[inline(never)]
+fn frame_length_overflow(len: usize, limits: MessageLimits) -> Status {
+    limits
+        .check_encode(len)
+        .err()
+        .unwrap_or_else(|| Status::internal("message too large"))
+}
+
+/// Validate identity framing and its contiguous reservation before allocating.
+#[inline]
+fn identity_frame_size(len: usize, existing_head: usize) -> Result<(u32, usize), Status> {
+    let prefix = u32::try_from(len).map_err(|_| Status::internal("message too large"))?;
+    let need = len
+        .checked_add(codec::HEADER_LEN)
+        .ok_or_else(|| Status::internal("message too large"))?;
+    // BytesMut's contiguous allocation must fit in isize::MAX, including
+    // already buffered bytes when appending to a batch.
+    if need > (usize::MAX >> 1).saturating_sub(existing_head) {
+        return Err(Status::internal("message too large"));
+    }
+    Ok((prefix, need))
+}
+
 /// Serialize straight into the framed buffer: one allocation, no intermediate
 /// `Vec`, and the length prefix is known before encoding starts.
 ///
 /// Large shared bytes fields are retained as extra segments instead of
 /// being copied (PK-11); the concatenated bytes are identical.
 pub(crate) fn frame_from_msg<T: CodecMessage>(msg: &T, len: usize) -> Result<SegFrame, Status> {
+    let (prefix, need) = identity_frame_size(len, 0)?;
     let mut sink = SegSink::new();
-    sink.reserve_new(codec::HEADER_LEN + len);
-    write_uncompressed_prefix(&mut sink, len)?;
+    sink.reserve_new(need);
+    write_uncompressed_prefix(&mut sink, prefix);
     msg.encode_payload(&mut sink)?;
     let shared = sink.shared_len();
     let frame = sink.finish();
@@ -439,6 +474,12 @@ pub(crate) fn encode_msg<T: CodecMessage>(
     let Some(codec) = codec else {
         return frame_from_msg(msg, len);
     };
+    // Compression materializes the plaintext in a contiguous allocation. A
+    // u32 wire limit does not apply to plaintext, but this allocation must be
+    // representable on the host before asking the codec to create it.
+    if len > usize::MAX >> 1 {
+        return Err(Status::internal("message too large"));
+    }
     let body = msg.encode_to_vec()?;
     crate::copy_counts::note_serialize(body.len());
     let mut buf = BytesMut::new();
@@ -557,13 +598,16 @@ pub(crate) fn append_frame_with_ready<T: CodecMessage>(
     let len = msg.encoded_len();
     limits.check_encode(len)?;
     if let Some(codec) = codec {
+        if len > usize::MAX >> 1 {
+            return Err(Status::internal("message too large"));
+        }
         return scratch.with_payload(msg, len, |body| {
             let wrote = append_compressed(sink.head_mut(), body, codec, gzip_level)?;
             sink.note_head_wrote(wrote);
             Ok(())
         });
     }
-    let need = codec::HEADER_LEN + len;
+    let (prefix, need) = identity_frame_size(len, sink.head.len())?;
     // A single already-ready message is flushed before polling for more.
     // Reserve only its frame. Multiple ready messages keep the existing
     // four-frame prefetch, including mixed-size bursts. No second length
@@ -574,7 +618,7 @@ pub(crate) fn append_frame_with_ready<T: CodecMessage>(
     } else {
         sink.reserve(need);
     }
-    write_uncompressed_prefix(sink, len)?;
+    write_uncompressed_prefix(sink, prefix);
     msg.encode_payload(sink)?;
     Ok(())
 }
@@ -593,11 +637,9 @@ fn append_frame<T: CodecMessage>(
 
 /// Compression flag plus the 4-byte length, written into the reserved head.
 #[inline(always)]
-fn write_uncompressed_prefix(sink: &mut SegSink, len: usize) -> Result<(), Status> {
-    let prefix = u32::try_from(len).map_err(|_| Status::internal("message too large"))?;
+fn write_uncompressed_prefix(sink: &mut SegSink, prefix: u32) {
     crate::grpc_prefix::write_uncompressed(sink.head_mut(), prefix);
     sink.note_head_wrote(codec::HEADER_LEN);
-    Ok(())
 }
 
 #[cfg(test)]
@@ -656,6 +698,144 @@ mod tests {
         }
         let expected = [b"prefix".as_slice(), &[0xAB; 8192], b"suffix".as_slice()].concat();
         assert_eq!(buffer.as_ref(), expected);
+    }
+
+    struct HugeMessage(usize);
+
+    impl CodecMessage for HugeMessage {
+        fn encoded_len(&self) -> usize {
+            self.0
+        }
+        fn encode_payload<W: WireOut>(&self, _: &mut W) -> Result<(), Status> {
+            panic!("unrepresentable identity frame must be rejected before encoding")
+        }
+        fn decode_payload(_: Bytes) -> Result<Self, Status> {
+            Ok(Self(0))
+        }
+        fn empty() -> Self {
+            Self(0)
+        }
+    }
+
+    #[test]
+    fn budget_length_overflow_preserves_limits_and_allows_compressed_plaintext() {
+        let unlimited = MessageLimits::unlimited();
+        let capped = unlimited.with_max_encoding(16);
+        assert_eq!(
+            checked_budget_frame_len(0, unlimited).expect("empty"),
+            codec::HEADER_LEN
+        );
+        assert_eq!(
+            checked_budget_frame_len(usize::MAX, unlimited)
+                .expect_err("overflow")
+                .code(),
+            crate::Code::Internal
+        );
+        assert_eq!(
+            checked_budget_frame_len(usize::MAX, capped)
+                .expect_err("cap precedence")
+                .code(),
+            crate::Code::ResourceExhausted
+        );
+        // The uncompressed size is not the u32 wire prefix for compressed
+        // frames. Merely charging the stream budget must not reject it.
+        if let Ok(beyond_wire) = usize::try_from(u64::from(u32::MAX) + 1) {
+            assert_eq!(
+                checked_budget_frame_len(beyond_wire, unlimited).expect("representable budget"),
+                beyond_wire + codec::HEADER_LEN
+            );
+        }
+    }
+
+    #[test]
+    fn identity_frame_is_validated_before_reservation_and_encoding() {
+        let huge = HugeMessage(usize::MAX);
+        assert_eq!(
+            frame_from_msg(&huge, huge.encoded_len())
+                .expect_err("unrepresentable frame")
+                .code(),
+            crate::Code::Internal
+        );
+        if let Ok(beyond_wire) = usize::try_from(u64::from(u32::MAX) + 1) {
+            let beyond_wire = HugeMessage(beyond_wire);
+            assert_eq!(
+                frame_from_msg(&beyond_wire, beyond_wire.encoded_len())
+                    .expect_err("u32 wire length")
+                    .code(),
+                crate::Code::Internal
+            );
+        }
+        assert_eq!(
+            encode_msg(
+                &huge,
+                Some(CompressionAlgorithm::Gzip),
+                MessageLimits::unlimited(),
+                0
+            )
+            .expect_err("unrepresentable compressed plaintext")
+            .code(),
+            crate::Code::Internal
+        );
+        let mut scratch = EncodeScratch::new();
+        let mut sink = SegSink::new();
+        assert_eq!(
+            append_frame(
+                &mut sink,
+                &mut scratch,
+                &huge,
+                Some(CompressionAlgorithm::Gzip),
+                MessageLimits::unlimited(),
+                0
+            )
+            .expect_err("unrepresentable compressed plaintext")
+            .code(),
+            crate::Code::Internal
+        );
+        let small = ContiguousMessage(1);
+        append_frame(
+            &mut sink,
+            &mut scratch,
+            &small,
+            None,
+            MessageLimits::unlimited(),
+            0,
+        )
+        .expect("previous frame");
+        let prior = sink.head.to_vec();
+        let prior_len = sink.len();
+        assert_eq!(
+            append_frame(
+                &mut sink,
+                &mut scratch,
+                &huge,
+                None,
+                MessageLimits::unlimited(),
+                0
+            )
+            .expect_err("unrepresentable frame")
+            .code(),
+            crate::Code::Internal
+        );
+        assert_eq!(sink.head.as_ref(), prior);
+        assert_eq!(sink.len(), prior_len);
+        assert_eq!(
+            append_frame(
+                &mut sink,
+                &mut scratch,
+                &huge,
+                None,
+                MessageLimits::unlimited().with_max_encoding(16),
+                0
+            )
+            .expect_err("configured limit")
+            .code(),
+            crate::Code::ResourceExhausted
+        );
+        // A reservation must also fit in the platform's contiguous allocation
+        // limit after any already-buffered bytes, including on 32-bit hosts.
+        let max_alloc = usize::MAX >> 1;
+        assert!(identity_frame_size(0, max_alloc - codec::HEADER_LEN).is_ok());
+        assert!(identity_frame_size(0, max_alloc - codec::HEADER_LEN + 1).is_err());
     }
 
     struct ContiguousMessage(usize);

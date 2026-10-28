@@ -11,6 +11,7 @@ use crate::status::{Code, Status};
 use crate::stream::Streaming;
 use crate::telemetry::{CallLabels, LifecycleObserver};
 use crate::transport::{SendResponse, SendStream, h2 as backend};
+use crate::wire::encode::checked_budget_frame_len;
 use crate::wire::{
     ImmediateSend, OutBatch, encode_msg, grpc_trailers, let_producer_catch_up, preferred_codec,
     select_outbound_codec, select_stream_codec, send_frame, send_frame_if_ready, send_ok_headers,
@@ -1020,7 +1021,21 @@ pub(crate) async fn drain_to_wire<Resp: CodecMessage + Send>(
             };
             item.compressed =
                 select_stream_codec(item.compressed, envelope, prefer_gzip, negotiated).is_some();
-            let frame_len = 5 + item.message.encoded_len();
+            let frame_len = match checked_budget_frame_len(item.message.encoded_len(), wire.limits)
+            {
+                Ok(len) => len,
+                Err(status) => {
+                    return flush_queued_before_error(
+                        &mut batch,
+                        send,
+                        &mut permits,
+                        status,
+                        call,
+                        web,
+                    )
+                    .await;
+                }
+            };
             let permit = match budget.acquire(frame_len) {
                 Ok(permit) => permit,
                 Err(status) => {

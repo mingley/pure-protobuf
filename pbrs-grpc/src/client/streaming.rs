@@ -21,6 +21,7 @@ use crate::telemetry::{
 };
 use crate::timeout::{deadline_from, remaining_timeout};
 use crate::transport::{Reason, SendStream, h2 as backend};
+use crate::wire::encode::checked_budget_frame_len;
 use crate::wire::{
     OutBatch, PumpEnd, SegFrame, encode_msg, finish_stream, finish_unary, reset_on_cancel,
 };
@@ -414,7 +415,11 @@ async fn pump_outbound_budget<T: CodecMessage>(
                 Ok(item) => item,
                 Err(status) => return PumpEnd::Failed(status),
             };
-            let frame_len = 5 + item.message.encoded_len();
+            let frame_len = match checked_budget_frame_len(item.message.encoded_len(), wire.limits)
+            {
+                Ok(len) => len,
+                Err(status) => return PumpEnd::Failed(status),
+            };
             match budget.acquire(frame_len) {
                 Ok(permit) => permits.push(permit),
                 Err(status) => return PumpEnd::Failed(status),
@@ -528,7 +533,10 @@ fn write_closed_upload<T: CodecMessage>(
             Ok(item) => item,
             Err(status) => return Err(fail(send, status)),
         };
-        let frame_len = 5 + item.message.encoded_len();
+        let frame_len = match checked_budget_frame_len(item.message.encoded_len(), wire.limits) {
+            Ok(len) => len,
+            Err(status) => return Err(fail(send, status)),
+        };
         match budget.acquire(frame_len) {
             Ok(acquired) => permit.merge(acquired),
             Err(status) => return Err(fail(send, status)),

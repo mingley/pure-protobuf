@@ -32,6 +32,23 @@ struct ByteBudgetInner {
     peak_active_byte_permit_tokens: AtomicUsize,
 }
 
+// Never publish a wrapped value, including briefly between an overflowing
+// add and a rollback. Relaxed ordering is sufficient for independent counts;
+// ownership and buffer synchronization are managed by the permit itself.
+#[inline]
+fn checked_atomic_add(counter: &AtomicUsize, bytes: usize) -> Result<usize, usize> {
+    let mut current = counter.load(Ordering::Relaxed);
+    loop {
+        let Some(next) = current.checked_add(bytes) else {
+            return Err(current);
+        };
+        match counter.compare_exchange_weak(current, next, Ordering::Relaxed, Ordering::Relaxed) {
+            Ok(_) => return Ok(current),
+            Err(actual) => current = actual,
+        }
+    }
+}
+
 impl Default for ByteBudgetTracker {
     fn default() -> Self {
         Self::unlimited()
@@ -126,21 +143,11 @@ impl ByteBudgetTracker {
     }
 
     fn acquire_token_count(&self) -> Result<(), Status> {
-        // A permit token is a counter, not a capacity check. One relaxed add
-        // is enough; the byte limit above still uses a sequentially consistent
-        // compare-exchange.
-        let prev = self
-            .inner
-            .active_byte_permit_tokens
-            .fetch_add(1, Ordering::Relaxed);
-        if prev == usize::MAX {
-            self.inner
-                .active_byte_permit_tokens
-                .fetch_sub(1, Ordering::Relaxed);
-            return Err(Status::resource_exhausted(
-                "transport byte permit token counter overflow",
-            ));
-        }
+        // Never publish a wrapped value: another acquisition or release can
+        // observe it before a fetch_add overflow is rolled back.
+        let prev = checked_atomic_add(&self.inner.active_byte_permit_tokens, 1).map_err(|_| {
+            Status::resource_exhausted("transport byte permit token counter overflow")
+        })?;
         let next = prev + 1;
         if next
             > self
@@ -161,8 +168,7 @@ impl ByteBudgetTracker {
     /// `Status::resource_exhausted`. Otherwise, returns an RAII [`BytePermit`]
     /// that will release the bytes back to this tracker when dropped.
     pub fn try_acquire(&self, bytes: usize) -> Result<BytePermit, Status> {
-        // The default tracker has no cap. A relaxed add is enough; the
-        // compare-exchange stays on the capped path.
+        // The unlimited tracker still checks representational overflow.
         match self.inner.limit {
             None => self.acquire_unlimited(bytes),
             Some(limit) => self.acquire_limited(bytes, limit),
@@ -177,11 +183,11 @@ impl ByteBudgetTracker {
                 bytes: 0,
             });
         }
-        let current = self.inner.allocated.fetch_add(bytes, Ordering::Relaxed);
-        let Some(next) = current.checked_add(bytes) else {
-            self.inner.allocated.fetch_sub(bytes, Ordering::Relaxed);
-            return Err(Self::budget_counter_overflow(bytes, current));
-        };
+        // A checked atomic update keeps overflow rejection linearizable with
+        // concurrent acquisitions and releases; no wrapped value is visible.
+        let current = checked_atomic_add(&self.inner.allocated, bytes)
+            .map_err(|current| Self::budget_counter_overflow(bytes, current))?;
+        let next = current + bytes;
         if let Err(error) = self.acquire_token_count() {
             self.inner.allocated.fetch_sub(bytes, Ordering::Relaxed);
             return Err(error);
@@ -719,6 +725,175 @@ mod tests {
         assert_eq!(unlimited.allocated(), 0);
         assert_eq!(unlimited.peak_allocated(), usize::MAX);
         assert_eq!(unlimited.active_byte_permit_tokens(), 0);
+    }
+
+    // Model the old fetch_add/rollback sequence at its dangerous scheduling
+    // point. The overlapping public acquire demonstrates what another thread
+    // could observe between those operations, without relying on a race test.
+    #[test]
+    fn overflow_rollback_counterfactual_publishes_a_false_byte_balance() {
+        let tracker = ByteBudgetTracker::unlimited();
+        let held = tracker.acquire(usize::MAX - 1).expect("initial permit");
+        assert_eq!(
+            tracker.acquire(2).expect_err("overflow").code(),
+            Code::ResourceExhausted
+        );
+        assert_eq!(tracker.allocated(), usize::MAX - 1);
+
+        // Old implementation: overflow wraps the shared counter to zero.
+        assert_eq!(
+            tracker.inner.allocated.fetch_add(2, Ordering::Relaxed),
+            usize::MAX - 1
+        );
+        assert_eq!(tracker.allocated(), 0);
+        let incorrectly_admitted = tracker
+            .acquire(2)
+            .expect("wrap admits an impossible permit");
+        // The old failing caller rolls back, leaving zero despite held permits.
+        tracker.inner.allocated.fetch_sub(2, Ordering::Relaxed);
+        assert_eq!(tracker.allocated(), 0);
+
+        // Remove the modeled permit and restore the deliberately corrupted
+        // counter so the real held permit can be dropped normally.
+        incorrectly_admitted.forget();
+        tracker
+            .inner
+            .allocated
+            .store(usize::MAX - 1, Ordering::Relaxed);
+        drop(held);
+        assert!(tracker.is_quiescent());
+        assert_eq!(tracker.active_byte_permit_tokens(), 0);
+    }
+
+    #[test]
+    fn overflow_rollback_counterfactual_publishes_a_false_token_count() {
+        let tracker = ByteBudgetTracker::unlimited();
+        tracker
+            .inner
+            .active_byte_permit_tokens
+            .store(usize::MAX, Ordering::Relaxed);
+        assert_eq!(
+            tracker.acquire(0).expect_err("overflow").code(),
+            Code::ResourceExhausted
+        );
+        assert_eq!(tracker.active_byte_permit_tokens(), usize::MAX);
+
+        assert_eq!(
+            tracker
+                .inner
+                .active_byte_permit_tokens
+                .fetch_add(1, Ordering::Relaxed),
+            usize::MAX
+        );
+        assert_eq!(tracker.active_byte_permit_tokens(), 0);
+        let incorrectly_admitted = tracker.acquire(0).expect("wrap admits another token");
+        tracker
+            .inner
+            .active_byte_permit_tokens
+            .fetch_sub(1, Ordering::Relaxed);
+        assert_eq!(tracker.active_byte_permit_tokens(), 0);
+
+        // The synthetic original tokens are not real permits. Restore just
+        // the modeled permit's charge before dropping it.
+        tracker
+            .inner
+            .active_byte_permit_tokens
+            .store(1, Ordering::Relaxed);
+        drop(incorrectly_admitted);
+        assert_eq!(tracker.active_byte_permit_tokens(), 0);
+    }
+
+    // Hold successful permits until both attempts complete, so exactly one
+    // increment can fit. This exercises overlapping public acquisitions rather
+    // than depending on scheduler timing to observe a transient wrap.
+    #[test]
+    fn concurrent_unlimited_byte_overflow_never_admits_two_permits() {
+        use std::sync::{Arc, Barrier};
+
+        let tracker = ByteBudgetTracker::unlimited();
+        let original = tracker.acquire(usize::MAX - 1).expect("initial permit");
+        let start = Arc::new(Barrier::new(3));
+        let release = Arc::new(Barrier::new(3));
+        let (tx, rx) = mpsc::channel();
+        let mut workers = Vec::new();
+        for _ in 0..2 {
+            let tracker = tracker.clone();
+            let start = Arc::clone(&start);
+            let release = Arc::clone(&release);
+            let tx = tx.clone();
+            workers.push(thread::spawn(move || {
+                start.wait();
+                let permit = tracker.acquire(1);
+                tx.send(permit.is_ok()).expect("report acquisition");
+                release.wait();
+                drop(permit);
+            }));
+        }
+        start.wait();
+        let first = rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("first result");
+        let second = rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("second result");
+        let allocated = tracker.allocated();
+        release.wait();
+        for worker in workers {
+            worker.join().expect("worker completed");
+        }
+        assert_ne!(first, second, "exactly one increment fits");
+        assert_eq!(allocated, usize::MAX);
+        assert_eq!(tracker.allocated(), usize::MAX - 1);
+        drop(original);
+        assert!(tracker.is_quiescent());
+    }
+
+    #[test]
+    fn concurrent_token_overflow_never_admits_two_permits() {
+        use std::sync::{Arc, Barrier};
+
+        let tracker = ByteBudgetTracker::unlimited();
+        // Simulate already-live permits without allocating usize::MAX objects.
+        tracker
+            .inner
+            .active_byte_permit_tokens
+            .store(usize::MAX - 1, Ordering::Relaxed);
+        let start = Arc::new(Barrier::new(3));
+        let release = Arc::new(Barrier::new(3));
+        let (tx, rx) = mpsc::channel();
+        let mut workers = Vec::new();
+        for _ in 0..2 {
+            let tracker = tracker.clone();
+            let start = Arc::clone(&start);
+            let release = Arc::clone(&release);
+            let tx = tx.clone();
+            workers.push(thread::spawn(move || {
+                start.wait();
+                let permit = tracker.acquire(0);
+                tx.send(permit.is_ok()).expect("report acquisition");
+                release.wait();
+                drop(permit);
+            }));
+        }
+        start.wait();
+        let first = rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("first result");
+        let second = rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("second result");
+        let active = tracker.active_byte_permit_tokens();
+        release.wait();
+        for worker in workers {
+            worker.join().expect("worker completed");
+        }
+        assert_ne!(first, second, "exactly one token fits");
+        assert_eq!(active, usize::MAX);
+        assert_eq!(tracker.active_byte_permit_tokens(), usize::MAX - 1);
+        tracker
+            .inner
+            .active_byte_permit_tokens
+            .store(0, Ordering::Relaxed);
     }
 
     #[test]
