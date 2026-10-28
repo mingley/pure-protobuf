@@ -5,6 +5,9 @@ import hashlib
 import io
 import json
 import os
+import signal
+import threading
+import time
 import subprocess
 import sys
 import tempfile
@@ -586,6 +589,114 @@ class CorpusTests(unittest.TestCase):
             self.assertEqual(saved["phases"]["synthetic"]["exit_code"], 7)
             self.assertIn("failed", (directory / phases["synthetic"]["stdout_log"]).read_text())
             self.assertTrue((directory / phases["synthetic"]["stderr_log"]).is_file())
+
+    @unittest.skipUnless(sys.platform in ("darwin", "linux"), "requires system time and ps")
+    def test_command_elapsed_excludes_a_blocked_rss_sampler(self):
+        # The sampler is deliberately held after the command finishes. A
+        # controlled clock makes this a timing-window test, not a flaky
+        # assertion about how quickly the shared host can run Python.
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            sampling = threading.Event()
+            release_sample = threading.Event()
+            command_finished = threading.Event()
+            result = {}
+            errors = []
+            real_run = subprocess.run
+            clock_calls = []
+
+            def clock():
+                clock_calls.append(True)
+                if len(clock_calls) == 1:
+                    return 100
+                command_finished.set()
+                return 10_100 if release_sample.is_set() else 200
+
+            def delayed_sample(command, **kwargs):
+                sampling.set()
+                if not release_sample.wait(5):
+                    raise RuntimeError("test did not release the sampler")
+                return real_run(command, **kwargs)
+
+            def measure():
+                try:
+                    result.update(harness.timed_command(
+                        [sys.executable, "-c", "print('done')"], directory,
+                        dict(os.environ), directory / "logs" / "delayed-sampler",
+                        directory, 5, 100,
+                    ))
+                except BaseException as exc:
+                    errors.append(exc)
+
+            with mock.patch.object(harness.subprocess, "run", side_effect=delayed_sample), \
+                 mock.patch.object(harness.time, "perf_counter_ns", side_effect=clock):
+                worker = threading.Thread(target=measure)
+                worker.start()
+                try:
+                    self.assertTrue(sampling.wait(5))
+                    self.assertTrue(command_finished.wait(2), "command completion waited for RSS cleanup")
+                    self.assertTrue(worker.is_alive(), "sampler hold was not exercised")
+                finally:
+                    release_sample.set()
+                    worker.join(5)
+            self.assertFalse(worker.is_alive())
+            self.assertEqual(errors, [])
+            self.assertEqual(result["exit_code"], 0)
+            self.assertEqual(result["elapsed_ns"], 100)
+            self.assertEqual((directory / result["stdout_log"]).read_text(), "done\n")
+
+    @unittest.skipUnless(sys.platform in ("darwin", "linux"), "requires owned process groups")
+    def test_timed_deadline_kills_descendants_and_reaps_the_direct_child(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            pid_file = directory / "child.pid"
+            leaf = ("import os,signal,time;signal.signal(signal.SIGTERM,signal.SIG_IGN);"
+                    "print(os.getpid(),flush=True);time.sleep(60)")
+            code = ("import subprocess,sys,time;from pathlib import Path;"
+                    f"p=subprocess.Popen([sys.executable,'-c',{leaf!r}],stdout=subprocess.PIPE,text=True);"
+                    f"Path({str(pid_file)!r}).write_text(p.stdout.readline().strip());"
+                    "time.sleep(60)")
+            real_spawn = subprocess.Popen
+            leaders = []
+            time_path, _ = harness.time_executable(dict(os.environ), harness.platform.system())
+
+            def remember(command, *args, **kwargs):
+                process = real_spawn(command, *args, **kwargs)
+                if command[0] == time_path:
+                    leaders.append(process)
+                return process
+
+            try:
+                with mock.patch.object(harness.subprocess, "Popen", side_effect=remember):
+                    with self.assertRaisesRegex(harness.BenchmarkError, "exceeded 1s"):
+                        harness.timed_command(
+                            [sys.executable, "-c", code], directory, dict(os.environ),
+                            directory / "logs" / "deadline", directory, 1, 10,
+                        )
+                self.assertEqual(len(leaders), 1)
+                self.assertIsNotNone(leaders[0].returncode)
+                with self.assertRaises(ChildProcessError):
+                    os.waitpid(leaders[0].pid, os.WNOHANG)
+                self.assertTrue(pid_file.exists(), "descendant startup was not exercised")
+                child_pid = int(pid_file.read_text())
+                deadline = time.monotonic() + 2
+                while True:
+                    state = subprocess.run(
+                        ["ps", "-o", "stat=", "-p", str(child_pid)],
+                        capture_output=True, text=True,
+                    ).stdout.strip()
+                    if not state or state.startswith("Z"):
+                        break
+                    self.assertLess(time.monotonic(), deadline, "timed-out descendant still running")
+                    time.sleep(0.01)
+                self.assertTrue((directory / "logs" / "deadline.stderr.log").is_file())
+            finally:
+                for process in leaders:
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    process.wait()
 
     def test_release_smoke_fails_closed_and_retains_logs(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -1576,6 +1576,15 @@ def _terminate_own_group(proc: subprocess.Popen) -> None:
         except ProcessLookupError:
             pass
         proc.wait()
+    finally:
+        # The group can outlive its leader when a descendant ignores TERM.
+        # It belongs exclusively to this command, so kill surviving children
+        # even when the direct child was already reaped.
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        proc.wait()
 
 
 def log_paths(stem: Path, run_dir: Path) -> tuple[Path, Path, dict]:
@@ -1661,21 +1670,44 @@ def timed_command(
 
         sampler = threading.Thread(target=sample, daemon=True)
         sampler.start()
+        completed = threading.Event()
+        expired = threading.Event()
+
+        def deadline() -> None:
+            if not completed.wait(timeout):
+                expired.set()
+                _terminate_own_group(proc)
+
+        watchdog = threading.Thread(target=deadline, daemon=True)
+        watchdog.start()
         try:
-            exit_code = proc.wait(timeout=timeout)
-        except subprocess.TimeoutExpired as exc:
+            # wait(timeout=...) polls waitpid with exponential backoff on
+            # POSIX. That quantizes short commands near 8/16/32/64/114 ms.
+            # A blocking wait observes completion promptly; a separate
+            # watchdog preserves the deadline and owned-group cleanup.
+            exit_code = proc.wait()
+            finished = time.perf_counter_ns()
+        except BaseException:
             _terminate_own_group(proc)
-            raise BenchmarkError(f"{command[0]} exceeded {timeout}s; logs: {paths}") from exc
+            raise
         finally:
+            completed.set()
+            watchdog.join()
             stop.set()
             sampler.join()
-        elapsed_ns = time.perf_counter_ns() - started
+        if expired.is_set():
+            raise BenchmarkError(f"{command[0]} exceeded {timeout}s; logs: {paths}")
+        # RSS sampling may still be finishing a ps call. Its teardown is
+        # measurement overhead, not part of the generator's command lifetime.
+        elapsed_ns = finished - started
     direct_peak = parse_time_rss(stderr.read_text(encoding="utf-8", errors="replace"), system)
     sampled_peak = max(samples) if samples else None
     return {
         "command": command,
         "exit_code": exit_code,
         "elapsed_ns": elapsed_ns,
+        "elapsed_scope": "command completion before RSS sampler teardown",
+        "completion_wait": "blocking with independent deadline watchdog",
         "peak_rss_bytes": max(direct_peak, sampled_peak or 0),
         "time_executable": time_path,
         "direct_command_peak_rss_bytes": direct_peak,
