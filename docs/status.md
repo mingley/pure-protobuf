@@ -1,24 +1,39 @@
 # Implementation status
 
-The latest implementation adds [transport controls](guides/transport-controls.md)
-for native TCP_NODELAY, idle keepalive policy and connection executors. It also
-adds [codegen options](guides/codegen.md) for type names, type URL domains and
-retained enum prefixes, with named-message `Any` conversions. Typed map views
-now iterate borrowed entries directly instead of building a projection vector.
-The [transport, codegen and map record](evidence/parity-and-maps-20261027/README.md)
-contains the source pins and complete measurements.
-Median CPU falls in all 42 direct map iteration rows; full-message CPU remains
-mixed, including an owned-profile regression. See the
-[benchmark guide](benchmarks.md#typed-map-iteration-october-27) for the costs.
+The [latest measured implementation](evidence/decode-and-map-speed-20261027/README.md)
+at `71422f00` reuses validated singular-child wire during lazy access, avoids backing
+work for short map entries, and walks warmed unique maps without per-entry
+index searches. It also shares generator spellings. Regenerate application
+bindings to use the new lazy path; older bindings keep their checked fallback.
 
-The final run at `12cfd09f` passes 3,963 all-feature workspace tests with zero
-failures and nine existing ignores, strict core/transport linting, Rust 1.85
-native/Tower/owned checks, all 18 message-presence comparisons and 41 mixed-peer
-tests. Both lazy and regenerated owned bindings pass three pinned official
-conformance runs each: 5,631 binary/JSON and 909 text cases, zero skips or
-failures, maximum Edition 2023. Default regeneration leaves all 13 bindings
-unchanged. The new codegen audit passes nine original roundtrips plus 27
-configured Prost controls.
+The full run passes 3,968 all-feature workspace tests with zero failures and
+nine existing ignores, all 26 validation gates, strict core/transport linting,
+Rust 1.85 native/Tower/owned/validated-lazy checks, 18 message-presence
+comparisons and 41 mixed-peer tests. Default and regenerated owned bindings
+each pass three pinned official conformance runs: 5,631 binary/JSON and 909
+text cases, zero skips or failures, maximum Edition 2023. Seven of 13 default
+bundled bindings change for the new decoder; the drift check passes.
+
+The later transport source `6d1336e0` reuses bounded compressed output and
+keeps the earlier identity-framing growth policy. It passes 3,980 all-feature
+workspace tests (zero failures, nine existing ignores), strict transport and
+adapter linting, mixed-peer tests, Rust 1.85 native/Tower builds, three default
+conformance runs and regeneration checks. The earlier full core and isolated
+owned records keep their `71422f00` source pin; those inputs are unchanged.
+
+The goal of beating tonic/prost on every benchmark remains unmet. Owned
+parse/read medians beat Prost in 15 of 16 rows; all 16 encoding holdouts favor
+pbrs. Lazy deep full reads, small and duplicate-heavy maps, small release
+regeneration and several streaming costs still lose. Corrected generator timing
+has six of six canonical debug rows and four of six matched release rows below
+Prost. Consumer build costs are a separate unmeasured axis for this source.
+The [benchmark guide](benchmarks.md) keeps the measured scope and remaining costs.
+
+Earlier [transport and naming additions](evidence/parity-and-maps-20261027/README.md)
+provide native TCP_NODELAY, idle keepalive policy, connection executors, type
+names, type-URL domains, retained enum prefixes and named-message `Any`
+conversions. Those APIs remain available through the
+[transport](guides/transport-controls.md) and [codegen](guides/codegen.md) guides.
 
 The remaining migration gaps include `btree_map`, `bytes` and `boxed` codegen
 controls, an alloc-only runtime, and custom executors in the static balanced

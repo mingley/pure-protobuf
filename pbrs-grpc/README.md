@@ -29,6 +29,16 @@ independently from decoded storage. Custom codecs keep their contiguous encoding
 path unless they opt in to append-only encoding. See the
 [resource ownership and capacity rules](../docs/resource-budgets.md#2-buffer-ownership).
 
+Large compressed output can reuse its backing allocation between sends. Its
+idle tail and large serialization scratch share the same 16 MiB process-wide
+encode ledger, with a 4 MiB limit per backing allocation. Accounting uses the
+full backing capacity, including storage shared with an earlier immutable
+frame. Identity or mixed batches do not retain this output tail. Encoding
+failure or panic drops reusable storage while preserving completed frames.
+The [latest measurement record](../docs/evidence/decode-and-map-speed-20261027/README.md)
+retains allocation gains and remaining costs; it does not establish a general
+CPU improvement from reuse.
+
 ## Optional features
 
 Features are opt-in:

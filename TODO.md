@@ -7,17 +7,12 @@ followed by measured improvements to client and server efficiency. The
 comparisons and checks; [task cards](docs/plan/world-class/tasks.json) carry
 acceptance criteria and dependencies.
 
-The [latest performance fixes](docs/evidence/performance-fixes-20261027/README.md)
-address server scheduling and nested-message reads. Connection wake coalescing
-lowers native-server CPU in five local pairs. The explicit
-`owned_message_fields(true)` profile constructs children during parsing and
-avoids the repeated validation measured by PK-27/PK-29. Keep the default lazy
-profile for its sparse-read and forwarding advantages; neither profile wins
-every workload. The [parity summary](docs/parity.md) retains remaining gaps,
-including alloc-only runtime support, configurable field representations, and
-executor coverage for static balanced endpoints. Native TCP_NODELAY, idle
-keepalive policy and connection executors are now available; see the
-[transport guide](docs/guides/transport-controls.md).
+The [latest decoder, map and generator record](docs/evidence/decode-and-map-speed-20261027/README.md)
+removes repeated lazy descendant validation, backing work for short map entries
+and per-entry index searches when keys are known unique. It retains each
+remaining loss against tonic/prost. The [parity summary](docs/parity.md) tracks
+alloc-only support, configurable field representations and executor coverage
+for static balanced endpoints alongside the measured performance gaps.
 
 Michael Ingley coordinates assignments and reviews. A card marked `done`
 means its recorded deliverable was accepted; it does not certify the whole
@@ -41,14 +36,48 @@ of eligible work, not an instruction to start every lane at once.
 
 ## Current priorities
 
-The latest map changes remove a projection vector and improve all 42 warm
-iteration rows. They still leave large-map iteration slower than standard
-HashMap, owned mixed-message parsing 16.3% slower than its prior revision, and
-sparse reads about 20% slower. Large-map iteration currently searches the
-last-wins index for every entry; evaluate bypassing that search when the index
-already proves that every key is unique. Prioritize those measured losses alongside the
-remaining `btree_map`, `bytes`, `boxed` and alloc-only migration gaps. A direct
-iteration gain must also survive the full parse/read/drop comparison.
+Small and duplicate-heavy map iteration still loses to standard HashMap;
+only three of the 42 warm-map rows beat it. Lazy deep full reads still lose
+to Prost, while the owned profile has one near-parity parsing loss. Target
+those full lifecycles alongside small release generation, large generated
+output and downstream consumer build costs. The corrected completion timer
+must be used for new CLI comparisons; older polling-wall results cannot
+support a speed claim.
+
+Streaming scheduling remains a separate priority: allocation reductions do
+not establish lower endpoint CPU. The compressed-output follow-up leaves
+upload-client, download-server and large-identity losses against tonic. The
+initial framer-only change produced no RPC allocation win. C's identity
+reservation was rejected: its 25.4% byte reduction came with about 50% higher
+client CPU and 56% higher server CPU in longer confirmation. Keep the existing
+identity growth policy while investigating alternatives. Concrete next steps:
+
+- Closed uploads: [write_closed_upload](pbrs-grpc/src/client/streaming.rs)
+  encodes the entire closed input before sending, so earlier frames keep their
+  backing alive during later compression. Interleave encoding and network
+  admission, stopping when the send buffer blocks. Bound encoding work and the
+  encoded suffix while leaving unsent input unencoded; preserve permits, order,
+  half-close, cancellation,
+  deadlines and early rejection, including the RST_STREAM(NO_ERROR) repair.
+- Downloads: [drain_to_wire](pbrs-grpc/src/server/drain.rs) can compress the next
+  ready message after its last suffix is queued but before the shared
+  [connection task](pbrs-grpc/src/server/connection.rs) flushes that suffix.
+  Coordinate write progress and ownership before the next large encode so
+  backing can be reclaimed. Evaluate pull-driven output or a bounded handoff,
+  with no unconditional yield, guessed completion or increased retention caps.
+- Large identity input: stage sufficiently large chunks with bounded metadata
+  and a coalescing fallback, then make one exact contiguous copy after the
+  payload arrives. Preserve header limits, error precedence, whole-chunk
+  sharing and retained-frame lifetimes; do not reserve from an untrusted claim.
+
+Keep large encode retention within the shared 16 MiB ledger and 4 MiB per
+backing allocation. Scheduling and ownership changes must survive the full
+matched lifecycle comparison, including small interactive streams.
+
+The caller-worker prototype and small-map-cache prototype were rejected;
+preserve their data rather than treating them as accepted optimizations.
+Remaining API/deployment gaps include `btree_map`, `bytes`, `boxed` and an
+alloc-only runtime. Every component gain must survive the full matched matrix.
 
 The [allocation and generator follow-up](docs/evidence/efficiency-20261027/README.md)
 removes MiniTable length-calculation buffers and repeated imported-path work.
@@ -94,7 +123,7 @@ also has 1,116 native/instruction captures / 29,700 successful RPCs; bulk,
 shipping-build and tracing controls remain separate. Those results do not
 qualify later source changes.
 
-The [benchmarks](docs/benchmarks.md) identify the next costs. The latest
+The [benchmarks](docs/benchmarks.md) identify the next costs. An earlier
 1 KiB unary server comparison improves from 45 to 23.5 µs/RPC, with a fresh
 tonic median of 32.5 µs/RPC. Broader concurrency, transport and latency
 comparisons remain open. Earlier allocation measurements retain their own pins.

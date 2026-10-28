@@ -111,8 +111,17 @@ pbrs::codegen::Config::new()
 
 This profile constructs singular nested messages during parsing. The default
 is `false`: nested messages are validated first and constructed when accessed,
-which can save work and memory when they stay unread. Both profiles keep the
-message accessors, protobuf semantics, formats, validation and recursion limits.
+which can save work and memory when they stay unread. Newly generated lazy
+getters reuse the initial validation result instead of validating descendants
+again. Regenerate bindings to enable this path; older bindings retain their
+checked fallback. Children remain deferred until accessed.
+
+Both profiles keep message accessors, protobuf semantics, formats, validation
+and recursion limits. They differ in allocation, partial reads, mutation and
+encoding costs. Compare the [latest measurements](../evidence/decode-and-map-speed-20261027/README.md)
+for the application's workload. The lazy validation flag can increase each
+child allocation by eight bytes; it does not construct the entire subtree on
+the first getter.
 
 The option changes generated storage layout. Imported or extern-mapped child
 types keep their own layout; generate those schemas with the same profile to

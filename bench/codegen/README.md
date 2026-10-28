@@ -73,6 +73,16 @@ but does not compile them or measure runtime performance.
 
 ## What is and is not timed
 
+Wall time covers command startup through process completion. A blocking wait
+records the exit promptly; a separate watchdog enforces the timeout and stops
+the command's process group. RSS sampler cleanup happens after the wall-time
+endpoint. Timeouts retain their logs and reap the direct child, including
+cleanup when a descendant ignores termination.
+
+Earlier revisions used Python's timeout polling wait, which can round short
+commands toward 8, 16, 32, 64 or 114 milliseconds. Those records remain
+historical diagnostics; use the corrected timer for new comparisons.
+
 Bootstrap is **excluded** from generation and consumer check timings. Its
 driver builds offline against the compatible shared
 `target/integration-consumers` Cargo target used by nested consumer tests,

@@ -1,13 +1,15 @@
 # Tonic/prost parity and performance proof
 
-The audit found concrete gaps and performance losses. The follow-ups fix
-server scheduling costs, add owned nested-message storage, close three
-codegen configuration gaps and add native transport scheduling controls.
-Full tonic/prost parity and a world performance ranking remain open. The [original audit](evidence/parity-proof-20261027/README.md)
-and [performance fixes](evidence/performance-fixes-20261027/README.md) retain
-failures, controls, source pins and all measured rows. The latest source is
-`12cfd09f`; its [transport and map record](evidence/parity-and-maps-20261027/README.md)
-retains the latest validation and all performance rows.
+The latest [decoder, map and generator record](evidence/decode-and-map-speed-20261027/README.md)
+compares `71422f00` with `0287879d`. It removes repeated descendant validation
+from regenerated lazy access and repeated index searches from warm unique-map
+iteration. It also retains remaining losses: the current comparisons do not
+establish a win on every benchmark or complete tonic/prost parity.
+
+The [original audit](evidence/parity-proof-20261027/README.md),
+[server/owned-storage fixes](evidence/performance-fixes-20261027/README.md) and
+[transport/naming follow-up](evidence/parity-and-maps-20261027/README.md) retain
+their own source pins, controls, failures and full measured rows.
 
 ## Compatibility
 
@@ -41,9 +43,15 @@ through the documented Tower/Hyper recipe.
 
 Both lazy and owned bindings pass the pinned protobuf 35.1 binary/JSON and
 text conformance suite through maximum Edition 2023. The
-[latest record](evidence/parity-and-maps-20261027/README.md) retains the
-fresh isolated owned regeneration and unchanged default-binding checks at
-`12cfd09f`. Its full workspace run passes 3,963 tests with nine existing ignores.
+[latest record](evidence/decode-and-map-speed-20261027/README.md) retains fresh
+isolated owned regeneration at `71422f00`. Its full workspace run passes 3,968
+tests with nine existing ignores. Seven of 13 default bindings change for the
+new lazy decoder; the remaining six are unchanged and the drift check passes.
+
+Final transport source `6d1336e0` passes 3,980 all-feature workspace tests
+with zero failures and nine existing ignores, plus fresh mixed-peer, native
+and Tower Rust 1.85, default conformance and regeneration checks. The isolated
+owned-conformance source remains `71422f00`; the core source is unchanged.
 
 The [comparison guide](guides/comparison.md) covers the broader migration
 surface. Passing a finite corpus establishes its tested behavior; it cannot
@@ -51,7 +59,26 @@ establish every possible schema, API or wire input.
 
 ## Performance
 
-The latest map-only comparison against `77f361eb` improves all 42 warm typed
+At `71422f00`, lazy depth-64 parse/read/drop falls from 28,300 to 3,968 ns in
+this comparison, but still costs 2.339 times Prost's paired CPU. Mixed-message
+full reads have paired pbrs/Prost ratios of 0.909 for lazy and 0.991 for owned
+storage. Owned parse/read wins 15 of 16 median rows, with depth-64 parsing near
+parity at 1.004. All 16 encoding holdouts favor pbrs.
+
+Warm unique-map iteration at 256 entries falls from 1,943 to 94 ns, versus
+253 ns for standard HashMap. Only the full unique-map rows at 16, 64 and 256
+entries beat that control; small and duplicate-heavy maps remain losses.
+The corrected generator timer shows six of six canonical debug rows and four
+of six release rows below Prost. Small release generation remains slower,
+output remains much larger, and downstream build costs are unmeasured for this
+source. Streaming scheduling and some transport allocation costs also remain
+open. See [benchmarks](benchmarks.md#latest-runtime-and-generator-results-october-27)
+for the latest tables and [raw evidence](evidence/decode-and-map-speed-20261027/README.md)
+for every row and rejected prototype.
+
+The earlier map and nested-message results below describe their pinned sources.
+
+The earlier map-only comparison against `77f361eb` improves all 42 warm typed
 iteration rows. Collection uses 11.1–44.2% less CPU. Full mixed-message reads
 remove one allocation and 128 requested bytes in both storage profiles. Lazy
 read CPU improves 3.62%; owned read CPU regresses 5.85%, and owned parsing
@@ -111,7 +138,8 @@ the default remains lazy.
 The [codegen guide](guides/codegen.md#owned-nested-message-fields) shows the
 builder and plugin options. Owned messages use a compact size cache; very
 large sizes are recomputed rather than truncated. This does not impose a
-message-size limit. Default generated output remains unchanged.
+message-size limit. The original owned-profile addition preserved default
+generated output; the later lazy-decoder path requires regeneration.
 
 The [complete performance record](evidence/performance-fixes-20261027/README.md)
 separates parsing, full and partial reads, encoding, requested allocation bytes
@@ -121,8 +149,9 @@ read-all traversal is expensive: a 64-node chain revalidates 2,016 descendant
 nodes before materialization. The owned profile avoids that traversal; it does
 not change the default lazy layout.
 
-The compiler audit checks generated behavior, not generator or consumer build
-speed. The [earlier codegen matrix](evidence/sb09-codegen-matrix.md) retains
+The compatibility audit checks generated behavior. The latest corrected
+generator comparison measures CLI elapsed time, while consumer build speed
+remains unmeasured for that source. The [earlier codegen matrix](evidence/sb09-codegen-matrix.md) retains
 build-cost losses; it does not establish a ranking for the current generator.
 A follow-up output-buffer experiment reduced peak RSS but increased CPU in all
 six measured generator cases, so it was rejected.

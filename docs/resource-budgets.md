@@ -63,7 +63,7 @@ owner, limit and release point.
 | **Zstd History Window** | Optional Zstd decoder | 8 MiB default logical window cap, plus capacity/block/decoder overhead | `MessageLimits::with_max_zstd_window`; independent of output and frame-count caps | Scratch is reused within a message and released afterward |
 | **Compressed Member/Frame Setup** | Compression decoder | At most 1,024 admissions per message by default | `MessageLimits::with_max_compression_frames`; includes empty gzip members and Zstd skippable frames | Count resets for each gRPC message |
 | **Outbound Frame Serialization** | Transport (`wire::frame_from_msg`) | Serialized payload length | `MessageLimits::max_encoding` / application message size | Dropped after wire enqueue |
-| **Compressed Streaming Scratch** | Transport (`wire::OutBatch`) | Up to 64 KiB per outbound stream; append-capable codecs can retain larger buffers, at most 4 MiB each and 16 MiB process-wide | Independent encode-cache capacity ledger; finite encoding limits govern active storage; outside byte-budget permits | Stream destruction, encode/compression failure or panic; oversize/full-cache buffers are released after encoding |
+| **Compressed Streaming Scratch and Output Tail** | Transport (`wire::OutBatch`) | Small serialization scratch up to 64 KiB per outbound stream; large serialization scratch and compressed output share one 16 MiB process-wide ledger, at most 4 MiB per backing allocation | Encode-cache capacity ledger; finite encoding limits govern active storage; outside byte-budget permits | Stream destruction, encode/compression failure or panic; oversize/full-cache output declines retention |
 | **Unconfigured Transparent Retry Replay Buffer** | Client unary/server-streaming executor | One segmented request frame, with no finite default outbound cap | `encode_msg` and existing outbound message limits | Held across a proven-unprocessed replacement; dropped on terminal outcome |
 | **Policy Retry Replay Buffer** | Client unary/server-streaming executor | Encoded payload up to the selected finite outbound cap, otherwise 4 MiB, plus five-byte framing | [Service-config §6.3](service-config.md#63-replay-byte-budget-rt-06); shared backing allocations and segment metadata are separate costs | Over-budget calls transfer ownership to the first upload and commit; eligible buffers survive backoff and release on terminal status |
 | **Streaming Channel Queue** | Transport / Application (`mpsc::channel`) | `buffer` $\times$ message size | `Streaming::channel(buffer)`, `ChannelConfig::stream_buffer` | Dropped as consumer reads |
@@ -95,6 +95,37 @@ serialization and compression succeed; active encoding is uncharged. An error
 or unwind discards the active allocation. Cache exhaustion never fails an RPC.
 The small 64 KiB allowance, active output, and compression state remain separate
 costs; these two cache ledgers are not a process memory cap.
+
+Compressed-only contiguous output can retain an empty mutable tail while
+HTTP/2 owns the earlier immutable frame. This output backing and the large
+serialization scratch above share the existing 16 MiB encode ledger; each
+retained backing must fit the existing 4 MiB limit. The charge covers the full
+allocation, not its visible tail or remaining capacity. If an earlier backing
+bound is larger than a later visible capacity, accounting keeps the larger
+bound; this can overcharge but cannot hide retained memory behind a short
+slice. The limits are unchanged.
+
+The next encode removes the idle charge before using the backing actively.
+Reclamation waits for ownership to permit it; immutable frames remain valid
+while another send uses available tail space. Output containing identity
+frames or shared payload segments does not enter this tail cache. A full
+ledger or oversized backing declines reuse without failing an RPC. A guard
+starts before encoded-length checks, codec calls and compression, so an error
+or unwind discards reusable backing while preserving earlier complete frames.
+
+Fragmented compressed input can anticipate its validated frame size after
+sufficient payload has arrived, copying into or reclaiming carry storage as
+ownership permits. The header and message limit are checked before size-based
+growth. A short header or body fragment does not reserve the full claim.
+Identity input retains the prior growth policy, and complete frames keep their
+existing sharing behavior. Message-size limits do not change.
+
+An experiment that extended anticipation to large identity input reduced
+requested bytes but increased CPU in longer confirmation runs, so it was
+rejected. The [measured record](evidence/decode-and-map-speed-20261027/README.md)
+separates that rejected tradeoff from compressed output reuse. The original
+framer-only adjustment did not reduce RPC allocation traffic, and allocation
+gains alone do not establish lower CPU.
 
 Compressed output starts with at most 4 KiB of payload lookahead. If output
 approaches half the known plaintext size, growth anticipates the full size plus

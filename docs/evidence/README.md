@@ -5,6 +5,13 @@ stopped. They are dated investigations, usually local diagnostics. A result
 belongs to its recorded revision, host, workload, and peer versions; it does
 not automatically describe today's code.
 
+The [decoder, generator and transport follow-up](decode-and-map-speed-20261027/README.md)
+reuses validated child wire, avoids short-map backing buffers and directly
+iterates indexed unique maps. It retains the full codec, map, partial-read,
+encoding, generator and RPC comparisons, including remaining losses and rejected
+experiments. Final transport checks pass 3,980 workspace tests; the raw records
+keep each source and metric separate.
+
 The [transport, codegen and map follow-up](parity-and-maps-20261027/README.md)
 adds connection executor hooks, idle keepalive
 policy and native TCP_NODELAY controls, plus named-message and enum-prefix

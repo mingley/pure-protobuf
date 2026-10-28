@@ -26,10 +26,11 @@ bindings to get the [merge](docs/evidence/grpc-required-merge-20261026/README.md
 and [MessageSet](docs/evidence/grpc-parity-and-costs-20261027/README.md) fixes.
 Contributors should start with [what to work on next](TODO.md).
 
-Applications that read or mutate nested message trees can select
+Regenerate bindings to let lazy child getters reuse earlier wire validation.
+Applications that read or mutate nested trees can also select
 [`Config::owned_message_fields(true)`](docs/guides/codegen.md#owned-nested-message-fields).
-The default lazy profile remains useful for partial reads and forwarding
-unchanged messages. See the [measured tradeoffs](docs/evidence/performance-fixes-20261027/README.md).
+The default lazy profile supports partial reads and forwarding unchanged
+messages. See the [current measurements and tradeoffs](docs/evidence/decode-and-map-speed-20261027/README.md).
 
 <a id="why-use-pbrs"></a>
 ## Features

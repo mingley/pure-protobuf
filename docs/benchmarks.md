@@ -3,16 +3,88 @@
 [Run benchmarks](benchmarks/running.md) · [Earlier results](benchmarks/grpc-20261024.md)
 · [Qualification](scoreboard.md)
 
-[Maps](#typed-map-iteration-october-27) · [RPC and nested messages](#server-scheduling-and-nested-messages-october-27)
+[Latest results](#latest-runtime-and-generator-results-october-27)
+· [Earlier maps](#typed-map-iteration-october-27)
+· [RPC and nested messages](#server-scheduling-and-nested-messages-october-27)
 · [Codec and codegen](#codec-and-codegen-comparisons)
 
 The measurements below show lower allocation costs in some workloads and losses
 in others. CPU results are mixed. There is no qualified overall performance ranking.
 
+## Latest runtime and generator results, October 27
+
+The [complete record](evidence/decode-and-map-speed-20261027/README.md) compares
+`71422f00` with `0287879d`. Regenerated singular lazy children reuse validation,
+short map entries avoid backing-buffer work, and an index that proves every
+map key unique lets iteration walk the borrowed entries directly.
+
+| Parse, read and drop | Before | After | Prost | Median paired after/Prost |
+|---|---:|---:|---:|---:|
+| Lazy depth 64 | 28,300 ns | 3,968 ns | 1,657 ns | 2.339 |
+| Owned depth 64 | 1,507 ns | 1,502 ns | 1,583 ns | 0.946 |
+| Lazy mixed message | 864 ns | 802 ns | 895 ns | 0.909 |
+| Owned mixed message | 855 ns | 837 ns | 845 ns | 0.991 |
+
+Large unique-map iteration falls from 1,943 to 94 ns at 256 entries, versus
+253 ns for the standard HashMap control: a paired after/before ratio of 0.049
+and after/reference ratio of 0.368. That is warm iteration; parsing and index
+construction are outside this microbenchmark. Only three of 42 map rows beat
+the HashMap median. Small and duplicate-heavy maps remain losses.
+
+The owned profile has lower CPU than Prost in 15 of 16 parse/read rows;
+depth-64 parsing is near parity at 1.004. All 16 encoding holdout rows favor
+pbrs. Lazy depth-64 full reads and the depth-eight partial read still lose.
+Five randomized pairs retain every sample, with separate CPU and allocation
+builds. These results do not meet the goal of winning every benchmark.
+
+Generator timings use a corrected completion timer. The previous polling
+wait introduced millisecond plateaus, so those older wall times cannot support
+a speed claim. In the corrected comparison, all six canonical debug generation
+rows favor pbrs, while four of six matched release rows do. Small release
+fresh/unchanged generation still loses slightly. The 1,000-message release
+fresh-generation paired ratio is 0.798; its output is 36.31 MB versus Prost's
+0.413 MB. CLI time does not establish downstream build time or output-size
+parity. The [record](evidence/decode-and-map-speed-20261027/README.md#correcting-generator-timing)
+keeps both profiles, output volume and the timer regression controls.
+
+The compressed-only transport follow-up in `6d1336e0` measures allocator
+traffic with the same Prost codec and fresh tonic controls. These are two
+paired N/2N repeats; requested MB per RPC means 1,000,000 bytes, not RSS:
+
+| Work / native endpoint | Before | After | Tonic | Paired after/before | Paired after/tonic |
+|---|---:|---:|---:|---:|---:|
+| Four × 1 MiB gzip noise, bidi client | 30.864 | 22.288 | 22.774 | 0.722 | 0.979 |
+| Four × 1 MiB gzip noise, bidi server | 29.805 | 21.229 | 21.720 | 0.712 | 0.977 |
+| 1 MiB gzip noise, unary client | 12.763 | 10.666 | 10.971 | 0.836 | 0.972 |
+| Four × 1 MiB gzip noise, upload client | 16.260 | 16.072 | 12.151 | 0.988 | 1.323 |
+| Four × 1 MiB gzip noise, download server | 23.360 | 21.075 | 18.557 | 0.902 | 1.136 |
+| 8 MiB identity, unary client | 66.133 | 66.133 | 44.129 | 1.000 | 1.499 |
+
+Compressed bidi and unary requested bytes fall below tonic locally. Upload
+client, download server and large identity still use more. Zero-filled bidi
+requested bytes are essentially unchanged. Allocation counts and CPU are
+separate metrics; these savings do not establish a CPU win.
+
+A broader reservation experiment cut large-identity bytes by 25.4% but its
+longer check showed about 50% higher client CPU and 56% higher server CPU.
+That identity reservation was rejected. The final source keeps the earlier
+identity growth policy and was built and measured separately; the rejected
+captures remain in the complete record.
+
+The original `71422f00` framer adjustment alone did not reduce RPC allocation
+traffic. The [resource guide](resource-budgets.md#2-buffer-ownership) explains
+the shared retention ledger, unchanged capacity limits and compressed-only
+scope of the later input hint.
+
+The caller-worker and small-map-cache prototypes were rejected after mixed
+results and regressions. Their full campaigns remain alongside the selected
+source. Read older tables below at the revisions they name.
+
 ## Typed map iteration, October 27
 
-Typed map views now project borrowed entries as they are read instead of
-building a temporary vector. Iterator size hints use conservative bounds
+This earlier comparison describes the `0287879d` delivery. Typed map views
+project borrowed entries as they are read instead of building a temporary
+vector. Iterator size hints use conservative bounds
 instead of rescanning duplicate keys. Small-map lookups compare borrowed keys
 without cloning them.
 
@@ -50,7 +122,7 @@ results guide the next optimization; they do not establish a ranking.
 
 ## Default transport costs, October 27
 
-The new transport controls also have a separate comparison with their defaults
+This earlier transport comparison describes `12cfd09f`. The new controls also have a separate comparison with their defaults
 unchanged, using Prost on both endpoints. All 120 captures complete:
 1,890,000 successful RPCs across 1 KiB unary and 64 × 1 KiB pipeline calls.
 Five before/after pairs include fresh Tonic controls. Every native endpoint's
