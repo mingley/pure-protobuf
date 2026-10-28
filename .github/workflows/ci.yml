@@ -107,6 +107,10 @@ jobs:
       - name: Compiled examples (DX-07 documentation contract)
         run: cargo build --workspace --examples
       - run: cargo test --workspace
+      - name: Bounded compressed buffer lifecycle controls
+        run: |
+          cargo test --locked -p pbrs-grpc --all-features --test encode_workspace --test decode_workspace --test output_workspace
+          cargo clippy --locked -p pbrs-grpc --all-features --test output_workspace -- -D warnings
       - name: Standalone benchmark correctness contracts (no performance gate)
         run: |
           cargo test --locked --manifest-path rpc-bench/Cargo.toml --bin rpc-bench --test worker --test fairness --test tonic_fairness

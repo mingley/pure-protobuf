@@ -1,6 +1,8 @@
 //! Batched stream output: OutBatch.
 
-use super::encode::{EncodeScratch, STREAM_BATCH_BYTES, SegSink, append_frame_with_ready};
+use super::encode::{
+    EncodeScratch, STREAM_BATCH_BYTES, SegSink, SinkCheckpoint, append_frame_with_ready,
+};
 use super::send::{ImmediateSend, send_frame, send_frame_if_ready};
 use crate::binlog::CallLogger;
 use crate::codec::CodecMessage;
@@ -15,6 +17,7 @@ pub(crate) struct OutBatch {
     scratch: EncodeScratch,
     wire: Wire,
     tap: Option<CallLogger>,
+    compressed_only: bool,
 }
 
 impl OutBatch {
@@ -30,6 +33,7 @@ impl OutBatch {
             scratch: EncodeScratch::new(),
             wire,
             tap: None,
+            compressed_only: true,
         }
     }
 
@@ -47,24 +51,25 @@ impl OutBatch {
         item: Framed<T>,
         ready_messages: usize,
     ) -> Result<(), Status> {
-        let checkpoint = self.sink.checkpoint();
-        if let Err(status) = append_frame_with_ready(
-            &mut self.sink,
-            &mut self.scratch,
+        // A failed identity encoder can replace the backing while preserving
+        // checkpoint bytes. Invalidation therefore precedes all user code and
+        // deliberately survives rollback.
+        if !item.compressed {
+            self.compressed_only = false;
+        }
+        let mut guard = SinkEncodeGuard::new(&mut self.sink, &mut self.scratch);
+        guard.sink.prepare_encode();
+        append_frame_with_ready(
+            &mut guard.sink,
+            guard.scratch,
             &item.message,
             item.compressed.then_some(self.wire.send_codec),
             self.wire.limits,
             self.wire.gzip_level,
             ready_messages,
-        ) {
-            // Keep earlier complete frames flushable before the error trailer.
-            self.sink.rollback(&checkpoint);
-            // A size limit may fail before scratch encoding starts.
-            self.scratch.discard();
-            return Err(status);
-        }
+        )?;
         if let Some(tap) = &self.tap {
-            let (segs, tail) = self.sink.segments_since(&checkpoint);
+            let (segs, tail) = guard.sink.segments_since(&guard.checkpoint);
             for seg in segs {
                 tap.log_written(seg);
             }
@@ -72,6 +77,7 @@ impl OutBatch {
                 tap.log_written(tail);
             }
         }
+        guard.commit();
         Ok(())
     }
 
@@ -91,8 +97,10 @@ impl OutBatch {
         if self.sink.is_empty() {
             return None;
         }
-        let sink = std::mem::replace(&mut self.sink, SegSink::new());
-        Some(sink.finish())
+        Some(
+            self.sink
+                .take_reusing(std::mem::replace(&mut self.compressed_only, true)),
+        )
     }
 
     /// Hand whatever has accumulated to HTTP/2.
@@ -100,12 +108,56 @@ impl OutBatch {
         if self.sink.is_empty() {
             return Ok(());
         }
-        let sink = std::mem::replace(&mut self.sink, SegSink::new());
-        let frame = sink.finish();
+        let frame = self
+            .sink
+            .take_reusing(std::mem::replace(&mut self.compressed_only, true));
         match send_frame_if_ready(send, frame, false, self.wire.send_buffer) {
             ImmediateSend::Done(result) => result,
             ImmediateSend::Blocked(frame) => {
                 send_frame(send, frame, false, self.wire.send_buffer).await
+            }
+        }
+    }
+}
+
+// Move both mutable ownership and panic cleanup ahead of encoded_len,
+// configured limit checks, codecs and compression. Only committed output
+// returns normally; errors/unwind preserve prior complete frames, while an
+// empty uncharged tail cannot survive in the reusable OutBatch.
+struct SinkEncodeGuard<'a> {
+    target: &'a mut SegSink,
+    sink: SegSink,
+    scratch: &'a mut EncodeScratch,
+    checkpoint: SinkCheckpoint,
+    committed: bool,
+}
+
+impl<'a> SinkEncodeGuard<'a> {
+    fn new(target: &'a mut SegSink, scratch: &'a mut EncodeScratch) -> Self {
+        let sink = std::mem::replace(target, SegSink::new());
+        let checkpoint = sink.checkpoint();
+        Self {
+            target,
+            sink,
+            scratch,
+            checkpoint,
+            committed: false,
+        }
+    }
+
+    fn commit(mut self) {
+        *self.target = std::mem::replace(&mut self.sink, SegSink::new());
+        self.committed = true;
+    }
+}
+
+impl Drop for SinkEncodeGuard<'_> {
+    fn drop(&mut self) {
+        if !self.committed {
+            self.scratch.discard();
+            self.sink.rollback(&self.checkpoint);
+            if !self.sink.is_empty() {
+                *self.target = std::mem::replace(&mut self.sink, SegSink::new());
             }
         }
     }
@@ -394,5 +446,210 @@ mod tests {
             [0xAB]
         );
         assert!(bytes.is_empty());
+    }
+
+    struct NoiseOutput {
+        mode: u8,
+        bytes: Vec<u8>,
+    }
+    impl NoiseOutput {
+        fn new(mode: u8) -> Self {
+            let mut state = 0x67ac_4fe2u32;
+            let bytes = (0..131073)
+                .map(|_| {
+                    state ^= state << 13;
+                    state ^= state >> 17;
+                    state ^= state << 5;
+                    u8::try_from(state & 0xff).expect("byte")
+                })
+                .collect();
+            Self { mode, bytes }
+        }
+    }
+    impl CodecMessage for NoiseOutput {
+        const ENCODE_APPEND_ONLY: bool = true;
+        fn encoded_len(&self) -> usize {
+            if self.mode == 1 {
+                panic!("intentional encoded_len failure")
+            }
+            if self.mode == 2 {
+                usize::MAX
+            } else {
+                self.bytes.len()
+            }
+        }
+        fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status> {
+            out.put_slice(&self.bytes);
+            if self.mode == 3 {
+                return Err(Status::internal("intentional codec error"));
+            }
+            if self.mode == 4 {
+                panic!("intentional codec panic")
+            }
+            Ok(())
+        }
+        fn decode_payload(_: Bytes) -> Result<Self, Status> {
+            Ok(Self::empty())
+        }
+        fn empty() -> Self {
+            Self {
+                mode: 0,
+                bytes: Vec::new(),
+            }
+        }
+    }
+
+    fn warmed_output() -> (OutBatch, super::super::encode::SegFrame, Vec<u8>) {
+        let mut batch = OutBatch::new(ChannelConfig::new().wire());
+        batch
+            .encode_ready(Framed::compressed(NoiseOutput::new(0)), 1)
+            .expect("warm output");
+        let first = batch.take_frame().expect("complete warm frame");
+        let saved = first.clone().concat();
+        assert!(
+            batch
+                .sink
+                .output_cache_state()
+                .1
+                .expect("charged warm backing")
+                > 65536
+        );
+        (batch, first, saved)
+    }
+
+    #[test]
+    fn warmed_output_errors_and_caught_panics_drop_empty_uncharged_storage() {
+        for mode in [1, 2, 3, 4] {
+            let (mut batch, first, saved) = warmed_output();
+            batch.wire.limits = batch.wire.limits.with_max_encoding(1024 * 1024);
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                batch.encode_ready(Framed::compressed(NoiseOutput::new(mode)), 1)
+            }));
+            if mode == 1 || mode == 4 {
+                assert!(result.is_err());
+            } else {
+                assert!(result.expect("error rather than panic").is_err());
+            }
+            assert!(batch.sink.is_empty());
+            assert_eq!(batch.sink.output_cache_state(), (0, None, false));
+            assert_eq!(first.clone().concat(), saved);
+            batch
+                .encode_ready(Framed::compressed(PartialEncode(false)), 1)
+                .expect("reuse after failure");
+            let mut frame = Bytes::from(batch.take_frame().expect("later frame").concat());
+            let frame = crate::codec::pop_from_chunk(&mut frame, batch.wire.limits)
+                .expect("frame")
+                .expect("one");
+            assert_eq!(
+                batch
+                    .wire
+                    .send_codec
+                    .decode(&frame.payload)
+                    .expect("valid compression"),
+                [0xAB]
+            );
+        }
+    }
+
+    #[test]
+    fn caught_codec_panic_restores_prior_complete_output() {
+        let (mut batch, first, saved) = warmed_output();
+        batch
+            .encode_ready(Framed::compressed(PartialEncode(false)), 1)
+            .expect("complete prefix");
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            batch.encode_ready(Framed::compressed(NoiseOutput::new(4)), 1)
+        }));
+        assert!(result.is_err());
+        assert!(!batch.sink.is_empty());
+        assert_eq!(first.clone().concat(), saved);
+        let mut bytes = Bytes::from(batch.take_frame().expect("preserved frame").concat());
+        let frame = crate::codec::pop_from_chunk(&mut bytes, batch.wire.limits)
+            .expect("frame")
+            .expect("one");
+        assert_eq!(
+            batch
+                .wire
+                .send_codec
+                .decode(&frame.payload)
+                .expect("payload"),
+            [0xAB]
+        );
+        assert!(bytes.is_empty());
+    }
+
+    struct IdentitySuffix<const APPEND: bool> {
+        fail: bool,
+    }
+    impl<const APPEND: bool> CodecMessage for IdentitySuffix<APPEND> {
+        const ENCODE_APPEND_ONLY: bool = APPEND;
+        fn encoded_len(&self) -> usize {
+            131073
+        }
+        fn encode_payload<W: pbrs::WireOut>(&self, out: &mut W) -> Result<(), Status> {
+            out.write_contiguous(|buffer| {
+                let mut backing = bytes::BytesMut::with_capacity(8 * 1024 * 1024);
+                backing.resize(7 * 1024 * 1024, 0);
+                backing.extend_from_slice(buffer);
+                backing.extend_from_slice(&vec![0xCD; 131073]);
+                drop(backing.split_to(7 * 1024 * 1024));
+                *buffer = backing;
+            });
+            if self.fail {
+                Err(Status::internal("intentional identity suffix error"))
+            } else {
+                Ok(())
+            }
+        }
+        fn decode_payload(_: Bytes) -> Result<Self, Status> {
+            Ok(Self::empty())
+        }
+        fn empty() -> Self {
+            Self { fail: false }
+        }
+    }
+
+    fn suffix_control<const APPEND: bool>(fail: bool) {
+        let (mut batch, first, saved) = warmed_output();
+        batch
+            .encode_ready(Framed::compressed(PartialEncode(false)), 1)
+            .expect("compressed prefix");
+        let result = batch.encode_ready(Framed::new(IdentitySuffix::<APPEND> { fail }), 1);
+        assert_eq!(result.is_err(), fail);
+        assert!(
+            !batch.compressed_only,
+            "identity attempts permanently invalidate this batch"
+        );
+        let mut bytes = Bytes::from(batch.take_frame().expect("complete output").concat());
+        assert_eq!(batch.sink.output_cache_state(), (0, None, false));
+        let prefix = crate::codec::pop_from_chunk(&mut bytes, batch.wire.limits)
+            .expect("prefix")
+            .expect("one");
+        assert!(prefix.compressed);
+        assert_eq!(
+            batch
+                .wire
+                .send_codec
+                .decode(&prefix.payload)
+                .expect("payload"),
+            [0xAB]
+        );
+        if !fail {
+            let identity = crate::codec::pop_from_chunk(&mut bytes, batch.wire.limits)
+                .expect("identity")
+                .expect("two");
+            assert!(!identity.compressed);
+            assert_eq!(identity.payload.as_ref(), vec![0xCD; 131073]);
+        }
+        assert!(bytes.is_empty());
+        assert_eq!(first.clone().concat(), saved);
+    }
+
+    #[test]
+    fn identity_suffix_backing_is_never_cached_including_failed_mixed_batches() {
+        for fail in [false, true] {
+            suffix_control::<false>(fail);
+            suffix_control::<true>(fail);
+        }
     }
 }

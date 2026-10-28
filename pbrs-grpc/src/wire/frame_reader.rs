@@ -187,17 +187,45 @@ impl FrameReader {
 
     pub(crate) fn push(&mut self, next: Bytes) {
         if !self.chunk.is_empty() {
+            // The first unconsumed DATA chunk has not entered carry yet.
+            // Reserve before copying it: reserving a short suffix after a
+            // full-size first chunk would already force Vec's doubling.
+            if self.carry.is_empty() {
+                if let Some(frame_len) = self.anticipated_frame_len(next.len()) {
+                    if !self.carry.try_reclaim(frame_len) {
+                        self.carry = BytesMut::with_capacity(frame_len);
+                    }
+                }
+            }
             crate::copy_counts::note_carry(self.chunk.len());
             self.carry.extend_from_slice(&self.chunk);
         }
         self.chunk = next;
-        // NOTE (PK-09): a reserve-once here (Phase 1a) removes regrowth
-        // copies in isolation (5x microbench win, fewer cycles/faults/RSS)
-        // but reproducibly costs -18% on loopback 8 MiB RPCs: both sides do
-        // less CPU work yet wait longer in recvfrom, an emergent
-        // pipeline/batch interaction, not CPU. Reverted per ship-only-if-
-        // faster-or-better; Phase 3 (segmented receive) re-asks framing
-        // with fresh data. See docs/evidence/pk09-zero-copy.md.
+        // Identity keeps its original incremental allocation policy: header-
+        // time reservation hurt throughput, and observed-half reservation
+        // raised endpoint CPU. Only compressed frames anticipate validated
+        // length after actual half-frame input has arrived.
+    }
+
+    // A rejected or incomplete header keeps the existing deferred error path.
+    // No claimed capacity is allocated until half the complete frame has
+    // actually arrived across the retained chunk and the next DATA chunk.
+    fn anticipated_frame_len(&self, next_len: usize) -> Option<usize> {
+        let flag = self.chunk.first().copied()?;
+        if flag != 1 {
+            return None;
+        }
+        let encoded = self.chunk.get(1..codec::HEADER_LEN)?;
+        let mut length = [0u8; 4];
+        length.copy_from_slice(encoded);
+        let payload_len = usize::try_from(u32::from_be_bytes(length)).ok()?;
+        self.limits.check_decode(payload_len).ok()?;
+        let frame_len = codec::HEADER_LEN.checked_add(payload_len)?;
+        if self.chunk.len() >= frame_len {
+            return None;
+        }
+        let observed = self.chunk.len().saturating_add(next_len).min(frame_len);
+        (frame_len - observed <= observed).then_some(frame_len)
     }
 
     pub(crate) fn next_frame(&mut self) -> Result<Option<Frame>, Status> {
@@ -232,12 +260,12 @@ impl FrameReader {
             && arriving > self.carry.capacity() - self.carry.len()
             && frame_len - observed <= observed
         {
-            // Compressed input must be contiguous before decoding. Once at
+            // Fragmented input must be contiguous before decoding. Once at
             // least half has actually arrived, grow to its validated length
-            // rather than doubling just short of an incompressible footer.
+            // rather than doubling just short of the final few wire bytes.
             // Keep early growth proportional to received bytes: a header
             // alone must not reserve its entire claim, even without a cap.
-            // Identity retains its existing incremental/zero-copy policy.
+            // Whole-frame chunks still take the direct shared-byte path.
             self.carry.reserve(needed);
         }
         self.copy_chunk_prefix(needed);
@@ -1154,6 +1182,150 @@ mod tests {
             "later frames preserve retained input"
         );
         assert!(reader.next_frame().expect("clean end").is_none());
+        reader.finish().expect("complete input");
+    }
+
+    #[test]
+    fn native_data_tail_anticipates_only_compressed_input() {
+        for compressed in [false, true] {
+            let payload = vec![0xAB; 1024 * 1024 + 17];
+            let mut wire = framed(&payload);
+            *wire.first_mut().expect("flag") = u8::from(compressed);
+            let mut reader = FrameReader::new(MessageLimits::unlimited());
+            reader.push(Bytes::copy_from_slice(&wire[..1024 * 1024]));
+            assert!(reader.next_frame().expect("first DATA chunk").is_none());
+            assert!(
+                reader.carry.is_empty(),
+                "the first DATA chunk is still shared"
+            );
+            reader.push(Bytes::copy_from_slice(&wire[1024 * 1024..]));
+            if compressed {
+                assert!(reader.carry.capacity() >= wire.len());
+                assert!(reader.carry.capacity() < wire.len() + 16 * 1024);
+            } else {
+                assert!(
+                    reader.carry.capacity() < wire.len(),
+                    "identity has not reserved the tail"
+                );
+            }
+            let pointer = reader.carry.as_ptr();
+            let frame = reader.next_frame().expect("valid frame").expect("complete");
+            assert_eq!(frame.compressed, compressed);
+            assert_eq!(frame.payload.as_ref(), payload);
+            if compressed {
+                assert_eq!(
+                    frame.payload.as_ptr(),
+                    pointer.wrapping_add(codec::HEADER_LEN)
+                );
+            }
+            reader.finish().expect("no trailing bytes");
+        }
+    }
+
+    #[test]
+    fn before_copy_anticipation_preserves_deferred_flag_and_cap_errors() {
+        for (flag, limit, code) in [
+            (2, 2 * 1024 * 1024, Code::Internal),
+            (1, 65536, Code::ResourceExhausted),
+            (0, 65536, Code::ResourceExhausted),
+        ] {
+            let mut first = framed(&vec![0xAB; 1024 * 1024 + 17]);
+            *first.first_mut().expect("flag") = flag;
+            first.truncate(16384);
+            let mut reader = FrameReader::new(MessageLimits::unlimited().with_max_decoding(limit));
+            reader.push(Bytes::from(first));
+            reader.push(Bytes::from_static(&[7]));
+            assert!(
+                reader.carry.capacity() < 65536,
+                "no rejected claim reservation"
+            );
+            assert_eq!(
+                reader.next_frame().expect_err("same deferred error").code(),
+                code
+            );
+            assert_eq!(
+                reader.chunk.as_ref(),
+                &[7],
+                "body not consumed after rejection"
+            );
+        }
+    }
+
+    #[test]
+    fn large_identity_retains_original_incremental_growth_policy() {
+        let payload = vec![0xAB; 8 * 1024 * 1024 + 9];
+        let wire = framed(&payload);
+        let mut reader = FrameReader::new(MessageLimits::unlimited());
+        let mut frame = None;
+        for (index, chunk) in wire.chunks(1024 * 1024).enumerate() {
+            reader.push(Bytes::copy_from_slice(chunk));
+            if let Some(done) = reader.next_frame().expect("valid fragment") {
+                frame = Some(done);
+            } else if index == 7 {
+                assert_eq!(reader.carry.len(), 8 * 1024 * 1024);
+                assert_eq!(reader.carry.capacity(), 8 * 1024 * 1024);
+                assert!(
+                    reader.carry.capacity() < wire.len(),
+                    "no identity tail anticipation"
+                );
+            }
+        }
+        let frame = frame.expect("complete identity frame");
+        assert!(!frame.compressed);
+        assert_eq!(frame.payload.as_ref(), payload);
+        // The original BytesMut growth policy doubles only when the actual
+        // final bytes arrive. Keep this rejected-hint holdout explicit.
+        assert_eq!(reader.carry.capacity() + wire.len(), 16 * 1024 * 1024);
+        reader.finish().expect("complete input");
+    }
+
+    #[test]
+    fn cold_header_claims_never_anticipate_large_storage() {
+        for compressed in [false, true] {
+            let mut header = vec![u8::from(compressed)];
+            header.extend_from_slice(&(8 * 1024 * 1024u32 + 9).to_be_bytes());
+            let mut reader = FrameReader::new(MessageLimits::unlimited());
+            reader.push(Bytes::from(header));
+            assert!(reader.next_frame().expect("header alone").is_none());
+            reader.push(Bytes::from_static(&[7]));
+            assert!(
+                reader
+                    .next_frame()
+                    .expect("one observed body byte")
+                    .is_none()
+            );
+            assert!(reader.carry.capacity() < 1024);
+        }
+    }
+
+    #[test]
+    fn native_fragment_carry_reclaims_unique_backing_and_preserves_shared_frames() {
+        fn receive(reader: &mut FrameReader, wire: &[u8]) -> Frame {
+            reader.push(Bytes::copy_from_slice(&wire[..1024 * 1024]));
+            assert!(reader.next_frame().expect("first DATA").is_none());
+            reader.push(Bytes::copy_from_slice(&wire[1024 * 1024..]));
+            reader
+                .next_frame()
+                .expect("tail DATA")
+                .expect("complete frame")
+        }
+        let payload = vec![0xAB; 1024 * 1024 + 17];
+        let mut wire = framed(&payload);
+        *wire.first_mut().expect("flag") = 1;
+        let mut reader = FrameReader::new(MessageLimits::unlimited());
+        let first = receive(&mut reader, &wire);
+        let pointer = first.payload.as_ptr();
+        drop(first);
+        let held = receive(&mut reader, &wire);
+        assert_eq!(held.payload.as_ptr(), pointer, "reuse unique backing");
+        let next = receive(&mut reader, &wire);
+        assert_ne!(
+            next.payload.as_ptr(),
+            pointer,
+            "a held frame prevents reclaim"
+        );
+        assert_eq!(held.payload.as_ref(), payload);
+        assert_eq!(next.payload.as_ref(), payload);
         reader.finish().expect("complete input");
     }
 

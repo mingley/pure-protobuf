@@ -16,9 +16,17 @@ use std::io::{self, Write};
 /// one segment and behaves like the old single buffer.
 pub(crate) struct SegSink {
     head: BytesMut,
+    // head drops before the charge for its complete original backing.
+    retained_head: Option<Box<RetainedHead>>,
     segs: Vec<Bytes>,
     total_len: usize,
     shared_len: usize,
+}
+
+// An empty tail still owns the whole allocation, not just its spare suffix.
+struct RetainedHead {
+    capacity: usize,
+    _lease: Option<RetainedEncodeLease>,
 }
 
 /// Rollback point for a failed message encode inside a batch.
@@ -33,10 +41,80 @@ impl SegSink {
     pub(crate) fn new() -> Self {
         Self {
             head: BytesMut::new(),
+            retained_head: None,
             segs: Vec::new(),
             total_len: 0,
             shared_len: 0,
         }
+    }
+
+    // Idle output becomes active before the next encode. Keep the shared
+    // spare tail even if HTTP/2 still owns the previous immutable frame:
+    // a later BytesMut reservation can reclaim after that frame is consumed.
+    pub(crate) fn prepare_encode(&mut self) {
+        if let Some(retained) = self.retained_head.as_mut() {
+            if retained._lease.take().is_some() {
+                debug_assert!(self.head.is_empty());
+                let _reclaimed = self.head.try_reclaim(retained.capacity);
+            }
+        }
+    }
+
+    // A split tail may expose less capacity than its complete backing.
+    // Keep the preceding full-capacity bound until another contiguous output
+    // is taken. If a new allocation replaces it, max(old full bound, current
+    // capacity) can overcharge, but never hides an allocation behind tail size.
+    pub(crate) fn take_reusing(&mut self, compressed_only: bool) -> SegFrame {
+        let capacity = self
+            .retained_head
+            .as_ref()
+            .map_or(0, |retained| retained.capacity)
+            .max(self.head.capacity());
+        if compressed_only
+            && self.segs.is_empty()
+            && !self.head.is_empty()
+            && capacity > MAX_RETAINED_SCRATCH_BYTES
+        {
+            debug_assert!(
+                self.retained_head
+                    .as_ref()
+                    .is_none_or(|retained| retained._lease.is_none())
+            );
+            if let Some(lease) = RetainedEncodeLease::try_acquire(capacity) {
+                let length = self.head.len();
+                let first = self.head.split_to(length).freeze();
+                if let Some(retained) = self.retained_head.as_mut() {
+                    retained.capacity = capacity;
+                    retained._lease = Some(lease);
+                } else {
+                    self.retained_head = Some(Box::new(RetainedHead {
+                        capacity,
+                        _lease: Some(lease),
+                    }));
+                }
+                self.total_len = 0;
+                self.shared_len = 0;
+                return SegFrame {
+                    first,
+                    rest: Vec::new(),
+                    total_len: length,
+                };
+            }
+        }
+        // Declined/oversized retention drops the mutable owner before its
+        // lease; any immutable output remains active transport ownership.
+        std::mem::replace(self, Self::new()).finish()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn output_cache_state(&self) -> (usize, Option<usize>, bool) {
+        (
+            self.head.capacity(),
+            self.retained_head
+                .as_ref()
+                .and_then(|retained| retained._lease.as_ref().map(|_| retained.capacity)),
+            self.retained_head.is_some(),
+        )
     }
 
     pub(crate) fn reserve(&mut self, n: usize) {
@@ -127,7 +205,7 @@ impl SegSink {
             let total_len = first.len();
             // `Vec::new` and `BytesMut::new` own no heap. Dropping them is a
             // kind check and a capacity check on every frame.
-            if self.segs.capacity() == 0 {
+            if self.segs.capacity() == 0 && self.retained_head.is_none() {
                 let _empty = std::mem::ManuallyDrop::new(self);
             }
             return SegFrame {
@@ -1059,5 +1137,81 @@ mod tests {
         assert!(after.shared_segments - before.shared_segments >= 1);
         assert!(after.shared_bytes - before.shared_bytes >= ONE_MIB as u64);
         assert!(after.encode_bytes - before.encode_bytes < 100_000);
+    }
+
+    #[test]
+    fn retained_output_charges_full_backing_and_reclaims_after_frame_drop() {
+        let payload = vec![0xAB; 131073];
+        let mut sink = SegSink::new();
+        sink.reserve_new(payload.len() * 2);
+        sink.put_slice(&payload);
+        let capacity = sink.head.capacity();
+        let pointer = sink.head.as_ptr();
+        let frame = sink.take_reusing(true);
+        assert_eq!(frame.first.as_ref(), payload);
+        assert!(sink.head.is_empty());
+        assert!(sink.head.capacity() < capacity);
+        assert_eq!(
+            sink.retained_head
+                .as_ref()
+                .expect("bounded output lease")
+                .capacity,
+            capacity
+        );
+        drop(frame);
+        sink.prepare_encode();
+        assert!(
+            sink.retained_head
+                .as_ref()
+                .expect("active metadata")
+                ._lease
+                .is_none()
+        );
+        assert_eq!(sink.head.as_ptr(), pointer);
+        assert_eq!(sink.head.capacity(), capacity);
+        sink.put_slice(&payload);
+        let next = sink.take_reusing(true);
+        assert_eq!(next.first.as_ptr(), pointer);
+        assert_eq!(next.first.as_ref(), payload);
+    }
+
+    #[test]
+    fn retained_immutable_output_survives_an_independent_next_encode() {
+        let payload = vec![0xAB; 131073];
+        let mut sink = SegSink::new();
+        sink.reserve_new(payload.len() * 2);
+        sink.put_slice(&payload);
+        let first = sink.take_reusing(true);
+        let pointer = first.first.as_ptr();
+        sink.prepare_encode();
+        assert!(
+            sink.retained_head
+                .as_ref()
+                .expect("active metadata")
+                ._lease
+                .is_none()
+        );
+        assert!(
+            sink.head.capacity() > 0,
+            "shared spare tail remains available"
+        );
+        let next = vec![0xCD; payload.len()];
+        sink.reserve_new(next.len());
+        sink.put_slice(&next);
+        let second = sink.take_reusing(true);
+        assert_eq!(second.first.as_ref(), next);
+        assert_eq!(first.first.as_ptr(), pointer);
+        assert_eq!(first.first.as_ref(), payload);
+    }
+
+    #[test]
+    fn oversized_backing_is_not_retained_for_a_short_output() {
+        let mut sink = SegSink::new();
+        sink.reserve_new(4 * 1024 * 1024 + 1);
+        sink.put_slice(b"x");
+        let frame = sink.take_reusing(true);
+        assert_eq!(frame.first.as_ref(), b"x");
+        assert!(sink.retained_head.is_none());
+        assert_eq!(sink.head.capacity(), 0);
     }
 }
