@@ -154,7 +154,7 @@ fn folds_preserve_order_after_partial_reads_and_support_short_circuiting() {
                 });
                 assert_eq!(actual, oracle);
                 let mut iter = view.iter();
-                let result: Result<(), (i32, i32)> = iter.try_for_each(|entry| Err(entry));
+                let result: Result<(), (i32, i32)> = iter.try_for_each(Err);
                 assert_eq!(result.err(), expected.first().copied());
                 assert_eq!(
                     iter.collect::<Vec<_>>(),
