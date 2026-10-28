@@ -36,8 +36,16 @@ of eligible work, not an instruction to start every lane at once.
 
 ## Current priorities
 
+The [October 28 follow-up](docs/evidence/optimizations-20261028/README.md)
+rejects the lazy enum, map iteration variants, generated-output move/shrink
+and both borrowed-wire variants after measured regressions. Keep their raw
+comparisons and source manifests. The selected transport counter and framing
+repairs address correctness; their full RPC comparison retains losses and
+does not establish a speed improvement. Ordinary iteration, collection, construction,
+both message profiles and consumer build costs must accompany any next attempt.
+
 Small and duplicate-heavy map iteration still loses to standard HashMap;
-only three of the 42 warm-map rows beat it. Lazy deep full reads still lose
+only five of the 42 selected warm-map rows beat it. Lazy deep full reads still lose
 to Prost, while the owned profile has one near-parity parsing loss. Target
 those full lifecycles alongside small release generation, large generated
 output and downstream consumer build costs. The corrected completion timer

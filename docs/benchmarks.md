@@ -3,13 +3,96 @@
 [Run benchmarks](benchmarks/running.md) · [Earlier results](benchmarks/grpc-20261024.md)
 · [Qualification](scoreboard.md)
 
-[Latest results](#latest-runtime-and-generator-results-october-27)
+[Current round](#correctness-and-rejected-candidates-october-28)
+· [Measured runtime and generator](#latest-runtime-and-generator-results-october-27)
 · [Earlier maps](#typed-map-iteration-october-27)
 · [RPC and nested messages](#server-scheduling-and-nested-messages-october-27)
 · [Codec and codegen](#codec-and-codegen-comparisons)
 
 The measurements below show lower allocation costs in some workloads and losses
 in others. CPU results are mixed. There is no qualified overall performance ranking.
+
+## Correctness and rejected candidates, October 28
+
+Source `ce0a06e5` repairs overflowing transport byte/token counters and outbound
+frame lengths. It keeps the previous map, lazy-message and generator designs.
+The [complete October 28 record](evidence/optimizations-20261028/README.md)
+retains 160 timing rows with 80 nonwins, 320 resource rows with 271 nonwins,
+and nine missing axes. The goal of beating tonic/prost on every benchmark
+remains unmet. The
+[October 27 record](evidence/decode-and-map-speed-20261027/README.md) retains
+124 timing rows with 48 losses and seven ties, 236 resource rows with 55 losses
+and 138 ties, and nine missing benchmark axes.
+
+The selected `ce0a06e5` campaign completes all 684 RPC captures. Client and
+server both use Prost in the native and tonic stacks; separate counters-off
+CPU runs retain fresh controls. The selected results still include substantial losses:
+
+| Selected workload | Comparison | Result |
+|---|---|---|
+| Twelve large shipping RPC endpoint rows | Native / tonic CPU | Five wins, five losses, two ties |
+| Four default unary/pipeline endpoint rows | Native / tonic CPU | Four wins |
+| 8 MiB identity, longer client confirmation | Native / tonic CPU | 1.494; paired range 0.699–2.455 |
+| 8 MiB identity, longer server confirmation | Native / tonic CPU | 1.654; paired range 0.927–1.878 |
+| Forty-two warm-map rows | Typed map / standard HashMap CPU | Five wins, 37 losses |
+| Lazy depth-8 parse, read and drop | pbrs / Prost CPU | 2.925; paired range 2.916–2.935 |
+| Lazy depth-64 parse, read and drop | pbrs / Prost CPU | 2.382; paired range 2.312–2.449 |
+| Owned mixed parse, read and drop | pbrs / Prost CPU | 1.095; paired range 1.066–1.142 |
+
+These counts compare medians; they do not make every pair conclusive. The
+longer identity confirmation remains separate from the coarse short-run
+shipping cells. Duplicate-heavy maps also retain large losses: reading the
+first surviving entry in the 256-entry fixture costs 278.571 times HashMap CPU
+(paired range 179.483–290.749). Warm maps exclude parsing and index construction.
+
+Selected release fresh-generation elapsed ratios against Prost are 1.196 for
+the small schema, 0.968 for 100 messages and 0.809 for 1,000 messages. The
+small-schema pairs span 0.943–1.311; the 1,000-message pairs span 0.770–0.849.
+Generated output remains 36,310,287 versus 412,622 bytes at 1,000 messages.
+Every release before/after pair range crosses one, and consumer build costs
+remain outside this generator comparison.
+
+Core source is unchanged in this selected round. Separately compiled binaries
+can have different code layout, and this shared host adds noise. Differences
+from the earlier core campaign therefore do not establish source-level speed
+changes. The selected transport changes are correctness repairs, not a
+demonstrated speed improvement. The all-feature workspace run at `ce0a06e5`
+passes 3,992 tests with zero failures and nine existing ignores. The later
+`cf97c83b` test-only lint repair passes its affected suite and the remaining
+validation, including official conformance, MSRV, interop, lints and
+regeneration. The [status](status.md) keeps those source scopes and the strict
+Prost differences; successful checks do not establish complete equivalence.
+
+The follow-up compares isolated candidates with the `6d1336e0` runtime
+baseline on a shared x86_64 VM. Ordinary map loops, collection and cold
+construction accompany the original warm-map tests; both message profiles
+and corrected debug/release generator timings remain in scope. Ratios below
+are paired candidate/baseline medians. Above one means a regression.
+
+| Rejected candidate | Why it was rejected |
+|---|---|
+| Lazy validation enum | Depth-8/64 full reads use 1.066/1.075 times prior CPU despite eight fewer requested bytes in the tested lazy allocations. |
+| Initial map prefix/fold changes | Distinct 16/64/256 ordinary full loops use 5.473–7.547 times prior CPU. |
+| Narrow map changes | The same loops use 5.802–8.226 times prior CPU. |
+| Forced-inline map changes | Distinct collection uses 1.306–1.449 times prior CPU; ordinary full loops use 2.568–3.364 times prior CPU. |
+| First-survivor-only map changes | Distinct collection uses 1.377–1.448 times prior CPU; ordinary full loops use 2.479–3.371 times prior CPU. |
+| Generator move-and-shrink | Small fresh release generation has a 1.171 elapsed ratio, with pairs spanning 0.825–1.266. Lower measured memory did not establish a broad speed win. |
+| Broad borrowed-wire helpers | Owned scalar parse/read uses 1.269/1.174 times prior CPU, despite lower lazy nested-read CPU. |
+| Narrow borrowed-wire helpers | Owned mixed parse/read uses 1.102/1.101 times prior CPU; small fresh release generation uses 1.102 times prior elapsed time. |
+
+The narrow borrowed-wire candidate improves lazy depth-8/64 full reads to
+0.906/0.908 times prior CPU, but they still cost 2.344/2.038 times Prost CPU.
+Passing correctness tests and removing clone operations did not establish a
+faster full lifecycle. Inlining and binary-layout observations do not override
+the measured regressions. Map-only controls are standard `HashMap`, not Prost
+parsing.
+
+The selected changes repair correctness. Budget acquisitions no longer
+publish a transient wrapped counter. Identity frames validate their wire and
+host allocation bounds before reservation; compressed plaintext keeps its
+separate length rules. Earlier server replies still precede error trailers.
+The combined measurements above retain their costs. No CPU improvement is
+claimed here.
 
 ## Latest runtime and generator results, October 27
 

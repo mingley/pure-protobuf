@@ -5,6 +5,12 @@ stopped. They are dated investigations, usually local diagnostics. A result
 belongs to its recorded revision, host, workload, and peer versions; it does
 not automatically describe today's code.
 
+The [October 28 correctness and optimization review](optimizations-20261028/README.md)
+repairs transport counter and frame-length overflow and rejects eight measured
+optimization candidates. Its selected ledger retains 80 timing nonwins, 271
+resource nonwins and nine missing axes. Source-bound tests and conformance pass;
+the all-benchmark goal and full tonic/prost parity remain unmet.
+
 The [decoder, generator and transport follow-up](decode-and-map-speed-20261027/README.md)
 reuses validated child wire, avoids short-map backing buffers and directly
 iterates indexed unique maps. It retains the full codec, map, partial-read,

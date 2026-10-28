@@ -1,6 +1,42 @@
 # Implementation status
 
-The [latest measured implementation](evidence/decode-and-map-speed-20261027/README.md)
+The [October 28 record](evidence/optimizations-20261028/README.md) measures
+source `ce0a06e5`, which repairs transport byte/token counter overflow and outbound
+frame-length handling. Checked acquisitions never publish a wrapped value;
+identity frames reject unrepresentable lengths before reservation or codec
+execution. Encoding caps retain error precedence, and an earlier server reply
+still arrives before a later error trailer. Fifteen budget tests, 21 framing
+units and three framing integrations pass, with strict transport Clippy and
+Rust 1.85 checks for the tracker change. Actual 32-bit execution and allocations
+above 4 GiB were not tested.
+
+The [October 28 benchmark follow-up](benchmarks.md#correctness-and-rejected-candidates-october-28)
+rejects the lazy enum, map iteration, generated-output ownership and both
+borrowed-wire candidates after lifecycle regressions. The selected source
+keeps the earlier map, lazy-message and generator designs. Focused checks do
+not establish a speed improvement.
+
+The all-feature workspace run at `ce0a06e5` passes 3,992 tests, with zero
+failures and nine existing ignores. `cf97c83b` changes one test closure to fix
+a lint; the affected map suite and strict lint checks pass again. Rust 1.85,
+message-presence and mixed-peer checks, owned/validated-lazy consumers, and
+regeneration checks pass. At `cf97c83b`, required official conformance runs
+twice and recommended conformance once: each passes 5,631 binary/JSON and 909
+text cases, with zero failures or skips, maximum Edition 2023. Recorded inputs
+match apart from Markdown documentation changes. Strict Prost comparisons
+still report known behavior differences in both message profiles; their
+known-differences checks pass. This is not full Prost equivalence.
+
+The selected campaign completes 684 RPC captures. Large shipping endpoint CPU
+medians give five wins, five losses and two ties against tonic; all four
+default unary/pipeline rows favor native. Longer 8 MiB identity confirmation
+still costs 1.494 times tonic client CPU and 1.654 times server CPU, with wide
+pair ranges. Warm maps win five of 42 rows against standard HashMap. Lazy
+depth-8/64 full reads cost 2.925/2.382 times Prost CPU, and the owned mixed
+full read costs 1.095 times Prost CPU. Core source is unchanged; separate
+binary layout and shared-host noise limit comparisons with earlier campaigns.
+
+The [earlier measured core](evidence/decode-and-map-speed-20261027/README.md)
 at `71422f00` reuses validated singular-child wire during lazy access, avoids backing
 work for short map entries, and walks warmed unique maps without per-entry
 index searches. It also shares generator spellings. Regenerate application
@@ -21,7 +57,8 @@ adapter linting, mixed-peer tests, Rust 1.85 native/Tower builds, three default
 conformance runs and regeneration checks. The earlier full core and isolated
 owned records keep their `71422f00` source pin; those inputs are unchanged.
 
-The goal of beating tonic/prost on every benchmark remains unmet. Owned
+The goal of beating tonic/prost on every benchmark remains unmet. In the
+earlier `71422f00` campaign, owned
 parse/read medians beat Prost in 15 of 16 rows; all 16 encoding holdouts favor
 pbrs. Lazy deep full reads, small and duplicate-heavy maps, small release
 regeneration and several streaming costs still lose. Corrected generator timing
