@@ -1,10 +1,16 @@
 # Tonic/prost parity and performance proof
 
-The latest [decoder, map and generator record](evidence/decode-and-map-speed-20261027/README.md)
+The [October 29 runtime and codegen record](evidence/runtime-and-codegen-20261029/README.md)
+measures `0a770792`. Of 52 standard thin-LTO CPU rows, 49 paired medians favor
+pbrs over Prost; all 16 standard owned parse/full-read medians favor pbrs. Some
+lazy reads still lose, and several cases regress against prior pbrs. Strict
+Prost comparisons retain known differences; full tonic/prost parity and an
+overall ranking remain unproven.
+
+The [October 27 decoder, map and generator record](evidence/decode-and-map-speed-20261027/README.md)
 compares `71422f00` with `0287879d`. It removes repeated descendant validation
 from regenerated lazy access and repeated index searches from warm unique-map
-iteration. It also retains remaining losses: the current comparisons do not
-establish a win on every benchmark or complete tonic/prost parity.
+iteration. Its comparisons retain their original source scope.
 
 The [original audit](evidence/parity-proof-20261027/README.md),
 [server/owned-storage fixes](evidence/performance-fixes-20261027/README.md) and
@@ -41,9 +47,14 @@ Three configuration probes still reproduce representation/customization gaps:
 The alloc-only runtime also remains unsupported. HTTP/1.1 gRPC-Web is available
 through the documented Tower/Hyper recipe.
 
-Both lazy and owned bindings pass the pinned protobuf 35.1 binary/JSON and
-text conformance suite through maximum Edition 2023. The
-[latest record](evidence/decode-and-map-speed-20261027/README.md) retains fresh
+At `bc8cec38`, pinned protobuf 35.1 conformance passed for clean default
+bindings and a fresh owned-binding overlay, through Edition 2023. The
+[October 29 record](evidence/runtime-and-codegen-20261029/README.md) explains
+the two source scopes.
+
+At `71422f00`, both lazy and owned bindings passed the pinned protobuf 35.1
+binary/JSON and text conformance suite through maximum Edition 2023. The
+[October 27 record](evidence/decode-and-map-speed-20261027/README.md) retains fresh
 isolated owned regeneration at `71422f00`. Its full workspace run passes 3,968
 tests with nine existing ignores. Seven of 13 default bindings change for the
 new lazy decoder; the remaining six are unchanged and the drift check passes.
@@ -73,7 +84,7 @@ of six release rows below Prost. Small release generation remains slower,
 output remains much larger, and downstream build costs are unmeasured for this
 source. Streaming scheduling and some transport allocation costs also remain
 open. See [benchmarks](benchmarks.md#latest-runtime-and-generator-results-october-27)
-for the latest tables and [raw evidence](evidence/decode-and-map-speed-20261027/README.md)
+for the October 27 tables and [raw evidence](evidence/decode-and-map-speed-20261027/README.md)
 for every row and rejected prototype.
 
 The earlier map and nested-message results below describe their pinned sources.

@@ -5,6 +5,10 @@ stopped. They are dated investigations, usually local diagnostics. A result
 belongs to its recorded revision, host, workload, and peer versions; it does
 not automatically describe today's code.
 
+The [October 29 runtime and codegen record](runtime-and-codegen-20261029/README.md)
+contains combined measurements, validation provenance, rejected candidates and
+remaining losses. It does not add a full RPC campaign.
+
 The [October 28 correctness and optimization review](optimizations-20261028/README.md)
 repairs transport counter and frame-length overflow and rejects eight measured
 optimization candidates. Its selected ledger retains 80 timing nonwins, 271

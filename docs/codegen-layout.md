@@ -385,9 +385,12 @@ mapped types.
 ### 7.6 Opt-in Shared Descriptor Storage
 
 By default, reflective output embeds its descriptor bytes in a Rust byte-string
-literal. A self-contained generated file can still be included on its own. The
-literal changes the generated source text while preserving the descriptor bytes;
-existing generated code does not need regeneration solely for this change.
+literal. New generator versions intentionally change this source spelling while
+preserving the bytes. A self-contained generated file can still be included on
+its own, and previously compatible generated code does not need regeneration
+solely for the literal. Regenerate bindings to use the repeated-tag loop
+optimization; the varint runtime fast path also works with compatible existing
+bindings.
 
 `Config::shared_descriptor_set(true)` and plugin `shared_descriptor_set=true`
 change metadata ownership for reflective requests with multiple generated

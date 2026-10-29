@@ -1,5 +1,16 @@
 # Implementation status
 
+The [October 29 record](evidence/runtime-and-codegen-20261029/README.md)
+measures `0a770792`: descriptor literals, generated repeated-tag runs and a
+varint fast path. Lazy nested reads remain slower than Prost; owned sparse
+parsing and non-LTO packed parsing regress against prior pbrs, while all 16
+standard owned parse/full-read medians favor pbrs over Prost. The all-feature
+workspace at `bc8cec38` passes 3,994 tests, with no failures and nine existing
+ignores; its default conformance run records a clean source. Fresh owned
+conformance uses a documented 13-binding overlay. Strict Prost comparisons
+retain known differences. Full tonic/prost parity and an overall performance
+ranking remain unproven.
+
 The [October 28 record](evidence/optimizations-20261028/README.md) measures
 source `ce0a06e5`, which repairs transport byte/token counter overflow and outbound
 frame-length handling. Checked acquisitions never publish a wrapped value;
@@ -12,8 +23,8 @@ above 4 GiB were not tested.
 
 The [October 28 benchmark follow-up](benchmarks.md#correctness-and-rejected-candidates-october-28)
 rejects the lazy enum, map iteration, generated-output ownership and both
-borrowed-wire candidates after lifecycle regressions. The selected source
-keeps the earlier map, lazy-message and generator designs. Focused checks do
+borrowed-wire candidates after lifecycle regressions. That October 28 selected source
+kept its earlier map, lazy-message and generator designs. Focused checks do
 not establish a speed improvement.
 
 The all-feature workspace run at `ce0a06e5` passes 3,992 tests, with zero

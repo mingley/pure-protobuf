@@ -7,12 +7,13 @@ followed by measured improvements to client and server efficiency. The
 comparisons and checks; [task cards](docs/plan/world-class/tasks.json) carry
 acceptance criteria and dependencies.
 
-The [latest decoder, map and generator record](docs/evidence/decode-and-map-speed-20261027/README.md)
-removes repeated lazy descendant validation, backing work for short map entries
-and per-entry index searches when keys are known unique. It retains each
-remaining loss against tonic/prost. The [parity summary](docs/parity.md) tracks
-alloc-only support, configurable field representations and executor coverage
-for static balanced endpoints alongside the measured performance gaps.
+The [latest runtime and codegen record](docs/evidence/runtime-and-codegen-20261029/README.md)
+records smaller descriptor output and measured repeated-field and varint
+changes. Prioritize lazy nested reads, sparse and non-LTO packed parsing, map
+construction and warm access, and remaining transport losses. Measure large
+consumer builds and verify missing parity and deployment cases before claiming
+a general lead. The [parity summary](docs/parity.md) tracks API and deployment
+gaps.
 
 Michael Ingley coordinates assignments and reviews. A card marked `done`
 means its recorded deliverable was accepted; it does not certify the whole

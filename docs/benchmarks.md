@@ -3,14 +3,19 @@
 [Run benchmarks](benchmarks/running.md) · [Earlier results](benchmarks/grpc-20261024.md)
 · [Qualification](scoreboard.md)
 
-[Current round](#correctness-and-rejected-candidates-october-28)
+[Current round](evidence/runtime-and-codegen-20261029/README.md)
 · [Measured runtime and generator](#latest-runtime-and-generator-results-october-27)
 · [Earlier maps](#typed-map-iteration-october-27)
 · [RPC and nested messages](#server-scheduling-and-nested-messages-october-27)
 · [Codec and codegen](#codec-and-codegen-comparisons)
 
-The measurements below show lower allocation costs in some workloads and losses
-in others. CPU results are mixed. There is no qualified overall performance ranking.
+The [October 29 runtime and codegen record](evidence/runtime-and-codegen-20261029/README.md)
+measures `0a770792` against the prior implementation and fresh Prost controls.
+Descriptor literals reduce measured generated source size; combined codec
+results include gains and losses. Consumer rebuild and generation timings
+cover different scopes. No new full RPC campaign ran; the October 28 transport
+comparisons retain their source and losses. Winning every benchmark, complete
+feature parity and an overall ranking remain unproven.
 
 ## Correctness and rejected candidates, October 28
 
