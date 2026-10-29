@@ -1,3 +1,8 @@
+#![allow(
+    clippy::disallowed_methods,
+    reason = "synchronous build script reconstructs generated differential fixtures"
+)]
+
 use std::{env, fs, path::PathBuf};
 
 fn main() {
