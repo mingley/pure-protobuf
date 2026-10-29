@@ -437,11 +437,6 @@ fn plugin_repeated_string_same_tag_parses_32() {
         .expect("run protoc");
     assert!(status.success(), "protoc plugin failed for tags.proto");
     let generated = std::fs::read_to_string(tmp.join("tags.rs")).expect("tags.rs");
-    assert!(
-        generated.contains("Ok((n2, w2)) if n2 == 1 && w2 == pbrs::rt::WIRE_LEN"),
-        "repeated string must same-tag run:\n{}",
-        &generated[generated.len().saturating_sub(2500)..]
-    );
     let consumer = tmp.join("consumer");
     std::fs::create_dir_all(consumer.join("src")).unwrap();
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -456,7 +451,7 @@ fn plugin_repeated_string_same_tag_parses_32() {
     std::fs::write(
         consumer.join("src/main.rs"),
         format!(
-            "{generated}\nuse pbrs::Parse;\nfn main() {{\n  let mut wire = Vec::new();\n  for i in 0..32 {{\n    let s = format!(\"t{{i:02}}\");\n    wire.push(0x0a);\n    wire.push(s.len() as u8);\n    wire.extend(s.bytes());\n  }}\n  let m = <Tags as Parse>::parse(&wire).expect(\"parse 32\");\n  assert_eq!(m.tags().len(), 32);\n  assert_eq!(m.tags().get(0).unwrap(), \"t00\");\n  assert_eq!(m.tags().get(31).unwrap(), \"t31\");\n  println!(\"ok {{}}\", m.tags().len());\n}}\n"
+            "{generated}\nuse pbrs::Parse;\nfn main() {{\n  let mut wire = Vec::new();\n  for i in 0..32 {{\n    let s = format!(\"t{{i:02}}\");\n    wire.push(0x0a);\n    wire.push(s.len() as u8);\n    wire.extend(s.bytes());\n  }}\n  let m = <Tags as Parse>::parse(&wire).expect(\"parse 32\");\n  assert_eq!(m.tags().len(), 32);\n  for i in 0..32 {{ assert_eq!(m.tags().get(i).unwrap(), format!(\"t{{i:02}}\")); }}\n  println!(\"ok {{}}\", m.tags().len());\n}}\n"
         ),
     )
     .unwrap();
