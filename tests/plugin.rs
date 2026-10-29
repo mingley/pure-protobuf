@@ -451,7 +451,7 @@ fn plugin_repeated_string_same_tag_parses_32() {
     std::fs::write(
         consumer.join("src/main.rs"),
         format!(
-            "{generated}\nuse pbrs::Parse;\nfn main() {{\n  let mut wire = Vec::new();\n  for i in 0..32 {{\n    let s = format!(\"t{{i:02}}\");\n    wire.push(0x0a);\n    wire.push(s.len() as u8);\n    wire.extend(s.bytes());\n  }}\n  let m = <Tags as Parse>::parse(&wire).expect(\"parse 32\");\n  assert_eq!(m.tags().len(), 32);\n  for i in 0..32 {{ assert_eq!(m.tags().get(i).unwrap(), format!(\"t{{i:02}}\")); }}\n  println!(\"ok {{}}\", m.tags().len());\n}}\n"
+            "{generated}\nuse pbrs::Parse;\nfn main() {{\n  let mut wire = Vec::new();\n  for i in 0..32 {{\n    let s = format!(\"t{{i:02}}\");\n    wire.push(0x0a);\n    wire.push(s.len() as u8);\n    wire.extend(s.bytes());\n  }}\n  let m = <Tags as Parse>::parse(&wire).expect(\"parse 32\");\n  assert_eq!(m.tags().len(), 32);\n  for i in 0..32 {{ let expected = format!(\"t{{i:02}}\"); assert_eq!(m.tags().get(i).unwrap(), expected.as_str()); }}\n  println!(\"ok {{}}\", m.tags().len());\n}}\n"
         ),
     )
     .unwrap();
