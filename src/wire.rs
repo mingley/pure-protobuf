@@ -442,6 +442,9 @@ fn validate_one_varint(buf: &[u8], mut i: usize, n: usize) -> Result<usize, Pars
     }
 }
 
+// Generated messages often live in another crate, so expose only the small
+// common path for cross-crate inlining and keep the uncommon loop shared.
+#[inline]
 pub fn decode_varint(buf: &[u8], pos: &mut usize) -> Result<u64, ParseError> {
     let start = *pos;
     let rest = &buf[start..];
@@ -455,6 +458,11 @@ pub fn decode_varint(buf: &[u8], pos: &mut usize) -> Result<u64, ParseError> {
             return Ok(u64::from(b0 & 0x7f) | (u64::from(rest[1]) << 7));
         }
     }
+    decode_varint_slow(buf, pos)
+}
+
+#[inline(never)]
+fn decode_varint_slow(buf: &[u8], pos: &mut usize) -> Result<u64, ParseError> {
     let mut result = 0u64;
     let mut shift = 0;
     for i in 0..10 {
@@ -1109,6 +1117,61 @@ mod tests {
             shift += 7;
         }
         Err("overflow")
+    }
+
+    #[test]
+    fn varint_matches_reference_at_nonzero_offsets() {
+        fn check(buf: &[u8], start: usize) {
+            let mut actual_pos = start;
+            let mut expected_pos = start;
+            let actual = decode_varint(buf, &mut actual_pos).map_err(|_| ());
+            let expected = ref_decode_varint(buf, &mut expected_pos).map_err(|_| ());
+            assert_eq!(actual, expected, "buffer {buf:?}, start {start}");
+            assert_eq!(actual_pos, expected_pos, "buffer {buf:?}, start {start}");
+        }
+
+        // Every first/second-byte combination exercises the inline shell,
+        // including overlong values and truncated continuation bytes.
+        for start in 0..=4 {
+            let mut buf = vec![0x55; start + 2];
+            check(&buf[..start], start);
+            for first in 0..=u8::MAX {
+                buf[start] = first;
+                check(&buf[..start + 1], start);
+                for second in 0..=u8::MAX {
+                    buf[start + 1] = second;
+                    check(&buf, start);
+                }
+            }
+        }
+
+        // Check every truncation and terminal tenth byte, with a suffix to
+        // verify that the decoder consumes exactly one value on both paths.
+        for start in 0..=4 {
+            for len in 0..=10 {
+                for last in 0..=u8::MAX {
+                    let mut buf = vec![0x55; start];
+                    buf.extend(std::iter::repeat_n(0x80, len));
+                    if len > 0 {
+                        buf[start + len - 1] = last;
+                    }
+                    check(&buf, start);
+                    buf.extend_from_slice(&[0x01, 0x80, 0x00]);
+                    check(&buf, start);
+                }
+            }
+        }
+
+        // The public function's pre-existing out-of-range cursor behavior is
+        // a bounds panic, and the cursor must not be modified before it.
+        let mut pos = 2;
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let _ = decode_varint(&[0], &mut pos);
+            }))
+            .is_err()
+        );
+        assert_eq!(pos, 2);
     }
 
     fn ref_varint_len(mut value: u64) -> usize {

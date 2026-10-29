@@ -345,15 +345,10 @@ pub fn generate_from_code_generator_request(
         *stem_counts.entry(stem.to_string()).or_default() += 1;
     }
 
-    // Render once. Keep standalone output stable, while the opt-in shared
-    // owner uses one byte-string token for its identical descriptor bytes.
-    let fds_block = (!resolved.no_reflect && !resolved.shared_pool).then(|| {
-        if share_descriptors {
-            fds_byte_string_block(&fds)
-        } else {
-            fds_hex_block(&fds)
-        }
-    });
+    // Every owner embeds the same descriptor bytes. A single byte-string
+    // literal avoids one Rust expression node per descriptor byte.
+    let fds_block =
+        (!resolved.no_reflect && !resolved.shared_pool).then(|| fds_byte_string_block(&fds));
     // File-level facts shared by every target: each unique file's stem and
     // whether it matches any target. The emission loops below used to
     // re-derive these per (target, type) with fresh normalizations.

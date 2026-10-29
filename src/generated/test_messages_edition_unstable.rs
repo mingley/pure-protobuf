@@ -1534,19 +1534,13 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                         if rest > 2 {
                             self.cold_mut().repeated_int32.reserve(rest / 3);
                         }
-                        while *pos < data.len() {
-                            let save = *pos;
-                            match pbrs::rt::decode_tag(data, pos) {
-                                Ok((n2, w2)) if n2 == 5 && w2 == pbrs::rt::WIRE_I32 => self
-                                    .cold_mut()
-                                    .repeated_int32
-                                    .push(pbrs::rt::read_fixed32(data, pos)? as i32),
-                                Ok(_) => {
-                                    *pos = save;
-                                    break;
-                                }
-                                Err(e) => return Err(e),
-                            }
+                        while *pos < data.len()
+                            && data[*pos] == ((5 << 3) | pbrs::rt::WIRE_I32) as u8
+                        {
+                            *pos += 1;
+                            self.cold_mut()
+                                .repeated_int32
+                                .push(pbrs::rt::read_fixed32(data, pos)? as i32);
                         }
                     }
                     _ => self
@@ -1570,30 +1564,23 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                         let mut sw = None;
                         inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?;
                         self.cold_mut().repeated_foreign_message.push(inner);
-                        while *pos < data.len() {
-                            let save = *pos;
-                            match pbrs::rt::decode_tag(data, pos) {
-                                Ok((n2, w2)) if n2 == 6 && w2 == pbrs::rt::WIRE_LEN => {
-                                    let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                                    let mut inner = ForeignMessageEditionUnstable::default();
-                                    let mut ip = 0;
-                                    let mut sw = None;
-                                    inner.merge_inner(
-                                        &data[s..e],
-                                        &mut sw,
-                                        &mut ip,
-                                        depth + 1,
-                                        true,
-                                        None,
-                                    )?;
-                                    self.cold_mut().repeated_foreign_message.push(inner);
-                                }
-                                Ok(_) => {
-                                    *pos = save;
-                                    break;
-                                }
-                                Err(e) => return Err(e),
-                            }
+                        while *pos < data.len()
+                            && data[*pos] == ((6 << 3) | pbrs::rt::WIRE_LEN) as u8
+                        {
+                            *pos += 1;
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            let mut inner = ForeignMessageEditionUnstable::default();
+                            let mut ip = 0;
+                            let mut sw = None;
+                            inner.merge_inner(
+                                &data[s..e],
+                                &mut sw,
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                            self.cold_mut().repeated_foreign_message.push(inner);
                         }
                     }
                     _ => self
@@ -1618,19 +1605,13 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                         if rest > 2 {
                             self.cold_mut().repeated_foreign_enum.reserve(rest / 3);
                         }
-                        while *pos < data.len() {
-                            let save = *pos;
-                            match pbrs::rt::decode_tag(data, pos) {
-                                Ok((n2, w2)) if n2 == 7 && w2 == pbrs::rt::WIRE_VARINT => self
-                                    .cold_mut()
-                                    .repeated_foreign_enum
-                                    .push(pbrs::rt::decode_varint(data, pos)? as i32),
-                                Ok(_) => {
-                                    *pos = save;
-                                    break;
-                                }
-                                Err(e) => return Err(e),
-                            }
+                        while *pos < data.len()
+                            && data[*pos] == ((7 << 3) | pbrs::rt::WIRE_VARINT) as u8
+                        {
+                            *pos += 1;
+                            self.cold_mut()
+                                .repeated_foreign_enum
+                                .push(pbrs::rt::decode_varint(data, pos)? as i32);
                         }
                     }
                     _ => self
@@ -1769,21 +1750,14 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                         self.cold_mut()
                             .repeated_bytes
                             .push(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e));
-                        while *pos < data.len() {
-                            let save = *pos;
-                            match pbrs::rt::decode_tag(data, pos) {
-                                Ok((n2, w2)) if n2 == 14 && w2 == pbrs::rt::WIRE_LEN => {
-                                    let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                                    self.cold_mut().repeated_bytes.push(
-                                        pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e),
-                                    );
-                                }
-                                Ok(_) => {
-                                    *pos = save;
-                                    break;
-                                }
-                                Err(e) => return Err(e),
-                            }
+                        while *pos < data.len()
+                            && data[*pos] == ((14 << 3) | pbrs::rt::WIRE_LEN) as u8
+                        {
+                            *pos += 1;
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            self.cold_mut()
+                                .repeated_bytes
+                                .push(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e));
                         }
                     }
                     _ => self

@@ -435,21 +435,13 @@ mod __gen_google_protobuf_field_mask_proto {
                             }
                             self.paths
                                 .push(pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?);
-                            while *pos < data.len() {
-                                let save = *pos;
-                                match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 1 && w2 == pbrs::rt::WIRE_LEN => {
-                                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                                        self.paths.push(pbrs::rt::LazyStr::from_parse_span(
-                                            wire, data, s, e,
-                                        )?);
-                                    }
-                                    Ok(_) => {
-                                        *pos = save;
-                                        break;
-                                    }
-                                    Err(e) => return Err(e),
-                                }
+                            while *pos < data.len()
+                                && data[*pos] == ((1 << 3) | pbrs::rt::WIRE_LEN) as u8
+                            {
+                                *pos += 1;
+                                let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                                self.paths
+                                    .push(pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?);
                             }
                         }
                         _ => self

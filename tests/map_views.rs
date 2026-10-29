@@ -382,6 +382,41 @@ fn indexed_duplicates_preserve_a_first_entry_that_survives() {
 }
 
 #[test]
+fn indexed_duplicate_orders_and_mutations_match_wire_oracle() {
+    for len in [16, 17, 31, 64, 127, 256] {
+        for keys in [1, 2, 3, 7, 15, 30, 63, 126, 255] {
+            let mut map = Map::new();
+            for i in 0..len {
+                map.push_entry((i * 19 + i / 7) % keys, i);
+            }
+            for step in 0..4 {
+                let expected = expected_last_wins(map.pairs());
+                assert_eq!(map.len(), expected.len());
+                for (key, value) in &expected {
+                    assert_eq!(map.get(key), Some(value));
+                    assert_eq!(map.as_view().get(*key), Some(*value));
+                }
+                let mut iter = map.as_view().iter();
+                for (i, pair) in expected.iter().enumerate() {
+                    let (lower, upper) = iter.size_hint();
+                    let remaining = expected.len() - i;
+                    assert!(lower <= remaining && upper.is_some_and(|n| n >= remaining));
+                    assert_eq!(iter.next(), Some(*pair));
+                }
+                assert_eq!(iter.next(), None);
+                assert_eq!(iter.next(), None);
+                match step {
+                    0 => assert!(map.insert(10_000, 77)),
+                    1 => assert!(map.as_mut().insert(10_001, 78)),
+                    2 => assert!(!map.as_mut().insert(10_000, 79)),
+                    _ => assert_eq!(map.remove(&10_001), Some(78)),
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn unique_index_hints_follow_owned_and_view_mutations() {
     fn exact(map: &Map<i32, i32>) {
         let expected = expected_last_wins(map.pairs());

@@ -2610,21 +2610,13 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             }
                             self.paths
                                 .push(pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?);
-                            while *pos < data.len() {
-                                let save = *pos;
-                                match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 1 && w2 == pbrs::rt::WIRE_LEN => {
-                                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                                        self.paths.push(pbrs::rt::LazyStr::from_parse_span(
-                                            wire, data, s, e,
-                                        )?);
-                                    }
-                                    Ok(_) => {
-                                        *pos = save;
-                                        break;
-                                    }
-                                    Err(e) => return Err(e),
-                                }
+                            while *pos < data.len()
+                                && data[*pos] == ((1 << 3) | pbrs::rt::WIRE_LEN) as u8
+                            {
+                                *pos += 1;
+                                let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                                self.paths
+                                    .push(pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?);
                             }
                         }
                         _ => self
@@ -3737,30 +3729,23 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                                 None,
                             )?;
                             self.values.push(inner);
-                            while *pos < data.len() {
-                                let save = *pos;
-                                match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 1 && w2 == pbrs::rt::WIRE_LEN => {
-                                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                                        let mut inner = PbValue::default();
-                                        let mut ip = 0;
-                                        let mut sw = None;
-                                        inner.merge_inner(
-                                            &data[s..e],
-                                            &mut sw,
-                                            &mut ip,
-                                            depth + 1,
-                                            true,
-                                            None,
-                                        )?;
-                                        self.values.push(inner);
-                                    }
-                                    Ok(_) => {
-                                        *pos = save;
-                                        break;
-                                    }
-                                    Err(e) => return Err(e),
-                                }
+                            while *pos < data.len()
+                                && data[*pos] == ((1 << 3) | pbrs::rt::WIRE_LEN) as u8
+                            {
+                                *pos += 1;
+                                let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                                let mut inner = PbValue::default();
+                                let mut ip = 0;
+                                let mut sw = None;
+                                inner.merge_inner(
+                                    &data[s..e],
+                                    &mut sw,
+                                    &mut ip,
+                                    depth + 1,
+                                    true,
+                                    None,
+                                )?;
+                                self.values.push(inner);
                             }
                         }
                         _ => self
@@ -11106,10 +11091,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 31 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .repeated_int32
-                                        .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                                    Ok((n2, w2)) if n2 == 31 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut()
+                                            .repeated_int32
+                                            .push(pbrs::rt::decode_varint(data, pos)? as i32);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -11143,10 +11129,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 32 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .repeated_int64
-                                        .push(pbrs::rt::decode_varint(data, pos)? as i64),
+                                    Ok((n2, w2)) if n2 == 32 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut()
+                                            .repeated_int64
+                                            .push(pbrs::rt::decode_varint(data, pos)? as i64);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -11180,10 +11167,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 33 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .repeated_uint32
-                                        .push(pbrs::rt::decode_varint(data, pos)? as u32),
+                                    Ok((n2, w2)) if n2 == 33 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut()
+                                            .repeated_uint32
+                                            .push(pbrs::rt::decode_varint(data, pos)? as u32);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -11217,10 +11205,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 34 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .repeated_uint64
-                                        .push(pbrs::rt::decode_varint(data, pos)?),
+                                    Ok((n2, w2)) if n2 == 34 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut()
+                                            .repeated_uint64
+                                            .push(pbrs::rt::decode_varint(data, pos)?);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -11256,12 +11245,13 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 35 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .repeated_sint32
-                                        .push(pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(
-                                            data, pos,
-                                        )?)),
+                                    Ok((n2, w2)) if n2 == 35 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut().repeated_sint32.push(
+                                            pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(
+                                                data, pos,
+                                            )?),
+                                        );
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -11297,12 +11287,13 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 36 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .repeated_sint64
-                                        .push(pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(
-                                            data, pos,
-                                        )?)),
+                                    Ok((n2, w2)) if n2 == 36 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut().repeated_sint64.push(
+                                            pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(
+                                                data, pos,
+                                            )?),
+                                        );
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -11336,10 +11327,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 37 && w2 == pbrs::rt::WIRE_I32 => self
-                                        .cold_mut()
-                                        .repeated_fixed32
-                                        .push(pbrs::rt::read_fixed32(data, pos)?),
+                                    Ok((n2, w2)) if n2 == 37 && w2 == pbrs::rt::WIRE_I32 => {
+                                        self.cold_mut()
+                                            .repeated_fixed32
+                                            .push(pbrs::rt::read_fixed32(data, pos)?);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -11373,10 +11365,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 38 && w2 == pbrs::rt::WIRE_I64 => self
-                                        .cold_mut()
-                                        .repeated_fixed64
-                                        .push(pbrs::rt::read_fixed64(data, pos)?),
+                                    Ok((n2, w2)) if n2 == 38 && w2 == pbrs::rt::WIRE_I64 => {
+                                        self.cold_mut()
+                                            .repeated_fixed64
+                                            .push(pbrs::rt::read_fixed64(data, pos)?);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -11410,10 +11403,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 39 && w2 == pbrs::rt::WIRE_I32 => self
-                                        .cold_mut()
-                                        .repeated_sfixed32
-                                        .push(pbrs::rt::read_fixed32(data, pos)? as i32),
+                                    Ok((n2, w2)) if n2 == 39 && w2 == pbrs::rt::WIRE_I32 => {
+                                        self.cold_mut()
+                                            .repeated_sfixed32
+                                            .push(pbrs::rt::read_fixed32(data, pos)? as i32);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -11447,10 +11441,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 40 && w2 == pbrs::rt::WIRE_I64 => self
-                                        .cold_mut()
-                                        .repeated_sfixed64
-                                        .push(pbrs::rt::read_fixed64(data, pos)? as i64),
+                                    Ok((n2, w2)) if n2 == 40 && w2 == pbrs::rt::WIRE_I64 => {
+                                        self.cold_mut()
+                                            .repeated_sfixed64
+                                            .push(pbrs::rt::read_fixed64(data, pos)? as i64);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -11484,10 +11479,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 41 && w2 == pbrs::rt::WIRE_I32 => self
-                                        .cold_mut()
-                                        .repeated_float
-                                        .push(f32::from_bits(pbrs::rt::read_fixed32(data, pos)?)),
+                                    Ok((n2, w2)) if n2 == 41 && w2 == pbrs::rt::WIRE_I32 => {
+                                        self.cold_mut().repeated_float.push(f32::from_bits(
+                                            pbrs::rt::read_fixed32(data, pos)?,
+                                        ));
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -11521,10 +11517,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 42 && w2 == pbrs::rt::WIRE_I64 => self
-                                        .cold_mut()
-                                        .repeated_double
-                                        .push(f64::from_bits(pbrs::rt::read_fixed64(data, pos)?)),
+                                    Ok((n2, w2)) if n2 == 42 && w2 == pbrs::rt::WIRE_I64 => {
+                                        self.cold_mut().repeated_double.push(f64::from_bits(
+                                            pbrs::rt::read_fixed64(data, pos)?,
+                                        ));
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -11558,10 +11555,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 43 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .repeated_bool
-                                        .push(pbrs::rt::decode_varint(data, pos)? != 0),
+                                    Ok((n2, w2)) if n2 == 43 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut()
+                                            .repeated_bool
+                                            .push(pbrs::rt::decode_varint(data, pos)? != 0);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -11768,10 +11766,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 51 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .repeated_nested_enum
-                                        .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                                    Ok((n2, w2)) if n2 == 51 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut()
+                                            .repeated_nested_enum
+                                            .push(pbrs::rt::decode_varint(data, pos)? as i32);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -11805,10 +11804,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 52 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .repeated_foreign_enum
-                                        .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                                    Ok((n2, w2)) if n2 == 52 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut()
+                                            .repeated_foreign_enum
+                                            .push(pbrs::rt::decode_varint(data, pos)? as i32);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -12330,10 +12330,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 75 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .packed_int32
-                                        .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                                    Ok((n2, w2)) if n2 == 75 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut()
+                                            .packed_int32
+                                            .push(pbrs::rt::decode_varint(data, pos)? as i32);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -12367,10 +12368,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 76 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .packed_int64
-                                        .push(pbrs::rt::decode_varint(data, pos)? as i64),
+                                    Ok((n2, w2)) if n2 == 76 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut()
+                                            .packed_int64
+                                            .push(pbrs::rt::decode_varint(data, pos)? as i64);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -12404,10 +12406,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 77 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .packed_uint32
-                                        .push(pbrs::rt::decode_varint(data, pos)? as u32),
+                                    Ok((n2, w2)) if n2 == 77 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut()
+                                            .packed_uint32
+                                            .push(pbrs::rt::decode_varint(data, pos)? as u32);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -12441,10 +12444,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 78 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .packed_uint64
-                                        .push(pbrs::rt::decode_varint(data, pos)?),
+                                    Ok((n2, w2)) if n2 == 78 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut()
+                                            .packed_uint64
+                                            .push(pbrs::rt::decode_varint(data, pos)?);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -12480,12 +12484,13 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 79 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .packed_sint32
-                                        .push(pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(
-                                            data, pos,
-                                        )?)),
+                                    Ok((n2, w2)) if n2 == 79 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut().packed_sint32.push(
+                                            pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(
+                                                data, pos,
+                                            )?),
+                                        );
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -12521,12 +12526,13 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 80 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .packed_sint64
-                                        .push(pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(
-                                            data, pos,
-                                        )?)),
+                                    Ok((n2, w2)) if n2 == 80 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut().packed_sint64.push(
+                                            pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(
+                                                data, pos,
+                                            )?),
+                                        );
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -12558,7 +12564,8 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
                                     Ok((n2, w2)) if n2 == 81 && w2 == pbrs::rt::WIRE_I32 => {
-                                        self.packed_fixed32.push(pbrs::rt::read_fixed32(data, pos)?)
+                                        self.packed_fixed32
+                                            .push(pbrs::rt::read_fixed32(data, pos)?);
                                     }
                                     Ok(_) => {
                                         *pos = save;
@@ -12591,7 +12598,8 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
                                     Ok((n2, w2)) if n2 == 82 && w2 == pbrs::rt::WIRE_I64 => {
-                                        self.packed_fixed64.push(pbrs::rt::read_fixed64(data, pos)?)
+                                        self.packed_fixed64
+                                            .push(pbrs::rt::read_fixed64(data, pos)?);
                                     }
                                     Ok(_) => {
                                         *pos = save;
@@ -12626,10 +12634,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 83 && w2 == pbrs::rt::WIRE_I32 => self
-                                        .cold_mut()
-                                        .packed_sfixed32
-                                        .push(pbrs::rt::read_fixed32(data, pos)? as i32),
+                                    Ok((n2, w2)) if n2 == 83 && w2 == pbrs::rt::WIRE_I32 => {
+                                        self.cold_mut()
+                                            .packed_sfixed32
+                                            .push(pbrs::rt::read_fixed32(data, pos)? as i32);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -12663,10 +12672,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 84 && w2 == pbrs::rt::WIRE_I64 => self
-                                        .cold_mut()
-                                        .packed_sfixed64
-                                        .push(pbrs::rt::read_fixed64(data, pos)? as i64),
+                                    Ok((n2, w2)) if n2 == 84 && w2 == pbrs::rt::WIRE_I64 => {
+                                        self.cold_mut()
+                                            .packed_sfixed64
+                                            .push(pbrs::rt::read_fixed64(data, pos)? as i64);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -12698,9 +12708,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 85 && w2 == pbrs::rt::WIRE_I32 => self
-                                        .packed_float
-                                        .push(f32::from_bits(pbrs::rt::read_fixed32(data, pos)?)),
+                                    Ok((n2, w2)) if n2 == 85 && w2 == pbrs::rt::WIRE_I32 => {
+                                        self.packed_float.push(f32::from_bits(
+                                            pbrs::rt::read_fixed32(data, pos)?,
+                                        ));
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -12734,10 +12746,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 86 && w2 == pbrs::rt::WIRE_I64 => self
-                                        .cold_mut()
-                                        .packed_double
-                                        .push(f64::from_bits(pbrs::rt::read_fixed64(data, pos)?)),
+                                    Ok((n2, w2)) if n2 == 86 && w2 == pbrs::rt::WIRE_I64 => {
+                                        self.cold_mut().packed_double.push(f64::from_bits(
+                                            pbrs::rt::read_fixed64(data, pos)?,
+                                        ));
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -12771,10 +12784,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 87 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .packed_bool
-                                        .push(pbrs::rt::decode_varint(data, pos)? != 0),
+                                    Ok((n2, w2)) if n2 == 87 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut()
+                                            .packed_bool
+                                            .push(pbrs::rt::decode_varint(data, pos)? != 0);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -12808,10 +12822,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 88 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .packed_nested_enum
-                                        .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                                    Ok((n2, w2)) if n2 == 88 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut()
+                                            .packed_nested_enum
+                                            .push(pbrs::rt::decode_varint(data, pos)? as i32);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -12848,10 +12863,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 89 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .unpacked_int32
-                                        .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                                    Ok((n2, w2)) if n2 == 89 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut()
+                                            .unpacked_int32
+                                            .push(pbrs::rt::decode_varint(data, pos)? as i32);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -12888,10 +12904,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 90 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .unpacked_int64
-                                        .push(pbrs::rt::decode_varint(data, pos)? as i64),
+                                    Ok((n2, w2)) if n2 == 90 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut()
+                                            .unpacked_int64
+                                            .push(pbrs::rt::decode_varint(data, pos)? as i64);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -12928,10 +12945,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 91 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .unpacked_uint32
-                                        .push(pbrs::rt::decode_varint(data, pos)? as u32),
+                                    Ok((n2, w2)) if n2 == 91 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut()
+                                            .unpacked_uint32
+                                            .push(pbrs::rt::decode_varint(data, pos)? as u32);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -12968,10 +12986,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 92 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .unpacked_uint64
-                                        .push(pbrs::rt::decode_varint(data, pos)?),
+                                    Ok((n2, w2)) if n2 == 92 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut()
+                                            .unpacked_uint64
+                                            .push(pbrs::rt::decode_varint(data, pos)?);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -13012,12 +13031,13 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 93 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .unpacked_sint32
-                                        .push(pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(
-                                            data, pos,
-                                        )?)),
+                                    Ok((n2, w2)) if n2 == 93 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut().unpacked_sint32.push(
+                                            pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(
+                                                data, pos,
+                                            )?),
+                                        );
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -13058,12 +13078,13 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 94 && w2 == pbrs::rt::WIRE_VARINT => self
-                                        .cold_mut()
-                                        .unpacked_sint64
-                                        .push(pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(
-                                            data, pos,
-                                        )?)),
+                                    Ok((n2, w2)) if n2 == 94 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut().unpacked_sint64.push(
+                                            pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(
+                                                data, pos,
+                                            )?),
+                                        );
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -13100,10 +13121,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 95 && w2 == pbrs::rt::WIRE_I32 => self
-                                        .cold_mut()
-                                        .unpacked_fixed32
-                                        .push(pbrs::rt::read_fixed32(data, pos)?),
+                                    Ok((n2, w2)) if n2 == 95 && w2 == pbrs::rt::WIRE_I32 => {
+                                        self.cold_mut()
+                                            .unpacked_fixed32
+                                            .push(pbrs::rt::read_fixed32(data, pos)?);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -13140,10 +13162,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 96 && w2 == pbrs::rt::WIRE_I64 => self
-                                        .cold_mut()
-                                        .unpacked_fixed64
-                                        .push(pbrs::rt::read_fixed64(data, pos)?),
+                                    Ok((n2, w2)) if n2 == 96 && w2 == pbrs::rt::WIRE_I64 => {
+                                        self.cold_mut()
+                                            .unpacked_fixed64
+                                            .push(pbrs::rt::read_fixed64(data, pos)?);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -13180,10 +13203,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 97 && w2 == pbrs::rt::WIRE_I32 => self
-                                        .cold_mut()
-                                        .unpacked_sfixed32
-                                        .push(pbrs::rt::read_fixed32(data, pos)? as i32),
+                                    Ok((n2, w2)) if n2 == 97 && w2 == pbrs::rt::WIRE_I32 => {
+                                        self.cold_mut()
+                                            .unpacked_sfixed32
+                                            .push(pbrs::rt::read_fixed32(data, pos)? as i32);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -13220,10 +13244,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 98 && w2 == pbrs::rt::WIRE_I64 => self
-                                        .cold_mut()
-                                        .unpacked_sfixed64
-                                        .push(pbrs::rt::read_fixed64(data, pos)? as i64),
+                                    Ok((n2, w2)) if n2 == 98 && w2 == pbrs::rt::WIRE_I64 => {
+                                        self.cold_mut()
+                                            .unpacked_sfixed64
+                                            .push(pbrs::rt::read_fixed64(data, pos)? as i64);
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -13260,10 +13285,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 99 && w2 == pbrs::rt::WIRE_I32 => self
-                                        .cold_mut()
-                                        .unpacked_float
-                                        .push(f32::from_bits(pbrs::rt::read_fixed32(data, pos)?)),
+                                    Ok((n2, w2)) if n2 == 99 && w2 == pbrs::rt::WIRE_I32 => {
+                                        self.cold_mut().unpacked_float.push(f32::from_bits(
+                                            pbrs::rt::read_fixed32(data, pos)?,
+                                        ));
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -13300,10 +13326,11 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 100 && w2 == pbrs::rt::WIRE_I64 => self
-                                        .cold_mut()
-                                        .unpacked_double
-                                        .push(f64::from_bits(pbrs::rt::read_fixed64(data, pos)?)),
+                                    Ok((n2, w2)) if n2 == 100 && w2 == pbrs::rt::WIRE_I64 => {
+                                        self.cold_mut().unpacked_double.push(f64::from_bits(
+                                            pbrs::rt::read_fixed64(data, pos)?,
+                                        ));
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -13343,7 +13370,7 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                                     Ok((n2, w2)) if n2 == 101 && w2 == pbrs::rt::WIRE_VARINT => {
                                         self.cold_mut()
                                             .unpacked_bool
-                                            .push(pbrs::rt::decode_varint(data, pos)? != 0)
+                                            .push(pbrs::rt::decode_varint(data, pos)? != 0);
                                     }
                                     Ok(_) => {
                                         *pos = save;
@@ -13384,7 +13411,7 @@ mod __gen_editions_golden_test_messages_proto3_editions_proto {
                                     Ok((n2, w2)) if n2 == 102 && w2 == pbrs::rt::WIRE_VARINT => {
                                         self.cold_mut()
                                             .unpacked_nested_enum
-                                            .push(pbrs::rt::decode_varint(data, pos)? as i32)
+                                            .push(pbrs::rt::decode_varint(data, pos)? as i32);
                                     }
                                     Ok(_) => {
                                         *pos = save;

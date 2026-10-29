@@ -1,0 +1,12 @@
+syntax = "proto2";
+package repeated_tag;
+message Child { optional int32 value = 1; }
+message Runs {
+  repeated string strings = 1;
+  repeated int32 numbers = 2 [packed = false];
+  repeated Child children = 3;
+  optional int32 other = 4;
+  repeated bytes last_single_byte_tag = 15;
+  repeated bytes multi_byte_tag = 16;
+  optional group Group = 5 { repeated string strings = 1; }
+}

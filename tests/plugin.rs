@@ -3083,12 +3083,12 @@ fn hello_via_config(out_name: &str, configure: &dyn Fn(&mut pbrs::codegen::Confi
 /// legitimately differ between entry points even for identical options.
 /// Everything outside that literal must still match exactly.
 fn mask_embedded_fds(src: &str) -> String {
-    let start_marker = "pub const FILE_DESCRIPTOR_SET: &[u8] = &[";
+    let start_marker = "pub const FILE_DESCRIPTOR_SET: &[u8] = b\"";
     let start = src
         .find(start_marker)
         .expect("generated code embeds FILE_DESCRIPTOR_SET");
     let end_rel = src[start..]
-        .find("];")
+        .find("\";")
         .expect("FILE_DESCRIPTOR_SET literal terminator");
     let end = start + end_rel + 2;
     format!("{}<masked-fds>{}", &src[..start], &src[end..])

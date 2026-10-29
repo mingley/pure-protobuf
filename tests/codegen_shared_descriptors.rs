@@ -1,4 +1,4 @@
-//! Opt-in GN-03 source descriptor sharing; defaults and flat includes stay stable.
+//! Descriptor embedding, sharing, and standalone include behavior.
 #![cfg(feature = "codegen")]
 #![allow(
     clippy::disallowed_methods,
@@ -155,7 +155,7 @@ fn opt_in_embeds_one_literal_and_default_single_output_remain_exact() {
         default
             .values()
             .map(|s| s
-                .matches("pub const FILE_DESCRIPTOR_SET: &[u8] = &[")
+                .matches("pub const FILE_DESCRIPTOR_SET: &[u8] = b\"")
                 .count())
             .sum::<usize>(),
         2
@@ -208,6 +208,43 @@ fn opt_in_embeds_one_literal_and_default_single_output_remain_exact() {
             "stubs=none,shared_descriptor_set=true"
         )
         .unwrap()
+    );
+}
+
+#[test]
+fn standalone_literal_preserves_descriptor_bytes_and_reflection() {
+    let mut files = fixture();
+    // Preserve arbitrary bytes in an unknown descriptor field to exercise
+    // every byte escape, including NUL, quotes, backslash, and non-ASCII.
+    field_bytes(&mut files[0], 999, &(0..=255).collect::<Vec<_>>());
+    let mut expected_fds = Vec::new();
+    for file in &files {
+        field_bytes(&mut expected_fds, 1, file);
+    }
+    let generated = generate(
+        &files,
+        &["first.proto"],
+        "stubs=none,runtime_crate=renamed_pbrs",
+    )
+    .unwrap();
+    let consumer = r#"
+mod first { include!("../first.rs"); }
+const EXPECTED_FDS: &[u8] = &__EXPECTED_FDS_ARRAY__;
+fn main() {
+    assert_eq!(first::FILE_DESCRIPTOR_SET, EXPECTED_FDS);
+    let pool = renamed_pbrs::DescriptorPool::from_file_descriptor_set(first::FILE_DESCRIPTOR_SET).unwrap();
+    assert_eq!(pool.get_message("first.First").unwrap().field(1).unwrap().name, "id");
+    let mut message = first::First::new();
+    message.set_id(41);
+    assert_eq!(first::First::from_json(&message.to_json().unwrap()).unwrap().id(), 41);
+}
+"#.replace("__EXPECTED_FDS_ARRAY__", &format!("{expected_fds:?}"));
+    compile(
+        "standalone-literal",
+        &generated,
+        &consumer,
+        &["reflect", "json", "text"],
+        true,
     );
 }
 

@@ -664,12 +664,32 @@ pub(crate) fn lazy_str_from_parse(f: &FieldDescriptor) -> &'static str {
     }
 }
 
+// A canonical tag for fields 1 through 15 fits in a single byte. Leave any
+// other byte for the outer parser, which also handles noncanonical tags and
+// reports malformed tags and group endings.
+fn repeated_tag_run(num: u32, wire: &str, body: &str) -> String {
+    if num <= 15 {
+        format!(
+            "while *pos < data.len() && data[*pos] == (({num} << 3) | {wire}) as u8 {{ *pos += 1; {body} }}"
+        )
+    } else {
+        format!(
+            "while *pos < data.len() {{ let save = *pos; match pbrs::rt::decode_tag(data, pos) {{ Ok((n2, w2)) if n2 == {num} && w2 == {wire} => {{ {body} }} Ok(_) => {{ *pos = save; break; }} Err(e) => return Err(e), }} }}"
+        )
+    }
+}
+
 /// Same-tag run for repeated length-delimited items (strings/bytes).
 /// Reserve from remaining bytes so `tags_32` does not grow the Vec 5×.
 pub(crate) fn emit_repeated_len_run(src: &mut String, num: u32, st: &str, push: &str) {
+    let run = repeated_tag_run(
+        num,
+        "pbrs::rt::WIRE_LEN",
+        &format!("let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.push({push});"),
+    );
     let _ = writeln!(
         src,
-        "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let rest = data.len().saturating_sub(e); if rest > 2 {{ {st}.reserve(1 + rest / (e - s + 2).max(1)); }} {st}.push({push}); while *pos < data.len() {{ let save = *pos; match pbrs::rt::decode_tag(data, pos) {{ Ok((n2, w2)) if n2 == {num} && w2 == pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.push({push}); }} Ok(_) => {{ *pos = save; break; }} Err(e) => return Err(e), }} }} }}"
+        "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let rest = data.len().saturating_sub(e); if rest > 2 {{ {st}.reserve(1 + rest / (e - s + 2).max(1)); }} {st}.push({push}); {run} }}"
     );
 }
 
@@ -728,9 +748,16 @@ pub(crate) fn emit_merge_arm(
                     "                pbrs::rt::WIRE_SGROUP => {{ let mut inner = {t}::default(); inner.merge_group(data, wire, pos, {num}, depth + 1)?; {st}.push(inner); }}"
                 );
             } else {
+                let run = repeated_tag_run(
+                    num,
+                    "pbrs::rt::WIRE_LEN",
+                    &format!(
+                        "let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut inner = {t}::default(); let mut ip = 0; let mut sw = {child_wire}; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, None)?; {st}.push(inner);"
+                    ),
+                );
                 let _ = writeln!(
                     src,
-                    "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let rest = data.len().saturating_sub(e); if rest > 2 {{ {st}.reserve(1 + rest / (e - s + 4).max(1)); }} let mut inner = {t}::default(); let mut ip = 0; let mut sw = {child_wire}; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, None)?; {st}.push(inner); while *pos < data.len() {{ let save = *pos; match pbrs::rt::decode_tag(data, pos) {{ Ok((n2, w2)) if n2 == {num} && w2 == pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut inner = {t}::default(); let mut ip = 0; let mut sw = {child_wire}; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, None)?; {st}.push(inner); }} Ok(_) => {{ *pos = save; break; }} Err(e) => return Err(e), }} }} }}"
+                    "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let rest = data.len().saturating_sub(e); if rest > 2 {{ {st}.reserve(1 + rest / (e - s + 4).max(1)); }} let mut inner = {t}::default(); let mut ip = 0; let mut sw = {child_wire}; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, None)?; {st}.push(inner); {run} }}"
                 );
             }
         } else if f.field_type.is_packable() {
@@ -757,9 +784,10 @@ pub(crate) fn emit_merge_arm(
                     "                pbrs::rt::WIRE_LEN => {{ let p = pbrs::rt::read_len_bytes(data, pos)?; let mut i = 0; while i < p.len() {{ {st}.push({expr}); }} }}"
                 );
             }
+            let run = repeated_tag_run(num, packed_wire, &format!("{st}.push({unpacked});"));
             let _ = writeln!(
                 src,
-                "                {packed_wire} => {{ {st}.push({unpacked}); let rest = data.len().saturating_sub(*pos); if rest > 2 {{ {st}.reserve(rest / 3); }} while *pos < data.len() {{ let save = *pos; match pbrs::rt::decode_tag(data, pos) {{ Ok((n2, w2)) if n2 == {num} && w2 == {packed_wire} => {st}.push({unpacked}), Ok(_) => {{ *pos = save; break; }} Err(e) => return Err(e), }} }} }}"
+                "                {packed_wire} => {{ {st}.push({unpacked}); let rest = data.len().saturating_sub(*pos); if rest > 2 {{ {st}.reserve(rest / 3); }} {run} }}"
             );
         } else {
             let unpacked = read_scalar_expr(f.field_type, "data", "pos");
