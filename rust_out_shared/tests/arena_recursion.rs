@@ -1,5 +1,5 @@
 //! Bounded 100/101 recursion oracles for the actual linked rust_out arena kernel.
-//! This baseline is intentionally red until QG-19; it never builds a crash workload.
+//! The bounded fixtures never build a crash workload.
 #![forbid(unsafe_code)]
 
 use pbrs::runtime::AssociatedMiniTable;
@@ -176,7 +176,7 @@ fn arena_known_messages_compose_unknown_group_depth() {
     assert_linked::<Node>();
     let accepted = chain(1, 99, groups(1));
     let msg = Node::parse(&accepted).expect("99 messages + one group = 100");
-    assert_eq!(msg.serialize().expect("unknown groups drop"), chain(1, 99, Vec::new()));
+    assert_eq!(msg.serialize().expect("unknown groups preserved"), accepted);
     assert!(Node::parse(&chain(1, 99, groups(2))).is_err(), "99 messages + two groups = 101");
 }
 
@@ -185,7 +185,7 @@ fn arena_map_values_compose_unknown_group_depth() {
     assert_linked::<RecursiveMap>();
     let accepted = maps(49, groups(2)); // value98 + groups99,100.
     let msg = RecursiveMap::parse(&accepted).expect("98 map frames + two groups");
-    assert_eq!(msg.serialize().expect("unknown groups drop"), maps(49, Vec::new()));
+    assert_eq!(msg.serialize().expect("unknown groups preserved"), accepted);
     assert!(RecursiveMap::parse(&maps(49, groups(3))).is_err(), "98 map frames + three groups = 101");
 }
 
@@ -259,11 +259,22 @@ fn arena_required_checks_and_opaque_unknowns_are_preserved() {
     required.clear_and_parse_dont_enforce_required(&[]).expect("existing root no-required path");
     assert!(TestRequiredForeign::parse(&len_field(1, &[])).is_err(), "singular required child stays enforced");
     let mut parent = TestRequiredForeign::new();
-    assert!(parent.clear_and_parse_dont_enforce_required(&len_field(1, &[])).is_err(),
-            "existing singular child enforcement is not silently changed");
+    parent.clear_and_parse_dont_enforce_required(&len_field(1, &[]))
+        .expect("no-required mode permits an incomplete child");
+    assert!(parent.merge_from_bytes(&[]).is_err(),
+            "an enforcing merge still rejects the retained incomplete child");
+    let mut required_fields = Vec::new();
+    for (number, value) in [(1, 11), (3, 22), (33, 33)] {
+        varint(&mut required_fields, number * 8);
+        varint(&mut required_fields, value);
+    }
+    parent.merge_from_bytes(&len_field(1, &required_fields))
+        .expect("later fragment completes all required child fields");
+    assert_eq!(parent.serialize().expect("completed child roundtrip"), len_field(1, &required_fields));
     // Unknown length-delimited data is opaque. Do not count or validate it as a message.
-    let opaque = Node::parse(&len_field(127, &[0xff])).expect("opaque unknown LEN");
-    assert!(opaque.serialize().expect("dropped unknown LEN").is_empty());
+    let opaque_wire = len_field(127, &[0xff]);
+    let opaque = Node::parse(&opaque_wire).expect("opaque unknown LEN");
+    assert_eq!(opaque.serialize().expect("preserved unknown LEN"), opaque_wire);
     let mut truncated = Vec::new();
     varint(&mut truncated, 127 * 8 + 3);
     assert!(Node::parse(&truncated).is_err());

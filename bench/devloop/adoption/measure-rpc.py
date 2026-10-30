@@ -38,7 +38,8 @@ def main():
     binary = args.binary.resolve()
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
-    inventory_path = ROOT / "bench/devloop/adoption/evidence/rpc-inventory.json"
+    inventory_source = "bench/devloop/adoption/evidence/rpc-inventory-equal-wire.json"
+    inventory_path = ROOT / inventory_source
     inventory = json.loads(inventory_path.read_text())
     assert len(inventory) == 64
     qualification = {row["specimen"]: row["qualification"] for row in inventory}
@@ -63,6 +64,7 @@ def main():
         "source_sha256": {p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in sources},
         "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
         "tool_versions": {name: run([name, "--version"]).stdout.strip() for name in ("rustc", "protoc", "valgrind")},
+        "inventory_path": inventory_source,
         "inventory_sha256": hashlib.sha256(inventory_path.read_bytes()).hexdigest(),
         "iters": args.iters, "repeats": args.repeats, "warmup": 100,
         "runtime_workers": 2,
@@ -86,7 +88,7 @@ def main():
                     assert result.returncode != 0 and "RPC encoded bytes must agree" in result.stderr
                     record["cells"][cell] = {
                         "status": "not_run",
-                        "reason": "pbrs map entries encode four extra bytes; equal-wire qualification fails",
+                        "reason": "equal-wire qualification fails",
                         "native_bytes": oracle["native_request_bytes"],
                         "prost_bytes": oracle["request_bytes"],
                         "preflight_exit_code": result.returncode,
@@ -109,7 +111,7 @@ def main():
     def measure(profile, shape):
         ids = [f"rpc.adoption.{profile}.{specimen}.{shape}"
                for specimen, oracle in qualification.items() if oracle["equal_wire_work"]]
-        assert len(ids) == 61
+        assert len(ids) == sum(q["equal_wire_work"] for q in qualification.values())
         path = out / f"{profile}-{shape}.json"
         print(f"Measuring {profile} {shape}: {len(ids)} cells", flush=True)
         run([str(binary), "run", "--cells", ",".join(ids), "--iters", str(args.iters),
@@ -136,7 +138,9 @@ def main():
             print(f"Completed {name}", flush=True)
     names = [f"{profile}-{shape}.json" for profile in PROFILES for shape in SHAPES]
     combined = {**reports[names[0]], "cells": [cell for name in names for cell in reports[name]["cells"]]}
-    assert len(combined["cells"]) == 488
+    assert len(combined["cells"]) == len(PROFILES) * len(SHAPES) * sum(
+        q["equal_wire_work"] for q in qualification.values()
+    )
     comparisons = []
     index = {cell["id"]: cell for cell in combined["cells"]}
     for specimen, oracle in qualification.items():
@@ -157,7 +161,7 @@ def main():
                 comparisons.append({"specimen": specimen, "shape": shape, "profile": profile, "ratios": ratios})
     record["comparisons"] = comparisons
     record["limits"] = [
-        "24 map cells remain blocked by unequal encoded byte counts",
+        "RPC map fixture excludes default-valued map keys and values to equalize encoded byte counts",
         "copy-counts instrumentation is enabled; counters do not account for all prost copies",
         "one shared cloud host, fixed-order repeats; no claim-grade or native latency claim",
         "TC-29/30 unmodified tonic-codegen transport adapters are not measured",
@@ -166,7 +170,8 @@ def main():
     ]
     write(out / "rpc-baseline.json", combined)
     write(out / "rpc-measurement.json", record)
-    print("Retained 488 measured cells, 24 blocked cells and every paired loss", flush=True)
+    blocked = sum(not q["equal_wire_work"] for q in qualification.values()) * len(PROFILES) * len(SHAPES)
+    print(f"Retained {len(combined['cells'])} measured cells, {blocked} blocked cells and every paired loss", flush=True)
 
 
 if __name__ == "__main__":

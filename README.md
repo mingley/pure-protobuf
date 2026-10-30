@@ -30,7 +30,7 @@ Regenerate bindings to let lazy child getters reuse earlier wire validation.
 Applications that read or mutate nested trees can also select
 [`Config::owned_message_fields(true)`](docs/guides/codegen.md#owned-nested-message-fields).
 The default lazy profile supports partial reads and forwarding unchanged
-messages. See the [current measurements and tradeoffs](docs/evidence/decode-and-map-speed-20261027/README.md).
+messages. See the [current measurements and tradeoffs](docs/evidence/runtime-and-codegen-20261029/README.md).
 
 <a id="why-use-pbrs"></a>
 ## Features
@@ -123,12 +123,15 @@ stubs by default. tonic users must opt in with
 
 <a id="workspace-crates"></a>
 
-| Need | Use | Version |
-|---|---|---|
-| Protocol Buffers messages, reflection, JSON/text, or code generation | [`pbrs`](.) | `0.2.0` |
-| Native gRPC client and server | [`pbrs-grpc`](pbrs-grpc) | `0.1.0-alpha.2` (Preview) |
-| tonic 0.14+ with `pbrs` messages | [`protobuf-tonic`](protobuf-tonic) | `0.1.0-alpha.2` (Preview) |
-| Runnable service with health and reflection | [`examples/greeter`](examples/greeter) | Example |
+| Need | Use | Published | Checkout candidate |
+|---|---|---|---|
+| Protocol Buffers messages, reflection, JSON/text, or code generation | [`pbrs`](.) | `0.2.0` | `0.2.1` (unreleased) |
+| Native gRPC client and server | [`pbrs-grpc`](pbrs-grpc) | `0.1.0-alpha.2` (published) | `0.1.0-alpha.3` (unreleased preview) |
+| tonic 0.14+ with `pbrs` messages | [`protobuf-tonic`](protobuf-tonic) | `0.1.0-alpha.2` (published) | `0.1.0-alpha.3` (unreleased preview) |
+| Runnable service with health and reflection | [`examples/greeter`](examples/greeter) | — | Example |
+
+The installation examples use published versions. Checkout candidates and
+newer APIs are not available from crates.io until released.
 
 ## Code generation options
 

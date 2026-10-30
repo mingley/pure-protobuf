@@ -1629,7 +1629,23 @@ pub fn find_prerelease_versions(content: &str) -> Vec<(usize, usize, String)> {
             .map(char::len_utf8)
             .sum();
         if digits > 0 && ver_start < abs {
-            let token = format!("{}-alpha.{}", &content[ver_start..abs], &rest[..digits]);
+            // Keep a malformed or extended suffix with the version so it
+            // cannot be mistaken for the exact pinned baseline.
+            let bytes = rest.as_bytes();
+            let mut end = digits;
+            while end < bytes.len() {
+                let byte = bytes[end];
+                if byte.is_ascii_alphanumeric()
+                    || byte == b'-'
+                    || byte == b'+'
+                    || (byte == b'.' && bytes.get(end + 1).is_some_and(u8::is_ascii_alphanumeric))
+                {
+                    end += 1;
+                } else {
+                    break;
+                }
+            }
+            let token = format!("{}-alpha.{}", &content[ver_start..abs], &rest[..end]);
             let line = content[..abs].matches('\n').count() + 1;
             out.push((line, abs, token));
         }
@@ -1696,17 +1712,126 @@ pub fn check_pbrs_requirements(
         .collect()
 }
 
-/// Checks adapter pre-release citations in one document: each must equal the
-/// current version or be qualified as an older release nearby.
-pub fn check_prerelease_mentions(rel: &str, content: &str, current: &str) -> Vec<String> {
+/// Parse an alpha version for ordering historical references.
+fn parse_alpha_version(version: &str) -> Option<(u64, u64, u64, u64)> {
+    let (base, alpha) = version.split_once("-alpha.")?;
+    let number = |s: &str| {
+        (!s.is_empty()
+            && (s.len() == 1 || !s.starts_with('0'))
+            && s.bytes().all(|byte| byte.is_ascii_digit()))
+        .then(|| s.parse::<u64>().ok())
+        .flatten()
+    };
+    let mut parts = base.split('.');
+    let major = number(parts.next()?)?;
+    let minor = number(parts.next()?)?;
+    let patch = number(parts.next()?)?;
+    if parts.next().is_some() {
+        return None;
+    }
+    Some((major, minor, patch, number(alpha)?))
+}
+
+/// Read the published adapter baseline from both pinned CI semver commands.
+fn published_adapter_baseline(workflow: &str) -> Result<String, String> {
+    let mut grpc = None;
+    let mut tonic = None;
+    for line in workflow.lines().map(str::trim) {
+        if !line.starts_with("cargo semver-checks check-release ") {
+            continue;
+        }
+        let words: Vec<_> = line.split_whitespace().collect();
+        let packages: Vec<_> = words
+            .windows(2)
+            .filter(|pair| pair[0] == "--package")
+            .collect();
+        if !packages
+            .iter()
+            .any(|pair| matches!(pair[1], "pbrs-grpc" | "protobuf-tonic"))
+        {
+            continue;
+        }
+        if packages.len() != 1 {
+            return Err("adapter semver command has ambiguous packages".to_string());
+        }
+        let slot = match packages[0][1] {
+            "pbrs-grpc" => &mut grpc,
+            "protobuf-tonic" => &mut tonic,
+            _ => return Err("unexpected adapter package".to_string()),
+        };
+        let baselines: Vec<_> = words
+            .windows(2)
+            .filter(|pair| pair[0] == "--baseline-version")
+            .collect();
+        if baselines.len() != 1 {
+            return Err("adapter semver command has ambiguous baseline versions".to_string());
+        }
+        let version = baselines[0][1];
+        if slot.is_some() || parse_alpha_version(version).is_none() {
+            return Err("duplicate or invalid adapter semver baseline".to_string());
+        }
+        *slot = Some(version.to_string());
+    }
+    match (grpc, tonic) {
+        (Some(grpc), Some(tonic)) if grpc == tonic => Ok(grpc),
+        _ => Err("missing or mismatched adapter semver baselines".to_string()),
+    }
+}
+
+/// Recognize a positive published label, not `unpublished` or `not yet published`.
+fn has_published_qualifier(context: &str) -> bool {
+    let words: Vec<_> = context
+        .split(|ch: char| !ch.is_ascii_alphabetic())
+        .filter(|word| !word.is_empty())
+        .collect();
+    words.iter().enumerate().any(|(index, word)| {
+        word.eq_ignore_ascii_case("published")
+            && !words[index.saturating_sub(4)..index].iter().any(|word| {
+                word.eq_ignore_ascii_case("not")
+                    || word.eq_ignore_ascii_case("never")
+                    || word.eq_ignore_ascii_case("without")
+                    || word.eq_ignore_ascii_case("unreleased")
+            })
+    })
+}
+
+/// Current versions, explicitly published baselines, and older history are valid.
+pub fn check_prerelease_mentions(
+    rel: &str,
+    content: &str,
+    current: &str,
+    published: &str,
+) -> Vec<String> {
+    let current_order = parse_alpha_version(current);
     find_prerelease_versions(content)
         .into_iter()
         .filter(|(_, offset, token)| {
-            token != current && !has_historical_qualifier(content, *offset, 150)
+            if token == current {
+                return false;
+            }
+            let mut start = offset.saturating_sub(150);
+            while start < *offset && !content.is_char_boundary(start) {
+                start += 1;
+            }
+            let mut end = (offset + 150).min(content.len());
+            while end > *offset && !content.is_char_boundary(end) {
+                end -= 1;
+            }
+            let published_scope = has_published_qualifier(&content[start..end]);
+            let known_published = token == published
+                && published_scope
+                && parse_alpha_version(published)
+                    .zip(current_order)
+                    .is_some_and(|(published, current)| published <= current);
+            let older = parse_alpha_version(token)
+                .zip(current_order)
+                .is_some_and(|(version, current)| version < current)
+                && has_historical_qualifier(content, *offset, 150);
+            !known_published && !older
         })
         .map(|(line, _, token)| {
             format!(
-                "{rel}:{line}: documented adapter version `{token}` does not match Cargo.toml version {current} and is not labeled as an older release"
+                "{rel}:{line}: documented adapter version `{token}` is neither current, explicitly published, nor an older release"
             )
         })
         .collect()
@@ -1758,6 +1883,15 @@ pub fn validate_documented_versions() -> Result<(), Vec<String>> {
         ));
     }
     let pbrs_minor = major_minor(&pbrs_version);
+    let published_adapter =
+        published_adapter_baseline(&read_workspace_file(".github/workflows/ci.yml"))
+            .map_err(|error| vec![error])?;
+    if !parse_alpha_version(&published_adapter)
+        .zip(parse_alpha_version(&grpc_version))
+        .is_some_and(|(published, current)| published <= current)
+    {
+        errors.push("published adapter baseline exceeds the current source version".to_string());
+    }
     let mut pbrs_mentions = 0;
     let mut current_adapter_mentions = 0;
     for path in version_doc_paths() {
@@ -1779,7 +1913,12 @@ pub fn validate_documented_versions() -> Result<(), Vec<String>> {
                     &pbrs_minor,
                     &pbrs_version,
                 ));
-                errors.extend(check_prerelease_mentions(&rel, &content, &grpc_version));
+                errors.extend(check_prerelease_mentions(
+                    &rel,
+                    &content,
+                    &grpc_version,
+                    &published_adapter,
+                ));
             }
             Err(error) => errors.push(format!("failed to read {rel}: {error}")),
         }
@@ -1977,11 +2116,22 @@ fn test_documented_versions_match_cargo_manifests() {
             .is_empty()
     );
     assert!(
-        check_prerelease_mentions("doc.md", "uses `0.1.0-alpha.2` today", "0.1.0-alpha.2")
-            .is_empty()
+        check_prerelease_mentions(
+            "doc.md",
+            "uses `0.1.0-alpha.2` today",
+            "0.1.0-alpha.2",
+            "0.1.0-alpha.2"
+        )
+        .is_empty()
     );
     assert_eq!(
-        check_prerelease_mentions("doc.md", "uses `0.1.0-alpha.9` today", "0.1.0-alpha.2").len(),
+        check_prerelease_mentions(
+            "doc.md",
+            "uses `0.1.0-alpha.9` today",
+            "0.1.0-alpha.2",
+            "0.1.0-alpha.2"
+        )
+        .len(),
         1
     );
     assert!(
@@ -1989,9 +2139,88 @@ fn test_documented_versions_match_cargo_manifests() {
             "doc.md",
             "the older `0.1.0-alpha.1` archives still need it",
             "0.1.0-alpha.2",
+            "0.1.0-alpha.2",
         )
         .is_empty()
     );
+}
+
+#[test]
+fn test_version_prerelease_publication_scopes() {
+    assert!(
+        check_prerelease_mentions(
+            "doc.md",
+            "The published preview is `0.1.0-alpha.2`.",
+            "0.1.0-alpha.3",
+            "0.1.0-alpha.2",
+        )
+        .is_empty()
+    );
+    assert_eq!(
+        check_prerelease_mentions(
+            "doc.md",
+            "The older preview is `0.1.0-alpha.9`.",
+            "0.1.0-alpha.3",
+            "0.1.0-alpha.2",
+        )
+        .len(),
+        1
+    );
+    assert_eq!(
+        check_prerelease_mentions(
+            "doc.md",
+            "The published preview is `0.1.0-alpha.9`.",
+            "0.1.0-alpha.3",
+            "0.1.0-alpha.9",
+        )
+        .len(),
+        1
+    );
+    for text in [
+        "uses `0.1.0-alpha.2` without a scope",
+        "The published preview is `0.1.0-alpha.9`.",
+        "The published preview is `0.1.0-alpha.2bogus`.",
+        "The published preview is `0.1.0-alpha.2.1`.",
+        "The unpublished candidate is `0.1.0-alpha.2`.",
+        "The candidate `0.1.0-alpha.2` is not yet published.",
+        "The candidate `0.1.0-alpha.2` has not yet been published.",
+    ] {
+        assert_eq!(
+            check_prerelease_mentions("doc.md", text, "0.1.0-alpha.3", "0.1.0-alpha.2").len(),
+            1,
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn test_published_adapter_baseline_is_pinned_and_unambiguous() {
+    let grpc = "cargo semver-checks check-release --release-type minor --package pbrs-grpc --baseline-version 0.1.0-alpha.2";
+    let tonic = "cargo semver-checks check-release --release-type minor --package protobuf-tonic --baseline-version 0.1.0-alpha.2";
+    let valid = format!("{grpc}\n{tonic}\n");
+    assert_eq!(published_adapter_baseline(&valid).unwrap(), "0.1.0-alpha.2");
+    assert!(published_adapter_baseline(grpc).is_err());
+    assert!(published_adapter_baseline(&format!("{valid}{grpc}\n")).is_err());
+    assert!(
+        published_adapter_baseline(&valid.replace(
+            "protobuf-tonic --baseline-version 0.1.0-alpha.2",
+            "protobuf-tonic --baseline-version 0.1.0-alpha.1"
+        ))
+        .is_err()
+    );
+    assert!(
+        published_adapter_baseline(&valid.replace(
+            "--baseline-version 0.1.0-alpha.2",
+            "--baseline-version 0.1.0-alpha.x"
+        ))
+        .is_err()
+    );
+    assert!(
+        published_adapter_baseline(&format!("{grpc} --baseline-version 0.1.0-alpha.3\n{tonic}"))
+            .is_err()
+    );
+    assert!(parse_alpha_version("0.1.0-alpha.+2").is_none());
+    assert!(parse_alpha_version("0.1.0-alpha.02").is_none());
 }
 
 #[test]

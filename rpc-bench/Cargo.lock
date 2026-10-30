@@ -503,7 +503,7 @@ checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
 name = "pbrs"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "bytes",
  "paste",
@@ -514,7 +514,7 @@ dependencies = [
 
 [[package]]
 name = "pbrs-grpc"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 dependencies = [
  "atomic-waker",
  "base64",
@@ -681,7 +681,7 @@ dependencies = [
 
 [[package]]
 name = "protobuf-tonic"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 dependencies = [
  "bytes",
  "http",

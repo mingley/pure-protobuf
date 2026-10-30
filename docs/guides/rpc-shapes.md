@@ -431,13 +431,14 @@ let _ = shutdown_tx.send(());
 ## 7. Fresh-directory setup (published crates)
 
 The same four shapes run outside this repo against the published crates
-(no workspace `path =` dependencies). `protoc` must be on `PATH`;
-codegen shells out to it:
+(no workspace `path =` dependencies). The dependency below is the published
+preview; the checkout's `0.1.0-alpha.3` candidate is not yet published.
+`protoc` must be on `PATH`; codegen shells out to it:
 
 ```toml
 [dependencies]
 pbrs = "0.2"
-pbrs-grpc = "0.1.0-alpha.2"
+pbrs-grpc = "0.1.0-alpha.2" # Published preview
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [build-dependencies]

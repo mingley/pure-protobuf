@@ -11,9 +11,9 @@ promised.
 
 | Crate | Source manifest version | MSRV | MSRV CI job |
 |---|---|---|---|
-| `pbrs` | `0.2.0` | 1.85 (`rust-version`) | `msrv-core` |
-| `pbrs-grpc` | `0.1.0-alpha.2` | 1.85 (`rust-version`) | `msrv-core` |
-| `protobuf-tonic` | `0.1.0-alpha.2` | 1.88 (`rust-version`) | `msrv-tonic` |
+| `pbrs` | `0.2.1` (unreleased candidate) | 1.85 (`rust-version`) | `msrv-core` |
+| `pbrs-grpc` | `0.1.0-alpha.3` (unreleased candidate) | 1.85 (`rust-version`) | `msrv-core` |
+| `protobuf-tonic` | `0.1.0-alpha.3` (unreleased candidate) | 1.88 (`rust-version`) | `msrv-tonic` |
 
 The table records source versions; check the registry and release evidence
 before treating them as published versions. The proposed support policy is
@@ -52,9 +52,11 @@ constructors, builder methods, trait methods, and public associated types:
 - **TLS injection:** `pbrs_grpc::{Identity, ServerTls, ClientTls,
   TlsHandshakeInfo, PeerIdentity}`, the `serve_tls*` entry points on `Server`,
   `Router`, and `Incoming`, and the `connect_tls*` entry points on `Channel`.
-  This stabilizes today's TLS-value injection contract; caller-supplied rustls
-  configuration and crypto-provider support remains explicitly out of scope
-  until TC-25 lands.
+  The checkout also provides `ServerTls::from_rustls` and
+  `ClientTls::from_rustls` for trusted application-owned configs, preserving
+  their provider and verification policy. Callers must configure peer
+  authentication; the wrappers cannot certify an opaque custom verifier.
+  See the [caller-config contract](decisions/caller-rustls-config.md).
 - **Resolution and load balancing:** public items under
   `pbrs_grpc::resolver`, public policies and factory traits under
   `pbrs_grpc::lb`, `Target`, and the resolver/LB configuration methods on

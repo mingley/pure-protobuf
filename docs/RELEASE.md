@@ -49,9 +49,12 @@ the corresponding MSRV CI jobs. Protocol Buffers Edition 2024 has a separate
 [qualified subset](edition-2024.md); full conformance must not be inferred
 from the Cargo manifests.
 
-Current manifests (check the files, not this table, before tagging): `pbrs`
-`0.2.0`; adapters `0.1.0-alpha.2`. A `v1.0.0` tag does not promote the
-adapters. From `0.1.0-alpha.2` on, both adapters build from checked
+Current source candidates (check the manifests before tagging): `pbrs`
+`0.2.1`; adapters `0.1.0-alpha.3`. They have not been published. The older
+published releases remain `pbrs` `0.2.0` and adapters `0.1.0-alpha.2` until
+the coordinated release completes. See [the changelog](../CHANGELOG.md).
+A `v1.0.0` tag does not promote the adapters. From the older `0.1.0-alpha.2`
+release on, both adapters build from checked
 descriptor sets without `protoc`; the older `0.1.0-alpha.1` archives still
 need it.
 
@@ -147,11 +150,11 @@ development push; the publisher still requires every job on its exact SHA.
 2. Land that change on `main` (CI must be green; that still does **not**
    publish).
 3. Sign an annotated tag on the SHA with `v` plus a version that **matches at least one** crate
-   manifest (for example `v0.2.0` for `pbrs` `0.2.0`, or
-   `v0.1.0-alpha.2` for an adapter). Push the tag:
+   manifest (for example `v0.2.1` for `pbrs` `0.2.1`, or
+   `v0.1.0-alpha.3` for an adapter). Push the tag only after qualification:
    ```bash
-   git tag -s v0.2.0 -m 'Release v0.2.0'
-   git push origin v0.2.0
+   git tag -s v0.2.1 -m 'Release v0.2.1'
+   git push origin v0.2.1
    ```
    The workflow rejects lightweight tags, unsigned tags, and signatures that
    GitHub does not mark verified.
@@ -252,4 +255,4 @@ call so adapters resolve the unpublished core without rewriting `Cargo.lock`.
 A core change that adapters rely on (for example a new feature) therefore
 needs a new core version: an already-published version wins over the local
 copy. Expected tarball names follow
-`<name>-<version>.crate` from the manifests (for example `pbrs-0.2.0.crate`).
+`<name>-<version>.crate` from the manifests (for example `pbrs-0.2.1.crate`).

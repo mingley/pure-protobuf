@@ -106,6 +106,18 @@ pub enum Inputs {
     Maps(Pair<native::MapHeavy, prost_types::MapHeavy>),
 }
 
+// Default-valued map keys and values are serialized differently by the two
+// codecs. Keep the RPC fixture's cardinality and message contents comparable
+// while ensuring both sides send the same number of bytes. The codec corpus
+// still exercises the original default-valued entries.
+fn rpc_maps(entries: usize) -> prost_types::MapHeavy {
+    let mut specimen = maps(entries);
+    *specimen.counts.get_mut("count-0000").unwrap() = -1;
+    let zero_key_value = specimen.entities.remove(&0).unwrap();
+    assert!(specimen.entities.insert(4, zero_key_value).is_none());
+    specimen
+}
+
 impl Inputs {
     pub fn prepare(specimen: Specimen) -> Self {
         match specimen {
@@ -128,7 +140,7 @@ impl Inputs {
                 false,
             ))),
             Specimen::Maps(n) => Self::Maps(Pair::prepare(
-                maps(n),
+                rpc_maps(n),
                 touch_maps_native,
                 touch_maps_prost,
                 true,
@@ -152,35 +164,70 @@ mod tests {
     use crate::workloads::{CELLS, Codec, Operation};
 
     #[test]
-    fn all_64_rpc_specimens_check_full_values_reads_and_expose_unequal_wire_work() {
+    fn all_64_rpc_specimens_check_full_values_reads_and_equal_wire_work() {
         let mut count = 0;
-        let mut unequal = 0;
         for cell in CELLS.iter().filter(|c| {
             matches!(c.codec, Codec::Prost) && matches!(c.operation, Operation::ReadAll)
         }) {
             let report = Inputs::prepare(cell.specimen).report();
             assert_eq!(report["full_decoded_equality"], true);
-            if report["equal_wire_work"] == false {
-                assert!(matches!(cell.specimen, Specimen::Maps(_)));
-                assert_eq!(
-                    report["native_request_bytes"].as_u64().unwrap(),
-                    report["request_bytes"].as_u64().unwrap() + 4
-                );
-                unequal += 1;
-            }
+            assert_eq!(report["equal_wire_work"], true, "{:?}", cell.specimen);
             count += 1;
         }
         assert_eq!(count, 64);
-        assert_eq!(unequal, 3);
+    }
+
+    #[test]
+    fn current_inventory_matches_qualified_rpc_fixtures() {
+        let expected: Vec<Value> =
+            serde_json::from_str(include_str!("../evidence/rpc-inventory-equal-wire.json"))
+                .unwrap();
+        let actual: Vec<_> = CELLS
+            .iter()
+            .filter(|c| matches!(c.codec, Codec::Prost) && matches!(c.operation, Operation::ReadAll))
+            .map(|cell| {
+                json!({
+                    "specimen": cell.id.strip_prefix("codec.adoption.prost.").unwrap().strip_suffix(".read_all").unwrap(),
+                    "qualification": Inputs::prepare(cell.specimen).report(),
+                })
+            })
+            .collect();
+        assert_eq!(actual, expected);
     }
 
     #[test]
     #[should_panic(expected = "RPC encoded bytes must agree")]
-    fn maps_cannot_enter_a_timing_window_with_unequal_wire_work() {
+    fn original_default_map_values_cannot_enter_a_timing_window() {
+        let pair = Pair::<native::MapHeavy, _>::prepare(
+            maps(8),
+            touch_maps_native,
+            touch_maps_prost,
+            true,
+        );
+        pair.assert_equal_wire_work();
+    }
+
+    #[test]
+    fn rpc_maps_keep_cardinality_and_use_nondefault_entries() {
+        for n in [8, 64, 512] {
+            let map = rpc_maps(n);
+            assert_eq!(map.counts.len(), n);
+            assert_eq!(map.values.len(), n);
+            assert_eq!(map.entities.len(), 8);
+            assert!(map.counts.values().all(|value| *value != 0));
+            assert!(map.entities.keys().all(|key| *key != 0));
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn rpc_oracle_rejects_a_corrupted_map_value() {
         let Inputs::Maps(pair) = Inputs::prepare(Specimen::Maps(8)) else {
             unreachable!()
         };
-        pair.assert_equal_wire_work();
+        let mut changed = pair.prost.clone();
+        *changed.counts.get_mut("count-0000").unwrap() -= 1;
+        pair.validate_prost(&changed);
     }
 
     #[test]

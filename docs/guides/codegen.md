@@ -10,12 +10,14 @@ Tonic stubs and messages-only output are explicit options.
 ## 1. Using `build.rs` (Recommended)
 
 For most crates, generate code from `build.rs`. Add `pbrs` as a build
-dependency and add the runtime crates your generated code will use:
+dependency and add the runtime crates your generated code will use. The
+example uses the published adapter preview; this checkout targets an unreleased
+`0.1.0-alpha.3` candidate:
 
 ```toml
 [dependencies]
 pbrs = "0.2"
-pbrs-grpc = "0.1.0-alpha.2"
+pbrs-grpc = "0.1.0-alpha.2" # Published preview
 
 [build-dependencies]
 pbrs = "0.2"
@@ -301,7 +303,7 @@ with `tonic` and `protobuf-tonic`:
 ```toml
 [dependencies]
 pbrs = "0.2"
-protobuf-tonic = "0.1.0-alpha.2"
+protobuf-tonic = "0.1.0-alpha.2" # Published preview
 tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
 http = "1"
 tokio-stream = "0.1"

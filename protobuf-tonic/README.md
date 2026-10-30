@@ -1,8 +1,9 @@
 # protobuf-tonic
 
 `protobuf-tonic` connects `pbrs` messages to Tonic 0.14 transport and middleware.
-It is a codec adapter with generated client and server stubs. Version
-`0.1.0-alpha.2` is a preview and requires Rust 1.88.
+It is a codec adapter with generated client and server stubs. Published version
+`0.1.0-alpha.2` is a preview; this checkout targets the unreleased
+`0.1.0-alpha.3` preview. Both require Rust 1.88.
 
 Two boundaries matter when migrating: the messages implement `Parse` and
 `Serialize`, so middleware that requires `prost::Message` needs adapting;
@@ -30,11 +31,14 @@ MSRV is 1.88.
 
 ### 1. Add dependencies
 
+These dependencies use the published preview; the checkout candidate is not
+yet available from crates.io.
+
 ```toml
 [dependencies]
 tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
 pbrs = "0.2"
-protobuf-tonic = "0.1.0-alpha.2"
+protobuf-tonic = "0.1.0-alpha.2" # Published preview
 http = "1"
 tokio-stream = "0.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

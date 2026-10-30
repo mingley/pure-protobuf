@@ -75,6 +75,13 @@ jobs:
           git cat-file -e "$BASE_SHA^{commit}"
           git worktree add --detach "$RUNNER_TEMP/devloop-base" "$BASE_SHA"
           mkdir -p perf-artifacts
+          # Older RPC fixtures encode default map entries at different lengths
+          # in the two codecs. Repair only the pinned legacy harness in this
+          # disposable base tree so both revisions measure the same fixture.
+          # Record the before/after hashes; no runtime source is changed.
+          python3 scripts/devloop-rpc-base-compat.py \
+            "$RUNNER_TEMP/devloop-base" perf-artifacts/base-rpc-fixture-overlay.json \
+            --head "$GITHUB_WORKSPACE"
       - name: Install pinned-compiler build tools
         run: sudo apt-get update && sudo apt-get install -y cmake g++
       - uses: actions/cache@v4

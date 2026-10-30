@@ -171,7 +171,7 @@ coverage, raw/combined row equality, ratios and target counts without changing
 the artifacts. P1/P2 remain unmet in this instrumented dev-loop diagnostic;
 The complete RPC matrix, startup and codegen measurement remain open.
 
-SB-26d's `rpc-inventory` binary qualifies the same 64 specimens for unary
+SB-26d's `rpc-inventory` binary qualifies 64 RPC specimens for unary
 and four-message server streaming before transport timing. Both request
 templates are decoded from the same prost wire, completely read and cloned
 per RPC; fresh construction remains a separate codec operation. The oracle
@@ -183,12 +183,17 @@ cargo run --locked --manifest-path bench/devloop/adoption/Cargo.toml \
   --bin rpc-inventory
 ```
 
-The [RPC inventory](evidence/rpc-inventory.json) exposes three blocked map
-specimens: pbrs emits four extra bytes for default-valued map entries, even
-after parsing the common prost wire. All 64 specimens have equal decoded
-values and read checksums; 61 have equal encoded lengths. Unequal lengths
-must fail the RPC timing preflight. This qualification is not a transport
-measurement and does not close SB-26d.
+The historical [RPC inventory](evidence/rpc-inventory.json) records three
+blocked map specimens: pbrs emitted four extra bytes for a default-valued map
+key and value, even after parsing the common prost wire. The current RPC-only
+fixture replaces those two defaults with nonzero values while retaining map
+cardinality and full-value checks. The original codec corpus still includes
+the defaults. All 64 current RPC specimens pass the equal-length gate; a
+length mismatch still fails timing preflight. The collector uses the separate
+[current inventory](evidence/rpc-inventory-equal-wire.json), bound to its
+source revision, and the historical inventory stays intact. This is a changed
+workload, so new map results are not directly comparable to the historical
+blocked cells.
 
 The parent now registers 512 `rpc.adoption` cells. Build its existing release
 binary with pinned protoc 35.1, then run the complete qualification/collector:
@@ -202,9 +207,9 @@ python3 bench/devloop/adoption/measure-rpc.py \
 ```
 
 The runner checks that the registry covers all 512 IDs, exercises actual
-network replies for the 488 equal-wire cells and verifies that all 24 map
-cells reject timing. It saves progress before measurements, retains eight
-61-cell reports and a combined baseline, and compares every available metric
+network replies for each equal-wire cell, and rejects any byte-count mismatch.
+It saves progress before measurements, retains eight per-profile reports and
+a combined baseline, and compares every available metric
 against tonic/prost without discarding losses. Missing instruction/syscall
 tools stay visible in the existing report format. Source/binary/tool pins
 and hashes accompany the results. The defaults are N=16 and three repeats;
@@ -245,5 +250,6 @@ The eligible RPC floor is unmet: 286/366 instruction and 217/366 allocation
 losses against tonic/prost. Neither native profile meets either proposed P3
 margin on any of its 122 measured pairs. The
 [evidence summary](../../../docs/evidence/sb-26.md) retains every corpus's
-cost ranges and limits. SB-26d remains blocked on the map equal-wire policy;
-these results do not close the parent program or establish native latency.
+cost ranges and limits. These historical results do not include measurements
+of the revised map fixture and do not close the parent program or establish
+native latency.

@@ -12,6 +12,7 @@ use pbrs::runtime::{
 };
 use pbrs::{ClearAndParse, Parse, Serialize};
 use std::ptr::NonNull;
+use std::rc::Rc;
 
 fn field(number: u32, ty: FieldType) -> MiniField {
     MiniField {
@@ -27,26 +28,29 @@ fn field(number: u32, ty: FieldType) -> MiniField {
         oneof_group: 0,
     }
 }
-fn table(fields: Vec<MiniField>, is_map: bool) -> Box<MiniTable> {
-    Box::new(MiniTable {
+fn table(fields: Vec<MiniField>, is_map: bool) -> MiniTable {
+    MiniTable {
         fields,
         is_map,
         enforce_utf8: true,
-    })
+    }
 }
 // Drop order keeps tables alive until root and arena pointers are destroyed.
 struct Fixture {
     root: Box<MsgData>,
     arena: Arena,
-    #[expect(
-        clippy::vec_box,
-        reason = "linked MiniTable pointers need stable Box addresses"
-    )]
-    _tables: Vec<Box<MiniTable>>,
+    // The Rc allocations stay alive and moving the owners does not retag the
+    // pointees behind the linked raw MiniTable pointers.
+    _tables: Vec<Rc<MiniTable>>,
 }
 impl Default for Fixture {
     fn default() -> Self {
-        let child = table(
+        Self::with_group_options(false, false)
+    }
+}
+impl Fixture {
+    fn with_group_options(required: bool, null_table: bool) -> Self {
+        let child = Rc::new(table(
             vec![
                 MiniField {
                     required: true,
@@ -58,9 +62,9 @@ impl Default for Fixture {
                 },
             ],
             false,
-        );
-        let child_ptr = MiniTablePtr(child.as_ref());
-        let entry = table(
+        ));
+        let child_ptr = MiniTablePtr(Rc::as_ptr(&child));
+        let entry = Rc::new(table(
             vec![
                 field(1, FieldType::Int32),
                 MiniField {
@@ -69,84 +73,93 @@ impl Default for Fixture {
                 },
             ],
             true,
-        );
-        let entry_ptr = MiniTablePtr(entry.as_ref());
-        let mut parent = table(
-            vec![
-                MiniField {
-                    sub: child_ptr,
-                    ..field(1, FieldType::Message)
-                },
-                MiniField {
-                    sub: child_ptr,
-                    repeated: true,
-                    ..field(2, FieldType::Message)
-                },
-                MiniField {
-                    sub: child_ptr,
-                    oneof_group: 1,
-                    ..field(3, FieldType::Message)
-                },
-                MiniField {
-                    oneof_group: 1,
-                    ..field(4, FieldType::Int32)
-                },
-                MiniField {
-                    sub: entry_ptr,
-                    repeated: true,
-                    is_map: true,
-                    ..field(5, FieldType::Message)
-                },
-            ],
-            false,
-        );
-        let parent_ptr = MiniTablePtr(parent.as_ref());
-        parent.fields.push(MiniField {
-            sub: parent_ptr,
-            ..field(6, FieldType::Message)
-        });
-        parent.fields.push(MiniField {
-            repeated: true,
-            ..field(7, FieldType::Int32)
-        });
-        parent.fields.push(MiniField {
-            repeated: true,
-            packed: true,
-            ..field(8, FieldType::Int32)
-        });
-        parent.fields.push(MiniField {
-            repeated: true,
-            packed: true,
-            ..field(9, FieldType::Float)
-        });
-        parent.fields.push(MiniField {
-            repeated: true,
-            ..field(10, FieldType::Double)
-        });
-        parent.fields.extend([
-            MiniField {
-                sub: child_ptr,
-                ..field(11, FieldType::Group)
-            },
-            MiniField {
-                sub: child_ptr,
-                repeated: true,
-                ..field(12, FieldType::Group)
-            },
-            MiniField {
-                sub: child_ptr,
-                oneof_group: 2,
-                ..field(13, FieldType::Group)
-            },
-            MiniField {
-                oneof_group: 2,
-                ..field(14, FieldType::Int32)
-            },
-            MiniField {
+        ));
+        let entry_ptr = MiniTablePtr(Rc::as_ptr(&entry));
+        let parent = Rc::new_cyclic(|parent| {
+            let parent_ptr = MiniTablePtr(parent.as_ptr());
+            let mut parent = table(
+                vec![
+                    MiniField {
+                        sub: child_ptr,
+                        ..field(1, FieldType::Message)
+                    },
+                    MiniField {
+                        sub: child_ptr,
+                        repeated: true,
+                        ..field(2, FieldType::Message)
+                    },
+                    MiniField {
+                        sub: child_ptr,
+                        oneof_group: 1,
+                        ..field(3, FieldType::Message)
+                    },
+                    MiniField {
+                        oneof_group: 1,
+                        ..field(4, FieldType::Int32)
+                    },
+                    MiniField {
+                        sub: entry_ptr,
+                        repeated: true,
+                        is_map: true,
+                        ..field(5, FieldType::Message)
+                    },
+                ],
+                false,
+            );
+            parent.fields.push(MiniField {
                 sub: parent_ptr,
-                ..field(15, FieldType::Group)
-            },
-        ]);
+                ..field(6, FieldType::Message)
+            });
+            parent.fields.push(MiniField {
+                repeated: true,
+                ..field(7, FieldType::Int32)
+            });
+            parent.fields.push(MiniField {
+                repeated: true,
+                packed: true,
+                ..field(8, FieldType::Int32)
+            });
+            parent.fields.push(MiniField {
+                repeated: true,
+                packed: true,
+                ..field(9, FieldType::Float)
+            });
+            parent.fields.push(MiniField {
+                repeated: true,
+                ..field(10, FieldType::Double)
+            });
+            parent.fields.extend([
+                MiniField {
+                    sub: if null_table {
+                        MiniTablePtr::dangling()
+                    } else {
+                        child_ptr
+                    },
+                    required,
+                    ..field(11, FieldType::Group)
+                },
+                MiniField {
+                    sub: child_ptr,
+                    repeated: true,
+                    ..field(12, FieldType::Group)
+                },
+                MiniField {
+                    sub: child_ptr,
+                    oneof_group: 2,
+                    ..field(13, FieldType::Group)
+                },
+                MiniField {
+                    oneof_group: 2,
+                    ..field(14, FieldType::Int32)
+                },
+                MiniField {
+                    sub: parent_ptr,
+                    ..field(15, FieldType::Group)
+                },
+            ]);
+            parent
+        });
+        let parent_ptr = MiniTablePtr(Rc::as_ptr(&parent));
         Self {
             root: Box::new(MsgData {
                 slots: vec![FieldKind::Empty; parent.fields.len()],
@@ -641,10 +654,7 @@ fn known_groups_reject_malformed_or_unmatched_end_tags_in_both_parse_modes() {
 
 #[test]
 fn required_group_presence_and_its_child_fields_are_checked_separately() {
-    let mut message = Fixture::default();
-    // Configure the table before the first parse; its stable Box address stays
-    // unchanged and the table is immutable while decoding uses it.
-    message._tables.last_mut().unwrap().fields[10].required = true;
+    let mut message = Fixture::with_group_options(true, false);
     assert!(message.merge_from_bytes(&[]).is_err());
     assert!(message.merge_from_bytes(&group_field(11, &[])).is_err());
     message
@@ -842,10 +852,7 @@ fn malformed_group_merges_preserve_the_previous_oneof_and_complete_unknowns() {
 
 #[test]
 fn null_group_tables_keep_payloads_inert_but_validate_group_framing() {
-    let mut message = Fixture::default();
-    // Configure the null sentinel before parsing; no table is mutated while
-    // decode holds a linked-table reference.
-    message._tables.last_mut().unwrap().fields[10].sub = MiniTablePtr::dangling();
+    let mut message = Fixture::with_group_options(false, true);
     let body = [vec![8, 11, 16, 22], group_field(99, &varint_field(1, 33))].concat();
     message.merge_from_bytes(&group_field(11, &body)).unwrap();
     let inert = child(&message.root, 10);

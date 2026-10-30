@@ -24,12 +24,14 @@ messages. See [architecture](architecture.md) for transport and runtime details.
 
 ### Installation
 
-Add `pbrs` and `pbrs-grpc` from crates.io to `Cargo.toml`:
+Add the published `pbrs` and `pbrs-grpc` releases from crates.io to
+`Cargo.toml`. This checkout targets unreleased `0.2.1` and `0.1.0-alpha.3`
+candidates; its newer APIs may not be available in the published preview:
 
 ```toml
 [dependencies]
 pbrs = "0.2"
-pbrs-grpc = "0.1.0-alpha.2"
+pbrs-grpc = "0.1.0-alpha.2" # Published preview
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [build-dependencies]
@@ -147,7 +149,7 @@ The optional `tower` feature adds integration points without changing the
 default dependency graph:
 
 ```toml
-pbrs-grpc = { version = "0.1.0-alpha.2", features = ["tower"] }
+pbrs-grpc = { version = "0.1.0-alpha.2", features = ["tower"] } # Published preview
 ```
 
 - `Router::into_tower_service()` exposes a native router as
@@ -209,7 +211,7 @@ Enable the optional `grpc-web` feature to serve gRPC-Web over the existing
 HTTP/2 transport:
 
 ```toml
-pbrs-grpc = { version = "0.1.0-alpha.2", features = ["grpc-web"] }
+pbrs-grpc = { version = "0.1.0-alpha.2", features = ["grpc-web"] } # Published preview
 ```
 
 With the feature enabled, the server accepts `application/grpc-web`,

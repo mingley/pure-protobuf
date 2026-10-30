@@ -9,7 +9,8 @@ It supports all four RPC shapes, generated [`pbrs`](../README.md) messages,
 TLS, and optional Prost and Tower integration. The transport uses an embedded
 `h2` backend and Tokio; the default TLS provider is rustls with Graviola.
 
-Version `0.1.0-alpha.2` is a preview. See the [project status](../docs/status.md)
+Published version `0.1.0-alpha.2` is a preview; this checkout targets the
+unreleased `0.1.0-alpha.3` preview. See the [project status](../docs/status.md)
 for tested features and the [scoreboard](../docs/scoreboard.md) for measurements.
 Configure connection, RPC, message, and byte limits for your workload.
 
@@ -35,9 +36,10 @@ encode ledger, with a 4 MiB limit per backing allocation. Accounting uses the
 full backing capacity, including storage shared with an earlier immutable
 frame. Identity or mixed batches do not retain this output tail. Encoding
 failure or panic drops reusable storage while preserving completed frames.
-The [latest measurement record](../docs/evidence/decode-and-map-speed-20261027/README.md)
+The [October 27 measurement record](../docs/evidence/decode-and-map-speed-20261027/README.md)
 retains allocation gains and remaining costs; it does not establish a general
-CPU improvement from reuse.
+CPU improvement from reuse. The [October 28 record](../docs/evidence/optimizations-20261028/README.md)
+contains the later source-scoped transport comparison.
 
 ## Optional features
 
@@ -54,10 +56,11 @@ Features are opt-in:
 | `native-roots` | Client certificate trust from the operating system. |
 | `zstd` | Zstandard message compression; requires Rust 1.87. |
 
-For example, enable `tower` for Tower integration:
+The following dependency examples use the published preview. For example,
+enable `tower` for Tower integration:
 
 ```toml
-pbrs-grpc = { version = "0.1.0-alpha.2", features = ["tower"] }
+pbrs-grpc = { version = "0.1.0-alpha.2", features = ["tower"] } # Published preview
 ```
 
 With that feature, `Router::into_tower_service()` exposes native services as
@@ -72,7 +75,7 @@ and [axum co-host example](../examples/axum-cohost/).
 Enable `zstd` only when you need `grpc-encoding: zstd`:
 
 ```toml
-pbrs-grpc = { version = "0.1.0-alpha.2", features = ["zstd"] }
+pbrs-grpc = { version = "0.1.0-alpha.2", features = ["zstd"] } # Published preview
 ```
 
 The default feature set keeps the crate MSRV at Rust 1.85. The `zstd` feature
@@ -83,7 +86,7 @@ Enable `grpc-web` when browser gRPC-Web clients must call the same HTTP/2
 server:
 
 ```toml
-pbrs-grpc = { version = "0.1.0-alpha.2", features = ["grpc-web"] }
+pbrs-grpc = { version = "0.1.0-alpha.2", features = ["grpc-web"] } # Published preview
 ```
 
 The feature supports binary and text gRPC-Web content types for unary and
@@ -99,7 +102,7 @@ Add `pbrs` and `pbrs-grpc` to `Cargo.toml`:
 ```toml
 [dependencies]
 pbrs = "0.2"
-pbrs-grpc = "0.1.0-alpha.2"
+pbrs-grpc = "0.1.0-alpha.2" # Published preview
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [build-dependencies]

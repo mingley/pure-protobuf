@@ -63,12 +63,14 @@ map iteration order can differ.
 ## 2. Using pbrs with Existing Tonic Services
 
 Keep Tonic when you want its routing, transport, and middleware stack. Generate
-Tonic-shaped service stubs and use the `protobuf-tonic` codec adapter.
+Tonic-shaped service stubs and use the `protobuf-tonic` codec adapter. This
+example uses the published preview; the checkout's `0.1.0-alpha.3` candidate
+is not yet published.
 
 ```toml
 [dependencies]
 pbrs = "0.2"
-protobuf-tonic = "0.1.0-alpha.2"
+protobuf-tonic = "0.1.0-alpha.2" # Published preview
 tonic = { version = "0.14", default-features = false, features = ["transport", "codegen"] }
 ```
 
@@ -307,7 +309,7 @@ Enable `pbrs-grpc`'s optional `tower` feature when you want Tonic-style
 middleware composition without moving back to Tonic's transport:
 
 ```toml
-pbrs-grpc = { version = "0.1.0-alpha.2", features = ["tower"] }
+pbrs-grpc = { version = "0.1.0-alpha.2", features = ["tower"] } # Published preview
 ```
 
 | Tonic middleware | Native migration path | Delta |

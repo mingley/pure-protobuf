@@ -1,6 +1,6 @@
 [package]
 name = "pbrs-grpc"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 authors = ["Michael Ingley <michael.ingley@gmail.com>"]
 edition = "2024"
 rust-version = "1.85"
@@ -13,7 +13,7 @@ keywords = ["grpc", "http2", "protobuf", "pbrs"]
 categories = ["network-programming", "asynchronous"]
 
 [build-dependencies]
-pbrs = { version = "0.2.0", path = ".." }
+pbrs = { version = "0.2.1", path = ".." }
 
 [dependencies]
 # Private embedded h2 backend: these are the already-locked upstream support
@@ -38,7 +38,7 @@ indexmap = { version = "2.14.0", default-features = false, features = ["std"] }
 # Optional OpenTelemetry bridge (GF-01 metrics, GF-02 tracing).
 # Default off: zero cost when disabled (module compiles out).
 opentelemetry = { version = "0.31", default-features = false, features = ["metrics", "trace"], optional = true }
-pbrs = { version = "0.2.0", path = ".." }
+pbrs = { version = "0.2.1", path = ".." }
 pin-project-lite = "=0.2.17"
 prost = { version = "0.14", optional = true }
 # TLS uses rustls with Graviola as its crypto provider.

@@ -3,7 +3,10 @@
 Run this loopback recipe to learn TLS, mutual TLS (mTLS), readiness, overload,
 and graceful shutdown. It uses explicit limits and the repository's public
 test certificates. You need a checkout, cached Rust dependencies, and
-`protoc`. Choose your own credentials and capacity limits for deployment.
+`protoc`: the greeter's `build.rs` compiles its `.proto` directly. When adapting
+the build, a [checked descriptor set](codegen.md#generating-from-a-checked-descriptor-set)
+can avoid invoking `protoc` during the application build. Choose your own
+credentials and capacity limits for deployment.
 
 The executable [greeter TLS service and client](../../examples/greeter/src/production.rs)
 uses generated stubs, `rustls` TLS, health, and a finite drain. Its
@@ -58,10 +61,16 @@ a client that does present a certificate must chain to `client_ca_pem`.
 
 The client verifies the certificate's `localhost` name independently of its
 loopback TCP address. TLS requires Application-Layer Protocol Negotiation
-(ALPN) `h2`; there is no tonic-style `assume_http2` mode that skips ALPN, and
-certificate verification cannot be disabled. The exercise confirms that a
-wrong CA fails in TLS mode and missing client identity fails in mTLS mode with
-`UNAUTHENTICATED`.
+(ALPN) `h2`; there is no tonic-style `assume_http2` mode that skips ALPN. The
+built-in client constructors verify peer certificates. The exercise confirms
+that a wrong CA fails in TLS mode and missing client identity fails in mTLS
+mode with `UNAUTHENTICATED`.
+
+`ClientTls::from_rustls` and `ServerTls::from_rustls` accept trusted
+application-owned configurations. The caller controls peer verification and
+must configure an authenticating policy; these wrappers cannot inspect or
+certify an opaque custom verifier. Disabling peer verification is unsupported.
+See the [caller-config contract](../decisions/caller-rustls-config.md).
 
 Production trust is separate from this sample:
 

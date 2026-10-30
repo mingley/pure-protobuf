@@ -25,8 +25,13 @@ def audit(directory):
     assert 1 <= record["iters"] <= 200 and record["repeats"] >= 1
     # Later codec corrections can update the live inventory. Audit the exact
     # inventory committed with this baseline rather than rewriting history.
+    inventory_path = record.get("inventory_path", "bench/devloop/adoption/evidence/rpc-inventory.json")
+    assert inventory_path in {
+        "bench/devloop/adoption/evidence/rpc-inventory.json",
+        "bench/devloop/adoption/evidence/rpc-inventory-equal-wire.json",
+    }
     inventory_bytes = subprocess.run(
-        ["git", "show", f"{record['source_commit']}:bench/devloop/adoption/evidence/rpc-inventory.json"],
+        ["git", "show", f"{record['source_commit']}:{inventory_path}"],
         cwd=ROOT, check=True, capture_output=True,
     ).stdout
     assert hashlib.sha256(inventory_bytes).hexdigest() == record["inventory_sha256"]

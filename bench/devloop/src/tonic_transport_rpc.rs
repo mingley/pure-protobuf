@@ -527,8 +527,8 @@ async fn run_pair<C: CorpusService, N>(id: &str, pair: Pair<N, C::Message>, mode
 where
     N: pbrs::Parse + pbrs::Serialize + Clone,
 {
-    // Preserve the original corpus's map qualification even though all four
-    // new profiles use prost codecs. Unequal original work blocks timing.
+    // Preserve the RPC fixture's equal-wire qualification even though all
+    // four transport profiles use prost codecs.
     pair.assert_equal_wire_work();
     let (profile, _, _) = parse_cell(id);
     let (addr, probe, server) = server::<C>(profile, pair.checksum).await;
@@ -614,24 +614,15 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn complete_network_matrix_preflight_retains_all_24_original_map_blocks() {
+    async fn complete_network_matrix_preflight_checks_all_qualified_cells() {
         let mut passed = 0;
-        let mut blocked = 0;
         for (id, _, _) in cells() {
             let (_, specimen, _) = parse_cell(id);
             let report = Inputs::prepare(specimen).report();
-            if report["equal_wire_work"] == false {
-                assert!(matches!(specimen, Specimen::Maps(_)));
-                assert_eq!(
-                    report["native_request_bytes"].as_u64().unwrap(),
-                    report["request_bytes"].as_u64().unwrap() + 4
-                );
-                blocked += 1;
-            } else {
-                run_mode(id, RunMode::Preflight).await;
-                passed += 1;
-            }
+            assert_eq!(report["equal_wire_work"], true);
+            run_mode(id, RunMode::Preflight).await;
+            passed += 1;
         }
-        assert_eq!((passed, blocked), (488, 24));
+        assert_eq!(passed, 512);
     }
 }

@@ -478,7 +478,7 @@ pub async fn run(id: &str, iters: u64, warmup: u64) {
 
 #[cfg(test)]
 mod tests {
-    use super::tonic_incoming;
+    use super::{cells, run, tonic_incoming};
     use tokio_stream::StreamExt;
 
     #[tokio::test]
@@ -493,5 +493,19 @@ mod tests {
             "tonic's default TCP_NODELAY must apply to accepted sockets"
         );
         drop(client);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn revised_map_fixture_passes_all_adoption_rpc_profiles() {
+        let mut checked = 0;
+        for (id, _, _) in cells() {
+            if id.contains(".maps.") {
+                // run() validates a real response before its iteration loop;
+                // zero iterations keep this a correctness-only preflight.
+                run(id, 0, 0).await;
+                checked += 1;
+            }
+        }
+        assert_eq!(checked, 24);
     }
 }

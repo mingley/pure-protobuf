@@ -1,6 +1,6 @@
 [package]
 name = "protobuf-tonic"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 authors = ["Michael Ingley <michael.ingley@gmail.com>"]
 edition = "2024"
 rust-version = "1.88"
@@ -13,14 +13,14 @@ keywords = ["tonic", "grpc", "protobuf", "pbrs", "codec"]
 categories = ["network-programming", "asynchronous"]
 
 [build-dependencies]
-pbrs = { version = "0.2.0", path = ".." }
+pbrs = { version = "0.2.1", path = ".." }
 prost = "0.14"
 tonic-prost-build = "0.14.6"
 
 [dependencies]
 bytes = "1"
 http = "1"
-pbrs = { version = "0.2.0", path = ".." }
+pbrs = { version = "0.2.1", path = ".." }
 prost = "0.14"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync"] }
 tokio-stream = { version = "0.1", features = ["net"] }

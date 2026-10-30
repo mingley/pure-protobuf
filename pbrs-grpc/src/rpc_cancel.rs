@@ -311,6 +311,71 @@ mod tests {
     }
 
     #[test]
+    fn public_handle_preserves_unwind_traits_and_cancellation_after_waker_panic() {
+        fn public_traits<
+            T: Clone + Send + Sync + std::panic::UnwindSafe + std::panic::RefUnwindSafe,
+        >() {
+        }
+        public_traits::<crate::CallHandle>();
+
+        struct PanicOnWake;
+        impl Wake for PanicOnWake {
+            #[allow(
+                clippy::panic,
+                reason = "exercise a caller-supplied executor callback panic"
+            )]
+            fn wake(self: Arc<Self>) {
+                panic!("executor wake failed");
+            }
+        }
+
+        let cancel = RpcCancel::new();
+        let call = crate::Call::<()>::new(cancel.clone(), Box::pin(std::future::pending()));
+        let handle = call.handle();
+        let mut primary = Box::pin(cancel.wait());
+        let panic_waker = Waker::from(Arc::new(PanicOnWake));
+        assert!(
+            primary
+                .as_mut()
+                .poll(&mut Context::from_waker(&panic_waker))
+                .is_pending()
+        );
+        let (secondary_count, secondary_waker) = waker();
+        let mut secondary = Box::pin(cancel.wait());
+        assert!(
+            secondary
+                .as_mut()
+                .poll(&mut Context::from_waker(&secondary_waker))
+                .is_pending()
+        );
+
+        // This compiles without an assertion at the user's catch boundary.
+        // A primary executor panic happens before the secondary wake loop.
+        assert!(std::panic::catch_unwind(|| handle.cancel()).is_err());
+        assert!(handle.is_cancelled());
+        assert_eq!(secondary_count.0.load(Ordering::SeqCst), 0);
+
+        // The primary waker was removed before it panicked; retrying cannot
+        // encounter it again and still wakes the remaining registered task.
+        let cloned = handle.clone();
+        std::panic::catch_unwind(|| cloned.cancel()).expect("cancellation remains usable");
+        assert!(cloned.is_cancelled());
+        assert_eq!(secondary_count.0.load(Ordering::SeqCst), 1);
+        assert!(
+            primary
+                .as_mut()
+                .poll(&mut Context::from_waker(Waker::noop()))
+                .is_ready()
+        );
+        assert!(
+            secondary
+                .as_mut()
+                .poll(&mut Context::from_waker(&secondary_waker))
+                .is_ready()
+        );
+    }
+
+    #[test]
     fn replacing_secondary_waker_allows_its_drop_to_cancel() {
         struct CancelOnDrop(RpcCancel);
         #[allow(

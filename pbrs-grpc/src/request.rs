@@ -3337,7 +3337,7 @@ impl<T> Call<T> {
     #[must_use]
     pub fn handle(&self) -> CallHandle {
         CallHandle {
-            cancel: self.cancel.clone(),
+            cancel: std::panic::AssertUnwindSafe(self.cancel.clone()),
         }
     }
 }
@@ -3395,9 +3395,30 @@ impl<T> fmt::Debug for Call<T> {
 /// server-streaming or bidi deadline RSTs the send half whether or not
 /// headers have arrived. After those headers, that deadline still RSTs the
 /// parked send half.
-#[derive(Clone, Debug)]
 pub struct CallHandle {
-    cancel: crate::rpc_cancel::RpcCancel,
+    // Only the public signal/query handle crosses an unwind boundary, not
+    // waiter registration. Cancellation sets its atomic flag before waking,
+    // and the primary waker releases its state before invoking user code.
+    // A panicking executor callback therefore leaves this handle cancelled
+    // and usable. Keep the assertion local: registering a waker can panic
+    // while AtomicWaker holds its internal registration state.
+    cancel: std::panic::AssertUnwindSafe<crate::rpc_cancel::RpcCancel>,
+}
+
+impl Clone for CallHandle {
+    fn clone(&self) -> Self {
+        Self {
+            cancel: std::panic::AssertUnwindSafe(self.cancel.0.clone()),
+        }
+    }
+}
+
+impl fmt::Debug for CallHandle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CallHandle")
+            .field("cancel", &self.cancel.0)
+            .finish()
+    }
 }
 
 impl CallHandle {
