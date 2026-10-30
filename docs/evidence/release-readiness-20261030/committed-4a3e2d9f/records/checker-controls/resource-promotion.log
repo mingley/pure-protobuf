@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/workspace/pure-protobuf/work/pbrs-packet-control-t8_ypczb/packet/check.py", line 167, in <module>
+    main()
+  File "/workspace/pure-protobuf/work/pbrs-packet-control-t8_ypczb/packet/check.py", line 141, in main
+    assert resource['qualification']['qualified'] is False
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

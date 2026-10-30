@@ -87,7 +87,23 @@ The native transport, tonic adapter and greeter example pass strict all-target
 Clippy. Workspace binaries, documentation contracts, formatting and warning-free
 rustdoc also pass. The record retains detecting failures, interrupted attempts,
 exact commands, source hashes and the coverage verifier. These are local checks;
-the later transport source still needs its own hosted CI and release rehearsal.
+the final pushed commit still needs its own hosted CI.
+
+## Checks after committing
+
+The [committed-source packet](committed-4a3e2d9f/README.md) checks
+`4a3e2d9f82edb8f0a94ae0f9f6a9bc500537607d`. All 464 selected validation inputs
+match that commit. A fresh local dry run packages all three new-version crates;
+all 419 shipped source members match the committed files. The packet retains
+the archives and verifies their source against the earlier passing consumers.
+
+A release-mode resource smoke passes 19 cycles in 62 seconds under finite
+process limits: 1 GiB address space, 128 file descriptors and 90 CPU seconds.
+It covers TCP/TLS, identity/gzip, slow readers, overload, cancellation, deadlines
+and fault recovery. This is a short diagnostic. The 24-hour campaign and the
+other production gates remain open. The public registry observation at
+19:24 UTC still lists core 0.2.0 and adapters 0.1.0-alpha.2 as published;
+the new candidates were absent.
 
 ## Performance decisions
 

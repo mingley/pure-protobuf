@@ -1,0 +1,25 @@
+{
+  "archive": "target/package-consumer-pack/package/pbrs-grpc-0.1.0-alpha.3.crate",
+  "archive_sha256": "63b2fd25f979c17fe74cb1aa2f2c17982b12d294034d1e164249bb13475d6485",
+  "files": [
+    {
+      "path": "src/h2_backend/proto/streams/streams.rs",
+      "archive_sha256": "e395a1490dfa0975a594ec0ec776d4a64768015759c183a8a9042d7fefb459b4",
+      "current_sha256": "e395a1490dfa0975a594ec0ec776d4a64768015759c183a8a9042d7fefb459b4",
+      "equal": true
+    },
+    {
+      "path": "src/h2_backend/proto/streams/store.rs",
+      "archive_sha256": "134d8cf7d3171ea785c943b5faba08b848f9c9f3cc396da59e07635e828849c8",
+      "current_sha256": "134d8cf7d3171ea785c943b5faba08b848f9c9f3cc396da59e07635e828849c8",
+      "equal": true
+    },
+    {
+      "path": "src/h2_backend/proto/streams/retirement_tests.rs",
+      "archive_sha256": "4d04dde9abcb3433044d31821290201961d3d59b3e8942c6878e77b5b2d066e5",
+      "current_sha256": "4d04dde9abcb3433044d31821290201961d3d59b3e8942c6878e77b5b2d066e5",
+      "equal": true
+    }
+  ],
+  "all_equal": true
+}

@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/workspace/pure-protobuf/work/pbrs-packet-control-w3lsr464/packet/check.py", line 167, in <module>
+    main()
+  File "/workspace/pure-protobuf/work/pbrs-packet-control-w3lsr464/packet/check.py", line 69, in main
+    verify_inputs(inputs)
+  File "/workspace/pure-protobuf/work/pbrs-packet-control-w3lsr464/packet/check.py", line 39, in verify_inputs
+    assert sha(blob(path)) == digest, ('committed input differs', path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ('committed input differs', 'Cargo.lock')

@@ -1,0 +1,27 @@
+{
+  "observed_utc": "2026-10-30T19:24:15.447173+00:00",
+  "source": "public crates.io API",
+  "crates": [
+    {
+      "crate": "pbrs",
+      "candidate": "0.2.1",
+      "candidate_present": false,
+      "max_version": "0.2.0",
+      "status": "observed"
+    },
+    {
+      "crate": "pbrs-grpc",
+      "candidate": "0.1.0-alpha.3",
+      "candidate_present": false,
+      "max_version": "0.1.0-alpha.2",
+      "status": "observed"
+    },
+    {
+      "crate": "protobuf-tonic",
+      "candidate": "0.1.0-alpha.3",
+      "candidate_present": false,
+      "max_version": "0.1.0-alpha.2",
+      "status": "observed"
+    }
+  ]
+}

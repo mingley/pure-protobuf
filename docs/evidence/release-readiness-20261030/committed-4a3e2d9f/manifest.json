@@ -1,0 +1,157 @@
+{
+  "schema": "pbrs.committed-readiness-packet.v1",
+  "source_commit": "4a3e2d9f82edb8f0a94ae0f9f6a9bc500537607d",
+  "captured_utc": "2026-10-30T19:28:15.846711+00:00",
+  "qualified": false,
+  "scope": "local package audit and bounded resource smoke; no release or production promotion",
+  "files": {
+    "README.md": {
+      "bytes": 2901,
+      "sha256": "a54a81e85a47ddc9d902edd46167ffacdbd0773df25c12f93b421981d7bb1f9c"
+    },
+    "check.py": {
+      "bytes": 8685,
+      "sha256": "8c648f5d8e4a1b8be7301a8165896a9cfe788833f561efe16f0dff9b917de5a5"
+    },
+    "records/checker-controls/committed-source.log": {
+      "bytes": 559,
+      "sha256": "b3bd2db6ff072e0596c79eb4f62e7ae62b3a4a3751e8f4e95d86bfd6edb9059c"
+    },
+    "records/checker-controls/consumer-source.log": {
+      "bytes": 2112,
+      "sha256": "a648466cd9c5c8ab659ed9000bf2c4d3a6cc80dca04de59ca4bcabc01efd4fb3"
+    },
+    "records/checker-controls/dirty-publisher.log": {
+      "bytes": 416,
+      "sha256": "91b76640ae026b57411beaf78a69ed5be080511dd560b046a86be8112224b4c1"
+    },
+    "records/checker-controls/member-digest.log": {
+      "bytes": 456,
+      "sha256": "017b1c21755fa497918be27b0522b3520e6dd3355d2d0bc5c3e730d0cd2fb710"
+    },
+    "records/checker-controls/report.json": {
+      "bytes": 1907,
+      "sha256": "09a4ae833bbe92c6484eed568c52fbbf13d50f4efccde2e75f8dbade0e13dcef"
+    },
+    "records/checker-controls/resource-promotion.log": {
+      "bytes": 389,
+      "sha256": "9c5855b784a67ec8cfc083ed63a0373fc0159e1b23336bdee0d7c0017bfc605c"
+    },
+    "records/checker-controls/run.py": {
+      "bytes": 3708,
+      "sha256": "0547cc6df0fa0226666839ce0350759b7cf12b0f892642815662374370530b41"
+    },
+    "records/checker-controls/validator-pin.log": {
+      "bytes": 439,
+      "sha256": "2d7bc7595280a8a2bef2851bf65e6bc950f70303bcae2f19ffb84856b6cf11be"
+    },
+    "records/committed-source-binding.json": {
+      "bytes": 68647,
+      "sha256": "f9c35bfb036c03f63b255d2a86be8dbc7296803e6cd5158fcbb0e14ebb5204b7"
+    },
+    "records/consumer-all-current-source-check.json": {
+      "bytes": 79763,
+      "sha256": "b9264d090329646a0281668de68e3d55f4d79de62b7bbb8c9f5ca4fc02a8fb4d"
+    },
+    "records/consumer-selected-current-source-check.json": {
+      "bytes": 1041,
+      "sha256": "3b05d3c260a65957b960aa5980e78bc6f1c994cdca198c908ca191985b093830"
+    },
+    "records/docs-contract/report.json": {
+      "bytes": 51152,
+      "sha256": "594d01a9bccaf9642f7f7a7a6d3ab72893670312933883c58704bdbd43dc073e"
+    },
+    "records/docs-contract/test.log": {
+      "bytes": 1941,
+      "sha256": "659b51c26e0e05152a73e743be4865bb7317869ebdb85e97925855a0118252b9"
+    },
+    "records/packages/consumer/pbrs-0.2.1.crate": {
+      "bytes": 584329,
+      "sha256": "ac5effbf3957968d4ad2b0bc71b703d0dec7529cf8bc778f5c75630d62e52f8a"
+    },
+    "records/packages/consumer/pbrs-grpc-0.1.0-alpha.3.crate": {
+      "bytes": 1386007,
+      "sha256": "63b2fd25f979c17fe74cb1aa2f2c17982b12d294034d1e164249bb13475d6485"
+    },
+    "records/packages/consumer/protobuf-tonic-0.1.0-alpha.3.crate": {
+      "bytes": 28532,
+      "sha256": "34c2824c1133fc046144c9558315a4acbc601ddbca74b20f6c8fb21c3288fb12"
+    },
+    "records/packages/final/pbrs-0.2.1.crate": {
+      "bytes": 584327,
+      "sha256": "8a94b90f9072144c47749dfdc6ff192b15c2c8da3a41ef858033362006d5c318"
+    },
+    "records/packages/final/pbrs-grpc-0.1.0-alpha.3.crate": {
+      "bytes": 1385951,
+      "sha256": "0e27d74b0485c3547625c4ac08c6cbc2c62c5b793e255804dfc92203250ffc99"
+    },
+    "records/packages/final/protobuf-tonic-0.1.0-alpha.3.crate": {
+      "bytes": 28486,
+      "sha256": "884ce672d40b3c1c2b1757e3114f7b6063c5546820f9792a3ace7ab57aa41afd"
+    },
+    "records/publisher/archive-audit.json": {
+      "bytes": 96227,
+      "sha256": "1a6d6824e652680cac1bd974e2c2fdb53360a931bdfde2e5f61c67c234d59c00"
+    },
+    "records/publisher/audit-release-archives.py": {
+      "bytes": 9393,
+      "sha256": "5e15129e3531f0ed9fff831d5125137fa6136ea23f15efbb7c5ddf30fdc7d73e"
+    },
+    "records/publisher/publisher.log": {
+      "bytes": 5026,
+      "sha256": "8e1da6969f646a38ded1926cc038f6e82baa7f469e682dd8d0476f45e4adf54a"
+    },
+    "records/publisher/report.json": {
+      "bytes": 56623,
+      "sha256": "aedaa92c0d3b1ed45840dfada2d3c61ec17ab6341aa56f4c9337cfb74779efa0"
+    },
+    "records/publisher/run.py": {
+      "bytes": 4652,
+      "sha256": "a6b97aa19248f48f5f24b0d99340338fa62606a637d1788241cc5b1edc51797d"
+    },
+    "records/registry-observation.json": {
+      "bytes": 623,
+      "sha256": "9838b133b8a7261cc83890783ade1b73a1dbf618fe412f548b3289481be5f966"
+    },
+    "records/resource/build.stderr.log": {
+      "bytes": 2373,
+      "sha256": "47f42d40e67a7511a81ba4d19f99a7d6e27f924ab84ca134101fcbb7d5c4c604"
+    },
+    "records/resource/build.stdout.jsonl": {
+      "bytes": 85595,
+      "sha256": "fcc254eb5e2dec3cf3e4deb0de9790f3d4adb4951fa53f5f8c506bee59a299e7"
+    },
+    "records/resource/events.jsonl": {
+      "bytes": 85962,
+      "sha256": "bf52f7008a0612651cbedb2d662441c594756972aa946f9f362b1dd587dac75c"
+    },
+    "records/resource/grpc-resource-campaign.py": {
+      "bytes": 25431,
+      "sha256": "20c7a00cdd37c0ef7b3baa45f6eb9aac3f1eeafe75130772dc8c69c499d1fb49"
+    },
+    "records/resource/progress.json": {
+      "bytes": 194,
+      "sha256": "5e000719c92c4a136074433c2d79d650f799dfe28b6421dec2fac9231b9f6225"
+    },
+    "records/resource/report.json": {
+      "bytes": 98912,
+      "sha256": "67ec7d0a9891f834210fb60284e7cc4144bc7eb6b9fa268557e14061277a174d"
+    },
+    "records/resource/test.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "records/resource/test.stdout.log": {
+      "bytes": 154,
+      "sha256": "cd82222974b1ea8287524cfeccbe95ee6a610f6f906668c3cb881cf0bfb5c32d"
+    },
+    "records/resource/wrapper.json": {
+      "bytes": 51319,
+      "sha256": "d795165da573635bddb3ef75264a8c3ee609c37744da1d8e3c7124b2c66728ea"
+    },
+    "records/resource/wrapper.log": {
+      "bytes": 151,
+      "sha256": "5c7e3327b4d4470808bf530f14dfbcc68506f95e6b4a105b403bb8afcfeffc49"
+    }
+  }
+}

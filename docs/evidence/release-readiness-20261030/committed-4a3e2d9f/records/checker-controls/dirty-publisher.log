@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/workspace/pure-protobuf/work/pbrs-packet-control-rscnhksg/packet/check.py", line 167, in <module>
+    main()
+  File "/workspace/pure-protobuf/work/pbrs-packet-control-rscnhksg/packet/check.py", line 81, in main
+    assert publisher['status_before'] == publisher['status_after'] == ''
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/workspace/pure-protobuf/work/pbrs-packet-control-ry6ps3og/packet/check.py", line 167, in <module>
+    main()
+  File "/workspace/pure-protobuf/work/pbrs-packet-control-ry6ps3og/packet/check.py", line 60, in main
+    assert len(data) == record['bytes'] and sha(data) == record['sha256'], path
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: records/resource/progress.json

@@ -1,0 +1,57 @@
+{
+  "schema": "pbrs.packet-negative-controls.v1",
+  "observed_utc": "2026-10-30T19:27:34.269902+00:00",
+  "checker_sha256": "8c648f5d8e4a1b8be7301a8165896a9cfe788833f561efe16f0dff9b917de5a5",
+  "scope": "disposable packet mutations; shipping source and original packet untouched",
+  "all_detected": true,
+  "cases": [
+    {
+      "case": "member-digest",
+      "mutated_member": "records/resource/progress.json",
+      "manifest_rehashed": false,
+      "exit_code": 1,
+      "expected_diagnostic": "records/resource/progress.json",
+      "detected": true
+    },
+    {
+      "case": "committed-source",
+      "mutated_member": "records/committed-source-binding.json",
+      "manifest_rehashed": true,
+      "exit_code": 1,
+      "expected_diagnostic": "committed input differs",
+      "detected": true
+    },
+    {
+      "case": "dirty-publisher",
+      "mutated_member": "records/publisher/report.json",
+      "manifest_rehashed": true,
+      "exit_code": 1,
+      "expected_diagnostic": "publisher['status_before'] == publisher['status_after']",
+      "detected": true
+    },
+    {
+      "case": "consumer-source",
+      "mutated_member": "records/packages/consumer/pbrs-grpc-0.1.0-alpha.3.crate",
+      "manifest_rehashed": true,
+      "exit_code": 1,
+      "expected_diagnostic": "adapter source difference",
+      "detected": true
+    },
+    {
+      "case": "resource-promotion",
+      "mutated_member": "records/resource/report.json",
+      "manifest_rehashed": true,
+      "exit_code": 1,
+      "expected_diagnostic": "resource['qualification']['qualified'] is False",
+      "detected": true
+    },
+    {
+      "case": "validator-pin",
+      "mutated_member": "records/resource/grpc-resource-campaign.py",
+      "manifest_rehashed": true,
+      "exit_code": 1,
+      "expected_diagnostic": "validator_path.read_bytes() == blob('scripts/grpc-resource-campaign.py')",
+      "detected": true
+    }
+  ]
+}

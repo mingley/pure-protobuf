@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "/workspace/pure-protobuf/work/pbrs-packet-control-0cykkbzp/packet/records/publisher/audit-release-archives.py", line 170, in <module>
+    main()
+  File "/workspace/pure-protobuf/work/pbrs-packet-control-0cykkbzp/packet/records/publisher/audit-release-archives.py", line 157, in main
+    **compare_archives(members, other_members, name, core_version,
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/pure-protobuf/work/pbrs-packet-control-0cykkbzp/packet/records/publisher/audit-release-archives.py", line 56, in compare_archives
+    assert remaining == ['Cargo.lock'], ('adapter source difference', name, remaining)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ('adapter source difference', 'pbrs-grpc', ['Cargo.lock', 'src/h2_backend/proto/streams/store.rs'])
+Traceback (most recent call last):
+  File "/workspace/pure-protobuf/work/pbrs-packet-control-0cykkbzp/packet/check.py", line 167, in <module>
+    main()
+  File "/workspace/pure-protobuf/work/pbrs-packet-control-0cykkbzp/packet/check.py", line 103, in main
+    subprocess.run([sys.executable, str(auditor), '--root', str(ROOT), '--commit', COMMIT,
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3', '/workspace/pure-protobuf/work/pbrs-packet-control-0cykkbzp/packet/records/publisher/audit-release-archives.py', '--root', '/workspace/pure-protobuf', '--commit', '4a3e2d9f82edb8f0a94ae0f9f6a9bc500537607d', '--packages', '/workspace/pure-protobuf/work/pbrs-packet-control-0cykkbzp/packet/records/packages/final', '--compare-packages', '/workspace/pure-protobuf/work/pbrs-packet-control-0cykkbzp/packet/records/packages/consumer', '--compare-commit', '26389ccf77bf9342fe6e605f1d797853acd6c39a', '--compare-dirty-crates', 'pbrs-grpc', '--output', '/tmp/pbrs-package-audit-as23mnva/audit.json']' returned non-zero exit status 1.
