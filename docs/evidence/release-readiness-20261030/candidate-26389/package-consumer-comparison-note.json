@@ -1,0 +1,8 @@
+{
+  "initial_full_archive_identity_check": "rejected: both adapter Cargo.lock entries differ in registry source/checksum",
+  "followup_scope": "core byte-identical; adapter members identical except pbrs registry-source/checksum provenance in Cargo.lock",
+  "source_and_manifest_equivalence_verified": true,
+  "core_sha256": "ac5effbf3957968d4ad2b0bc71b703d0dec7529cf8bc778f5c75630d62e52f8a",
+  "consumer_result": "2 passed, 0 failed",
+  "no_production_test_failure": true
+}

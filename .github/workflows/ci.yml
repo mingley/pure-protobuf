@@ -79,8 +79,8 @@ jobs:
             cargo fetch --locked --manifest-path "$manifest"
           done
       - run: cargo clippy --all-targets --all-features -- -D warnings
-      - name: Lint native gRPC, tonic adapter, and example libraries
-        run: cargo clippy --lib --all-features -p pbrs-grpc -p protobuf-tonic -p pbrs-grpc-example-greeter -- -D warnings
+      - name: Lint native gRPC, tonic adapter, and example targets
+        run: cargo clippy --all-targets --all-features -p pbrs-grpc -p protobuf-tonic -p pbrs-grpc-example-greeter -- -D warnings
       - name: Interop proof and benchmark accounting contracts
         run: |
           python3 -m unittest -q \
@@ -104,8 +104,8 @@ jobs:
         run: python3 -B -m unittest discover -s tonic-bench -p 'test_checked_v4.py' -q
       - name: Documentation contract checks (links, anchors, snippets, caveats)
         run: cargo test --test documentation -- --nocapture
-      - name: Compiled examples (DX-07 documentation contract)
-        run: cargo build --workspace --examples
+      - name: Build workspace binaries and examples (DX-07 documentation contract)
+        run: cargo build --workspace --bins --examples
       - run: cargo test --workspace
       - name: Bounded compressed buffer lifecycle controls
         run: |

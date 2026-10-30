@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 GROUPS = (
     "h2_backend::proto::streams::lock::tests::",
     "h2_backend::proto::streams::store::tests::",
+    "h2_backend::proto::streams::streams::retirement_tests::",
     "h2_backend::hpack::header::",
     "h2_backend::frame::tests::",
     "h2_backend::header_pool::tests::",

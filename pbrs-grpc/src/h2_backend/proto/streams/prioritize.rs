@@ -232,16 +232,19 @@ impl Prioritize {
     )]
     pub fn send_data<B>(
         &mut self,
-        frame: frame::Data<B>,
+        pending: &mut Option<frame::Data<B>>,
         buffer: &mut Buffer<Frame<B>>,
         stream: &mut store::Ptr,
-        sp: *mut Stream,
+        mut sp: *mut Stream,
         counts: &mut Counts,
         task: &mut Option<Waker>,
     ) -> Result<(), UserError>
     where
         B: Buf,
     {
+        // Validation borrows the caller's owner. Rejection or a payload
+        // callback panic leaves it there until both outer guards are gone.
+        let frame = pending.as_ref().expect("pending DATA before acceptance");
         let sz = frame.payload().remaining();
 
         if sz > MAX_WINDOW_SIZE as usize {
@@ -278,7 +281,7 @@ impl Prioritize {
 
             if frame.is_end_stream() {
                 (*sp).state.send_close();
-                self.reserve_capacity_at(0, stream, sp, counts);
+                sp = self.reserve_capacity_at(0, stream, sp, counts);
             }
 
             // The `buffered_send_data == 0` check is here so that, if a zero
@@ -289,6 +292,9 @@ impl Prioritize {
             // Sending out zero length data frames can be done to signal
             // end-of-stream.
             //
+            // All rejecting checks and capacity callbacks precede transfer.
+            // Queue insertion owns the frame before any connection wake.
+            let frame = pending.take().expect("accepted DATA still owned by caller");
             if (*sp).send_flow.available() > 0 || (*sp).buffered_send_data == 0 {
                 // The stream currently has capacity to send the data frame, so
                 // queue it up and notify the connection task.
@@ -318,15 +324,18 @@ impl Prioritize {
         stream: &mut store::Ptr,
         sp: *mut Stream,
         counts: &mut Counts,
-    ) {
+    ) -> *mut Stream {
         // SAFETY: `sp` is this stream. The equal case does not remove it.
         // The other cases re-enter through `reserve_capacity`.
         let total = unsafe { (capacity as usize) + (*sp).buffered_send_data };
         // SAFETY: the same live resolved slot remains occupied after the read above.
         if total == unsafe { (*sp).requested_send_capacity as usize } {
-            return;
+            return sp;
         }
         self.reserve_capacity(capacity, stream, counts);
+        // The safe reserve path can reborrow this slot. Physical stability
+        // alone does not keep the old pointer valid for the caller.
+        stream.stream_ptr()
     }
 
     /// Request capacity to send data
@@ -670,6 +679,7 @@ impl Prioritize {
         counts: &mut Counts,
         dst: &mut Codec<T, Prioritized<B>>,
         retired: &mut RetiredData<B>,
+        discarded: &mut Vec<Frame<B>>,
     ) -> io::Result<BufferStatus>
     where
         T: AsyncWrite + Unpin,
@@ -706,7 +716,7 @@ impl Prioritize {
 
             // `pop_frame` writes the frame into the codec. Returning it
             // copied the 56-byte enum just so this loop could match DATA.
-            if self.pop_frame(buffer, store, max_frame_len, counts, dst) {
+            if self.pop_frame(buffer, store, max_frame_len, counts, dst, discarded) {
                 // Only a fully encoded small DATA frame occupies the codec
                 // slot. A larger payload stays in `next` and a header block
                 // never sets it, so reclaim would only observe None.
@@ -846,13 +856,20 @@ impl Prioritize {
         }
     }
 
-    pub fn clear_queue<B>(&mut self, buffer: &mut Buffer<Frame<B>>, stream: &mut store::Ptr) {
+    pub fn clear_queue<B>(
+        &mut self,
+        buffer: &mut Buffer<Frame<B>>,
+        stream: &mut store::Ptr,
+        discarded: &mut Vec<Frame<B>>,
+    ) {
         let span = tracing::trace_span!("clear_queue", ?stream.id);
         let _e = span.enter();
 
-        // TODO: make this more efficient?
+        // A payload can own a caller-defined destructor. Detach the frames
+        // here; the outer caller owns this Vec before taking either engine
+        // lock, so payload destruction also follows both guards on unwind.
         while let Some(frame) = stream.pending_send.pop_front(buffer) {
-            tracing::trace!(?frame, "dropping");
+            discarded.push(frame);
         }
 
         stream.buffered_send_data = 0;
@@ -924,6 +941,7 @@ impl Prioritize {
         max_len: usize,
         counts: &mut Counts,
         dst: &mut Codec<T, Prioritized<B>>,
+        discarded: &mut Vec<Frame<B>>,
     ) -> bool
     where
         T: AsyncWrite + Unpin,
@@ -990,7 +1008,14 @@ impl Prioritize {
                                 // stream reset may only be sent after a complete
                                 // response, which requires sending all queued DATA.
                                 if reason != Reason::NO_ERROR {
-                                    self.discard_reset_data(sp, buffer, &mut stream, counts, frame);
+                                    self.discard_reset_data(
+                                        sp,
+                                        buffer,
+                                        &mut stream,
+                                        counts,
+                                        frame,
+                                        discarded,
+                                    );
                                     continue;
                                 }
                             }
@@ -1200,13 +1225,14 @@ impl Prioritize {
         stream: &mut store::Ptr,
         counts: &mut Counts,
         frame: frame::Data<B>,
+        discarded: &mut Vec<Frame<B>>,
     ) where
         B: Buf,
     {
         // SAFETY: sp is the occupied slot resolved by the current send operation.
         // Queue/flow updates do not grow the stream slab; close cleanup is last.
         unsafe { (*sp).pending_send.push_front(buffer, frame.into()) };
-        self.clear_queue(buffer, stream);
+        self.clear_queue(buffer, stream, discarded);
         self.reclaim_all_capacity(stream, counts);
         self.pending_send.push(stream);
     }

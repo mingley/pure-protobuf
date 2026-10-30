@@ -5,6 +5,16 @@ stopped. They are dated investigations, usually local diagnostics. A result
 belongs to its recorded revision, host, workload, and peer versions; it does
 not automatically describe today's code.
 
+The [October 30 release checks](release-readiness-20261030/README.md) record
+prepared, unpublished versions, repaired qualification failures and isolated
+package consumers. Hosted provenance and sustained production qualification
+remain open.
+
+The [October 30 runtime screens](rejected-runtime-candidates-20261030/README.md)
+reject repeated-field pre-scanning after CPU regressions and two map designs
+after assembly inspection. The capsule retains all 44 diagnostic CPU rows,
+correctness proofs and exact source/build-record limits. No candidate shipped.
+
 The [October 29 runtime and codegen record](runtime-and-codegen-20261029/README.md)
 contains combined measurements, validation provenance, rejected candidates and
 remaining losses. It does not add a full RPC campaign.

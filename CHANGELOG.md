@@ -33,6 +33,12 @@ or stable releases.
   `RefUnwindSafe` traits without asserting unwind safety for internal waiter
   registration. A panicking wake callback leaves the public cancellation
   signal observable and usable.
+- Release queued and rejected outbound payload owners after the HTTP/2
+  engine locks, including reset, EOF, window-error and terminal-response
+  paths. Preserve initial headers, reset ordering and accepted DATA ownership.
+- Repair cached stream-pointer provenance across debug validation, callbacks
+  and slot reborrows. Extend strict Miri coverage to real engine ownership
+  and send/receive controls.
 
 ### protobuf-tonic 0.1.0-alpha.3
 

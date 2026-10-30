@@ -100,7 +100,7 @@ mod tests {
     #![allow(clippy::unwrap_used, reason = "drop-order and ownership assertions")]
 
     use super::*;
-    use std::sync::Mutex;
+    use tokio::sync::Mutex;
 
     struct Queued {
         queue: Arc<Mutex<Vec<ExecutorFuture>>>,
@@ -108,12 +108,12 @@ mod tests {
     }
     impl Executor for Queued {
         fn execute(&self, future: ExecutorFuture) {
-            self.queue.lock().unwrap().push(future);
+            self.queue.try_lock().unwrap().push(future);
         }
     }
     impl Drop for Queued {
         fn drop(&mut self) {
-            self.drops.lock().unwrap().push("executor");
+            self.drops.try_lock().unwrap().push("executor");
         }
     }
     struct Transport(Arc<Mutex<Vec<&'static str>>>);
@@ -125,7 +125,7 @@ mod tests {
     }
     impl Drop for Transport {
         fn drop(&mut self) {
-            self.0.lock().unwrap().push("transport");
+            self.0.try_lock().unwrap().push("transport");
         }
     }
 
@@ -140,11 +140,11 @@ mod tests {
         executor.spawn(Transport(Arc::clone(&drops)));
         drop(executor);
         assert!(
-            drops.lock().unwrap().is_empty(),
+            drops.try_lock().unwrap().is_empty(),
             "queued driver retains executor"
         );
-        let task = queue.lock().unwrap().pop().unwrap();
+        let task = queue.try_lock().unwrap().pop().unwrap();
         drop(task);
-        assert_eq!(*drops.lock().unwrap(), ["transport", "executor"]);
+        assert_eq!(*drops.try_lock().unwrap(), ["transport", "executor"]);
     }
 }

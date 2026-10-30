@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Dry run (cargo publish --dry-run only; never upload)'
+        description: 'Package release artifacts only; never upload'
         type: boolean
         default: true
       confirm:

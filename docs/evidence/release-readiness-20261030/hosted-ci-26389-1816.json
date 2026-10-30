@@ -1,0 +1,106 @@
+{
+  "source": "26389ccf77bf9342fe6e605f1d797853acd6c39a",
+  "observed_utc": "2026-10-30 18:16:29 UTC",
+  "run_id": 41100856391,
+  "jobs": [
+    {
+      "id": 124217694047,
+      "name": "package-consumers",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 41100856391,
+      "logs_url": null,
+      "steps": null
+    },
+    {
+      "id": 124217694060,
+      "name": "grpc-interop",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 41100856391,
+      "logs_url": null,
+      "steps": null
+    },
+    {
+      "id": 124217694085,
+      "name": "macos",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 41100856391,
+      "logs_url": null,
+      "steps": null
+    },
+    {
+      "id": 124217694166,
+      "name": "generated-output",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 41100856391,
+      "logs_url": null,
+      "steps": null
+    },
+    {
+      "id": 124217694235,
+      "name": "dep-audit",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 41100856391,
+      "logs_url": null,
+      "steps": null
+    },
+    {
+      "id": 124217694376,
+      "name": "msrv-core",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 41100856391,
+      "logs_url": null,
+      "steps": null
+    },
+    {
+      "id": 124217723840,
+      "name": "conformance",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 41100856391,
+      "logs_url": null,
+      "steps": null
+    },
+    {
+      "id": 124217723857,
+      "name": "test",
+      "status": "in_progress",
+      "conclusion": null,
+      "run_id": 41100856391,
+      "logs_url": null,
+      "steps": null
+    },
+    {
+      "id": 124217723897,
+      "name": "grpc-interop-cpp",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 41100856391,
+      "logs_url": null,
+      "steps": null
+    },
+    {
+      "id": 124217724058,
+      "name": "Public API semver",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 41100856391,
+      "logs_url": null,
+      "steps": null
+    },
+    {
+      "id": 124217724115,
+      "name": "msrv-tonic",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 41100856391,
+      "logs_url": null,
+      "steps": null
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "source_commit": "26389ccf77bf9342fe6e605f1d797853acd6c39a",
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "--test",
+    "package_consumer",
+    "--",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "input_sha256": {
+    "Cargo.toml": "65b4abfa2fb93b963d0e130f64853c9a26d7c393b8af1f51cd8a4bfc17b15c30",
+    "Cargo.lock": "a2ac55b9aefa7c244189032300f454857ca058a5f654a05630e2ca79cc5a9f6e",
+    "tests/package_consumer.rs": "dc035cbe442c1af24e0868be4e121d34990098d3d7ca219fef4b96e8057441de",
+    "pbrs-grpc/Cargo.toml": "135ba1615c022f9009437a857095fcc31b1370306f4a65b5e4b219c9cccceed9",
+    "protobuf-tonic/Cargo.toml": "5014fe993e48629a12fcddb5ab516b26ca5e782d09f6d2279380e74bde90fed8"
+  },
+  "started_utc": "2026-10-30T17:49:09.325602+00:00",
+  "disk_before": 3646947328,
+  "disk_guard": false,
+  "pid": 16344,
+  "exit": 0,
+  "finished_utc": "2026-10-30T17:52:57.708321+00:00",
+  "disk_after": 2380693504,
+  "head_after": "26389ccf77bf9342fe6e605f1d797853acd6c39a",
+  "inputs_unchanged": true
+}

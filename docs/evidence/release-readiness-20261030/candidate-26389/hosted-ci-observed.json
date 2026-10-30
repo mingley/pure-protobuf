@@ -1,0 +1,74 @@
+{
+  "observed_utc": "2026-10-30T17:48:15.770792+00:00",
+  "source_commit": "26389ccf77bf9342fe6e605f1d797853acd6c39a",
+  "run_id": 41100856391,
+  "url": "https://github.com/mingley/pure-protobuf/actions/runs/41100856391",
+  "jobs": [
+    {
+      "id": 124217694047,
+      "name": "package-consumers",
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "id": 124217694060,
+      "name": "grpc-interop",
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "id": 124217694085,
+      "name": "macos",
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "id": 124217694166,
+      "name": "generated-output",
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "id": 124217694235,
+      "name": "dep-audit",
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "id": 124217694376,
+      "name": "msrv-core",
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "id": 124217723840,
+      "name": "conformance",
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "id": 124217723857,
+      "name": "test",
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "id": 124217723897,
+      "name": "grpc-interop-cpp",
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "id": 124217724058,
+      "name": "Public API semver",
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "id": 124217724115,
+      "name": "msrv-tonic",
+      "status": "queued",
+      "conclusion": null
+    }
+  ]
+}

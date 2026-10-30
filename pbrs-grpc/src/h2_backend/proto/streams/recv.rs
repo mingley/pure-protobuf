@@ -1001,7 +1001,14 @@ impl Recv {
             is_budgeted,
         });
 
-        // SAFETY: `slot` is still the stream resolved by the caller.
+        // Releasing padding can reborrow this same slot through Ptr. Resolve
+        // again only on that path; an unpadded frame keeps the initial pointer.
+        let slot = if padding > 0 {
+            stream.stream_ptr()
+        } else {
+            slot
+        };
+        // SAFETY: this is the current slot, derived after any padding reborrow.
         unsafe {
             (*slot).pending_recv.push_back(&mut self.buffer, event);
             (*slot).notify_recv();

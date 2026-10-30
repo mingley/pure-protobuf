@@ -284,6 +284,10 @@ impl Send {
     }
 
     /// Send an explicit RST_STREAM frame
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "reset state and queue accounting stay under the engine locks; discarded owners belong to the outer caller"
+    )]
     pub fn send_reset<B>(
         &mut self,
         reason: Reason,
@@ -292,6 +296,7 @@ impl Send {
         stream: &mut store::Ptr,
         counts: &mut Counts,
         task: &mut Option<Waker>,
+        discarded: &mut Vec<Frame<B>>,
     ) {
         let is_reset = stream.state.is_reset();
         let is_closed = stream.state.is_closed();
@@ -349,7 +354,7 @@ impl Send {
             // Note that we don't call `self.recv_err` because we want to enqueue
             // the reset frame before transitioning the stream inside
             // `reclaim_all_capacity`.
-            self.prioritize.clear_queue(buffer, stream);
+            self.prioritize.clear_queue(buffer, stream, discarded);
         }
 
         let frame = frame::Reset::new(stream.id, reason);
@@ -381,7 +386,7 @@ impl Send {
 
     pub fn send_data<B>(
         &mut self,
-        frame: frame::Data<B>,
+        frame: &mut Option<frame::Data<B>>,
         buffer: &mut Buffer<Frame<B>>,
         stream: &mut store::Ptr,
         sp: *mut Stream,
@@ -479,13 +484,14 @@ impl Send {
         counts: &mut Counts,
         dst: &mut Codec<T, Prioritized<B>>,
         retired: &mut RetiredData<B>,
+        discarded: &mut Vec<Frame<B>>,
     ) -> io::Result<BufferStatus>
     where
         T: AsyncWrite + Unpin,
         B: Buf,
     {
         self.prioritize
-            .buffer_pending(buffer, store, counts, dst, retired)
+            .buffer_pending(buffer, store, counts, dst, retired, discarded)
     }
 
     pub fn reclaim_written_frame<T, B>(
@@ -596,6 +602,7 @@ impl Send {
         stream: &mut store::Ptr,
         counts: &mut Counts,
         task: &mut Option<Waker>,
+        discarded: &mut Vec<Frame<B>>,
     ) -> Result<(), Reason> {
         if let Err(e) = self.prioritize.recv_stream_window_update(sz, stream) {
             tracing::debug!("recv_stream_window_update !!; err={:?}", e);
@@ -607,6 +614,7 @@ impl Send {
                 stream,
                 counts,
                 task,
+                discarded,
             );
 
             return Err(e);
@@ -640,9 +648,10 @@ impl Send {
         buffer: &mut Buffer<Frame<B>>,
         stream: &mut store::Ptr,
         counts: &mut Counts,
+        discarded: &mut Vec<Frame<B>>,
     ) {
         // Clear all pending outbound frames
-        self.prioritize.clear_queue(buffer, stream);
+        self.prioritize.clear_queue(buffer, stream, discarded);
         self.prioritize.reclaim_all_capacity(stream, counts);
     }
 
@@ -653,6 +662,7 @@ impl Send {
         store: &mut Store,
         counts: &mut Counts,
         task: &mut Option<Waker>,
+        discarded: &mut Vec<Frame<B>>,
     ) -> Result<(), Error> {
         if let Some(val) = settings.is_extended_connect_protocol_enabled() {
             self.is_extended_connect_protocol_enabled = val;
@@ -755,8 +765,15 @@ impl Send {
                     let inc = val - old_val;
 
                     store.try_for_each(|mut stream| {
-                        self.recv_stream_window_update(inc, buffer, &mut stream, counts, task)
-                            .map_err(Error::library_go_away)
+                        self.recv_stream_window_update(
+                            inc,
+                            buffer,
+                            &mut stream,
+                            counts,
+                            task,
+                            discarded,
+                        )
+                        .map_err(Error::library_go_away)
                     })?;
                 }
                 Ordering::Equal => (),

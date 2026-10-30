@@ -105,7 +105,7 @@ on the **same SHA** and will not publish unless every required job succeeds:
 | Job | What it runs |
 |---|---|
 | `semver` | Pinned `cargo-semver-checks` compares all public APIs in `pbrs`, `pbrs-grpc`, and `protobuf-tonic` against their last published releases; a breaking change blocks publication. |
-| `test` | fmt, strict Clippy for core targets and all gRPC/tonic/example libraries, fail-closed Python interop/benchmark/publisher and checked Edition 2024/v4 benchmark binding integrity contracts, `cargo test --workspace`, serial standalone rpc-bench/tonic-bench correctness tests (not performance gates), docs `-D warnings` |
+| `test` | fmt, strict Clippy for core and gRPC/tonic/example targets, fail-closed Python interop/benchmark/publisher and checked Edition 2024/v4 benchmark binding integrity contracts, `cargo test --workspace`, serial standalone rpc-bench/tonic-bench correctness tests (not performance gates), docs `-D warnings` |
 | `grpc-interop` | pinned grpc-go and Go toolchain (version from `go.mod`), native directions, eight HTTP/2 negative-case adapters, and server framing/TLS probes; required matrix rows must pass |
 | `grpc-interop-cpp` | pinned C++ peer in both directions: 14 standard and 4 compression cases per direction, with binary digests and retained logs |
 | `conformance` | `./scripts/conformance.sh`: pinned required twice and recommended, each with separate 5,631 binary/JSON and 909 text assertions in the retained report; then non-mutating checks of all bundled bindings and adapter descriptor/codegen parity with pinned protoc |
@@ -113,6 +113,7 @@ on the **same SHA** and will not publish unless every required job succeeds:
 | `msrv-tonic` | rustc **1.88**: `cargo test -p protobuf-tonic` |
 | `macos` | stable, `brew` protoc: `pbrs-grpc` `tcp::tests`, `--test pbrs_build`, `--test onboarding` |
 | `package-consumers` | `cargo test --test package_consumer`: assert the core archive excludes unrelated `third_party/`, docs and tests, then unpack all `.crate` archives outside the workspace and build consumers |
+| `dep-audit` | `scripts/pure-rust-audit.sh`: check the all-feature, all-target normal/build dependency graphs of core, native gRPC, tonic and codegen for denied native build dependencies, unapproved `links` keys and licenses |
 | `generated-output` | onboarding `committed_hello_and_wkt_copies_match` and `codegen_stub_flavours_are_explicit` |
 
 A failed or skipped required job blocks publish. Do not treat a previous green

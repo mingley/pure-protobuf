@@ -870,7 +870,7 @@ mod tests {
 
     #[test]
     fn generated_large_scratch_is_reused_across_flushes_and_mixed_sizes() {
-        assert!(<Payload as CodecMessage>::ENCODE_APPEND_ONLY);
+        const { assert!(<Payload as CodecMessage>::ENCODE_APPEND_ONLY) };
         let mut scratch = EncodeScratch::new();
         let mut previous = None;
         for size in [ONE_MIB, ONE_MIB, 17, 0, ONE_MIB] {

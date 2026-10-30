@@ -1,0 +1,28 @@
+{
+  "source_commit": "26389ccf77bf9342fe6e605f1d797853acd6c39a",
+  "input_sha256": {
+    "Cargo.toml": "65b4abfa2fb93b963d0e130f64853c9a26d7c393b8af1f51cd8a4bfc17b15c30",
+    "Cargo.lock": "a2ac55b9aefa7c244189032300f454857ca058a5f654a05630e2ca79cc5a9f6e",
+    "scripts/publish-crates.sh": "be145322440f0bf942a51d699c2bd55238a6eb33d8ddf8c07d081879d5316943",
+    "pbrs-grpc/Cargo.toml": "135ba1615c022f9009437a857095fcc31b1370306f4a65b5e4b219c9cccceed9",
+    "protobuf-tonic/Cargo.toml": "5014fe993e48629a12fcddb5ab516b26ca5e782d09f6d2279380e74bde90fed8"
+  },
+  "command": [
+    "bash",
+    "scripts/publish-crates.sh"
+  ],
+  "environment": {
+    "DRY_RUN": "1",
+    "RELEASE_TAG": "v0.2.1",
+    "CARGO_TARGET_DIR": "/workspace/pure-protobuf/work/release-rehearsal-26389/target",
+    "registry_tokens_present": false
+  },
+  "started_utc": "2026-10-30T17:43:32Z",
+  "disk_before": 3739742208,
+  "exit": 0,
+  "disk_guard": false,
+  "finished_utc": "2026-10-30T17:43:37Z",
+  "disk_after": 3735715840,
+  "head_after": "26389ccf77bf9342fe6e605f1d797853acd6c39a",
+  "inputs_unchanged": true
+}

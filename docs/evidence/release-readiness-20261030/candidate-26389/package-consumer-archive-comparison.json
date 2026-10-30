@@ -1,0 +1,93 @@
+[
+  {
+    "archive": "pbrs-0.2.1.crate",
+    "rehearsal_sha256": "ac5effbf3957968d4ad2b0bc71b703d0dec7529cf8bc778f5c75630d62e52f8a",
+    "consumer_archive_sha256": "ac5effbf3957968d4ad2b0bc71b703d0dec7529cf8bc778f5c75630d62e52f8a",
+    "differing_members": [],
+    "lock_changes": {}
+  },
+  {
+    "archive": "pbrs-grpc-0.1.0-alpha.3.crate",
+    "rehearsal_sha256": "808991c419d73043bfd08fa29f4f1e376b1364fddd5a7d0235ebce2330076eb4",
+    "consumer_archive_sha256": "bf6cc1f50248d3583e836cb8b460ac66f4892f87adc952c2c0cda2f2f5ec85a5",
+    "differing_members": [
+      "pbrs-grpc-0.1.0-alpha.3/Cargo.lock"
+    ],
+    "lock_changes": {
+      "pbrs-grpc-0.1.0-alpha.3/Cargo.lock": [
+        {
+          "package": [
+            "pbrs",
+            "0.2.1"
+          ],
+          "rehearsal": {
+            "name": "pbrs",
+            "version": "0.2.1",
+            "dependencies": [
+              "bytes",
+              "paste",
+              "serde",
+              "serde_json",
+              "simdutf8"
+            ]
+          },
+          "consumer": {
+            "name": "pbrs",
+            "version": "0.2.1",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "ac5effbf3957968d4ad2b0bc71b703d0dec7529cf8bc778f5c75630d62e52f8a",
+            "dependencies": [
+              "bytes",
+              "paste",
+              "serde",
+              "serde_json",
+              "simdutf8"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "archive": "protobuf-tonic-0.1.0-alpha.3.crate",
+    "rehearsal_sha256": "15c8744758a328e28f3bade35573392186e57f9fa00e6d86835b2bd323e7ad63",
+    "consumer_archive_sha256": "34c2824c1133fc046144c9558315a4acbc601ddbca74b20f6c8fb21c3288fb12",
+    "differing_members": [
+      "protobuf-tonic-0.1.0-alpha.3/Cargo.lock"
+    ],
+    "lock_changes": {
+      "protobuf-tonic-0.1.0-alpha.3/Cargo.lock": [
+        {
+          "package": [
+            "pbrs",
+            "0.2.1"
+          ],
+          "rehearsal": {
+            "name": "pbrs",
+            "version": "0.2.1",
+            "dependencies": [
+              "bytes",
+              "paste",
+              "serde",
+              "serde_json",
+              "simdutf8"
+            ]
+          },
+          "consumer": {
+            "name": "pbrs",
+            "version": "0.2.1",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "ac5effbf3957968d4ad2b0bc71b703d0dec7529cf8bc778f5c75630d62e52f8a",
+            "dependencies": [
+              "bytes",
+              "paste",
+              "serde",
+              "serde_json",
+              "simdutf8"
+            ]
+          }
+        }
+      ]
+    }
+  }
+]

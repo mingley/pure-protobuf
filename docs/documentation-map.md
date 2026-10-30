@@ -37,6 +37,9 @@ have additional features.
 qualification. The [support matrix](../README.md#support-matrix) lists tested
 toolchains; [release policy](RELEASE.md), [support policy](support-policy.md)
 and [security policy](../SECURITY.md) cover maintenance and publishing.
+The [current release checks](evidence/release-readiness-20261030/README.md)
+separate prepared versions and local validation from the remaining publication
+and production qualification gates.
 
 | Topic | Behavior reference |
 |---|---|

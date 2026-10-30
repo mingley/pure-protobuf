@@ -1,0 +1,91 @@
+{
+  "prepared_utc": "2026-10-30T17:54:22.085294+00:00",
+  "tested_candidate_commit": "26389ccf77bf9342fe6e605f1d797853acd6c39a",
+  "final_release_commit": null,
+  "scope": "candidate packaging and isolated consumer evidence only; further production-source changes follow this candidate",
+  "candidate_versions": {
+    "pbrs": "0.2.1",
+    "pbrs-grpc": "0.1.0-alpha.3",
+    "protobuf-tonic": "0.1.0-alpha.3"
+  },
+  "local_package_rehearsal": {
+    "exit": 0,
+    "dry_run": true,
+    "uploaded": false,
+    "signed_tag_created": false,
+    "registry_token_received": false,
+    "no_verify": true
+  },
+  "isolated_package_consumers": {
+    "passed": 2,
+    "failed": 0,
+    "guard_triggered": false,
+    "source_inputs_unchanged": true,
+    "results": [
+      "ada",
+      "OK",
+      "ProtobufCodec"
+    ]
+  },
+  "archive_member_audit": "all shipped non-generated source blobs match26389; normalized adapter pbrs requirements0.2.1; core excludes unrelated artifacts",
+  "archive_comparison": "core byte-identical; adapters source/manifest/VCS identical, only bundled Cargo.lock pbrs source/checksum differs as recorded",
+  "hosted_required_ci": {
+    "run_id": 41100856391,
+    "observed_utc": "2026-10-30T17:48:15.770792+00:00",
+    "queued_jobs": 11,
+    "passed_jobs": 0,
+    "qualification": "pending, no pass inferred"
+  },
+  "open_release_prerequisites": [
+    "Final exact-source required CI and applicable sustained production qualification",
+    "Hosted release dry-run packaging plus SBOM and verifiable provenance attestation",
+    "All three crates.io Trusted Publisher configurations",
+    "A signed annotated release tag marked verified by GitHub",
+    "Configured release signing and workflow-dispatch connection; pending user information"
+  ],
+  "capability_note": "No upload, unsigned-tag substitute, identity fabrication or gate bypass attempted. Connected GitHub tools expose CI read/rerun but no workflow-dispatch/tag-sign operation; previously audited environment has no configured signing identity and gh auth is invalid. Do not paste private keys or long-lived tokens into these records.",
+  "archives": [
+    {
+      "name": "pbrs",
+      "version": "0.2.1",
+      "archive": "work/release-rehearsal-26389/target/package/pbrs-0.2.1.crate",
+      "sha256": "ac5effbf3957968d4ad2b0bc71b703d0dec7529cf8bc778f5c75630d62e52f8a",
+      "bytes": 584329,
+      "members": 75,
+      "vcs": {
+        "git": {
+          "sha1": "26389ccf77bf9342fe6e605f1d797853acd6c39a"
+        },
+        "path_in_vcs": ""
+      }
+    },
+    {
+      "name": "pbrs-grpc",
+      "version": "0.1.0-alpha.3",
+      "archive": "work/release-rehearsal-26389/target/package/pbrs-grpc-0.1.0-alpha.3.crate",
+      "sha256": "808991c419d73043bfd08fa29f4f1e376b1364fddd5a7d0235ebce2330076eb4",
+      "bytes": 1381298,
+      "members": 330,
+      "vcs": {
+        "git": {
+          "sha1": "26389ccf77bf9342fe6e605f1d797853acd6c39a"
+        },
+        "path_in_vcs": "pbrs-grpc"
+      }
+    },
+    {
+      "name": "protobuf-tonic",
+      "version": "0.1.0-alpha.3",
+      "archive": "work/release-rehearsal-26389/target/package/protobuf-tonic-0.1.0-alpha.3.crate",
+      "sha256": "15c8744758a328e28f3bade35573392186e57f9fa00e6d86835b2bd323e7ad63",
+      "bytes": 28483,
+      "members": 23,
+      "vcs": {
+        "git": {
+          "sha1": "26389ccf77bf9342fe6e605f1d797853acd6c39a"
+        },
+        "path_in_vcs": "protobuf-tonic"
+      }
+    }
+  ]
+}

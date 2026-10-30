@@ -1,0 +1,50 @@
+Manifest /workspace/pure-protobuf/Cargo.toml: pbrs 0.2.1
+Manifest /workspace/pure-protobuf/protobuf-tonic/Cargo.toml: protobuf-tonic 0.1.0-alpha.3
+Manifest /workspace/pure-protobuf/pbrs-grpc/Cargo.toml: pbrs-grpc 0.1.0-alpha.3
+Both adapters require pbrs 0.2.1 for runtime and code generation
+Tag v0.2.1 matches a manifest version
+   Packaging pbrs v0.2.1 (/tmp/pbrs-release-stage.NRz3jr)
+warning: ignoring test `any_conversion` as `tests/any_conversion.rs` is not included in the published package
+warning: ignoring test `build_script_fallback` as `tests/build_script_fallback.rs` is not included in the published package
+warning: ignoring test `codegen_compat` as `tests/codegen_compat.rs` is not included in the published package
+warning: ignoring test `codegen_messageset_payload` as `tests/codegen_messageset_payload.rs` is not included in the published package
+warning: ignoring test `codegen_shared_descriptors` as `tests/codegen_shared_descriptors.rs` is not included in the published package
+warning: ignoring test `codegen_wkt_sharing` as `tests/codegen_wkt_sharing.rs` is not included in the published package
+warning: ignoring test `conformance_json_output` as `tests/conformance_json_output.rs` is not included in the published package
+warning: ignoring test `depth` as `tests/depth.rs` is not included in the published package
+warning: ignoring test `differential_binary` as `tests/differential_binary.rs` is not included in the published package
+warning: ignoring test `differential_formats` as `tests/differential_formats.rs` is not included in the published package
+warning: ignoring test `documentation` as `tests/documentation.rs` is not included in the published package
+warning: ignoring test `dynamic` as `tests/dynamic.rs` is not included in the published package
+warning: ignoring test `dynamic_required_merge` as `tests/dynamic_required_merge.rs` is not included in the published package
+warning: ignoring test `extensions` as `tests/extensions.rs` is not included in the published package
+warning: ignoring test `fuzz_parse` as `tests/fuzz_parse.rs` is not included in the published package
+warning: ignoring test `generated_json` as `tests/generated_json.rs` is not included in the published package
+warning: ignoring test `generated_map_value_depth` as `tests/generated_map_value_depth.rs` is not included in the published package
+warning: ignoring test `generated_oneof` as `tests/generated_oneof.rs` is not included in the published package
+warning: ignoring test `generated_scalars` as `tests/generated_scalars.rs` is not included in the published package
+warning: ignoring test `generated_text` as `tests/generated_text.rs` is not included in the published package
+warning: ignoring test `generated_wkt` as `tests/generated_wkt.rs` is not included in the published package
+warning: ignoring test `google_shared` as `tests/google_shared.rs` is not included in the published package
+warning: ignoring test `json_text_ext` as `tests/json_text_ext.rs` is not included in the published package
+warning: ignoring test `map_views` as `tests/map_views.rs` is not included in the published package
+warning: ignoring test `onboarding` as `tests/onboarding.rs` is not included in the published package
+warning: ignoring test `package_consumer` as `tests/package_consumer.rs` is not included in the published package
+warning: ignoring test `pbrs_build` as `tests/pbrs_build.rs` is not included in the published package
+warning: ignoring test `plugin` as `tests/plugin.rs` is not included in the published package
+warning: ignoring test `required_merge` as `tests/required_merge.rs` is not included in the published package
+warning: ignoring test `runtime` as `tests/runtime.rs` is not included in the published package
+warning: ignoring test `string_arm` as `tests/string_arm.rs` is not included in the published package
+warning: ignoring test `table_parse` as `tests/table_parse.rs` is not included in the published package
+warning: ignoring test `typed` as `tests/typed.rs` is not included in the published package
+warning: ignoring test `unknown_group_depth` as `tests/unknown_group_depth.rs` is not included in the published package
+warning: ignoring test `upb_kernel` as `tests/upb_kernel.rs` is not included in the published package
+warning: ignoring test `wire_out_dyn` as `tests/wire_out_dyn.rs` is not included in the published package
+    Packaged 75 files, 6.2MiB (570.6KiB compressed)
+dry-run packed /workspace/pure-protobuf/work/release-rehearsal-26389/target/package/pbrs-0.2.1.crate
+   Packaging protobuf-tonic v0.1.0-alpha.3 (/tmp/pbrs-release-stage.NRz3jr/protobuf-tonic)
+    Packaged 23 files, 136.1KiB (27.8KiB compressed)
+dry-run packed /workspace/pure-protobuf/work/release-rehearsal-26389/target/package/protobuf-tonic-0.1.0-alpha.3.crate
+   Packaging pbrs-grpc v0.1.0-alpha.3 (/tmp/pbrs-release-stage.NRz3jr/pbrs-grpc)
+    Packaged 330 files, 7.3MiB (1.3MiB compressed)
+dry-run packed /workspace/pure-protobuf/work/release-rehearsal-26389/target/package/pbrs-grpc-0.1.0-alpha.3.crate

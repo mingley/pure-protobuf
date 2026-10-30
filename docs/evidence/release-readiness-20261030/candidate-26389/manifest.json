@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "source_commit": "26389ccf77bf9342fe6e605f1d797853acd6c39a",
+  "files": {
+    "README.md": {
+      "sha256": "fc8ad4f4c8061953ace0092c915076ad99c38875a62cbaf3eaa0e87dc0a8d3d9",
+      "bytes": 1858
+    },
+    "archive-audit.json": {
+      "sha256": "2c5942c884860bd92a9a4eb2ea3707149816c2d4ab5fb2d865cbcc8dd45efd55",
+      "bytes": 94037
+    },
+    "audit.md": {
+      "sha256": "b11b9032afc13d9ea50269d0b67fc0166d3eec41dce04111c52f8941fb1017fe",
+      "bytes": 5968
+    },
+    "hosted-ci-observed.json": {
+      "sha256": "11c909db1d7a56a3fae39a7c212187ea7f446aba03531dbd3d74b0f9e8c5e3de",
+      "bytes": 1553
+    },
+    "package-consumer-archive-comparison.json": {
+      "sha256": "f09aeee14d92e6cbe89c7b4abe038027fb4508f2a30654c7f4df7250bd599f6e",
+      "bytes": 2705
+    },
+    "package-consumer-comparison-note.json": {
+      "sha256": "f9c14a2629ab34d352e0dfa6025d2ad731f7ec3564e7ea2abdf4ec5acbfd6bff",
+      "bytes": 474
+    },
+    "package-consumers.json": {
+      "sha256": "777516851e9a6e8ad4b20054513769f9340dfbbcf42de4928db5528e082a5216",
+      "bytes": 1032
+    },
+    "package-consumers.log": {
+      "sha256": "a6797f5e4ab0bcfbcc0f901cf777f31ae43c14e29130bbd02de058b69fa6532a",
+      "bytes": 11220
+    },
+    "publisher.log": {
+      "sha256": "2d669313ecd2ec02e867baeda4eaef23102be8c85bd1b3cb12e3794ec598d037",
+      "bytes": 5026
+    },
+    "report.json": {
+      "sha256": "257390c7c2945b36e16420449c50978ff36afa1beddcea0c623e44ab8809b257",
+      "bytes": 1086
+    },
+    "status.json": {
+      "sha256": "8fec0119e954e632c133b99ab5f79f5a5a66c7e07fdec446e2aa5ae9297d20d2",
+      "bytes": 3443
+    }
+  }
+}

@@ -547,8 +547,8 @@ The upcoming `pbrs-h2` crate (H2-04), `src/runtime/` kernel modules (UK-03/UK-04
 
 The shipping HTTP/2 backend is embedded in `pbrs-grpc/src/h2_backend`, rather
 than a separate `pbrs-h2` package. The Miri workflow selects its actual lock,
-stream-store, header, frame, cancellation, extension publication and HTTP
-helper tests and rejects an empty group. The scheduled
+stream-store, outbound-owner retirement, header, frame, cancellation, extension
+publication and HTTP helper tests and rejects an empty group. The scheduled
 sanitizer lane includes `pbrs-grpc --lib`. Configured jobs are not evidence of
 a successful run; qualification needs their results at the measured revision.
 
@@ -600,6 +600,28 @@ a successful run; qualification needs their results at the measured revision.
   nonzero; otherwise it borrows static or empty bytes. The gRPC prefix helper
   initializes all five bytes before extending the buffer length. Their focused
   Miri tests cover valid inputs; they do not prove every caller invariant.
+
+### Embedded stream slots and outbound owners
+
+- Mutable slab access projects only the bounds-checked selected `Slot` from
+  the vector's raw base pointer. Creating a mutable slice over the whole slab
+  can invalidate cached pointers to other slots. The projection matches the
+  actual enum variant; it does not assume an enum payload offset.
+- A cached stream pointer requires a live occupied slot, no slab relocation
+  or removal, and valid access permissions. A stable address is insufficient.
+  Validate the key before deriving a returned pointer. Reacquire the pointer
+  after a callback or helper reborrows that same slot, including transition
+  actions, excess-capacity release, padded receives and terminal cleanup.
+  A short safe borrow suffices when a closed-state check needs no raw pointer.
+- Queued outbound frames detached by reset/error cleanup belong to a caller
+  outside both engine guards. Rust drops these outer owners after the guards,
+  including during unwinding. Rejected DATA stays in an outer `Option` until
+  validation accepts it into the queue. Queue insertion transfers ownership
+  before waking the connection. Do not put a replacement owner inside a
+  locked closure; its payload destructor could reenter that connection.
+
+The [October 30 readiness record](evidence/release-readiness-20261030/README.md)
+keeps the detecting failures and validation scope for these repairs.
 
 These statements describe required invariants. Focused Miri passes do not
 replace independent review, protocol tests or sustained qualification.

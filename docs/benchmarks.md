@@ -3,7 +3,8 @@
 [Run benchmarks](benchmarks/running.md) · [Earlier results](benchmarks/grpc-20261024.md)
 · [Qualification](scoreboard.md)
 
-[Current round](evidence/runtime-and-codegen-20261029/README.md)
+[Measured round](evidence/runtime-and-codegen-20261029/README.md)
+· [Latest rejected candidates](evidence/rejected-runtime-candidates-20261030/README.md)
 · [Measured runtime and generator](#latest-runtime-and-generator-results-october-27)
 · [Earlier maps](#typed-map-iteration-october-27)
 · [RPC and nested messages](#server-scheduling-and-nested-messages-october-27)
@@ -16,6 +17,20 @@ results include gains and losses. Consumer rebuild and generation timings
 cover different scopes. No new full RPC campaign ran; the October 28 transport
 comparisons retain their source and losses. Winning every benchmark, complete
 feature parity and an overall ranking remain unproven.
+
+## Rejected runtime candidates, October 30
+
+A repeated string/bytes pre-scan reduced speculative allocation but slowed
+common workloads. Parsing 1,024 strings cost 1.131 times prior CPU in the
+owned profile; a 64-string roundtrip with an unrelated 64 KiB suffix cost
+2.025 times prior CPU. The candidate was rejected. Two map designs were also
+rejected after assembly inspection; they have no measured speed result.
+
+The [complete screen](evidence/rejected-runtime-candidates-20261030/README.md)
+keeps all 44 diagnostic CPU rows, allocation controls, correctness proofs,
+source overlays and a verifier. It measures the earlier `15e73849` source,
+not the later release candidate. The [October 29 results](evidence/runtime-and-codegen-20261029/README.md)
+remain the latest selected runtime and codegen measurements.
 
 ## Correctness and rejected candidates, October 28
 

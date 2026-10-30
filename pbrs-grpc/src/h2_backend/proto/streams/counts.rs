@@ -390,8 +390,8 @@ impl Counts {
     /// [`Self::transition`] using a slot the caller already resolved.
     ///
     /// The reset flag and the closed check are the two lookups around the
-    /// action. The action may update this stream. It must not reallocate the
-    /// stream slab, or `slot` would dangle.
+    /// action. The action must not remove this stream. Its later lookups can
+    /// reborrow the slot, so the close check resolves a fresh pointer.
     #[inline]
     #[allow(
         unsafe_code,
@@ -405,6 +405,9 @@ impl Counts {
         // remove it; close cleanup runs only after the check below.
         let is_pending_reset = unsafe { (*slot).is_pending_reset_expiration() };
         let ret = f(self, &mut stream);
+        // The callback may reborrow the stream through Ptr. Resolve again:
+        // physical slot stability does not preserve an older borrow's tag.
+        let slot = stream.stream_ptr();
         let closing =
             // SAFETY: the caller resolved this live slot under exclusive stream-store
             // access; no insertion or removal occurs before this field access.
@@ -413,30 +416,6 @@ impl Counts {
             self.finish_closed(stream, slot, is_pending_reset);
         }
         ret
-    }
-
-    /// [`Self::transition_after`] through a slot the caller already resolved.
-    ///
-    /// Header receive reads the reset flag from this slot before the frame is
-    /// applied, so the closed check must not look the stream up again.
-    #[inline]
-    #[allow(
-        unsafe_code,
-        reason = "the closed check uses the slot the caller already resolved"
-    )]
-    pub fn transition_after_at(
-        &mut self,
-        stream: store::Ptr,
-        slot: *mut Stream,
-        is_reset_counted: bool,
-    ) {
-        // SAFETY: `slot` is this stream's slab entry and the header apply did
-        // not remove it. Close cleanup runs only after this check.
-        let closing =
-            unsafe { (*slot).is_closed() && !((*slot).protocol_unlinked && (*slot).ref_count > 0) };
-        if closing {
-            self.finish_closed(stream, slot, is_reset_counted);
-        }
     }
 
     /// The open-stream case is a closed-state check. Cleanup runs once, on close.

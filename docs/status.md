@@ -1,5 +1,14 @@
 # Implementation status
 
+The [October 30 release checks](evidence/release-readiness-20261030/README.md)
+prepare core 0.2.1 and adapter 0.1.0-alpha.3 candidates, repair cancellation API
+compatibility, HTTP/2 payload ownership and stream-pointer provenance, and
+verify isolated package consumers. Local workspace and strict Miri checks pass.
+These versions remain unpublished. Final hosted CI, release provenance and
+sustained production qualification remain open. The
+[latest runtime screens](evidence/rejected-runtime-candidates-20261030/README.md)
+reject further map and repeated-field changes; they add no selected speed win.
+
 The [October 29 record](evidence/runtime-and-codegen-20261029/README.md)
 measures `0a770792`: descriptor literals, generated repeated-tag runs and a
 varint fast path. Lazy nested reads remain slower than Prost; owned sparse

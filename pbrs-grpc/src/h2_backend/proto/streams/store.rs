@@ -450,7 +450,9 @@ impl StreamSlots {
                 Some(Slot::Vacant(next)) => *next,
                 _ => unreachable!("stream slab insert hit an occupied slot"),
             };
-            self.slots[key as usize] = Slot::Occupied(ManuallyDrop::new(value));
+            *self
+                .slot_mut(key as usize)
+                .expect("vacant stream slot exists") = Slot::Occupied(ManuallyDrop::new(value));
         }
         key
     }
@@ -472,8 +474,24 @@ impl StreamSlots {
         }
     }
 
+    /// Borrow only the selected slot. `Vec::get_mut` first borrows the whole
+    /// slice, invalidating cached raw pointers to other live stream slots.
+    #[inline(always)]
+    #[allow(
+        unsafe_code,
+        reason = "bounds-checked projection borrows one slot without reborrowing its neighbors"
+    )]
+    fn slot_mut(&mut self, index: usize) -> Option<&mut Slot> {
+        if index >= self.slots.len() {
+            return None;
+        }
+        // SAFETY: the index is in bounds, the Vec keeps this allocation while
+        // this borrow is live, and exclusive access is limited to this slot.
+        Some(unsafe { &mut *self.slots.as_mut_ptr().add(index) })
+    }
+
     fn get_mut(&mut self, index: usize) -> Option<&mut Stream> {
-        match self.slots.get_mut(index) {
+        match self.slot_mut(index) {
             Some(Slot::Occupied(stream)) => Some(stream),
             _ => None,
         }
@@ -482,16 +500,17 @@ impl StreamSlots {
     /// Resolve the occupied enum payload without assuming its offset.
     #[inline(always)]
     fn occupied_ptr(&mut self, index: usize) -> *mut Stream {
-        match self.slots.get_mut(index) {
-            Some(Slot::Occupied(stream)) => &mut **stream,
-            _ => panic!("stream pointer names a vacant or missing slab slot"),
+        match self.get_mut(index) {
+            Some(stream) => stream,
+            None => panic!("stream pointer names a vacant or missing slab slot"),
         }
     }
 
     /// Unlink the occupied owner before running user-provided waker drops.
     fn remove_in_place(&mut self, index: u32, stream_id: StreamId) -> StreamId {
         let slot_index = index as usize;
-        let slot = match self.slots.get_mut(slot_index) {
+        let next = self.next;
+        let slot = match self.slot_mut(slot_index) {
             Some(slot @ Slot::Occupied(_)) => slot,
             _ => dangling_store_key(stream_id),
         };
@@ -499,7 +518,7 @@ impl StreamSlots {
             Slot::Occupied(stream) if stream.id == stream_id => stream.id,
             _ => dangling_store_key(stream_id),
         };
-        let old = std::mem::replace(slot, Slot::Vacant(self.next));
+        let old = std::mem::replace(slot, Slot::Vacant(next));
         self.next = index;
         self.len -= 1;
         if let Slot::Occupied(stream) = old {
@@ -879,10 +898,10 @@ impl<'a> Ptr<'a> {
     #[inline(always)]
     pub(super) fn stream_ptr(&mut self) -> *mut Stream {
         let index = self.key.index.0 as usize;
-        let ptr = self.store.slab.occupied_ptr(index);
-        // The unchecked address has to be the one indexing would return.
-        debug_assert_eq!(ptr, &mut self.store[self.key] as *mut Stream);
-        ptr
+        // Validate the ABA guard before deriving the raw pointer. Indexing
+        // afterwards would reborrow the slot and invalidate that pointer.
+        debug_assert_eq!(self.store[self.key].id, self.key.stream_id);
+        self.store.slab.occupied_ptr(index)
     }
 
     pub fn store_mut(&mut self) -> &mut Store {
@@ -1064,6 +1083,39 @@ mod tests {
         );
         drop(slots);
         assert_eq!(drops.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    #[allow(
+        unsafe_code,
+        reason = "exercise the cached-slot contract across operations on a distinct slot"
+    )]
+    fn distinct_slot_updates_preserve_a_cached_stream_pointer() {
+        let mut slots = StreamSlots::new();
+        let first = slots.insert_new(StreamId::from(1), 0, 0);
+        let second = slots.insert_new(StreamId::from(3), 0, 0);
+        let cached = slots.occupied_ptr(first as usize);
+        slots
+            .get_mut(second as usize)
+            .expect("second stream")
+            .ref_count = 7;
+        assert_eq!(
+            slots.get(second as usize).expect("second stream").ref_count,
+            7
+        );
+        // SAFETY: only the distinct second slot was reborrowed; neither
+        // operation grows the allocation or touches the cached first slot.
+        unsafe { (*cached).ref_count = 9 };
+        slots.remove_in_place(second, StreamId::from(3));
+        // SAFETY: removal affected the distinct slot without moving the first.
+        assert_eq!(unsafe { (*cached).ref_count }, 9);
+        assert_eq!(slots.insert_new(StreamId::from(5), 64, 128), second);
+        // SAFETY: insertion reused the vacant slot and did not grow the Vec.
+        unsafe { (*cached).ref_count = 11 };
+        // SAFETY: the cached first slot remains occupied and uniquely mutable.
+        assert_eq!(unsafe { (*cached).ref_count }, 11);
+        // SAFETY: the same valid pointer still names the first stream.
+        assert_eq!(unsafe { (*cached).id }, StreamId::from(1));
     }
 
     #[test]

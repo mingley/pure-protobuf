@@ -12,6 +12,7 @@ Start with a working example, then open the guide for your task.
 | Move from tonic/prost | [Migration guide](guides/migration.md), [comparison](guides/comparison.md), [parity audit](parity.md) |
 | Add authentication and middleware | [Interceptors](guides/interceptors.md) |
 | Deploy and operate a service | [TLS, limits and shutdown](guides/production-service.md), [operations](guides/operations.md) |
+| Check release readiness | [Current candidate checks](evidence/release-readiness-20261030/README.md), [release policy](RELEASE.md) |
 | Compare performance | [Results](benchmarks.md), [run benchmarks](benchmarks/running.md) |
 
 For exact API signatures, use [docs.rs](https://docs.rs/pbrs) or run

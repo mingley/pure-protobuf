@@ -278,12 +278,18 @@ where
             // Declare the owner outside the lock scope so errors or unwinding
             // also release the lock before its payload destructor runs.
             let status = loop {
+                let mut discarded_queued = Vec::new();
                 let mut retired = RetiredData::new();
                 let discarded;
                 let status = {
                     let mut me = self.inner.lock().unwrap();
                     discarded = me.actions.send.take_discarded_frame(dst);
-                    let status = me.buffer_pending(&self.send_buffer, dst, &mut retired)?;
+                    let status = me.buffer_pending(
+                        &self.send_buffer,
+                        dst,
+                        &mut retired,
+                        &mut discarded_queued,
+                    )?;
 
                     // Register the task while holding the same lock used to
                     // observe that all pending frames have been buffered. A
@@ -365,6 +371,7 @@ where
         frame: &frame::Settings,
         is_initial: bool,
     ) -> Result<(), Error> {
+        let mut discarded = Vec::new();
         let mut me = self.inner.lock().unwrap();
         let me = &mut *me;
 
@@ -379,6 +386,7 @@ where
             &mut me.store,
             &mut me.counts,
             &mut me.actions.task,
+            &mut discarded,
         )
     }
 
@@ -731,6 +739,9 @@ where
 }
 
 impl<B> DynStreams<'_, B> {
+    // Keep detached-frame owners before the mutex guard in every resetting
+    // entry point. A peer error may clear another stream's outbound queue;
+    // those buffers must also be destroyed after the callee's send guard.
     pub fn is_buffer_empty(&self) -> bool {
         self.send_buffer.is_empty()
     }
@@ -740,33 +751,38 @@ impl<B> DynStreams<'_, B> {
     }
 
     pub fn recv_headers(&mut self, frame: Box<frame::Headers>) -> Result<(), Error> {
+        let mut discarded = Vec::new();
         let mut me = self.inner.lock().unwrap();
 
-        me.recv_headers(self.peer, self.send_buffer, frame)
+        me.recv_headers(self.peer, self.send_buffer, frame, &mut discarded)
     }
 
     pub fn recv_data(&mut self, frame: frame::Data) -> Result<(), Error> {
+        let mut discarded = Vec::new();
         let mut me = self.inner.lock().unwrap();
-        me.recv_data(self.peer, self.send_buffer, frame)
+        me.recv_data(self.peer, self.send_buffer, frame, &mut discarded)
     }
 
     pub fn recv_reset(&mut self, frame: frame::Reset) -> Result<(), Error> {
+        let mut discarded = Vec::new();
         let mut me = self.inner.lock().unwrap();
 
-        me.recv_reset(self.send_buffer, frame)
+        me.recv_reset(self.send_buffer, frame, &mut discarded)
     }
 
     /// Notify all streams that a connection-level error happened.
     pub fn handle_error(&mut self, err: proto::Error) -> StreamId {
+        let mut discarded = Vec::new();
         let mut me = self.inner.lock().unwrap();
-        let result = me.handle_error(self.send_buffer, err);
+        let result = me.handle_error(self.send_buffer, err, &mut discarded);
         me.counts.wake_send_capacity();
         result
     }
 
     pub fn recv_go_away(&mut self, frame: &frame::GoAway) -> Result<(), Error> {
+        let mut discarded = Vec::new();
         let mut me = self.inner.lock().unwrap();
-        let result = me.recv_go_away(self.send_buffer, frame);
+        let result = me.recv_go_away(self.send_buffer, frame, &mut discarded);
         me.counts.wake_send_capacity();
         result
     }
@@ -776,18 +792,21 @@ impl<B> DynStreams<'_, B> {
     }
 
     pub fn recv_window_update(&mut self, frame: frame::WindowUpdate) -> Result<(), Error> {
+        let mut discarded = Vec::new();
         let mut me = self.inner.lock().unwrap();
-        me.recv_window_update(self.send_buffer, frame)
+        me.recv_window_update(self.send_buffer, frame, &mut discarded)
     }
 
     pub fn recv_push_promise(&mut self, frame: frame::PushPromise) -> Result<(), Error> {
+        let mut discarded = Vec::new();
         let mut me = self.inner.lock().unwrap();
-        me.recv_push_promise(self.send_buffer, frame)
+        me.recv_push_promise(self.send_buffer, frame, &mut discarded)
     }
 
     pub fn recv_eof(&mut self, clear_pending_accept: bool) -> Result<(), ()> {
+        let mut discarded = Vec::new();
         let mut me = self.inner.lock().map_err(|_| ())?;
-        let result = me.recv_eof(self.send_buffer, clear_pending_accept);
+        let result = me.recv_eof(self.send_buffer, clear_pending_accept, &mut discarded);
         me.counts.wake_send_capacity();
         result
     }
@@ -797,8 +816,9 @@ impl<B> DynStreams<'_, B> {
         id: StreamId,
         reason: Reason,
     ) -> Result<(), crate::h2_backend::proto::error::GoAway> {
+        let mut discarded = Vec::new();
         let mut me = self.inner.lock().unwrap();
-        me.send_reset(self.send_buffer, id, reason)
+        me.send_reset(self.send_buffer, id, reason, &mut discarded)
     }
 
     pub fn send_go_away(&mut self, last_processed_id: StreamId) {
@@ -852,6 +872,7 @@ impl Inner {
         peer: peer::Dyn,
         send_buffer: &SendBuffer<B>,
         frame: Box<frame::Headers>,
+        discarded: &mut Vec<Frame<B>>,
     ) -> Result<(), Error> {
         let id = frame.stream_id();
 
@@ -946,18 +967,9 @@ impl Inner {
 
         // Inlined `Counts::transition`. A closure would store the header
         // block by value and copy it again on the way into `recv_headers`.
-        // The reset flag and the closed check share this slot.
-        #[allow(
-            unsafe_code,
-            reason = "the reset flag is read from the slot the closed check reuses"
-        )]
-        let (slot, is_pending_reset) = {
-            let slot = stream.stream_ptr();
-            // SAFETY: slot was resolved from this live stream while its store mutex
-            // is held. No slab insertion or stream removal precedes this access.
-            let is_pending_reset = unsafe { (*slot).is_pending_reset_expiration() };
-            (slot, is_pending_reset)
-        };
+        // Applying the header can reborrow this slot. Snapshot the flag now;
+        // the close transition resolves its own later borrow.
+        let is_pending_reset = stream.is_pending_reset_expiration();
         let reset_pending = &self.reset_pending;
         let actions = &mut self.actions;
         let counts = &mut self.counts;
@@ -1015,9 +1027,16 @@ impl Inner {
             res
         } else {
             let mut locked = send_buffer.inner.lock().unwrap();
-            actions.reset_on_recv_stream_err(&mut *locked, &mut stream, counts, res, reset_pending)
+            actions.reset_on_recv_stream_err(
+                &mut *locked,
+                &mut stream,
+                counts,
+                res,
+                reset_pending,
+                discarded,
+            )
         };
-        counts.transition_after_at(stream, slot, is_pending_reset);
+        counts.transition_after(stream, is_pending_reset);
         res
     }
 
@@ -1026,6 +1045,7 @@ impl Inner {
         peer: peer::Dyn,
         send_buffer: &SendBuffer<B>,
         frame: frame::Data,
+        discarded: &mut Vec<Frame<B>>,
     ) -> Result<(), Error> {
         let id = frame.stream_id();
 
@@ -1106,6 +1126,7 @@ impl Inner {
                     counts,
                     res,
                     reset_pending,
+                    discarded,
                 )
             } else {
                 res
@@ -1117,6 +1138,7 @@ impl Inner {
         &mut self,
         send_buffer: &SendBuffer<B>,
         frame: frame::Reset,
+        discarded: &mut Vec<Frame<B>>,
     ) -> Result<(), Error> {
         let id = frame.stream_id();
 
@@ -1160,7 +1182,9 @@ impl Inner {
 
         self.counts.transition(stream, |counts, stream| {
             actions.recv.recv_reset(frame, stream, counts)?;
-            actions.send.handle_error(send_buffer, stream, counts);
+            actions
+                .send
+                .handle_error(send_buffer, stream, counts, discarded);
             assert!(stream.state.is_closed());
             Ok(())
         })
@@ -1170,6 +1194,7 @@ impl Inner {
         &mut self,
         send_buffer: &SendBuffer<B>,
         frame: frame::WindowUpdate,
+        discarded: &mut Vec<Frame<B>>,
     ) -> Result<(), Error> {
         let id = frame.stream_id();
 
@@ -1199,6 +1224,7 @@ impl Inner {
                         &mut stream,
                         &mut self.counts,
                         &mut self.actions.task,
+                        discarded,
                     )
                     .map_err(|reason| Error::library_reset(id, reason));
 
@@ -1208,6 +1234,7 @@ impl Inner {
                     &mut self.counts,
                     res,
                     &self.reset_pending,
+                    discarded,
                 );
             } else {
                 self.actions
@@ -1219,7 +1246,12 @@ impl Inner {
         Ok(())
     }
 
-    fn handle_error<B>(&mut self, send_buffer: &SendBuffer<B>, err: proto::Error) -> StreamId {
+    fn handle_error<B>(
+        &mut self,
+        send_buffer: &SendBuffer<B>,
+        err: proto::Error,
+        discarded: &mut Vec<Frame<B>>,
+    ) -> StreamId {
         let actions = &mut self.actions;
         let counts = &mut self.counts;
         let mut send_buffer = send_buffer.inner.lock().unwrap();
@@ -1230,7 +1262,9 @@ impl Inner {
         self.store.for_each(|stream| {
             counts.transition(stream, |counts, stream| {
                 actions.recv.handle_error(&err, &mut *stream);
-                actions.send.handle_error(send_buffer, stream, counts);
+                actions
+                    .send
+                    .handle_error(send_buffer, stream, counts, discarded);
             })
         });
 
@@ -1243,6 +1277,7 @@ impl Inner {
         &mut self,
         send_buffer: &SendBuffer<B>,
         frame: &frame::GoAway,
+        discarded: &mut Vec<Frame<B>>,
     ) -> Result<(), Error> {
         let actions = &mut self.actions;
         let counts = &mut self.counts;
@@ -1260,7 +1295,9 @@ impl Inner {
             if stream.id > last_stream_id && peer.is_local_init(stream.id) {
                 counts.transition(stream, |counts, stream| {
                     actions.recv.handle_error(&err, &mut *stream);
-                    actions.send.handle_error(send_buffer, stream, counts);
+                    actions
+                        .send
+                        .handle_error(send_buffer, stream, counts, discarded);
                 })
             }
         });
@@ -1274,6 +1311,7 @@ impl Inner {
         &mut self,
         send_buffer: &SendBuffer<B>,
         frame: frame::PushPromise,
+        discarded: &mut Vec<Frame<B>>,
     ) -> Result<(), Error> {
         let id = frame.stream_id();
         let promised_id = frame.promised_id();
@@ -1356,6 +1394,7 @@ impl Inner {
                                 counts,
                                 stream_valid,
                                 reset_pending,
+                                discarded,
                             )
                             .map(|()| None)
                     }
@@ -1379,6 +1418,7 @@ impl Inner {
         &mut self,
         send_buffer: &SendBuffer<B>,
         clear_pending_accept: bool,
+        discarded: &mut Vec<Frame<B>>,
     ) -> Result<(), ()> {
         let actions = &mut self.actions;
         let counts = &mut self.counts;
@@ -1403,7 +1443,9 @@ impl Inner {
 
                 // This handles resetting send state associated with the
                 // stream
-                actions.send.handle_error(send_buffer, stream, counts);
+                actions
+                    .send
+                    .handle_error(send_buffer, stream, counts, discarded);
             })
         });
 
@@ -1416,6 +1458,7 @@ impl Inner {
         send_buffer: &SendBuffer<B>,
         dst: &mut Codec<T, Prioritized<B>>,
         retired: &mut RetiredData<B>,
+        discarded: &mut Vec<Frame<B>>,
     ) -> io::Result<BufferStatus>
     where
         T: AsyncWrite + Unpin,
@@ -1451,6 +1494,7 @@ impl Inner {
             &mut self.counts,
             dst,
             retired,
+            discarded,
         )?;
         if matches!(
             send_status,
@@ -1496,6 +1540,7 @@ impl Inner {
         send_buffer: &SendBuffer<B>,
         id: StreamId,
         reason: Reason,
+        discarded: &mut Vec<Frame<B>>,
     ) -> Result<(), crate::h2_backend::proto::error::GoAway> {
         let key = match self.store.find_entry(id) {
             Entry::Occupied(e) => e.key(),
@@ -1538,6 +1583,7 @@ impl Inner {
             &mut self.counts,
             send_buffer,
             &self.reset_pending,
+            discarded,
         )
     }
 }
@@ -1576,14 +1622,16 @@ where
     /// DATA on the steady path. Skips building a [`DynStreams`] just to pass
     /// the peer and the send buffer into the lock.
     pub(crate) fn recv_data(&mut self, frame: frame::Data) -> Result<(), Error> {
+        let mut discarded = Vec::new();
         let mut me = self.inner.lock().unwrap();
-        me.recv_data(P::r#dyn(), &self.send_buffer, frame)
+        me.recv_data(P::r#dyn(), &self.send_buffer, frame, &mut discarded)
     }
 
     /// HEADERS on the steady path. Same as [`Self::recv_data`].
     pub(crate) fn recv_headers(&mut self, frame: Box<frame::Headers>) -> Result<(), Error> {
+        let mut discarded = Vec::new();
         let mut me = self.inner.lock().unwrap();
-        me.recv_headers(P::r#dyn(), &self.send_buffer, frame)
+        me.recv_headers(P::r#dyn(), &self.send_buffer, frame, &mut discarded)
     }
 
     pub fn as_dyn(&self) -> DynStreams<'_, B> {
@@ -1712,6 +1760,9 @@ impl<B> StreamRef<B> {
     where
         B: Buf,
     {
+        // Filled after the stream ID is known; its declaration determines
+        // drop order even if validation or a payload callback unwinds.
+        let mut pending_frame;
         let mut me = self.opaque.inner.lock().unwrap();
         let me = &mut *me;
         let mut stream = me.store.resolve(self.opaque.key);
@@ -1737,15 +1788,17 @@ impl<B> StreamRef<B> {
             }
             (*slot).id
         };
+        let mut frame = frame::Data::new(stream_id, data);
+        frame.set_end_stream(end_stream);
+        pending_frame = Some(frame);
         let mut send_buffer = self.send_buffer.inner.lock().unwrap();
         // A non-empty frame that does not end the stream adds buffered
         // bytes, so the stream cannot be closed. The close check would
         // look the stream up again and then do nothing.
         if !end_stream && len > 0 {
             let result = {
-                let frame = frame::Data::new(stream_id, data);
                 actions.send.send_data(
-                    frame,
+                    &mut pending_frame,
                     &mut send_buffer,
                     &mut stream,
                     slot,
@@ -1769,16 +1822,14 @@ impl<B> StreamRef<B> {
             // SAFETY: slot was resolved from this live stream while its store mutex
             // is held. No slab insertion or stream removal precedes this access.
             let pending = unsafe { (*slot).is_pending_reset_expiration() };
-            me.counts.transition_after_at(stream, slot, pending);
+            me.counts.transition_after(stream, pending);
             return Ok(result);
         }
         Ok(me.counts.transition_at(stream, slot, |counts, stream| {
-            let mut frame = frame::Data::new(stream_id, data);
-            frame.set_end_stream(end_stream);
             actions
                 .send
                 .send_data(
-                    frame,
+                    &mut pending_frame,
                     &mut send_buffer,
                     stream,
                     slot,
@@ -1798,6 +1849,7 @@ impl<B> StreamRef<B> {
     where
         B: Buf,
     {
+        let mut pending_frame;
         let mut me = self.opaque.inner.lock().unwrap();
         let me = &mut *me;
 
@@ -1815,15 +1867,21 @@ impl<B> StreamRef<B> {
         // is held. No slab insertion or stream removal precedes this access.
         let stream_id = unsafe { (*slot).id };
 
+        let mut frame = frame::Data::new(stream_id, data);
+        frame.set_end_stream(end_stream);
+        pending_frame = Some(frame);
         me.counts.transition_at(stream, slot, |counts, stream| {
-            // Create the data frame
-            let mut frame = frame::Data::new(stream_id, data);
-            frame.set_end_stream(end_stream);
-
             // Send the data frame
             actions
                 .send
-                .send_data(frame, send_buffer, stream, slot, counts, &mut actions.task)
+                .send_data(
+                    &mut pending_frame,
+                    send_buffer,
+                    stream,
+                    slot,
+                    counts,
+                    &mut actions.task,
+                )
                 .map_err(|error| {
                     stream
                         .state
@@ -1865,6 +1923,7 @@ impl<B> StreamRef<B> {
     }
 
     pub fn send_reset(&mut self, reason: Reason) {
+        let mut discarded = Vec::new();
         let mut me = self.opaque.inner.lock().unwrap();
         let me = &mut *me;
 
@@ -1879,6 +1938,7 @@ impl<B> StreamRef<B> {
             &mut me.counts,
             send_buffer,
             &me.reset_pending,
+            &mut discarded,
         ) {
             Ok(()) => (),
             Err(crate::h2_backend::proto::error::GoAway { .. }) => {
@@ -1993,6 +2053,7 @@ impl<B> StreamRef<B> {
         let mut response = Some(response);
         let mut trailers = Some(trailers);
         let mut ending_data = ending_data;
+        let mut ending_frame = None;
         let mut discarded = Vec::new();
         let mut wake = Vec::new();
         let result = {
@@ -2029,13 +2090,13 @@ impl<B> StreamRef<B> {
                         &mut me.counts,
                         buffer,
                         &me.reset_pending,
+                        &mut discarded,
                     )
                     .map(|()| true)
                     .map_err(|error| crate::h2_backend::Error::from(error.reason))
             } else {
                 me.counts
                     .transition(stream, |counts, stream| -> Result<bool, UserError> {
-                        let slot = stream.stream_ptr();
                         if stream.state.is_send_streaming() {
                             match post_header {
                                 server::DeadlineEnding::Trailers => {
@@ -2050,6 +2111,7 @@ impl<B> StreamRef<B> {
                                     let trailers =
                                         trailers.take().ok_or(UserError::UnexpectedFrameType)?;
                                     let frame = frame::Headers::trailers_boxed(stream.id, trailers);
+                                    let slot = stream.stream_ptr();
                                     actions.send.send_trailers(
                                         frame,
                                         buffer,
@@ -2064,8 +2126,10 @@ impl<B> StreamRef<B> {
                                         ending_data.take().ok_or(UserError::UnexpectedFrameType)?;
                                     let mut frame = frame::Data::new(stream.id, data);
                                     frame.set_end_stream(true);
+                                    ending_frame = Some(frame);
+                                    let slot = stream.stream_ptr();
                                     actions.send.send_data(
-                                        frame,
+                                        &mut ending_frame,
                                         buffer,
                                         stream,
                                         slot,
@@ -2086,6 +2150,7 @@ impl<B> StreamRef<B> {
                                 response,
                                 ending_data.is_none(),
                             );
+                            let slot = stream.stream_ptr();
                             actions.send.send_headers_boxed(
                                 initial,
                                 buffer,
@@ -2097,8 +2162,10 @@ impl<B> StreamRef<B> {
                             if let Some(data) = ending_data.take() {
                                 let mut frame = frame::Data::new(stream.id, data);
                                 frame.set_end_stream(true);
+                                ending_frame = Some(frame);
+                                let slot = stream.stream_ptr();
                                 actions.send.send_data(
-                                    frame,
+                                    &mut ending_frame,
                                     buffer,
                                     stream,
                                     slot,
@@ -2668,6 +2735,10 @@ impl<B> SendBuffer<B> {
 // ===== impl Actions =====
 
 impl Actions {
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "reset state and queue accounting stay under the engine locks; discarded owners belong to the outer caller"
+    )]
     fn send_reset<B>(
         &mut self,
         stream: store::Ptr,
@@ -2676,6 +2747,7 @@ impl Actions {
         counts: &mut Counts,
         send_buffer: &mut Buffer<Frame<B>>,
         pending: &AtomicBool,
+        discarded: &mut Vec<Frame<B>>,
     ) -> Result<(), crate::h2_backend::proto::error::GoAway> {
         counts.transition(stream, |counts, stream| {
             if initiator.is_library() {
@@ -2700,6 +2772,7 @@ impl Actions {
                 stream,
                 counts,
                 &mut self.task,
+                discarded,
             );
             self.recv.enqueue_reset_expiration(stream, counts, pending);
             // if a RecvStream is parked, ensure it's notified
@@ -2716,6 +2789,7 @@ impl Actions {
         counts: &mut Counts,
         res: Result<(), Error>,
         pending: &AtomicBool,
+        discarded: &mut Vec<Frame<B>>,
     ) -> Result<(), Error> {
         if let Err(Error::Reset(stream_id, reason, initiator)) = res {
             debug_assert_eq!(stream_id, stream.id);
@@ -2724,8 +2798,15 @@ impl Actions {
                 counts.inc_num_local_error_resets();
 
                 // Reset the stream.
-                self.send
-                    .send_reset(reason, initiator, buffer, stream, counts, &mut self.task);
+                self.send.send_reset(
+                    reason,
+                    initiator,
+                    buffer,
+                    stream,
+                    counts,
+                    &mut self.task,
+                    discarded,
+                );
                 self.recv.enqueue_reset_expiration(stream, counts, pending);
                 // if a RecvStream is parked, ensure it's notified
                 stream.notify_recv();
