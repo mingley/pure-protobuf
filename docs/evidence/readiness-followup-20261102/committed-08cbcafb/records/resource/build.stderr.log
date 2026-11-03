@@ -1,0 +1,5 @@
+warning: pbrs@0.2.1: wrote conformance descriptor set
+   Compiling pbrs v0.2.1 (/workspace/pure-protobuf)
+   Compiling pbrs-grpc v0.1.0-alpha.3 (/workspace/pure-protobuf/pbrs-grpc)
+warning: pbrs@0.2.1: wrote conformance descriptor set
+    Finished `release` profile [optimized] target(s) in 4m 22s

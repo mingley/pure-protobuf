@@ -1,0 +1,27 @@
+{
+  "source_commit": "08cbcafb3042d5d465fc764ceb7f2578095f510d",
+  "archives": [
+    {
+      "name": "pbrs",
+      "version": "0.2.1",
+      "sha256": "9def3f9f8ffa1bca9ed2ab2e6a4de5a984ff18cf8d22dbc4b4d35e0c90f69e00",
+      "bytes": 585100,
+      "members": 75
+    },
+    {
+      "name": "protobuf-tonic",
+      "version": "0.1.0-alpha.3",
+      "sha256": "18cb61fd263d5e1fd4d147cd4a5545ba348149662c3db99594a2066a173c87bd",
+      "bytes": 28485,
+      "members": 23
+    },
+    {
+      "name": "pbrs-grpc",
+      "version": "0.1.0-alpha.3",
+      "sha256": "5cbc363d5b0b6d141dc39cad76c2208df6607b4fc6856d2ba1be151ae758600d",
+      "bytes": 1386023,
+      "members": 330
+    }
+  ],
+  "output": "/workspace/pure-protobuf/work/followup-20261102/package-rehearsal/run-08cbcafb3042d5d465fc764ceb7f2578095f510d/archive-audit.json"
+}

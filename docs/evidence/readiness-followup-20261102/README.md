@@ -160,6 +160,10 @@ housekeeping records add no test executions or qualification credit.
 | Core zero defaults under i686 Miri | 16 Rust tests passed | `ci-bounded-miri-i686-complete` |
 | Core zero defaults under x86_64 Miri | 16 Rust tests passed | `miri-x86_64-integrated-summary` |
 
+The [committed package and resource checks](committed-08cbcafb/README.md) bind all
+1,307 selected inputs to `08cbcafb`, repeat the package audit and retain its
+62-second resource smoke. Sustained qualification remains open.
+
 ## Verify the record
 
 Run `python3 check.py` from this directory in a checkout containing the base

@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/workspace/pure-protobuf/work/committed-packet-control-_mad7g7a/packet/check.py", line 161, in <module>
+    main()
+  File "/workspace/pure-protobuf/work/committed-packet-control-_mad7g7a/packet/check.py", line 140, in main
+    assert validator.read_bytes() == blob('scripts/grpc-resource-campaign.py')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

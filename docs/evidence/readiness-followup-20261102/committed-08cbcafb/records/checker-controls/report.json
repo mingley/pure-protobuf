@@ -1,0 +1,39 @@
+{
+  "schema": "pbrs.committed-followup-negative-controls.v1",
+  "scope": "disposable rehashed record mutations; no Cargo, publisher or resource campaign execution",
+  "detected": 4,
+  "controls": [
+    {
+      "name": "source-binding",
+      "exit_code": 1,
+      "expected_failure": "previous selected input set differs",
+      "rehashed_manifest": true,
+      "log": "source-binding.log",
+      "log_sha256": "36809a6b8632ea9e3b910da434c9d976370db02ea17b888b397d737e46d33622"
+    },
+    {
+      "name": "publisher-dirty",
+      "exit_code": 1,
+      "expected_failure": "status_before",
+      "rehashed_manifest": true,
+      "log": "publisher-dirty.log",
+      "log_sha256": "33d729b4a8523b9c77c388140ceb85a692d2c30b56d2f19aa1ec15323b4abb78"
+    },
+    {
+      "name": "resource-promotion",
+      "exit_code": 1,
+      "expected_failure": "qualification",
+      "rehashed_manifest": true,
+      "log": "resource-promotion.log",
+      "log_sha256": "51a8ecc5d5c1305aedf90f0d3a7cc68bb1f289fdad17fde4bb8862b0285dd954"
+    },
+    {
+      "name": "validator-pin",
+      "exit_code": 1,
+      "expected_failure": "validator.read_bytes()",
+      "rehashed_manifest": true,
+      "log": "validator-pin.log",
+      "log_sha256": "1751530d36f46b2c428c1a4f0d3fc8dc2d4e154e278f00be5f99184b1819c156"
+    }
+  ]
+}

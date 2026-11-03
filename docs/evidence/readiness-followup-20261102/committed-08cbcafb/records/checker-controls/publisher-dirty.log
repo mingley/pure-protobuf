@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/workspace/pure-protobuf/work/committed-packet-control-zl_o2ut9/packet/check.py", line 161, in <module>
+    main()
+  File "/workspace/pure-protobuf/work/committed-packet-control-zl_o2ut9/packet/check.py", line 85, in main
+    assert publisher['status_before'] == publisher['status_after'] == ''
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
