@@ -1,7 +1,7 @@
 //! SB-26d: identical whole-message work on four codec/transport profiles.
 //! These are typed tonic/native calls, not the TC-29/30 transport adapters.
 
-use crate::{AllocGuard, black_box, child_json};
+use crate::{AllocGuard, black_box, child_json_with_input_bytes};
 use pbrs_adoption_corpus::{
     native, prost_types,
     rpc::{Inputs, Pair, STREAM_REPLIES},
@@ -271,6 +271,8 @@ async fn run_typed<M: BenchMessage>(
     id: &str,
     message: M,
     checksum: u64,
+    input_wire_fingerprint: String,
+    input_wire_bytes: usize,
     validate: impl Fn(&M),
     iters: u64,
     warmup: u64,
@@ -421,7 +423,18 @@ async fn run_typed<M: BenchMessage>(
     let wall = start.elapsed();
     let (allocs, bytes) = guard.totals();
     drop(guard);
-    eprintln!("__CHILD__ {}", child_json(id, iters, allocs, bytes, wall));
+    eprintln!(
+        "__CHILD__ {}",
+        child_json_with_input_bytes(
+            id,
+            iters,
+            allocs,
+            bytes,
+            wall,
+            Some(input_wire_fingerprint),
+            Some(input_wire_bytes as u64),
+        )
+    );
     black_box(sink);
     // Processes are not retained after a cell; server shutdown is outside
     // the measured window and awaits termination of our accept task.
@@ -442,6 +455,8 @@ where
             id,
             pair.native.clone(),
             pair.checksum,
+            pair.input_wire_fingerprint.clone(),
+            pair.bytes,
             |response| pair.validate_native(response),
             iters,
             warmup,
@@ -452,6 +467,8 @@ where
             id,
             pbrs_grpc::codec::prost::Message(pair.prost.clone()),
             pair.checksum,
+            pair.input_wire_fingerprint.clone(),
+            pair.bytes,
             |response| pair.validate_prost(&response.0),
             iters,
             warmup,
@@ -460,7 +477,13 @@ where
     }
 }
 fn pair_report<N, P>(pair: &Pair<N, P>) -> serde_json::Value {
-    serde_json::json!({"request_bytes": pair.bytes, "response_bytes": pair.bytes, "checksum": pair.checksum, "stream_replies": STREAM_REPLIES})
+    serde_json::json!({
+        "request_bytes": pair.bytes, "response_bytes": pair.bytes,
+        "checksum": pair.checksum, "stream_replies": STREAM_REPLIES,
+        "input_wire_fingerprint": pair.input_wire_fingerprint,
+        "input_wire_bytes": pair.bytes,
+        "input_fingerprint_scope": "common prepared wire; RPC map entry order may vary",
+    })
 }
 
 pub async fn run(id: &str, iters: u64, warmup: u64) {

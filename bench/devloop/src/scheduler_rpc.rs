@@ -122,8 +122,8 @@ impl State {
         }
     }
 
-    async fn quiet(&self, tasks: usize) {
-        tokio::time::timeout(BOUND, async {
+    async fn quiet(&self, tasks: usize, shape: &str, mode: &str) {
+        let quiet = tokio::time::timeout(BOUND, async {
             loop {
                 if self.rpc_started.load(Ordering::SeqCst)
                     == self.rpc_completed.load(Ordering::SeqCst)
@@ -139,8 +139,18 @@ impl State {
                 tokio::task::yield_now().await;
             }
         })
-        .await
-        .expect("RPC, producer and library tasks quiesce");
+        .await;
+        assert!(
+            quiet.is_ok(),
+            "RPC, producer and library tasks quiesce ({shape}/{mode}): RPC {}/{}, producer {}/{}, tasks {} expected {tasks}",
+            self.rpc_completed.load(Ordering::SeqCst),
+            self.rpc_started.load(Ordering::SeqCst),
+            self.producers_completed.load(Ordering::SeqCst),
+            self.producers_started.load(Ordering::SeqCst),
+            tokio::runtime::Handle::current()
+                .metrics()
+                .num_alive_tasks(),
+        );
     }
 }
 
@@ -497,12 +507,22 @@ async fn campaign() -> Value {
     );
     let setup = spawn_json(library_spawns());
     let shapes = ["unary", "server_stream", "client_stream", "bidi"];
+    let mut shared_cancel_dispatchers = 0;
     for shape in shapes {
         tokio::time::timeout(BOUND, exercise(&channel, &state, shape, "echo"))
             .await
             .expect("warmup case bound");
-        state.quiet(2).await;
+        if shape == "server_stream" {
+            // wire::send caches one cancellation dispatcher on this runtime
+            // after the first streaming registration. It outlives its jobs
+            // and connection, then shuts down with the runtime itself.
+            shared_cancel_dispatchers = 1;
+        }
+        state
+            .quiet(2 + shared_cancel_dispatchers, shape, "warmup")
+            .await;
     }
+    assert_eq!(shared_cancel_dispatchers, 1);
     let mut rows = Vec::new();
     for shape in shapes {
         for mode in ["echo", "terminal", "cancel", "early"] {
@@ -516,7 +536,9 @@ async fn campaign() -> Value {
             let replies = tokio::time::timeout(BOUND, exercise(&channel, &state, shape, mode))
                 .await
                 .expect("semantic case bound");
-            state.quiet(2).await;
+            state
+                .quiet(2 + shared_cancel_dispatchers, shape, mode)
+                .await;
             let counts = library_spawns();
             if let Some(counts) = counts {
                 assert_eq!(
@@ -527,9 +549,13 @@ async fn campaign() -> Value {
                         // task instead of a task per RPC.
                         server_rpc_dispatch: 0,
                         client_server_stream_cancel: 0,
-                        client_bidi_upload: u64::from(shape == "bidi"),
+                        // Echo prequeues and closes both request messages;
+                        // the bounded closed-upload path needs no pump task.
+                        // Other bidi modes retain a live request producer.
+                        client_bidi_upload: u64::from(shape == "bidi" && mode != "echo"),
                         ..LibrarySpawns::default()
-                    }
+                    },
+                    "named spawn counts for {shape}/{mode}",
                 );
             }
             let bodies = state.body_messages.load(Ordering::SeqCst) - body_before;
@@ -552,7 +578,7 @@ async fn campaign() -> Value {
             rows.push(json!({"shape": shape, "mode": mode, "body_messages": bodies, "reply_messages": replies,
                 "terminal": match mode { "terminal" => "FAILED_PRECONDITION", "cancel" => "CANCELLED", _ => "OK" },
                 "library_spawns": spawn_json(counts), "application_producer_spawns": producers,
-                "rpc_and_producer_completion_acknowledged": true, "steady_alive_tasks": 2}));
+                "rpc_and_producer_completion_acknowledged": true, "steady_alive_tasks": 2 + shared_cancel_dispatchers}));
         }
     }
     drop(channel);
@@ -561,7 +587,9 @@ async fn campaign() -> Value {
         .expect("server connection shutdown")
         .expect("server join")
         .expect("clean connection shutdown");
-    state.quiet(0).await;
+    state
+        .quiet(shared_cancel_dispatchers, "connection", "drain")
+        .await;
     json!({"schema": "scheduler-spawns/1", "scope": "semantic diagnostic, not a performance cell",
         "transport": "duplex", "runtime": "current_thread", "warmup_calls": 4,
         "setup": {"harness_connection_tasks": 1, "library_spawns": setup}, "rows": rows,
@@ -570,7 +598,9 @@ async fn campaign() -> Value {
         "cross_thread_handoffs": {"status": "not_run", "reason": "not instrumented; fixture uses one thread"},
         "context_switches": {"status": "not_run", "reason": "no per-side kernel scheduler collector"},
         "instruction_attribution": {"status": "not_run", "reason": "requires independent disjoint profiles"},
-        "quiescent_alive_tasks": 0})
+        "shared_cancel_dispatchers": shared_cancel_dispatchers,
+        "shared_dispatcher_lifetime": "cached by the calling thread until runtime shutdown",
+        "quiescent_alive_tasks": shared_cancel_dispatchers})
 }
 
 pub(crate) fn run() {
@@ -578,9 +608,15 @@ pub(crate) fn run() {
         .enable_all()
         .build()
         .expect("diagnostic runtime");
+    let mut report = runtime.block_on(campaign());
+    let handle = runtime.handle().clone();
+    drop(runtime);
+    let alive = handle.metrics().num_alive_tasks();
+    assert_eq!(alive, 0, "runtime shutdown retires the shared dispatcher");
+    report["post_runtime_alive_tasks"] = json!(alive);
     println!(
         "{}",
-        serde_json::to_string_pretty(&runtime.block_on(campaign())).expect("diagnostic JSON")
+        serde_json::to_string_pretty(&report).expect("diagnostic JSON")
     );
 }
 
@@ -588,6 +624,27 @@ pub(crate) fn run() {
 mod tests {
     #[test]
     fn four_shapes_terminal_cancel_and_early_upload_quiesce() {
-        super::run();
+        const CHILD: &str = "PBRS_SCHEDULER_DIAGNOSTIC_CHILD";
+        if std::env::var_os(CHILD).is_some() {
+            super::run();
+            return;
+        }
+        // Named spawn counters are process-wide. Other RPC tests must not
+        // reset or increment them during this exclusive diagnostic.
+        let child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "scheduler_rpc::tests::four_shapes_terminal_cancel_and_early_upload_quiesce",
+                "--nocapture",
+            ])
+            .env(CHILD, "1")
+            .output()
+            .unwrap();
+        assert!(
+            child.status.success(),
+            "scheduler child failed:\n{}\n{}",
+            String::from_utf8_lossy(&child.stdout),
+            String::from_utf8_lossy(&child.stderr)
+        );
     }
 }

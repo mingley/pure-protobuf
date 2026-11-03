@@ -107,6 +107,86 @@ macro_rules! verify_profile {
         use $module::strict_types as strict_generated;
         use $module::types as generated;
 
+        // Every profile emits fresh defaults. These safe calls must remain
+        // valid when Rust chooses a different enum layout on a smaller target.
+        let empty = strict_generated::StrictNode::default();
+        assert_eq!(empty, strict_generated::StrictNode::parse(b"").unwrap());
+        assert!(empty.text().as_bytes().is_empty());
+        assert!(!empty.has_child());
+        assert!(empty.serialize().unwrap().is_empty());
+        assert_eq!(
+            empty,
+            strict_generated::StrictNode::from_json("{}").unwrap()
+        );
+        let empty_blobs = strict_generated::BlobRoot::default();
+        assert_eq!(empty_blobs, strict_generated::BlobRoot::parse(b"").unwrap());
+        assert!(empty_blobs.serialize().unwrap().is_empty());
+        assert!(generated::Required::parse(b"").is_err());
+        let empty_choice = generated::FreeChoice::default();
+        assert!(!empty_choice.has_node());
+        assert_eq!(
+            empty_choice,
+            generated::FreeChoice::from_json(&empty_choice.to_json().unwrap()).unwrap()
+        );
+
+        for text in [String::new(), "ada".into(), "é🙂".into(), "x".repeat(300)] {
+            let mut message = strict_generated::StrictNode::default();
+            message.set_text(text.as_str());
+            let encoded = message.serialize().unwrap();
+            let parsed = strict_generated::StrictNode::parse(&encoded).unwrap();
+            assert_eq!(parsed.text(), text.as_str());
+            assert_eq!(
+                strict_generated::StrictNode::from_json(&parsed.to_json().unwrap()).unwrap(),
+                parsed
+            );
+            assert_eq!(
+                strict_reference::StrictNode::decode(encoded.as_slice())
+                    .unwrap()
+                    .text,
+                text
+            );
+            let copied = parsed.clone();
+            message.clear_and_parse(b"").unwrap();
+            assert!(message.text().as_bytes().is_empty());
+            assert_eq!(copied.text(), text.as_str());
+        }
+        for payload in [
+            vec![],
+            b"ada".to_vec(),
+            vec![0, 0xff, 0x80],
+            vec![0x55; 5000],
+        ] {
+            let mut blob = strict_generated::Blob::default();
+            blob.set_data(payload.as_slice());
+            let encoded = blob.serialize().unwrap();
+            let parsed = strict_generated::Blob::parse(&encoded).unwrap();
+            assert_eq!(parsed.data(), payload.as_slice());
+            assert_eq!(
+                strict_generated::Blob::from_json(&parsed.to_json().unwrap()).unwrap(),
+                parsed
+            );
+            assert_eq!(
+                strict_reference::Blob::decode(encoded.as_slice())
+                    .unwrap()
+                    .data,
+                payload
+            );
+        }
+        let mut explicit_empty = generated::Node::default();
+        assert!(!explicit_empty.has_text());
+        explicit_empty.set_text("");
+        let explicit_empty = generated::Node::parse(&explicit_empty.serialize().unwrap()).unwrap();
+        assert!(explicit_empty.has_text());
+        assert!(explicit_empty.text().as_bytes().is_empty());
+        let json_empty = generated::Node::from_json(&explicit_empty.to_json().unwrap()).unwrap();
+        assert!(json_empty.has_text());
+        assert_eq!(json_empty, explicit_empty);
+        println!(
+            "PASS {} generated defaults and binary/JSON string/bytes states ({}-bit)",
+            stringify!($module),
+            usize::BITS
+        );
+
         let wire = chain(64);
         let root = generated::Node::parse(&wire).unwrap();
         let original = root.serialize().unwrap();

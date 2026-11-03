@@ -5,6 +5,13 @@ stopped. They are dated investigations, usually local diagnostics. A result
 belongs to its recorded revision, host, workload, and peer versions; it does
 not automatically describe today's code.
 
+The [November 2 readiness follow-up](readiness-followup-20261102/README.md)
+records the detecting descriptor and i686 failures, explicit empty enum tags,
+focused checks on two layouts, and repaired benchmark input accounting. It
+keeps the 32-bit size increase and local emulation limit visible. A separate
+shared-buffer chunk-loop screen records lower timed wall in five cases; it is
+not an end-to-end RPC comparison or production promotion.
+
 The [October 30 release checks](release-readiness-20261030/README.md) record
 prepared, unpublished versions, repaired qualification failures and isolated
 package consumers. Hosted provenance and sustained production qualification

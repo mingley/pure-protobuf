@@ -38,7 +38,7 @@ reports `(instructions_2N - instructions_N) / N`. The JSON
 lack it are legacy whole-process counts. `not_run` never passes or fails a
 comparison; it skips.
 
-Adoption codec rows also retain `input_wire_fingerprint`. The collector
+Adoption codec and RPC rows retain `input_wire_fingerprint`. The collector
 requires it to match across N/2N children and repeats; comparison rejects a
 missing or different fingerprint when either report supplies one. Older
 reports without the field remain readable. Frozen adoption map inputs use
@@ -46,6 +46,21 @@ deterministic entry ordering during preparation; see the
 [corpus documentation](adoption/README.md) for the historical measurement
 limit. The fingerprint does not make legacy randomized map measurements
 comparable with new ones.
+
+RPC rows also retain the optional `input_wire_bytes`. New captures check both
+identity and length across N/2N children and repeats. The fingerprint identifies
+the common wire used to prepare both messages. Subsequent encodes of unordered
+maps can use a different entry order; full decoded values and equal encoded
+lengths remain separate required checks. Older reports still decode, but a
+missing identity or length cannot qualify against a new RPC capture.
+
+The standalone transport collector derives coverage from its pinned specimen
+table. Current equal-wire inventories name
+`bench/devloop/adoption/evidence/rpc-inventory-equal-wire.json` in their
+`specimen_inventory_path`; they require all 512 states. Historical inventories
+retain the older table and its 24 blocked map states. Each new capture retains
+the selected table's path and hash, and requires prepared-input lengths in
+both child and aggregate records. Missing states or counters remain visible.
 
 Local comparison defaults follow the scoreboard guidance: instructions or
 allocations fall ≥2% on targeted cells; no primary cell regresses

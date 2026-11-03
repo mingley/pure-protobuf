@@ -14,6 +14,9 @@ pub const STREAM_REPLIES: usize = 4;
 pub struct Pair<N, P> {
     pub native: N,
     pub prost: P,
+    /// Identity of the common prepared wire, before either codec decodes it.
+    /// Map serialization order may vary on subsequent RPC encodes.
+    pub input_wire_fingerprint: String,
     pub bytes: usize,
     pub native_bytes: usize,
     pub checksum: u64,
@@ -48,6 +51,7 @@ where
         let pair = Self {
             native,
             prost,
+            input_wire_fingerprint: crate::workloads::wire_fingerprint(&wire),
             bytes: wire.len(),
             native_bytes,
             checksum,
@@ -162,6 +166,84 @@ impl Inputs {
 mod tests {
     use super::*;
     use crate::workloads::{CELLS, Codec, Operation};
+
+    #[test]
+    fn rpc_map_prepared_inputs_match_independent_processes() {
+        const CHILD_SIZE: &str = "PBRS_RPC_INPUT_TEST_CHILD_SIZE";
+        const OUTPUT: &str = "__RPC_COMMON_INPUT__ ";
+        let identity = |n| {
+            let Inputs::Maps(pair) = Inputs::prepare(Specimen::Maps(n)) else {
+                unreachable!()
+            };
+            // Reconstruct all prepared bytes as an independent check, rather
+            // than accepting a matching short fingerprint by itself.
+            let wire = crate::workloads::stable_map_wire(pair.prost.encode_to_vec());
+            assert_eq!(wire.len(), pair.bytes);
+            assert_eq!(
+                pair.input_wire_fingerprint,
+                crate::workloads::wire_fingerprint(&wire)
+            );
+            json!({
+                "bytes": wire.iter().map(|byte| format!("{byte:02x}")).collect::<String>(),
+                "fingerprint": pair.input_wire_fingerprint,
+                "length": pair.bytes,
+            })
+        };
+        if let Ok(n) = std::env::var(CHILD_SIZE) {
+            println!("{OUTPUT}{}", identity(n.parse().unwrap()));
+            return;
+        }
+        for n in [8, 64, 512] {
+            let expected = identity(n);
+            for _ in 0..4 {
+                let child = std::process::Command::new(std::env::current_exe().unwrap())
+                    .args([
+                        "--exact",
+                        "rpc::tests::rpc_map_prepared_inputs_match_independent_processes",
+                        "--nocapture",
+                    ])
+                    .env(CHILD_SIZE, n.to_string())
+                    .output()
+                    .unwrap();
+                assert!(child.status.success());
+                let stdout = String::from_utf8(child.stdout).unwrap();
+                let actual: Value = serde_json::from_str(
+                    stdout
+                        .lines()
+                        .find_map(|line| line.strip_prefix(OUTPUT))
+                        .unwrap(),
+                )
+                .unwrap();
+                assert_eq!(actual, expected, "map size {n}");
+            }
+        }
+    }
+
+    #[test]
+    fn rpc_input_identity_detects_a_same_length_map_value_change() {
+        for n in [8, 64, 512] {
+            let Inputs::Maps(original) = Inputs::prepare(Specimen::Maps(n)) else {
+                unreachable!()
+            };
+            let mut changed = rpc_maps(n);
+            *changed
+                .counts
+                .get_mut(&format!("count-{:04}", n - 1))
+                .unwrap() -= 1;
+            let changed = Pair::<native::MapHeavy, _>::prepare(
+                changed,
+                touch_maps_native,
+                touch_maps_prost,
+                true,
+            );
+            changed.assert_equal_wire_work();
+            assert_eq!(original.bytes, changed.bytes);
+            assert_ne!(
+                original.input_wire_fingerprint,
+                changed.input_wire_fingerprint
+            );
+        }
+    }
 
     #[test]
     fn all_64_rpc_specimens_check_full_values_reads_and_equal_wire_work() {

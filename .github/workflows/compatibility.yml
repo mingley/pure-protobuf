@@ -179,6 +179,7 @@ jobs:
             cargo miri --version &&
             cargo miri test -p pbrs --lib &&
             cargo miri test -p pbrs --test runtime &&
+            python3 scripts/miri-zero-defaults.py &&
             cargo miri test --manifest-path rust_out_shared/Cargo.toml --locked \
               --test accessors_map_test --test accessors_repeated_test \
               --test message_copy_merge_test &&
@@ -213,11 +214,12 @@ jobs:
   # exclusion (no QEMU runner); the BE fallback algorithm is instead checked
   # on LE hosts by packed_fixed_matches_big_endian_fallback_algorithm in
   # tests/runtime.rs. Sanitizers stay in miri-sanitizers (Linux-only,
-  # -Zbuild-std); Miri stays 64-bit LE (upstream Miri limitation).
+  # -Zbuild-std). The main Miri lane selects the 64-bit LE host; focused
+  # i686 Miri checks can also interpret 32-bit layouts without native ELF32.
   target-matrix:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -228,13 +230,13 @@ jobs:
       - name: Run lib and runtime tests on 32-bit x86
         run: |
           set -euo pipefail
-          cargo test -p pbrs --lib --target i686-unknown-linux-gnu
-          cargo test -p pbrs --test runtime --target i686-unknown-linux-gnu
+          cargo test --locked -p pbrs --lib --target i686-unknown-linux-gnu
+          cargo test --locked -p pbrs --test runtime --target i686-unknown-linux-gnu
       - name: Compile-check big-endian target (no execution; PB-07 exclusion)
         run: |
           set -euo pipefail
-          cargo check -p pbrs --target s390x-unknown-linux-gnu
-          cargo check -p pbrs --tests --target s390x-unknown-linux-gnu
+          cargo check --locked -p pbrs --target s390x-unknown-linux-gnu
+          cargo check --locked -p pbrs --tests --target s390x-unknown-linux-gnu
 
   # QG-02: weekly scheduled fuzz campaign over every cargo-fuzz target.
   # The runner discovers targets from fuzz/Cargo.toml, so new targets join

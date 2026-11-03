@@ -1,13 +1,21 @@
 # Implementation status
 
+The [November 2 follow-up](evidence/readiness-followup-20261102/README.md)
+repairs invalid 32-bit generated defaults, rejects malformed descriptor names,
+and makes RPC benchmark input reporting consistent across processes. The
+record distinguishes native tests, i686 emulation and focused Miri checks.
+The 32-bit layout repair costs four bytes per lazy string or byte wrapper;
+measured x86_64 wrapper sizes remain unchanged. A separate gRPC change removes
+redundant shared-buffer ownership work. Its isolated chunk-loop screen is
+faster; end-to-end RPC gains and a new tonic/Prost ranking are unmeasured.
+
 The [October 30 release checks](evidence/release-readiness-20261030/README.md)
-prepare core 0.2.1 and adapter 0.1.0-alpha.3 candidates, repair cancellation API
-compatibility, HTTP/2 payload ownership and stream-pointer provenance, and
-verify isolated package consumers. Local workspace and strict Miri checks pass.
-These versions remain unpublished. Final hosted CI, release provenance and
-sustained production qualification remain open. The
-[latest runtime screens](evidence/rejected-runtime-candidates-20261030/README.md)
-reject further map and repeated-field changes; they add no selected speed win.
+prepare core 0.2.1 and adapter 0.1.0-alpha.3 candidates and retain earlier
+transport, package and resource checks. All 11 required hosted CI jobs passed
+at `a3570158`; later changes need checks on their own commit. These versions
+remain unpublished. Hosted release provenance and sustained production
+qualification remain open. The [latest runtime screens](evidence/rejected-runtime-candidates-20261030/README.md)
+retain rejected map and repeated-field changes.
 
 The [October 29 record](evidence/runtime-and-codegen-20261029/README.md)
 measures `0a770792`: descriptor literals, generated repeated-tag runs and a

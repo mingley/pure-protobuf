@@ -11,6 +11,8 @@ on:
       - "protobuf-tonic/src/**"
       - "bench/devloop/**"
       - "scripts/devloop.sh"
+      - "scripts/devloop-rpc-base-compat.py"
+      - "scripts/devloop-rpc-input-overlay.patch"
       - "scripts/perf-report.py"
       - ".github/workflows/perf.yml"
   pull_request:
@@ -20,6 +22,8 @@ on:
       - "protobuf-tonic/src/**"
       - "bench/devloop/**"
       - "scripts/devloop.sh"
+      - "scripts/devloop-rpc-base-compat.py"
+      - "scripts/devloop-rpc-input-overlay.patch"
       - "scripts/perf-report.py"
       - ".github/workflows/perf.yml"
   workflow_dispatch:
@@ -79,9 +83,12 @@ jobs:
           # in the two codecs. Repair only the pinned legacy harness in this
           # disposable base tree so both revisions measure the same fixture.
           # Record the before/after hashes; no runtime source is changed.
+          # Known baselines also receive the prepared-input identity/length
+          # reporting repair. Unordered map encodes remain unordered, and
+          # every touched benchmark source is pinned and audited.
           python3 scripts/devloop-rpc-base-compat.py \
             "$RUNNER_TEMP/devloop-base" perf-artifacts/base-rpc-fixture-overlay.json \
-            --head "$GITHUB_WORKSPACE"
+            --head "$GITHUB_WORKSPACE" --base-sha "$BASE_SHA"
       - name: Install pinned-compiler build tools
         run: sudo apt-get update && sudo apt-get install -y cmake g++
       - uses: actions/cache@v4

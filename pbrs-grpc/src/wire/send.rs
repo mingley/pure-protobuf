@@ -74,9 +74,10 @@ pub(crate) async fn send_bytes(
         wait_capacity(send, frame.len().min(send_buffer)).await?;
         let n = frame.len().min(send.capacity()).min(send_buffer);
         let last = n == frame.len();
-        send.send_data(frame.slice(..n), end && last)
+        // Advance the retained tail in place. Two slices would clone its
+        // shared owner twice and then immediately release the old tail.
+        send.send_data(frame.split_to(n), end && last)
             .map_err(Status::from_h2_send)?;
-        frame = frame.slice(n..);
     }
     Ok(())
 }

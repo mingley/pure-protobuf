@@ -28,9 +28,9 @@ use std::time::{Duration, Instant};
 mod adoption_rpc;
 mod blob;
 mod counters;
-mod scheduler_rpc;
 #[path = "../cells/map.rs"]
 mod map_cells;
+mod scheduler_rpc;
 #[path = "../cells/text.rs"]
 mod text_cells;
 mod tonic_transport_rpc;
@@ -144,6 +144,9 @@ struct CellResult {
     /// Common adoption input identifier, checked across differential children.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     input_wire_fingerprint: Option<String>,
+    /// Prepared RPC input length; absent in historical reports.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    input_wire_bytes: Option<u64>,
     allocs: Metric,
     alloc_bytes: Metric,
     syscalls: Metric,
@@ -245,6 +248,8 @@ struct ChildOutput {
     wall_ns: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     input_wire_fingerprint: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    input_wire_bytes: Option<u64>,
     /// Per-site user-space copy counts over the timed window (SB-13).
     /// Missing on outputs predating the metric; all zeros when the
     /// `copy-counts` features are off.
@@ -1684,6 +1689,26 @@ fn child_json_with_input(
     wall: Duration,
     input_wire_fingerprint: Option<String>,
 ) -> String {
+    child_json_with_input_bytes(
+        cell,
+        iters,
+        allocs,
+        bytes,
+        wall,
+        input_wire_fingerprint,
+        None,
+    )
+}
+
+fn child_json_with_input_bytes(
+    cell: &str,
+    iters: u64,
+    allocs: u64,
+    bytes: u64,
+    wall: Duration,
+    input_wire_fingerprint: Option<String>,
+    input_wire_bytes: Option<u64>,
+) -> String {
     serde_json::to_string(&ChildOutput {
         cell: cell.to_owned(),
         iters,
@@ -1691,6 +1716,7 @@ fn child_json_with_input(
         alloc_bytes: bytes,
         wall_ns: wall.as_nanos() as u64,
         input_wire_fingerprint,
+        input_wire_bytes,
         copy_counts: Some(read_copy_counts()),
     })
     .expect("child json")
@@ -1935,7 +1961,10 @@ fn assert_adoption_input(cell: &str, first: Option<&str>, second: Option<&str>) 
         pbrs_adoption_corpus::bridge::require_matching_input(first, second);
         return;
     }
-    if cell.starts_with("codec.adoption.") || cell.starts_with("rpc.tonic_transport.") {
+    if cell.starts_with("codec.adoption.")
+        || cell.starts_with("rpc.adoption.")
+        || cell.starts_with("rpc.tonic_transport.")
+    {
         assert!(
             first.is_some() && second.is_some(),
             "adoption input fingerprint missing"
@@ -1944,6 +1973,17 @@ fn assert_adoption_input(cell: &str, first: Option<&str>, second: Option<&str>) 
             first, second,
             "adoption input fingerprint differs for {cell}"
         );
+    }
+}
+
+/// Newly captured RPC rows also require the prepared input's length.
+fn assert_rpc_input_bytes(cell: &str, first: Option<u64>, second: Option<u64>) {
+    if cell.starts_with("rpc.adoption.") || cell.starts_with("rpc.tonic_transport.") {
+        assert!(
+            first.is_some() && second.is_some(),
+            "RPC input length missing"
+        );
+        assert_eq!(first, second, "RPC input length differs for {cell}");
     }
 }
 
@@ -1977,6 +2017,7 @@ fn run_child(
             child.input_wire_fingerprint.as_deref(),
             double_child.input_wire_fingerprint.as_deref(),
         );
+        assert_rpc_input_bytes(cell, child.input_wire_bytes, double_child.input_wire_bytes);
         parse_perf_instructions(&double_stderr)
             .or_else(|| parse_callgrind_instructions(&double_stderr))
             .map(|second| {
@@ -2054,6 +2095,7 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
         let mut copies = Vec::new();
         let mut instruction_method: Option<&'static str> = None;
         let mut input_wire_fingerprint: Option<String> = None;
+        let mut input_wire_bytes: Option<u64> = None;
         for _ in 0..repeats {
             let (child, instr, sys, futex) = run_child(&exe, cell, cell_iters, &tools);
             assert_eq!(child.iters, cell_iters);
@@ -2064,7 +2106,10 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
                     child.input_wire_fingerprint.as_deref(),
                 );
             }
-            if cell.starts_with("codec.adoption.") || cell.starts_with("rpc.tonic_transport.") {
+            if cell.starts_with("codec.adoption.")
+                || cell.starts_with("rpc.adoption.")
+                || cell.starts_with("rpc.tonic_transport.")
+            {
                 assert!(
                     child.input_wire_fingerprint.is_some(),
                     "adoption input fingerprint missing"
@@ -2077,6 +2122,13 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
                     );
                 }
                 input_wire_fingerprint.clone_from(&child.input_wire_fingerprint);
+            }
+            if cell.starts_with("rpc.adoption.") || cell.starts_with("rpc.tonic_transport.") {
+                assert_rpc_input_bytes(cell, child.input_wire_bytes, child.input_wire_bytes);
+                if input_wire_bytes.is_some() {
+                    assert_rpc_input_bytes(cell, input_wire_bytes, child.input_wire_bytes);
+                }
+                input_wire_bytes = child.input_wire_bytes;
             }
             allocs.push(child.allocs as f64 / cell_iters as f64);
             alloc_bytes.push(child.alloc_bytes as f64 / cell_iters as f64);
@@ -2129,6 +2181,7 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
             iters: cell_iters,
             repeats,
             input_wire_fingerprint,
+            input_wire_bytes,
             instructions: if !complete_instructions {
                 Metric::not_run(if tools.perf || tools.valgrind {
                     "instruction counter output missing or invalid in one or more repeats"
@@ -2222,6 +2275,9 @@ fn compare_reports(baseline: &Report, current: &Report, rpc: bool) -> bool {
                 old.input_wire_fingerprint.as_deref(),
                 cell.input_wire_fingerprint.as_deref(),
             );
+        }
+        if old.input_wire_bytes.is_some() || cell.input_wire_bytes.is_some() {
+            assert_rpc_input_bytes(&cell.id, old.input_wire_bytes, cell.input_wire_bytes);
         }
         for (name, o, n, lower_better) in [
             ("instructions", &old.instructions, &cell.instructions, true),
@@ -2546,7 +2602,10 @@ fn main() {
 
 #[cfg(test)]
 mod input_tests {
-    use super::{Report, assert_adoption_input, compare_reports};
+    use super::{
+        ChildOutput, Duration, Report, assert_adoption_input, assert_rpc_input_bytes, child_json,
+        child_json_with_input_bytes, compare_reports,
+    };
 
     fn report(fingerprint: Option<&str>) -> Report {
         let metric = serde_json::json!({"status": "not_run", "data": {"reason": "test"}});
@@ -2616,6 +2675,80 @@ mod input_tests {
             Some("same"),
         );
         assert_adoption_input("rpc.pbrs.unary", None, None);
+    }
+
+    #[test]
+    fn rpc_identity_guards_cover_every_map_profile_and_shape() {
+        let mut checked = 0;
+        for (id, _, _) in crate::adoption_rpc::cells()
+            .into_iter()
+            .chain(crate::tonic_transport_rpc::cells())
+            .filter(|cell| cell.0.contains(".maps."))
+        {
+            assert_adoption_input(id, Some("prepared"), Some("prepared"));
+            assert_rpc_input_bytes(id, Some(19), Some(19));
+            for (a, b) in [
+                (None, None),
+                (Some("prepared"), None),
+                (None, Some("prepared")),
+                (Some("prepared"), Some("changed")),
+            ] {
+                assert!(std::panic::catch_unwind(|| assert_adoption_input(id, a, b)).is_err());
+            }
+            for (a, b) in [
+                (None, None),
+                (Some(19), None),
+                (None, Some(19)),
+                (Some(19), Some(20)),
+            ] {
+                assert!(std::panic::catch_unwind(|| assert_rpc_input_bytes(id, a, b)).is_err());
+            }
+            checked += 1;
+        }
+        assert_eq!(checked, 48);
+    }
+
+    #[test]
+    fn rpc_input_length_survives_child_json_and_old_reports_remain_readable() {
+        let child: ChildOutput = serde_json::from_str(&child_json_with_input_bytes(
+            "rpc.adoption.native_pbrs.maps.n8.unary",
+            1,
+            0,
+            0,
+            Duration::ZERO,
+            Some("prepared".into()),
+            Some(19),
+        ))
+        .unwrap();
+        assert_eq!(child.input_wire_fingerprint.as_deref(), Some("prepared"));
+        assert_eq!(child.input_wire_bytes, Some(19));
+        let old: ChildOutput =
+            serde_json::from_str(&child_json("rpc.pbrs.unary", 1, 0, 0, Duration::ZERO)).unwrap();
+        assert!(old.input_wire_bytes.is_none());
+        let legacy = report(None);
+        assert!(legacy.cells[0].input_wire_bytes.is_none());
+        assert!(compare_reports(&legacy, &legacy, false));
+    }
+
+    #[test]
+    fn rpc_report_comparison_rejects_missing_or_changed_prepared_inputs() {
+        let rpc_report = |fingerprint: Option<&str>, length: Option<u64>| {
+            let mut value = report(fingerprint);
+            value.cells[0].id = "rpc.adoption.native_pbrs.maps.n8.unary".into();
+            value.cells[0].input_wire_bytes = length;
+            value
+        };
+        let same = rpc_report(Some("prepared"), Some(19));
+        assert!(compare_reports(&same, &same, false));
+        for (first, second) in [
+            (rpc_report(Some("prepared"), None), same.clone()),
+            (same.clone(), rpc_report(Some("prepared"), None)),
+            (rpc_report(Some("prepared"), Some(20)), same.clone()),
+            (rpc_report(None, Some(19)), same.clone()),
+            (same.clone(), rpc_report(None, Some(19))),
+        ] {
+            assert!(std::panic::catch_unwind(|| compare_reports(&first, &second, false)).is_err());
+        }
     }
 
     #[test]

@@ -82,7 +82,7 @@ pub(crate) fn stable_map_wire(wire: Vec<u8>) -> Vec<u8> {
     stable
 }
 
-fn wire_fingerprint(wire: &[u8]) -> String {
+pub(crate) fn wire_fingerprint(wire: &[u8]) -> String {
     // Portable FNV-1a input identifier, not a security/integrity hash.
     let hash = wire.iter().fold(0xcbf29ce484222325u64, |hash, byte| {
         (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3)

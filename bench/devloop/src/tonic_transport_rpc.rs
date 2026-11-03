@@ -4,7 +4,7 @@
 //! services import its existing prost types and use its frozen preparations,
 //! complete read/value/byte oracles, handler work and four-reply stream shape.
 
-use crate::{AllocGuard, black_box, child_json_with_input};
+use crate::{AllocGuard, black_box};
 use pbrs_adoption_corpus::{
     prost_types,
     rpc::{Inputs, Pair, STREAM_REPLIES},
@@ -450,14 +450,6 @@ enum RunMode {
     },
 }
 
-fn wire_fingerprint(wire: &[u8]) -> String {
-    // Same portable FNV-1a recipe as the frozen codec corpus. Not a security hash.
-    let hash = wire.iter().fold(0xcbf29ce484222325u64, |hash, byte| {
-        (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3)
-    });
-    format!("fnv1a64:{hash:016x}")
-}
-
 async fn run_client<C: CorpusService, T: ClientTransport, N>(
     id: &str,
     pair: &Pair<N, C::Message>,
@@ -471,7 +463,9 @@ async fn run_client<C: CorpusService, T: ClientTransport, N>(
     let message = pair.prost.clone();
     let checksum = pair.checksum;
     let (profile, _, streaming) = parse_cell(id);
-    let fingerprint = wire_fingerprint(&message.encode_to_vec());
+    // Identify the common prepared input. Re-encoding a decoded prost map
+    // would identify this process's randomized iteration order instead.
+    let fingerprint = pair.input_wire_fingerprint.clone();
     // An actual full-value response/count/read/byte oracle before warmup,
     // identical at N and 2N and outside the exact allocation guard.
     C::call(
@@ -491,6 +485,8 @@ async fn run_client<C: CorpusService, T: ClientTransport, N>(
             "response_read_checksum": checksum, "responses": if streaming { STREAM_REPLIES } else { 1 },
             "full_decoded_equality": true, "equal_wire_work": true,
             "input_wire_fingerprint": fingerprint,
+            "input_wire_bytes": pair.bytes,
+            "input_fingerprint_scope": "common prepared wire; RPC map entry order may vary",
             "accepted_tcp_nodelay": facts.nodelay,
             "accepted_local_addr": facts.local, "accepted_remote_addr": facts.remote,
             "accepted_socket_observer": if profile.native_server() {
@@ -518,7 +514,15 @@ async fn run_client<C: CorpusService, T: ClientTransport, N>(
     drop(guard);
     eprintln!(
         "__CHILD__ {}",
-        child_json_with_input(id, iters, allocs, bytes, wall, Some(fingerprint))
+        crate::child_json_with_input_bytes(
+            id,
+            iters,
+            allocs,
+            bytes,
+            wall,
+            Some(fingerprint),
+            Some(pair.bytes as u64)
+        )
     );
     black_box(sink);
 }

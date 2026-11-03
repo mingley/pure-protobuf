@@ -1,0 +1,334 @@
+diff --git a/bench/devloop/adoption/src/rpc.rs b/bench/devloop/adoption/src/rpc.rs
+index a44f88c8..d4d2d124 100644
+--- a/bench/devloop/adoption/src/rpc.rs
++++ b/bench/devloop/adoption/src/rpc.rs
+@@ -14,6 +14,9 @@ pub const STREAM_REPLIES: usize = 4;
+ pub struct Pair<N, P> {
+     pub native: N,
+     pub prost: P,
++    /// Identity of the common prepared wire, before either codec decodes it.
++    /// Map serialization order may vary on subsequent RPC encodes.
++    pub input_wire_fingerprint: String,
+     pub bytes: usize,
+     pub native_bytes: usize,
+     pub checksum: u64,
+@@ -48,6 +51,7 @@ where
+         let pair = Self {
+             native,
+             prost,
++            input_wire_fingerprint: crate::workloads::wire_fingerprint(&wire),
+             bytes: wire.len(),
+             native_bytes,
+             checksum,
+diff --git a/bench/devloop/adoption/src/workloads.rs b/bench/devloop/adoption/src/workloads.rs
+index be400cad..6629c62a 100644
+--- a/bench/devloop/adoption/src/workloads.rs
++++ b/bench/devloop/adoption/src/workloads.rs
+@@ -82,7 +82,7 @@ pub(crate) fn stable_map_wire(wire: Vec<u8>) -> Vec<u8> {
+     stable
+ }
+ 
+-fn wire_fingerprint(wire: &[u8]) -> String {
++pub(crate) fn wire_fingerprint(wire: &[u8]) -> String {
+     // Portable FNV-1a input identifier, not a security/integrity hash.
+     let hash = wire.iter().fold(0xcbf29ce484222325u64, |hash, byte| {
+         (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3)
+diff --git a/bench/devloop/src/adoption_rpc.rs b/bench/devloop/src/adoption_rpc.rs
+index f9d1cef2..9eec937e 100644
+--- a/bench/devloop/src/adoption_rpc.rs
++++ b/bench/devloop/src/adoption_rpc.rs
+@@ -1,7 +1,7 @@
+ //! SB-26d: identical whole-message work on four codec/transport profiles.
+ //! These are typed tonic/native calls, not the TC-29/30 transport adapters.
+ 
+-use crate::{AllocGuard, black_box, child_json};
++use crate::{AllocGuard, black_box, child_json_with_input_bytes};
+ use pbrs_adoption_corpus::{
+     native, prost_types,
+     rpc::{Inputs, Pair, STREAM_REPLIES},
+@@ -271,6 +271,8 @@ async fn run_typed<M: BenchMessage>(
+     id: &str,
+     message: M,
+     checksum: u64,
++    input_wire_fingerprint: String,
++    input_wire_bytes: usize,
+     validate: impl Fn(&M),
+     iters: u64,
+     warmup: u64,
+@@ -421,7 +423,18 @@ async fn run_typed<M: BenchMessage>(
+     let wall = start.elapsed();
+     let (allocs, bytes) = guard.totals();
+     drop(guard);
+-    eprintln!("__CHILD__ {}", child_json(id, iters, allocs, bytes, wall));
++    eprintln!(
++        "__CHILD__ {}",
++        child_json_with_input_bytes(
++            id,
++            iters,
++            allocs,
++            bytes,
++            wall,
++            Some(input_wire_fingerprint),
++            Some(input_wire_bytes as u64),
++        )
++    );
+     black_box(sink);
+     // Processes are not retained after a cell; server shutdown is outside
+     // the measured window and awaits termination of our accept task.
+@@ -442,6 +455,8 @@ where
+             id,
+             pair.native.clone(),
+             pair.checksum,
++            pair.input_wire_fingerprint.clone(),
++            pair.bytes,
+             |response| pair.validate_native(response),
+             iters,
+             warmup,
+@@ -452,6 +467,8 @@ where
+             id,
+             pbrs_grpc::codec::prost::Message(pair.prost.clone()),
+             pair.checksum,
++            pair.input_wire_fingerprint.clone(),
++            pair.bytes,
+             |response| pair.validate_prost(&response.0),
+             iters,
+             warmup,
+@@ -460,7 +477,13 @@ where
+     }
+ }
+ fn pair_report<N, P>(pair: &Pair<N, P>) -> serde_json::Value {
+-    serde_json::json!({"request_bytes": pair.bytes, "response_bytes": pair.bytes, "checksum": pair.checksum, "stream_replies": STREAM_REPLIES})
++    serde_json::json!({
++        "request_bytes": pair.bytes, "response_bytes": pair.bytes,
++        "checksum": pair.checksum, "stream_replies": STREAM_REPLIES,
++        "input_wire_fingerprint": pair.input_wire_fingerprint,
++        "input_wire_bytes": pair.bytes,
++        "input_fingerprint_scope": "common prepared wire; RPC map entry order may vary",
++    })
+ }
+ 
+ pub async fn run(id: &str, iters: u64, warmup: u64) {
+diff --git a/bench/devloop/src/main.rs b/bench/devloop/src/main.rs
+index ccf7b4bb..4a24a4c1 100644
+--- a/bench/devloop/src/main.rs
++++ b/bench/devloop/src/main.rs
+@@ -28,9 +28,9 @@ use std::time::{Duration, Instant};
+ mod adoption_rpc;
+ mod blob;
+ mod counters;
+-mod scheduler_rpc;
+ #[path = "../cells/map.rs"]
+ mod map_cells;
++mod scheduler_rpc;
+ #[path = "../cells/text.rs"]
+ mod text_cells;
+ mod tonic_transport_rpc;
+@@ -144,6 +144,9 @@ struct CellResult {
+     /// Common adoption input identifier, checked across differential children.
+     #[serde(default, skip_serializing_if = "Option::is_none")]
+     input_wire_fingerprint: Option<String>,
++    /// Prepared RPC input length; absent in historical reports.
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    input_wire_bytes: Option<u64>,
+     allocs: Metric,
+     alloc_bytes: Metric,
+     syscalls: Metric,
+@@ -245,6 +248,8 @@ struct ChildOutput {
+     wall_ns: u64,
+     #[serde(default, skip_serializing_if = "Option::is_none")]
+     input_wire_fingerprint: Option<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    input_wire_bytes: Option<u64>,
+     /// Per-site user-space copy counts over the timed window (SB-13).
+     /// Missing on outputs predating the metric; all zeros when the
+     /// `copy-counts` features are off.
+@@ -1683,6 +1688,26 @@ fn child_json_with_input(
+     bytes: u64,
+     wall: Duration,
+     input_wire_fingerprint: Option<String>,
++) -> String {
++    child_json_with_input_bytes(
++        cell,
++        iters,
++        allocs,
++        bytes,
++        wall,
++        input_wire_fingerprint,
++        None,
++    )
++}
++
++fn child_json_with_input_bytes(
++    cell: &str,
++    iters: u64,
++    allocs: u64,
++    bytes: u64,
++    wall: Duration,
++    input_wire_fingerprint: Option<String>,
++    input_wire_bytes: Option<u64>,
+ ) -> String {
+     serde_json::to_string(&ChildOutput {
+         cell: cell.to_owned(),
+@@ -1691,6 +1716,7 @@ fn child_json_with_input(
+         alloc_bytes: bytes,
+         wall_ns: wall.as_nanos() as u64,
+         input_wire_fingerprint,
++        input_wire_bytes,
+         copy_counts: Some(read_copy_counts()),
+     })
+     .expect("child json")
+@@ -1935,7 +1961,10 @@ fn assert_adoption_input(cell: &str, first: Option<&str>, second: Option<&str>)
+         pbrs_adoption_corpus::bridge::require_matching_input(first, second);
+         return;
+     }
+-    if cell.starts_with("codec.adoption.") || cell.starts_with("rpc.tonic_transport.") {
++    if cell.starts_with("codec.adoption.")
++        || cell.starts_with("rpc.adoption.")
++        || cell.starts_with("rpc.tonic_transport.")
++    {
+         assert!(
+             first.is_some() && second.is_some(),
+             "adoption input fingerprint missing"
+@@ -1947,6 +1976,17 @@ fn assert_adoption_input(cell: &str, first: Option<&str>, second: Option<&str>)
+     }
+ }
+ 
++/// Newly captured RPC rows also require the prepared input's length.
++fn assert_rpc_input_bytes(cell: &str, first: Option<u64>, second: Option<u64>) {
++    if cell.starts_with("rpc.adoption.") || cell.starts_with("rpc.tonic_transport.") {
++        assert!(
++            first.is_some() && second.is_some(),
++            "RPC input length missing"
++        );
++        assert_eq!(first, second, "RPC input length differs for {cell}");
++    }
++}
++
+ fn run_child(
+     exe: &std::path::Path,
+     cell: &str,
+@@ -1977,6 +2017,7 @@ fn run_child(
+             child.input_wire_fingerprint.as_deref(),
+             double_child.input_wire_fingerprint.as_deref(),
+         );
++        assert_rpc_input_bytes(cell, child.input_wire_bytes, double_child.input_wire_bytes);
+         parse_perf_instructions(&double_stderr)
+             .or_else(|| parse_callgrind_instructions(&double_stderr))
+             .map(|second| {
+@@ -2054,6 +2095,7 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
+         let mut copies = Vec::new();
+         let mut instruction_method: Option<&'static str> = None;
+         let mut input_wire_fingerprint: Option<String> = None;
++        let mut input_wire_bytes: Option<u64> = None;
+         for _ in 0..repeats {
+             let (child, instr, sys, futex) = run_child(&exe, cell, cell_iters, &tools);
+             assert_eq!(child.iters, cell_iters);
+@@ -2064,7 +2106,10 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
+                     child.input_wire_fingerprint.as_deref(),
+                 );
+             }
+-            if cell.starts_with("codec.adoption.") || cell.starts_with("rpc.tonic_transport.") {
++            if cell.starts_with("codec.adoption.")
++                || cell.starts_with("rpc.adoption.")
++                || cell.starts_with("rpc.tonic_transport.")
++            {
+                 assert!(
+                     child.input_wire_fingerprint.is_some(),
+                     "adoption input fingerprint missing"
+@@ -2078,6 +2123,13 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
+                 }
+                 input_wire_fingerprint.clone_from(&child.input_wire_fingerprint);
+             }
++            if cell.starts_with("rpc.adoption.") || cell.starts_with("rpc.tonic_transport.") {
++                assert_rpc_input_bytes(cell, child.input_wire_bytes, child.input_wire_bytes);
++                if input_wire_bytes.is_some() {
++                    assert_rpc_input_bytes(cell, input_wire_bytes, child.input_wire_bytes);
++                }
++                input_wire_bytes = child.input_wire_bytes;
++            }
+             allocs.push(child.allocs as f64 / cell_iters as f64);
+             alloc_bytes.push(child.alloc_bytes as f64 / cell_iters as f64);
+             walls.push(child.wall_ns as f64 / cell_iters as f64);
+@@ -2129,6 +2181,7 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
+             iters: cell_iters,
+             repeats,
+             input_wire_fingerprint,
++            input_wire_bytes,
+             instructions: if !complete_instructions {
+                 Metric::not_run(if tools.perf || tools.valgrind {
+                     "instruction counter output missing or invalid in one or more repeats"
+@@ -2223,6 +2276,9 @@ fn compare_reports(baseline: &Report, current: &Report, rpc: bool) -> bool {
+                 cell.input_wire_fingerprint.as_deref(),
+             );
+         }
++        if old.input_wire_bytes.is_some() || cell.input_wire_bytes.is_some() {
++            assert_rpc_input_bytes(&cell.id, old.input_wire_bytes, cell.input_wire_bytes);
++        }
+         for (name, o, n, lower_better) in [
+             ("instructions", &old.instructions, &cell.instructions, true),
+             ("allocs", &old.allocs, &cell.allocs, true),
+diff --git a/bench/devloop/src/tonic_transport_rpc.rs b/bench/devloop/src/tonic_transport_rpc.rs
+index d4ea5c2d..86a11561 100644
+--- a/bench/devloop/src/tonic_transport_rpc.rs
++++ b/bench/devloop/src/tonic_transport_rpc.rs
+@@ -4,7 +4,7 @@
+ //! services import its existing prost types and use its frozen preparations,
+ //! complete read/value/byte oracles, handler work and four-reply stream shape.
+ 
+-use crate::{AllocGuard, black_box, child_json_with_input};
++use crate::{AllocGuard, black_box};
+ use pbrs_adoption_corpus::{
+     prost_types,
+     rpc::{Inputs, Pair, STREAM_REPLIES},
+@@ -450,14 +450,6 @@ enum RunMode {
+     },
+ }
+ 
+-fn wire_fingerprint(wire: &[u8]) -> String {
+-    // Same portable FNV-1a recipe as the frozen codec corpus. Not a security hash.
+-    let hash = wire.iter().fold(0xcbf29ce484222325u64, |hash, byte| {
+-        (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3)
+-    });
+-    format!("fnv1a64:{hash:016x}")
+-}
+-
+ async fn run_client<C: CorpusService, T: ClientTransport, N>(
+     id: &str,
+     pair: &Pair<N, C::Message>,
+@@ -471,7 +463,9 @@ async fn run_client<C: CorpusService, T: ClientTransport, N>(
+     let message = pair.prost.clone();
+     let checksum = pair.checksum;
+     let (profile, _, streaming) = parse_cell(id);
+-    let fingerprint = wire_fingerprint(&message.encode_to_vec());
++    // Identify the common prepared input. Re-encoding a decoded prost map
++    // would identify this process's randomized iteration order instead.
++    let fingerprint = pair.input_wire_fingerprint.clone();
+     // An actual full-value response/count/read/byte oracle before warmup,
+     // identical at N and 2N and outside the exact allocation guard.
+     C::call(
+@@ -491,6 +485,8 @@ async fn run_client<C: CorpusService, T: ClientTransport, N>(
+             "response_read_checksum": checksum, "responses": if streaming { STREAM_REPLIES } else { 1 },
+             "full_decoded_equality": true, "equal_wire_work": true,
+             "input_wire_fingerprint": fingerprint,
++            "input_wire_bytes": pair.bytes,
++            "input_fingerprint_scope": "common prepared wire; RPC map entry order may vary",
+             "accepted_tcp_nodelay": facts.nodelay,
+             "accepted_local_addr": facts.local, "accepted_remote_addr": facts.remote,
+             "accepted_socket_observer": if profile.native_server() {
+@@ -518,7 +514,15 @@ async fn run_client<C: CorpusService, T: ClientTransport, N>(
+     drop(guard);
+     eprintln!(
+         "__CHILD__ {}",
+-        child_json_with_input(id, iters, allocs, bytes, wall, Some(fingerprint))
++        crate::child_json_with_input_bytes(
++            id,
++            iters,
++            allocs,
++            bytes,
++            wall,
++            Some(fingerprint),
++            Some(pair.bytes as u64)
++        )
+     );
+     black_box(sink);
+ }

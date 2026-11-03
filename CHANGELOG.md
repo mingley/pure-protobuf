@@ -10,6 +10,12 @@ or stable releases.
 
 ### pbrs 0.2.1
 
+- Give lazy string and byte storage explicit zero-valued empty tags, repairing
+  invalid generated defaults on 32-bit targets. Measured x86_64 wrapper sizes
+  remain unchanged; each i686 lazy string or byte wrapper grows by four bytes.
+- Reject malformed package and declared-symbol names before adding serialized
+  descriptors to the symbol table. Retain the scheduled fuzzer input as a
+  deterministic regression and future campaign seed.
 - Inline common varint decoding across crate boundaries while keeping the
   longer-value decoder out of line.
 - Check canonical one-byte tags directly in generated repeated-field runs.
@@ -24,6 +30,9 @@ or stable releases.
 
 ### pbrs-grpc 0.1.0-alpha.3
 
+- Advance large outgoing byte frames with `Bytes::split_to`, removing a
+  redundant shared-owner clone and drop per chunk. The isolated chunk-loop
+  screen is separate from RPC performance measurements.
 - Require the coordinated `pbrs` 0.2.1 core at runtime and build time.
 - Reject overflowing transport byte counters and unrepresentable outbound
   frame lengths without publishing wrapped accounting or invoking a codec

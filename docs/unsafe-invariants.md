@@ -253,8 +253,9 @@ pub struct ProtoStr([u8]);
 const INLINE_CAP: usize = 23;
 
 #[derive(Clone)]
+#[repr(u8)]
 enum Repr {
-    Inline { len: u8, data: [u8; INLINE_CAP] },
+    Inline { len: u8, data: [u8; INLINE_CAP] } = 0,
     Heap(Vec<u8>),
 }
 ```
@@ -262,8 +263,10 @@ enum Repr {
 SSO invariants:
 
 - Strings `<= 23` bytes are stored inline in `data[..len]`. They do not allocate.
-- `Inline` is 24 bytes: 1 byte for `len` plus 23 bytes for `data`.
-- That 24-byte size matches `Vec<u8>` on 64-bit systems.
+- The inline payload is 24 bytes: one length byte and 23 data bytes. The enum
+  also has a discriminant and alignment requirements.
+- Its explicit zero-valued `Inline` tag makes an all-zero `ProtoString` empty;
+  this contract does not depend on an unspecified enum niche.
 - Strings `> 23` bytes move to `Repr::Heap(Vec<u8>)`.
 - `clear()` resets to `Repr::Inline { len: 0, data: [0; 23] }`.
 - Standard Rust enum invariants enforce memory safety; no unsafe untagged union is used.
@@ -407,8 +410,25 @@ Verification across field types:
 - Standard `bool`: Rust represents `false` as `0u8`.
 - Optional bool (`OptBool`): standard Rust `Option<bool>` uses niche optimization where `None = 2` and `Some(false) = 0`. An all-zero bit pattern would incorrectly represent `Some(false)`. Pure-protobuf avoids that with `OptBool(u8)`, where `0 = None`, `1 = Some(false)`, and `2 = Some(true)`.
 - Pointers and boxes (`Option<Box<T>>`): Rust represents `None` for nullable pointers as all zero bits, meaning a null pointer.
+- Lazy strings and bytes (`LazyStr`, `LazyBytes`): `repr(u8)` and `Empty = 0`
+  explicitly make zero select the empty variant. Zeroing must never construct
+  the `Wire` variant's null `Arc`. Its niche layout previously caused that
+  defect on i686 even though native x86_64 tests passed.
+- Direct owned strings (`ProtoString`): the private representation has an
+  explicit zero `Inline` tag and zero length.
+- Explicit numeric presence uses the generated scalar `Option` types checked
+  on the recorded compiler/target layouts. This is not permission to zero an
+  arbitrary `Option<T>`.
 - Collections (`Repeated<T>`, `Map<K, V>`, `Packed<C>`, `LazyMsg<T>`): built on `Option<Box<_>>`, with a null pointer representing empty state.
 - `CachedSize(AtomicU64)`: initialized to `0`, the valid serialized length of an empty message.
+
+The [November 2 follow-up](evidence/readiness-followup-20261102/README.md)
+retains the detecting i686 Miri result, field-family audit, and checks of fresh
+default/lazy/owned generated consumers. There is no `ZeroInit` trait enforcing
+this contract. The unsafe helper's caller must establish validity for the
+whole concrete message, including cold fields and nullable owners. Measured
+x86_64 lazy wrappers remain 40 bytes each; i686 `LazyBytes` grows 20 to 24 bytes
+and `LazyStr` grows 28 to 32 bytes. These are size measurements, not CPU results.
 
 **Test anchors (`tests/runtime.rs`):** `tat_default_is_empty_and_zeroed` (generated `new()` equals `default()` and serializes empty), `zeroed_primitives_are_valid_defaults` (`zeroed_message::<OptBool>()` is `NONE`, `zeroed_message::<CachedSize>()` reads `Some(0)`), `empty_eq_and_zeroed` (`src/packed.rs` unit test: zeroed `PackedI32` is empty and droppable).
 
@@ -462,6 +482,12 @@ Targets are discovered from `fuzz/Cargo.toml` `[[bin]]` entries by `scripts/fuzz
 | `varint_diff` (`fuzz/fuzz_targets/varint_diff.rs`) | Differential check of `decode_varint`/`decode_tag`/validators against an independent scalar reference. | Bit-exact agreement incl. overlong/overflow/truncated edges. |
 
 ### 6.2 Sustained Fuzz Budget (Recorded, Not Approved)
+
+The QG-08 adopter packet requires at least 24 CPU-hours **across** its named
+wire, format, HTTP/2 and gRPC targets. The per-target proposal below is a
+separate, larger campaign budget. Neither scope is established by weekly
+smoke tests or a requested wall-clock duration; completed CPU evidence and
+triaged failures are required. This section does not claim either campaign ran.
 
 - **Recorded budget:** **24 CPU-hours per major target**. Major targets are `wire`, `descriptors`, and `formats` (parser attack surface for unsafe-adjacent code); `grpc_wire` and `varint_diff` are minor (narrower scope, differential oracle). Total at this budget: **72 CPU-hours major + best-effort minor**.
 - **Approval status: UNAPPROVED — spend blocked.** PB-07 only records the budget. No sustained campaign, cloud job, or billed compute may start without explicit recorded approval naming the approver, date, budget cap, and target list. A short local smoke (one target, ≤5 min, e.g. `./scripts/fuzz-campaign.sh --seconds 60 --target wire`) is allowed to validate the harness only.
@@ -659,17 +685,22 @@ core has local `// SAFETY:` proofs and Miri strict-provenance coverage
 
 ## 9. Target Qualification Matrix (PB-07)
 
-Per-target status for the unsafe and target-dependent invariants in §§2–5, as of base SHA `fd4500c6` (2026-09-29). "Proof" means a named, re-runnable check; a tool limitation is never a safety proof, and every gap below is an explicit exclusion with a repro, never a fake pass.
+The original PB-07 entries use base `fd4500c6` (2026-09-29). The updated i686
+rows below describe the [November 2 follow-up](evidence/readiness-followup-20261102/README.md);
+other rows retain their older source pins. A result applies only to its named
+checks and recorded revision. Configuring a CI job does not establish a pass
+or full production qualification.
 
 | Target / tool | Status | Proof or exclusion |
 |---|---|---|
 | 64-bit LE host tests (`aarch64`/`x86_64`) | ✅ Qualified | `cargo test -p pbrs --test google_shared --test runtime` and `cargo test -p pbrs --test typed --test depth --test fuzz_parse` pass; `tests/runtime.rs` anchors cover arena adoption, lazy lifetimes, invalidation, LE/endian edges, zeroed primitives. |
 | Miri strict provenance, 64-bit LE | ✅ Local proof, CI pending | 2026-09-29 local: lib 74/74 + runtime 26/26 (§6.3). Scheduled proof is the `miri-sanitizers` job in `.github/workflows/compatibility.yml` (weekly + manual dispatch); no same-SHA CI artifact exists yet. |
-| ASan/LSan (Linux, `-Zbuild-std`) | ⏳ Scheduled-CI-only | Exact job: `compatibility.yml` → `miri-sanitizers` → step "Run AddressSanitizer and LeakSanitizer" (`RUSTFLAGS="-Zsanitizer=address"`, `cargo test -Zbuild-std`, logs → `compatibility-sanitizer-logs` artifact). Not runnable in this macOS worktree: `-Zbuild-std` sanitizer builds are Linux-only in practice and no Linux runner exists here. Repro when on Linux nightly: `RUSTFLAGS="-Zsanitizer=address" cargo test -p pbrs --lib --target x86_64-unknown-linux-gnu -Zbuild-std`. |
-| 32-bit LE execution (`i686-unknown-linux-gnu`) | ⏳ Scheduled-CI-only | Exact job: `compatibility.yml` → `target-matrix` → step "Run lib and runtime tests on 32-bit x86". Not installed here (`rustup target list --installed` shows only `aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-unknown-linux-gnu`; toolchains are install-frozen, so this stays an exclusion until CI runs it). Repro: `rustup target add i686-unknown-linux-gnu && cargo test -p pbrs --lib --target i686-unknown-linux-gnu` (Linux runner also needs `gcc-multilib`). |
-| Big-endian compile (`s390x-unknown-linux-gnu`) | ⏳ Scheduled-CI-only | Exact job: `compatibility.yml` → `target-matrix` → step "Compile-check big-endian target" (`cargo check -p pbrs --tests --target s390x-unknown-linux-gnu`). Proves the `#[cfg(target_endian = "big")]` branches compile; says nothing about runtime behavior. Same install-freeze exclusion locally. Repro: `rustup target add s390x-unknown-linux-gnu && cargo check -p pbrs --target s390x-unknown-linux-gnu`. |
-| Big-endian execution | ❌ Excluded (no QEMU runner) | No BE hardware or QEMU user-mode runner is available locally or in CI, so the BE memcpy-fallback path never executes. Mitigation, not proof: `packed_fixed_matches_big_endian_fallback_algorithm` runs the fallback algorithm explicitly on LE hosts and requires bit-equality. Lifting this needs a `qemu-s390x`-based CI job. |
-| Miri on 32-bit / big-endian | ❌ Excluded (upstream) | Miri only supports 64-bit LE targets; there is no Miri coverage for the i686/s390x lanes by construction. |
+| ASan/LSan (Linux, `-Zbuild-std`) | Original local check unmeasured | Exact job: `compatibility.yml` → `miri-sanitizers` → step "Run AddressSanitizer and LeakSanitizer" (`RUSTFLAGS="-Zsanitizer=address"`, `cargo test -Zbuild-std`, logs → `compatibility-sanitizer-logs` artifact). The original PB-07 local run used macOS and did not run this Linux check. A configured lane does not establish a pass on the final source. Repro on Linux nightly: `RUSTFLAGS="-Zsanitizer=address" cargo test -p pbrs --lib --target x86_64-unknown-linux-gnu -Zbuild-std`. |
+| 32-bit LE execution (`i686-unknown-linux-gnu`) | Local emulation passes; hosted native check pending | The scheduled job detected invalid zeroed defaults at `a3570158`. The follow-up retains the QEMU reproduction and focused repaired checks. The managed runtime rejects native ELF32 execution; QEMU results do not replace `compatibility.yml` → `target-matrix` native execution on the final commit. |
+| Big-endian compile (`s390x-unknown-linux-gnu`) | Fresh check pending | Exact job: `compatibility.yml` → `target-matrix` → step "Compile-check big-endian target" (`cargo check -p pbrs --tests --target s390x-unknown-linux-gnu`). This checks that the big-endian branches compile; it does not execute them. Repro: `rustup target add s390x-unknown-linux-gnu && cargo check -p pbrs --target s390x-unknown-linux-gnu`. |
+| Big-endian execution | Unmeasured | This follow-up supplies no big-endian execution record. `packed_fixed_matches_big_endian_fallback_algorithm` checks the fallback algorithm explicitly on a little-endian host; it does not establish execution on big-endian hardware or emulation. |
+| Miri on i686 | Focused local checks pass | Strict Miri can interpret the i686 layout. The November 2 checks cover explicit zeroed storage, generated defaults and groups; their exact source and compiler are retained. The earlier statement that Miri supported only 64-bit LE was incorrect. |
+| Miri on big-endian | Unmeasured | The focused i686 check does not establish big-endian validity or coverage. |
 | MSan (`-Zsanitizer=memory`) | ❌ Excluded (Linux-only, uninstrumented deps) | MSan requires fully instrumented std+deps via `-Zbuild-std` on Linux and is not wired into any lane. No claim is made about uninitialized-memory detection beyond Miri. |
 | Sustained fuzz (24 CPU-h/major target) | ❌ Unapproved, spend blocked | Recorded in §6.2 only. No campaign has run at this budget; starting one without recorded approval is blocked. |
 

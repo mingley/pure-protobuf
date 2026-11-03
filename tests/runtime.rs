@@ -970,6 +970,20 @@ fn zeroed_primitives_are_valid_defaults() {
     assert_eq!(std::mem::size_of::<pbrs::rt::OptBool>(), 1);
     let c: pbrs::rt::CachedSize = unsafe { pbrs::rt::zeroed_message() };
     assert_eq!(c.get(), Some(0));
+    let compact: pbrs::rt::CachedSize32 = unsafe { pbrs::rt::zeroed_message() };
+    assert_eq!(compact.get(), Some(0));
+
+    // Explicit scalar presence uses Option only for full-range numeric types.
+    // Check their None state on the selected compiler and target as well.
+    macro_rules! scalar_none {
+        ($($ty:ty),* $(,)?) => {
+            $(
+                let value: Option<$ty> = unsafe { pbrs::rt::zeroed_message() };
+                assert!(value.is_none(), stringify!($ty));
+            )*
+        };
+    }
+    scalar_none!(i32, i64, u32, u64, f32, f64);
 }
 
 // PB-07: StringView::empty is a null pointer; as_ref guards null/empty

@@ -3,12 +3,14 @@
 [Run benchmarks](benchmarks/running.md) · [Earlier results](benchmarks/grpc-20261024.md)
 · [Qualification](scoreboard.md)
 
-[Measured round](evidence/runtime-and-codegen-20261029/README.md)
-· [Latest rejected candidates](evidence/rejected-runtime-candidates-20261030/README.md)
-· [Measured runtime and generator](#latest-runtime-and-generator-results-october-27)
-· [Earlier maps](#typed-map-iteration-october-27)
-· [RPC and nested messages](#server-scheduling-and-nested-messages-october-27)
-· [Codec and codegen](#codec-and-codegen-comparisons)
+| Read | Scope |
+|---|---|
+| [Latest buffer loop](#buffer-chunk-ownership-november-2) | Isolated ownership operations, November 2 |
+| [Current codec and generator record](evidence/runtime-and-codegen-20261029/README.md) | Combined measurements and remaining losses, October 29 |
+| [RPC endpoint results](#correctness-and-rejected-candidates-october-28) | Complete earlier transport comparison, October 28 |
+| [Benchmark input checks](#benchmark-input-checks-november-2) | Canonical input identity and qualification |
+| [Rejected candidates](evidence/rejected-runtime-candidates-20261030/README.md) | Unselected repeated-field and map experiments |
+| [Earlier codec and codegen](#codec-and-codegen-comparisons) | Earlier comparisons and their recorded sources |
 
 The [October 29 runtime and codegen record](evidence/runtime-and-codegen-20261029/README.md)
 measures `0a770792` against the prior implementation and fresh Prost controls.
@@ -17,6 +19,34 @@ results include gains and losses. Consumer rebuild and generation timings
 cover different scopes. No new full RPC campaign ran; the October 28 transport
 comparisons retain their source and losses. Winning every benchmark, complete
 feature parity and an overall ranking remain unproven.
+
+## Buffer chunk ownership, November 2
+
+The gRPC sender advances a large frame's tail with `Bytes::split_to`, avoiding
+an extra shared-owner clone and drop for each chunk. In an isolated optimized
+8 MiB / 16 KiB chunk-loop screen, new/old timed wall has a 0.2869 paired median
+(range 0.2835–0.2887). All five tested cases favor the new loop; the
+[complete record](evidence/readiness-followup-20261102/README.md#shared-buffer-chunk-ownership)
+keeps all five pairs per case and the separate whole-process CPU observations.
+
+This times shared-buffer ownership with immediate fragment drops on one shared
+host. It excludes fresh-buffer setup, HTTP/2 enqueueing, flow control, sockets
+and TLS. It adds no end-to-end RPC CPU, latency or throughput result and has no
+tonic or Prost control. Earlier RPC losses retain their recorded scope.
+
+## Benchmark input checks, November 2
+
+RPC comparison children now report the fingerprint and length of the common
+prepared message. Re-encoding a Prost map can change entry order between
+processes; it is unsuitable as an input fingerprint. Full map values,
+cardinality and equal encoded lengths remain checked independently. An input
+fingerprint does not claim that unordered-map output bytes are identical.
+
+The [follow-up record](evidence/readiness-followup-20261102/README.md#benchmark-inputs-and-qualification)
+keeps the detecting CI failure, functional process controls and exact-source
+baseline reporting repair. The standalone collector derives selected and
+blocked cells from its complete inventory. These accounting repairs add no
+speed ranking evidence; the earlier measured results retain their source pins.
 
 ## Rejected runtime candidates, October 30
 
@@ -30,7 +60,7 @@ The [complete screen](evidence/rejected-runtime-candidates-20261030/README.md)
 keeps all 44 diagnostic CPU rows, allocation controls, correctness proofs,
 source overlays and a verifier. It measures the earlier `15e73849` source,
 not the later release candidate. The [October 29 results](evidence/runtime-and-codegen-20261029/README.md)
-remain the latest selected runtime and codegen measurements.
+remain the latest selected codec and codegen measurements.
 
 ## Correctness and rejected candidates, October 28
 

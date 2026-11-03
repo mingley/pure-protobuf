@@ -97,8 +97,11 @@ impl fmt::Display for ProtoStr {
 const INLINE_CAP: usize = 23;
 
 #[derive(Clone)]
+#[repr(u8)]
 enum Repr {
-    Inline { len: u8, data: [u8; INLINE_CAP] },
+    // Owned generated messages also use zeroed defaults. Keep their empty
+    // inline string representation explicit rather than relying on niches.
+    Inline { len: u8, data: [u8; INLINE_CAP] } = 0,
     Heap(Vec<u8>),
 }
 

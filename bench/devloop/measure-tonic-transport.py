@@ -197,7 +197,50 @@ def marker(stderr, name):
     return rows[0]
 
 
+LEGACY_SPECIMEN_INVENTORY = 'bench/devloop/adoption/evidence/rpc-inventory.json'
+QUALIFIED_SPECIMEN_INVENTORY = 'bench/devloop/adoption/evidence/rpc-inventory-equal-wire.json'
+INPUT_SCOPE = "common prepared wire; RPC map entry order may vary"
+
+
+def validate_inventory(inventory, frozen):
+    specimens = {row["specimen"]: row["qualification"] for row in frozen}
+    assert len(specimens) == len(frozen) == 64
+    assert all(type(row["equal_wire_work"]) is bool for row in specimens.values())
+    assert all(type(inventory[key]) is int for key in ("registered_count", "actual_network_passed", "blocked_count"))
+    expected = {f"{PREFIX}{profile}.{specimen}.{shape}"
+                for profile in PROFILES for specimen in specimens for shape in SHAPES}
+    blocked = {f"{PREFIX}{profile}.{specimen}.{shape}"
+               for profile in PROFILES for specimen, row in specimens.items()
+               if not row["equal_wire_work"] for shape in SHAPES}
+    ids = inventory["registered_ids"]
+    oracle = {row["id"]: row for row in inventory["preflight_rows"]}
+    assert len(expected) == len(ids) == len(set(ids)) == 512 and set(ids) == expected
+    assert len(inventory["blocked_ids"]) == len(blocked) and set(inventory["blocked_ids"]) == blocked
+    assert len(oracle) == len(inventory["preflight_rows"]) == len(expected - blocked)
+    assert set(oracle) == expected - blocked
+    assert inventory["registered_count"] == 512
+    assert inventory["actual_network_passed"] == len(oracle) and inventory["blocked_count"] == len(blocked)
+    for cell, row in oracle.items():
+        specimen = cell.removeprefix(PREFIX).split(".", 1)[1].rsplit(".", 1)[0]
+        original = specimens[specimen]
+        for field in ("request_bytes", "native_request_bytes", "response_bytes_per_message",
+                      "request_read_checksum", "response_read_checksum"):
+            assert row[field] == original[field], (cell, field)
+        assert row["responses"] == (4 if cell.endswith(".server_stream") else 1)
+    return ids, oracle, blocked
+
+
+def input_length(row, oracle, required=False):
+    if required or "input_wire_bytes" in row or "input_wire_bytes" in oracle:
+        value = row.get("input_wire_bytes")
+        assert type(value) is int and value >= 0 and value == oracle["request_bytes"], "prepared input length"
+        if "input_wire_bytes" in oracle:
+            assert type(oracle["input_wire_bytes"]) is int and value == oracle["input_wire_bytes"]
+
+
 def validate_network(row, expected):
+    input_length(row, expected, required=True)
+    assert row["input_fingerprint_scope"] == INPUT_SCOPE
     for field in ("id", "request_bytes", "native_request_bytes", "response_bytes_per_message",
                   "request_read_checksum", "response_read_checksum", "responses",
                   "input_wire_fingerprint", "message_caps", "accepted_socket_observer"):
@@ -223,19 +266,18 @@ def main():
     binary, out = args.binary.resolve(), args.out.resolve()
     inventory_path = args.inventory.resolve()
     inventory = json.loads(inventory_path.read_bytes())
-    ids = inventory["registered_ids"]
-    oracle = {r["id"]: r for r in inventory["preflight_rows"]}
-    blocked = set(inventory["blocked_ids"])
-    assert len(ids) == len(set(ids)) == 512 and len(oracle) == 488 and len(blocked) == 24
-    assert set(ids) == oracle.keys() | blocked
-    assert all(".maps." in i for i in blocked)
-    frozen_specimens = json.loads((ROOT / "bench/devloop/adoption/evidence/rpc-inventory.json").read_bytes())
+    specimen_path = inventory.get("specimen_inventory_path", LEGACY_SPECIMEN_INVENTORY)
+    assert specimen_path in (LEGACY_SPECIMEN_INVENTORY, QUALIFIED_SPECIMEN_INVENTORY)
+    specimen_bytes = relative_input(specimen_path).read_bytes()
+    frozen_specimens = json.loads(specimen_bytes)
+    ids, oracle, blocked = validate_inventory(inventory, frozen_specimens)
     old_ids = {f"rpc.adoption.{p}.{r['specimen']}.{s}" for p in
                ("native_pbrs", "native_prost", "tonic_pbrs", "tonic_prost")
                for r in frozen_specimens for s in SHAPES}
     assert len(old_ids) == 512
     commit = git("rev-parse", "HEAD").decode().strip()
     assert digest(git("show", f"{commit}:{inventory_path.relative_to(ROOT)}")) == digest(inventory_path.read_bytes())
+    assert digest(git("show", f"{commit}:{specimen_path}")) == digest(specimen_bytes)
     build_bytes = args.build_record.resolve().read_bytes()
     build = json.loads(build_bytes)
     sources, schema_bytes = compiled_inputs(build, commit, binary)
@@ -248,6 +290,9 @@ def main():
         record = json.loads((out / "measurement.json").read_text())
         assert record["source_sha256"] == sources and record["binary_sha256"] == digest(binary.read_bytes())
         assert record["inventory_sha256"] == digest(inventory_path.read_bytes())
+        assert record["specimen_inventory_path"] == specimen_path
+        assert record["specimen_inventory_sha256"] == digest(specimen_bytes)
+        assert record["input_wire_bytes_required"] is True
         assert record["tools"] == tools
         assert record["build_record_sha256"] == digest(build_bytes)
         assert record["schema_sha256"] == schemas
@@ -264,11 +309,13 @@ def main():
                   "schema_sha256": schemas,
                   "inventory_path": str(inventory_path.relative_to(ROOT)),
                   "inventory_sha256": digest(inventory_path.read_bytes()),
+                  "specimen_inventory_path": specimen_path, "specimen_inventory_sha256": digest(specimen_bytes),
+                  "input_wire_bytes_required": True,
                   "tools": tools, "tool_pins": {}, "processes": {}, "cells": {}, "reports": {},
                   "iters": 16, "double_iters": 32, "common_prepare_iters": 32,
                   "repeats": 3, "warmup": 100, "runtime_workers": 2, "report_parallelism": 1,
                   "syscall_scope": "strace -c -f N16-only whole-process counts divided by 16, including preparation, network oracle, 100-operation warmup and teardown; not hot-only or differential syscall cost; futex includes wakes/errors, not lock acquisitions",
-                  "limits": ["24 frozen map equal-wire blocks", "instrumented shared-host wall time is secondary", "copy hooks do not measure every prost copy"],
+                  "limits": [f"{len(blocked)} equal-wire blocks from the pinned specimen inventory", "instrumented shared-host wall time is secondary", "copy hooks do not measure every prost copy"],
                   "started_utc": utc()}
         write(out / "measurement.json", record)
     wrappers = out / "tool-wrappers"
@@ -311,6 +358,7 @@ def main():
             validate_network(network, oracle[cell])
             assert child["cell"] == cell and child["iters"] == 1
             assert child["input_wire_fingerprint"] == network["input_wire_fingerprint"]
+            input_length(child, oracle[cell], required=True)
             record["cells"][cell] = {"status": "qualified", "measurement_status": "not_run", "network": network, "preflight_process": relative}
         write(out / "measurement.json", record)
     record["status"] = "qualified"
@@ -329,7 +377,7 @@ def main():
         assert live_source_hashes(build) == sources and digest(binary.read_bytes()) == record["binary_sha256"]
         assert {p: digest(relative_input(p).read_bytes()) for p in schemas} == schemas
         selected = [i for i in ids if i.startswith(f"{PREFIX}{profile}.") and i.endswith(f".{shape}") and i not in blocked]
-        assert len(selected) == 61
+        assert selected and set(selected) == {cell for cell in oracle if cell.startswith(f"{PREFIX}{profile}.") and cell.endswith(f".{shape}")}
         relative = f"raw/collector/{name}-{time.time_ns()}"
         tool_raw = out / relative / "tools"
         environment["PBRS_SB32_TOOL_RAW"] = str(tool_raw)
@@ -343,7 +391,7 @@ def main():
         write(out / "measurement.json", record)
         assert result["exit_code"] == 0, f"collector failed; full raw retained: {relative}"
         report = json.loads(report_path.read_bytes())
-        assert {r["id"] for r in report["cells"]} == set(selected) and len(report["cells"]) == 61
+        assert {r["id"] for r in report["cells"]} == set(selected) and len(report["cells"]) == len(selected)
         record["reports"][name] = {"path": report_path.name, "sha256": digest(report_path.read_bytes()),
                                    "collector_process": relative,
                                    "raw_tool_records": result["raw_tool_records"]}
@@ -351,13 +399,13 @@ def main():
             for cell in selected:
                 record["cells"][cell]["measurement_status"] = "captured"
         write(out / "measurement.json", record)
-        print(f"Captured {name}: 61 cells, all raw counters retained", flush=True)
+        print(f"Captured {name}: {len(selected)} cells, all raw counters retained", flush=True)
     assert live_source_hashes(build) == sources and digest(binary.read_bytes()) == record["binary_sha256"]
     assert {p: digest(relative_input(p).read_bytes()) for p in schemas} == schemas
     record["status"] = "captured; independent audit pending"
     record["finished_utc"] = utc()
     write(out / "measurement.json", record)
-    print("All 512 states retained: 488 captured, 24 map blocks. Run the independent audit.")
+    print(f"All {len(ids)} states retained: {len(oracle)} captured, {len(blocked)} equal-wire blocks. Run the independent audit.")
 
 
 if __name__ == "__main__":

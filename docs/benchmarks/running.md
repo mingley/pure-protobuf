@@ -51,6 +51,21 @@ retains the exact drivers and commands for the one/four/64-message comparisons.
 The [server CPU follow-up](../evidence/performance-fixes-20261027/README.md)
 adds separate CPU captures for wake coalescing.
 
+## Development-loop comparisons
+
+The [development-loop harness](../../bench/devloop/README.md) combines codec,
+RPC and generator comparisons. Its RPC reports identify the canonical prepared
+input and its encoded length. Compare those fields across processes, while
+keeping semantic and wire-length checks enabled. Map serialization order can
+vary without changing the prepared message.
+
+Use a fresh inventory when collecting the standalone tonic transport matrix.
+The collector derives qualified and blocked counts from that inventory; an old
+488-cell selection does not describe the current 512 qualified states. Legacy
+records remain readable, but missing input metadata cannot qualify a new
+capture. See the [accounting follow-up](../evidence/readiness-followup-20261102/README.md#benchmark-inputs-and-qualification)
+for the detecting failure and repair scope.
+
 ## Message codecs
 
 Use the [codec survey](../../tonic-bench/README.md) for encode, decode and

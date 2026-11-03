@@ -160,10 +160,13 @@ impl Wire {
 }
 
 /// Singular `string`: slice of the parse buffer, or owned after `set_*`.
+// Generated zeroed defaults require a defined zero tag, independent of the
+// compiler's niche choices for the payloads on each target.
+#[repr(u8)]
 #[derive(Clone, Default)]
 pub enum LazyStr {
     #[default]
-    Empty,
+    Empty = 0,
     Wire(Wire),
     Owned(ProtoString),
 }
@@ -473,10 +476,11 @@ impl crate::map::MapQuery<LazyStr> for crate::string::ProtoString {
 }
 
 /// Singular `bytes`. Same cow as [`LazyStr`].
+#[repr(u8)]
 #[derive(Clone, Default)]
 pub enum LazyBytes {
     #[default]
-    Empty,
+    Empty = 0,
     Wire(Wire),
     Owned(ProtoBytes),
 }
@@ -878,7 +882,8 @@ impl<T: MergeBytes + std::fmt::Debug> std::fmt::Debug for LazyMsg<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::{LazyStr, Wire};
+    use super::{LazyBytes, LazyStr, Wire};
+    use crate::ProtoString;
 
     #[test]
     fn from_parse_span_skips_parent_arc_when_inline() {
@@ -1052,9 +1057,35 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Wire offset exceeds u32")]
+    #[cfg_attr(
+        target_pointer_width = "32",
+        should_panic(expected = "Wire offset overflow")
+    )]
+    #[cfg_attr(
+        target_pointer_width = "64",
+        should_panic(expected = "Wire offset exceeds u32")
+    )]
     fn u32_offset_over_u32_max_fails_closed() {
+        // On 32-bit targets this sum exceeds usize first; wider targets
+        // reach the separate u32 narrowing check. Both must fail closed.
         let _ = super::u32_offset(u32::MAX as usize, 1);
+    }
+
+    #[test]
+    fn generated_zeroed_string_and_bytes_fields_are_empty() {
+        // SAFETY: the explicit u8 representations make tag zero Empty for
+        // lazy fields and Inline for ProtoString, whose zero length is valid.
+        let (string, bytes, owned) = unsafe {
+            (
+                crate::rt::zeroed_message::<LazyStr>(),
+                crate::rt::zeroed_message::<LazyBytes>(),
+                crate::rt::zeroed_message::<ProtoString>(),
+            )
+        };
+        assert!(matches!(string, LazyStr::Empty));
+        assert!(matches!(bytes, LazyBytes::Empty));
+        assert!(owned.is_empty());
+        assert_eq!(owned.as_bytes(), b"");
     }
 
     #[test]

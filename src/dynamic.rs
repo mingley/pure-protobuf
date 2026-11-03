@@ -2371,6 +2371,22 @@ fn parse_file_descriptor_set(bytes: &[u8]) -> Result<Vec<RawFile>, ParseError> {
     Ok(files)
 }
 
+fn descriptor_identifier_is_valid(name: &str) -> bool {
+    let mut bytes = name.bytes();
+    bytes
+        .next()
+        .is_some_and(|byte| byte.is_ascii_alphabetic() || byte == b'_')
+        && bytes.all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+}
+
+fn validate_descriptor_identifier(name: &str) -> Result<(), ParseError> {
+    if descriptor_identifier_is_valid(name) {
+        Ok(())
+    } else {
+        Err(ParseError::new("invalid protobuf descriptor identifier"))
+    }
+}
+
 fn parse_file(bytes: &[u8]) -> Result<RawFile, ParseError> {
     let mut file = RawFile::default();
     let mut pos = 0;
@@ -2420,6 +2436,12 @@ fn parse_file(bytes: &[u8]) -> Result<RawFile, ParseError> {
             }
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
+    }
+    // A package is empty or a sequence of identifiers. Validate before adding
+    // prefixes: leading dots or control bytes can otherwise create symbol
+    // table keys that normal absolute-name lookup cannot resolve.
+    if !file.package.is_empty() && !file.package.split('.').all(descriptor_identifier_is_valid) {
+        return Err(ParseError::new("invalid protobuf descriptor package"));
     }
     // Edition 9999 is the known unstable conformance sentinel, not a future release.
     if (file.edition > 1001 && file.edition != 9999)
@@ -2894,6 +2916,7 @@ fn parse_service(bytes: &[u8]) -> Result<RawService, ParseError> {
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
     }
+    validate_descriptor_identifier(&svc.name)?;
     Ok(svc)
 }
 
@@ -2919,6 +2942,7 @@ fn parse_method(bytes: &[u8]) -> Result<(MethodDescriptor, RawFeatures), ParseEr
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
     }
+    validate_descriptor_identifier(&m.name)?;
     Ok((m, features))
 }
 
@@ -3004,6 +3028,7 @@ fn parse_descriptor(bytes: &[u8], _parent: &str) -> Result<RawMessage, ParseErro
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
     }
+    validate_descriptor_identifier(&msg.name)?;
     Ok(msg)
 }
 
@@ -3035,6 +3060,7 @@ fn parse_oneof(bytes: &[u8]) -> Result<RawOneof, ParseError> {
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
     }
+    validate_descriptor_identifier(&oneof.name)?;
     Ok(oneof)
 }
 
@@ -3079,6 +3105,7 @@ fn parse_field(bytes: &[u8]) -> Result<RawField, ParseError> {
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
     }
+    validate_descriptor_identifier(&f.name)?;
     Ok(f)
 }
 
@@ -3411,6 +3438,7 @@ fn parse_enum(bytes: &[u8], closed: bool) -> Result<RawEnum, ParseError> {
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
     }
+    validate_descriptor_identifier(&e.name)?;
     Ok(e)
 }
 
@@ -3432,6 +3460,7 @@ fn parse_enum_value(bytes: &[u8]) -> Result<(i32, String, bool, RawFeatures), Pa
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
     }
+    validate_descriptor_identifier(&name)?;
     Ok((number, name, deprecated, features))
 }
 

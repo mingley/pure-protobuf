@@ -1610,6 +1610,16 @@ mod unknown_group_structure_tests {
     }
 
     #[test]
+    fn empty_generated_messages_match_default_and_parse() {
+        let proto3 = TestAllTypesProto3::default();
+        assert_eq!(proto3, TestAllTypesProto3::parse(b"").unwrap());
+        assert!(proto3.serialize().unwrap().is_empty());
+        let proto2 = TestAllTypesProto2::default();
+        assert_eq!(proto2, TestAllTypesProto2::parse(b"").unwrap());
+        assert!(proto2.serialize().unwrap().is_empty());
+    }
+
+    #[test]
     fn valid_unknown_groups_roundtrip_direct_lazy_and_validator() {
         for group in [
             tags(&[(10001, WIRE_SGROUP), (10001, WIRE_EGROUP)]),

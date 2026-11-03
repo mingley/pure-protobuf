@@ -160,7 +160,51 @@ def checked_process(directory, relative, expected=None):
     return record, stdout, stderr.decode(errors="replace")
 
 
-def network(row, oracle):
+LEGACY_SPECIMEN_INVENTORY = 'bench/devloop/adoption/evidence/rpc-inventory.json'
+QUALIFIED_SPECIMEN_INVENTORY = 'bench/devloop/adoption/evidence/rpc-inventory-equal-wire.json'
+INPUT_SCOPE = "common prepared wire; RPC map entry order may vary"
+
+
+def inventory_cells(inventory, frozen):
+    specimens = {row["specimen"]: row["qualification"] for row in frozen}
+    assert len(specimens) == len(frozen) == 64
+    assert all(type(row["equal_wire_work"]) is bool for row in specimens.values())
+    assert all(type(inventory[key]) is int for key in ("registered_count", "actual_network_passed", "blocked_count"))
+    expected = {f"{PREFIX}{profile}.{specimen}.{shape}"
+                for profile in PROFILES for specimen in specimens for shape in SHAPES}
+    blocked = {f"{PREFIX}{profile}.{specimen}.{shape}"
+               for profile in PROFILES for specimen, row in specimens.items()
+               if not row["equal_wire_work"] for shape in SHAPES}
+    ids = inventory["registered_ids"]
+    oracle = {row["id"]: row for row in inventory["preflight_rows"]}
+    assert len(expected) == len(ids) == len(set(ids)) == 512 and set(ids) == expected
+    assert len(inventory["blocked_ids"]) == len(blocked) and set(inventory["blocked_ids"]) == blocked
+    assert len(oracle) == len(inventory["preflight_rows"]) == len(expected - blocked)
+    assert set(oracle) == expected - blocked
+    assert inventory["registered_count"] == 512
+    assert inventory["actual_network_passed"] == len(oracle) and inventory["blocked_count"] == len(blocked)
+    for cell, row in oracle.items():
+        specimen = cell.removeprefix(PREFIX).split(".", 1)[1].rsplit(".", 1)[0]
+        original = specimens[specimen]
+        for field in ("request_bytes", "native_request_bytes", "response_bytes_per_message",
+                      "request_read_checksum", "response_read_checksum"):
+            assert row[field] == original[field], (cell, field)
+        assert row["responses"] == (4 if cell.endswith(".server_stream") else 1)
+    return ids, oracle, blocked
+
+
+def input_length(row, oracle, required=False):
+    if required or "input_wire_bytes" in row or "input_wire_bytes" in oracle:
+        value = row.get("input_wire_bytes")
+        assert type(value) is int and value >= 0 and value == oracle["request_bytes"], "prepared input length"
+        if "input_wire_bytes" in oracle:
+            assert type(oracle["input_wire_bytes"]) is int and value == oracle["input_wire_bytes"]
+
+
+def network(row, oracle, require_length=False):
+    input_length(row, oracle, require_length)
+    if require_length or "input_fingerprint_scope" in row:
+        assert row["input_fingerprint_scope"] == INPUT_SCOPE
     for field in ("id", "request_bytes", "native_request_bytes", "response_bytes_per_message",
                   "request_read_checksum", "response_read_checksum", "responses",
                   "input_wire_fingerprint", "message_caps", "accepted_socket_observer"):
@@ -186,7 +230,7 @@ def metric(row, name, samples):
     assert actual == expected, f"raw reconstruction: {row['id']} {name}: {actual} != {expected}"
 
 
-def reconstruct(directory, report_info, report, oracle, selected_tool, tools, binary):
+def reconstruct(directory, report_info, report, oracle, selected_tool, tools, binary, require_length=False):
     raw = {}
     for relative, checksum in sorted(report_info["raw_tool_records"].items()):
         assert sha((directory / relative).read_bytes()) == checksum
@@ -229,6 +273,7 @@ def reconstruct(directory, report_info, report, oracle, selected_tool, tools, bi
         assert row["kind"] == "rpc" and row["codec"] == cell.removeprefix(PREFIX).split(".")[0]
         assert row["iters"] == 16 and row["repeats"] == 3
         assert row["input_wire_fingerprint"] == oracle[cell]["input_wire_fingerprint"]
+        input_length(row, oracle[cell], require_length)
         assert set(raw[cell]) == ({selected_tool, "strace"} if "strace" in tools else {selected_tool})
         counts = {16: [], 32: []}
         base_children = []
@@ -237,7 +282,8 @@ def reconstruct(directory, report_info, report, oracle, selected_tool, tools, bi
             child, qualified = marked(stderr, "__CHILD__ "), marked(stderr, "__QUALIFICATION__ ")
             assert child["cell"] == cell and child["iters"] == requested, "child N/2N marker differs from actual argv"
             assert child["input_wire_fingerprint"] == oracle[cell]["input_wire_fingerprint"]
-            network(qualified, oracle[cell])
+            input_length(child, oracle[cell], require_length)
+            network(qualified, oracle[cell], require_length)
             counts[child["iters"]].append(instruction_counter(stderr, selected_tool))
             if child["iters"] == 16:
                 base_children.append(child)
@@ -268,7 +314,8 @@ def reconstruct(directory, report_info, report, oracle, selected_tool, tools, bi
                 child, qualified = marked(stderr, "__CHILD__ "), marked(stderr, "__QUALIFICATION__ ")
                 assert child["cell"] == cell and child["iters"] == requested == 16
                 assert child["input_wire_fingerprint"] == oracle[cell]["input_wire_fingerprint"]
-                network(qualified, oracle[cell])
+                input_length(child, oracle[cell], require_length)
+                network(qualified, oracle[cell], require_length)
                 calls.append(summary[0] / 16)
                 locks.append(summary[1] / 16)
         metric(row, "syscalls", calls)
@@ -305,21 +352,22 @@ def audit(directory):
     inventory_bytes = git_file(record["source_commit"], record["inventory_path"])
     assert sha(inventory_bytes) == record["inventory_sha256"]
     inventory = json.loads(inventory_bytes)
-    frozen = json.loads(git_file(record["source_commit"], "bench/devloop/adoption/evidence/rpc-inventory.json"))
-    specimens = {r["specimen"]: r["qualification"] for r in frozen}
-    assert len(specimens) == 64
-    expected = {f"{PREFIX}{p}.{s}.{k}" for p in PROFILES for s in specimens for k in SHAPES}
-    blocked = {f"{PREFIX}{p}.{s}.{k}" for p in PROFILES for s, q in specimens.items() if not q["equal_wire_work"] for k in SHAPES}
-    assert len(expected) == 512 and len(blocked) == 24
-    assert set(inventory["registered_ids"]) == expected and set(inventory["blocked_ids"]) == blocked
-    oracle = {r["id"]: r for r in inventory["preflight_rows"]}
-    assert len(oracle) == len(inventory["preflight_rows"]) == 488 and set(oracle) == expected - blocked
-    for cell, row in oracle.items():
-        specimen = cell.removeprefix(PREFIX).split(".", 1)[1].rsplit(".", 1)[0]
-        original = specimens[specimen]
-        for field in ("request_bytes", "native_request_bytes", "response_bytes_per_message", "request_read_checksum", "response_read_checksum"):
-            assert row[field] == original[field]
-        assert row["responses"] == (4 if cell.endswith(".server_stream") else 1)
+    specimen_path = inventory.get("specimen_inventory_path", LEGACY_SPECIMEN_INVENTORY)
+    assert specimen_path in (LEGACY_SPECIMEN_INVENTORY, QUALIFIED_SPECIMEN_INVENTORY)
+    specimen_bytes = git_file(record["source_commit"], specimen_path)
+    if "specimen_inventory_path" in record:
+        assert record["specimen_inventory_path"] == specimen_path
+        assert record["specimen_inventory_sha256"] == sha(specimen_bytes)
+    else:
+        assert specimen_path == LEGACY_SPECIMEN_INVENTORY, "new specimen inventory lacks a source pin"
+    frozen = json.loads(specimen_bytes)
+    ids, oracle, blocked = inventory_cells(inventory, frozen)
+    expected = set(ids)
+    require_length = record.get("input_wire_bytes_required", False)
+    assert type(require_length) is bool
+    if specimen_path == QUALIFIED_SPECIMEN_INVENTORY:
+        assert require_length, "new captures require prepared input lengths"
+    specimens = {row["specimen"]: row["qualification"] for row in frozen}
     assert set(record["cells"]) == expected
     raw_tool_paths = set()
     for relative, process in record["processes"].items():
@@ -349,11 +397,12 @@ def audit(directory):
             assert state["status"] == state["measurement_status"] == "not_run" and process["exit_code"] != 0 and "RPC encoded bytes must agree" in stderr
         else:
             assert state["status"] == "qualified" and state["measurement_status"] == "captured" and process["exit_code"] == 0
-            network(marked(stderr, "__QUALIFICATION__ "), oracle[cell])
-            network(state["network"], oracle[cell])
+            network(marked(stderr, "__QUALIFICATION__ "), oracle[cell], require_length)
+            network(state["network"], oracle[cell], require_length)
             child = marked(stderr, "__CHILD__ ")
             assert child["cell"] == cell and child["iters"] == 1
             assert child["input_wire_fingerprint"] == oracle[cell]["input_wire_fingerprint"]
+            input_length(child, oracle[cell], require_length)
     selected_tool = "perf" if "perf" in record["tools"] else "valgrind"
     assert selected_tool in record["tools"]
     reports = {}
@@ -369,15 +418,15 @@ def audit(directory):
         verify_commit(report_commit)
         profile, shape = name.removeprefix("matrix-").split("-") if name.startswith("matrix-") else ("reference_reference", name.rsplit("-", 1)[1])
         selected = {i for i in expected - blocked if i.startswith(f"{PREFIX}{profile}.") and i.endswith(f".{shape}")}
-        assert len(report["cells"]) == 61 and {r["id"] for r in report["cells"]} == selected
+        assert len(report["cells"]) == len(selected) and {r["id"] for r in report["cells"]} == selected
         parent = record["processes"][info["collector_process"]]
         assert parent["exit_code"] == 0 and parent["raw_tool_records"] == info["raw_tool_records"]
         argv = parent["argv"]
         assert argv[:3] == [record["binary"], "run", "--cells"]
-        assert set(argv[3].split(",")) == selected and len(argv[3].split(",")) == 61
+        assert set(argv[3].split(",")) == selected and len(argv[3].split(",")) == len(selected)
         assert argv[4:9] == ["--iters", "16", "--repeats", "3", "--out"]
         assert len(argv) == 10 and Path(argv[9]).name == info["path"]
-        reconstruct(directory, info, report, oracle, selected_tool, record["tools"], record["binary"])
+        reconstruct(directory, info, report, oracle, selected_tool, record["tools"], record["binary"], require_length)
         reports[name] = {r["id"]: r for r in report["cells"]}
     replay_deltas, replay_failures = [], []
     for shape in SHAPES:
@@ -408,10 +457,11 @@ def audit(directory):
                     current, base = value(candidate, name), value(baseline[reference], name)
                     ratios[name] = {"ratio": current / base, "loss": current > base} if current is not None and base is not None and base > 0 else {"status": "not_run", "reason": "ratio requires two available positive metrics"}
                 comparisons.append({"id": cell, "reference_id": reference, "ratios": ratios})
-    assert len(comparisons) == 366
+    expected_comparisons = {cell for cell in oracle if not cell.startswith(f"{PREFIX}reference_reference.")}
+    assert len(comparisons) == len(expected_comparisons) and {row["id"] for row in comparisons} == expected_comparisons
     matrix_rows = [row for name, rows in reports.items() if name.startswith("matrix-") for row in rows.values()]
-    assert len(matrix_rows) == 488
-    return {"schema": "pbrs-sb32-audit/1", "integrity": "passed", "registered": 512, "network_qualified": 488, "blocked": 24,
+    assert len(matrix_rows) == len(oracle)
+    return {"schema": "pbrs-sb32-audit/1", "integrity": "passed", "registered": len(expected), "network_qualified": len(oracle), "blocked": len(blocked),
             "binary_rechecked": binary_present, "source_commit": record["source_commit"], "binary_sha256": record["binary_sha256"],
             "original_baseline_replay_gate": "failed" if replay_failures else ("incomplete" if any(r.get("status") == "not_run" for r in replay_deltas) else "passed"),
             "baseline_replay_deltas": replay_deltas, "baseline_replay_failures": replay_failures,
@@ -429,7 +479,7 @@ def main():
     if args.out:
         assert not args.out.exists(), "do not overwrite an earlier audit"
         args.out.write_text(json.dumps(summary, indent=2) + "\n")
-    print(f"SB-32 integrity passed: 512 states, 488 cell archives verified, 24 blocked, 366 comparisons; instruction availability {summary['metric_available_cells']['instructions']}/488; original replay gate {summary['original_baseline_replay_gate']}")
+    print(f"SB-32 integrity passed: {summary['registered']} states, {summary['network_qualified']} cell archives verified, {summary['blocked']} blocked, {len(summary['comparisons'])} comparisons; instruction availability {summary['metric_available_cells']['instructions']}/{summary['network_qualified']}; original replay gate {summary['original_baseline_replay_gate']}")
 
 
 if __name__ == "__main__":

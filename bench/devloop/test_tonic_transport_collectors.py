@@ -2,6 +2,7 @@
 """Synthetic collector regressions; these execute no RPC/performance workload."""
 
 import gzip
+import copy
 import functools
 import importlib.util
 import json
@@ -27,6 +28,70 @@ AUDIT = module("sb32_audit", "check-tonic-transport-evidence.py")
 
 
 class CollectorTests(unittest.TestCase):
+    def inventory_fixture(self, current):
+        root = HERE.parents[1]
+        path = DRIVER.QUALIFIED_SPECIMEN_INVENTORY if current else DRIVER.LEGACY_SPECIMEN_INVENTORY
+        frozen = json.loads((root / path).read_bytes())
+        template = json.loads((root / "docs/evidence/sb-32/preflight-inventory.json").read_bytes())["preflight_rows"][0]
+        ids, blocked, rows = [], [], []
+        for profile in DRIVER.PROFILES:
+            for specimen in frozen:
+                for shape in DRIVER.SHAPES:
+                    cell = f"{DRIVER.PREFIX}{profile}.{specimen['specimen']}.{shape}"
+                    ids.append(cell)
+                    q = specimen["qualification"]
+                    if not q["equal_wire_work"]:
+                        blocked.append(cell)
+                        continue
+                    row = {**copy.deepcopy(template), **{
+                        key: q[key] for key in ("request_bytes", "native_request_bytes", "response_bytes_per_message",
+                                               "request_read_checksum", "response_read_checksum")}}
+                    row.update(id=cell, responses=4 if shape == "server_stream" else 1)
+                    if current:
+                        row.update(input_wire_bytes=q["request_bytes"], input_fingerprint_scope=DRIVER.INPUT_SCOPE)
+                    rows.append(row)
+        inventory = {"registered_ids": ids, "blocked_ids": blocked, "preflight_rows": rows,
+                     "registered_count": len(ids), "actual_network_passed": len(rows), "blocked_count": len(blocked)}
+        if current:
+            inventory["specimen_inventory_path"] = path
+        return inventory, frozen
+
+    def test_inventory_derives_legacy_and_current_coverage_and_rejects_missing_work(self):
+        for current, counts in ((False, (488, 24)), (True, (512, 0))):
+            inventory, frozen = self.inventory_fixture(current)
+            for check in (DRIVER.validate_inventory, AUDIT.inventory_cells):
+                ids, oracle, blocked = check(inventory, frozen)
+                self.assertEqual((len(ids), len(oracle), len(blocked)), (512, *counts))
+                wrong_type = copy.deepcopy(frozen)
+                wrong_type[0]["qualification"]["equal_wire_work"] = "false"
+                with self.assertRaises(AssertionError): check(inventory, wrong_type)
+                wrong_count = copy.deepcopy(inventory)
+                wrong_count["blocked_count"] = False
+                with self.assertRaises(AssertionError): check(wrong_count, frozen)
+                for mutation in ("registered", "duplicate", "qualified", "blocked", "bytes"):
+                    changed = copy.deepcopy(inventory)
+                    if mutation == "registered": changed["registered_ids"].pop()
+                    elif mutation == "duplicate": changed["preflight_rows"].append(changed["preflight_rows"][0])
+                    elif mutation == "qualified": changed["preflight_rows"].pop()
+                    elif mutation == "blocked": changed["blocked_ids"].append(changed["registered_ids"][0])
+                    else: changed["preflight_rows"][0]["request_bytes"] += 1
+                    with self.assertRaises(AssertionError, msg=f"{current}/{mutation}"):
+                        check(changed, frozen)
+
+    def test_new_capture_requires_length_while_historical_network_rows_remain_readable(self):
+        old = json.loads((HERE.parents[1] / "docs/evidence/sb-32/preflight-inventory.json").read_bytes())["preflight_rows"][0]
+        AUDIT.network(old, old)
+        with self.assertRaises(AssertionError): DRIVER.validate_network(old, old)
+        row = {**old, "input_wire_bytes": old["request_bytes"], "input_fingerprint_scope": DRIVER.INPUT_SCOPE}
+        DRIVER.validate_network(row, old)
+        AUDIT.network(row, old, require_length=True)
+        for length in (None, -1, True, row["request_bytes"] + 1):
+            changed = dict(row)
+            if length is None: changed.pop("input_wire_bytes")
+            else: changed["input_wire_bytes"] = length
+            with self.assertRaises(AssertionError): DRIVER.validate_network(changed, old)
+            with self.assertRaises(AssertionError): AUDIT.network(changed, old, require_length=True)
+
     def provenance_fixture(self, directory):
         root, archive = directory / "checkout", directory / "archive"
         root.mkdir()
@@ -273,6 +338,53 @@ class CollectorTests(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 self.reconstruct(directory, fixture)
 
+    def test_rehashed_prepared_lengths_are_checked_in_raw_children_and_aggregates(self):
+        for changed in ("child", "network", "aggregate"):
+            with self.subTest(changed=changed), tempfile.TemporaryDirectory() as temporary:
+                directory = Path(temporary)
+                fixture = self.fixture(directory)
+                cell, oracle = next(iter(fixture[2].items()))
+                length = oracle["request_bytes"]
+                oracle.update(input_wire_bytes=length, input_fingerprint_scope=AUDIT.INPUT_SCOPE)
+                fixture[1]["cells"][0]["input_wire_bytes"] = length
+                for key in fixture[0]["raw_tool_records"]:
+                    path = directory / key
+                    process = json.loads(path.read_bytes())
+                    lines = []
+                    for line in (path.parent / "stderr").read_text().splitlines():
+                        prefix = next((p for p in ("__CHILD__ ", "__QUALIFICATION__ ") if line.startswith(p)), None)
+                        if prefix:
+                            row = json.loads(line[len(prefix):])
+                            row["input_wire_bytes"] = length
+                            if prefix == "__QUALIFICATION__ ": row["input_fingerprint_scope"] = AUDIT.INPUT_SCOPE
+                            line = prefix + json.dumps(row)
+                        lines.append(line)
+                    stderr = ("\n".join(lines) + "\n").encode()
+                    (path.parent / "stderr").write_bytes(stderr)
+                    process["stderr_sha256"] = AUDIT.sha(stderr)
+                    path.write_text(json.dumps(process))
+                    fixture[0]["raw_tool_records"][key] = AUDIT.sha(path.read_bytes())
+                self.reconstruct(directory, fixture)
+                if changed == "aggregate":
+                    fixture[1]["cells"][0]["input_wire_bytes"] += 1
+                else:
+                    key = next(iter(fixture[0]["raw_tool_records"]))
+                    path = directory / key
+                    process = json.loads(path.read_bytes())
+                    marker = "__CHILD__ " if changed == "child" else "__QUALIFICATION__ "
+                    lines = (path.parent / "stderr").read_text().splitlines()
+                    for index, line in enumerate(lines):
+                        if line.startswith(marker):
+                            row = json.loads(line[len(marker):])
+                            row["input_wire_bytes"] += 1
+                            lines[index] = marker + json.dumps(row)
+                    stderr = ("\n".join(lines) + "\n").encode()
+                    (path.parent / "stderr").write_bytes(stderr)
+                    process["stderr_sha256"] = AUDIT.sha(stderr)
+                    path.write_text(json.dumps(process))
+                    fixture[0]["raw_tool_records"][key] = AUDIT.sha(path.read_bytes())
+                with self.assertRaises(AssertionError): self.reconstruct(directory, fixture)
+
     def test_changed_fingerprint_and_rehashed_counter_summary_are_rejected(self):
         for mutation in ("fingerprint", "counter", "N2N-marker"):
             with tempfile.TemporaryDirectory() as temporary:
@@ -295,13 +407,18 @@ class CollectorTests(unittest.TestCase):
                 with self.assertRaises(AssertionError):
                     self.reconstruct(directory, fixture)
 
-    def complete_archive(self, directory):
+    def complete_archive(self, directory, current=False):
         """Exercise full audit coverage/provenance apart from separately tested counters."""
         root = HERE.parents[1]
         commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
         inventory_path = "docs/evidence/sb-32/preflight-inventory.json"
         inventory_bytes = (root / inventory_path).read_bytes()
         inventory = json.loads(inventory_bytes)
+        if current:
+            inventory, _ = self.inventory_fixture(True)
+            inventory_path = "synthetic/current-preflight-inventory.json"
+            inventory_bytes = json.dumps(inventory).encode()
+            (directory / "inventory.json").write_bytes(inventory_bytes)
         oracle = {r["id"]: r for r in inventory["preflight_rows"]}
         sources = {path: AUDIT.sha(AUDIT.git_file(commit, path)) for path in AUDIT.source_paths(commit)}
         build = {"source_sha256": {path: checksum for path, checksum in sources.items() if not path.endswith(".py")},
@@ -325,6 +442,10 @@ class CollectorTests(unittest.TestCase):
                   "warmup": 100, "runtime_workers": 2, "report_parallelism": 1,
                   "tools": {"valgrind": "/fake/absent-valgrind"}, "tool_pins": {},
                   "processes": {}, "cells": {}, "reports": {}, "syscall_scope": AUDIT.SYSCALL_SCOPE}
+        if current:
+            record.update(specimen_inventory_path=DRIVER.QUALIFIED_SPECIMEN_INVENTORY,
+                          specimen_inventory_sha256=AUDIT.sha((root / DRIVER.QUALIFIED_SPECIMEN_INVENTORY).read_bytes()),
+                          input_wire_bytes_required=True)
         def process(relative, argv, stdout=b"", stderr=b"", exit_code=0, tool_records=None):
             path = directory / relative
             path.mkdir(parents=True)
@@ -346,6 +467,8 @@ class CollectorTests(unittest.TestCase):
             argv = [record["binary"], "run-cell", cell, "--iters", "1", "--prepare-iters", "32", "--warmup", "0"]
             if cell in oracle:
                 child = {"cell": cell, "iters": 1, "input_wire_fingerprint": oracle[cell]["input_wire_fingerprint"]}
+                if current:
+                    child["input_wire_bytes"] = oracle[cell]["request_bytes"]
                 stderr = ("__QUALIFICATION__ " + json.dumps(oracle[cell]) + "\n__CHILD__ " + json.dumps(child) + "\n").encode()
                 process(relative, argv, stderr=stderr)
                 record["cells"][cell] = {"status": "qualified", "measurement_status": "captured", "network": oracle[cell], "preflight_process": relative}
@@ -357,7 +480,11 @@ class CollectorTests(unittest.TestCase):
         for name, profile, shape in batches:
             selected = [i for i in oracle if i.startswith(f"{AUDIT.PREFIX}{profile}.") and i.endswith("." + shape)]
             def row(cell):
-                return {"id": cell, **{metric: {"status": "measured", "data": {"value": 1}} for metric in (*AUDIT.PRIMARY, "wall_ns")}}
+                value = {"id": cell, **{metric: {"status": "measured", "data": {"value": 1}} for metric in (*AUDIT.PRIMARY, "wall_ns")}}
+                if current:
+                    value.update(input_wire_bytes=oracle[cell]["request_bytes"],
+                                 input_wire_fingerprint=oracle[cell]["input_wire_fingerprint"])
+                return value
             report = {"schema": "devloop/1", "devloop_commit": commit, "cells": [row(c) for c in selected]}
             filename = name + ".json"
             content = json.dumps(report).encode()
@@ -367,6 +494,23 @@ class CollectorTests(unittest.TestCase):
             record["reports"][name] = {"path": filename, "sha256": AUDIT.sha(content), "collector_process": relative, "raw_tool_records": {}}
         (directory / "measurement.json").write_text(json.dumps(record))
         return record
+
+    def test_current_full_archive_covers_all512_without_dropping_map_states(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            record = self.complete_archive(directory, current=True)
+            actual_git_file = functools.lru_cache(maxsize=None)(AUDIT.git_file)
+            def git_file(commit, path):
+                if path == record["inventory_path"]:
+                    return (directory / "inventory.json").read_bytes()
+                return actual_git_file(commit, path)
+            with patch.object(AUDIT, "git_file", side_effect=git_file), patch.object(AUDIT, "reconstruct"):
+                result = AUDIT.audit(directory)
+                self.assertEqual((result["registered"], result["network_qualified"], result["blocked"]), (512, 512, 0))
+                self.assertEqual(len(result["comparisons"]), 384)
+                record.pop("input_wire_bytes_required")
+                (directory / "measurement.json").write_text(json.dumps(record))
+                with self.assertRaises(AssertionError): AUDIT.audit(directory)
 
     def test_complete_inventory_and_provenance_audit_rejects_blocked_measurement_and_hidden_replay_loss(self):
         with tempfile.TemporaryDirectory() as temporary, \
