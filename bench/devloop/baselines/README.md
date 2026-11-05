@@ -1,6 +1,6 @@
 # dev-loop baselines (SB-04)
 
-This directory documents baseline policy for the deterministic dev-loop harness
+This directory documents baseline policy for the dev-loop harness
 (`../README.md`, schema `devloop/1`). It is for contributors reading local
 comparison files or the CI perf lane. CI compares base and head in
 one job, so committed machine-specific reports are not the source of truth.
@@ -9,11 +9,12 @@ If a hand-kept report is added, name it `devloop-<12-hex-sha>.json`.
 
 ## What CI compares
 
-The `dev-loop perf` workflow (`.github/workflows/perf.yml`) does **not** read
-committed files here. Each pull request (PR) job builds the base SHA and the
-head SHA in one Linux job, runs the full suite for both, and compares
-base-vs-head. Both sides share one host and one toolchain. Reports are kept as
-run artifacts for 180 days for SB-20 noise analysis across 30+ runs.
+The `dev-loop perf` workflow (`.github/workflows/perf.yml`) does not use a
+committed machine-specific baseline report. It builds the base and head SHA
+in one Linux job, runs the suite for both, and compares them. Both sides share
+one host and one toolchain. Reports are kept as run artifacts for 180 days for
+SB-20 noise analysis across 30+ runs. The workflow also reads `picker.json`
+for the absolute budgets below.
 
 The workflow is advisory and can upload error placeholders after a failed
 build. Count only reports with the required measured cells and valid source
@@ -34,14 +35,15 @@ scripts/devloop.sh --baseline bench/devloop/baselines/<file>.json --out /tmp/now
 
 ## Absolute budgets (CH-10)
 
-The one exception to "no committed numbers": `picker.json` pins absolute
-ceilings for metrics that are exact counts, identical on every host and
-toolchain — heap allocations and blocking lock waits per pick. A steady
-pick must do zero of both. Instructions and wall stay out: they are
-host-specific and gated relatively (base-vs-head). `compare --budget`
-checks the current report against these ceilings and fails on violation;
-`not_run` metrics skip, per policy. The perf lane passes this file on
-every run (see `.github/workflows/perf.yml`).
+`picker.json` pins zero ceilings for guarded heap allocations per pick and
+the child process's futex-family syscall rate. The allocation counter covers
+the timed pick loop. The futex rate covers the whole process, including
+startup, warmup, teardown, wakes and unsuccessful waits; it is not an exact
+count of blocking waits in the picker and can vary between runs and hosts.
+Investigate a nonzero rate before attributing it to a picker. Instructions
+and wall remain relative (base-vs-head). `compare --budget` fails when a
+measured value exceeds its ceiling; `not_run` metrics skip, per policy. The
+perf lane passes this file on every run (see `.github/workflows/perf.yml`).
 
 ## Minimal example cell
 

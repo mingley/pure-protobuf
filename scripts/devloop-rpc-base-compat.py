@@ -58,7 +58,7 @@ KNOWN_INPUT_BASES = {
 HEAD_RUNTIME_PREFIXES = {'bench/devloop/adoption/src/rpc.rs': '51908d997a073906a530b9f22ba1fe3efbd3c4c87fd0472aebc543d980c5f67a',
  'bench/devloop/adoption/src/workloads.rs': 'ef8ca0fbbaec80044cf96ea4ca8a9285cf781cf3413702f70099d84b4fc53730',
  'bench/devloop/src/adoption_rpc.rs': '787825f6c1c399112b24366c84d6d3c10394c8c3713a7f1a50a634a8a7181129',
- 'bench/devloop/src/main.rs': '031dd8209bd8f25fc878a29d5fc93f948c0742578fae52a2f1086b6960bcf799',
+ 'bench/devloop/src/main.rs': '3c83d8d08b7d85e1ddec7515f6347269cc776816bca83bcdb93b3719eb0cb08a',
  'bench/devloop/src/tonic_transport_rpc.rs': 'fba35f3a4bd81b3e0c28ba1a2369b36482fdcdc9838b263e368414852188915c'}
 INPUT_PATCH = Path(__file__).with_name("devloop-rpc-input-overlay.patch")
 

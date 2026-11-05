@@ -506,6 +506,16 @@ fn parameter_hex(value: &str) -> String {
     out
 }
 
+// Builder options share the plugin's comma-separated parameter format.
+// Encode both parts when either would be mistaken for a separator.
+fn attribute_parameter(key: &str, path: &str, attr: &str) -> String {
+    if path.contains([',', '=']) || attr.contains(',') {
+        format!("{key}_hex={}={}", parameter_hex(path), parameter_hex(attr))
+    } else {
+        format!("{key}={path}={attr}")
+    }
+}
+
 fn decode_parameter_hex(value: &str) -> Result<String, CodegenError> {
     let bad = || CodegenError::InvalidParameter {
         key: "type_name_domain_hex".to_owned(),
@@ -824,7 +834,15 @@ pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions,
             | "client_attribute"
             | "server_attribute"
             | "client_mod_attribute"
-            | "server_mod_attribute" => {
+            | "server_mod_attribute"
+            | "type_attribute_hex"
+            | "message_attribute_hex"
+            | "enum_attribute_hex"
+            | "field_attribute_hex"
+            | "client_attribute_hex"
+            | "server_attribute_hex"
+            | "client_mod_attribute_hex"
+            | "server_mod_attribute_hex" => {
                 let val_str = val.ok_or_else(|| CodegenError::InvalidParameter {
                     key: key.to_string(),
                     detail: format!("expected 'path=attribute' for '{key}'"),
@@ -838,6 +856,17 @@ pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions,
                                 "expected 'path=attribute' for '{key}', got '{val_str}'"
                             ),
                         })?;
+                let (path, attr) = if key.ends_with("_hex") {
+                    let decode = |value| {
+                        decode_parameter_hex(value).map_err(|_| CodegenError::InvalidParameter {
+                            key: key.to_string(),
+                            detail: "expected hexadecimal UTF-8 path and attribute".to_string(),
+                        })
+                    };
+                    (decode(path)?, decode(attr)?)
+                } else {
+                    (path.to_string(), attr.to_string())
+                };
                 let path = path.trim();
                 let attr = attr.trim();
                 if path.is_empty() || attr.is_empty() {
@@ -846,7 +875,7 @@ pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions,
                         detail: format!("invalid empty path or attribute in '{key}={val_str}'"),
                     });
                 }
-                match key {
+                match key.strip_suffix("_hex").unwrap_or(key) {
                     "type_attribute" => explicit
                         .type_attributes
                         .push((path.to_string(), attr.to_string())),
@@ -1052,9 +1081,123 @@ pub(crate) fn tonic_codec_path() -> String {
 }
 
 fn attr_path_matches(rule_path: &str, fq_path: &str) -> bool {
-    let rule = rule_path.trim_start_matches('.');
+    // A leading dot selects a fully qualified prefix; a relative path
+    // selects a suffix. Match whole protobuf name components only.
+    if rule_path == "." || rule_path == "*" {
+        return true;
+    }
     let fq = fq_path.trim_start_matches('.');
-    rule == "." || rule == "*" || rule == fq
+    if rule_path.is_empty() || fq.is_empty() {
+        return false;
+    }
+    if let Some(prefix) = rule_path.strip_prefix('.') {
+        fq == prefix
+            || fq
+                .strip_prefix(prefix)
+                .is_some_and(|rest| rest.starts_with('.'))
+    } else {
+        fq == rule_path
+            || fq
+                .strip_suffix(rule_path)
+                .is_some_and(|rest| rest.ends_with('.'))
+    }
+}
+
+#[cfg(test)]
+mod attribute_path_tests {
+    use super::{CodegenError, Config, attr_path_matches, parameter_hex, parse_plugin_parameter};
+
+    #[test]
+    fn attribute_paths_match_protobuf_components() {
+        let full = ".pkg.Outer.Inner.value";
+        for path in [
+            ".",
+            "*",
+            ".pkg",
+            ".pkg.Outer",
+            ".pkg.Outer.Inner.value",
+            "pkg.Outer.Inner.value",
+            "Outer.Inner.value",
+            "Inner.value",
+            "value",
+        ] {
+            assert!(attr_path_matches(path, full), "{path} should match {full}");
+        }
+        for path in [
+            "",
+            ".other",
+            ".pk",
+            ".pkg.Out",
+            ".pkg.Outer.Inner.values",
+            "Outer",
+            "pkg.Outer",
+            "ner.value",
+            "alue",
+        ] {
+            assert!(
+                !attr_path_matches(path, full),
+                "{path} must not match {full}"
+            );
+        }
+        assert!(attr_path_matches(".pkg.Outer", "pkg.Outer"));
+        assert!(!attr_path_matches(".pkg.Outer", "other.pkg.Outer"));
+    }
+
+    #[test]
+    fn attribute_parameters_round_trip_builder_and_plugin_values() {
+        let mut config = Config::new();
+        config
+            .type_attribute(".", "#[allow(dead_code, unused_variables)]")
+            .type_attribute(".pkg.Foo", "#[doc = \"ordinary\"]")
+            .type_attribute(".pkg.Foo", "#[doc = \"Unicode λ, 雪\"]")
+            .message_attribute(".pkg,odd=Name", "#[doc = \"message, λ\"]")
+            .enum_attribute(".pkg.Mode", "#[allow(dead_code, unused_variables)]")
+            .field_attribute("Foo.value", "#[doc = \"field, 雪\"]")
+            .client_attribute(".pkg.Service", "#[allow(dead_code, unused_variables)]")
+            .server_attribute(".pkg.Service", "#[doc = \"server, λ\"]");
+
+        let parameter = config.to_parameter_string();
+        assert!(parameter.contains("type_attribute_hex="));
+        assert!(parameter.contains("type_attribute=.pkg.Foo="));
+        let parsed = parse_plugin_parameter(&parameter).expect("builder attributes round trip");
+        assert_eq!(parsed.type_attributes, config.type_attributes);
+        assert_eq!(parsed.message_attributes, config.message_attributes);
+        assert_eq!(parsed.enum_attributes, config.enum_attributes);
+        assert_eq!(parsed.field_attributes, config.field_attributes);
+        assert_eq!(parsed.client_attributes, config.client_attributes);
+        assert_eq!(parsed.server_attributes, config.server_attributes);
+
+        let path = parameter_hex(".pkg.Service");
+        let attr = parameter_hex("#[doc = \"plugin, λ\"]");
+        let plugin = format!(
+            "client_mod_attribute_hex={path}={attr},server_mod_attribute_hex={path}={attr}"
+        );
+        let parsed = parse_plugin_parameter(&plugin).expect("encoded plugin aliases");
+        let expected = vec![(
+            ".pkg.Service".to_string(),
+            "#[doc = \"plugin, λ\"]".to_string(),
+        )];
+        assert_eq!(parsed.client_attributes, expected);
+        assert_eq!(parsed.server_attributes, expected);
+
+        for parameter in [
+            "type_attribute_hex=2=23",      // odd-length path
+            "message_attribute_hex=gg=23",  // non-hex path
+            "enum_attribute_hex=ff=23",     // invalid UTF-8 path
+            "field_attribute_hex=2e=ff",    // invalid UTF-8 attribute
+            "client_attribute_hex=2e",      // missing separator
+            "server_attribute_hex=2e=",     // empty attribute
+            "client_mod_attribute_hex==23", // empty path
+        ] {
+            assert!(
+                matches!(
+                    parse_plugin_parameter(parameter),
+                    Err(CodegenError::InvalidParameter { .. })
+                ),
+                "invalid encoded option must fail: {parameter}"
+            );
+        }
+    }
 }
 
 fn normalize_attr(attr: &str) -> String {
@@ -1091,8 +1234,15 @@ pub(crate) fn emit_enum_attributes(src: &mut String, fq_path: &str, indent: &str
     ENUM_ATTRIBUTES.with(|rules| emit_attr_lines(src, &rules.borrow(), fq_path, indent));
 }
 
-pub(crate) fn emit_field_attributes(src: &mut String, fq_path: &str, indent: &str) {
-    FIELD_ATTRIBUTES.with(|rules| emit_attr_lines(src, &rules.borrow(), fq_path, indent));
+pub(crate) fn has_field_attributes() -> bool {
+    FIELD_ATTRIBUTES.with(|rules| !rules.borrow().is_empty())
+}
+
+pub(crate) fn emit_field_attributes(src: &mut String, message: &str, field: &str, indent: &str) {
+    FIELD_ATTRIBUTES.with(|rules| {
+        let path = format!("{message}.{field}");
+        emit_attr_lines(src, &rules.borrow(), &path, indent);
+    });
 }
 
 pub(crate) fn emit_client_attributes(src: &mut String, fq_path: &str, indent: &str) {
@@ -1588,6 +1738,10 @@ impl Config {
     }
 
     /// Add a Rust attribute to all generated messages or enums matching `path`.
+    ///
+    /// A leading `.` matches a fully qualified protobuf name prefix, a relative
+    /// path matches a suffix, and `.` matches every name. Matching is on whole
+    /// name components. Repeated calls add attributes in their call order.
     pub fn type_attribute(
         &mut self,
         path: impl Into<String>,
@@ -1598,6 +1752,7 @@ impl Config {
     }
 
     /// Add a Rust attribute to generated messages matching `path`.
+    /// See [`Self::type_attribute`] for selector matching.
     pub fn message_attribute(
         &mut self,
         path: impl Into<String>,
@@ -1608,6 +1763,7 @@ impl Config {
     }
 
     /// Add a Rust attribute to generated enums matching `path`.
+    /// See [`Self::type_attribute`] for selector matching.
     pub fn enum_attribute(
         &mut self,
         path: impl Into<String>,
@@ -1617,7 +1773,9 @@ impl Config {
         self
     }
 
-    /// Add a Rust attribute to generated struct fields matching `path`.
+    /// Add a Rust attribute to generated storage fields matching `path`.
+    /// See [`Self::type_attribute`] for selector matching. pbrs fields are
+    /// private storage, including fields placed in a separate cold struct.
     pub fn field_attribute(
         &mut self,
         path: impl Into<String>,
@@ -1767,22 +1925,22 @@ impl Config {
             opts.push(format!("codec_path={codec}"));
         }
         for (path, attr) in &self.type_attributes {
-            opts.push(format!("type_attribute={path}={attr}"));
+            opts.push(attribute_parameter("type_attribute", path, attr));
         }
         for (path, attr) in &self.message_attributes {
-            opts.push(format!("message_attribute={path}={attr}"));
+            opts.push(attribute_parameter("message_attribute", path, attr));
         }
         for (path, attr) in &self.enum_attributes {
-            opts.push(format!("enum_attribute={path}={attr}"));
+            opts.push(attribute_parameter("enum_attribute", path, attr));
         }
         for (path, attr) in &self.field_attributes {
-            opts.push(format!("field_attribute={path}={attr}"));
+            opts.push(attribute_parameter("field_attribute", path, attr));
         }
         for (path, attr) in &self.client_attributes {
-            opts.push(format!("client_attribute={path}={attr}"));
+            opts.push(attribute_parameter("client_attribute", path, attr));
         }
         for (path, attr) in &self.server_attributes {
-            opts.push(format!("server_attribute={path}={attr}"));
+            opts.push(attribute_parameter("server_attribute", path, attr));
         }
         if let Some(si) = self.include_source_info {
             opts.push(format!("include_source_info={si}"));
@@ -2213,6 +2371,21 @@ mod owned_message_profile_tests {
             parse_plugin_parameter("owned_message_fields=perhaps"),
             Err(CodegenError::InvalidParameter { key, .. }) if key == "owned_message_fields"
         ));
+    }
+
+    #[test]
+    fn encoded_attribute_reaches_generated_plugin_output() {
+        let attribute = "#[doc = \"commas, quotes and λ\"]";
+        let parameter = format!(
+            "stubs=none,type_attribute_hex={}={}",
+            parameter_hex("."),
+            parameter_hex(attribute)
+        );
+        let files = crate::codegen::generate_from_code_generator_request(&request(&parameter))
+            .expect("generate with encoded plugin attribute");
+        let sources: Vec<_> = files.iter().filter(|(name, _)| name != "mod.rs").collect();
+        assert_eq!(sources.len(), 2);
+        assert!(sources.iter().all(|(_, source)| source.contains(attribute)));
     }
 
     #[test]

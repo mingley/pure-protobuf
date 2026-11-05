@@ -419,6 +419,125 @@ fn compile_protos_defaults_to_kernel_stubs() {
 }
 
 #[test]
+fn attribute_selectors_apply_to_hot_and_cold_fields() {
+    let tmp = test_temp_dir("attribute-selectors");
+    let proto = tmp.join("selectors.proto");
+    std::fs::write(
+        &proto,
+        r#"syntax = "proto3";
+package demo;
+message Packet {
+  int32 id = 1;
+  bytes payload = 2;
+  string note = 3;
+  Child nested = 4;
+}
+message Child { string note = 1; }
+message Other { int32 id = 1; string note = 2; }
+enum Mode { MODE_ZERO = 0; }
+"#,
+    )
+    .unwrap();
+
+    let out = tmp.join("out");
+    pbrs::codegen::Config::new()
+        .out_dir(&out)
+        .emit_kernel_stubs(false)
+        .emit_rerun_if_changed(false)
+        .type_attribute(".", "#[doc = \"all-types\"]")
+        .type_attribute(".demo.Packet", "#[doc = \"packet-type\"]")
+        .type_attribute("Child", "#[doc = \"child-type\"]")
+        .message_attribute(".demo", "#[doc = \"package-message\"]")
+        .enum_attribute("Mode", "#[doc = \"enum-suffix\"]")
+        .field_attribute(".", "#[doc = \"all-fields\"]")
+        .field_attribute(".demo.Packet", "#[doc = \"packet-fields\"]")
+        .field_attribute("note", "#[doc = \"note-field\"]")
+        .field_attribute("Packet.payload", "#[doc = \"payload-field\"]")
+        .field_attribute("Packet.payload", "#[allow(dead_code, unused_variables)]")
+        .field_attribute(".dem", "#[doc = \"wrong-prefix\"]")
+        .field_attribute("ote", "#[doc = \"wrong-suffix\"]")
+        .compile_protos(&[&proto], &[&tmp])
+        .expect("generate selected attributes");
+
+    let generated = std::fs::read_to_string(out.join("selectors.rs")).unwrap();
+    assert!(generated.contains(
+        "#[doc = \"all-types\"]\n#[doc = \"packet-type\"]\n#[doc = \"package-message\"]\n#[derive(Clone, Debug)]\npub struct Packet"
+    ));
+    assert!(generated.contains(
+        "#[doc = \"all-types\"]\n#[doc = \"child-type\"]\n#[doc = \"package-message\"]\n#[derive(Clone, Debug)]\npub struct Child"
+    ));
+    assert!(
+        generated
+            .contains("#[doc = \"all-types\"]\n#[doc = \"enum-suffix\"]\n#[repr(transparent)]")
+    );
+    assert!(
+        generated
+            .contains("    #[doc = \"all-fields\"]\n    #[doc = \"packet-fields\"]\n    id: i32,")
+    );
+    assert!(generated.contains("struct PacketCold {"));
+    assert!(generated.contains(
+        "    #[doc = \"all-fields\"]\n    #[doc = \"packet-fields\"]\n    #[doc = \"payload-field\"]\n    #[allow(dead_code, unused_variables)]\n    payload: pbrs::rt::LazyBytes,"
+    ));
+    assert!(generated.contains(
+        "    #[doc = \"all-fields\"]\n    #[doc = \"packet-fields\"]\n    #[doc = \"note-field\"]\n    note: pbrs::rt::LazyStr,"
+    ));
+    assert!(generated.contains(
+        "    #[doc = \"all-fields\"]\n    #[doc = \"note-field\"]\n    note: pbrs::rt::LazyStr,"
+    ));
+    assert!(!generated.contains("wrong-prefix"));
+    assert!(!generated.contains("wrong-suffix"));
+
+    let descriptor = tmp.join("selectors.fds");
+    write_descriptor_set(&descriptor, &[&proto], &[&tmp], false);
+    let descriptor_out = tmp.join("descriptor-out");
+    pbrs::codegen::Config::new()
+        .out_dir(&descriptor_out)
+        .emit_kernel_stubs(false)
+        .emit_rerun_if_changed(false)
+        .field_attribute("Packet.payload", "#[allow(dead_code, unused_variables)]")
+        .compile_descriptor_set(&descriptor, &["selectors.proto"], &[&tmp])
+        .expect("generate comma-containing attribute from descriptor set");
+    let descriptor_generated =
+        std::fs::read_to_string(descriptor_out.join("selectors.rs")).unwrap();
+    assert!(
+        descriptor_generated.contains(
+            "    #[allow(dead_code, unused_variables)]\n    payload: pbrs::rt::LazyBytes,"
+        )
+    );
+
+    std::fs::create_dir_all(tmp.join("src")).unwrap();
+    std::fs::write(
+        tmp.join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"pbrs-attribute-selectors\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{}\" }}\n",
+            repo_root().display()
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        tmp.join("src/main.rs"),
+        r#"include!(concat!(env!("CARGO_MANIFEST_DIR"), "/out/selectors.rs"));
+fn main() {
+    let wire = [0x08, 7, 0x12, 2, 1, 2, 0x1a, 1, b'x', 0x22, 3, 0x0a, 1, b'n'];
+    let message = <Packet as pbrs::Parse>::parse(&wire).unwrap();
+    assert_eq!(message.id(), 7);
+    assert_eq!(message.payload(), [1, 2]);
+    assert_eq!(message.note(), "x");
+    assert_eq!(message.nested().note(), "n");
+    assert_eq!(pbrs::Serialize::serialize(&message).unwrap(), wire);
+}
+"#,
+    )
+    .unwrap();
+    let result = cargo_run(&tmp, None, true);
+    assert!(
+        result.status.success(),
+        "generated consumer failed: {}",
+        dump(&result)
+    );
+}
+
+#[test]
 fn builder_option_parity_controls_output_and_protoc() {
     let tmp = test_temp_dir("builder-option-parity");
     let proto = tmp.join("options.proto");

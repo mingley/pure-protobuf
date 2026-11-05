@@ -121,7 +121,12 @@ jobs:
           ln -s "$GITHUB_WORKSPACE/third_party/protobuf" \
             "$RUNNER_TEMP/devloop-base/third_party/protobuf"
 
+      - name: Check benchmark comparison diagnostics
+        id: diagnostics
+        run: cargo test --locked --manifest-path bench/devloop/Cargo.toml --test comparison_diagnostics
+
       - name: Use instruction counters only when available
+        id: counters
         run: |
           sudo sysctl -w kernel.perf_event_paranoid=-1 || true
           if command -v perf >/dev/null 2>&1; then
@@ -134,7 +139,7 @@ jobs:
           fi
 
       - name: Measure base
-        if: ${{ !cancelled() && steps.revisions.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.revisions.outcome == 'success' && steps.diagnostics.outcome == 'success' && steps.counters.outcome == 'success' }}
         continue-on-error: true
         env:
           BASE_SHA: ${{ steps.revisions.outputs.base_sha }}
@@ -149,7 +154,7 @@ jobs:
             --out "$GITHUB_WORKSPACE/perf-artifacts/base.json" \
             2>&1 | tee "$GITHUB_WORKSPACE/perf-artifacts/base.log"
       - name: Measure head
-        if: ${{ !cancelled() && steps.revisions.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.revisions.outcome == 'success' && steps.diagnostics.outcome == 'success' && steps.counters.outcome == 'success' }}
         continue-on-error: true
         env:
           HEAD_SHA: ${{ steps.revisions.outputs.head_sha }}
@@ -162,7 +167,7 @@ jobs:
 
       - name: Verify measurement evidence
         id: evidence
-        if: ${{ !cancelled() && steps.revisions.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.revisions.outcome == 'success' && steps.diagnostics.outcome == 'success' && steps.counters.outcome == 'success' }}
         env:
           BASE_SHA: ${{ steps.revisions.outputs.base_sha }}
           HEAD_SHA: ${{ steps.revisions.outputs.head_sha }}

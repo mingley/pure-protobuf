@@ -21,7 +21,15 @@ fn main() {
         let mut rest = source.as_str();
         let mut inserted = 0;
         while let Some(start) = rest.find(needle) {
-            let brace = start + rest[start..].find('{').unwrap() + 1;
+            // Recursive slice validators call a local helper instead of
+            // re-entering the public wrapper for each descendant. Count that
+            // helper instead, so the counter still tracks validation work.
+            let end = start + rest[start..].find("    pub fn compute_size(").unwrap();
+            let helper = rest[start..end]
+                .find("fn __pbrs_validate_self(")
+                .map(|offset| start + offset);
+            let target = helper.unwrap_or(start);
+            let brace = target + rest[target..].find('{').unwrap() + 1;
             result.push_str(&rest[..brace]);
             result.push_str(" crate::GENERATED_VALIDATIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed); ");
             rest = &rest[brace..];

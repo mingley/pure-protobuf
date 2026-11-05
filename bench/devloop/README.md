@@ -1,8 +1,8 @@
-# devloop: deterministic dev-loop measurement harness (SB-03)
+# devloop: local performance measurement harness (SB-03)
 
-`devloop` is an excluded standalone crate for quick, deterministic local
-performance checks. It measures codec operations and loopback remote procedure
-call (RPC) shapes; the usual command is
+`devloop` is an excluded standalone crate for quick local performance checks
+with repeatable inputs. It measures codec operations and loopback remote
+procedure call (RPC) shapes; the usual command is
 `scripts/devloop.sh --out /tmp/now.json`. Read the JSON by cell: measured
 metrics compare against thresholds, while `not_run` metrics are skipped.
 
@@ -93,9 +93,11 @@ counts, metric units and finite values before interpreting a comparison.
 Counter parsers require the tool's actual output format; a present executable
 does not prove a usable counter. Missing or malformed output stays `not_run`,
 including partial-repeat measurements. The legacy `locks` JSON field counts
-futex-family syscalls, including wakes and unsuccessful waits, not blocking
-lock acquisitions. Its corrected unit is deliberately incompatible with older
-reports labeled as blocking waits; do not mix those series.
+futex-family syscalls for the whole child process, divided by its iteration
+count. This includes wakes, unsuccessful waits and setup/teardown overhead;
+it does not isolate blocking waits or picker activity. Its corrected unit is
+deliberately incompatible with older reports labeled as blocking waits; do not
+mix those series.
 
 ## Cell families
 

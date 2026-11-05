@@ -39,8 +39,16 @@ python3 scripts/grpc-load-smoke.py \
 
 Read `report.json` first, then the failing cell's `run.json` and endpoint logs.
 The harness checks terminal RPC counts and records the source and binary hashes.
-Allocation counters change the executable's cost: use a separate build without
-`allocation-counts` for CPU and latency measurements.
+This example runs 320 cells: four client profiles, four server profiles, five
+call shapes, plaintext/TLS and identity/gzip. Each cell attempts 20 RPCs with a
+60-second load-generation limit; the full run can take several minutes. An
+interrupted run keeps `manifest.json` and completed cell files; `report.json`
+is written when the matrix finishes.
+
+The builder above always enables allocation counters. Omitting the runner's
+`--allocation-counts` flag does not remove that instrumentation from the binary.
+Use a separate build without the feature for CPU and latency diagnostics. The
+source-pinned builder does not currently produce a build record for that binary.
 
 The [RPC harness guide](../../rpc-bench/README.md) covers all call shapes,
 compression, TLS, open-loop arrivals and independent peers. For noise payloads,

@@ -19,17 +19,22 @@ Build two binaries so allocation counters do not affect CPU measurements:
 
 ```sh
 mkdir -p work/codec-proof
-cargo build --locked --release --manifest-path tests/proof/codec_benchmark/Cargo.toml
-cp target/release/pbrs-codec-proof work/codec-proof/shipping
-cargo build --locked --release --features allocations --manifest-path tests/proof/codec_benchmark/Cargo.toml
-cp target/release/pbrs-codec-proof work/codec-proof/allocations
+codec_run=$(mktemp -d "$PWD/work/codec-proof/run.XXXXXX")
+codec_target=${CARGO_TARGET_DIR:-"$PWD/tests/proof/codec_benchmark/target"}
+CARGO_TARGET_DIR="$codec_target" cargo build --locked --release --manifest-path tests/proof/codec_benchmark/Cargo.toml
+cp "$codec_target/release/pbrs-codec-proof" "$codec_run/shipping"
+CARGO_TARGET_DIR="$codec_target" cargo build --locked --release --features allocations --manifest-path tests/proof/codec_benchmark/Cargo.toml
+cp "$codec_target/release/pbrs-codec-proof" "$codec_run/allocations"
 python3 tests/proof/codec_benchmark/measure.py \
-  --shipping work/codec-proof/shipping \
-  --allocations work/codec-proof/allocations \
-  --output work/codec-proof/results
+  --shipping "$codec_run/shipping" \
+  --allocations "$codec_run/allocations" \
+  --output "$codec_run/results"
 ```
 
-If `CARGO_TARGET_DIR` is set, copy from that directory instead of `target`.
+The benchmark is a standalone Cargo workspace, so its default target directory
+is `tests/proof/codec_benchmark/target`. The commands use that directory unless
+`CARGO_TARGET_DIR` is already set.
+Each run gets a new directory, so its binaries and results remain together.
 `protoc` and a stable Rust toolchain must be on `PATH`. Keep the source fixed
 while building both binaries, and save its revision and file hashes with the
 results.

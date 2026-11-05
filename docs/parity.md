@@ -42,8 +42,15 @@ balance helpers reject per-endpoint executors.
 Code generation supports `enable_type_names`, `type_name_domain` and
 `retain_enum_prefix`, with configured behavior checked against Prost. Shared
 well-known `Any` messages support typed `from_msg` and `to_msg` conversion.
+Attribute selectors support global, qualified-prefix and relative-suffix
+matching, including fields placed in cold storage. A generated-code control
+compares 13 field selectors with Prost 0.14.4; see the
+[codegen guide](guides/codegen.md) for the pbrs storage limits.
 Three configuration probes still reproduce representation/customization gaps:
 `btree_map`, `bytes` and `boxed`. These are distinct from wire-format failures.
+For ordered maps, nested lazy messages can forward their original wire bytes;
+support must account for that path across separately generated crates as well
+as provide ordered storage.
 The alloc-only runtime also remains unsupported. HTTP/1.1 gRPC-Web is available
 through the documented Tower/Hyper recipe.
 

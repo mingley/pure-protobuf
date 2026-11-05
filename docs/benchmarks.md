@@ -5,10 +5,13 @@
 
 | Read | Scope |
 |---|---|
+| [Recursive validation](#recursive-validation-november-4) | Selected protobuf parse and read CPU, November 3–4 |
+| [Send-buffer RPC diagnostic](#send-buffer-rpc-diagnostics-november-3) | Selected endpoint CPU comparisons, November 3 |
 | [Latest buffer loop](#buffer-chunk-ownership-november-2) | Isolated ownership operations, November 2 |
 | [Current codec and generator record](evidence/runtime-and-codegen-20261029/README.md) | Combined measurements and remaining losses, October 29 |
 | [RPC endpoint results](#correctness-and-rejected-candidates-october-28) | Complete earlier transport comparison, October 28 |
 | [Benchmark input checks](#benchmark-input-checks-november-2) | Canonical input identity and qualification |
+| [Borrowed-map lookup experiment](evidence/rejected-map-lookups-20261103/README.md) | Rejected lookup candidates, November 3 |
 | [Rejected candidates](evidence/rejected-runtime-candidates-20261030/README.md) | Unselected repeated-field and map experiments |
 | [Earlier codec and codegen](#codec-and-codegen-comparisons) | Earlier comparisons and their recorded sources |
 
@@ -16,9 +19,64 @@ The [October 29 runtime and codegen record](evidence/runtime-and-codegen-2026102
 measures `0a770792` against the prior implementation and fresh Prost controls.
 Descriptor literals reduce measured generated source size; combined codec
 results include gains and losses. Consumer rebuild and generation timings
-cover different scopes. No new full RPC campaign ran; the October 28 transport
-comparisons retain their source and losses. Winning every benchmark, complete
+cover different scopes. No full RPC campaign accompanied that record; the
+October 28 transport comparisons retain their source and losses. The newer RPC
+diagnostic below covers selected workloads. Winning every benchmark, complete
 feature parity and an overall ranking remain unproven.
+
+## Recursive validation, November 4
+
+Generated validators for a narrow class of self-recursive messages now use
+borrowed byte slices for their recursive checks. The [full record](evidence/borrowed-recursive-validation-20261104/README.md)
+retains the source overlay, correctness controls and all paired measurements.
+The measured snapshot predates the separate attribute-selector changes.
+
+| Nine-pair focused holdout | New / old CPU | New / Prost CPU |
+|---|---:|---:|
+| Depth-8 parse | 0.798 (range 0.767–0.808) | 0.609 (0.582–0.646) |
+| Depth-64 parse | 0.693 (0.674–0.711) | 0.289 (0.277–0.299) |
+| Depth-8 parse and full read | 0.924 (0.897–0.951) | 2.374 (2.309–2.444) |
+| Depth-64 parse and full read | 0.934 (0.917–0.962) | 2.014 (1.915–2.051) |
+
+Lower is faster. The results are paired median CPU ratios on one shared host;
+ranges include all nine pairs. Earlier screens ran before an environment
+restart. An earlier seven-pair mixed-read screen had a 1.030 new/old median;
+the later nine-pair mixed-read result was 1.004 (0.918–1.034). The controls
+do not establish absence of a regression. Full recursive reads remain slower
+than Prost in these cases. The record does not establish RPC performance or an
+overall ranking.
+
+The [November 3 borrowed-map experiment](evidence/rejected-map-lookups-20261103/README.md)
+removed allocations from indexed long-string lookups, but its final candidate
+slowed a small duplicate-key lookup by 5.2% in the nine-pair holdout. It was
+rejected; map construction and index creation were outside that measurement.
+
+## Send-buffer RPC diagnostics, November 3
+
+Two source-pinned release builds compared the chunk sender before and after
+`Bytes::split_to`. Both transports used Prost messages. The initial three-pair
+screen covered 64 KiB and 8 MiB unary messages; a five-pair follow-up covered
+8 MiB. All 132 captures completed, accounting for 109,800 calls. The
+[full record](evidence/send-buffer-rpc-20261103/README.md) keeps every run,
+source and build record, control and CPU slope.
+
+| 8 MiB endpoint, five-pair follow-up | New / old native CPU | New native / tonic CPU |
+|---|---:|---:|
+| Client | 0.777 (range 0.663–1.201) | 0.906 (0.782–1.808) |
+| Server | 0.923 (0.763–1.043) | 1.021 (0.905–2.056) |
+
+Ratios are medians of paired N/2N slopes; ranges show all five pairs. Lower
+CPU ratios are better. The first 8 MiB screen gave a 1.389 new/old client
+median, and a 64 KiB server control had a nonpositive slope, so its ratios were
+omitted. Tonic-only controls also varied widely. The runs are inconclusive
+about an RPC speedup.
+
+The diagnostic used one shared host, plaintext, identity compression,
+zero-filled payloads and one RPC in flight. Payload checks cover length, not
+every byte. Client CPU includes process startup; both endpoint windows include
+connection work. The binaries were compiled separately, and the compiler
+version was not recorded at build time. These results do not establish latency,
+throughput, an overall ranking or production qualification.
 
 ## Buffer chunk ownership, November 2
 
@@ -31,8 +89,8 @@ keeps all five pairs per case and the separate whole-process CPU observations.
 
 This times shared-buffer ownership with immediate fragment drops on one shared
 host. It excludes fresh-buffer setup, HTTP/2 enqueueing, flow control, sockets
-and TLS. It adds no end-to-end RPC CPU, latency or throughput result and has no
-tonic or Prost control. Earlier RPC losses retain their recorded scope.
+and TLS. The screen does not measure RPC CPU, latency or throughput and has no
+tonic or Prost control. The later RPC diagnostic above has its own limits.
 
 ## Benchmark input checks, November 2
 

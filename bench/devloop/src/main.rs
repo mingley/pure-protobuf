@@ -105,11 +105,59 @@ impl Drop for AllocGuard {
 }
 
 /// One metric value: measured, or explicitly not run with a reason.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(tag = "status", content = "data", rename_all = "snake_case")]
 enum Metric {
     Measured { value: f64, unit: String },
     NotRun { reason: String },
+}
+
+impl<'de> Deserialize<'de> for Metric {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct RawMetric {
+            status: String,
+            data: Box<serde_json::value::RawValue>,
+        }
+
+        #[derive(Deserialize)]
+        struct Measured {
+            value: f64,
+            unit: String,
+        }
+
+        #[derive(Deserialize)]
+        struct NotRun {
+            reason: String,
+        }
+
+        // With serde_json's arbitrary_precision feature, buffering a
+        // data-before-status enum as generic Serde content represents JSON
+        // numbers as maps. Defer just the payload and parse it with the
+        // selected typed variant, preserving duplicate-field validation.
+        let raw = RawMetric::deserialize(deserializer)?;
+        match raw.status.as_str() {
+            "measured" => {
+                let data: Measured =
+                    serde_json::from_str(raw.data.get()).map_err(serde::de::Error::custom)?;
+                Ok(Self::Measured {
+                    value: data.value,
+                    unit: data.unit,
+                })
+            }
+            "not_run" => {
+                let data: NotRun =
+                    serde_json::from_str(raw.data.get()).map_err(serde::de::Error::custom)?;
+                Ok(Self::NotRun {
+                    reason: data.reason,
+                })
+            }
+            _ => Err(serde::de::Error::unknown_variant(
+                &raw.status,
+                &["measured", "not_run"],
+            )),
+        }
+    }
 }
 
 impl Metric {
@@ -150,9 +198,9 @@ struct CellResult {
     allocs: Metric,
     alloc_bytes: Metric,
     syscalls: Metric,
-    /// Blocking lock waits (futex) per op. Uncontended acquisitions are
-    /// pure atomics and land in `instructions`; a hot path must never
-    /// block. Missing on reports predating the metric.
+    /// Futex-family syscalls per op, counted for the whole child process.
+    /// Includes wakes, unsuccessful waits, and setup/teardown overhead;
+    /// it does not isolate blocking waits or lock acquisitions.
     #[serde(default = "metric_predates_locks")]
     locks: Metric,
     wall_ns: Metric,
@@ -1281,10 +1329,10 @@ fn lb_ready_addrs() -> Vec<pbrs_grpc::resolver::ResolvedAddress> {
 /// Steady-state pick cost for one policy (CH-10 harness).
 ///
 /// The policy is preloaded to its ready steady state outside the guard;
-/// the loop measures one `pick()` per op: allocations (must be zero),
-/// instructions, and blocking lock waits. A `current_thread` runtime
-/// keeps worker-park futexes out of the locks metric. CH-11 adds the
-/// remaining policies by constructing theirs here.
+/// the loop measures one `pick()` per op: allocations (must be zero)
+/// and instructions. The separately collected futex metric covers the
+/// whole child process; a current-thread runtime reduces worker parking
+/// but does not remove process setup and teardown from that count.
 async fn lb_pick_first_pick(iters: u64) -> u64 {
     use pbrs_grpc::lb::{Pick, PickFirst};
     use pbrs_grpc::resolver::ResolvedAddress;
@@ -2310,7 +2358,7 @@ fn compare_reports(baseline: &Report, current: &Report, rpc: bool) -> bool {
             };
             if regressed {
                 println!(
-                    "{} {name}: REGRESSED {o:.1} -> {n:.1} ({:+.2}%, limit {:.0}%)",
+                    "{} {name}: REGRESSED {o:e} -> {n:e} ({:+.2}%, limit {:.0}%)",
                     cell.id,
                     delta * 100.0,
                     limit * 100.0
@@ -2318,7 +2366,7 @@ fn compare_reports(baseline: &Report, current: &Report, rpc: bool) -> bool {
                 ok = false;
             } else if improved && delta.abs() >= 0.02 {
                 println!(
-                    "{} {name}: improved {o:.1} -> {n:.1} ({:+.2}%)",
+                    "{} {name}: improved {o:e} -> {n:e} ({:+.2}%)",
                     cell.id,
                     delta * 100.0
                 );
@@ -2525,12 +2573,12 @@ fn cmd_compare(args: &[String]) {
     }
 }
 
-/// Absolute per-cell budgets for deterministic metrics (CH-10).
+/// Absolute per-cell budgets (CH-10).
 ///
-/// Unlike base-vs-head comparison, budgets pin exact ceilings that hold
-/// on every host: allocations and blocking lock waits per op. Only
-/// deterministic counts belong here; instructions and wall stay relative
-/// (see `baselines/README.md`). `not_run` metrics skip, per policy.
+/// Unlike base-vs-head comparison, budgets set explicit ceilings for
+/// allocation counts and the process-wide futex syscall rate. The latter
+/// includes overhead and is not a count of blocking waits. Instructions
+/// and wall stay relative (see `baselines/README.md`). `not_run` skips.
 #[derive(Debug, serde::Deserialize)]
 struct BudgetFile {
     schema: String,
@@ -2565,7 +2613,7 @@ fn check_budgets(path: &str, current: &Report) -> bool {
             };
             if value > ceiling {
                 println!(
-                    "{} {name}: BUDGET EXCEEDED {value:.1} > {ceiling:.1}",
+                    "{} {name}: BUDGET EXCEEDED {value:e} > {ceiling:e}",
                     cell.id,
                 );
                 ok = false;
@@ -2603,9 +2651,24 @@ fn main() {
 #[cfg(test)]
 mod input_tests {
     use super::{
-        ChildOutput, Duration, Report, assert_adoption_input, assert_rpc_input_bytes, child_json,
-        child_json_with_input_bytes, compare_reports,
+        ChildOutput, Duration, Metric, Report, assert_adoption_input, assert_rpc_input_bytes,
+        child_json, child_json_with_input_bytes, compare_reports,
     };
+
+    #[test]
+    fn measured_metric_deserializes_from_value_with_tiny_numbers() {
+        for number in [0.0, 0.000_001, f64::from_bits(1), 1.0 + f64::EPSILON] {
+            let value = serde_json::json!({"data": {"value": number, "unit": "per op"}, "status": "measured"});
+            let metric: Metric = serde_json::from_value(value).unwrap();
+            match metric {
+                Metric::Measured { value, unit } => {
+                    assert_eq!(value.to_bits(), number.to_bits());
+                    assert_eq!(unit, "per op");
+                }
+                Metric::NotRun { .. } => panic!("measured metric became not_run"),
+            }
+        }
+    }
 
     fn report(fingerprint: Option<&str>) -> Report {
         let metric = serde_json::json!({"status": "not_run", "data": {"reason": "test"}});

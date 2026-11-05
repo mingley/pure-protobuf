@@ -33,6 +33,6 @@
       "locks": 0
     }
   },
-  "note": "Absolute per-pick ceilings for deterministic metrics (CH-10, qualified across all policies in CH-11). A steady-state pick must allocate nothing and never block on a lock; uncontended acquisitions are pure atomics covered by the relative instructions budget (base-vs-head compare). Only deterministic counts belong here: instructions and wall stay relative per baselines/README.md.",
+  "note": "Zero ceilings for guarded allocations per pick and the child process's futex-family syscall rate. The futex count includes setup, teardown, wakes and unsuccessful waits; it does not isolate blocking or picker activity. Instructions and wall stay relative; see baselines/README.md.",
   "schema": "devloop-budget/1"
 }

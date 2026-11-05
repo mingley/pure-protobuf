@@ -37,6 +37,12 @@ the same wire values. A fresh
 default request must reset prefix retention and omit the optional `Name` impl;
 setting a domain alone must not enable that impl.
 
+Thirteen field-attribute selectors are also generated with both pbrs and
+prost-build. The check compares selected protobuf fields for the global path,
+fully qualified prefixes, relative suffixes and component-boundary nonmatches.
+One message places its non-scalar fields in pbrs's cold storage. This checks
+attribute placement, not the compatibility of all Rust attributes or layouts.
+
 Three small pbrs consumers still reproduce absent `btree_map`, `bytes` and
 `boxed` build methods. These are API and representation customization gaps.
 pbrs provides its own map and byte storage; an absent method does not establish

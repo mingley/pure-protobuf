@@ -7,6 +7,8 @@ use std::borrow::Cow;
 pub(crate) fn emit_zeroed_fields_struct<'a>(
     src: &mut String,
     name: &str,
+    message: &str,
+    field_attributes: bool,
     fields: impl Iterator<Item = &'a FieldDescriptor>,
 ) {
     if skip_debug() {
@@ -16,6 +18,9 @@ pub(crate) fn emit_zeroed_fields_struct<'a>(
     }
     let _ = writeln!(src, "struct {name} {{");
     for f in fields {
+        if field_attributes {
+            emit_field_attributes(src, message, &f.name, "    ");
+        }
         let _ = writeln!(src, "    {}: {},", field_id(f), field_storage_ty(f));
     }
     let _ = writeln!(src, "}}");
@@ -511,10 +516,13 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
     let cold_name = format!("{name}Cold");
     let cold = ColdPlacement::for_message(desc);
     let use_cold = cold.uses_cold_storage();
+    let field_attributes = has_field_attributes();
     if use_cold {
         emit_zeroed_fields_struct(
             src,
             &cold_name,
+            &desc.full_name,
+            field_attributes,
             desc.fields.values().filter(|f| cold.stored_cold(f)),
         );
     }
@@ -538,8 +546,9 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
     let _ = writeln!(src, "pub struct {name} {{");
     for f in desc.fields.values().filter(|f| cold.stored_hot(f)) {
         emit_doc_comments(src, &f.comments, "    ");
-        let field_path = format!("{}.{}", desc.full_name, f.name);
-        emit_field_attributes(src, &field_path, "    ");
+        if field_attributes {
+            emit_field_attributes(src, &desc.full_name, &f.name, "    ");
+        }
         let _ = writeln!(src, "    {}: {},", field_id(f), field_storage_ty(f));
     }
     if use_cold {

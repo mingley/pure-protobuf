@@ -12,10 +12,11 @@ cargo clippy --locked --offline --manifest-path tests/proof/validated_lazy/Cargo
 Rust and `protoc` must be available. The lockfile pins the reference generator
 and runtime. Dependencies must be cached before using `--offline`.
 
-The build adds an atomic counter at every generated `validate_inner` entry.
-This changes only the proof's generated source, leaving each validator body
-unchanged. A 64-node parse must call 63 child validators; subsequent getters
-must call none. These counters never appear in shipping benchmark binaries.
+The build adds an atomic counter to generated validation entry points. For
+self-recursive borrowed-slice validators, it instruments the local recursive
+helper; for other messages, it instruments `validate_inner`. A 64-node parse
+must validate 63 children; subsequent getters must validate none. These
+counters never appear in shipping benchmark binaries.
 
 A separate allocator probe checks that the first child getter constructs one
 immediate child, rather than eagerly constructing the remaining tree. Its
@@ -34,6 +35,8 @@ Additional controls cover:
 - Repeated, map and group descendants, required-field merging and oneof
   replacement. Ordinary collection helper fallback validation is recorded;
   this consumer does not assert that every collection path avoids revalidation.
+- Self-recursive oneof and repeated children, valid and malformed unknown
+  groups, UTF-8 and recursion boundaries using borrowed and shared inputs.
 - Old `MergeBytes` implementations that use the default checked fallback, new
   opt-in dispatch, and legacy constructor isolation.
 

@@ -388,6 +388,122 @@ fn collections_and_required() {
     );
 }
 
+fn recursive_self_shapes() {
+    let name_collision_wire = bytes(1, &scalar(3, 42));
+    let name_collision = strict::StrictNode::parse(&name_collision_wire).unwrap();
+    assert_eq!(name_collision.child().__pbrs_validate_self(), 42);
+    let replaced = [
+        bytes(1, &bytes(2, b"old")),
+        bytes(2, b"replacement"),
+        bytes(1, &bytes(2, b"new")),
+    ]
+    .concat();
+    let choice_wire = bytes(1, &replaced);
+    let choices = [
+        strict::RecursiveChoice::parse(&choice_wire),
+        strict::RecursiveChoice::parse_bytes(pbrs::rt::Bytes::copy_from_slice(&choice_wire)),
+    ];
+    for choice in choices {
+        let choice = choice.unwrap();
+        assert!(choice.nested().has_nested());
+        assert_eq!(choice.nested().nested().text().as_bytes(), b"new");
+        assert_eq!(
+            strict_reference::RecursiveChoice::decode(choice_wire.as_slice()).unwrap(),
+            strict_reference::RecursiveChoice::decode(choice.serialize().unwrap().as_slice())
+                .unwrap()
+        );
+    }
+
+    let children = [
+        scalar(3, 1),
+        bytes(2, &scalar(3, 2)),
+        bytes(2, &bytes(1, &scalar(3, 3))),
+    ]
+    .concat();
+    let sequence_wire = bytes(1, &children);
+    let sequences = [
+        strict::RecursiveSequence::parse(&sequence_wire),
+        strict::RecursiveSequence::parse_bytes(pbrs::rt::Bytes::copy_from_slice(&sequence_wire)),
+    ];
+    for sequence in sequences {
+        let sequence = sequence.unwrap();
+        let child = sequence.child();
+        assert_eq!(child.n(), 1);
+        assert_eq!(child.children().len(), 2);
+        assert_eq!(child.children().get(0).unwrap().n(), 2);
+        assert_eq!(child.children().get(1).unwrap().child().n(), 3);
+        assert_eq!(
+            strict_reference::RecursiveSequence::decode(sequence_wire.as_slice()).unwrap(),
+            strict_reference::RecursiveSequence::decode(sequence.serialize().unwrap().as_slice())
+                .unwrap()
+        );
+    }
+
+    let group = [0x3b, 0x40, 0x01, 0x3c];
+    let bad_group = [0x3b, 0x40, 0x01, 0x44];
+    for (body, valid) in [(&group[..], true), (&bad_group[..], false)] {
+        let wire = bytes(1, &bytes(1, body));
+        assert_eq!(strict::RecursiveChoice::parse(&wire).is_ok(), valid);
+        assert_eq!(
+            strict::RecursiveChoice::parse_bytes(pbrs::rt::Bytes::copy_from_slice(&wire)).is_ok(),
+            valid
+        );
+        let wire = bytes(1, &bytes(2, body));
+        assert_eq!(strict::RecursiveSequence::parse(&wire).is_ok(), valid);
+        assert_eq!(
+            strict::RecursiveSequence::parse_bytes(pbrs::rt::Bytes::copy_from_slice(&wire)).is_ok(),
+            valid
+        );
+    }
+    let invalid_utf8 = bytes(1, &bytes(2, &[0xff]));
+    assert!(strict::RecursiveChoice::parse(&invalid_utf8).is_err());
+    assert!(
+        strict::RecursiveChoice::parse_bytes(pbrs::rt::Bytes::copy_from_slice(&invalid_utf8))
+            .is_err()
+    );
+
+    for depth in [0, 1, 98, 99, 100, 101] {
+        let mut reference = bytes(2, b"leaf");
+        let mut sequence = scalar(3, 7);
+        for _ in 0..depth {
+            reference = bytes(1, &reference);
+            sequence = bytes(2, &sequence);
+        }
+        reference = bytes(1, &reference);
+        sequence = bytes(1, &sequence);
+        let expected = strict::StrictNode::parse(&reference).is_ok();
+        assert_eq!(
+            strict::StrictNode::parse_bytes(pbrs::rt::Bytes::copy_from_slice(&reference)).is_ok(),
+            expected
+        );
+        assert_eq!(
+            strict::RecursiveChoice::parse(&reference).is_ok(),
+            expected,
+            "oneof depth {depth}"
+        );
+        assert_eq!(
+            strict::RecursiveChoice::parse_bytes(pbrs::rt::Bytes::copy_from_slice(&reference))
+                .is_ok(),
+            expected,
+            "oneof shared depth {depth}"
+        );
+        assert_eq!(
+            strict::RecursiveSequence::parse(&sequence).is_ok(),
+            expected,
+            "repeated depth {depth}"
+        );
+        assert_eq!(
+            strict::RecursiveSequence::parse_bytes(pbrs::rt::Bytes::copy_from_slice(&sequence))
+                .is_ok(),
+            expected,
+            "repeated shared depth {depth}"
+        );
+    }
+    println!(
+        "PASS recursive self oneof/repeated validation, unknown groups, UTF-8 and recursion bounds"
+    );
+}
+
 fn main() {
     default_layout();
     lazy_work();
@@ -397,6 +513,7 @@ fn main() {
     clone_and_threads();
     shared_input();
     collections_and_required();
+    recursive_self_shapes();
     runtime_fallback::verify();
 }
 

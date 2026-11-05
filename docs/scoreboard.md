@@ -3,8 +3,9 @@
 No category has completed the controlled comparisons required by the
 [benchmark contract](benchmark-contract.md). Local measurements show useful
 improvements and remaining losses; they do not establish an overall ranking.
-The [direct parity audit](parity.md) now includes reproducible counterexamples
-and a 16.92× prost CPU loss on deep parse-and-read-all work.
+The [direct parity audit](parity.md) includes reproducible counterexamples and
+an earlier deep-read loss. For later measurements and their source revisions,
+see the [benchmark results](benchmarks.md).
 
 Start with [benchmark results](benchmarks.md) for readable tables and
 [benchmark commands](benchmarks/running.md) to reproduce them. The
@@ -50,8 +51,8 @@ latest commit or CI run.
 | C2 QPS/core | unmeasured | Fair loopback QPS exists; controlled CPU budgets/scaling campaign remains open |
 | C3 streaming msgs/s | unmeasured | Fair rerun favors pbrs server-stream/upload, tonic ping-pong; still local diagnostic |
 | C4 large messages | unmeasured | SB-01/SB-13 diagnostics exist; no qualified network campaign |
-| C5 instructions/RPC | unmeasured | Current 72-capture allocation-instrumented server diagnostic improves selected source costs; native shipping CPU and client coverage remain open |
-| C6 memory | unmeasured | Current 2,400-capture matrix retains large gzip and identity byte losses; selected source changes improve and regress; retained-memory qualification remains open |
+| C5 instructions/RPC | unmeasured | A 72-capture allocation-instrumented server diagnostic improves selected source costs; native shipping CPU and client coverage remain open |
+| C6 memory | unmeasured | A recorded 2,400-capture matrix retains large gzip and identity byte losses; retained-memory qualification remains open |
 | C7 time to first RPC | unmeasured | SB-12 same-process diagnostic favors tonic; no qualified external-peer campaign |
 | C8 CPU/RPC matched load | unmeasured | SB-11 open-loop harness exists; smoke is not a controlled campaign |
 | D1 latency at load | unmeasured | grpc-go tables are separate-process but one host, best-of, no intervals |
@@ -86,18 +87,19 @@ being measured.
 
 ## Benchmark claims
 
-The [benchmark page](benchmarks.md) reports current scoped counter and instruction
-results, retaining regressions and tonic losses. They do not qualify shipping
-CPU, latency, throughput or overall speed. Historical diagnostics below retain
-their original source/settings limits.
+The counter and instruction examples below come from the
+[October 22 streaming record](evidence/grpc-streaming-20261022/README.md),
+except where another record is linked. Their original source and settings
+apply. They do not qualify current shipping CPU, latency, throughput or an
+overall speed ranking.
 
 | Statement | Categories | Evidence limit |
 |---|---|---|
 | Selected 1 KiB gzip allocation reductions | C6, D4 | Matched 2,400 captures per revision; selected 1 KiB, one-in-flight cases |
 | Large gzip allocation-byte regressions | C6, D4, E4 | 64 KiB upload server bytes rise 9.0% with prost and 10.6% with pbrs against the old source; shared-host cumulative requests |
 | Selected server instructions retain regressions | C5, D4 | 144 captures, 25/50-call samples and three-repeat ranges; full instruction scope not run |
-| Historical codec and RPC tables | A–E | Archived source and original host/ownership limits apply |
-| Historical 7,200-capture counter matrix | C5, C6, D4 | Invalid for declared concurrency; the generator used four workers |
+| [Historical codec and RPC tables](benchmarks.md) | A–E | Archived source and original host/ownership limits apply |
+| [Historical 7,200-capture counter matrix](evidence/grpc-counter-matrix-20261009-abeb/README.md) | C5, C6, D4 | Invalid for declared concurrency; the generator used four workers |
 
 The [previous claim mapping](https://github.com/mingley/pure-protobuf/blob/99eccf209fd4cda28c992b7b8855531a31c2d249/docs/scoreboard.md#benchmarksmd-claim-mapping)
 retains the detailed verdicts for the archived tables.

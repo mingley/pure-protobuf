@@ -10,6 +10,12 @@ or stable releases.
 
 ### pbrs 0.2.1
 
+- Apply configured type, message, enum and field attributes using global,
+  qualified prefix and relative suffix selectors. Field selectors also cover
+  cold storage. Builder attributes containing commas now round-trip through
+  code generation. Existing configurations may generate more attributes.
+- Validate eligible self-recursive messages using borrowed slices. Regenerate
+  application bindings to use this path; existing bindings remain compatible.
 - Give lazy string and byte storage explicit zero-valued empty tags, repairing
   invalid generated defaults on 32-bit targets. Measured x86_64 wrapper sizes
   remain unchanged; each i686 lazy string or byte wrapper grows by four bytes.

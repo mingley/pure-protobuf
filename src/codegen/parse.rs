@@ -100,6 +100,38 @@ pub(crate) fn uses_prevalidated_merge(desc: &MessageDescriptor) -> bool {
         .any(|field| is_lazy_msg(field) && !field_needs_initialization(field))
 }
 
+// A map-free, group-free, self-recursive subset can validate through borrowed
+// subslices. Other targets keep the existing Wire path, including extern types
+// and graphs that require merged-message initialization.
+fn borrowed_self_validation(desc: &MessageDescriptor, initialize_tree: bool) -> bool {
+    if initialize_tree
+        || desc.message_set_wire_format
+        || desc.is_map_entry
+        || OWNED_MESSAGE_FIELDS.with(|owned| owned.get())
+    {
+        return false;
+    }
+    let mut self_reference = false;
+    for field in desc.fields.values() {
+        if field.is_map
+            || field.cardinality == Cardinality::Required
+            || field.field_type == FieldType::Group
+            || field.delimited
+        {
+            return false;
+        }
+        if matches!(field.field_type, FieldType::Message | FieldType::Group) {
+            if field_message_name(field).map(|name| name.trim_start_matches('.'))
+                != Some(desc.full_name.trim_start_matches('.'))
+            {
+                return false;
+            }
+            self_reference = true;
+        }
+    }
+    self_reference && !is_extern_type(&desc.full_name)
+}
+
 pub(crate) fn emit_codec(
     src: &mut String,
     desc: &MessageDescriptor,
@@ -107,6 +139,7 @@ pub(crate) fn emit_codec(
     cold: ColdPlacement,
 ) {
     let initialize_tree = needs_initialization(&desc.full_name);
+    let borrowed_self = borrowed_self_validation(desc, initialize_tree);
     let required: Vec<_> = desc
         .fields
         .values()
@@ -306,6 +339,12 @@ pub(crate) fn emit_codec(
         src,
         "    pub fn validate_until(wire: &pbrs::rt::Wire, pos: &mut usize, depth: u32, until: Option<u32>) -> Result<(), ParseError> {{"
     );
+    if borrowed_self {
+        let _ = writeln!(
+            src,
+            "        fn __pbrs_validate_self(data: &[u8], pos: &mut usize, depth: u32, until: Option<u32>) -> Result<(), ParseError> {{"
+        );
+    }
     let _ = writeln!(
         src,
         "        if depth > pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }}"
@@ -319,7 +358,9 @@ pub(crate) fn emit_codec(
         );
         let _ = writeln!(src, "    }}");
     } else {
-        let _ = writeln!(src, "        let data = wire.as_slice();");
+        if !borrowed_self {
+            let _ = writeln!(src, "        let data = wire.as_slice();");
+        }
         if !required.is_empty() {
             let _ = writeln!(src, "        let mut seen = 0u64;");
         }
@@ -351,7 +392,7 @@ pub(crate) fn emit_codec(
             }
             let bit = required.iter().position(|r| r.number == f.number);
             let _ = writeln!(src, "            {} => match w {{", f.number);
-            emit_validate_arm(src, f, bit);
+            emit_validate_arm(src, f, bit, borrowed_self);
             let _ = writeln!(
                 src,
                 "                _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,"
@@ -376,6 +417,13 @@ pub(crate) fn emit_codec(
             );
         }
         let _ = writeln!(src, "        Ok(())");
+        if borrowed_self {
+            let _ = writeln!(src, "        }}");
+            let _ = writeln!(
+                src,
+                "        __pbrs_validate_self(wire.as_slice(), pos, depth, until)"
+            );
+        }
         let _ = writeln!(src, "    }}");
     }
 
@@ -527,7 +575,12 @@ pub(crate) fn read_scalar_expr(ty: FieldType, buf: &str, pos: &str) -> String {
     }
 }
 
-pub(crate) fn emit_validate_arm(src: &mut String, f: &FieldDescriptor, req_bit: Option<usize>) {
+pub(crate) fn emit_validate_arm(
+    src: &mut String,
+    f: &FieldDescriptor,
+    req_bit: Option<usize>,
+    borrowed_self: bool,
+) {
     let num = f.number;
     let mark = if let Some(b) = req_bit {
         format!(" seen |= 1 << {b};")
@@ -576,11 +629,18 @@ pub(crate) fn emit_validate_arm(src: &mut String, f: &FieldDescriptor, req_bit: 
                 "                pbrs::rt::WIRE_LEN => {{ pbrs::rt::read_len_span(data, pos)?;{mark} }}"
             );
         } else if f.field_type == FieldType::Message {
-            let t = scalar_type(f);
-            let _ = writeln!(
-                src,
-                "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut ip = 0; {t}::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;{mark} }}"
-            );
+            if borrowed_self {
+                let _ = writeln!(
+                    src,
+                    "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut ip = 0; __pbrs_validate_self(&data[s..e], &mut ip, depth + 1, None)?;{mark} }}"
+                );
+            } else {
+                let t = scalar_type(f);
+                let _ = writeln!(
+                    src,
+                    "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut ip = 0; {t}::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;{mark} }}"
+                );
+            }
         } else if f.field_type == FieldType::Group || f.delimited {
             let t = scalar_type(f);
             let _ = writeln!(
@@ -610,17 +670,25 @@ pub(crate) fn emit_validate_arm(src: &mut String, f: &FieldDescriptor, req_bit: 
         return;
     }
     if f.field_type == FieldType::Message {
-        let t = scalar_type(f);
         if f.field_type == FieldType::Group || f.delimited {
+            let t = scalar_type(f);
             let _ = writeln!(
                 src,
                 "                pbrs::rt::WIRE_SGROUP => {{ {t}::validate_until(wire, pos, depth + 1, Some({num}))?;{mark} }}"
             );
         } else {
-            let _ = writeln!(
-                src,
-                "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut ip = 0; {t}::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;{mark} }}"
-            );
+            if borrowed_self {
+                let _ = writeln!(
+                    src,
+                    "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut ip = 0; __pbrs_validate_self(&data[s..e], &mut ip, depth + 1, None)?;{mark} }}"
+                );
+            } else {
+                let t = scalar_type(f);
+                let _ = writeln!(
+                    src,
+                    "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut ip = 0; {t}::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;{mark} }}"
+                );
+            }
         }
         return;
     }
@@ -1132,6 +1200,77 @@ mod tests {
         );
         field.type_name = Some(format!(".{target}"));
         field
+    }
+
+    #[test]
+    fn self_validation_selects_only_safe_recursive_descriptors() {
+        let _guard = CodegenStateGuard::new();
+        let node = MessageDescriptor::builder("pkg.Node")
+            .field(child(1, "pkg.Node"))
+            .build();
+        assert!(borrowed_self_validation(&node, false));
+        assert!(!borrowed_self_validation(&node, true));
+        let dotted = MessageDescriptor::builder(".pkg.Node")
+            .field(child(1, "pkg.Node"))
+            .build();
+        assert!(borrowed_self_validation(&dotted, false));
+        let mut repeated_child = child(1, "pkg.Node");
+        repeated_child.cardinality = Cardinality::Repeated;
+        let repeated = MessageDescriptor::builder("pkg.Node")
+            .field(repeated_child)
+            .build();
+        assert!(borrowed_self_validation(&repeated, false));
+        let mut oneof_child = child(1, "pkg.Node");
+        oneof_child.oneof_index = Some(0);
+        let oneof = MessageDescriptor::builder("pkg.Node")
+            .field(oneof_child)
+            .build();
+        assert!(borrowed_self_validation(&oneof, false));
+        let mixed = MessageDescriptor::builder("pkg.Node")
+            .field(child(1, "pkg.Node"))
+            .field(child(2, "pkg.Other"))
+            .build();
+        assert!(!borrowed_self_validation(&mixed, false));
+        let required_scalar = FieldDescriptor::new(
+            "id",
+            2,
+            FieldType::Int32,
+            Cardinality::Required,
+            Presence::Explicit,
+        );
+        let required = MessageDescriptor::builder("pkg.Node")
+            .field(child(1, "pkg.Node"))
+            .field(required_scalar)
+            .build();
+        assert!(!borrowed_self_validation(&required, false));
+        let mut map = child(2, "pkg.Node");
+        map.is_map = true;
+        let mapped = MessageDescriptor::builder("pkg.Node")
+            .field(child(1, "pkg.Node"))
+            .field(map)
+            .build();
+        assert!(!borrowed_self_validation(&mapped, false));
+        let mut delimited = child(2, "pkg.Node");
+        delimited.delimited = true;
+        let grouped = MessageDescriptor::builder("pkg.Node")
+            .field(child(1, "pkg.Node"))
+            .field(delimited)
+            .build();
+        assert!(!borrowed_self_validation(&grouped, false));
+        let plain = MessageDescriptor::builder("pkg.Node").build();
+        assert!(!borrowed_self_validation(&plain, false));
+        let mut entry = node.clone();
+        entry.is_map_entry = true;
+        assert!(!borrowed_self_validation(&entry, false));
+        OWNED_MESSAGE_FIELDS.with(|owned| owned.set(true));
+        assert!(!borrowed_self_validation(&node, false));
+        OWNED_MESSAGE_FIELDS.with(|owned| owned.set(false));
+        EXTERN_PATHS.with(|paths| {
+            paths
+                .borrow_mut()
+                .push((".pkg.Node".into(), "::external".into()))
+        });
+        assert!(!borrowed_self_validation(&node, false));
     }
 
     #[test]
