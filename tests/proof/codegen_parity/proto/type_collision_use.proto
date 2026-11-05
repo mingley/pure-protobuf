@@ -1,0 +1,21 @@
+syntax = "proto3";
+package proof.collision_use;
+
+import "type_collisions.proto";
+
+message Request {
+  enum ViewMapEntryView { VIEW_MAP_ENTRY_VIEW_UNSPECIFIED = 0; }
+  proof.collisions.A.X a = 1;
+  proof.collisions.B.X b = 2;
+  proof.collisions.C.B.X c = 3;
+  proof.collisions.Foo foo = 4;
+  proof.collisions.FooMut mut_named = 5;
+  proof.collisions.FooView view_named = 6;
+  proof.collisions.Outer.Foo nested_foo = 7;
+  proof.collisions.Outer.FooMut nested_mut_named = 8;
+  proof.collisions.Outer.FooView nested_view_named = 9;
+  proof.collisions.BarMut enum_named = 10;
+  repeated proof.collisions.FooMut mut_items = 11;
+  map<string, proof.collisions.FooView> view_map = 12;
+  proof.collisions.FooMut.Child mut_child = 13;
+}

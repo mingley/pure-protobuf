@@ -512,10 +512,8 @@ impl super::Channel {
                     let attempt_deadline = retry_policy
                         .as_ref()
                         .and_then(|policy| policy.per_attempt_recv_timeout)
-                        .map(|budget| {
-                            let capped = tokio::time::Instant::now() + budget;
-                            deadline.map_or(capped, |overall| overall.min(capped))
-                        })
+                        .and_then(|budget| deadline_from(Some(budget)))
+                        .map(|capped| deadline.map_or(capped, |overall| overall.min(capped)))
                         .or(deadline);
                     // Channelz: the attempt's stream starts here (past
                     // setup rejects, so every start pairs with an end

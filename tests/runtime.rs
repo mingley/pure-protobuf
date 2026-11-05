@@ -698,6 +698,118 @@ fn bytes_setter_shares_without_copy() {
     assert_eq!(p.into_vec(), vec![0xCCu8; 4096]);
 }
 
+#[test]
+fn bytes_collection_setters_take_vec_payload_without_copy() {
+    for len in [1, 16, 4096] {
+        for capacity in [len, len * 2] {
+            let mut repeated = Vec::with_capacity(capacity);
+            repeated.resize(len, 0x3d);
+            let repeated_ptr = repeated.as_ptr();
+            let mut map_value = Vec::with_capacity(capacity);
+            map_value.resize(len, 0xe7);
+            let map_ptr = map_value.as_ptr();
+
+            let mut message = TestAllTypesProto3::new();
+            message.repeated_bytes_mut().push(repeated);
+            message.map_string_bytes_mut().insert("payload", map_value);
+            assert_eq!(
+                message.repeated_bytes().get(0).unwrap().as_bytes().as_ptr(),
+                repeated_ptr
+            );
+            assert_eq!(
+                message
+                    .map_string_bytes()
+                    .get("payload")
+                    .unwrap()
+                    .as_bytes()
+                    .as_ptr(),
+                map_ptr
+            );
+
+            let cloned = message.clone();
+            drop(message);
+            assert_eq!(
+                cloned.repeated_bytes().get(0).unwrap().as_bytes().as_ptr(),
+                repeated_ptr
+            );
+            assert_eq!(
+                cloned
+                    .map_string_bytes()
+                    .get("payload")
+                    .unwrap()
+                    .as_bytes()
+                    .as_ptr(),
+                map_ptr
+            );
+            let wire = Serialize::serialize(&cloned).unwrap();
+            let parsed = TestAllTypesProto3::parse(&wire).unwrap();
+            assert_eq!(
+                parsed.repeated_bytes().get(0).unwrap().as_bytes(),
+                vec![0x3d; len]
+            );
+            assert_eq!(
+                parsed.map_string_bytes().get("payload").unwrap().as_bytes(),
+                vec![0xe7; len]
+            );
+        }
+    }
+}
+
+#[test]
+fn bytes_setters_take_owned_cow_and_box_payload_without_copy() {
+    for len in [1, 16, 4096] {
+        for capacity in [len, len * 2] {
+            let mut payload = Vec::with_capacity(capacity);
+            payload.resize(len, 0xab);
+            let ptr = payload.as_ptr();
+            let mut message = Any::new();
+            message.set_value(std::borrow::Cow::<'_, [u8]>::Owned(payload));
+            assert_eq!(message.value().as_ptr(), ptr);
+            let cloned = message.clone();
+            drop(message);
+            assert_eq!(cloned.value().as_ptr(), ptr);
+            let parsed = Any::parse(&Serialize::serialize(&cloned).unwrap()).unwrap();
+            assert_eq!(parsed.value(), vec![0xab; len]);
+        }
+
+        let payload = vec![0xcd; len].into_boxed_slice();
+        let ptr = payload.as_ptr();
+        let mut message = Any::new();
+        message.set_value(payload);
+        assert_eq!(message.value().as_ptr(), ptr);
+        let cloned = message.clone();
+        drop(message);
+        assert_eq!(cloned.value().as_ptr(), ptr);
+        let parsed = Any::parse(&Serialize::serialize(&cloned).unwrap()).unwrap();
+        assert_eq!(parsed.value(), vec![0xcd; len]);
+    }
+
+    let mut message = Any::new();
+    message.set_value(std::borrow::Cow::<'_, [u8]>::Owned(Vec::with_capacity(
+        4096,
+    )));
+    assert!(message.value().is_empty());
+    message.set_value(Vec::new().into_boxed_slice());
+    assert!(message.value().is_empty());
+    assert!(Serialize::serialize(&message).unwrap().is_empty());
+}
+
+#[test]
+fn bytes_setter_copies_borrowed_cow_before_source_changes() {
+    let mut payload = vec![0x5a; 4096];
+    let mut message = Any::new();
+    message.set_value(std::borrow::Cow::Borrowed(payload.as_slice()));
+    assert_ne!(message.value().as_ptr(), payload.as_ptr());
+    payload.fill(0);
+    assert_eq!(message.value(), vec![0x5a; 4096]);
+    assert_eq!(
+        Any::parse(&Serialize::serialize(&message).unwrap())
+            .unwrap()
+            .value(),
+        message.value()
+    );
+}
+
 // PK-17: hybrid map representation. Below the size boundary reads scan the
 // append/last-wins store; above it they use a sorted index. Duplicate-key
 // semantics, iteration order and encode order must be identical on both sides.

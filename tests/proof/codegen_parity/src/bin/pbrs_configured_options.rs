@@ -200,4 +200,47 @@ fn main() {
         );
     }
     println!("PASS configured-enum proto2 defaults, aliases and packed values");
+
+    assert_eq!(
+        default_domain::Keyword::Self_.0,
+        default_reference::Keyword::Self_ as i32
+    );
+    assert_eq!(
+        default_domain::Foo::Self_.0,
+        default_reference::Foo::Self_ as i32
+    );
+    for value in [0, 1, 17] {
+        let reference = default_reference::EnumKeywords {
+            keyword: value,
+            foo: value,
+            foos: vec![0, value, 1],
+        };
+        let native = default_domain::EnumKeywords::parse(&reference.encode_to_vec()).unwrap();
+        assert_eq!(native.keyword().0, reference.keyword);
+        assert_eq!(native.foo().0, reference.foo);
+        assert_eq!(
+            default_reference::EnumKeywords::decode(native.serialize().unwrap().as_slice())
+                .unwrap(),
+            reference
+        );
+    }
+    println!("PASS configured-enum Self keyword with default prefix stripping");
+
+    assert_eq!(Keyword::Self_.0, reference::Keyword::Self_ as i32);
+    assert_eq!(Foo::FooSelf.0, reference::Foo::FooSelf as i32);
+    for value in [0, 1, 17] {
+        let reference = reference::EnumKeywords {
+            keyword: value,
+            foo: value,
+            foos: vec![0, value, 1],
+        };
+        let native = EnumKeywords::parse(&reference.encode_to_vec()).unwrap();
+        assert_eq!(native.keyword().0, reference.keyword);
+        assert_eq!(native.foo().0, reference.foo);
+        assert_eq!(
+            reference::EnumKeywords::decode(native.serialize().unwrap().as_slice()).unwrap(),
+            reference
+        );
+    }
+    println!("PASS configured-enum Self keyword with retained prefixes");
 }

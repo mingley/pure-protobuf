@@ -267,6 +267,11 @@ fn specimen(id: &str) -> Specimen {
         .specimen
 }
 
+struct Iterations {
+    warmup: u64,
+    measured: u64,
+}
+
 async fn run_typed<M: BenchMessage>(
     id: &str,
     message: M,
@@ -274,8 +279,7 @@ async fn run_typed<M: BenchMessage>(
     input_wire_fingerprint: String,
     input_wire_bytes: usize,
     validate: impl Fn(&M),
-    iters: u64,
-    warmup: u64,
+    iterations: Iterations,
 ) {
     let tonic = id.starts_with("rpc.adoption.tonic_");
     let streaming = id.ends_with(".server_stream");
@@ -391,7 +395,7 @@ async fn run_typed<M: BenchMessage>(
         Some(&validate),
     )
     .await;
-    for _ in 0..warmup {
+    for _ in 0..iterations.warmup {
         black_box(
             call(
                 &native,
@@ -407,7 +411,7 @@ async fn run_typed<M: BenchMessage>(
     let guard = AllocGuard::arm();
     let start = Instant::now();
     let mut sink = 0u64;
-    for _ in 0..iters {
+    for _ in 0..iterations.measured {
         sink = sink.wrapping_add(
             call(
                 &native,
@@ -427,7 +431,7 @@ async fn run_typed<M: BenchMessage>(
         "__CHILD__ {}",
         child_json_with_input_bytes(
             id,
-            iters,
+            iterations.measured,
             allocs,
             bytes,
             wall,
@@ -458,8 +462,10 @@ where
             pair.input_wire_fingerprint.clone(),
             pair.bytes,
             |response| pair.validate_native(response),
-            iters,
-            warmup,
+            Iterations {
+                warmup,
+                measured: iters,
+            },
         )
         .await;
     } else {
@@ -470,8 +476,10 @@ where
             pair.input_wire_fingerprint.clone(),
             pair.bytes,
             |response| pair.validate_prost(&response.0),
-            iters,
-            warmup,
+            Iterations {
+                warmup,
+                measured: iters,
+            },
         )
         .await;
     }

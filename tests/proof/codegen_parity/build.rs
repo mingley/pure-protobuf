@@ -119,6 +119,63 @@ fn main() {
         .enable_type_names()
         .compile_protos(&["unpackaged.proto"], &includes)
         .unwrap();
+    let collision_files = ["type_collisions.proto", "type_collision_use.proto"];
+    for (directory, owned) in [
+        ("native-collisions", false),
+        ("native-collisions-owned", true),
+    ] {
+        pbrs::codegen::Config::new()
+            .out_dir(out.join(directory))
+            .emit_kernel_stubs(false)
+            .emit_reflection(false)
+            .owned_message_fields(owned)
+            .compile_protos(&collision_files, &includes)
+            .unwrap();
+    }
+    // Binary-only generation has no embedded descriptor bytes whose closure
+    // varies with the target list. Public names must agree across these modes.
+    for (directory, batches) in [
+        (
+            "native-collisions-separate",
+            vec![vec![collision_files[0]], vec![collision_files[1]]],
+        ),
+        (
+            "native-collisions-reversed",
+            vec![vec![collision_files[1], collision_files[0]]],
+        ),
+    ] {
+        for batch in batches {
+            pbrs::codegen::Config::new()
+                .out_dir(out.join(directory))
+                .emit_kernel_stubs(false)
+                .emit_reflection(false)
+                .compile_protos(&batch, &includes)
+                .unwrap();
+        }
+        for filename in ["type_collisions.rs", "type_collision_use.rs"] {
+            assert_eq!(
+                fs::read(out.join(directory).join(filename)).unwrap(),
+                fs::read(out.join("native-collisions").join(filename)).unwrap(),
+                "target order/request boundary changed {filename} in {directory}"
+            );
+        }
+    }
+    fs::create_dir_all(out.join("prost-collisions")).unwrap();
+    pbrs::codegen::Config::new()
+        .out_dir(out.join("native-collisions-extern"))
+        .emit_kernel_stubs(false)
+        .emit_reflection(false)
+        .extern_path(".proof.collisions.Foo", "crate::proof::collisions::Foo")
+        .extern_path(
+            ".proof.collisions.FooMut",
+            "crate::proof::collisions::FooMut_",
+        )
+        .compile_protos(&[collision_files[1]], &includes)
+        .unwrap();
+    prost_build::Config::new()
+        .out_dir(out.join("prost-collisions"))
+        .compile_protos(&collision_files, &includes)
+        .unwrap();
     // Configuration must not change a later default request on this thread.
     let reset_out = out.join("native-reset");
     pbrs::codegen::Config::new()
@@ -137,6 +194,8 @@ fn main() {
         "imported.proto",
         "unpackaged.proto",
         "options_proto2.proto",
+        "type_collisions.proto",
+        "type_collision_use.proto",
     ] {
         println!("cargo:rerun-if-changed=proto/{file}");
     }

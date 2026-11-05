@@ -33,7 +33,10 @@ and `to_msg` roundtrips cover custom URLs, nested names, empty packages and a
 built-in Timestamp. Twelve URL cases and a truncated payload compare success
 and failure directly with Prost. Retained enum constants, proto2 explicit
 defaults and aliases, packed values and proto3 unknown numeric values preserve
-the same wire values. A fresh
+the same wire values. Two additional enum controls compile and use `Self_`
+for the legal protobuf value `SELF`, with and without enum-prefix retention;
+`FOO_SELF` becomes `Self_` by default and `FooSelf` when retaining its prefix.
+Singular and repeated values roundtrip through both codecs. A fresh
 default request must reset prefix retention and omit the optional `Name` impl;
 setting a domain alone must not enable that impl.
 
@@ -42,6 +45,16 @@ prost-build. The check compares selected protobuf fields for the global path,
 fully qualified prefixes, relative suffixes and component-boundary nonmatches.
 One message places its non-scalar fields in pbrs's cold storage. This checks
 attribute placement, not the compatibility of all Rust attributes or layouts.
+
+Three additional consumers compile schemas whose names collide with generated
+`View` and `Mut` types or reuse the same nested parent and leaf names. Lazy and
+owned consumers check imported singular, repeated and map values against Prost;
+the third maps a renamed message type to a separately generated provider and
+uses its nested type. The build also compares binary-only generated files from
+combined, reversed and separate requests. Synthetic map-entry descriptors must
+not reserve public names. These are selected naming controls; other cases,
+such as two message names that produce the same module name, remain outside
+their scope.
 
 Three small pbrs consumers still reproduce absent `btree_map`, `bytes` and
 `boxed` build methods. These are API and representation customization gaps.

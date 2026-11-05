@@ -5,6 +5,9 @@
 
 | Read | Scope |
 |---|---|
+| [Generation cost](#generation-cost-november-5) | Matched generator wall time after naming repairs, November 5 |
+| [Map equality](#map-equality-november-5) | Warm and cold map comparison CPU and allocations, November 5 |
+| [Owned byte buffers](evidence/byte-ownership-20261105/README.md) | Conversion allocations and capacity retention, November 5 |
 | [Recursive validation](#recursive-validation-november-4) | Selected protobuf parse and read CPU, November 3–4 |
 | [Send-buffer RPC diagnostic](#send-buffer-rpc-diagnostics-november-3) | Selected endpoint CPU comparisons, November 3 |
 | [Latest buffer loop](#buffer-chunk-ownership-november-2) | Isolated ownership operations, November 2 |
@@ -15,14 +18,48 @@
 | [Rejected candidates](evidence/rejected-runtime-candidates-20261030/README.md) | Unselected repeated-field and map experiments |
 | [Earlier codec and codegen](#codec-and-codegen-comparisons) | Earlier comparisons and their recorded sources |
 
-The [October 29 runtime and codegen record](evidence/runtime-and-codegen-20261029/README.md)
-measures `0a770792` against the prior implementation and fresh Prost controls.
-Descriptor literals reduce measured generated source size; combined codec
-results include gains and losses. Consumer rebuild and generation timings
-cover different scopes. No full RPC campaign accompanied that record; the
-October 28 transport comparisons retain their source and losses. The newer RPC
-diagnostic below covers selected workloads. Winning every benchmark, complete
-feature parity and an overall ranking remain unproven.
+Choose a result by the operation you need to improve. Each record names its
+source, workload, controls and remaining losses; the tables cover different
+scopes. These local diagnostics do not establish wins on every benchmark,
+complete feature parity or an overall ranking.
+
+## Map equality, November 5
+
+The runtime walks the sorted unique-key indexes directly when comparing
+indexed maps. The [full record](evidence/map-equality-20261105/README.md)
+retains all four variants, measurements and allocation controls.
+
+| Equal maps, 256 unique keys | Before CPU ns | After CPU ns | Paired new / old CPU (range) |
+|---|---:|---:|---:|
+| Integer keys | 4,298 | 276 | 0.0651 (0.0627–0.0701) |
+| ProtoString keys | 34,770 | 873 | 0.0251 (0.0235–0.0262) |
+| LazyStr keys | 41,619 | 1,154 | 0.0277 (0.0273–0.0299) |
+
+These are nine paired warm comparisons of isolated runtime overlays at
+`1c6ec8ca` on one shared host. Construction and index creation are excluded.
+All 18 cold equal-map medians also improve, with index creation included;
+allocation counts stay unchanged. Some false comparisons regress: LazyStr
+size mismatches cost about 0.2–0.3 ns more, and one small ProtoString mismatch
+costs about 1.3 ns more. Small string maps still lose to the HashMap storage
+reference. This does not measure decoding, RPCs or the combined commit.
+
+## Generation cost, November 5
+
+The naming repairs fix valid schemas that previously failed to compile. A
+[separate cost check](evidence/codegen-naming-20261105/README.md) compares
+before/after generator CLIs on noncolliding schemas; generated files match
+exactly. The focused 100-message run gives these nine-pair wall-time ratios:
+
+| Generation | New / old wall time | All-pair range |
+|---|---:|---:|
+| Fresh output | 1.001 | 0.936–1.104 |
+| Unchanged output | 1.037 | 0.932–1.151 |
+
+The unchanged-output overhead persists in the medians, while all ranges
+cross one on the shared host. The earlier five-pair screen also includes
+6- and 1,000-message schemas. These results establish neither a codegen
+speedup nor absence of a regression. They measure CLI generation, including
+startup and file handling, rather than consumer compilation.
 
 ## Recursive validation, November 4
 

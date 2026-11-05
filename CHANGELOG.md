@@ -10,6 +10,16 @@ or stable releases.
 
 ### pbrs 0.2.1
 
+- Transfer owned byte buffers through repeated/map setters and singular
+  `Cow::Owned`/boxed-slice setters without copying the payload. Taking a
+  `Vec` retains its spare capacity; borrowed inputs still copy their bytes.
+- Emit legal Rust names for enum values named `SELF`, including after enum
+  prefix removal. Generated names match Prost's `Self_` spelling.
+- Reserve message view and mutator names and recheck prefixed type names for
+  collisions. Nested aliases and imported references use the same allocation.
+  Regeneration may change Rust names in affected collision schemas.
+- Compare indexed maps by walking sorted unique keys once, preserving
+  duplicate-key last-wins behavior. Small maps keep a scan-based fallback.
 - Apply configured type, message, enum and field attributes using global,
   qualified prefix and relative suffix selectors. Field selectors also cover
   cold storage. Builder attributes containing commas now round-trip through
@@ -36,6 +46,13 @@ or stable releases.
 
 ### pbrs-grpc 0.1.0-alpha.3
 
+- Round `grpc-timeout` values upward when a larger unit is needed, preserving
+  the requested budget through the wire-format maximum. Check local deadline
+  overflow in outgoing interceptors and retry attempts, and reject signed
+  timeout headers.
+- Check server lifetime and keepalive clock arithmetic, preserve the full
+  duration range when jittering connection ages, and keep an outstanding
+  probe pending when its timeout exceeds the local clock range.
 - Advance large outgoing byte frames with `Bytes::split_to`, removing a
   redundant shared-owner clone and drop per chunk. The isolated chunk-loop
   screen is separate from RPC performance measurements.

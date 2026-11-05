@@ -149,8 +149,7 @@ impl Driver {
             keep_alive: config.keep_alive_interval().map(|interval| KeepAlive {
                 interval,
                 timeout: config.keep_alive_timeout,
-                next_ping_at: now + interval,
-                timeout_at: None,
+                state: KeepAliveState::Scheduled(now.checked_add(interval)),
             }),
             wake: None,
             activity: None,
@@ -218,17 +217,22 @@ impl Driver {
         let Some(keep_alive) = &mut self.keep_alive else {
             return Ok(None);
         };
-        if let Some(deadline) = keep_alive.timeout_at {
-            return Ok((now >= deadline).then_some(Event::KeepAliveTimedOut));
-        }
+        let next_ping_at = match keep_alive.state {
+            KeepAliveState::AwaitingPong(deadline) => {
+                return Ok(deadline
+                    .is_some_and(|deadline| now >= deadline)
+                    .then_some(Event::KeepAliveTimedOut));
+            }
+            KeepAliveState::Scheduled(Some(next_ping_at)) => next_ping_at,
+            KeepAliveState::Scheduled(None) => return Ok(None),
+        };
         if self.activity.as_ref().is_some_and(|busy| busy.count() == 0) {
             return Ok(None);
         }
-        if now < keep_alive.next_ping_at {
+        if now < next_ping_at {
             return Ok(None);
         }
-        keep_alive.next_ping_at = now + keep_alive.interval;
-        keep_alive.timeout_at = Some(now + keep_alive.timeout);
+        keep_alive.state = KeepAliveState::AwaitingPong(now.checked_add(keep_alive.timeout));
         let mut shared = lock(&self.shared);
         if !shared.is_ping_sent() {
             shared.send_ping(now)?;
@@ -268,10 +272,14 @@ impl Driver {
 
     fn next_timer_deadline(&self) -> Option<Instant> {
         let keep_alive = self.keep_alive.as_ref()?;
-        match keep_alive.timeout_at {
-            Some(timeout_at) => Some(timeout_at),
-            None if self.activity.as_ref().is_some_and(|busy| busy.count() == 0) => None,
-            None => Some(keep_alive.next_ping_at),
+        match keep_alive.state {
+            KeepAliveState::AwaitingPong(timeout_at) => timeout_at,
+            KeepAliveState::Scheduled(_)
+                if self.activity.as_ref().is_some_and(|busy| busy.count() == 0) =>
+            {
+                None
+            }
+            KeepAliveState::Scheduled(next_ping_at) => next_ping_at,
         }
     }
 }
@@ -373,14 +381,20 @@ impl Bdp {
 struct KeepAlive {
     interval: Duration,
     timeout: Duration,
-    next_ping_at: Instant,
-    timeout_at: Option<Instant>,
+    state: KeepAliveState,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum KeepAliveState {
+    /// `None` represents an interval beyond the platform clock range.
+    Scheduled(Option<Instant>),
+    /// A probe remains outstanding even if its timeout is unrepresentable.
+    AwaitingPong(Option<Instant>),
 }
 
 impl KeepAlive {
     fn on_pong(&mut self, now: Instant) {
-        self.next_ping_at = now + self.interval;
-        self.timeout_at = None;
+        self.state = KeepAliveState::Scheduled(now.checked_add(self.interval));
     }
 }
 
@@ -398,8 +412,9 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 
 #[cfg(test)]
 mod tests {
-    use super::Bdp;
+    use super::{Bdp, KeepAlive, KeepAliveState};
     use std::time::Duration;
+    use tokio::time::Instant;
 
     #[test]
     fn bdp_grows_within_cap() {
@@ -413,5 +428,36 @@ mod tests {
             Some(1024 * 1024)
         );
         assert_eq!(bdp.calculate(1024 * 1024, Duration::from_millis(20)), None);
+    }
+
+    #[test]
+    fn keepalive_pong_rearms_a_finite_interval() {
+        let now = Instant::now();
+        let interval = Duration::from_secs(5);
+        let mut keepalive = KeepAlive {
+            interval,
+            timeout: Duration::MAX,
+            state: KeepAliveState::AwaitingPong(None),
+        };
+        keepalive.on_pong(now);
+        assert!(matches!(
+            keepalive.state,
+            KeepAliveState::Scheduled(Some(at)) if at == now + interval
+        ));
+    }
+
+    #[test]
+    fn keepalive_pong_preserves_an_unrepresentable_interval() {
+        let now = Instant::now();
+        let mut keepalive = KeepAlive {
+            interval: Duration::MAX,
+            timeout: Duration::from_secs(5),
+            state: KeepAliveState::AwaitingPong(None),
+        };
+        keepalive.on_pong(now);
+        assert!(matches!(
+            keepalive.state,
+            KeepAliveState::Scheduled(at) if at == now.checked_add(Duration::MAX)
+        ));
     }
 }

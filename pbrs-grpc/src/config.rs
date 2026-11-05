@@ -527,6 +527,8 @@ impl ServerConfig {
     /// TLS, mTLS, and Unix. Transparent retry of the same in-flight RPC
     /// after GOAWAY is unary and server-streaming after request bytes;
     /// client-streaming and bidi retry before HEADERS.
+    /// A lifetime beyond the platform's monotonic clock range has no finite
+    /// timer, rather than overflowing the clock.
     #[must_use]
     pub fn max_connection_age(mut self, age: Duration) -> Self {
         self.max_connection_age = Some(age.max(Duration::from_millis(1)));
@@ -542,6 +544,8 @@ impl ServerConfig {
     /// [`crate::Server::serve_connection`]. Keepalive PINGs do not count as
     /// activity. The next RPC
     /// of every call shape redials, including over TLS, mTLS, and Unix.
+    /// An idle duration beyond the platform's monotonic clock range has no
+    /// finite timer.
     #[must_use]
     pub fn max_connection_idle(mut self, idle: Duration) -> Self {
         self.max_connection_idle = Some(idle.max(Duration::from_millis(1)));
@@ -557,6 +561,8 @@ impl ServerConfig {
     /// [`crate::Router::max_connection_age_grace`], and generated
     /// `FooServer::max_connection_age_grace` set this without building a
     /// [`ServerConfig`].
+    /// A grace duration beyond the platform's monotonic clock range allows
+    /// in-flight RPCs to finish without a forced-close timer.
     #[must_use]
     pub fn max_connection_age_grace(mut self, grace: Duration) -> Self {
         self.max_connection_age_grace = grace.max(Duration::from_millis(1));
@@ -965,8 +971,15 @@ pub(crate) fn jitter_age(age: Duration, seed: u64) -> Duration {
     const SPAN: u64 = 201; // 0..=200 thousandths added to 900
     let thousandths = 900 + (seed % SPAN);
     let nanos = age.as_nanos().saturating_mul(u128::from(thousandths)) / 1000;
-    let nanos = u64::try_from(nanos).unwrap_or(u64::MAX);
-    Duration::from_nanos(nanos).max(Duration::from_millis(1))
+    let jittered = match u64::try_from(nanos / 1_000_000_000) {
+        Ok(seconds) => {
+            // The remainder is below one second and therefore fits u64.
+            let remainder = u64::try_from(nanos % 1_000_000_000).unwrap_or_default();
+            Duration::from_secs(seconds).saturating_add(Duration::from_nanos(remainder))
+        }
+        Err(_) => Duration::MAX,
+    };
+    jittered.max(Duration::from_millis(1))
 }
 
 /// HTTP/2 and resource settings for a [`Channel`](crate::Channel).
@@ -2463,6 +2476,31 @@ mod tests {
         assert_eq!(super::jitter_age(age, 0), Duration::from_secs(90));
         assert_eq!(super::jitter_age(age, 200), Duration::from_secs(110));
         assert_ne!(super::jitter_age(age, 1), super::jitter_age(age, 2));
+    }
+
+    #[test]
+    fn age_jitter_preserves_durations_beyond_u64_nanoseconds() {
+        let age = Duration::from_secs(20_000_000_000);
+        assert_eq!(
+            super::jitter_age(age, 0),
+            Duration::from_secs(18_000_000_000)
+        );
+        assert_eq!(
+            super::jitter_age(age, 200),
+            Duration::from_secs(22_000_000_000)
+        );
+        let fractional = age + Duration::from_nanos(1_000);
+        assert_eq!(
+            super::jitter_age(fractional, 200),
+            Duration::from_secs(22_000_000_000) + Duration::from_nanos(1_100)
+        );
+    }
+
+    #[test]
+    fn age_jitter_only_saturates_at_duration_maximum() {
+        assert!(super::jitter_age(Duration::MAX, 0) < Duration::MAX);
+        assert_eq!(super::jitter_age(Duration::MAX, 100), Duration::MAX);
+        assert_eq!(super::jitter_age(Duration::MAX, 200), Duration::MAX);
     }
 
     #[test]

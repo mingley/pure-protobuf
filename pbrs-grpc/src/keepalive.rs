@@ -62,6 +62,9 @@ fn spawn_with_activity_in<R: Runtime>(
     activity: Option<Arc<Busy>>,
 ) -> Option<watch::Receiver<bool>> {
     let interval = interval?;
+    // No finite first tick exists for this duration. Do not construct a
+    // ticker whose next-deadline arithmetic could overflow inside the runtime.
+    R::now().checked_add(interval)?;
     let mut ping_pong = ping_pong?;
     let (tx, rx) = watch::channel(false);
     drop(R::spawn(async move {

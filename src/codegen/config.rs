@@ -231,7 +231,9 @@ impl From<CodegenError> for ParseError {
     }
 }
 
-pub(crate) type TypeFileIndex = std::collections::BTreeMap<String, (String, String)>;
+// File, package and the public identifier within the type's protobuf scope.
+// The latter is distinct from the private flattened name of an emitted type.
+pub(crate) type TypeFileIndex = std::collections::BTreeMap<String, (String, String, String)>;
 
 thread_local! {
     pub(crate) static IDENTS: RefCell<std::collections::BTreeMap<String, String>> =

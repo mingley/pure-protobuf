@@ -1,0 +1,29 @@
+{
+  "schema": "pbrs.byte-ownership-evidence.v1",
+  "scope": "allocation-only same-process historical-expression control and current runtime-only library; no previous complete crate, timing, RSS or ranking comparison",
+  "base_commit": "1c6ec8cacd547cce8c3a8e335320b49d34de40b4",
+  "historical_source_commit": "1c6ec8cacd547cce8c3a8e335320b49d34de40b4",
+  "build_artifact_reused": false,
+  "files": {
+    "raw/build.stderr": "78d7679ecb1e1d6d46653266b6fe80106e8957d96896bb3137ea4a503c98025f",
+    "raw/build.stdout": "0af468e643ad5dff88bf1f4e07ee39c12f54fbe786f312711e910c57adeedf97",
+    "raw/compiler-inputs.d": "587405be5ca20a1af11d7057054ef959cd8eff3b5324169c06209b1f0e1015a2",
+    "raw/conversions.rs": "1981859bb474b8f5e96c81e3875d52ba6c8d1dda8e3c7aaffeb8b073ce3de679",
+    "raw/harness-build.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "raw/harness-build.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "raw/old-path-lazy.rs": "e427d968c55d77ac35fea495ee0ef130df8ca685d019876c7a0ca5f5c8d2531a",
+    "raw/old-path-test.json": "5a3374cf28bdb1b03f34af619e3e3317dfb37b30f2ff71f8d0479594db294790",
+    "raw/old-path-test.log": "687d086247ecabda8dcb72fed8d21f53af50f489fb6a3b7da847ddfdcfb89eb9",
+    "raw/overlay/src/lazy.rs": "9335dd24a89f7c233b37e5c74a0f5dab7524d4a4e015a02cf49c24a95402a085",
+    "raw/overlay/src/map.rs": "c9d5995a2098789b05c394b419b157602015c6a95b9d0e9f32c81bc67170e822",
+    "raw/overlay/src/string.rs": "0f26c29176b7a5f9c1b88b37a90c6b7b68154b5b0584dda3bfe6cf548d43b1a5",
+    "raw/repeat-0.csv": "73400ab7643473951ebe92740d5c92d5300247d68065444824074dce675788c6",
+    "raw/repeat-0.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "raw/repeat-1.csv": "73400ab7643473951ebe92740d5c92d5300247d68065444824074dce675788c6",
+    "raw/repeat-1.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "raw/repeat-2.csv": "73400ab7643473951ebe92740d5c92d5300247d68065444824074dce675788c6",
+    "raw/repeat-2.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "raw/report.json": "c7030617dcb054bf2b717f8ad3be7c44089db70903f0b9c22c87c549533f13c3",
+    "raw/run.py": "67eb329344f1047c6d2c61b967c4a21d43739adbffbfa77ee4069cdfba6de972"
+  }
+}

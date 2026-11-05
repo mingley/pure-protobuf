@@ -1432,10 +1432,12 @@ impl<'a> Outgoing<'a> {
     /// Computed when you call this, so an interceptor that just set
     /// [`Self::set_timeout`] sees the new Instant before the outgoing call starts.
     /// Inbound [`crate::Rpc::deadline`] instead stays fixed from header acceptance.
+    /// Returns `None` if the relative timeout exceeds the platform clock range;
+    /// [`Self::timeout`] retains the original duration for the outgoing header.
     /// Visible on every call shape.
     #[must_use]
     pub fn deadline(&self) -> Option<tokio::time::Instant> {
-        self.timeout.map(|d| tokio::time::Instant::now() + d)
+        crate::timeout::deadline_from(*self.timeout)
     }
 
     /// Set the relative timeout. Becomes `grpc-timeout` on the wire.
@@ -4196,6 +4198,26 @@ mod tests {
             let left = tightened.saturating_duration_since(tokio::time::Instant::now());
             assert!(left <= Duration::from_millis(40));
         }
+    }
+
+    #[test]
+    fn outgoing_large_timeout_keeps_relative_budget_without_instant_overflow() {
+        let mut req = Request::new(());
+        req.set_timeout(Duration::MAX);
+        let call = req.outgoing(
+            "/svc/Method",
+            "127.0.0.1:1",
+            false,
+            "pbrs-grpc/test",
+            crate::ChannelConfig::default(),
+        );
+        assert_eq!(call.timeout(), Some(Duration::MAX));
+        assert_eq!(
+            call.deadline().is_some(),
+            tokio::time::Instant::now()
+                .checked_add(Duration::MAX)
+                .is_some()
+        );
     }
 
     #[test]

@@ -615,7 +615,7 @@ impl From<&[u8]> for LazyBytes {
 }
 impl From<Vec<u8>> for LazyBytes {
     fn from(s: Vec<u8>) -> Self {
-        Self::owned(ProtoBytes::from(s.as_slice()))
+        Self::owned(ProtoBytes::from(s))
     }
 }
 impl crate::proxied::IntoProxied<LazyBytes> for Vec<u8> {
@@ -884,6 +884,37 @@ impl<T: MergeBytes + std::fmt::Debug> std::fmt::Debug for LazyMsg<T> {
 mod tests {
     use super::{LazyBytes, LazyStr, Wire};
     use crate::ProtoString;
+
+    #[test]
+    fn bytes_from_vec_transfers_payload_with_exact_and_spare_capacity() {
+        for len in [1, 16, 4096] {
+            for capacity in [len, len * 2] {
+                let mut payload = Vec::with_capacity(capacity);
+                payload.resize(len, 0x9d);
+                let ptr = payload.as_ptr();
+                let bytes = LazyBytes::from(payload);
+                assert_eq!(bytes.as_bytes().as_ptr(), ptr);
+                assert_eq!(bytes.as_bytes(), vec![0x9d; len]);
+
+                let cloned = bytes.clone();
+                let shared = bytes.as_shared();
+                assert_eq!(cloned.as_bytes().as_ptr(), ptr);
+                assert_eq!(shared.as_ptr(), ptr);
+                drop(bytes);
+                drop(cloned);
+                assert_eq!(shared.as_ptr(), ptr);
+                assert_eq!(shared.as_ref(), vec![0x9d; len]);
+            }
+        }
+    }
+
+    #[test]
+    fn bytes_from_empty_vec_releases_spare_capacity() {
+        let bytes = LazyBytes::from(Vec::with_capacity(4096));
+        assert!(matches!(bytes, LazyBytes::Empty));
+        assert!(bytes.as_bytes().is_empty());
+        assert!(bytes.as_shared().is_empty());
+    }
 
     #[test]
     fn from_parse_span_skips_parent_arc_when_inline() {

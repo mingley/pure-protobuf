@@ -4,3 +4,19 @@ message Loose {
   message Nested { int32 value = 1; }
   Nested child = 1;
 }
+
+enum Keyword {
+  SELF = 0;
+  KEYWORD_READY = 1;
+}
+
+enum Foo {
+  FOO_SELF = 0;
+  FOO_READY = 1;
+}
+
+message EnumKeywords {
+  Keyword keyword = 1;
+  Foo foo = 2;
+  repeated Foo foos = 3;
+}

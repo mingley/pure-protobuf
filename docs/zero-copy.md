@@ -74,8 +74,15 @@ zero-copy paths automatically, and `pbrs-grpc` parses incoming messages with
 
 When building a message, pass `bytes::Bytes` (re-exported as
 `pbrs::rt::Bytes`) to retain a shareable buffer. Moving an owned `Vec<u8>`
-into the setter also transfers its storage without copying; passing a
-borrowed slice requires a copy.
+into a singular, repeated or map bytes setter also transfers its storage
+without copying. Singular setters also accept owned `Cow<[u8]>` and
+`Box<[u8]>` without copying. Borrowed slices and borrowed `Cow` values are
+copied.
+
+A moved nonempty vector keeps its spare capacity until the last alias is
+dropped. If a short payload comes from a much larger allocation, pass its
+slice to copy just the payload instead. Empty moved vectors release their
+allocation.
 
 ```rust
 let blob = pbrs::rt::Bytes::from(load_blob()); // your data, no copy after this

@@ -46,6 +46,12 @@ Attribute selectors support global, qualified-prefix and relative-suffix
 matching, including fields placed in cold storage. A generated-code control
 compares 13 field selectors with Prost 0.14.4; see the
 [codegen guide](guides/codegen.md) for the pbrs storage limits.
+Enum values named `SELF` use Prost's legal `Self_` spelling. Type naming
+reserves generated view and mutator names, rechecks repeated parent prefixes,
+and shares nested aliases with imported paths. Lazy, owned and explicitly
+mapped external consumers pass the focused collision controls; the
+[naming guide](guides/codegen.md#generated-names-and-regeneration) explains
+regeneration and the remaining module-name limits.
 Three configuration probes still reproduce representation/customization gaps:
 `btree_map`, `bytes` and `boxed`. These are distinct from wire-format failures.
 For ordered maps, nested lazy messages can forward their original wire bytes;

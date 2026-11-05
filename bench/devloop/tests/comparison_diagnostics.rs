@@ -112,6 +112,10 @@ fn compare(old: Option<f64>, new: Option<f64>, ceiling: Option<f64>) -> Output {
     compare_json(&report(old), &report(new), ceiling)
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "synchronous CLI fixture setup runs without an async executor"
+)]
 fn compare_json(base_json: &str, current_json: &str, ceiling: Option<f64>) -> Output {
     let temp = TempDir::new();
     let base_path = temp.0.join("base.json");

@@ -538,9 +538,9 @@ where
         } else {
             0
         };
-        let age_at = age.map(|d| born + d);
+        let age_at = age.and_then(|d| born.checked_add(d));
         let idle_at = if in_flight == 0 {
-            idle.map(|d| last_idle + d)
+            idle.and_then(|d| last_idle.checked_add(d))
         } else {
             None
         };
@@ -589,7 +589,7 @@ where
             Wait::Stop => break,
             Wait::Shutdown => {
                 draining = true;
-                force_close = Some(R::now() + grace);
+                force_close = R::now().checked_add(grace);
                 conn.graceful_shutdown();
             }
             Wait::Accepted => {

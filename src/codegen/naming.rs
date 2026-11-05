@@ -13,13 +13,16 @@ pub(crate) fn ident_last(s: &str) -> String {
     rust_ident_from_last(last)
 }
 
-pub(crate) fn must_mangle_view_suffix(
+pub(crate) fn must_mangle_proxy_suffix(
     full: &str,
     messages: &std::collections::BTreeSet<String>,
 ) -> bool {
     let key = full.trim_start_matches('.');
     let last = key.rsplit('.').next().unwrap_or(key);
-    let Some(without) = last.strip_suffix("View") else {
+    let Some(without) = last
+        .strip_suffix("View")
+        .or_else(|| last.strip_suffix("Mut"))
+    else {
         return false;
     };
     if without.is_empty() {
@@ -78,7 +81,14 @@ pub(crate) fn is_extern_type(full_name: &str) -> bool {
 pub(crate) fn format_extern_rel_path(prefix: &str, rust_path: &str, rel: &str) -> String {
     let last_ident = ident_last(prefix);
     let suff = format!("::{last_ident}");
-    if let Some(base) = rust_path.strip_suffix(&suff) {
+    let base = rust_path.strip_suffix(&suff).or_else(|| {
+        let public_ident = type_public_ident(prefix.trim_start_matches('.'));
+        if public_ident == last_ident {
+            return None;
+        }
+        rust_path.strip_suffix(&format!("::{public_ident}"))
+    });
+    if let Some(base) = base {
         let mod_name = to_snake(&last_ident);
         let rel_fmt = format_rel_type(rel);
         format!("{base}::{mod_name}::{rel_fmt}")
@@ -146,27 +156,108 @@ pub(crate) fn field_raw(f: &FieldDescriptor) -> Rc<str> {
     })
 }
 
-pub(crate) fn unique_idents(
-    full_names: &[String],
+fn allocate_type_idents<'a>(
+    names: impl IntoIterator<Item = (&'a str, String)>,
     messages: &std::collections::BTreeSet<String>,
 ) -> std::collections::BTreeMap<String, String> {
     let mut used: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
     let mut out = std::collections::BTreeMap::new();
-    for full in full_names {
-        let mut last = ident_last(full);
-        if must_mangle_view_suffix(full, messages) {
-            last.push('_');
-        }
-        let id = if used.contains(&last) {
-            let parent = full.rsplit_once('.').map(|x| x.0).unwrap_or("X");
-            format!("{}{last}", ident_last(parent))
-        } else {
-            last
+    for (full, last) in names {
+        let is_message = messages.contains(full);
+        let available = |id: &str| {
+            let id = id.trim_start_matches("r#");
+            !used.contains(id)
+                && (!is_message
+                    || (!used.contains(&format!("{id}View"))
+                        && !used.contains(&format!("{id}Mut"))))
         };
-        used.insert(id.clone());
-        out.insert(full.clone(), id);
+        let mut id = last;
+        if !available(&id) {
+            let parent = full.rsplit_once('.').map(|x| x.0).unwrap_or("X");
+            // Raw markers belong to one complete identifier. Embedding one
+            // between a parent and a child would produce `Outerr#type`.
+            let parent = ident_last(parent);
+            let stem = format!(
+                "{}{}",
+                parent.trim_start_matches("r#"),
+                id.trim_start_matches("r#")
+            );
+            id = rust_ident_from_last(&stem);
+            let mut suffix = 2;
+            while !available(&id) {
+                id = format!("{stem}_{suffix}");
+                suffix += 1;
+            }
+        }
+        let bare = id.trim_start_matches("r#");
+        used.insert(bare.to_string());
+        if is_message {
+            used.insert(format!("{bare}View"));
+            used.insert(format!("{bare}Mut"));
+        }
+        out.insert(full.to_string(), id);
     }
     out
+}
+
+fn preferred_type_ident(full: &str, messages: &std::collections::BTreeSet<String>) -> String {
+    let mut id = ident_last(full);
+    if must_mangle_proxy_suffix(full, messages) {
+        id.push('_');
+    }
+    id
+}
+
+pub(crate) fn scoped_type_idents<'a>(
+    full_names: impl IntoIterator<Item = &'a str>,
+    messages: &std::collections::BTreeSet<String>,
+) -> std::collections::BTreeMap<String, String> {
+    let mut scopes = std::collections::BTreeMap::<&str, Vec<&str>>::new();
+    for full in full_names {
+        let parent = full.rsplit_once('.').map(|x| x.0).unwrap_or("");
+        scopes.entry(parent).or_default().push(full);
+    }
+    let mut out = std::collections::BTreeMap::new();
+    for siblings in scopes.into_values() {
+        out.extend(allocate_type_idents(
+            siblings
+                .into_iter()
+                .map(|full| (full, preferred_type_ident(full, messages))),
+            messages,
+        ));
+    }
+    out
+}
+
+pub(crate) fn type_public_ident(full: &str) -> String {
+    TYPE_FILES.with(|files| {
+        files
+            .borrow()
+            .as_ref()
+            .and_then(|files| files.get(full))
+            .map(|(_, _, id)| id.clone())
+            .unwrap_or_else(|| ident_last(full))
+    })
+}
+
+pub(crate) fn flat_type_idents(
+    full_names: &[String],
+    messages: &std::collections::BTreeSet<String>,
+) -> std::collections::BTreeMap<String, String> {
+    let nested = |full: &&String| {
+        full.rsplit_once('.')
+            .is_some_and(|(parent, _)| messages.contains(parent))
+    };
+    // Public top-level exports retain their scoped names. Flattened nested
+    // implementation types can then take a parent prefix where needed.
+    let ordered = full_names
+        .iter()
+        .filter(|full| !nested(full))
+        .chain(full_names.iter().filter(nested));
+    allocate_type_idents(
+        ordered.map(|full| (full.as_str(), type_public_ident(full))),
+        messages,
+    )
 }
 
 pub(crate) fn rust_ident(s: &str) -> String {
@@ -193,13 +284,13 @@ pub(crate) fn rust_type_path(s: &str) -> String {
     // Only the emitted path is allocated.
     if let Some(path) = TYPE_FILES.with(|c| {
         let map = c.borrow();
-        let (type_file, pkg) = map.as_ref()?.get(key)?;
+        let (type_file, pkg, public_id) = map.as_ref()?.get(key)?;
         let same_file = CURRENT_TARGET.with(|t| {
             let current = t.borrow();
             !current.is_empty() && file_matches_single(&current, type_file)
         });
         if same_file {
-            return Some(ident_last(key));
+            return Some(public_id.clone());
         }
         if !pkg.is_empty() {
             let pkg_path = pkg_mod_path(pkg);
@@ -213,15 +304,22 @@ pub(crate) fn rust_type_path(s: &str) -> String {
                     .iter()
                     .map(|p| to_snake(&ident_last(p)))
                     .collect();
-                let last = ident_last(parts.last().unwrap_or(&""));
-                Some(format!("{pkg_path}::{}::{last}", mod_parts.join("::")))
+                Some(format!("{pkg_path}::{}::{public_id}", mod_parts.join("::")))
             } else {
-                let last = ident_last(rel);
-                Some(format!("{pkg_path}::{last}"))
+                Some(format!("{pkg_path}::{public_id}"))
             }
         } else {
-            let last = ident_last(key);
-            Some(format!("crate::{last}"))
+            let rel = key.rsplit_once('.').map(|x| x.0).unwrap_or("");
+            if rel.is_empty() {
+                Some(format!("crate::{public_id}"))
+            } else {
+                let mods = rel
+                    .split('.')
+                    .map(|p| to_snake(&ident_last(p)))
+                    .collect::<Vec<_>>()
+                    .join("::");
+                Some(format!("crate::{mods}::{public_id}"))
+            }
         }
     }) {
         TYPE_PATHS.with(|paths| {
@@ -708,7 +806,11 @@ fn enum_value_rs_name_with(
     if name.chars().next().is_some_and(|c| c.is_ascii_digit()) {
         name = format!("_{name}");
     }
-    if is_rust_keyword(&name) {
+    if name == "Self" {
+        // Rust forbids `r#Self`, including for an associated enum constant.
+        // This spelling also matches Prost's enum-prefix handling.
+        "Self_".to_string()
+    } else if is_rust_keyword(&name) {
         format!("r#{name}")
     } else {
         name
@@ -798,13 +900,147 @@ mod tests {
     use super::*;
 
     #[test]
+    fn flattened_names_reserve_proxies_and_recheck_parent_prefixes() {
+        let _guard = CodegenStateGuard::new();
+        let names = [
+            "pkg.A",
+            "pkg.A.X",
+            "pkg.B",
+            "pkg.B.X",
+            "pkg.C",
+            "pkg.C.B",
+            "pkg.C.B.X",
+            "pkg.Foo",
+            "pkg.FooMut",
+            "pkg.FooView",
+            "pkg.RawA.type",
+            "pkg.RawB.type",
+        ]
+        .map(str::to_string);
+        let messages = names.iter().cloned().collect();
+        let aliases = scoped_type_idents(names.iter().map(String::as_str), &messages);
+        let index = aliases
+            .into_iter()
+            .map(|(full, id)| (full, ("types.proto".to_string(), "pkg".to_string(), id)))
+            .collect();
+        TYPE_FILES.with(|files| *files.borrow_mut() = Some(std::sync::Arc::new(index)));
+        let ids = flat_type_idents(&names, &messages);
+        assert_eq!(ids.get("pkg.A.X").map(String::as_str), Some("X"));
+        assert_eq!(ids.get("pkg.B.X").map(String::as_str), Some("BX"));
+        assert_eq!(ids.get("pkg.C.B.X").map(String::as_str), Some("BX_2"));
+        assert_eq!(ids.get("pkg.FooMut").map(String::as_str), Some("FooMut_"));
+        assert_eq!(ids.get("pkg.FooView").map(String::as_str), Some("FooView_"));
+        assert_eq!(ids.get("pkg.RawA.type").map(String::as_str), Some("r#type"));
+        assert_eq!(
+            ids.get("pkg.RawB.type").map(String::as_str),
+            Some("RawBtype")
+        );
+        let mut emitted = std::collections::BTreeSet::new();
+        for id in ids.values() {
+            let bare = id.trim_start_matches("r#");
+            assert!(emitted.insert(bare.to_string()));
+            assert!(emitted.insert(format!("{bare}View")));
+            assert!(emitted.insert(format!("{bare}Mut")));
+        }
+    }
+
+    #[test]
+    fn enum_self_values_use_legal_identifiers() {
+        let prefixes = enum_prefixes("Keyword");
+        for retain_prefix in [false, true] {
+            assert_eq!(
+                enum_value_rs_name_with(&prefixes, "SELF", retain_prefix),
+                "Self_"
+            );
+        }
+        let prefixes = enum_prefixes("Foo");
+        assert_eq!(
+            enum_value_rs_name_with(&prefixes, "FOO_SELF", false),
+            "Self_"
+        );
+        assert_eq!(
+            enum_value_rs_name_with(&prefixes, "FOO_SELF", true),
+            "FooSelf"
+        );
+        assert_eq!(
+            enum_value_rs_name_with(&prefixes, "FOO_READY", false),
+            "Ready"
+        );
+    }
+
+    #[test]
+    fn imported_aliases_and_renamed_external_parents_keep_their_scope() {
+        let _guard = CodegenStateGuard::new();
+        let index = TypeFileIndex::from([
+            (
+                "pkg.FooMut".to_string(),
+                (
+                    "types.proto".to_string(),
+                    "pkg".to_string(),
+                    "FooMut_".to_string(),
+                ),
+            ),
+            (
+                "pkg.FooView".to_string(),
+                (
+                    "types.proto".to_string(),
+                    "pkg".to_string(),
+                    "FooView_".to_string(),
+                ),
+            ),
+            (
+                "pkg.FooMut.Child".to_string(),
+                (
+                    "types.proto".to_string(),
+                    "pkg".to_string(),
+                    "Child".to_string(),
+                ),
+            ),
+            (
+                "Loose.Child".to_string(),
+                (
+                    "loose.proto".to_string(),
+                    String::new(),
+                    "Child".to_string(),
+                ),
+            ),
+        ]);
+        TYPE_FILES.with(|files| *files.borrow_mut() = Some(std::sync::Arc::new(index)));
+        CURRENT_TARGET.with(|target| *target.borrow_mut() = "consumer.proto".to_string());
+        EXTERN_PATHS.with(|paths| {
+            paths
+                .borrow_mut()
+                .push((".pkg.FooMut".to_string(), "::provider::FooMut_".to_string()))
+        });
+        assert_eq!(rust_type_path("pkg.FooMut"), "::provider::FooMut_");
+        assert_eq!(
+            rust_type_path("pkg.FooMut.Child"),
+            "::provider::foo_mut::Child"
+        );
+        assert_eq!(rust_type_path("pkg.FooView"), "crate::pkg::FooView_");
+        assert_eq!(rust_type_path("Loose.Child"), "crate::loose::Child");
+        assert_eq!(
+            format_extern_rel_path("pkg.FooMut", "::prost_provider::FooMut", "Child"),
+            "::prost_provider::foo_mut::Child"
+        );
+        assert_eq!(
+            format_extern_rel_path("pkg", "::custom_namespace", "FooMut"),
+            "::custom_namespace::FooMut"
+        );
+    }
+
+    #[test]
     fn imported_paths_keep_local_identifiers_and_request_options_separate() {
         {
             let _guard = CodegenStateGuard::new();
             let key = "pkg.Parent.Child";
             let index = TypeFileIndex::from([(
                 key.to_string(),
-                ("dependency.proto".to_string(), "pkg".to_string()),
+                (
+                    "dependency.proto".to_string(),
+                    "pkg".to_string(),
+                    "Child".to_string(),
+                ),
             )]);
             TYPE_FILES.with(|files| *files.borrow_mut() = Some(std::sync::Arc::new(index)));
             CURRENT_TARGET.with(|target| *target.borrow_mut() = "consumer.proto".to_string());

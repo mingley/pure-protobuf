@@ -5,6 +5,14 @@ or use `protoc-gen-pbrs` in an existing compiler pipeline. Inputs can be
 `.proto` files or a checked descriptor set. Native gRPC stubs are the default;
 Tonic stubs and messages-only output are explicit options.
 
+| Need | Read |
+|---|---|
+| Pick native, tonic or messages-only output | [Stub modes](#stub-generation-summary) |
+| Read or mutate nested messages efficiently | [Lazy and owned storage](#owned-nested-message-fields) |
+| Reduce generated metadata and format helpers | [Cargo features](#cargo-features) |
+| Generate without `protoc` during the application build | [Checked descriptor sets](#generating-from-a-checked-descriptor-set) |
+| Port a `prost-build` configuration | [Builder compatibility](#parity-with-tonic-build-and-prost-build) |
+
 ---
 
 ## 1. Using `build.rs` (Recommended)
@@ -102,8 +110,17 @@ formats, message APIs, JSON, and text behavior remain the same.
 
 ### Owned nested message fields
 
-Use `owned_message_fields(true)` when applications read or mutate most of a
-nested message tree:
+Choose storage for the work your application does after parsing:
+
+| Workload | Starting choice | Cost to check |
+|---|---|---|
+| Read a few fields or forward an unchanged message | Default lazy storage | The first child access constructs that child; later traversal still has a cost. |
+| Read or mutate most singular children | `owned_message_fields(true)` | Parsing constructs those children even if a particular call never reads them. |
+| Alternate between sparse reads and complete traversal | Compare both with representative inputs | Parsing, allocation, full reads and re-encoding can favor different choices. |
+
+For example, a proxy that forwards most requests untouched can start with
+lazy storage. A handler that walks every node of a tree can start with owned
+storage:
 
 ```rust
 pbrs::codegen::Config::new()
@@ -120,8 +137,10 @@ checked fallback. Children remain deferred until accessed.
 
 Both profiles keep message accessors, protobuf semantics, formats, validation
 and recursion limits. They differ in allocation, partial reads, mutation and
-encoding costs. Compare the [latest measurements](../evidence/decode-and-map-speed-20261027/README.md)
-for the application's workload. The lazy validation flag can increase each
+encoding costs. The [benchmark results](../benchmarks.md) record both gains
+and losses. Use the [codec benchmark commands](../benchmarks/running.md#message-codecs)
+to compare the same input under both profiles, keeping parse-only, full-read
+and encode timings separate. The lazy validation flag can increase each
 child allocation by eight bytes; it does not construct the entire subtree on
 the first getter.
 
@@ -331,6 +350,18 @@ Config::new()
 ```
 
 Alternatively, set `PURE_PROTOBUF_EMIT_DEPS=1` in the environment.
+
+### Generated names and regeneration
+
+The generator reserves companion `View` and `Mut` names and disambiguates
+colliding flattened message names. Regenerating a schema with one of these
+collisions can change its Rust identifiers. Refer to nested types through
+their generated nesting modules rather than incidental flat implementation
+aliases, whose names can change when the schema grows.
+
+The repair does not cover two protobuf names that produce the same Rust
+snake-case module name. The [generated-consumer controls](../../tests/proof/codegen_parity/README.md)
+show the tested collisions, imported types and external mappings.
 
 ### Shared Google protobuf types
 

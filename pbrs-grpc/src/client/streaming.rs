@@ -1506,10 +1506,8 @@ impl super::Channel {
                     let attempt_deadline = retry_policy
                         .as_ref()
                         .and_then(|policy| policy.per_attempt_recv_timeout)
-                        .map(|budget| {
-                            let capped = tokio::time::Instant::now() + budget;
-                            deadline.map_or(capped, |overall| overall.min(capped))
-                        })
+                        .and_then(|budget| deadline_from(Some(budget)))
+                        .map(|capped| deadline.map_or(capped, |overall| overall.min(capped)))
                         .or(deadline);
                     match run_server_stream_frame(
                         live.send,

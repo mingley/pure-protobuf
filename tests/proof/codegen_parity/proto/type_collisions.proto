@@ -1,0 +1,22 @@
+syntax = "proto3";
+package proof.collisions;
+
+message A { message X { int32 value = 1; } }
+message B { message X { int32 value = 1; } }
+message C { message B { message X { int32 value = 1; } } }
+
+message Foo { int32 value = 1; }
+message FooMut {
+  message Child { int32 value = 1; }
+  int32 value = 1;
+}
+message FooView { int32 value = 1; }
+
+message Outer {
+  message Foo { int32 value = 1; }
+  message FooMut { int32 value = 1; }
+  message FooView { int32 value = 1; }
+}
+
+message Bar { int32 value = 1; }
+enum BarMut { BAR_MUT_UNSPECIFIED = 0; BAR_MUT_READY = 1; }

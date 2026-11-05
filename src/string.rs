@@ -364,7 +364,11 @@ impl From<&[u8]> for ProtoBytes {
 }
 impl From<Vec<u8>> for ProtoBytes {
     fn from(v: Vec<u8>) -> Self {
-        Self(bytes::Bytes::from(v))
+        if v.is_empty() {
+            Self::new()
+        } else {
+            Self(bytes::Bytes::from(v))
+        }
     }
 }
 impl From<bytes::Bytes> for ProtoBytes {
@@ -415,12 +419,15 @@ impl<const N: usize> IntoProxied<ProtoBytes> for &[u8; N] {
 }
 impl IntoProxied<ProtoBytes> for std::borrow::Cow<'_, [u8]> {
     fn into_proxied(self, _private: crate::internal::Private) -> ProtoBytes {
-        ProtoBytes::from(self.as_ref())
+        match self {
+            std::borrow::Cow::Borrowed(bytes) => ProtoBytes::from(bytes),
+            std::borrow::Cow::Owned(bytes) => ProtoBytes::from(bytes),
+        }
     }
 }
 impl IntoProxied<ProtoBytes> for Box<[u8]> {
     fn into_proxied(self, _private: crate::internal::Private) -> ProtoBytes {
-        ProtoBytes::from(self.as_ref())
+        ProtoBytes::from(bytes::Bytes::from(self))
     }
 }
 impl IntoProxied<ProtoBytes> for std::rc::Rc<[u8]> {

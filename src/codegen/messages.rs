@@ -639,7 +639,7 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
                 .borrow()
                 .as_ref()
                 .and_then(|files| files.get(&desc.full_name))
-                .map(|(_, package)| package.clone())
+                .map(|(_, package, _)| package.clone())
                 .unwrap_or_default()
         });
         let type_url = format!("{}/{}", type_name_domain(&desc.full_name), desc.full_name);
@@ -1346,7 +1346,7 @@ pub(crate) fn emit_nested_mods(src: &mut String, messages: &[String], enums: &[S
     let mut root = Node::default();
     let mut add = |full: &str, is_msg: bool| {
         let ident = rust_ident(full);
-        let last = ident_last(full);
+        let last = type_public_ident(full);
         let mut cur = full;
         let mut path = Vec::new();
         while let Some((parent, _)) = cur.rsplit_once('.') {

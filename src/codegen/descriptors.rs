@@ -85,7 +85,7 @@ pub fn generate_from_code_generator_request(
         *types.borrow_mut() = (!required_types.is_empty()).then(|| Arc::new(required_types));
     });
     let enum_names: Vec<String> = pool.collect_enum_names();
-    let msg_set: std::collections::BTreeSet<String> = msg_names.iter().cloned().collect();
+    let mut msg_set = std::collections::BTreeSet::new();
     let mut file_packages: std::collections::BTreeMap<String, String> =
         std::collections::BTreeMap::new();
     for blob in &proto_files {
@@ -195,7 +195,13 @@ pub fn generate_from_code_generator_request(
                         .map(|f| f.package.clone())
                         .unwrap_or_default()
                 });
-            type_files.insert(name.clone(), (desc.file_name.clone(), pkg));
+            type_files.insert(
+                name.clone(),
+                (desc.file_name.clone(), pkg, ident_last(name)),
+            );
+            if !desc.is_map_entry {
+                msg_set.insert(name.clone());
+            }
             msg_facts.push(TypeFacts {
                 name: name.clone(),
                 file: desc.file_name.clone(),
@@ -216,7 +222,7 @@ pub fn generate_from_code_generator_request(
                         .map(|f| f.package.clone())
                         .unwrap_or_default()
                 });
-            type_files.insert(name.clone(), (ed.file_name.clone(), pkg));
+            type_files.insert(name.clone(), (ed.file_name.clone(), pkg, ident_last(name)));
             enum_facts.push(TypeFacts {
                 name: name.clone(),
                 file: ed.file_name.clone(),
@@ -224,6 +230,21 @@ pub fn generate_from_code_generator_request(
                 is_extern: is_extern_type(&ed.full_name),
                 is_wkt: ed.full_name.starts_with("google.protobuf."),
             });
+        }
+    }
+    // Scope aliases are request-wide and independent of selected targets or
+    // external Rust mappings. Synthetic map-entry messages have no public type.
+    let aliases = scoped_type_idents(
+        msg_names
+            .iter()
+            .filter(|name| msg_set.contains(name.as_str()))
+            .chain(enum_names.iter())
+            .map(String::as_str),
+        &msg_set,
+    );
+    for (name, (_, _, alias)) in &mut type_files {
+        if let Some(id) = aliases.get(name) {
+            *alias = id.clone();
         }
     }
     TYPE_FILES.with(|c| {
@@ -516,7 +537,7 @@ use pbrs::UnknownFields;\n\n"
         emit_enums.dedup();
         let mut ident_names = emit_names.clone();
         ident_names.extend(emit_enums.iter().cloned());
-        IDENTS.with(|c| *c.borrow_mut() = unique_idents(&ident_names, &msg_set));
+        IDENTS.with(|c| *c.borrow_mut() = flat_type_idents(&ident_names, &msg_set));
         if !typed_extensions.is_empty() {
             validate_typed_extension_emission(
                 &typed_extensions,

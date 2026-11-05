@@ -5,6 +5,21 @@ stopped. They are dated investigations, usually local diagnostics. A result
 belongs to its recorded revision, host, workload, and peer versions; it does
 not automatically describe today's code.
 
+The [November 5 generator cost check](codegen-naming-20261105/README.md)
+compares normal-schema output after the naming repairs. Files match, but
+unchanged-generation overhead remains in the medians and shared-host ranges
+cross one. It does not establish a speedup or nonregression.
+
+The [November 5 map-equality record](map-equality-20261105/README.md)
+compares four runtime variants, including cold index creation and allocation
+controls. Indexed equality improves substantially; small false-comparison
+regressions and remaining HashMap losses are retained.
+
+The [November 5 byte-ownership record](byte-ownership-20261105/README.md)
+counts payload and shared-header allocations when moving owned buffers into
+setters. It retains the small spare-capacity byte increases and explains
+capacity retention; CPU, retained memory and RPC costs are unmeasured.
+
 The [November 4 recursive-validation record](borrowed-recursive-validation-20261104/README.md)
 measures a narrow borrowed-slice generator path, including matched Prost and
 unchanged-workload controls. It retains the earlier mixed-read concern, later

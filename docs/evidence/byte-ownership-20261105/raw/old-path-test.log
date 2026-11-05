@@ -1,0 +1,24 @@
+   Compiling pbrs v0.2.1 (/workspace/pure-protobuf)
+    Finished `test` profile [unoptimized] target(s) in 14.71s
+     Running unittests src/lib.rs (target/debug/deps/pbrs-d5e19625b6c311d4)
+
+running 1 test
+test lazy::tests::bytes_from_vec_transfers_payload_with_exact_and_spare_capacity ... FAILED
+
+failures:
+
+---- lazy::tests::bytes_from_vec_transfers_payload_with_exact_and_spare_capacity stdout ----
+
+thread 'lazy::tests::bytes_from_vec_transfers_payload_with_exact_and_spare_capacity' (15742) panicked at src/lazy.rs:896:17:
+assertion `left == right` failed
+  left: 0x556813604a40
+ right: 0x556813606450
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    lazy::tests::bytes_from_vec_transfers_payload_with_exact_and_spare_capacity
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 132 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p pbrs --lib`

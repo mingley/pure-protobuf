@@ -306,11 +306,50 @@ impl<K: MapKey, V: MapValue> Default for Map<K, V> {
     }
 }
 
+// Keep the indexed comparison out of the small-map scan's generated code.
+// Both indexes already exist after equality compares the unique lengths.
+#[inline(never)]
+fn indexed_entries_eq<K: MapKey, V: MapValue + PartialEq>(
+    left: &MapInner<K, V>,
+    right: &MapInner<K, V>,
+    left_index: &LastWinsIndex<K>,
+    right_index: &LastWinsIndex<K>,
+) -> bool {
+    left_index.pos.iter().zip(&right_index.pos).all(
+        |((left_key, left_pos), (right_key, right_pos))| {
+            if left_key != right_key {
+                return false;
+            }
+            let Some((_, left_value)) = left.entries.get(*left_pos) else {
+                return false;
+            };
+            let Some((_, right_value)) = right.entries.get(*right_pos) else {
+                return false;
+            };
+            // Keep the original value comparison direction.
+            right_value == left_value
+        },
+    )
+}
+
 impl<K: MapKey, V: MapValue + PartialEq> PartialEq for Map<K, V> {
     fn eq(&self, other: &Self) -> bool {
-        self.len() == other.len()
-            && self.iter().all(|(k, v)| other.get(k) == Some(v))
-            && other.iter().all(|(k, _)| self.get(k).is_some())
+        if self.len() != other.len() {
+            return false;
+        }
+        if let (Some(left), Some(right)) = (self.0.as_deref(), other.0.as_deref()) {
+            if left.entries.len() >= INDEX_THRESHOLD && right.entries.len() >= INDEX_THRESHOLD {
+                if let (Some(left_index), Some(right_index)) = (left.index.get(), right.index.get())
+                {
+                    // Unique sorted positions pair corresponding last-wins
+                    // values without a binary search for every wire entry.
+                    return indexed_entries_eq(left, right, left_index, right_index);
+                }
+            }
+        }
+        // Iteration yields each last-wins key once. Equal unique lengths and
+        // matching every left entry also prove that the right has no extras.
+        self.iter().all(|(k, v)| other.get(k) == Some(v))
     }
 }
 impl<K: MapKey, V: MapValue + Eq> Eq for Map<K, V> {}
@@ -1193,6 +1232,159 @@ mod tests {
             std::mem::size_of::<usize>()
         );
         drop(z);
+    }
+
+    #[test]
+    fn equality_matches_hash_map_last_wins() {
+        use std::collections::HashMap;
+        // Include both sides of the lazy-index boundary and maps with the
+        // same logical entries but different wire order and shadowed values.
+        for n in [0, 1, 2, 8, 15, 16, 17, 64, 256] {
+            for distinct in [1, 3, n.max(1)] {
+                let mut left = Map::new();
+                let mut expected = HashMap::new();
+                for i in 0..n {
+                    let key = (i * 17 + 3) % distinct;
+                    left.push_entry(key, i);
+                    expected.insert(key, i);
+                }
+                let mut right = Map::new();
+                for (&key, &value) in &expected {
+                    right.push_entry(key, -1);
+                    right.push_entry(key, value);
+                }
+                assert_eq!(left, right, "n={n}, distinct={distinct}");
+                assert_eq!(right, left, "n={n}, distinct={distinct}");
+                for changed_key in [0, 3, 17, 257] {
+                    for changed_value in [-2, 0, 1, 17, 257] {
+                        let mut changed = right.clone();
+                        let mut expected_changed = expected.clone();
+                        changed.insert(changed_key, changed_value);
+                        expected_changed.insert(changed_key, changed_value);
+                        assert_eq!(
+                            left == changed,
+                            expected == expected_changed,
+                            "n={n}, distinct={distinct}, key={changed_key}, value={changed_value}"
+                        );
+                        assert_eq!(changed == left, expected_changed == expected);
+                    }
+                }
+                for missing in expected.keys() {
+                    let mut changed = Map::new();
+                    let mut expected_changed = expected.clone();
+                    expected_changed.remove(missing);
+                    // Keep cardinality unchanged while replacing one key.
+                    expected_changed.insert(1000, -1);
+                    for (&key, &value) in &expected_changed {
+                        changed.push_entry(key, value);
+                    }
+                    assert_eq!(left == changed, expected == expected_changed);
+                    assert_eq!(changed == left, expected_changed == expected);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn equality_retains_non_reflexive_value_semantics() {
+        let mut left = Map::new();
+        left.push_entry(1, f64::NAN);
+        let right = left.clone();
+        assert_ne!(left, right);
+        left.insert(1, -0.0);
+        let mut right = Map::new();
+        right.push_entry(1, 0.0);
+        assert_eq!(left, right);
+    }
+
+    #[test]
+    fn equality_compares_string_keys_as_raw_bytes() {
+        for n in [2, 16, 32] {
+            let mut left = Map::new();
+            let mut right = Map::new();
+            let mut expected_left = std::collections::HashMap::new();
+            let mut expected_right = std::collections::HashMap::new();
+            for i in 0..n {
+                let key = vec![0xff, i, 0x80];
+                left.push_entry(ProtoString::from_bytes(&key), i);
+                expected_left.insert(key, i);
+            }
+            for i in (0..n).rev() {
+                let key = vec![0xff, i, 0x80];
+                right.push_entry(ProtoString::from_bytes(&key), 0);
+                right.push_entry(ProtoString::from_bytes(&key), i);
+                expected_right.insert(key, i);
+            }
+            assert_eq!(left == right, expected_left == expected_right);
+            assert_eq!(right, left);
+            let replacement = vec![0xff, 0, 0x81];
+            right.remove(&ProtoString::from_bytes(&[0xff, 0, 0x80]));
+            // Remove every old duplicate before replacing its logical key.
+            right.remove(&ProtoString::from_bytes(&[0xff, 0, 0x80]));
+            right.push_entry(ProtoString::from_bytes(&replacement), 0);
+            expected_right.remove(&vec![0xff, 0, 0x80]);
+            expected_right.insert(replacement, 0);
+            assert_eq!(left == right, expected_left == expected_right);
+            assert_ne!(right, left);
+        }
+    }
+
+    #[test]
+    fn equality_preserves_value_comparison_direction() {
+        // Even a user type with an asymmetric comparison is called in the
+        // existing direction: the looked-up right value compares to the left.
+        #[derive(Clone, Debug)]
+        struct Directional(u8);
+        impl PartialEq for Directional {
+            fn eq(&self, other: &Self) -> bool {
+                self.0 <= other.0
+            }
+        }
+        let mut left = Map::new();
+        let mut right = Map::new();
+        for n in [1, 16, 32] {
+            left.clear();
+            right.clear();
+            for key in 0..n {
+                left.push_entry(key, Directional(1));
+                right.push_entry(key, Directional(2));
+            }
+            assert_ne!(left, right);
+            assert_eq!(right, left);
+        }
+    }
+
+    #[test]
+    fn equality_observes_warm_index_mutations() {
+        let mut left = Map::new();
+        let mut right = Map::new();
+        for key in 0..32 {
+            left.push_entry(key, key * 10);
+        }
+        for key in (0..32).rev() {
+            right.push_entry(key, key * 10);
+        }
+        assert_eq!(left, right); // Builds both indexes.
+        assert!(!left.insert(17, -1));
+        assert_ne!(left, right);
+        assert!(!right.as_mut().insert(17, -1));
+        assert_eq!(left, right);
+        assert!(left.insert(33, 330));
+        assert_ne!(left, right);
+        assert!(right.as_mut().insert(33, 330));
+        assert_eq!(left, right);
+        left.push_entry(17, 170); // Drops one index, keeps a shadowed entry.
+        assert_ne!(left, right);
+        assert!(!right.insert(17, 170));
+        assert_eq!(left, right);
+        assert_eq!(left.remove(&17), Some(170));
+        assert_ne!(left, right); // The older -1 value resurfaces.
+        assert!(!right.insert(17, -1));
+        assert_eq!(left, right);
+        assert!(left.as_mut().remove(33));
+        assert_ne!(left, right);
+        assert_eq!(right.remove(&33), Some(330));
+        assert_eq!(left, right);
     }
 
     #[test]

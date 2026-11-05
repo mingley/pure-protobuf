@@ -241,8 +241,12 @@ impl Peer {
 }
 
 async fn connected() -> (Channel, Peer) {
+    connected_with(pbrs_grpc::ChannelConfig::default()).await
+}
+
+async fn connected_with(config: pbrs_grpc::ChannelConfig) -> (Channel, Peer) {
     let (client, io) = tokio::io::duplex(65536);
-    let connect = tokio::spawn(Channel::from_io(client, "localhost"));
+    let connect = tokio::spawn(Channel::from_io_with(client, "localhost", config));
     let mut peer = Peer {
         io,
         buffered: Vec::new(),
@@ -529,6 +533,113 @@ async fn native_timeout_preserves_the_existing_twenty_millisecond_boundary() {
         tokio::time::advance(Duration::from_millis(wait)).await;
         assert_eq!(peer.finish(waiting).await, Duration::from_millis(expected));
     }
+}
+
+#[tokio::test(start_paused = true)]
+async fn all_shapes_large_timeouts_round_up_or_saturate_without_instant_overflow() {
+    for shape in SHAPES {
+        for (requested, expected) in [
+            (
+                Duration::from_secs(100_000) + Duration::from_nanos(1),
+                Duration::from_secs(100_001),
+            ),
+            (Duration::MAX, Duration::from_secs(99_999_999 * 3_600)),
+        ] {
+            let mut peer = HeaderPeer::new().await;
+            let (_, mut waiting) = native_call(&peer.channel, shape, Some(requested)).await;
+            pending(&mut waiting).await;
+            assert_eq!(peer.finish(waiting).await, expected, "{shape:?}");
+        }
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn unrepresentable_keepalive_interval_keeps_the_channel_usable() {
+    for adaptive in [false, true] {
+        let (channel, mut peer) = connected_with(
+            pbrs_grpc::ChannelConfig::new()
+                .adaptive_window(adaptive)
+                .keep_alive_interval(Duration::MAX)
+                .keep_alive_while_idle(true),
+        )
+        .await;
+        let (_, call) = native_call(&channel, Shape::Unary, None).await;
+        let waiting = tokio::spawn(call);
+        peer.request_eof(1).await;
+        peer.reply(1).await;
+        assert_eq!(
+            tokio::time::timeout(BOUND, waiting)
+                .await
+                .expect("RPC remained bounded")
+                .expect("call task"),
+            Ok(()),
+            "adaptive={adaptive}"
+        );
+    }
+}
+
+async fn next_ping(peer: &mut Peer) -> Frame {
+    tokio::time::timeout(BOUND, async {
+        loop {
+            let frame = peer.next().await;
+            assert_eq!(frame.stream, 0, "connection control frame");
+            if frame.kind == 6 {
+                assert_eq!(frame.flags, 0, "outbound keepalive probe");
+                assert_eq!(frame.payload.len(), 8);
+                return frame;
+            }
+            assert!(matches!(frame.kind, 4 | 8), "SETTINGS or WINDOW_UPDATE");
+        }
+    })
+    .await
+    .expect("keepalive probe arrived")
+}
+
+#[tokio::test(start_paused = true)]
+async fn adaptive_unrepresentable_keepalive_timeout_waits_for_pong_and_rearms() {
+    let interval = Duration::from_millis(10);
+    let (channel, mut peer) = connected_with(
+        pbrs_grpc::ChannelConfig::new()
+            .adaptive_window(true)
+            .keep_alive_interval(interval)
+            .keep_alive_timeout(Duration::MAX)
+            .keep_alive_while_idle(true),
+    )
+    .await;
+    tokio::time::advance(interval).await;
+    let first_ping = next_ping(&mut peer).await;
+    // Leave the PING outstanding well past the regular interval, then make an
+    // RPC while withholding the ACK. No new PING or close may replace it.
+    tokio::time::advance(Duration::from_secs(1)).await;
+    let (_, call) = native_call(&channel, Shape::Unary, None).await;
+    let waiting = tokio::spawn(call);
+    tokio::time::timeout(BOUND, async {
+        loop {
+            let frame = peer.next().await;
+            assert_ne!(frame.kind, 6, "do not resend an unbounded pending probe");
+            if frame.stream == 0 {
+                assert!(matches!(frame.kind, 4 | 8), "connection remains usable");
+                continue;
+            }
+            assert_eq!(frame.stream, 1, "first request stream");
+            if frame.kind == 0 && frame.flags & 1 != 0 {
+                break;
+            }
+        }
+    })
+    .await
+    .expect("request reached peer while probe remains pending");
+    peer.reply(1).await;
+    assert_eq!(
+        tokio::time::timeout(BOUND, waiting)
+            .await
+            .expect("RPC completed without a keepalive timeout")
+            .expect("call task"),
+        Ok(())
+    );
+    peer.write(6, 1, 0, &first_ping.payload).await;
+    tokio::time::advance(interval).await;
+    drop(next_ping(&mut peer).await);
 }
 
 #[cfg(feature = "tonic")]

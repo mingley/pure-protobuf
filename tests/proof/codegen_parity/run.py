@@ -83,13 +83,27 @@ def main():
             "any_cases_passed": 4,
             "any_url_cases_passed": 12,
             "any_malformed_cases_passed": 1,
-            "enum_cases_passed": 2,
+            "enum_cases_passed": 4,
         }.items()
     )
     result, attributes = run("attribute-selectors", ["cargo", "run", "--locked", "--offline", "--manifest-path", str(manifest), "--bin", "pbrs_attribute_selectors"])
     attributes["passed"] = result.returncode == 0
     attributes["cases_passed"] = result.stdout.count(b"PASS attribute-selector ")
     attributes["scope"] = "same-schema field attribute selector placement against prost-build"
+    collisions = []
+    for profile, binary in [
+        ("lazy", "pbrs_type_collisions"),
+        ("owned", "pbrs_owned_type_collisions"),
+        ("external", "pbrs_external_type_collisions"),
+    ]:
+        result, collision = run(f"type-collisions-{profile}", ["cargo", "run", "--locked", "--offline", "--manifest-path", str(manifest), "--bin", binary])
+        collision.update({
+            "profile": profile,
+            "passed": result.returncode == 0,
+            "cases_passed": result.stdout.count(b"PASS type-collision "),
+            "scope": "flattened identifiers, message View/Mut names, scoped imported aliases, synthetic map entries and explicit renamed external parents",
+        })
+        collisions.append(collision)
     probes = []
     for method in METHODS:
         result, probe = run(method, ["cargo", "check", "--locked", "--offline", "--manifest-path", str(manifest), "--bin", f"pbrs_{method}"])
@@ -121,6 +135,7 @@ def main():
         "configuration_probes": probes,
         "configured_options": options,
         "attribute_selectors": attributes,
+        "type_collisions": collisions,
         "alloc_only_target": no_std,
         "source_sha256": after_hashes,
         "changed_source_files": [name for name in before_hashes if before_hashes[name] != after_hashes[name]],
@@ -139,12 +154,13 @@ def main():
         consumer["passed"] and consumer["cases_passed"] == 9
         and options["semantic_controls_match"]
         and attributes["passed"] and attributes["cases_passed"] == 13
+        and all(case["passed"] and case["cases_passed"] == 4 for case in collisions)
         and all(probe["gap_reproduced"] for probe in probes)
         and no_std["functional_gap_reproduced"]
         and not report["changed_source_files"]
     )
     (output / "results.json").write_text(json.dumps(report, indent=2) + "\n")
-    print(json.dumps({"harness_passed": report["harness_passed"], "consumer_cases": consumer["cases_passed"], "name_cases": options["name_cases_passed"], "any_cases": options["any_cases_passed"], "enum_cases": options["enum_cases_passed"], "attribute_cases": attributes["cases_passed"], "configuration_gaps": sum(p["gap_reproduced"] for p in probes), "alloc_only_gap": no_std["functional_gap_reproduced"]}))
+    print(json.dumps({"harness_passed": report["harness_passed"], "consumer_cases": consumer["cases_passed"], "name_cases": options["name_cases_passed"], "any_cases": options["any_cases_passed"], "enum_cases": options["enum_cases_passed"], "attribute_cases": attributes["cases_passed"], "type_collision_cases": sum(case["cases_passed"] for case in collisions), "configuration_gaps": sum(p["gap_reproduced"] for p in probes), "alloc_only_gap": no_std["functional_gap_reproduced"]}))
     return 0 if report["harness_passed"] else 1
 
 
