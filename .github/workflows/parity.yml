@@ -34,6 +34,7 @@ jobs:
       - name: Fetch locked consumer dependencies
         run: |
           for manifest in \
+            Cargo.toml \
             tests/proof/prost_parity/Cargo.toml \
             tests/proof/owned_messages/Cargo.toml \
             tests/proof/validated_lazy/Cargo.toml \
