@@ -1,0 +1,15 @@
+[package]
+name = "pbrs-ordered-maps-proof"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+pbrs = { path = "../../..", default-features = false, features = ["codegen", "json", "text"] }
+prost = "=0.14.4"
+
+[build-dependencies]
+pbrs = { path = "../../..", default-features = false, features = ["codegen", "json", "text"] }
+prost-build = "=0.14.4"

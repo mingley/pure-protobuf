@@ -1,0 +1,115 @@
+{
+  "schema": "pbrs-hosted-devloop-evidence/1",
+  "official_artifact": {
+    "run_id": 42163543503,
+    "artifact_id": 13480729136,
+    "name": "devloop-42163543503",
+    "run_url": "https://github.com/mingley/pure-protobuf/actions/runs/42163543503",
+    "artifact_url": "https://github.com/mingley/pure-protobuf/actions/runs/42163543503/artifacts/13480729136",
+    "zip_file": "official-artifact.zip",
+    "zip_sha256": "aba4bb599b09ba2bf7f204380798e2a3ab08fd63c46e0aea9fc387944734ed21",
+    "zip_bytes": 216347
+  },
+  "base_sha": "b6eb8c7b3c137e5173538baba14a192ab6b4dc65",
+  "head_sha": "05a3cca50e7708f5be1facce6d27a7ed6b87006b",
+  "cell_count": 1634,
+  "measured_metrics": [
+    "allocs",
+    "alloc_bytes",
+    "syscalls",
+    "locks",
+    "wall_ns"
+  ],
+  "instruction_status": "not_run",
+  "fresh_encode_profile": "independent-warmup-v1",
+  "ranking_claim": false,
+  "members": [
+    {
+      "name": "base-rpc-fixture-overlay.json",
+      "bytes": 851,
+      "sha256": "4ea39c7385c784dab95d4a7f06fd75f81250d38a829adb3763db3090a41fced0"
+    },
+    {
+      "name": "base.json",
+      "bytes": 2704628,
+      "sha256": "61a1b126e588d1d32ec791febff44216234899e10db748b0f344482ca048f442"
+    },
+    {
+      "name": "base.log",
+      "bytes": 55121,
+      "sha256": "10a03781ff72724d81bcb7b8328e79b364877119abd6105a67bccf4bb3828689"
+    },
+    {
+      "name": "compare.txt",
+      "bytes": 124684,
+      "sha256": "73c2f4fbe47871fad5f75db21e2c6ce8bbb35aa4a9be11a39049fa9783c46fbe"
+    },
+    {
+      "name": "head.json",
+      "bytes": 2704577,
+      "sha256": "40c8dadd3e66341856e7a09ec6e1ba40e84c8678aac5b8bbb492e8a00c97c744"
+    },
+    {
+      "name": "head.log",
+      "bytes": 55321,
+      "sha256": "6217d5fff1553de0647b8ae8d3a6c2dd134daa44f5e95f2053955c77e28ff0ca"
+    },
+    {
+      "name": "summary.md",
+      "bytes": 160866,
+      "sha256": "f6a7b5bc851265dacbdfd83819d79dbec0f69a0e497516e12baef29477e4c562"
+    },
+    {
+      "name": "validation.json",
+      "bytes": 345236,
+      "sha256": "30b4757e86f8a3dd5d24813c747ac33e2f3350a1102e90fe6a2934d6f07eea53"
+    }
+  ],
+  "selected_head_rows": [
+    {
+      "operation": "Fresh encode",
+      "pbrs_id": "codec.pbrs.fresh_encode",
+      "prost_id": "codec.prost.fresh_encode",
+      "pbrs_wall_ns": 584.2985,
+      "prost_wall_ns": 526.552,
+      "pbrs_allocs": 7.0,
+      "prost_allocs": 5.0
+    },
+    {
+      "operation": "Cached encode",
+      "pbrs_id": "codec.pbrs.cached_encode",
+      "prost_id": "codec.prost.cached_encode",
+      "pbrs_wall_ns": 105.9685,
+      "prost_wall_ns": 372.1265,
+      "pbrs_allocs": 1.0,
+      "prost_allocs": 5.0
+    },
+    {
+      "operation": "Owned decode",
+      "pbrs_id": "codec.pbrs.owned_decode",
+      "prost_id": "codec.prost.owned_decode",
+      "pbrs_wall_ns": 378.641,
+      "prost_wall_ns": 677.4175,
+      "pbrs_allocs": 7.0,
+      "prost_allocs": 10.0
+    },
+    {
+      "operation": "80-byte name decode",
+      "pbrs_id": "codec.pbrs.small_name80_decode",
+      "prost_id": "codec.prost.small_name80_decode",
+      "pbrs_wall_ns": 53.8005,
+      "prost_wall_ns": 40.4005,
+      "pbrs_allocs": 1.0,
+      "prost_allocs": 1.0
+    },
+    {
+      "operation": "Mixed blob encode",
+      "pbrs_id": "codec.pbrs.blob_encode_mixed",
+      "prost_id": "codec.prost.blob_encode_mixed",
+      "pbrs_wall_ns": 1955.598,
+      "prost_wall_ns": 1383.037,
+      "pbrs_allocs": 19.0,
+      "prost_allocs": 10.0
+    }
+  ]
+}

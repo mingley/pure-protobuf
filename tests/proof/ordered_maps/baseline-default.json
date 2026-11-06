@@ -1,0 +1,18 @@
+{
+  "base_commit": "05a3cca50e7708f5be1facce6d27a7ed6b87006b",
+  "plugin_sha256": "1743924046962ed359a41aeea9b2e0f569f46c05d5aca0f1dcaad4027399b9ed",
+  "build_report": "work/checks/baseline-plugin.json",
+  "generated_sha256": {
+    "mod.rs": "dba4bed3cf74468883760ed426a51ad83a44fd7976965f4fe2e9e9a26f14e712",
+    "ordered.rs": "fa1ec0d6b1ead883c4a428b91e86490291b6a7f146e2d6a433ad974129204279",
+    "required.rs": "39b251187397f1f059e50d6de984b22cd77d31144973ebb9fde4ddeadca0605d"
+  },
+  "runtime_sha256": "c035d3de32698c6adff4b405fa0a99c545b6635b2c62ea741fd17053e479a470",
+  "parent_json_baseline": {
+    "input": "{\"child\":{\"numbers\":{\"z\":9}}}",
+    "from_json": "Err(ParseError)",
+    "text_roundtrip": "Ok",
+    "reproduction_source_sha256": "ea6aef9ca6f696d4c30a32da9af0aefd13d27165a23eb94dc4d61e326154b2d0",
+    "reproduction_report_sha256": "b9da7d06fdf6b710ca2e73c9f423c3927c7b2d352cf37331fa8680990e38f29b"
+  }
+}

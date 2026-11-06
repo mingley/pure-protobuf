@@ -6,7 +6,7 @@
 
 use crate::dynamic::{
     Cardinality, DescriptorPool, DynamicMessage, FieldDescriptor, FieldType, FieldValue,
-    MapKeyValue, MessageDescriptor, Presence, Value,
+    MapKeyValue, MessageDescriptor, Presence, Value, field_message_desc,
 };
 use crate::error::{ParseError, SerializeError};
 use crate::string::{ProtoBytes, ProtoString};
@@ -590,14 +590,8 @@ fn decode_into(
                 .is_some_and(|n| n.trim_start_matches('.') == "google.protobuf.Value")
         {
             let mut inner = DynamicMessage::new(
-                field
-                    .message
-                    .clone()
-                    .or_else(|| {
-                        msg.pool()
-                            .and_then(|p| p.get_message("google.protobuf.Value"))
-                    })
-                    .ok_or_else(|| ParseError::new("unresolved Value"))?,
+                field_message_desc(field, pool.as_ref())
+                    .map_err(|_| ParseError::new("unresolved Value"))?,
             );
             inner.set(1, Value::Enum(0));
             msg.set(field.number, Value::Message(inner));
@@ -620,18 +614,8 @@ fn decode_into(
         let obj = val
             .as_object()
             .ok_or_else(|| ParseError::new("json map must be an object"))?;
-        let entry_owned;
-        let entry = if let Some(e) = field.message.as_ref() {
-            e
-        } else if let Some(tn) = field.type_name.as_deref() {
-            entry_owned = pool
-                .as_ref()
-                .and_then(|p| p.get_message(tn.trim_start_matches('.')))
-                .ok_or_else(|| ParseError::new("map missing entry"))?;
-            &entry_owned
-        } else {
-            return Err(ParseError::new("map missing entry"));
-        };
+        let entry = field_message_desc(field, pool.as_ref())
+            .map_err(|_| ParseError::new("map missing entry"))?;
         let kf = entry
             .field(1)
             .ok_or_else(|| ParseError::new("map missing key"))?;
@@ -704,16 +688,9 @@ fn decode_leaf(
             Value::Enum(n)
         }
         FieldType::Message | FieldType::Group => {
-            let desc = field
-                .message
-                .clone()
-                .or_else(|| {
-                    field.type_name.as_deref().and_then(|tn| {
-                        pool.as_ref()
-                            .and_then(|p| p.get_message(tn.trim_start_matches('.')))
-                    })
-                })
-                .ok_or_else(|| ParseError::new("unresolved message"))?;
+            // Pool descriptors contain the resolved map and enum metadata;
+            // embedded descriptors can still be first-pass snapshots.
+            let desc = field_message_desc(field, pool.as_ref())?;
             Value::Message(decode_message(desc, val, ignore_unknown, pool)?)
         }
     }))

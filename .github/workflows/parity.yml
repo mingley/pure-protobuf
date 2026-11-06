@@ -42,6 +42,7 @@ jobs:
             tests/proof/safe_defaults/Cargo.toml \
             tests/proof/field_views/Cargo.toml \
             tests/proof/namespace_symbols/Cargo.toml \
+            tests/proof/ordered_maps/Cargo.toml \
             tests/proof/codegen_parity/no_std/prost/Cargo.toml \
             tests/proof/codegen_parity/no_std/pbrs/Cargo.toml \
             tests/interop/tonic/Cargo.toml \
@@ -81,6 +82,8 @@ jobs:
         run: python3 tests/proof/namespace_symbols/run.py --out work/parity-audit/namespace-symbols
       - name: Check generated RPC service names in every stub mode
         run: python3 tests/proof/rpc_names/run.py --out work/parity-audit/rpc-names
+      - name: Check ordered map storage and generated ancestor paths
+        run: python3 tests/proof/ordered_maps/run.py --output work/parity-audit/ordered-maps
       - name: Check field view accessor collisions
         run: |
           cargo run --locked --offline --manifest-path tests/proof/field_views/Cargo.toml \

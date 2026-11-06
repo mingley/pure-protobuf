@@ -1,0 +1,10 @@
+syntax = "proto2";
+package proof.ordered_required;
+
+message Required { required int32 id = 1; }
+message RequiredMaps { map<int32, Required> values = 1; }
+message Envelope {
+  optional RequiredMaps child = 1;
+  repeated RequiredMaps children = 2;
+  optional group Group = 3 { optional RequiredMaps child = 4; }
+}

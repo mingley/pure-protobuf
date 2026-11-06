@@ -256,6 +256,11 @@ thread_local! {
     pub(crate) static BOXED_FIELD_NUMBERS: RefCell<std::collections::BTreeSet<u32>> =
         const { RefCell::new(std::collections::BTreeSet::new()) };
     pub(crate) static HAS_BOXED_FIELDS: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static BTREE_FIELDS: RefCell<Option<std::sync::Arc<TreeFieldIndex>>> =
+        const { RefCell::new(None) };
+    pub(crate) static BTREE_FIELD_NUMBERS: RefCell<std::collections::BTreeSet<u32>> =
+        const { RefCell::new(std::collections::BTreeSet::new()) };
+    pub(crate) static HAS_BTREE_FIELDS: Cell<bool> = const { Cell::new(false) };
     pub(crate) static BYTES_FIELDS: RefCell<Option<std::sync::Arc<BytesFieldIndex>>> =
         const { RefCell::new(None) };
     pub(crate) static BYTES_FIELD_NUMBERS: RefCell<std::collections::BTreeSet<u32>> =
@@ -294,9 +299,9 @@ thread_local! {
         const { RefCell::new(Vec::new()) };
     pub(crate) static RUNTIME_CRATE: RefCell<Option<Rc<str>>> =
         const { RefCell::new(None) };
-    pub(crate) static GRPC_CRATE: RefCell<Option<String>> =
+    pub(crate) static GRPC_CRATE: RefCell<Option<Rc<str>>> =
         const { RefCell::new(None) };
-    pub(crate) static TONIC_CRATE: RefCell<Option<String>> =
+    pub(crate) static TONIC_CRATE: RefCell<Option<Rc<str>>> =
         const { RefCell::new(None) };
     pub(crate) static CODEC_PATH: RefCell<Option<String>> =
         const { RefCell::new(None) };
@@ -358,9 +363,101 @@ pub(crate) fn runtime_path(default: &'static str) -> Cow<'static, str> {
     }
 }
 
+/// Normalize a framework crate prefix without inspecting user fragments.
+fn normalized_rpc_alias(path: Option<&str>, default: &str) -> Option<Rc<str>> {
+    path.map(str::trim)
+        .filter(|path| *path != default && path.strip_prefix("::") != Some(default))
+        .map(|path| {
+            let first = path.split("::").next().unwrap_or_default().trim();
+            if path.starts_with("::") || matches!(first, "crate" | "self" | "super") {
+                Rc::from(path)
+            } else {
+                Rc::from(format!("::{path}"))
+            }
+        })
+}
+
+pub(crate) fn set_rpc_crate_paths(grpc: Option<&str>, adapter: Option<&str>) {
+    GRPC_CRATE.with(|current| *current.borrow_mut() = normalized_rpc_alias(grpc, "pbrs_grpc"));
+    TONIC_CRATE.with(|current| {
+        *current.borrow_mut() = normalized_rpc_alias(adapter, "protobuf_tonic");
+    });
+}
+
+/// A native framework path; default emission borrows static text.
+pub(crate) struct GrpcCratePath {
+    prefix: Option<Rc<str>>,
+    suffix: &'static str,
+}
+
+impl GrpcCratePath {
+    pub(crate) fn with_suffix(&self, suffix: &'static str) -> Self {
+        Self {
+            prefix: self.prefix.clone(),
+            suffix,
+        }
+    }
+}
+
+impl std::fmt::Display for GrpcCratePath {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.prefix.as_deref().unwrap_or("::pbrs_grpc"))?;
+        formatter.write_str(self.suffix)
+    }
+}
+
+pub(crate) fn grpc_crate_path() -> GrpcCratePath {
+    GrpcCratePath {
+        prefix: GRPC_CRATE.with(|current| current.borrow().clone()),
+        suffix: "",
+    }
+}
+
+/// The built-in adapter codec; explicit user codec paths are resolved elsewhere.
+pub(crate) fn adapter_codec_path() -> Cow<'static, str> {
+    TONIC_CRATE.with(|current| match current.borrow().as_deref() {
+        None => Cow::Borrowed("::protobuf_tonic::ProtobufCodec"),
+        Some(prefix) => Cow::Owned(format!("{prefix}::ProtobufCodec")),
+    })
+}
+
 #[cfg(test)]
 mod runtime_path_tests {
     use super::*;
+
+    #[test]
+    fn rpc_prefixes_normalize_without_rewriting_user_fragments_and_reset() {
+        let guard = CodegenStateGuard::new();
+        assert!(matches!(adapter_codec_path(), Cow::Borrowed(_)));
+        for (configured, expected) in [
+            ("rpc_alias", "::rpc_alias"),
+            ("::rpc_alias", "::rpc_alias"),
+            ("crate::rpc", "crate::rpc"),
+            ("self::rpc", "self::rpc"),
+            ("super::rpc", "super::rpc"),
+        ] {
+            set_rpc_crate_paths(Some(configured), Some(configured));
+            let native = grpc_crate_path();
+            let compat = native.with_suffix("::compat");
+            let user = "crate::foreign::pbrs_grpc_extra::Input";
+            assert_eq!(
+                format!("{native}::Request<{user}>"),
+                format!("{expected}::Request<{user}>")
+            );
+            assert_eq!(
+                format!("{compat}::Request<{user}>"),
+                format!("{expected}::compat::Request<{user}>")
+            );
+            assert_eq!(adapter_codec_path(), format!("{expected}::ProtobufCodec"));
+        }
+        set_rpc_crate_paths(Some("::pbrs_grpc"), Some("protobuf_tonic"));
+        assert!(GRPC_CRATE.with(|current| current.borrow().is_none()));
+        assert!(matches!(adapter_codec_path(), Cow::Borrowed(_)));
+        set_rpc_crate_paths(Some("old_alias"), Some("old_adapter"));
+        drop(guard);
+        assert_eq!(format!("{}", grpc_crate_path()), "::pbrs_grpc");
+        assert!(matches!(adapter_codec_path(), Cow::Borrowed(_)));
+    }
 
     #[test]
     fn framework_prefixes_are_absolute_without_rewriting_user_fragments() {
@@ -415,6 +512,9 @@ impl CodegenStateGuard {
         BOXED_FIELDS.with(|c| *c.borrow_mut() = None);
         BOXED_FIELD_NUMBERS.with(|c| c.borrow_mut().clear());
         HAS_BOXED_FIELDS.with(|c| c.set(false));
+        BTREE_FIELDS.with(|c| *c.borrow_mut() = None);
+        BTREE_FIELD_NUMBERS.with(|c| c.borrow_mut().clear());
+        HAS_BTREE_FIELDS.with(|c| c.set(false));
         BYTES_FIELDS.with(|c| *c.borrow_mut() = None);
         BYTES_FIELD_NUMBERS.with(|c| c.borrow_mut().clear());
         BYTES_SHARED_CHILDREN.with(|c| c.borrow_mut().clear());
@@ -515,6 +615,7 @@ pub(crate) struct ExplicitOptions {
     owned_message_fields: Option<bool>,
     safe_message_defaults: Option<bool>,
     boxed_fields: Vec<String>,
+    btree_fields: Vec<String>,
     bytes_fields: Vec<String>,
     enable_type_names: Option<bool>,
     retain_enum_prefix: Option<bool>,
@@ -554,6 +655,7 @@ pub(crate) struct ResolvedConfig {
     pub(crate) owned_message_fields: bool,
     pub(crate) safe_message_defaults: bool,
     pub(crate) boxed_fields: Vec<String>,
+    pub(crate) btree_fields: Vec<String>,
     pub(crate) bytes_fields: Vec<String>,
     pub(crate) enable_type_names: bool,
     pub(crate) retain_enum_prefix: bool,
@@ -792,6 +894,21 @@ pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions,
                     value.to_string()
                 };
                 explicit.bytes_fields.push(selector);
+            }
+            "btree_map" | "btree_map_hex" => {
+                let value = val.ok_or_else(|| CodegenError::InvalidParameter {
+                    key: key.to_string(),
+                    detail: "expected a protobuf map field selector".to_string(),
+                })?;
+                let selector = if key == "btree_map_hex" {
+                    decode_parameter_hex(value).map_err(|_| CodegenError::InvalidParameter {
+                        key: key.to_string(),
+                        detail: "expected a hexadecimal UTF-8 field selector".to_string(),
+                    })?
+                } else {
+                    value.to_string()
+                };
+                explicit.btree_fields.push(selector);
             }
             "no_wkt" => {
                 explicit.no_wkt = Some(parse_bool_param("no_wkt", val)?);
@@ -1162,6 +1279,7 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
         owned_message_fields: explicit.owned_message_fields.unwrap_or(false),
         safe_message_defaults: explicit.safe_message_defaults.unwrap_or(false),
         boxed_fields: explicit.boxed_fields.clone(),
+        btree_fields: explicit.btree_fields.clone(),
         bytes_fields: explicit.bytes_fields.clone(),
         enable_type_names: explicit.enable_type_names.unwrap_or(false),
         retain_enum_prefix: explicit.retain_enum_prefix.unwrap_or(false),
@@ -1459,6 +1577,7 @@ pub struct Config {
     owned_message_fields: Option<bool>,
     safe_message_defaults: Option<bool>,
     boxed_fields: Vec<String>,
+    btree_fields: Vec<String>,
     bytes_fields: Vec<String>,
     enable_type_names: Option<bool>,
     retain_enum_prefix: Option<bool>,
@@ -1809,6 +1928,35 @@ impl Config {
         self
     }
 
+    /// Use unique ordered storage for matching protobuf map fields.
+    ///
+    /// `.` selects every map, qualified paths select package/message/field
+    /// prefixes, and relative paths select suffixes on whole name components.
+    /// Match the map field itself, such as `Parent.lookup`, rather than a
+    /// synthetic entry or value field. Each call replaces the previous paths;
+    /// an empty iterator clears the selection, matching prost-build 0.14.
+    ///
+    /// Selected fields use [`crate::TreeMap`] and ordered view/mutator types.
+    /// Duplicate keys replace the previous value; removing a key erases it.
+    /// Newly generated singular ancestor paths become eager so their writes
+    /// reach the selected maps. Older or differently configured lazy parents
+    /// retain their original wire until mutation and can still emit unsorted
+    /// or duplicate entries. Existing [`crate::rt::LazyMsg::wire_bytes`] behavior
+    /// and ordinary [`crate::Map`] storage are unchanged.
+    ///
+    /// Plugin parameters are `btree_map=Parent.lookup` and `btree_map_hex=<utf8-hex>`.
+    pub fn btree_map<I, S>(&mut self, paths: I) -> &mut Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        self.btree_fields = paths
+            .into_iter()
+            .map(|path| path.as_ref().to_owned())
+            .collect();
+        self
+    }
+
     /// Disable emission of Well-Known Types (WKTs).
     pub fn no_wkt(&mut self, enable: bool) -> &mut Self {
         self.no_wkt = Some(enable);
@@ -2136,6 +2284,13 @@ impl Config {
                 opts.push(format!("bytes_hex={}", parameter_hex(selector)));
             } else {
                 opts.push(format!("bytes={selector}"));
+            }
+        }
+        for selector in &self.btree_fields {
+            if selector.contains(',') || selector.trim() != selector {
+                opts.push(format!("btree_map_hex={}", parameter_hex(selector)));
+            } else {
+                opts.push(format!("btree_map={selector}"));
             }
         }
         if let Some(no_wkt) = self.no_wkt {
@@ -2941,6 +3096,44 @@ mod boxed_profile_tests {
         assert_eq!(baseline, generate("stubs=none"));
         assert!(!HAS_BOXED_FIELDS.with(Cell::get));
         assert!(BOXED_FIELDS.with(|fields| fields.borrow().is_none()));
+    }
+}
+
+#[cfg(test)]
+mod btree_profile_tests {
+    use super::*;
+
+    #[test]
+    fn ordered_selection_replaces_and_roundtrips_plugin_selectors() {
+        let paths = [
+            ".pkg.Data.lookup",
+            "Data.lookup",
+            ".",
+            "*",
+            "",
+            " comma,selector ",
+            "equal=selector",
+        ];
+        let mut config = Config::new();
+        config.btree_map(["discarded"]).btree_map(paths);
+        let parameter = config.to_parameter_string();
+        assert!(parameter.contains("btree_map_hex="));
+        let parsed = parse_plugin_parameter(&parameter).expect("ordered selectors");
+        assert_eq!(parsed.btree_fields, paths);
+        assert_eq!(resolve_options(&parsed).btree_fields, paths);
+        config.btree_map(std::iter::empty::<&str>());
+        assert!(config.to_parameter_string().is_empty());
+        for invalid in [
+            "btree_map",
+            "btree_map_hex=0",
+            "btree_map_hex=gg",
+            "btree_map_hex=ff",
+        ] {
+            assert!(matches!(
+                parse_plugin_parameter(invalid),
+                Err(CodegenError::InvalidParameter { .. })
+            ));
+        }
     }
 }
 

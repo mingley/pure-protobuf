@@ -43,8 +43,10 @@ and retained enum prefixes against Prost. Three boxed-field consumers check
 selected, default and owned storage against the same reference wire values.
 The [selected bytes controls](codegen_parity/bytes.md) add real Bytes-backed
 storage, ownership and codec checks; run them alone with `--only bytes`.
-The remaining API compile-fail probe requests `btree_map`. A separate
-compile-fail control records the reflection-off complex-codec limit, and a
+The [ordered-map controls](ordered_maps/README.md) add real unique tree storage,
+duplicate replacement, key order, mutation and codec checks; run them alone
+with `--only ordered`. A separate compile-fail control records the
+reflection-off complex-codec limit, and a
 runtime counterexample retains duplicate-key removal differences. Use the
 runner or a named consumer rather than building every binary in that package.
 

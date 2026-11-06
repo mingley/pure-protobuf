@@ -43,25 +43,33 @@ fn pick_unused_port() -> u16 {
 }
 
 fn spawn_server(args: &[&str], port: u16) -> ServerGuard {
-    let child = Command::new(SERVER_BIN)
-        .args(args)
-        .spawn()
-        .expect("failed to spawn interop server");
+    let mut server = ServerGuard {
+        child: Command::new(SERVER_BIN)
+            .args(args)
+            .spawn()
+            .expect("failed to spawn interop server"),
+    };
     let addr = format!("127.0.0.1:{port}");
     let start = std::time::Instant::now();
     let mut ready = false;
     while start.elapsed() < Duration::from_secs(5) {
+        if let Some(status) = server.child.try_wait().expect("poll interop server") {
+            panic!("server on port {port} exited before readiness: {status}");
+        }
         if std::net::TcpStream::connect(&addr).is_ok() {
             ready = true;
             break;
         }
         std::thread::sleep(Duration::from_millis(25));
     }
+    if let Some(status) = server.child.try_wait().expect("poll interop server") {
+        panic!("server on port {port} exited before readiness: {status}");
+    }
     assert!(
         ready,
         "server on port {port} failed to become ready in time"
     );
-    ServerGuard { child }
+    server
 }
 
 fn run_client(args: &[&str]) -> std::process::Output {
@@ -327,6 +335,7 @@ fn client_tls_wrong_ca_fails_verification() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let cert_file = manifest_dir.join("tests/tls_data/server.crt");
     let key_file = manifest_dir.join("tests/tls_data/server.key");
+    let ca_file = manifest_dir.join("tests/tls_data/ca.crt");
     let other_ca = manifest_dir.join("tests/tls_data/other.crt");
 
     let port = pick_unused_port();
@@ -341,6 +350,27 @@ fn client_tls_wrong_ca_fails_verification() {
         port,
     );
 
+    let trusted = run_client(&[
+        "--server_host=127.0.0.1",
+        &format!("--server_port={port_str}"),
+        "--server_host_override=localhost",
+        "--use_tls=true",
+        &format!("--tls_ca_file={}", ca_file.display()),
+        "--test_case=empty_unary",
+    ]);
+    assert!(
+        trusted.status.success(),
+        "trusted-CA control failed: status={} stderr={}",
+        trusted.status,
+        String::from_utf8_lossy(&trusted.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&trusted.stdout).contains("Passed"),
+        "trusted-CA control did not complete its RPC: stdout={} stderr={}",
+        String::from_utf8_lossy(&trusted.stdout),
+        String::from_utf8_lossy(&trusted.stderr)
+    );
+
     let out = run_client(&[
         "--server_host=127.0.0.1",
         &format!("--server_port={port_str}"),
@@ -349,11 +379,17 @@ fn client_tls_wrong_ca_fails_verification() {
         &format!("--tls_ca_file={}", other_ca.display()),
         "--test_case=empty_unary",
     ]);
-    assert_eq!(out.status.code(), Some(1));
     let err = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "wrong-CA client status={} stderr={err}",
+        out.status
+    );
     assert!(
-        err.contains("tls handshake") || err.contains("UNAUTHENTICATED"),
-        "unexpected certificate-verification error: {err}"
+        err.contains("invalid peer certificate") && err.contains("UnknownIssuer"),
+        "wrong CA must fail certificate verification: status={} stderr={err}",
+        out.status
     );
 }
 

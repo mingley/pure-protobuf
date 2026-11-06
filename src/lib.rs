@@ -56,6 +56,7 @@ pub use crate::proxied::{
 };
 pub use crate::repeated::{ProtoPut, Repeated, RepeatedIter, RepeatedMut, RepeatedView, Singular};
 pub use crate::string::{ProtoBytes, ProtoStr, ProtoString, Utf8Error};
+pub use crate::tree_map::{TreeMap, TreeMapMut, TreeMapView, TreeMapViewIter};
 pub use crate::wire::{UnknownFields, WireOut};
 
 pub use Singular as ProxiedInRepeated;
@@ -110,6 +111,7 @@ pub mod table;
 pub mod testdata;
 #[cfg(feature = "text")]
 pub mod text;
+mod tree_map;
 mod wire;
 
 /// proto! enables Rust struct-init syntax for protobuf messages.

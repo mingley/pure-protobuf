@@ -630,6 +630,7 @@ fn avoid_view_accessor_collisions(
 
 pub(crate) fn bind_field_idents(desc: &MessageDescriptor) {
     bind_boxed_fields(desc);
+    bind_btree_fields(desc);
     bind_bytes_fields(desc);
     let mut used = std::collections::BTreeSet::new();
     let mut raw_used = std::collections::BTreeSet::new();

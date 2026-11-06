@@ -77,7 +77,10 @@ pub fn generate_from_code_generator_request(
             path: files_to_generate.first().map(PathBuf::from),
         }
     })?;
-    let boxed_fields = select_boxed_fields(&proto_files, &pool, &resolved.boxed_fields)?;
+    let mut boxed_fields = select_boxed_fields(&proto_files, &pool, &resolved.boxed_fields)?;
+    let btree_fields = select_btree_fields(&pool, &resolved.btree_fields);
+    add_btree_eager_fields(&mut boxed_fields, btree_fields.as_deref());
+    BTREE_FIELDS.with(|fields| *fields.borrow_mut() = btree_fields);
     BOXED_FIELDS.with(|fields| *fields.borrow_mut() = boxed_fields);
     BYTES_FIELDS
         .with(|fields| *fields.borrow_mut() = select_bytes_fields(&pool, &resolved.bytes_fields));
@@ -713,16 +716,6 @@ use {runtime}::prelude::*;\n\
         src.push_str(&format!(
             "}}\n#[allow(unused_imports, reason = \"generated re-exports may not all be used\")]\npub use {gen_mod}::*;\n"
         ));
-        if let Some(gc) = &resolved.grpc_crate {
-            if gc != "::pbrs_grpc" {
-                src = src.replace("::pbrs_grpc", gc);
-            }
-        }
-        if let Some(tc) = &resolved.tonic_crate {
-            if tc != "protobuf_tonic" {
-                src = src.replace("protobuf_tonic", tc);
-            }
-        }
         let rel_rs = if let Some(stripped) = norm_target.strip_suffix(".proto") {
             format!("{stripped}.rs")
         } else {
@@ -764,6 +757,7 @@ use {runtime}::prelude::*;\n\
         let type_files_snapshot = TYPE_FILES.with(|c| c.take());
         let required_types_snapshot = REQUIRED_MESSAGE_TYPES.with(|types| types.take());
         let boxed_fields_snapshot = BOXED_FIELDS.with(|fields| fields.take());
+        let btree_fields_snapshot = BTREE_FIELDS.with(|fields| fields.take());
         let bytes_fields_snapshot = BYTES_FIELDS.with(|fields| fields.take());
         let chunk_size = targets.len().div_ceil(worker_count);
         // Shared references for the workers (bound outside so the `move`
@@ -773,6 +767,7 @@ use {runtime}::prelude::*;\n\
         let snapshot_ref = &type_files_snapshot;
         let required_snapshot_ref = &required_types_snapshot;
         let boxed_snapshot_ref = &boxed_fields_snapshot;
+        let btree_snapshot_ref = &btree_fields_snapshot;
         let bytes_snapshot_ref = &bytes_fields_snapshot;
         let ordered: Vec<TargetEmission> = std::thread::scope(|s| {
             let mut handles = Vec::new();
@@ -785,6 +780,7 @@ use {runtime}::prelude::*;\n\
                     REQUIRED_MESSAGE_TYPES
                         .with(|types| *types.borrow_mut() = required_snapshot_ref.clone());
                     BOXED_FIELDS.with(|fields| *fields.borrow_mut() = boxed_snapshot_ref.clone());
+                    BTREE_FIELDS.with(|fields| *fields.borrow_mut() = btree_snapshot_ref.clone());
                     BYTES_FIELDS.with(|fields| *fields.borrow_mut() = bytes_snapshot_ref.clone());
                     let mut part = Vec::with_capacity(group.len());
                     for (offset, target) in group.iter().enumerate() {
@@ -898,8 +894,10 @@ pub(crate) fn apply_resolved_config(resolved: &ResolvedConfig) {
     SKIP_DEBUG.with(|c| c.set(resolved.skip_debug));
     EXTERN_PATHS.with(|c| *c.borrow_mut() = resolved.extern_paths.clone());
     set_runtime_crate_path(resolved.runtime_crate.as_deref());
-    GRPC_CRATE.with(|c| *c.borrow_mut() = resolved.grpc_crate.clone());
-    TONIC_CRATE.with(|c| *c.borrow_mut() = resolved.tonic_crate.clone());
+    set_rpc_crate_paths(
+        resolved.grpc_crate.as_deref(),
+        resolved.tonic_crate.as_deref(),
+    );
     CODEC_PATH.with(|c| *c.borrow_mut() = resolved.codec_path.clone());
     TYPE_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.type_attributes.clone());
     MESSAGE_ATTRIBUTES.with(|c| *c.borrow_mut() = resolved.message_attributes.clone());

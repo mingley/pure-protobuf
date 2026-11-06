@@ -5,11 +5,12 @@ format. `pbrs-grpc` provides the native HTTP/2 client and server;
 `protobuf-tonic` integrates pbrs messages with tonic 0.14+. Start with the
 [documentation index](README.md) for working examples and task guides.
 
-At source `05a3cca5`, all 11 required [CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42163543551),
-[compatibility checks](https://github.com/mingley/pure-protobuf/actions/runs/42163543536)
-and the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42163543499)
-passed. The three [Miri lanes and their aggregate](https://github.com/mingley/pure-protobuf/actions/runs/42163543507)
-also passed: core, HTTP/2 and selected bytes. The byte lane uses 32 KiB segmented
+At source `9cf47585`, all 11 required [CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42170885026),
+[compatibility checks](https://github.com/mingley/pure-protobuf/actions/runs/42170885117)
+and the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42170885058)
+passed. At earlier source `05a3cca5`, the three
+[Miri lanes and their aggregate](https://github.com/mingley/pure-protobuf/actions/runs/42163543507)
+passed: core, HTTP/2 and selected bytes. The byte lane uses 32 KiB segmented
 input and smaller JSON/text fixtures, as recorded in its proof runner.
 The parity audit reproduces known differences as well as successful comparisons.
 These results apply to that commit; later changes need their own checks.
@@ -46,7 +47,12 @@ Next comparisons should cover default nested full reads, string-key map
 lookup allocations with small-map controls, compression using the same Prost
 codec, and matched consumer builds.
 
-Remaining migration gaps include `btree_map` and an alloc-only runtime.
+Selected [ordered maps](guides/maps.md) use unique key-sorted storage and typed
+views. Regenerate matching ancestors to reach that storage during encoding;
+older lazy ancestors can retain unsorted or duplicate-key wire. Nested-map JSON
+uses resolved descriptors, including imported and recursive children.
+
+An alloc-only runtime remains a migration gap.
 Static balance helpers preserve per-endpoint executors and full URI identities;
 their connection settings and request authority remain channel-wide. They
 still reject per-endpoint origins, TLS and hostname lookup.
@@ -54,8 +60,11 @@ See the [parity summary](parity.md) and
 [API comparison](guides/comparison.md) for tested behavior and boundaries.
 
 The core `0.2.1` and adapter `0.1.0-alpha.3` candidates remain unpublished.
-Hosted release provenance and sustained production qualification remain open;
-use the [release policy](RELEASE.md) for readiness requirements and the
+An exact-source [hosted rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42174113293)
+packaged all three at `9cf47585` and created an SBOM and
+[provenance attestation](https://github.com/mingley/pure-protobuf/attestations/64375952).
+It performed no registry upload. Sustained production qualification remains
+open; use the [release policy](RELEASE.md) for readiness requirements and the
 [work queue](../TODO.md) for implementation work.
 
 The [November 5 status history](evidence/status-history-20261105.md) preserves

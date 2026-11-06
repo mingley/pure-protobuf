@@ -1,0 +1,6 @@
+syntax = "proto3";
+package proof.ordered_old;
+import "ordered.proto";
+
+message OldParent { proof.ordered.Child child = 1; }
+message OldGrandparent { OldParent parent = 1; }

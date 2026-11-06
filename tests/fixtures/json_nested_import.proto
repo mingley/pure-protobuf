@@ -1,0 +1,4 @@
+syntax = "proto2";
+package json_nested_import;
+
+message Imported { map<string, int32> numbers = 1; }

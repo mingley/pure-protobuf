@@ -1,3 +1,5 @@
+mod bridge_aliases;
+
 use std::{env, path::PathBuf};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -5,7 +7,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mode = args.next().ok_or("missing mode")?;
     let out = PathBuf::from(args.next().ok_or("missing output")?);
     let input = PathBuf::from(args.next().ok_or("missing input")?);
-    if mode == "prost" {
+    if mode == "bridges" {
+        bridge_aliases::generate(&out, &input)?;
+    } else if mode == "prost" {
         pbrs::codegen::prost_stubs::compile_descriptor_set(&input, &["case.proto"], &out)?;
     } else if mode == "reference" {
         let includes = input.parent().ok_or("missing proto parent")?.to_path_buf();

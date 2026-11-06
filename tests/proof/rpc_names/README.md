@@ -19,6 +19,12 @@ Twelve more consumers check runtime aliases, codec aliases, user documentation
 and attribute literals, and extern paths containing `pbrs` as a user component.
 They use ordinary external crate aliases, absolute aliases and crate-local
 modules, with warnings denied and unsafe code forbidden in the consumer.
+Sixty-one bridge consumers check native and adapter crate aliases, explicit
+codec precedence, unchanged user paths and literals, setter replacement,
+parallel descriptor workers, thread isolation and reset to defaults. They cover
+bare, absolute, `crate::`, `self::` and `super::` paths. The standalone Prost
+generator keeps its independent default native runtime path after configured
+generation.
 A separate consumer uses `tonic-prost-build` 0.14.6 with the pbrs codec and real
 adapter messages as a reference generator baseline.
 
@@ -29,9 +35,10 @@ cargo build --locked --offline --workspace --all-features --message-format=json 
 python3 tests/proof/rpc_names/run.py --artifacts work/rpc-artifacts.jsonl --out work/rpc-names
 ```
 
-Use a fresh output directory. Every command, compiler diagnostic, generated
-source hash and selected artifact hash is retained there. Any candidate
-compile failure or changed selected input fails the runner.
+Use a fresh output directory. Commands, compiler diagnostics and generated
+sources are retained there, with selected input hashes and service-inventory
+source hashes. Any candidate compile failure or changed selected input fails
+the runner.
 
 `--baseline-plugin` optionally records a historical generator's native, Tonic
 and compat results without treating its known failures as candidate passes.
@@ -39,7 +46,9 @@ Previously valid service names must stay unchanged. `--prebuilt` accepts the
 same recorded plugin/dependency paths for a local metadata-only replay;
 `--skip-prost` explicitly limits such a local run when its cached native
 runtime lacks the `prost` feature. That subset is recorded in the report.
-The default CI run includes prost-native output.
+The default CI run includes prost-native output and all bridge consumers.
+`--only-bridge-aliases` records just the 61 bridge controls for a bounded local
+replay; it excludes the service inventory and reference generator baseline.
 
 These are generated-source metadata consumers. Native/Tonic/compat messages
 are explicitly mapped to real runtime DTOs to isolate service templates from

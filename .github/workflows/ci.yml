@@ -82,6 +82,8 @@ jobs:
           python3 -B docs/evidence/fresh-encode-warmup-20261106/check.py
           python3 -B docs/evidence/rejected-packed-wire-cache-20261106/check.py
           python3 -B docs/evidence/rejected-packed-fused-20261106/check.py
+          python3 -B docs/evidence/hosted-devloop-20261106/check.py --negative-controls
+          python3 -B docs/evidence/rejected-packed-cache-first-20261106/check.py
       - name: Check standalone benchmark and interop lockfiles
         run: |
           for manifest in \

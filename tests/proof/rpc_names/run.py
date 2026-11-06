@@ -10,6 +10,9 @@ import shutil
 import signal
 import subprocess
 import time
+import sys
+sys.dont_write_bytecode = True
+import bridge_aliases
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
@@ -23,6 +26,7 @@ def digest(path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--only-bridge-aliases", action="store_true", help="Local framework-alias consumer subset")
     parser.add_argument("--artifacts", type=Path, help="Cargo JSON artifact output from a workspace all-feature build")
     parser.add_argument("--prebuilt", type=Path, help="Explicit plugin/dependency receipt for a local metadata-only run")
     parser.add_argument("--baseline-plugin", type=Path, help="Optional historical generator; its failures are retained separately")
@@ -103,7 +107,7 @@ def main():
     generator_library = Path(receipt.get("generator_library", deps["pbrs"])).resolve()
     dependency_args = [value for path in receipt["dependency_dirs"] for value in ["-L", "dependency=" + path]]
     inputs = {str(path): digest(path) for path in {plugin, generator_library, *deps.values(),
-              *HERE.glob("*.py"), HERE / "services.txt", HERE / "case.proto", HERE / "generator.rs"}}
+              *HERE.glob("*.py"), *HERE.glob("*.rs"), *HERE.glob("*.proto"), HERE / "services.txt"}}
     if args.baseline_plugin:
         inputs[str(args.baseline_plugin.resolve())] = digest(args.baseline_plugin)
     helper = out / "generator"
@@ -184,36 +188,39 @@ def main():
         rows.append(row)
         return code
 
+    reference_code = None
     modes = ("kernel", "tonic", "compat") + (() if args.skip_prost else ("prost",))
-    if args.baseline_plugin:
+    if not args.only_bridge_aliases:
+        if args.baseline_plugin:
+            for symbol in symbols:
+                for mode in ("kernel", "tonic", "compat"):
+                    compile_case(symbol, mode, "baseline")
         for symbol in symbols:
+            for mode in modes:
+                compile_case(symbol, mode)
+        literal = '#[doc = "pbrs:: tonic:: std:: user literal"]'
+        attribute = "client_attribute=.proof.rpcnames.Echo=" + literal
+        for number, runtime in enumerate(("pbrs", "wire_alias", "::wire_alias", "crate::wire_runtime")):
             for mode in ("kernel", "tonic", "compat"):
-                compile_case(symbol, mode, "baseline")
-    for symbol in symbols:
-        for mode in modes:
-            compile_case(symbol, mode)
-    literal = '#[doc = "pbrs:: tonic:: std:: user literal"]'
-    attribute = "client_attribute=.proof.rpcnames.Echo=" + literal
-    for number, runtime in enumerate(("pbrs", "wire_alias", "::wire_alias", "crate::wire_runtime")):
-        for mode in ("kernel", "tonic", "compat"):
-            codec = ("protobuf_wire_alias::ProtobufCodec", "::protobuf_wire_alias::ProtobufCodec",
-                     "crate::foreign::protobuf_tonic::Codec", None)[number] if mode == "tonic" else None
-            compile_case("Echo", mode, "aliases" + str(number), (attribute,), runtime, codec, True)
-    reference = out / "reference-tonic"
-    reference.mkdir()
-    proto = reference / "case.proto"
-    proto.write_text(template.replace("ServiceName", "Echo"))
-    code, _, error = run("generate", [helper, "reference", reference, proto], reference)
-    if code:
-        raise RuntimeError("Tonic reference generation failed: " + error.read_text())
-    main_rs = reference / "main.rs"
-    main_rs.write_text('include!("proof.rpcnames.rs");\nfn main() {}\n')
-    command = ["rustc", "--edition=2024", "--emit=metadata", "--cap-lints=allow", main_rs,
-               *dependency_args, "-o", reference / "consumer.rmeta"]
-    for name, library in deps.items():
-        if name != "tonic_prost_build":
-            command += ["--extern", name + "=" + str(library)]
-    reference_code, _, _ = run("compile", command, reference)
+                codec = ("protobuf_wire_alias::ProtobufCodec", "::protobuf_wire_alias::ProtobufCodec",
+                         "crate::foreign::protobuf_tonic::Codec", None)[number] if mode == "tonic" else None
+                compile_case("Echo", mode, "aliases" + str(number), (attribute,), runtime, codec, True)
+        reference = out / "reference-tonic"
+        reference.mkdir()
+        proto = reference / "case.proto"
+        proto.write_text(template.replace("ServiceName", "Echo"))
+        code, _, error = run("generate", [helper, "reference", reference, proto], reference)
+        if code:
+            raise RuntimeError("Tonic reference generation failed: " + error.read_text())
+        main_rs = reference / "main.rs"
+        main_rs.write_text('include!("proof.rpcnames.rs");\nfn main() {}\n')
+        command = ["rustc", "--edition=2024", "--emit=metadata", "--cap-lints=allow", main_rs,
+                   *dependency_args, "-o", reference / "consumer.rmeta"]
+        for name, library in deps.items():
+            if name != "tonic_prost_build":
+                command += ["--extern", name + "=" + str(library)]
+        reference_code, _, _ = run("compile", command, reference)
+    bridge_rows = bridge_aliases.check(HERE, out, helper, run, deps, dependency_args, protoc)
     unchanged = all(digest(path) == expected for path, expected in inputs.items())
     failures = [row for row in rows if row["variant"] != "baseline" and row["exit_code"]]
     for row in rows:
@@ -222,16 +229,16 @@ def main():
                             and candidate["symbol"] == row["symbol"] and candidate["mode"] == row["mode"])
             if row["trait_names"] != matching["trait_names"]:
                 raise RuntimeError("previously valid service identifier changed")
-    report = {"symbols": symbols, "modes": modes, "rows": rows, "commands": records,
+    report = {"symbols": symbols, "modes": modes, "rows": rows, "bridge_alias_rows": bridge_rows, "commands": records,
               "inputs_sha256": inputs, "inputs_unchanged": unchanged, "reference_exit_code": reference_code,
               "peak_private_bytes": peak, "minimum_free_bytes": minimum,
               "rustc": subprocess.check_output(["rustc", "-Vv"], text=True),
               "scope": "Generated-source metadata consumers, real runtime DTOs, all four method shapes. No network-call or performance result."}
     (out / "report.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps({"symbols": len(symbols), "matrix_modes": modes, "candidate_consumers": sum(row["variant"] == "candidate" for row in rows),
-                      "alias_consumers": 12, "baseline_consumers": sum(row["variant"] == "baseline" for row in rows),
+                      "alias_consumers": 0 if args.only_bridge_aliases else 12, "bridge_alias_consumers": len(bridge_rows), "bridge_alias_compile_failures": sum(row["exit_code"] != 0 for row in bridge_rows), "bridge_alias_preservation_failures": sum(bool(row["preservation_errors"]) for row in bridge_rows), "baseline_consumers": sum(row["variant"] == "baseline" for row in rows),
                       "failures": len(failures), "reference_exit_code": reference_code, "inputs_unchanged": unchanged}))
-    if failures or reference_code or not unchanged:
+    if failures or any(row["exit_code"] or row["preservation_errors"] for row in bridge_rows) or reference_code or not unchanged:
         raise SystemExit(1)
 
 

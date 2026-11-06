@@ -1,7 +1,7 @@
 # Code generator parity checks
 
-This suite compares pbrs with prost-build and prost 0.14.4. It reports a
-functional deployment gap and build configuration migration gaps. It does
+This suite compares pbrs with prost-build and prost 0.14.4. It reports selected
+representation controls and a functional deployment gap. It does
 not certify full compiler equivalence or measure performance.
 
 Run from the repository root, with Cargo and protoc on `PATH`:
@@ -84,10 +84,11 @@ output. Focused mode runs with `--only bytes`. Older-parent copying, duplicate
 map removal and reflection-off complex codecs remain explicit controls and
 counterexamples.
 
-One small pbrs consumer still reproduces the absent `btree_map` build method.
-This is an API and representation customization gap. pbrs provides its own map
-storage; the absent method does not establish a wire-format failure. The Prost
-control generates and checks the requested representation independently.
+The [ordered-map consumer](../ordered_maps/README.md) checks real unique tree
+storage, duplicate replacement, sorted iteration/encoding, parent paths,
+mutation and codecs against pinned Prost controls. Run it alone with
+`--only ordered`. Old lazy ancestors keep their original raw wire until
+mutation; the consumer records this boundary and checks regenerated parents.
 
 The alloc-only control builds a `#![no_std]` library using prost's serialization
 API with default features off for `thumbv7em-none-eabi`. The equivalent pbrs
@@ -96,8 +97,8 @@ compile and pbrs to report a missing `std` crate before it records the deploymen
 gap. This distinguishes lack of target installation from lack of runtime
 support. It checks compilation, not execution on embedded hardware.
 
-The `pbrs_btree_map` and `pbrs_bytes_lightweight_gap` binaries deliberately fail
-compilation. Use `run.py`, which verifies those diagnostics and runs the
+The `pbrs_bytes_lightweight_gap` binary deliberately fails compilation.
+Use `run.py`, which verifies its diagnostics and runs the
 positive consumers, rather than `cargo test --all-targets` on this isolated
 proof package. Replace each expected counterexample when the corresponding
 capability is implemented and verified.

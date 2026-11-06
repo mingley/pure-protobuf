@@ -8,7 +8,7 @@ fn service_codec_path() -> std::borrow::Cow<'static, str> {
     if CODEC_PATH.with(|configured| configured.borrow().is_some()) {
         std::borrow::Cow::Owned(tonic_codec_path())
     } else {
-        std::borrow::Cow::Borrowed("::protobuf_tonic::ProtobufCodec")
+        adapter_codec_path()
     }
 }
 
@@ -294,7 +294,7 @@ pub(crate) fn emit_service_trait_method(src: &mut String, m: &MethodDescriptor) 
     if !m.comments.is_empty() {
         let _ = writeln!(src, "    ///");
     }
-    let shape = shape_of(m);
+    let shape = shape_of(m, &"::pbrs_grpc");
     let _ = writeln!(src, "    /// {} call: `{}`.", shape.description, m.name);
     match (m.client_streaming, m.server_streaming) {
         (false, false) => {
@@ -373,7 +373,7 @@ pub(crate) fn emit_client_method(src: &mut String, m: &MethodDescriptor, prefix:
     if !m.comments.is_empty() {
         let _ = writeln!(src, "    ///");
     }
-    let shape = shape_of(m);
+    let shape = shape_of(m, &"::pbrs_grpc");
     let _ = writeln!(src, "    /// {} call: `{}`.", shape.description, m.name);
     match (m.client_streaming, m.server_streaming) {
         (false, false) => {

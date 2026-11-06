@@ -1,0 +1,7 @@
+syntax = "proto3";
+package proof.rpcbridgeworker;
+import "bridge.proto";
+// Literal ::pbrs_grpc protobuf_tonic ::pbrs_grpc_extra protobuf_tonic_extra.
+service Worker {
+  rpc Unary(proof.rpcbridges.Input) returns (proof.rpcbridges.Output);
+}

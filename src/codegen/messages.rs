@@ -94,7 +94,8 @@ pub(crate) fn field_storage_ty(f: &FieldDescriptor) -> Cow<'static, str> {
     let runtime = runtime_crate_path();
     if f.is_map {
         let (k, v) = map_kv(f);
-        return format!("{runtime}::Map<{k}, {v}>").into();
+        let map = if is_btree_map(f) { "TreeMap" } else { "Map" };
+        return format!("{runtime}::{map}<{k}, {v}>").into();
     }
     let t = scalar_type(f);
     if is_packed_scalar(f) {
@@ -751,27 +752,28 @@ pub(crate) fn emit_accessors(
     if f.is_map {
         let (k, v) = map_kv(f);
         let st = cold.store_mut(f);
+        let map = if is_btree_map(f) { "TreeMap" } else { "Map" };
         emit_field_getter_doc(src, desc, f);
         if cold.stored_cold(f) {
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> {runtime}::MapView<'_, {k}, {v}> {{ self.cold.as_ref().map(|c| c.{id}.as_view()).unwrap_or_else({runtime}::MapView::empty) }}"
+                "    pub fn {id}(&self) -> {runtime}::{map}View<'_, {k}, {v}> {{ self.cold.as_ref().map(|c| c.{id}.as_view()).unwrap_or_else({runtime}::{map}View::empty) }}"
             );
         } else {
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> {runtime}::MapView<'_, {k}, {v}> {{ self.{id}.as_view() }}"
+                "    pub fn {id}(&self) -> {runtime}::{map}View<'_, {k}, {v}> {{ self.{id}.as_view() }}"
             );
         }
         emit_mut_doc(src, f, false);
         let _ = writeln!(
             src,
-            "    pub fn {id}_mut(&mut self) -> {runtime}::MapMut<'_, {k}, {v}> {{ self.cached_size.dirty(); {st}.as_mut() }}"
+            "    pub fn {id}_mut(&mut self) -> {runtime}::{map}Mut<'_, {k}, {v}> {{ self.cached_size.dirty(); {st}.as_mut() }}"
         );
         emit_set_doc(src, desc, f);
         let _ = writeln!(
             src,
-            "    pub fn set_{m}(&mut self, v: {runtime}::Map<{k}, {v}>) {{ self.cached_size.dirty(); {st} = v; }}"
+            "    pub fn set_{m}(&mut self, v: {runtime}::{map}<{k}, {v}>) {{ self.cached_size.dirty(); {st} = v; }}"
         );
         if is_selected_bytes(f) {
             emit_bytes_shared_accessor(src, f, cold);

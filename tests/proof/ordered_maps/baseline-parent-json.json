@@ -1,0 +1,33 @@
+{
+  "results": [
+    {
+      "command": [
+        "rustc",
+        "--edition=2021",
+        "-Cdebuginfo=0",
+        "work/baseline-parent-codecs.rs",
+        "--extern",
+        "pbrs=/workspace/pure-protobuf/work/btree-select-nov6/work/baseline-artifacts/libpbrs.rlib",
+        "-Ldependency=/workspace/pure-protobuf/work/btree-select-nov6/target/debug/deps",
+        "-o",
+        "work/baseline-parent-codecs"
+      ],
+      "process_exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/workspace/pure-protobuf/work/btree-select-nov6/work/baseline-parent-codecs"
+      ],
+      "process_exit": 0,
+      "stdout": "json={\"child\":{\"numbers\":{\"z\":9}}}\njson_result=Err(ParseError)\ntext=child {\n  numbers {\n    key: \"z\"\n    value: 9\n  }\n}\n\ntext_result=Ok(Parent { scalar: None, cold: Some(ParentCold { child: Some(Child { numbers: {\"z\": 9}, labels: {}, flags: {}, signed: {}, payloads: {}, values: {}, states: {}, unknown: UnknownFields { fields: FieldList(None) }, cached_size: CachedSize(18446744073709551615) }), children: [], by_name: {}, selected: None, presence: None, nested: None }), unknown: UnknownFields { fields: FieldList(None) }, cached_size: CachedSize(18446744073709551615) })\n",
+      "stderr": ""
+    }
+  ],
+  "inputs": {
+    "/workspace/pure-protobuf/work/btree-select-nov6/work/baseline-parent-codecs.rs": "ea6aef9ca6f696d4c30a32da9af0aefd13d27165a23eb94dc4d61e326154b2d0",
+    "/workspace/pure-protobuf/work/btree-select-nov6/work/baseline-artifacts/libpbrs.rlib": "c035d3de32698c6adff4b405fa0a99c545b6635b2c62ea741fd17053e479a470",
+    "/workspace/pure-protobuf/work/btree-select-nov6/work/baseline-default/ordered.rs": "fa1ec0d6b1ead883c4a428b91e86490291b6a7f146e2d6a433ad974129204279"
+  }
+}

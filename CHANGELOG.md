@@ -10,9 +10,15 @@ or stable releases.
 
 ### pbrs 0.2.1
 
+- Add `Config::btree_map(paths)` with unique, ordered storage and typed map
+  views and mutators. Regenerated ancestor paths reach the selected storage;
+  older lazy ancestors can still forward their original wire.
+- Fix JSON roundtrips for nested map messages, including recursive and
+  imported children and singular, repeated, map and oneof parent fields.
 - Qualify generated RPC framework references and service-trait paths so
   services named `Send`, `Arc`, `T` and other framework/generic names compile
-  without renaming their public identifiers.
+  without renaming their public identifiers. Resolve configured native and
+  adapter prefixes before inserting user paths, attributes and literals.
 - Add `Config::bytes(paths)` for selected `ProtoBytes` storage and shared
   getters. Initialize direct selected byte fields with valid defaults, and
   retain shared payload windows through matching generated parents. Older or

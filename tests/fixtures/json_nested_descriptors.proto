@@ -1,0 +1,22 @@
+syntax = "proto2";
+package json_nested;
+
+import "json_nested_import.proto";
+import "google/protobuf/struct.proto";
+
+enum State { UNKNOWN = 0; READY = 1; }
+message Required { required int32 id = 1; }
+message Child {
+  map<string, int32> numbers = 1;
+  map<string, Child> descendants = 2;
+  map<string, json_nested_import.Imported> imported = 3;
+  map<string, State> states = 4;
+  optional Required required_child = 5;
+}
+message Parent {
+  optional Child child = 1;
+  repeated Child children = 2;
+  map<string, Child> by_name = 3;
+  oneof selection { Child selected = 4; int32 scalar = 5; }
+  optional google.protobuf.Value json_value = 6;
+}

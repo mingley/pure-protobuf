@@ -18,7 +18,16 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
-METHODS = ["btree_map"]
+METHODS = []
+
+
+def run_ordered_controls(output, run):
+    destination = output / "ordered-maps"
+    result, control = run("ordered-maps", [sys.executable, str(HERE.parent / "ordered_maps/run.py"), "--output", str(destination)])
+    report = destination / "report.json"
+    control.update(passed=result.returncode == 0,
+                   report=json.loads(report.read_text()) if report.exists() else None)
+    return control
 
 
 def sha(path):
@@ -84,7 +93,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--embedded-target", default="thumbv7em-none-eabi")
-    parser.add_argument("--only", choices=["all", "bytes"], default="all", help="run the focused bytes controls without the embedded-target and unrelated suites")
+    parser.add_argument("--only", choices=["all", "bytes", "ordered"], default="all", help="run one focused storage profile without the embedded-target and unrelated suites")
     args = parser.parse_args()
     output = args.output.resolve()
     if output.exists():
@@ -103,6 +112,8 @@ def main():
         and not any(part in (".git", "target", "__pycache__") for part in path.relative_to(HERE).parts)
     )
     source_paths += sorted((ROOT / "src").rglob("*.rs"))
+    source_paths += sorted(path for path in (HERE.parent / "ordered_maps").rglob("*")
+                           if path.is_file() and not any(part in ("target", "__pycache__") for part in path.parts))
     source_paths += [ROOT / path for path in ["Cargo.toml", "build.rs"]]
     before_hashes = {str(path.relative_to(ROOT)): sha(path) for path in source_paths}
 
@@ -111,6 +122,18 @@ def main():
         (output / f"{name}.stdout").write_bytes(result.stdout)
         (output / f"{name}.stderr").write_bytes(result.stderr)
         return result, {"command": command, "exit_code": result.returncode}
+
+    if args.only == "ordered":
+        controls = run_ordered_controls(output, run)
+        after_hashes = {str(path.relative_to(ROOT)): sha(path) for path in source_paths}
+        report = {
+            "ordered_maps": controls, "source_sha256": after_hashes,
+            "changed_source_files": [name for name in before_hashes if before_hashes[name] != after_hashes[name]],
+            "harness_passed": controls["passed"] and before_hashes == after_hashes,
+        }
+        (output / "results.json").write_text(json.dumps(report, indent=2) + "\n")
+        print(json.dumps({"harness_passed": report["harness_passed"], "ordered_maps": controls["passed"]}))
+        return 0 if report["harness_passed"] else 1
 
     if args.only == "bytes":
         controls = run_bytes_controls(manifest, run)
@@ -212,6 +235,7 @@ def main():
         })
         boxed_fields.append(boxed)
     bytes_fields = run_bytes_controls(manifest, run)
+    ordered_maps = run_ordered_controls(output, run)
     probes = []
     for method in METHODS:
         result, probe = run(method, ["cargo", "check", "--locked", "--offline", "--manifest-path", str(manifest), "--bin", f"pbrs_{method}"])
@@ -247,11 +271,12 @@ def main():
         "runtime_symbols": runtime_symbols,
         "boxed_fields": boxed_fields,
         "bytes_fields": bytes_fields,
+        "ordered_maps": ordered_maps,
         "alloc_only_target": no_std,
         "source_sha256": after_hashes,
         "changed_source_files": [name for name in before_hashes if before_hashes[name] != after_hashes[name]],
         "generated_sha256": generated,
-        "verdict": "limited generated wire equivalence; alloc-only deployment and compiler API parity have counterexamples",
+        "verdict": "limited generated wire equivalence; alloc-only deployment retains a counterexample",
         "limitations": [
             "Nine generated roundtrip cases are not an exhaustive schema or malformed-input corpus.",
             "Wire normalization uses prost value equality; map serialization order is not compared.",
@@ -272,6 +297,7 @@ def main():
         and all(case["passed"] and case["cases_passed"] == 8 for case in boxed_fields)
         and [case["selector_cases_passed"] for case in boxed_fields] == [18, 0, 0]
         and bytes_controls_passed(bytes_fields)
+        and ordered_maps["passed"]
         and all(probe["gap_reproduced"] for probe in probes)
         and no_std["functional_gap_reproduced"]
         and not report["changed_source_files"]

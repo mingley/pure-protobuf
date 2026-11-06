@@ -27,6 +27,9 @@ on:
       - 'src/codegen/**'
       - 'src/generated/**'
       - 'tests/proof/codegen_parity/**'
+      - 'tests/proof/ordered_maps/**'
+      - 'src/tree_map.rs'
+      - 'src/json.rs'
       - 'src/table.rs'
       - 'src/packed.rs'
       - 'src/wire.rs'
@@ -60,6 +63,9 @@ on:
       - 'src/codegen/**'
       - 'src/generated/**'
       - 'tests/proof/codegen_parity/**'
+      - 'tests/proof/ordered_maps/**'
+      - 'src/tree_map.rs'
+      - 'src/json.rs'
       - 'src/table.rs'
       - 'src/packed.rs'
       - 'src/wire.rs'
@@ -90,14 +96,30 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: miri, rust-src
-      - name: Miri on pbrs core and generated-kernel integration tests
+      - name: Miri on the pbrs library
         env:
           MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-strict-provenance"
         run: |
           set -euo pipefail
           rustc --version
           cargo miri --version
-          cargo miri test --locked -p pbrs --lib --test runtime --test upb_kernel
+          cargo miri test --locked -p pbrs --lib
+  generated:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri, rust-src
+      - name: Miri on generated kernels and nested JSON descriptors
+        env:
+          MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-strict-provenance"
+        run: |
+          set -euo pipefail
+          rustc --version
+          cargo miri --version
+          cargo miri test --locked -p pbrs --test runtime --test upb_kernel --test json_nested_descriptors
   http2:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -131,8 +153,27 @@ jobs:
           protoc --version
           cargo miri --version
           cargo miri run --locked --manifest-path tests/proof/codegen_parity/Cargo.toml --bin pbrs_bytes -- --small-formats
+  ordered-maps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri, rust-src
+      - name: Install protobuf compiler for ordered map consumers
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Miri on ordered map profiles and shared ownership
+        env:
+          MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-strict-provenance"
+        run: |
+          set -euo pipefail
+          rustc --version
+          protoc --version
+          cargo miri --version
+          cargo miri run --locked --manifest-path tests/proof/ordered_maps/Cargo.toml
   miri:
-    needs: [core, http2, selected-bytes]
+    needs: [core, generated, http2, selected-bytes, ordered-maps]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -140,9 +181,13 @@ jobs:
       - name: Require every Miri lane to pass
         env:
           CORE_RESULT: ${{ needs.core.result }}
+          GENERATED_RESULT: ${{ needs.generated.result }}
           HTTP2_RESULT: ${{ needs.http2.result }}
           BYTES_RESULT: ${{ needs.selected-bytes.result }}
+          ORDERED_RESULT: ${{ needs.ordered-maps.result }}
         run: |
           test "$CORE_RESULT" = success
+          test "$GENERATED_RESULT" = success
           test "$HTTP2_RESULT" = success
           test "$BYTES_RESULT" = success
+          test "$ORDERED_RESULT" = success

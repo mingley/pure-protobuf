@@ -5,6 +5,17 @@ stopped. They are dated investigations, usually local diagnostics. A result
 belongs to its recorded revision, host, workload, and peer versions; it does
 not automatically describe today's code.
 
+The [cache-first packed follow-up](rejected-packed-cache-first-20261106/README.md)
+beats pinned Prost on its local fresh TAT row but slows large getter and owned
+workloads. It remains unshipped. All rows, reference controls and limitations
+are retained.
+
+The [full November 6 hosted comparison](hosted-devloop-20261106/README.md)
+retains every cell and the original official artifact. Fresh encoding and
+mixed-blob encoding still lose to Prost; cached encoding and owned decode
+have selected wins. Both revisions use independent fresh warmup objects.
+Instruction counts were not run, and this record does not establish a ranking.
+
 The [fused packed-encoding follow-up](rejected-packed-fused-20261106/README.md)
 also remains unshipped. It improves fresh and noncanonical encoding but slows
 cached encoding and encode-then-get workloads. Its complete comparison,

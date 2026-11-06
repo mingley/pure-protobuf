@@ -1,0 +1,38 @@
+syntax = "proto3";
+package proof.ordered;
+
+message Value {
+  int32 first = 1;
+  int32 second = 2;
+}
+enum State {
+  STATE_UNSPECIFIED = 0;
+  STATE_READY = 1;
+}
+message Child {
+  map<string, int32> numbers = 1;
+  map<int32, string> labels = 2;
+  map<bool, int32> flags = 3;
+  map<sint64, uint64> signed = 4;
+  map<uint64, bytes> payloads = 5;
+  map<uint32, Value> values = 6;
+  map<fixed64, State> states = 7;
+}
+message Parent {
+  Child child = 1;
+  repeated Child children = 2;
+  map<string, Child> by_name = 3;
+  oneof choice {
+    Child selected = 4;
+    int32 scalar = 5;
+  }
+  optional Child presence = 6;
+  message Local { map<string, int32> entries = 1; }
+  Local nested = 7;
+}
+message Grandparent { Parent parent = 1; }
+message Recursive {
+  map<int32, int32> numbers = 1;
+  Recursive child = 2;
+}
+message Control { map<string, int32> ordinary = 1; }

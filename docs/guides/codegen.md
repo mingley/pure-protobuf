@@ -5,14 +5,15 @@ or use `protoc-gen-pbrs` in an existing compiler pipeline. Inputs can be
 `.proto` files or a checked descriptor set. Native gRPC stubs are the default;
 Tonic stubs and messages-only output are explicit options.
 
-`boxed`, `bytes` and `safe_message_defaults` below are additions in the
-unreleased `pbrs` 0.2.1 candidate.
+`boxed`, `bytes`, `btree_map` and `safe_message_defaults` below are additions
+in the unreleased `pbrs` 0.2.1 candidate.
 
 | Need | Read |
 |---|---|
 | Pick native, tonic or messages-only output | [Stub modes](#stub-generation-summary) |
 | Read or mutate nested messages efficiently | [Lazy and owned storage](#owned-nested-message-fields), [selected fields](#box-selected-nested-fields) |
 | Retain selected byte payloads beyond a message | [Selected byte storage](bytes.md) |
+| Store unique map entries in key order | [Ordered maps](maps.md) |
 | Forbid unsafe code in generated bindings | [Safe generated defaults](#safe-generated-defaults) |
 | Reduce generated metadata and format helpers | [Cargo features](#cargo-features) |
 | Generate without `protoc` during the application build | [Checked descriptor sets](#generating-from-a-checked-descriptor-set) |
@@ -555,6 +556,7 @@ follows the sharing rule above; explicit external mappings remain available.
 | `field_attribute` | `Config::field_attribute` | Supports the same selectors for generated field storage. |
 | `boxed` | `Config::boxed` / `--pbrs_opt=boxed=.pkg.Parent.child` | Selects eager singular message storage; repeated and map fields are unchanged. See [selected fields](#box-selected-nested-fields). |
 | `bytes` | `Config::bytes(paths)` / `--pbrs_opt=bytes=.pkg.Parent.payload` | Selects `ProtoBytes` storage and adds shared getters. Borrowed singular getters remain `&[u8]`; see [selectors and lifetimes](bytes.md). |
+| `btree_map` | `Config::btree_map(paths)` / `--pbrs_opt=btree_map=.pkg.Parent.lookup` | Selects unique ordered `TreeMap` storage; see [selectors and ancestor regeneration](maps.md). |
 | `build_client` | `Config::build_client` / `--pbrs_opt=build_client=false` | Supported for native and Tonic adapter stubs. |
 | `build_server` | `Config::build_server` / `--pbrs_opt=build_server=false` | Supported for native and Tonic adapter stubs. |
 | `client_attribute` | `Config::client_attribute` | Supported on generated client structs, keyed by service full name. |

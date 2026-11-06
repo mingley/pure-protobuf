@@ -86,8 +86,8 @@ matched lifecycle comparison, including small interactive streams.
 
 The caller-worker prototype and small-map-cache prototype were rejected;
 preserve their data rather than treating them as accepted optimizations.
-Remaining API/deployment gaps include `btree_map` and an alloc-only runtime.
-Selected [byte storage](docs/guides/bytes.md) and
+An alloc-only runtime remains open. Selected
+[ordered maps](docs/guides/maps.md), [byte storage](docs/guides/bytes.md) and
 [boxed children](docs/guides/codegen.md#box-selected-nested-fields) now have
 compiled consumers; their documented boundaries still apply. Every component
 gain must survive the full matched matrix.

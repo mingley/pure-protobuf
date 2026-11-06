@@ -1,0 +1,11 @@
+{
+  "base_commit": "05a3cca50e7708f5be1facce6d27a7ed6b87006b",
+  "plugin_sha256": "1743924046962ed359a41aeea9b2e0f569f46c05d5aca0f1dcaad4027399b9ed",
+  "build_report": "work/checks/baseline-plugin.json",
+  "input_output_sha256": {
+    "proto/ordered.proto": "70330151798b2d8438225adb12d3a6b863014dfd9af26433c772bf3fbf16171b",
+    "proto/old_parent.proto": "599798f6fe37765e0666b255497d1ccc9122d548fdd2fb1697344ca3f87001d1",
+    "old_parent/old_parent.rs": "c083e77947fe0d4acfba62b475c01805c4172c9d4fd51d1cbd8ad502c2948958"
+  },
+  "scope": "Literal05a3 pre-btree parent and grandparent resolve the current selected Child. Raw wire forwarding remains unchanged; typed views reflect ordered unique storage."
+}
