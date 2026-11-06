@@ -5,6 +5,12 @@ stopped. They are dated investigations, usually local diagnostics. A result
 belongs to its recorded revision, host, workload, and peer versions; it does
 not automatically describe today's code.
 
+The [full hosted comparison at `10d94697`](hosted-devloop-10d94697-20261106/README.md)
+retains all 1,634 cells from the official artifact. Selected fresh encoding,
+name decoding and mixed-blob encoding still lose to Prost. Cached encoding
+and owned decode have selected wall-time wins; owned decode requests more
+allocation bytes. Instrumentation and shared-host limits remain explicit.
+
 The [medium-string validator experiment](rejected-medium-core-utf8-20261106/README.md)
 remains unshipped. Its primary paired median improves by 6.6%, but nine
 representatives regress, including Unicode cases. All 756 CPU processes and

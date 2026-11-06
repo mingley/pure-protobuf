@@ -1,0 +1,223 @@
+{
+  "schema": "pbrs-hosted-devloop-evidence/1",
+  "official_artifact": {
+    "run_id": 42200175946,
+    "artifact_id": 13499573752,
+    "name": "devloop-42200175946",
+    "run_url": "https://github.com/mingley/pure-protobuf/actions/runs/42200175946",
+    "artifact_url": "https://github.com/mingley/pure-protobuf/actions/runs/42200175946/artifacts/13499573752",
+    "zip_file": "official-artifact.zip",
+    "zip_sha256": "25d1f7dc584ffc5114f9420e78e33df8278484eb41c01f8e7df57a59596b2ecd",
+    "zip_bytes": 214435
+  },
+  "base_sha": "2374cfc1e36d4810a94b5aa4ed9fcd7dddf4f87c",
+  "head_sha": "10d94697dc89e3aa89c843720f7150f1186f417a",
+  "cell_count": 1634,
+  "measured_metrics": [
+    "allocs",
+    "alloc_bytes",
+    "syscalls",
+    "locks",
+    "wall_ns"
+  ],
+  "instruction_status": "not_run",
+  "fresh_encode_profile": "independent-warmup-v1",
+  "ranking_claim": false,
+  "members": [
+    {
+      "name": "base-rpc-fixture-overlay.json",
+      "bytes": 851,
+      "sha256": "a8a2c2f3bb4dd8d4debd0a09853fafef89f61a7d4ae295b5475e828875828ed8"
+    },
+    {
+      "name": "base.json",
+      "bytes": 2705015,
+      "sha256": "4126107e23bfa8594c3385b1b0b4f870240b9c0fb51e3e3bb778f3faf6bf5c1b"
+    },
+    {
+      "name": "base.log",
+      "bytes": 55605,
+      "sha256": "273461c04a8e6425490cce66364d1f6ad406323d06122e0a59378e732314c7d2"
+    },
+    {
+      "name": "compare.txt",
+      "bytes": 114257,
+      "sha256": "1526cd07a24d6c5c5c22af0a78c51f459029088200824deb1172e7ed8e186f98"
+    },
+    {
+      "name": "head.json",
+      "bytes": 2705009,
+      "sha256": "b125f2104c39afcfbbdc7ec9991085fa80a720cfcddcc5eacfd3a5eab634d21c"
+    },
+    {
+      "name": "head.log",
+      "bytes": 57599,
+      "sha256": "04de5517a836a73ba4c18663c5641770b20e0c8df74f47abb8f445103e239d28"
+    },
+    {
+      "name": "summary.md",
+      "bytes": 160866,
+      "sha256": "b6be15329172fc6cf57885044e1b1ee6d00270640d37ff94ab7afbc514cf7d04"
+    },
+    {
+      "name": "validation.json",
+      "bytes": 345236,
+      "sha256": "5fc33c6961a4b9a6f3a0e2fe39bad0490864a6f92082cb75ee9684663699b397"
+    }
+  ],
+  "selected_head_rows": [
+    {
+      "operation": "Fresh encode",
+      "pbrs_id": "codec.pbrs.fresh_encode",
+      "prost_id": "codec.prost.fresh_encode",
+      "pbrs_wall_ns": 866.6445,
+      "prost_wall_ns": 673.6955,
+      "pbrs_allocs": 7.0,
+      "prost_allocs": 5.0
+    },
+    {
+      "operation": "Cached encode",
+      "pbrs_id": "codec.pbrs.cached_encode",
+      "prost_id": "codec.prost.cached_encode",
+      "pbrs_wall_ns": 169.33,
+      "prost_wall_ns": 541.7895,
+      "pbrs_allocs": 1.0,
+      "prost_allocs": 5.0
+    },
+    {
+      "operation": "Owned decode",
+      "pbrs_id": "codec.pbrs.owned_decode",
+      "prost_id": "codec.prost.owned_decode",
+      "pbrs_wall_ns": 492.533,
+      "prost_wall_ns": 941.1635,
+      "pbrs_allocs": 7.0,
+      "prost_allocs": 10.0
+    },
+    {
+      "operation": "80-byte name decode",
+      "pbrs_id": "codec.pbrs.small_name80_decode",
+      "prost_id": "codec.prost.small_name80_decode",
+      "pbrs_wall_ns": 62.5465,
+      "prost_wall_ns": 54.4365,
+      "pbrs_allocs": 1.0,
+      "prost_allocs": 1.0
+    },
+    {
+      "operation": "Mixed blob encode",
+      "pbrs_id": "codec.pbrs.blob_encode_mixed",
+      "prost_id": "codec.prost.blob_encode_mixed",
+      "pbrs_wall_ns": 2732.7455,
+      "prost_wall_ns": 1924.1525,
+      "pbrs_allocs": 19.0,
+      "prost_allocs": 10.0
+    }
+  ],
+  "reference_review": {
+    "source_pair": [
+      "2374cfc1e36d4810a94b5aa4ed9fcd7dddf4f87c",
+      "10d94697dc89e3aa89c843720f7150f1186f417a"
+    ],
+    "source_hashes": [
+      {
+        "path": "bench/devloop/Cargo.toml",
+        "base_sha256": "4be2a3faa9a72083267b2038664d707676af41591633520ed626ae08a9e19290",
+        "head_sha256": "4be2a3faa9a72083267b2038664d707676af41591633520ed626ae08a9e19290",
+        "bytes_identical": true
+      },
+      {
+        "path": "bench/devloop/Cargo.lock",
+        "base_sha256": "4ba444062e4ffedc0f76478143df85eec9d3ade7f85d0143c19e8d7e0e4a6283",
+        "head_sha256": "4ba444062e4ffedc0f76478143df85eec9d3ade7f85d0143c19e8d7e0e4a6283",
+        "bytes_identical": true
+      },
+      {
+        "path": "bench/devloop/src/main.rs",
+        "base_sha256": "91bb2bd496c928a31877255035c9b29884af62157edbc78605c67627238dfbd7",
+        "head_sha256": "91bb2bd496c928a31877255035c9b29884af62157edbc78605c67627238dfbd7",
+        "bytes_identical": true
+      },
+      {
+        "path": "bench/devloop/src/blob.rs",
+        "base_sha256": "defb51b5fa5a7b7030c5199586fe40364e04e6946c107c54864a1ba5e5d1484e",
+        "head_sha256": "defb51b5fa5a7b7030c5199586fe40364e04e6946c107c54864a1ba5e5d1484e",
+        "bytes_identical": true
+      },
+      {
+        "path": "prost_tat/Cargo.toml",
+        "base_sha256": "c1cf3749e20d7742a0fa5f5f96fb0a2508b776b0c9b293df36fe9031c1df8d73",
+        "head_sha256": "c1cf3749e20d7742a0fa5f5f96fb0a2508b776b0c9b293df36fe9031c1df8d73",
+        "bytes_identical": true
+      }
+    ],
+    "selected_references": [
+      {
+        "cells": [
+          "codec.prost.fresh_encode",
+          "codec.prost.cached_encode"
+        ],
+        "prost_version": "0.13.5",
+        "api": "prost013::Message::encode into new Vec::new() per operation",
+        "source": "bench/devloop/src/main.rs",
+        "lines": [
+          838,
+          843
+        ],
+        "version_lock_line": 694,
+        "message_lifecycle": "fresh prebuilt independent-warmup-v1 objects or one reused cached message; output Vec is new in both cells"
+      },
+      {
+        "cells": [
+          "codec.prost.owned_decode"
+        ],
+        "prost_version": "0.13.5",
+        "api": "prost_tat::TestAllTypesProto3::decode",
+        "source": "bench/devloop/src/main.rs",
+        "lines": [
+          848
+        ],
+        "version_lock_line": 694
+      },
+      {
+        "cells": [
+          "codec.prost.small_name80_decode"
+        ],
+        "prost_version": "0.14.4",
+        "api": "<ProstName as prost::Message>::decode",
+        "source": "bench/devloop/src/main.rs",
+        "lines": [
+          832,
+          496
+        ],
+        "version_lock_line": 704
+      },
+      {
+        "cells": [
+          "codec.prost.blob_encode_mixed"
+        ],
+        "prost_version": "0.14.4",
+        "api": "prost::Message::encode_to_vec",
+        "source": "bench/devloop/src/blob.rs",
+        "lines": [
+          325,
+          330
+        ],
+        "version_lock_line": 704,
+        "message_lifecycle": "constructs message and eight4KiB payload vectors inside each measured operation"
+      }
+    ],
+    "instrumentation": {
+      "copy_counts": {
+        "pbrs": true,
+        "pbrs_grpc": true,
+        "source": "bench/devloop/Cargo.toml",
+        "lines": [
+          16,
+          17
+        ]
+      },
+      "allocation_accounting": true,
+      "scope": "The registered devloop includes allocation accounting and pbrs/pbrs-grpc copy-counts hooks. Instrumented measurements do not establish uninstrumented production performance."
+    },
+    "scope": "Previously inspected exact benchmark source/API pins. The portable checker reads this review; it does not fetch or reconstruct sources."
+  }
+}
