@@ -10,6 +10,10 @@ or stable releases.
 
 ### pbrs 0.2.1
 
+- Add `Config::disable_comments_for(paths)` to suppress selected protobuf
+  source comments while preserving the existing global boolean API. Calls
+  replace the selector list; an empty list resets selection. Synthetic docs
+  and explicit user attributes stay unchanged.
 - Add explicit `alloc-only` runtime and `Config::alloc_only(true)` generation
   for native binary messages. Concrete Cortex consumers keep std host codegen
   separate; std-backed host tests cover five generated profiles. Existing

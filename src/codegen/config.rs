@@ -284,6 +284,7 @@ thread_local! {
     pub(crate) static GENERATE_DEFAULT_STUBS: Cell<bool> = const { Cell::new(true) };
     pub(crate) static USE_ARC_SELF: Cell<bool> = const { Cell::new(false) };
     pub(crate) static DISABLE_COMMENTS: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static COMMENT_SELECTORS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
     pub(crate) static SKIP_DEBUG: Cell<bool> = const { Cell::new(false) };
     pub(crate) static CURRENT_TARGET: RefCell<String> = const { RefCell::new(String::new()) };
     // Imported type paths depend on the target's local identifier set. Keep
@@ -446,6 +447,55 @@ pub(crate) fn adapter_codec_path() -> Cow<'static, str> {
 #[cfg(test)]
 mod runtime_path_tests {
     use super::*;
+
+    #[test]
+    fn comment_selectors_replace_roundtrip_and_reset() {
+        let mut config = Config::new();
+        config.disable_comments_for(["old"]);
+        let paths = [".pkg.Parent", "field", " trailing ", "a,b"];
+        config.disable_comments_for(paths);
+        let parsed =
+            parse_plugin_parameter(&config.to_parameter_string()).expect("selector options");
+        assert_eq!(parsed.comment_selectors, paths);
+        let guard = CodegenStateGuard::new();
+        apply_resolved_config(&resolve_options(&parsed));
+        assert!(comments_disabled("pkg.Parent", Some("child")));
+        assert!(comments_disabled("elsewhere.Parent", Some("field")));
+        assert!(!comments_disabled("pkg.Parentish", Some("child")));
+        assert!(!comments_disabled("elsewhere.Parent", Some("other_field")));
+        std::thread::scope(|scope| {
+            scope.spawn(|| assert!(!comments_disabled("pkg.Parent", None)));
+        });
+        config.disable_comments(true);
+        apply_resolved_config(&resolve_options(
+            &parse_plugin_parameter(&config.to_parameter_string()).expect("global override"),
+        ));
+        assert!(comments_disabled("unselected.Type", None));
+        config.disable_comments(false);
+        apply_resolved_config(&resolve_options(
+            &parse_plugin_parameter(&config.to_parameter_string()).expect("selected only"),
+        ));
+        assert!(!comments_disabled("unselected.Type", None));
+        assert!(comments_disabled("pkg.Parent", None));
+        config.disable_comments_for(core::iter::empty::<&str>());
+        apply_resolved_config(&resolve_options(
+            &parse_plugin_parameter(&config.to_parameter_string()).expect("empty reset"),
+        ));
+        assert!(!comments_disabled("pkg.Parent", None));
+        drop(guard);
+        assert!(!comments_disabled("pkg.Parent", None));
+        for value in [
+            "disable_comments_for",
+            "disable_comments_for_hex=xx",
+            "disable_comments_for_hex=ff",
+            "disable_comments_for_hex=0",
+        ] {
+            assert!(matches!(
+                parse_plugin_parameter(value),
+                Err(CodegenError::InvalidParameter { .. })
+            ));
+        }
+    }
 
     #[test]
     fn alloc_output_profile_paths_options_and_reset() {
@@ -620,6 +670,7 @@ impl CodegenStateGuard {
         GENERATE_DEFAULT_STUBS.with(|c| c.set(true));
         USE_ARC_SELF.with(|c| c.set(false));
         DISABLE_COMMENTS.with(|c| c.set(false));
+        COMMENT_SELECTORS.with(|c| c.borrow_mut().clear());
         SKIP_DEBUG.with(|c| c.set(false));
         CURRENT_TARGET.with(|c| c.borrow_mut().clear());
         TYPE_PATHS.with(|c| c.borrow_mut().clear());
@@ -719,6 +770,7 @@ pub(crate) struct ExplicitOptions {
     generate_default_stubs: Option<bool>,
     use_arc_self: Option<bool>,
     disable_comments: Option<bool>,
+    comment_selectors: Vec<String>,
     skip_debug: Option<bool>,
     include_file: Option<String>,
     pub(crate) extern_paths: Vec<(String, String)>,
@@ -760,6 +812,7 @@ pub(crate) struct ResolvedConfig {
     pub(crate) generate_default_stubs: bool,
     pub(crate) use_arc_self: bool,
     pub(crate) disable_comments: bool,
+    pub(crate) comment_selectors: Vec<String>,
     pub(crate) skip_debug: bool,
     pub(crate) include_file: String,
     pub(crate) extern_paths: Vec<(String, String)>,
@@ -1036,6 +1089,18 @@ pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions,
             }
             "use_arc_self" => {
                 explicit.use_arc_self = Some(parse_bool_param("use_arc_self", val)?);
+            }
+            "disable_comments_for" | "disable_comments_for_hex" => {
+                let value = val.ok_or_else(|| CodegenError::InvalidParameter {
+                    key: key.to_string(),
+                    detail: "expected a protobuf path selector".into(),
+                })?;
+                let selector = if key == "disable_comments_for_hex" {
+                    decode_parameter_hex(value)?
+                } else {
+                    value.to_owned()
+                };
+                explicit.comment_selectors.push(selector);
             }
             "disable_comments" => {
                 explicit.disable_comments = Some(parse_bool_param("disable_comments", val)?);
@@ -1399,6 +1464,7 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
         generate_default_stubs,
         use_arc_self,
         disable_comments,
+        comment_selectors: explicit.comment_selectors.clone(),
         skip_debug,
         include_file,
         extern_paths: explicit.extern_paths.clone(),
@@ -1432,8 +1498,29 @@ pub(crate) fn use_arc_self() -> bool {
     USE_ARC_SELF.with(Cell::get)
 }
 
-pub(crate) fn comments_disabled() -> bool {
-    DISABLE_COMMENTS.with(Cell::get)
+pub(crate) fn selective_comments_enabled() -> bool {
+    !DISABLE_COMMENTS.with(Cell::get)
+        && COMMENT_SELECTORS.with(|selectors| !selectors.borrow().is_empty())
+}
+
+pub(crate) fn comments_disabled(owner: &str, member: Option<&str>) -> bool {
+    if DISABLE_COMMENTS.with(Cell::get) {
+        return true;
+    }
+    COMMENT_SELECTORS.with(|selectors| {
+        let selectors = selectors.borrow();
+        if selectors.is_empty() {
+            return false;
+        }
+        // Only construct a field/method path when selectors are active.
+        let path = member.map_or_else(
+            || Cow::Borrowed(owner),
+            |member| Cow::Owned(format!("{owner}.{member}")),
+        );
+        selectors
+            .iter()
+            .any(|rule| protobuf_path_matches(rule, &path))
+    })
 }
 
 pub(crate) fn emit_reflection_enabled() -> bool {
@@ -1719,6 +1806,7 @@ pub struct Config {
     generate_default_stubs: Option<bool>,
     use_arc_self: Option<bool>,
     disable_comments: Option<bool>,
+    comment_selectors: Vec<String>,
     skip_debug: Option<bool>,
     include_file: Option<String>,
     file_descriptor_set_path: Option<PathBuf>,
@@ -2179,6 +2267,26 @@ impl Config {
         self
     }
 
+    /// Suppress source comments on matching protobuf packages, types or members.
+    ///
+    /// Replaces the previous selector list. `.` selects everything; qualified
+    /// paths select prefixes and relative paths select suffixes, on whole name
+    /// components. An empty list resets this selection. The existing
+    /// [`Self::disable_comments`] global switch still overrides all selectors.
+    /// Synthetic API documentation and explicit user attributes are unchanged.
+    /// The plugin uses repeated `disable_comments_for=path` parameters.
+    pub fn disable_comments_for<I, S>(&mut self, paths: I) -> &mut Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        self.comment_selectors = paths
+            .into_iter()
+            .map(|path| path.as_ref().to_owned())
+            .collect();
+        self
+    }
+
     /// Do not derive `Debug` for generated message storage where possible.
     pub fn skip_debug(&mut self, enable: bool) -> &mut Self {
         self.skip_debug = Some(enable);
@@ -2465,6 +2573,16 @@ impl Config {
         }
         if let Some(use_arc_self) = self.use_arc_self {
             opts.push(format!("use_arc_self={use_arc_self}"));
+        }
+        for selector in &self.comment_selectors {
+            if selector.contains(',') || selector.trim() != selector {
+                opts.push(format!(
+                    "disable_comments_for_hex={}",
+                    parameter_hex(selector)
+                ));
+            } else {
+                opts.push(format!("disable_comments_for={selector}"));
+            }
         }
         if let Some(disable_comments) = self.disable_comments {
             opts.push(format!("disable_comments={disable_comments}"));

@@ -29,7 +29,7 @@ fn stream_assoc(m: &MethodDescriptor) -> String {
 fn emit_compat_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor) {
     let g = grpc_crate_path();
     let c = g.with_suffix("::compat");
-    emit_doc_comments(src, &svc.comments, "");
+    emit_doc_comments(src, &svc.comments, "", &svc.full_name, None);
     if !svc.comments.is_empty() {
         let _ = writeln!(src, "///");
     }
@@ -48,7 +48,7 @@ fn emit_compat_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor
         "pub trait {trait_name}: ::core::marker::Send + ::core::marker::Sync + 'static {{"
     );
     for m in &svc.methods {
-        emit_doc_comments(src, &m.comments, "    ");
+        emit_doc_comments(src, &m.comments, "    ", &svc.full_name, Some(&m.name));
         if !m.comments.is_empty() {
             let _ = writeln!(src, "    ///");
         }

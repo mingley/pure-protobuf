@@ -15,6 +15,7 @@ was reproduced; it does not mean full parity or a performance ranking.
 | Generated consumers and legacy target boundary | `python3 tests/proof/codegen_parity/run.py --output work/parity-codegen` | Runs roundtrips, build-configuration probes and the std-required legacy no-default target control. |
 | Explicit alloc-only messages | `python3 tests/proof/alloc_runtime/run.py --out work/parity-alloc-runtime` | Builds concrete native and Prost Cortex messages with separate std host codegen, then runs std-backed host checks; see [scope](alloc_runtime/README.md). |
 | Field view accessor names | See [field view consumers](field_views/README.md) | Checks singular message/group view methods, existing field APIs, and wire values against Prost across four storage/default profiles. |
+| Selective source comments | `python3 tests/proof/comment_selectors/run.py --out work/parity-comments` | [15 compiled consumers](comment_selectors/README.md) compare selectors and wire values with Prost 0.14.4; three RPC modes have source-only comment checks. |
 | Generated namespaces | `python3 tests/proof/namespace_symbols/run.py --out work/parity-namespaces` | Checks framework symbol shadows, runtime aliases and preserved user paths across four storage/default profiles. |
 | RPC service namespaces | `python3 tests/proof/rpc_names/run.py --out work/parity-rpc-names` | Compiles 55 service names in four stub modes, strict aliases and a pinned Tonic reference against actual runtime artifacts. |
 | gRPC message presence | `cargo test --locked --manifest-path tests/proof/tonic_parity/Cargo.toml -- --nocapture` | Compares missing and framed-empty messages against tonic, including peer-error precedence. |
@@ -27,6 +28,7 @@ Install Rust, Python 3 and `protoc`. For the codegen audit, also run:
 rustup target add thumbv7em-none-eabi
 cargo fetch --locked --manifest-path tests/proof/codegen_parity/Cargo.toml
 cargo fetch --locked --manifest-path tests/proof/namespace_symbols/Cargo.toml
+cargo fetch --locked --manifest-path tests/proof/comment_selectors/Cargo.toml
 cargo fetch --locked --manifest-path tests/proof/codegen_parity/no_std/prost/Cargo.toml
 cargo fetch --locked --manifest-path tests/proof/codegen_parity/no_std/pbrs/Cargo.toml
 cargo fetch --locked --manifest-path tests/proof/alloc_runtime/Cargo.toml

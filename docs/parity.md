@@ -30,6 +30,7 @@ their own source pins, controls, failures and full measured rows.
 | Protobuf parse and merge against prost 0.14.4 | 652 of 654 proto3 operations agree. The other two use the same wrong-wire-type input. |
 | Missing proto2 required field | pbrs rejects it; prost accepts it. |
 | Generated consumers | Base roundtrips and configured naming, type-URL, Any, enum and attribute controls pass against pinned Prost; see the [consumer guide](../tests/proof/codegen_parity/README.md) for exact cases. |
+| Selective source comments | [15 compiled consumers](../tests/proof/comment_selectors/README.md) compare imported/nested/message/field/enum selectors and wire values with Prost 0.14.4. Builder/plugin/FDS, reset and parallel controls pass; three RPC modes have source-only comment checks. |
 | Field view accessor names | [25 schema cases](../tests/proof/field_views/README.md) compile accessor APIs and exchange values with Prost 0.14.4 in lazy, owned, safe and owned+safe profiles; valid existing APIs keep their names. |
 | RPC service names and aliases | [55 names](../tests/proof/rpc_names/README.md) compile in native, Tonic, compat and prost-native output: 220 consumers, 12 strict aliases, 61 native/adapter alias controls and a pinned Tonic reference. |
 | Selected ordered maps | [24 consumer groups](../tests/proof/ordered_maps/README.md), 18 pinned Prost selector comparisons and four parent JSON checks cover real unique ordered storage. Older lazy ancestors retain their documented raw-wire behavior. |

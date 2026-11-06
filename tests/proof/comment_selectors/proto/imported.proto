@@ -1,0 +1,7 @@
+syntax = "proto3";
+package proof.other;
+// SRC_IMPORTED
+message Imported {
+  // SRC_IMPORTED_FIELD
+  int32 value = 1;
+}

@@ -57,6 +57,7 @@ jobs:
             tests/proof/field_views/Cargo.toml \
             tests/proof/namespace_symbols/Cargo.toml \
             tests/proof/ordered_maps/Cargo.toml \
+            tests/proof/comment_selectors/Cargo.toml \
             tests/proof/alloc_runtime/Cargo.toml \
             tests/proof/alloc_runtime/legacy_std/Cargo.toml \
             tests/proof/codegen_parity/no_std/prost/Cargo.toml \
@@ -105,6 +106,10 @@ jobs:
         run: python3 tests/proof/rpc_names/run.py --out work/parity-audit/rpc-names
       - name: Check ordered map storage and generated ancestor paths
         run: python3 tests/proof/ordered_maps/run.py --output work/parity-audit/ordered-maps
+      - name: Check source comment selectors against Prost
+        run: |
+          python3 tests/proof/comment_selectors/run.py --out work/parity-audit/comment-selectors \
+            --target-dir target/parity-comment-selectors
       - name: Check field view accessor collisions
         run: |
           cargo run --locked --offline --manifest-path tests/proof/field_views/Cargo.toml \

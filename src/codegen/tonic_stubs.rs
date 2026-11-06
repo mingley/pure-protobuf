@@ -20,7 +20,7 @@ pub(crate) fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
     let client = format!("{svc_ty}Client");
     let server = format!("{svc_ty}Server");
     let path_prefix = format!("/{}", svc.full_name);
-    emit_doc_comments(src, &svc.comments, "");
+    emit_doc_comments(src, &svc.comments, "", &svc.full_name, None);
     if !svc.comments.is_empty() {
         let _ = writeln!(src, "///");
     }
@@ -36,7 +36,7 @@ pub(crate) fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
             "pub trait {svc_ty}: ::core::marker::Send + ::core::marker::Sync + 'static {{"
         );
         for m in &svc.methods {
-            emit_service_trait_method(src, m);
+            emit_service_trait_method(src, m, &svc.full_name);
         }
         let _ = writeln!(src, "}}");
     }
@@ -285,12 +285,12 @@ pub(crate) fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
     let _ = writeln!(src, "}}");
 }
 
-pub(crate) fn emit_service_trait_method(src: &mut String, m: &MethodDescriptor) {
+pub(crate) fn emit_service_trait_method(src: &mut String, m: &MethodDescriptor, owner: &str) {
     let fn_name = to_snake(&m.name);
     let req = rust_type_path(&m.input_type);
     let resp = rust_type_path(&m.output_type);
     let assoc = format!("{}Stream", m.name);
-    emit_doc_comments(src, &m.comments, "    ");
+    emit_doc_comments(src, &m.comments, "    ", owner, Some(&m.name));
     if !m.comments.is_empty() {
         let _ = writeln!(src, "    ///");
     }
@@ -369,7 +369,13 @@ pub(crate) fn emit_client_method(src: &mut String, m: &MethodDescriptor, prefix:
     let resp = rust_type_path(&m.output_type);
     let path = format!("{prefix}/{}", m.name);
     let codec = service_codec_path();
-    emit_doc_comments(src, &m.comments, "    ");
+    emit_doc_comments(
+        src,
+        &m.comments,
+        "    ",
+        prefix.trim_start_matches('/'),
+        Some(&m.name),
+    );
     if !m.comments.is_empty() {
         let _ = writeln!(src, "    ///");
     }

@@ -88,7 +88,7 @@ pub(crate) fn emit_kernel_service(src: &mut String, svc: &ServiceDescriptor) {
 pub(crate) fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor) {
     let g = grpc_crate_path();
     if !svc.comments.is_empty() {
-        emit_doc_comments(src, &svc.comments, "");
+        emit_doc_comments(src, &svc.comments, "", &svc.full_name, None);
         let _ = writeln!(src, "///");
     }
     let _ = writeln!(src, "/// The `{}` service.", svc.full_name);
@@ -115,7 +115,7 @@ pub(crate) fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &Servic
         let shape = shape_of(m, &g);
         let fn_name = to_snake(&m.name);
         if !m.comments.is_empty() {
-            emit_doc_comments(src, &m.comments, "    ");
+            emit_doc_comments(src, &m.comments, "    ", &svc.full_name, Some(&m.name));
             let _ = writeln!(src, "    ///");
         }
         let _ = writeln!(src, "    /// {} call: `{}`.", shape.description, m.name);
@@ -235,7 +235,7 @@ pub(crate) fn emit_kernel_server(
 ) {
     let g = grpc_crate_path();
     if !svc.comments.is_empty() {
-        emit_doc_comments(src, &svc.comments, "");
+        emit_doc_comments(src, &svc.comments, "", &svc.full_name, None);
         let _ = writeln!(src, "///");
     }
     let _ = writeln!(src, "/// Serves an implementation of [`{trait_name}`].");
@@ -1297,7 +1297,7 @@ pub(crate) fn emit_kernel_client(
 ) {
     let g = grpc_crate_path();
     if !svc.comments.is_empty() {
-        emit_doc_comments(src, &svc.comments, "");
+        emit_doc_comments(src, &svc.comments, "", &svc.full_name, None);
         let _ = writeln!(src, "///");
     }
     let _ = writeln!(src, "/// Client for `{full_name}`.");
@@ -1628,7 +1628,7 @@ pub(crate) fn emit_kernel_client(
             );
         }
         if !m.comments.is_empty() {
-            emit_doc_comments(src, &m.comments, "    ");
+            emit_doc_comments(src, &m.comments, "    ", &svc.full_name, Some(&m.name));
             let _ = writeln!(src, "    ///");
         }
         let _ = writeln!(src, "    /// {} call: `{}`.", shape.description, m.name);

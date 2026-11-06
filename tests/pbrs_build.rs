@@ -149,7 +149,9 @@ fn cargo_run(dir: &Path, path: Option<&OsStr>, quiet: bool) -> Output {
         .env("CARGO_TERM_COLOR", "never");
     apply_cargo_home(&mut cmd);
     if let Some(p) = path {
-        cmd.env("PATH", p);
+        // A missing-protoc fixture must also disable an inherited absolute
+        // compiler override; otherwise it bypasses the failing PATH shim.
+        cmd.env("PATH", p).env_remove("PROTOC");
     }
     cargo_output(&mut cmd, "cargo run")
 }

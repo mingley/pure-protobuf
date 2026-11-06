@@ -1,0 +1,13 @@
+[package]
+name = "pbrs-comment-selector-proof"
+version = "0.0.0"
+edition = "2024"
+publish = false
+[workspace]
+resolver = "2"
+[dependencies]
+pbrs = { path = "../../..", default-features = false, features = ["codegen"] }
+prost = "=0.14.4"
+[build-dependencies]
+pbrs = { path = "../../..", default-features = false, features = ["codegen"] }
+prost-build = "=0.14.4"

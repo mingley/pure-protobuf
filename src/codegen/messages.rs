@@ -360,8 +360,14 @@ pub(crate) fn emit_doc_line(src: &mut String, line: &str, indent: &str, in_code_
     }
 }
 
-pub(crate) fn emit_doc_comments(src: &mut String, comments: &Comments, indent: &str) {
-    if comments_disabled() {
+pub(crate) fn emit_doc_comments(
+    src: &mut String,
+    comments: &Comments,
+    indent: &str,
+    owner: &str,
+    member: Option<&str>,
+) {
+    if comments_disabled(owner, member) {
         return;
     }
     let mut in_code_fence = false;
@@ -391,7 +397,7 @@ pub(crate) fn emit_field_getter_doc(
     desc: &MessageDescriptor,
     f: &FieldDescriptor,
 ) {
-    emit_doc_comments(src, &f.comments, "    ");
+    emit_doc_comments(src, &f.comments, "    ", &desc.full_name, Some(&f.name));
     if !f.comments.is_empty() {
         let _ = writeln!(src, "    ///");
     }
@@ -570,7 +576,7 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
             desc.fields.values().filter(|f| cold.stored_cold(f)),
         );
     }
-    emit_doc_comments(src, &desc.comments, "");
+    emit_doc_comments(src, &desc.comments, "", &desc.full_name, None);
     if !desc.comments.is_empty() {
         let _ = writeln!(src, "///");
     }
@@ -592,7 +598,7 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
     }
     let _ = writeln!(src, "pub struct {name} {{");
     for f in desc.fields.values().filter(|f| cold.stored_hot(f)) {
-        emit_doc_comments(src, &f.comments, "    ");
+        emit_doc_comments(src, &f.comments, "    ", &desc.full_name, Some(&f.name));
         if field_attributes {
             emit_field_attributes(src, &desc.full_name, &f.name, "    ");
         }
@@ -1276,7 +1282,7 @@ pub(crate) fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
         .map(|v| v.number.to_string())
         .collect::<Vec<_>>()
         .join(" | ");
-    emit_doc_comments(src, &ed.comments, "");
+    emit_doc_comments(src, &ed.comments, "", &ed.full_name, None);
     if !ed.comments.is_empty() {
         let _ = writeln!(src, "///");
     }
@@ -1299,9 +1305,18 @@ pub(crate) fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
         "    #[allow(non_upper_case_globals, reason = \"protobuf enum names\")]"
     );
     let _ = writeln!(src, "{impl_deprecation_allowance}impl {name} {{");
+    let use_proto_comment_names = selective_comments_enabled();
     for v in &values {
         if let Some(c) = ed.value_comments(v.number) {
-            emit_doc_comments(src, c, "    ");
+            let proto_name = if use_proto_comment_names {
+                ed.values
+                    .get(&v.number)
+                    .map(String::as_str)
+                    .unwrap_or(&v.name)
+            } else {
+                &v.name
+            };
+            emit_doc_comments(src, c, "    ", &ed.full_name, Some(proto_name));
             let _ = writeln!(src, "    ///");
         }
         let _ = writeln!(src, "    /// Enum value `{}` ({}).", v.name, v.number);

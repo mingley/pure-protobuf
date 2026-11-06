@@ -1,0 +1,33 @@
+syntax = "proto3";
+package proof.comments;
+import "imported.proto";
+// SRC_MAIN
+message Main {
+  // SRC_FIELD
+  int32 value = 1;
+  // SRC_NESTED_FIELD
+  Nested nested = 2;
+  // SRC_IMPORTED_SLOT
+  proof.other.Imported imported = 3;
+  // SRC_ENUM_FIELD
+  State state = 4;
+  // SRC_NESTED
+  message Nested {
+    // SRC_INNER_FIELD
+    string label = 1;
+  }
+}
+// SRC_ENUM
+enum State {
+  // SRC_ENUM_ZERO
+  STATE_ZERO = 0;
+  // SRC_ENUM_READY
+  STATE_READY = 1;
+}
+// SRC_OTHER
+message Mainish { int32 value = 1; }
+// SRC_SERVICE
+service Echo {
+  // SRC_METHOD
+  rpc Call(Main) returns (Main);
+}

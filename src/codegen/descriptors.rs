@@ -893,6 +893,7 @@ pub(crate) fn apply_resolved_config(resolved: &ResolvedConfig) {
     GENERATE_DEFAULT_STUBS.with(|c| c.set(resolved.generate_default_stubs));
     USE_ARC_SELF.with(|c| c.set(resolved.use_arc_self));
     DISABLE_COMMENTS.with(|c| c.set(resolved.disable_comments));
+    COMMENT_SELECTORS.with(|c| *c.borrow_mut() = resolved.comment_selectors.clone());
     SKIP_DEBUG.with(|c| c.set(resolved.skip_debug));
     EXTERN_PATHS.with(|c| *c.borrow_mut() = resolved.extern_paths.clone());
     set_runtime_crate_path(resolved.runtime_crate.as_deref());
