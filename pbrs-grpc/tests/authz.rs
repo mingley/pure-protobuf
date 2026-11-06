@@ -297,7 +297,10 @@ async fn file_watcher_reloads_and_keeps_last_valid() {
 
     // A valid reload takes effect on the next call.
     std::fs::write(&path, r#"{"name":"closed","allow_rules":[]}"#).expect("write");
-    assert!(provider.refresh(), "valid reload applies");
+    // The active poller may have applied these bytes before refresh(). Its
+    // return value describes this check, while the policy must be closed.
+    provider.refresh();
+    assert_eq!(provider.policy().name(), "closed");
     assert!(provider.last_error().is_none());
     let denied = client
         .say_hello(Request::new(req("ada")))

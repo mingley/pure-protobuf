@@ -8,13 +8,14 @@
 #![allow(
     clippy::disallowed_types,
     clippy::disallowed_methods,
-    reason = "watcher Mutexes guard an Arc swap and live on a dedicated blocking thread, never across await"
+    reason = "policy snapshots use a short Arc mutex; reload I/O has a separate control-plane mutex, never across await"
 )]
 
 use super::policy::{Policy, PolicyError};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
+use std::sync::{Arc, Mutex, Weak};
+use std::thread::JoinHandle;
 use std::time::Duration;
 
 /// Policy from a static JSON string. Always serves the same engines.
@@ -42,7 +43,8 @@ impl StaticDataProvider {
 ///
 /// A background thread re-reads the file; unchanged bytes skip parsing.
 /// A failed reload keeps serving the last valid policy and records the
-/// error in [`Self::last_error`]. Dropping the last clone stops polling.
+/// error in [`Self::last_error`]. Dropping the last clone wakes an idle worker
+/// immediately; an in-progress reload can finish without blocking the drop.
 #[derive(Clone, Debug)]
 pub struct FileWatcherProvider {
     state: Arc<WatchState>,
@@ -50,51 +52,48 @@ pub struct FileWatcherProvider {
 
 #[derive(Debug)]
 struct WatchState {
+    // Only the state owns a sender. Drop it before policy cleanup so an idle
+    // worker wakes without joining or waiting for the polling interval.
+    _worker_lifetime: Sender<()>,
     path: PathBuf,
     policy: Mutex<Arc<Policy>>,
+    reload: Mutex<()>,
     loaded_bytes: Mutex<Vec<u8>>,
     last_error: Mutex<Option<String>>,
-    shutdown: AtomicBool,
-}
-
-impl Drop for WatchState {
-    fn drop(&mut self) {
-        self.shutdown.store(true, Ordering::Release);
-    }
 }
 
 impl FileWatcherProvider {
     /// Load `path` and poll it every `interval`. The first load must
     /// succeed; I/O or parse errors fail construction.
     pub fn new(path: impl AsRef<Path>, interval: Duration) -> Result<Self, PolicyError> {
-        let path = path.as_ref().to_owned();
-        let bytes = std::fs::read(&path).map_err(|e| PolicyError::io(path.clone(), e))?;
-        let policy = Arc::new(Policy::from_json(core::str::from_utf8(&bytes).map_err(
-            |_| PolicyError::message(format!("{} is not UTF-8", path.display())),
-        )?)?);
-        let state = Arc::new(WatchState {
-            path,
-            policy: Mutex::new(policy),
-            loaded_bytes: Mutex::new(bytes),
-            last_error: Mutex::new(None),
-            shutdown: AtomicBool::new(false),
-        });
-        let worker = Arc::clone(&state);
-        let interval = interval.max(Duration::from_millis(1));
-        core::mem::drop(
-            std::thread::Builder::new()
-                .name("pbrs-authz-watch".to_owned())
-                .spawn(move || {
-                    while !worker.shutdown.load(Ordering::Acquire) {
-                        std::thread::sleep(interval);
-                        if worker.shutdown.load(Ordering::Acquire) {
-                            break;
-                        }
-                        worker.refresh_once();
-                    }
-                }),
-        );
-        Ok(Self { state })
+        let (provider, worker) =
+            Self::new_with_spawner(path, interval, |state, stop, interval| {
+                std::thread::Builder::new()
+                    .name("pbrs-authz-watch".to_owned())
+                    .spawn(move || run_watcher(state, stop, interval))
+            })?;
+        drop(worker);
+        Ok(provider)
+    }
+
+    fn new_with_spawner(
+        path: impl AsRef<Path>,
+        interval: Duration,
+        spawn: impl FnOnce(Weak<WatchState>, Receiver<()>, Duration) -> std::io::Result<JoinHandle<()>>,
+    ) -> Result<(Self, JoinHandle<()>), PolicyError> {
+        let (state, stop) = WatchState::load(path.as_ref().to_owned())?;
+        let worker = spawn(
+            Arc::downgrade(&state),
+            stop,
+            interval.max(Duration::from_millis(1)),
+        )
+        .map_err(|error| {
+            PolicyError::message(format!(
+                "cannot start policy watcher for {}: {error}",
+                state.path.display()
+            ))
+        })?;
+        Ok((Self { state }, worker))
     }
 
     /// The latest valid policy.
@@ -112,27 +111,72 @@ impl FileWatcherProvider {
         self.state
             .last_error
             .lock()
-            .map_or(None, |guard| guard.clone())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
     }
 
-    /// Run one synchronous reload check now. Returns whether the policy
-    /// changed. A failed check keeps the old policy and records the error.
+    /// Run one synchronous reload check now. Returns whether this check
+    /// changed the policy. Another updater may have already applied the bytes.
+    /// A failed check keeps the old policy and records the error.
     pub fn refresh(&self) -> bool {
         self.state.refresh_once()
     }
 }
 
+fn run_watcher(state: Weak<WatchState>, stop: Receiver<()>, interval: Duration) {
+    while let Err(RecvTimeoutError::Timeout) = stop.recv_timeout(interval) {
+        let Some(state) = state.upgrade() else {
+            break;
+        };
+        state.refresh_once();
+        // The upgraded Arc drops here, before the next blocking wait.
+    }
+}
+
 impl WatchState {
+    fn load(path: PathBuf) -> Result<(Arc<Self>, Receiver<()>), PolicyError> {
+        let bytes = std::fs::read(&path).map_err(|e| PolicyError::io(path.clone(), e))?;
+        let policy = Arc::new(Policy::from_json(core::str::from_utf8(&bytes).map_err(
+            |_| PolicyError::message(format!("{} is not UTF-8", path.display())),
+        )?)?);
+        let (worker_lifetime, stop) = mpsc::channel();
+        let state = Arc::new(Self {
+            path,
+            policy: Mutex::new(policy),
+            reload: Mutex::new(()),
+            loaded_bytes: Mutex::new(bytes),
+            last_error: Mutex::new(None),
+            _worker_lifetime: worker_lifetime,
+        });
+        Ok((state, stop))
+    }
+
     /// Returns true when the policy changed.
     fn refresh_once(&self) -> bool {
-        let bytes = match std::fs::read(&self.path) {
+        self.refresh_with(|path| std::fs::read(path))
+    }
+
+    fn refresh_with(&self, read: impl FnOnce(&Path) -> std::io::Result<Vec<u8>>) -> bool {
+        // Serialize file read, parsing and publication. Request snapshots only
+        // use `policy`, so file I/O never holds their mutex.
+        let reload = self
+            .reload
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let bytes = match read(&self.path) {
             Ok(bytes) => bytes,
             Err(e) => {
                 self.set_error(format!("cannot read {}: {e}", self.path.display()));
                 return false;
             }
         };
-        if self.loaded_bytes.lock().is_ok_and(|guard| *guard == bytes) {
+        if *self
+            .loaded_bytes
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            == bytes
+        {
+            self.clear_error();
             return false;
         }
         let text = match core::str::from_utf8(&bytes) {
@@ -144,13 +188,21 @@ impl WatchState {
         };
         match Policy::from_json(text) {
             Ok(policy) => {
-                if let Ok(mut guard) = self.policy.lock() {
-                    *guard = Arc::new(policy);
-                }
-                if let Ok(mut guard) = self.loaded_bytes.lock() {
-                    *guard = bytes;
-                }
+                let policy = Arc::new(policy);
+                let previous = {
+                    let mut guard = self
+                        .policy
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    core::mem::replace(&mut *guard, policy)
+                };
+                *self
+                    .loaded_bytes
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner) = bytes;
                 self.clear_error();
+                drop(reload);
+                drop(previous);
                 true
             }
             Err(e) => {
@@ -161,15 +213,17 @@ impl WatchState {
     }
 
     fn set_error(&self, message: String) {
-        if let Ok(mut guard) = self.last_error.lock() {
-            *guard = Some(message);
-        }
+        *self
+            .last_error
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(message);
     }
 
     fn clear_error(&self) {
-        if let Ok(mut guard) = self.last_error.lock() {
-            *guard = None;
-        }
+        *self
+            .last_error
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
     }
 }
 
@@ -202,5 +256,232 @@ impl From<StaticDataProvider> for Provider {
 impl From<FileWatcherProvider> for Provider {
     fn from(provider: FileWatcherProvider) -> Self {
         Self::Watching(provider)
+    }
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::panic,
+    reason = "private watcher controls use bounded channel waits and local temporary files"
+)]
+mod tests {
+    use super::*;
+    use std::io::Write as _;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    const OPEN: &str = r#"{"name":"open","allow_rules":[{"name":"all"}]}"#;
+    const CLOSED: &str = r#"{"name":"closed","allow_rules":[]}"#;
+    const WAIT: Duration = Duration::from_secs(5);
+    static NEXT_FILE: AtomicUsize = AtomicUsize::new(0);
+
+    struct PolicyFile(PathBuf);
+
+    impl PolicyFile {
+        fn new() -> Self {
+            loop {
+                let id = NEXT_FILE.fetch_add(1, Ordering::Relaxed);
+                let path = std::env::temp_dir().join(format!(
+                    "pbrs-authz-provider-{}-{id}.json",
+                    std::process::id()
+                ));
+                match std::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(&path)
+                {
+                    Ok(mut file) => {
+                        file.write_all(OPEN.as_bytes()).expect("initial policy");
+                        return Self(path);
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+                    Err(error) => panic!("create policy fixture: {error}"),
+                }
+            }
+        }
+
+        fn write(&self, bytes: impl AsRef<[u8]>) {
+            std::fs::write(&self.0, bytes).expect("write policy fixture");
+        }
+
+        fn without_worker(&self) -> FileWatcherProvider {
+            let (state, _stop) = WatchState::load(self.0.clone()).expect("initial load");
+            FileWatcherProvider { state }
+        }
+    }
+
+    impl Drop for PolicyFile {
+        fn drop(&mut self) {
+            drop(std::fs::remove_file(&self.0));
+        }
+    }
+
+    #[test]
+    fn manual_refresh_reports_changed_and_unchanged_without_poller() {
+        let file = PolicyFile::new();
+        let provider = file.without_worker();
+        let original = provider.policy();
+        assert!(!provider.refresh());
+        assert!(Arc::ptr_eq(&provider.policy(), &original));
+
+        file.write(CLOSED);
+        assert!(provider.refresh());
+        let closed = provider.policy();
+        assert_eq!(closed.name(), "closed");
+        assert!(!Arc::ptr_eq(&closed, &original));
+        assert!(!provider.refresh());
+        assert!(Arc::ptr_eq(&closed, &provider.policy()));
+        assert!(provider.last_error().is_none());
+    }
+
+    #[test]
+    fn identical_valid_bytes_clear_previous_read_parse_and_utf8_errors() {
+        let file = PolicyFile::new();
+        let provider = file.without_worker();
+        let original = provider.policy();
+        assert!(
+            !provider
+                .state
+                .refresh_with(|_| Err(std::io::Error::other("reader failed")))
+        );
+        assert!(
+            provider
+                .last_error()
+                .expect("I/O error")
+                .contains("reader failed")
+        );
+        assert!(!provider.refresh());
+        assert!(provider.last_error().is_none());
+
+        for broken in [b"{broken".as_slice(), b"\xff".as_slice()] {
+            file.write(broken);
+            assert!(!provider.refresh());
+            assert!(provider.last_error().is_some());
+            assert!(Arc::ptr_eq(&provider.policy(), &original));
+            file.write(OPEN);
+            assert!(!provider.refresh(), "restored bytes are already loaded");
+            assert!(provider.last_error().is_none());
+            assert!(Arc::ptr_eq(&provider.policy(), &original));
+        }
+    }
+
+    #[test]
+    fn last_clone_wakes_long_interval_worker_and_releases_state() {
+        let file = PolicyFile::new();
+        let (started_tx, started_rx) = mpsc::channel();
+        let (finished_tx, finished_rx) = mpsc::channel();
+        let (provider, worker) = FileWatcherProvider::new_with_spawner(
+            &file.0,
+            Duration::from_secs(3600),
+            |state, stop, interval| {
+                std::thread::Builder::new().spawn(move || {
+                    started_tx.send(()).expect("worker started");
+                    run_watcher(state, stop, interval);
+                    finished_tx.send(()).expect("worker finished");
+                })
+            },
+        )
+        .expect("start worker");
+        started_rx.recv_timeout(WAIT).expect("worker scheduled");
+        let state = Arc::downgrade(&provider.state);
+        let last = provider.clone();
+        drop(provider);
+        assert!(
+            state.upgrade().is_some(),
+            "the remaining clone owns the state"
+        );
+        assert_eq!(finished_rx.try_recv(), Err(mpsc::TryRecvError::Empty));
+        drop(last);
+        assert!(
+            state.upgrade().is_none(),
+            "an idle worker must not retain the state"
+        );
+        finished_rx
+            .recv_timeout(WAIT)
+            .expect("drop must wake the worker before its hour-long interval");
+        worker.join().expect("worker exits cleanly");
+    }
+
+    #[test]
+    fn worker_spawn_failure_is_reported_and_releases_state() {
+        let file = PolicyFile::new();
+        let mut observed = None;
+        let error = FileWatcherProvider::new_with_spawner(
+            &file.0,
+            Duration::ZERO,
+            |state, _stop, interval| {
+                assert_eq!(interval, Duration::from_millis(1));
+                observed = Some(state);
+                Err(std::io::Error::other("thread unavailable"))
+            },
+        )
+        .expect_err("spawn error must fail construction");
+        assert!(error.to_string().contains("cannot start policy watcher"));
+        assert!(error.to_string().contains("thread unavailable"));
+        assert!(observed.expect("observed weak state").upgrade().is_none());
+    }
+
+    #[test]
+    fn refresh_serializes_read_and_publication_without_blocking_policy_snapshot() {
+        let file = PolicyFile::new();
+        let provider = file.without_worker();
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let first_state = Arc::clone(&provider.state);
+        let first = std::thread::spawn(move || {
+            first_state.refresh_with(|_| {
+                entered_tx.send(()).expect("first read entered");
+                release_rx.recv_timeout(WAIT).expect("release first read");
+                Ok(CLOSED.as_bytes().to_vec())
+            })
+        });
+        entered_rx.recv_timeout(WAIT).expect("first reader started");
+        assert!(matches!(
+            provider.state.reload.try_lock(),
+            Err(std::sync::TryLockError::WouldBlock)
+        ));
+
+        let snapshot_provider = provider.clone();
+        let (snapshot_tx, snapshot_rx) = mpsc::channel();
+        let snapshot = std::thread::spawn(move || {
+            snapshot_tx
+                .send(snapshot_provider.policy().name().to_owned())
+                .expect("policy snapshot");
+        });
+        assert_eq!(
+            snapshot_rx
+                .recv_timeout(WAIT)
+                .expect("policy reads must not wait for file I/O"),
+            "open"
+        );
+        snapshot.join().expect("snapshot completed");
+
+        let (attempt_tx, attempt_rx) = mpsc::channel();
+        let (second_tx, second_rx) = mpsc::channel();
+        let second_state = Arc::clone(&provider.state);
+        let second = std::thread::spawn(move || {
+            attempt_tx.send(()).expect("second refresh attempted");
+            second_state.refresh_with(|_| {
+                second_tx.send(()).expect("second read entered");
+                Ok(br#"{"name":"newest","allow_rules":[]}"#.to_vec())
+            })
+        });
+        attempt_rx
+            .recv_timeout(WAIT)
+            .expect("second thread scheduled");
+        assert_eq!(second_rx.try_recv(), Err(mpsc::TryRecvError::Empty));
+        release_tx.send(()).expect("finish first read");
+        assert!(first.join().expect("first refresh"));
+        second_rx
+            .recv_timeout(WAIT)
+            .expect("second read follows first reload");
+        assert!(second.join().expect("second refresh"));
+        assert_eq!(provider.policy().name(), "newest");
+        assert!(
+            !provider
+                .state
+                .refresh_with(|_| Ok(br#"{"name":"newest","allow_rules":[]}"#.to_vec()))
+        );
+        assert!(provider.last_error().is_none());
     }
 }

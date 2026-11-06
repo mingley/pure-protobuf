@@ -86,6 +86,9 @@ or stable releases.
 
 ### pbrs-grpc 0.1.0-alpha.3
 
+- Stop authorization policy watchers when their last provider drops. Serialize
+  reload publication, clear recovered errors, and fail construction if the
+  polling thread cannot start.
 - Preserve per-endpoint executors and full URI identities in static and
   watched balance helpers. Replace changed entries lazily and drain existing
   calls. These helpers retain shared settings and channel-wide authority;

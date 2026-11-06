@@ -23,6 +23,12 @@ These rows compare pbrs with Prost at **05a3cca5**, rather than with the base
 revision. Lower is better. Wall time is secondary evidence from a shared
 hosted runner; the full record includes both gains and losses.
 
+TAT encoding and owned decode use Prost 0.13.5. The TAT encoders call
+`Message::encode` into a new growable `Vec` for each operation. Name decode
+and mixed-blob encoding use Prost 0.14.4; mixed-blob calls `encode_to_vec`
+and constructs payloads inside the measured operation. The comparisons apply
+to those APIs and versions.
+
 <!-- selected-head-table:start -->
 | Operation | pbrs ns/op | Prost ns/op | pbrs allocs/op | Prost allocs/op |
 |---|---:|---:|---:|---:|
