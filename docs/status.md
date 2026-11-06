@@ -5,15 +5,16 @@ format. `pbrs-grpc` provides the native HTTP/2 client and server;
 `protobuf-tonic` integrates pbrs messages with tonic 0.14+. Start with the
 [documentation index](README.md) for working examples and task guides.
 
-At source `9cf47585`, all 11 required [CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42170885026),
-[compatibility checks](https://github.com/mingley/pure-protobuf/actions/runs/42170885117)
-and the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42170885058)
-passed. At earlier source `05a3cca5`, the three
-[Miri lanes and their aggregate](https://github.com/mingley/pure-protobuf/actions/runs/42163543507)
-passed: core, HTTP/2 and selected bytes. The byte lane uses 32 KiB segmented
-input and smaller JSON/text fixtures, as recorded in its proof runner.
-The parity audit reproduces known differences as well as successful comparisons.
-These results apply to that commit; later changes need their own checks.
+At source `d897ccdd`, all 11 required [CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42183608085),
+[compatibility checks](https://github.com/mingley/pure-protobuf/actions/runs/42183608028)
+and the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42183608073)
+passed. At earlier source `acc81922`, all five
+[Miri lanes and their aggregate](https://github.com/mingley/pure-protobuf/actions/runs/42177356040)
+passed: library, generated kernels with nested JSON, HTTP/2, selected bytes
+and ordered maps. The byte lane uses 32 KiB segmented input and smaller JSON/text
+fixtures, as recorded in its proof runner. The parity audit reproduces known
+differences as well as successful comparisons. These results apply to the
+commits they name; later alloc-only work has separate local evidence.
 
 Choose the default lazy message layout for sparse reads and unchanged
 forwarding, [owned nested messages](guides/codegen.md#owned-nested-message-fields)
@@ -52,7 +53,13 @@ views. Regenerate matching ancestors to reach that storage during encoding;
 older lazy ancestors can retain unsorted or duplicate-key wire. Nested-map JSON
 uses resolved descriptors, including imported and recursive children.
 
-An alloc-only runtime remains a migration gap.
+The [explicit alloc-only profile](guides/alloc-only.md) compiles concrete native
+and Prost messages for `thumbv7em-none-eabi`, with std host codegen kept separate.
+Five generated profiles pass std-backed host functional checks. Firmware and
+other targets remain unverified; reflection, formats, transports and the
+`rust_out` ABI stay std-only. Existing no-default builds retain std, and the
+`std` feature wins when enabled.
+
 Static balance helpers preserve per-endpoint executors and full URI identities;
 their connection settings and request authority remain channel-wide. They
 still reject per-endpoint origins, TLS and hostname lookup.
@@ -60,10 +67,13 @@ See the [parity summary](parity.md) and
 [API comparison](guides/comparison.md) for tested behavior and boundaries.
 
 The core `0.2.1` and adapter `0.1.0-alpha.3` candidates remain unpublished.
-An exact-source [hosted rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42174113293)
-packaged all three at `9cf47585` and created an SBOM and
-[provenance attestation](https://github.com/mingley/pure-protobuf/attestations/64375952).
-It performed no registry upload. Sustained production qualification remains
+An exact-source [hosted rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42187033851)
+packaged all three at `d897ccdd`. The
+[retained artifact](https://github.com/mingley/pure-protobuf/actions/runs/42187033851/artifacts/13488392114)
+contains the packages, SBOM and release-context record. All package VCS records
+and the context match that commit; the context names its successful CI run.
+The workflow created a [provenance attestation](https://github.com/mingley/pure-protobuf/attestations/64405117)
+and performed no registry upload. Sustained production qualification remains
 open; use the [release policy](RELEASE.md) for readiness requirements and the
 [work queue](../TODO.md) for implementation work.
 

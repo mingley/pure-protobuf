@@ -2,8 +2,10 @@
 use crate::internal::SealedInternal;
 use crate::map::{Map, MapKey, MapQuery, MapValue};
 use crate::proxied::{AsMut, AsView, IntoMut, IntoProxied, IntoView, MutProxied, Proxied};
-use std::collections::{BTreeMap, btree_map};
-use std::fmt;
+use alloc::collections::{BTreeMap, btree_map};
+#[cfg(not(pbrs_std))]
+use alloc::{boxed::Box, vec::Vec};
+use core::fmt;
 
 /// Ordered storage with a nullable-box empty state for generated zero defaults.
 #[derive(Clone)]
@@ -429,7 +431,7 @@ impl<K: MapKey> TreeMap<K, crate::ProtoBytes> {
     }
 }
 impl<K: MapKey + Proxied, V: MapValue + Proxied> ExactSizeIterator for TreeMapViewIter<'_, K, V> {}
-impl<K: MapKey + Proxied, V: MapValue + Proxied> std::iter::FusedIterator
+impl<K: MapKey + Proxied, V: MapValue + Proxied> core::iter::FusedIterator
     for TreeMapViewIter<'_, K, V>
 {
 }
@@ -502,7 +504,7 @@ mod tests {
         #[derive(Clone)]
         struct NoDefault;
         let tree = TreeMap::<Key, NoDefault>::default();
-        assert_eq!(std::mem::size_of_val(&tree), std::mem::size_of::<usize>());
+        assert_eq!(core::mem::size_of_val(&tree), core::mem::size_of::<usize>());
         assert_eq!(tree.len(), 0);
         assert_eq!(tree.as_view().len(), 0);
     }

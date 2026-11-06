@@ -1,0 +1,65 @@
+syntax = "proto3";
+package proof.embedded;
+
+// Keep user text ::std::boxed::Box, ::pbrs::Owned and ::std::sync::OnceLock.
+message Child {
+  int32 id = 1;
+  string label = 2;
+  bytes payload = 3;
+  Child next = 4;
+}
+
+enum State { OFF = 0; ON = 1; }
+
+// Keep user text ::std::boxed::Box, ::pbrs::Owned and ::std::sync::OnceLock.
+message Fields {
+  double double_value = 1;
+  float float_value = 2;
+  int32 int32_value = 3;
+  int64 int64_value = 4;
+  uint32 uint32_value = 5;
+  uint64 uint64_value = 6;
+  sint32 sint32_value = 7;
+  sint64 sint64_value = 8;
+  fixed32 fixed32_value = 9;
+  fixed64 fixed64_value = 10;
+  sfixed32 sfixed32_value = 11;
+  sfixed64 sfixed64_value = 12;
+  bool bool_value = 13;
+  string label = 14;
+  bytes payload = 15;
+  State state = 16;
+  optional int32 maybe = 17;
+  optional string maybe_label = 18;
+  optional bytes maybe_payload = 19;
+  optional bool maybe_bool = 20;
+  Child child = 21;
+  repeated Child children = 22;
+  repeated string labels = 23;
+  repeated bytes payloads = 24;
+  map<string, uint32> counts = 25;
+  map<int32, Child> child_map = 26;
+  map<string, bytes> byte_map = 27;
+  oneof choice {
+    int32 code = 28;
+    string note = 29;
+    bytes blob = 30;
+    Child picked = 31;
+  }
+  repeated double p_double = 32;
+  repeated float p_float = 33;
+  repeated int32 p_int32 = 34;
+  repeated int64 p_int64 = 35;
+  repeated uint32 p_uint32 = 36;
+  repeated uint64 p_uint64 = 37;
+  repeated sint32 p_sint32 = 38;
+  repeated sint64 p_sint64 = 39;
+  repeated fixed32 p_fixed32 = 40;
+  repeated fixed64 p_fixed64 = 41;
+  repeated sfixed32 p_sfixed32 = 42;
+  repeated sfixed64 p_sfixed64 = 43;
+  repeated bool p_bool = 44;
+  repeated State p_state = 45;
+  repeated int32 unpacked = 46 [packed = false];
+  repeated bool unpacked_bool = 47 [packed = false];
+}

@@ -4,7 +4,7 @@
 //! `int32` extensions. It does not implement the official upb extension ABI.
 
 use crate::wire::{MAX_FIELD_NUMBER, UnknownField, UnknownFields};
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 mod sealed {
     pub trait Sealed {}

@@ -9,6 +9,7 @@ Start with a working example, then open the guide for your task.
 | Use streaming calls | [RPC shapes](guides/rpc-shapes.md) |
 | Tune connections and scheduling | [Transport controls](guides/transport-controls.md) |
 | Configure code generation | [Codegen guide](guides/codegen.md) |
+| Build alloc-only native messages | [Cortex setup and limits](guides/alloc-only.md) |
 | Retain selected byte payloads | [Byte storage and input lifetimes](guides/bytes.md) |
 | Store unique map entries in key order | [Ordered maps](guides/maps.md) |
 | Choose lazy or owned nested messages | [Storage choices](guides/codegen.md#owned-nested-message-fields), [codec benchmark commands](benchmarks/running.md#message-codecs) |

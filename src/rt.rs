@@ -1,6 +1,19 @@
 //! Runtime helpers for generated code. Not a Google upb kernel.
 
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+#[cfg(any(pbrs_std, target_has_atomic = "64"))]
+use core::sync::atomic::AtomicU64;
+use core::sync::atomic::{AtomicU32, Ordering};
+
+#[cfg(not(pbrs_std))]
+#[doc(hidden)]
+pub use crate::alloc_cell::PublicationCell as MemoCell;
+/// Dependency-selected cell for generated defaults and runtime memoization.
+///
+/// The std profile keeps `std::sync::OnceLock`. The explicit alloc-only profile
+/// uses racing publication: constructors can run and allocate more than once.
+#[cfg(pbrs_std)]
+#[doc(hidden)]
+pub use std::sync::OnceLock as MemoCell;
 
 pub use crate::error::{ParseError, SerializeError};
 pub use crate::lazy::parse_proto_bytes;
@@ -23,9 +36,11 @@ pub use crate::wire::{
 pub use bytes::Bytes;
 
 /// Encoded-size cache (C++ `cached_size_`). Ignored by `PartialEq`.
+#[cfg(any(pbrs_std, target_has_atomic = "64"))]
 #[derive(Debug)]
 pub struct CachedSize(AtomicU64);
 
+#[cfg(any(pbrs_std, target_has_atomic = "64"))]
 impl CachedSize {
     const DIRTY: u64 = u64::MAX;
 
@@ -46,6 +61,7 @@ impl CachedSize {
     }
 }
 
+#[cfg(any(pbrs_std, target_has_atomic = "64"))]
 impl Default for CachedSize {
     /// 0 is a valid cached size for an empty message.
     #[inline]
@@ -54,18 +70,28 @@ impl Default for CachedSize {
     }
 }
 
+#[cfg(any(pbrs_std, target_has_atomic = "64"))]
 impl Clone for CachedSize {
     fn clone(&self) -> Self {
         Self(AtomicU64::new(self.0.load(Ordering::Relaxed)))
     }
 }
 
+#[cfg(any(pbrs_std, target_has_atomic = "64"))]
 impl PartialEq for CachedSize {
     fn eq(&self, _: &Self) -> bool {
         true
     }
 }
+#[cfg(any(pbrs_std, target_has_atomic = "64"))]
 impl Eq for CachedSize {}
+
+/// Encoded-size cache on the alloc-only profile without 64-bit atomics.
+///
+/// Sizes below `u32::MAX` are cached exactly; larger sizes remain uncached.
+/// Message lengths and size calculations still use `u64`.
+#[cfg(all(not(pbrs_std), not(target_has_atomic = "64")))]
+pub type CachedSize = CachedSize32;
 
 /// Compact encoded-size cache for generated messages.
 ///
@@ -172,7 +198,7 @@ impl OptBool {
 /// No `Option<bool>` / `Option<LazyStr>` fields (those are `OptBool` / `Option<Box<_>>`).
 #[inline(always)]
 pub unsafe fn zeroed_message<T>() -> T {
-    unsafe { std::mem::zeroed() }
+    unsafe { core::mem::zeroed() }
 }
 
 #[cfg(test)]

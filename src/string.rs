@@ -1,8 +1,10 @@
 //! Owned and borrowed protobuf string/bytes types (`ProtoStr` may be invalid UTF-8).
 use crate::internal::SealedInternal;
 use crate::proxied::{AsView, IntoProxied, IntoView, Proxied};
-use std::fmt;
-use std::ops::Deref;
+#[cfg(not(pbrs_std))]
+use alloc::{boxed::Box, string::String, vec::Vec};
+use core::fmt;
+use core::ops::Deref;
 
 /// The bytes were not valid UTF-8.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -14,7 +16,7 @@ impl fmt::Display for Utf8Error {
     }
 }
 
-impl std::error::Error for Utf8Error {}
+impl core::error::Error for Utf8Error {}
 
 /// Shared immutable view of a protobuf `string` field. May contain invalid UTF-8.
 #[repr(transparent)]
@@ -50,7 +52,7 @@ impl ProtoStr {
     }
 
     pub fn to_str(&self) -> Result<&str, Utf8Error> {
-        std::str::from_utf8(&self.0).map_err(|_| Utf8Error)
+        core::str::from_utf8(&self.0).map_err(|_| Utf8Error)
     }
 }
 
@@ -183,17 +185,17 @@ impl PartialEq<&str> for ProtoString {
 }
 impl Eq for ProtoString {}
 impl PartialOrd for ProtoString {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 impl Ord for ProtoString {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         self.as_bytes().cmp(other.as_bytes())
     }
 }
-impl std::hash::Hash for ProtoString {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+impl core::hash::Hash for ProtoString {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         self.as_bytes().hash(state);
     }
 }
@@ -279,7 +281,7 @@ impl IntoProxied<ProtoString> for &ProtoStr {
         ProtoString::from(self)
     }
 }
-impl IntoProxied<ProtoString> for std::borrow::Cow<'_, str> {
+impl IntoProxied<ProtoString> for alloc::borrow::Cow<'_, str> {
     fn into_proxied(self, _private: crate::internal::Private) -> ProtoString {
         ProtoString::from(self.as_ref())
     }
@@ -289,21 +291,23 @@ impl IntoProxied<ProtoString> for Box<str> {
         ProtoString::from(self.as_ref())
     }
 }
-impl IntoProxied<ProtoString> for std::rc::Rc<str> {
+impl IntoProxied<ProtoString> for alloc::rc::Rc<str> {
     fn into_proxied(self, _private: crate::internal::Private) -> ProtoString {
         ProtoString::from(self.as_ref())
     }
 }
-impl IntoProxied<ProtoString> for std::sync::Arc<str> {
+impl IntoProxied<ProtoString> for alloc::sync::Arc<str> {
     fn into_proxied(self, _private: crate::internal::Private) -> ProtoString {
         ProtoString::from(self.as_ref())
     }
 }
+#[cfg(pbrs_std)]
 impl IntoProxied<ProtoString> for std::ffi::OsString {
     fn into_proxied(self, _private: crate::internal::Private) -> ProtoString {
         ProtoString::from(self.to_string_lossy().as_ref())
     }
 }
+#[cfg(pbrs_std)]
 impl IntoProxied<ProtoString> for &std::ffi::OsStr {
     fn into_proxied(self, _private: crate::internal::Private) -> ProtoString {
         ProtoString::from(self.to_string_lossy().as_ref())
@@ -417,11 +421,11 @@ impl<const N: usize> IntoProxied<ProtoBytes> for &[u8; N] {
         ProtoBytes::from(self.as_slice())
     }
 }
-impl IntoProxied<ProtoBytes> for std::borrow::Cow<'_, [u8]> {
+impl IntoProxied<ProtoBytes> for alloc::borrow::Cow<'_, [u8]> {
     fn into_proxied(self, _private: crate::internal::Private) -> ProtoBytes {
         match self {
-            std::borrow::Cow::Borrowed(bytes) => ProtoBytes::from(bytes),
-            std::borrow::Cow::Owned(bytes) => ProtoBytes::from(bytes),
+            alloc::borrow::Cow::Borrowed(bytes) => ProtoBytes::from(bytes),
+            alloc::borrow::Cow::Owned(bytes) => ProtoBytes::from(bytes),
         }
     }
 }
@@ -430,12 +434,12 @@ impl IntoProxied<ProtoBytes> for Box<[u8]> {
         ProtoBytes::from(bytes::Bytes::from(self))
     }
 }
-impl IntoProxied<ProtoBytes> for std::rc::Rc<[u8]> {
+impl IntoProxied<ProtoBytes> for alloc::rc::Rc<[u8]> {
     fn into_proxied(self, _private: crate::internal::Private) -> ProtoBytes {
         ProtoBytes::from(self.as_ref())
     }
 }
-impl IntoProxied<ProtoBytes> for std::sync::Arc<[u8]> {
+impl IntoProxied<ProtoBytes> for alloc::sync::Arc<[u8]> {
     fn into_proxied(self, _private: crate::internal::Private) -> ProtoBytes {
         ProtoBytes::from(self.as_ref())
     }

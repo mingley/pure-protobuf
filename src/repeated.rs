@@ -5,8 +5,10 @@
 )]
 use crate::internal::SealedInternal;
 use crate::proxied::{AsMut, AsView, IntoMut, IntoProxied, IntoView, MutProxied, Proxied};
-use std::fmt;
-use std::ops::{Deref, DerefMut};
+#[cfg(not(pbrs_std))]
+use alloc::{boxed::Box, vec::Vec};
+use core::fmt;
+use core::ops::{Deref, DerefMut};
 
 /// Empty is an 8-byte null. `Box<Vec<_>>` so unused TAT collections stay off the struct.
 #[expect(
@@ -39,7 +41,9 @@ impl<T> Repeated<T> {
     pub fn as_view(&self) -> RepeatedView<'_, T> {
         RepeatedView {
             inner: self.as_slice(),
+            #[cfg(pbrs_std)]
             raw: None,
+            #[cfg(pbrs_std)]
             enum_codec: None,
         }
     }
@@ -47,8 +51,11 @@ impl<T> Repeated<T> {
     pub fn as_mut(&mut self) -> RepeatedMut<'_, T> {
         RepeatedMut {
             inner: Some(self.ensure()),
+            #[cfg(pbrs_std)]
             raw: None,
+            #[cfg(pbrs_std)]
             enum_codec: None,
+            #[cfg(pbrs_std)]
             arena: None,
         }
     }
@@ -99,7 +106,7 @@ impl<T> Repeated<T> {
         self.0 = None;
     }
 
-    pub fn iter(&self) -> std::slice::Iter<'_, T> {
+    pub fn iter(&self) -> core::slice::Iter<'_, T> {
         self.as_slice().iter()
     }
 
@@ -151,7 +158,9 @@ impl<T> FromIterator<T> for Repeated<T> {
 /// View of a repeated field.
 pub struct RepeatedView<'msg, T> {
     inner: &'msg [T],
+    #[cfg(pbrs_std)]
     raw: Option<*const crate::runtime::RawArrayInner>,
+    #[cfg(pbrs_std)]
     enum_codec: Option<crate::runtime::KernelEnumCodec<T>>,
 }
 
@@ -166,7 +175,9 @@ impl<'msg, T> RepeatedView<'msg, T> {
     pub fn from_slice(inner: &'msg [T]) -> Self {
         Self {
             inner,
+            #[cfg(pbrs_std)]
             raw: None,
+            #[cfg(pbrs_std)]
             enum_codec: None,
         }
     }
@@ -175,6 +186,7 @@ impl<'msg, T> RepeatedView<'msg, T> {
     /// # Safety
     /// `raw` must contain values of `T` in an arena that outlives `'msg`.
     /// No mutation may invalidate data borrowed by this view or its derived views.
+    #[cfg(pbrs_std)]
     pub unsafe fn from_raw_ptr(raw: *const crate::runtime::RawArrayInner) -> Self
     where
         T: crate::internal::EntityType,
@@ -182,7 +194,9 @@ impl<'msg, T> RepeatedView<'msg, T> {
     {
         Self {
             inner: &[],
+            #[cfg(pbrs_std)]
             raw: Some(raw),
+            #[cfg(pbrs_std)]
             enum_codec: <T::Tag as crate::runtime::KernelCollectionValue<T>>::enum_codec(),
         }
     }
@@ -191,6 +205,7 @@ impl<'msg, T> RepeatedView<'msg, T> {
     /// # Safety
     /// The same typed storage and lifetime requirements as [`Self::from_raw_ptr`]
     /// apply.
+    #[cfg(pbrs_std)]
     pub unsafe fn from_raw(
         _private: crate::internal::Private,
         raw: crate::runtime::RawRepeatedField,
@@ -203,12 +218,18 @@ impl<'msg, T> RepeatedView<'msg, T> {
         unsafe { Self::from_raw_ptr(raw) }
     }
 
+    #[cfg(pbrs_std)]
     pub fn len(self) -> usize {
         if let Some(raw) = self.raw {
             unsafe { (*raw).items.borrow().len() }
         } else {
             self.inner.len()
         }
+    }
+
+    #[cfg(not(pbrs_std))]
+    pub fn len(self) -> usize {
+        self.inner.len()
     }
 
     pub fn is_empty(self) -> bool {
@@ -219,6 +240,7 @@ impl<'msg, T> RepeatedView<'msg, T> {
     where
         T: crate::proxied::Proxied + 'static,
     {
+        #[cfg(pbrs_std)]
         if let Some(raw) = self.raw {
             return unsafe {
                 crate::runtime::kernel_repeated_get::<T>(raw, index, self.enum_codec)
@@ -230,8 +252,11 @@ impl<'msg, T> RepeatedView<'msg, T> {
     pub fn iter(self) -> RepeatedIter<'msg, T> {
         RepeatedIter {
             inner: self.inner.iter(),
+            #[cfg(pbrs_std)]
             raw: self.raw,
+            #[cfg(pbrs_std)]
             enum_codec: self.enum_codec,
+            #[cfg(pbrs_std)]
             raw_i: 0,
         }
     }
@@ -246,8 +271,11 @@ impl<T: fmt::Debug> fmt::Debug for RepeatedView<'_, T> {
 /// Mutable proxy of a repeated field.
 pub struct RepeatedMut<'msg, T> {
     inner: Option<&'msg mut Vec<T>>,
+    #[cfg(pbrs_std)]
     raw: Option<*const crate::runtime::RawArrayInner>,
+    #[cfg(pbrs_std)]
     enum_codec: Option<crate::runtime::KernelEnumCodec<T>>,
+    #[cfg(pbrs_std)]
     arena: Option<&'msg crate::runtime::Arena>,
 }
 
@@ -255,8 +283,11 @@ impl<'msg, T> RepeatedMut<'msg, T> {
     pub fn from_vec(inner: &'msg mut Vec<T>) -> Self {
         Self {
             inner: Some(inner),
+            #[cfg(pbrs_std)]
             raw: None,
+            #[cfg(pbrs_std)]
             enum_codec: None,
+            #[cfg(pbrs_std)]
             arena: None,
         }
     }
@@ -265,6 +296,7 @@ impl<'msg, T> RepeatedMut<'msg, T> {
     /// # Safety
     /// `raw` must contain `T` values in an arena that outlives `'msg` and be
     /// exclusively borrowed by this mutator, just as for [`Self::from_inner`].
+    #[cfg(pbrs_std)]
     pub unsafe fn from_raw_inner(raw: *const crate::runtime::RawArrayInner) -> Self
     where
         T: crate::internal::EntityType,
@@ -272,8 +304,11 @@ impl<'msg, T> RepeatedMut<'msg, T> {
     {
         Self {
             inner: None,
+            #[cfg(pbrs_std)]
             raw: Some(raw),
+            #[cfg(pbrs_std)]
             enum_codec: <T::Tag as crate::runtime::KernelCollectionValue<T>>::enum_codec(),
+            #[cfg(pbrs_std)]
             arena: None,
         }
     }
@@ -282,6 +317,7 @@ impl<'msg, T> RepeatedMut<'msg, T> {
     /// # Safety
     /// `inner.raw` must contain `T` values owned by `inner.arena` for `'msg` and
     /// be exclusively borrowed by this mutator.
+    #[cfg(pbrs_std)]
     pub unsafe fn from_inner(
         _private: crate::internal::Private,
         inner: crate::runtime::InnerRepeatedMut<'msg>,
@@ -292,12 +328,16 @@ impl<'msg, T> RepeatedMut<'msg, T> {
     {
         Self {
             inner: None,
+            #[cfg(pbrs_std)]
             raw: Some(inner.raw),
+            #[cfg(pbrs_std)]
             enum_codec: <T::Tag as crate::runtime::KernelCollectionValue<T>>::enum_codec(),
+            #[cfg(pbrs_std)]
             arena: Some(inner.arena),
         }
     }
 
+    #[cfg(pbrs_std)]
     pub fn push(&mut self, value: impl crate::proxied::IntoProxied<T>)
     where
         T: 'static,
@@ -310,6 +350,18 @@ impl<'msg, T> RepeatedMut<'msg, T> {
         }
     }
 
+    #[cfg(not(pbrs_std))]
+    pub fn push(&mut self, value: impl crate::proxied::IntoProxied<T>)
+    where
+        T: 'static,
+    {
+        let value = crate::proxied::IntoProxied::into_proxied(value, crate::internal::Private);
+        if let Some(values) = self.inner.as_mut() {
+            values.push(value);
+        }
+    }
+
+    #[cfg(pbrs_std)]
     pub fn len(&self) -> usize {
         if let Some(v) = self.inner.as_ref() {
             v.len()
@@ -318,6 +370,11 @@ impl<'msg, T> RepeatedMut<'msg, T> {
         } else {
             0
         }
+    }
+
+    #[cfg(not(pbrs_std))]
+    pub fn len(&self) -> usize {
+        self.inner.as_ref().map_or(0, |values| values.len())
     }
 
     pub fn is_empty(&self) -> bool {
@@ -338,6 +395,7 @@ impl<'msg, T> RepeatedMut<'msg, T> {
         if let Some(v) = self.inner.as_deref_mut() {
             return v.get_mut(index).map(crate::proxied::AsMut::as_mut);
         }
+        #[cfg(pbrs_std)]
         if let (Some(raw), Some(arena)) = (self.raw, self.arena) {
             return unsafe { crate::runtime::kernel_repeated_get_mut::<T>(raw, index, arena) };
         }
@@ -353,6 +411,7 @@ impl<'msg, T> RepeatedMut<'msg, T> {
         self.get_mut(i).expect("just pushed")
     }
 
+    #[cfg(pbrs_std)]
     pub fn set(&mut self, index: usize, value: impl crate::proxied::IntoProxied<T>)
     where
         T: 'static,
@@ -362,6 +421,17 @@ impl<'msg, T> RepeatedMut<'msg, T> {
             v[index] = value;
         } else if let Some(raw) = self.raw {
             unsafe { crate::runtime::kernel_repeated_set(raw, index, value, self.enum_codec) };
+        }
+    }
+
+    #[cfg(not(pbrs_std))]
+    pub fn set(&mut self, index: usize, value: impl crate::proxied::IntoProxied<T>)
+    where
+        T: 'static,
+    {
+        let value = crate::proxied::IntoProxied::into_proxied(value, crate::internal::Private);
+        if let Some(values) = self.inner.as_mut() {
+            values[index] = value;
         }
     }
 
@@ -387,6 +457,7 @@ impl<'msg, T> RepeatedMut<'msg, T> {
         }
     }
 
+    #[cfg(pbrs_std)]
     pub fn clear(&mut self) {
         if let Some(v) = self.inner.as_mut() {
             v.clear();
@@ -398,6 +469,13 @@ impl<'msg, T> RepeatedMut<'msg, T> {
         }
     }
 
+    #[cfg(not(pbrs_std))]
+    pub fn clear(&mut self) {
+        if let Some(values) = self.inner.as_mut() {
+            values.clear();
+        }
+    }
+
     pub fn iter(&self) -> RepeatedIter<'_, T> {
         self.as_view().iter()
     }
@@ -405,13 +483,16 @@ impl<'msg, T> RepeatedMut<'msg, T> {
     pub fn as_view(&self) -> RepeatedView<'_, T> {
         RepeatedView {
             inner: self.inner.as_ref().map(|v| v.as_slice()).unwrap_or(&[]),
+            #[cfg(pbrs_std)]
             raw: self.raw,
+            #[cfg(pbrs_std)]
             enum_codec: self.enum_codec,
         }
     }
 }
 
 impl<T: fmt::Debug> fmt::Debug for RepeatedMut<'_, T> {
+    #[cfg(pbrs_std)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.inner.as_ref() {
             Some(v) => fmt::Debug::fmt(*v, f),
@@ -421,18 +502,30 @@ impl<T: fmt::Debug> fmt::Debug for RepeatedMut<'_, T> {
                 .finish(),
         }
     }
+
+    #[cfg(not(pbrs_std))]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.inner.as_ref() {
+            Some(values) => fmt::Debug::fmt(*values, f),
+            None => f.debug_struct("RepeatedMut").finish(),
+        }
+    }
 }
 
 pub struct RepeatedIter<'msg, T> {
-    inner: std::slice::Iter<'msg, T>,
+    inner: core::slice::Iter<'msg, T>,
+    #[cfg(pbrs_std)]
     raw: Option<*const crate::runtime::RawArrayInner>,
+    #[cfg(pbrs_std)]
     enum_codec: Option<crate::runtime::KernelEnumCodec<T>>,
+    #[cfg(pbrs_std)]
     raw_i: usize,
 }
 
 impl<'msg, T: crate::proxied::Proxied + 'static> Iterator for RepeatedIter<'msg, T> {
     type Item = crate::proxied::View<'msg, T>;
     fn next(&mut self) -> Option<Self::Item> {
+        #[cfg(pbrs_std)]
         if let Some(raw) = self.raw {
             let v = unsafe {
                 crate::runtime::kernel_repeated_get::<T>(raw, self.raw_i, self.enum_codec)
@@ -444,6 +537,7 @@ impl<'msg, T: crate::proxied::Proxied + 'static> Iterator for RepeatedIter<'msg,
         }
         self.inner.next().map(crate::proxied::AsView::as_view)
     }
+    #[cfg(pbrs_std)]
     fn size_hint(&self) -> (usize, Option<usize>) {
         if let Some(raw) = self.raw {
             let n = unsafe { (*raw).items.borrow().len() };
@@ -453,6 +547,11 @@ impl<'msg, T: crate::proxied::Proxied + 'static> Iterator for RepeatedIter<'msg,
             self.inner.size_hint()
         }
     }
+
+    #[cfg(not(pbrs_std))]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
 }
 
 impl<T: crate::proxied::Proxied + 'static> ExactSizeIterator for RepeatedIter<'_, T> {
@@ -461,7 +560,7 @@ impl<T: crate::proxied::Proxied + 'static> ExactSizeIterator for RepeatedIter<'_
     }
 }
 
-impl<T: crate::proxied::Proxied + 'static> std::iter::FusedIterator for RepeatedIter<'_, T> {}
+impl<T: crate::proxied::Proxied + 'static> core::iter::FusedIterator for RepeatedIter<'_, T> {}
 
 impl<'a, T: crate::proxied::Proxied + 'static> IntoIterator for RepeatedView<'a, T> {
     type Item = crate::proxied::View<'a, T>;
@@ -483,8 +582,11 @@ impl<'a, T: crate::proxied::Proxied + 'static> IntoIterator for RepeatedMut<'a, 
         };
         RepeatedIter {
             inner,
+            #[cfg(pbrs_std)]
             raw: self.raw,
+            #[cfg(pbrs_std)]
             enum_codec: self.enum_codec,
+            #[cfg(pbrs_std)]
             raw_i: 0,
         }
     }
@@ -499,7 +601,9 @@ where
     fn into_iter(self) -> Self::IntoIter {
         RepeatedView {
             inner: self.inner.as_ref().map(|v| v.as_slice()).unwrap_or(&[]),
+            #[cfg(pbrs_std)]
             raw: self.raw,
+            #[cfg(pbrs_std)]
             enum_codec: self.enum_codec,
         }
         .iter()
@@ -540,7 +644,9 @@ impl<'msg, T: 'static> IntoView<'msg> for RepeatedView<'msg, T> {
     {
         RepeatedView {
             inner: self.inner,
+            #[cfg(pbrs_std)]
             raw: self.raw,
+            #[cfg(pbrs_std)]
             enum_codec: self.enum_codec,
         }
     }
@@ -552,7 +658,9 @@ impl<T: 'static> AsView for RepeatedMut<'_, T> {
     fn as_view(&self) -> RepeatedView<'_, T> {
         RepeatedView {
             inner: self.inner.as_ref().map(|v| v.as_slice()).unwrap_or(&[]),
+            #[cfg(pbrs_std)]
             raw: self.raw,
+            #[cfg(pbrs_std)]
             enum_codec: self.enum_codec,
         }
     }
@@ -562,8 +670,11 @@ impl<T: 'static> AsMut for RepeatedMut<'_, T> {
     fn as_mut(&mut self) -> RepeatedMut<'_, T> {
         RepeatedMut {
             inner: self.inner.as_deref_mut(),
+            #[cfg(pbrs_std)]
             raw: self.raw,
+            #[cfg(pbrs_std)]
             enum_codec: self.enum_codec,
+            #[cfg(pbrs_std)]
             arena: self.arena,
         }
     }
@@ -575,7 +686,9 @@ impl<'msg, T: 'static> IntoView<'msg> for RepeatedMut<'msg, T> {
     {
         RepeatedView {
             inner: self.inner.map(|v| v.as_slice()).unwrap_or(&[]),
+            #[cfg(pbrs_std)]
             raw: self.raw,
+            #[cfg(pbrs_std)]
             enum_codec: self.enum_codec,
         }
     }
@@ -587,8 +700,11 @@ impl<'msg, T: 'static> IntoMut<'msg> for RepeatedMut<'msg, T> {
     {
         RepeatedMut {
             inner: self.inner,
+            #[cfg(pbrs_std)]
             raw: self.raw,
+            #[cfg(pbrs_std)]
             enum_codec: self.enum_codec,
+            #[cfg(pbrs_std)]
             arena: self.arena,
         }
     }
@@ -599,6 +715,7 @@ where
     T: crate::proxied::Proxied + Clone,
     for<'a> crate::proxied::View<'a, T>: crate::proxied::IntoProxied<T>,
 {
+    #[cfg(pbrs_std)]
     fn into_proxied(self, private: crate::internal::Private) -> Repeated<T> {
         if self.raw.is_none() {
             return Repeated::from_vec(self.inner.to_vec());
@@ -608,6 +725,11 @@ where
                 .map(|v| crate::proxied::IntoProxied::into_proxied(v, private))
                 .collect(),
         )
+    }
+
+    #[cfg(not(pbrs_std))]
+    fn into_proxied(self, _private: crate::internal::Private) -> Repeated<T> {
+        Repeated::from_vec(self.inner.to_vec())
     }
 }
 
@@ -628,14 +750,14 @@ impl<T: 'static> IntoProxied<Repeated<T>> for Vec<T> {
 }
 
 impl<T: 'static, U: IntoProxied<T>, const N: usize> IntoProxied<Repeated<T>>
-    for std::array::IntoIter<U, N>
+    for core::array::IntoIter<U, N>
 {
     fn into_proxied(self, private: crate::internal::Private) -> Repeated<T> {
         Repeated::from_vec(self.map(|u| u.into_proxied(private)).collect())
     }
 }
 
-impl<T: 'static, U: IntoProxied<T>> IntoProxied<Repeated<T>> for std::vec::IntoIter<U> {
+impl<T: 'static, U: IntoProxied<T>> IntoProxied<Repeated<T>> for alloc::vec::IntoIter<U> {
     fn into_proxied(self, private: crate::internal::Private) -> Repeated<T> {
         Repeated::from_vec(self.map(|u| u.into_proxied(private)).collect())
     }
@@ -681,7 +803,7 @@ mod tests {
 
     #[test]
     fn empty_eq_and_zeroed() {
-        let z: Repeated<i32> = unsafe { std::mem::zeroed() };
+        let z: Repeated<i32> = unsafe { core::mem::zeroed() };
         assert!(z.is_empty());
         assert_eq!(z, Repeated::new());
         assert_eq!(z, Repeated::from_vec(Vec::new()));
@@ -700,6 +822,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(pbrs_std)]
     fn arena_backed_repeated_strings_are_reclaimed() {
         let arena = crate::runtime::Arena::new();
         let raw = arena.alloc_array();
@@ -720,6 +843,7 @@ mod tests {
 
     #[test]
     #[should_panic]
+    #[cfg(pbrs_std)]
     fn arena_backed_set_rejects_an_invalid_index() {
         let arena = crate::runtime::Arena::new();
         let raw = arena.alloc_array();

@@ -5,6 +5,11 @@ stopped. They are dated investigations, usually local diagnostics. A result
 belongs to its recorded revision, host, workload, and peer versions; it does
 not automatically describe today's code.
 
+The [packed routing follow-up](rejected-packed-readiness-routing-20261106/README.md)
+remains unshipped after a large encode-then-getter loss in all nine pairs.
+Its record keeps all 432 CPU and 48 allocation processes, both full Prost
+output APIs and unchanged-reference shifts.
+
 The [cache-first packed follow-up](rejected-packed-cache-first-20261106/README.md)
 beats pinned Prost on its local fresh TAT row but slows large getter and owned
 workloads. It remains unshipped. All rows, reference controls and limitations

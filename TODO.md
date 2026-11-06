@@ -86,7 +86,9 @@ matched lifecycle comparison, including small interactive streams.
 
 The caller-worker prototype and small-map-cache prototype were rejected;
 preserve their data rather than treating them as accepted optimizations.
-An alloc-only runtime remains open. Selected
+The [explicit alloc-only profile](docs/guides/alloc-only.md) now has concrete
+Cortex compilation and std-backed host consumers. Firmware execution, broader
+target coverage and its performance remain unverified. Selected
 [ordered maps](docs/guides/maps.md), [byte storage](docs/guides/bytes.md) and
 [boxed children](docs/guides/codegen.md#box-selected-nested-fields) now have
 compiled consumers; their documented boundaries still apply. Every component

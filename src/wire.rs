@@ -6,11 +6,13 @@
 
 use crate::error::ParseError;
 use crate::internal::MAX_MESSAGE_BYTES;
+#[cfg(not(pbrs_std))]
+use alloc::{boxed::Box, vec::Vec};
 use bytes::{BufMut, Bytes, BytesMut};
 #[cfg(target_arch = "aarch64")]
-use std::arch::aarch64::*;
+use core::arch::aarch64::*;
 #[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::*;
+use core::arch::x86_64::*;
 
 /// Byte sink for binary encode. Implemented for every [`BufMut`] (`Vec<u8>`,
 /// `BytesMut`, tonic `EncodeBuf`).
@@ -149,7 +151,7 @@ impl FieldList {
         v.extend(iter);
     }
 
-    pub fn iter(&self) -> std::slice::Iter<'_, UnknownField> {
+    pub fn iter(&self) -> core::slice::Iter<'_, UnknownField> {
         self.as_slice().iter()
     }
 
@@ -172,7 +174,7 @@ impl FieldList {
 
 impl<'a> IntoIterator for &'a FieldList {
     type Item = &'a UnknownField;
-    type IntoIter = std::slice::Iter<'a, UnknownField>;
+    type IntoIter = core::slice::Iter<'a, UnknownField>;
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
@@ -280,7 +282,7 @@ fn cont_mask16(chunk: &[u8; 16]) -> u16 {
             // 0xFF per lane whose byte is >= 0x80 (negative as i8).
             let hi = vcltq_s8(vreinterpretq_s8_u8(v), vdupq_n_s8(0));
             let weights: uint8x16_t =
-                std::mem::transmute([1u8, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128]);
+                core::mem::transmute([1u8, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128]);
             let m = vandq_u8(hi, weights);
             u16::from(vaddv_u8(vget_low_u8(m))) | (u16::from(vaddv_u8(vget_high_u8(m))) << 8)
         }
@@ -1168,7 +1170,7 @@ mod tests {
             for len in 0..=10 {
                 for last in 0..=u8::MAX {
                     let mut buf = vec![0x55; start];
-                    buf.extend(std::iter::repeat_n(0x80, len));
+                    buf.extend(core::iter::repeat_n(0x80, len));
                     if len > 0 {
                         buf[start + len - 1] = last;
                     }
@@ -1242,7 +1244,7 @@ mod tests {
     fn check_codec<C, F>(data: &[u8], values: &[u64], ok: bool, conv: F)
     where
         C: crate::packed::PackedCodec,
-        C::Elem: std::fmt::Debug,
+        C::Elem: core::fmt::Debug,
         F: Fn(u64) -> C::Elem,
     {
         let mut out = Vec::new();
@@ -1251,14 +1253,14 @@ mod tests {
             status.is_ok(),
             ok,
             "{} status {data:?}",
-            std::any::type_name::<C>()
+            core::any::type_name::<C>()
         );
         let expect: Vec<C::Elem> = values.iter().map(|x| conv(*x)).collect();
         assert_eq!(
             out,
             expect,
             "{} values {data:?}",
-            std::any::type_name::<C>()
+            core::any::type_name::<C>()
         );
     }
 

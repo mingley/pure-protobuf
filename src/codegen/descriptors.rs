@@ -63,6 +63,7 @@ pub fn generate_from_code_generator_request(
         None => ExplicitOptions::default(),
     };
     let resolved = resolve_options(&explicit);
+    validate_resolved_options(&resolved)?;
     apply_resolved_config(&resolved);
 
     let mut fds = Vec::new();
@@ -878,6 +879,7 @@ pub(crate) fn apply_resolved_config(resolved: &ResolvedConfig) {
     EMIT_DEPS.with(|c| c.set(resolved.emit_deps));
     OWNED_MESSAGE_FIELDS.with(|c| c.set(resolved.owned_message_fields));
     SAFE_MESSAGE_DEFAULTS.with(|c| c.set(resolved.safe_message_defaults));
+    ALLOC_ONLY.with(|c| c.set(resolved.alloc_only));
     ENABLE_TYPE_NAMES.with(|c| c.set(resolved.enable_type_names));
     RETAIN_ENUM_PREFIX.with(|c| c.set(resolved.retain_enum_prefix));
     TYPE_NAME_DOMAINS.with(|c| *c.borrow_mut() = resolved.type_name_domains.clone());

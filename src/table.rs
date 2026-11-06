@@ -738,7 +738,7 @@ use crate::wire::{
     skip_field_with_number_and_depth as dyn_skip_field_with_number_and_depth,
 };
 #[cfg(feature = "reflect")]
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 /// Build the sorted field table for a message descriptor.
 ///
@@ -1297,7 +1297,7 @@ fn merge_dynamic_entry(
 }
 
 /// Decode one field value, including the defensive wire checks and the
-/// `std::str::from_utf8` UTF-8 path. Nested messages parse directly into the
+/// `core::str::from_utf8` UTF-8 path. Nested messages parse directly into the
 /// loop (no serialize/reparse fuse); unknowns stay inside the nested value.
 #[cfg(feature = "reflect")]
 #[allow(clippy::too_many_arguments, reason = "leaf carries the parse frame")]
@@ -1342,7 +1342,7 @@ fn decode_dynamic_leaf(
             }
             let bytes = read_len_bytes(data, pos)?;
             if entry.flags.contains(FieldFlags::UTF8_VALIDATE) {
-                std::str::from_utf8(bytes).map_err(|_| ParseError::new("invalid utf-8"))?;
+                core::str::from_utf8(bytes).map_err(|_| ParseError::new("invalid utf-8"))?;
             }
             Ok(Value::String(ProtoString::from_bytes(bytes)))
         }

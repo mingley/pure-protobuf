@@ -1,0 +1,12 @@
+[package]
+name = "pbrs-legacy-no-default-std-control"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+resolver = "2"
+
+[dependencies]
+pbrs = { path = "../../../..", default-features = false }
+bytes = { version = "1", default-features = false }

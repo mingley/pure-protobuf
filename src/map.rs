@@ -1,9 +1,11 @@
 //! Map field storage and views.
 use crate::internal::SealedInternal;
 use crate::proxied::{AsMut, AsView, IntoMut, IntoProxied, IntoView, MutProxied, Proxied};
+use crate::rt::MemoCell as OnceLock;
 use crate::string::ProtoString;
-use std::fmt;
-use std::sync::OnceLock;
+#[cfg(not(pbrs_std))]
+use alloc::{boxed::Box, vec, vec::Vec};
+use core::fmt;
 
 /// Entry count at which lookups, unique length and iteration switch from a
 /// linear scan to the sorted last-wins index. Below this, reads never
@@ -415,7 +417,9 @@ impl<K: MapKey, V: MapValue> Map<K, V> {
             Some(inner) => MapView {
                 inner: Some(inner.entries.as_slice()),
                 index: Some(&inner.index),
+                #[cfg(pbrs_std)]
                 raw: None,
+                #[cfg(pbrs_std)]
                 enum_codec: None,
             },
             None => MapView::empty(),
@@ -427,8 +431,11 @@ impl<K: MapKey, V: MapValue> Map<K, V> {
         MapMut {
             inner: Some(&mut inner.entries),
             index: Some(&mut inner.index),
+            #[cfg(pbrs_std)]
             raw: None,
+            #[cfg(pbrs_std)]
             enum_codec: None,
+            #[cfg(pbrs_std)]
             arena: None,
         }
     }
@@ -642,7 +649,9 @@ impl<'msg, K: MapKey, V> Iterator for MapIter<'msg, K, V> {
 pub struct MapView<'msg, K: MapKey, V: MapValue> {
     inner: Option<&'msg [(K, V)]>,
     index: Option<&'msg LastWins<K>>,
+    #[cfg(pbrs_std)]
     raw: Option<crate::runtime::RawMap>,
+    #[cfg(pbrs_std)]
     enum_codec: Option<crate::runtime::KernelEnumCodec<V>>,
 }
 
@@ -659,7 +668,9 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
         Self {
             inner: None,
             index: None,
+            #[cfg(pbrs_std)]
             raw: None,
+            #[cfg(pbrs_std)]
             enum_codec: None,
         }
     }
@@ -672,7 +683,9 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
             Self {
                 inner: Some(items),
                 index: None,
+                #[cfg(pbrs_std)]
                 raw: None,
+                #[cfg(pbrs_std)]
                 enum_codec: None,
             }
         }
@@ -683,6 +696,7 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
     /// `raw` must point to a live map with keys `K` and values `V`, owned by an
     /// arena that outlives `'msg`. No mutation may invalidate its borrowed data
     /// while this view or any view derived from it is live.
+    #[cfg(pbrs_std)]
     pub unsafe fn from_raw(_private: crate::internal::Private, raw: crate::runtime::RawMap) -> Self
     where
         V: crate::internal::EntityType,
@@ -691,7 +705,9 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
         Self {
             inner: None,
             index: None,
+            #[cfg(pbrs_std)]
             raw: Some(raw),
+            #[cfg(pbrs_std)]
             enum_codec: <V::Tag as crate::runtime::KernelCollectionValue<V>>::enum_codec(),
         }
     }
@@ -700,6 +716,7 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
     /// # Safety
     /// The same typed storage and lifetime requirements as [`Self::from_raw`]
     /// apply.
+    #[cfg(pbrs_std)]
     pub unsafe fn from_raw_ptr(raw: crate::runtime::RawMap) -> Self
     where
         V: crate::internal::EntityType,
@@ -714,6 +731,7 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
     where
         V: crate::proxied::Proxied + 'static,
     {
+        #[cfg(pbrs_std)]
         if let Some(raw) = self.raw {
             let kb = key.key_bytes();
             return unsafe { crate::runtime::kernel_map_get_bytes::<V>(raw, &kb, self.enum_codec) };
@@ -734,6 +752,7 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
     }
 
     pub fn len(self) -> usize {
+        #[cfg(pbrs_std)]
         if let Some(raw) = self.raw {
             return crate::runtime::kernel_map_len(raw);
         }
@@ -741,6 +760,7 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
     }
 
     pub fn is_empty(self) -> bool {
+        #[cfg(pbrs_std)]
         if self.raw.is_some() {
             return self.len() == 0;
         }
@@ -782,8 +802,11 @@ impl<K: MapKey + fmt::Debug, V: MapValue + fmt::Debug> fmt::Debug for MapView<'_
 pub struct MapMut<'msg, K: MapKey, V: MapValue> {
     inner: Option<&'msg mut Vec<(K, V)>>,
     index: Option<&'msg mut LastWins<K>>,
+    #[cfg(pbrs_std)]
     raw: Option<crate::runtime::RawMap>,
+    #[cfg(pbrs_std)]
     enum_codec: Option<crate::runtime::KernelEnumCodec<V>>,
+    #[cfg(pbrs_std)]
     arena: Option<&'msg crate::runtime::Arena>,
 }
 
@@ -792,8 +815,11 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
         Self {
             inner: Some(inner),
             index: None,
+            #[cfg(pbrs_std)]
             raw: None,
+            #[cfg(pbrs_std)]
             enum_codec: None,
+            #[cfg(pbrs_std)]
             arena: None,
         }
     }
@@ -802,6 +828,7 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
     /// # Safety
     /// `inner.raw` must be a live map with keys `K` and values `V`, owned by
     /// `inner.arena` for `'msg` and exclusively borrowed by this mutator.
+    #[cfg(pbrs_std)]
     pub unsafe fn from_inner(
         _private: crate::internal::Private,
         inner: crate::runtime::InnerMapMut<'msg>,
@@ -813,8 +840,11 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
         Self {
             inner: None,
             index: None,
+            #[cfg(pbrs_std)]
             raw: Some(inner.raw),
+            #[cfg(pbrs_std)]
             enum_codec: <V::Tag as crate::runtime::KernelCollectionValue<V>>::enum_codec(),
+            #[cfg(pbrs_std)]
             arena: Some(inner.arena),
         }
     }
@@ -824,6 +854,7 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
     /// `raw` must be a live arena-owned map with keys `K` and values `V`.
     /// Its arena must outlive `'msg`; the map must be exclusively borrowed by
     /// this mutator, just as for [`Self::from_inner`].
+    #[cfg(pbrs_std)]
     pub unsafe fn from_raw_inner(raw: crate::runtime::RawMap) -> Self
     where
         V: crate::internal::EntityType,
@@ -832,8 +863,11 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
         Self {
             inner: None,
             index: None,
+            #[cfg(pbrs_std)]
             raw: Some(raw),
+            #[cfg(pbrs_std)]
             enum_codec: <V::Tag as crate::runtime::KernelCollectionValue<V>>::enum_codec(),
+            #[cfg(pbrs_std)]
             arena: None,
         }
     }
@@ -858,6 +892,7 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
         self.insert_owned(key, value)
     }
 
+    #[cfg(pbrs_std)]
     fn insert_owned(&mut self, key: K, value: V) -> bool
     where
         V: 'static,
@@ -889,6 +924,36 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
         }
     }
 
+    #[cfg(not(pbrs_std))]
+    fn insert_owned(&mut self, key: K, value: V) -> bool
+    where
+        V: 'static,
+    {
+        if let Some(v) = self.inner.as_mut() {
+            // Reuse a built index, but never build one on a mutation path.
+            let existing = match self.index.as_deref().and_then(|l| l.get()) {
+                Some(idx) => idx.get(&key),
+                None => v.iter().rposition(|(k, _)| k == &key),
+            };
+            if let Some(i) = existing {
+                if let Some(e) = v.get_mut(i) {
+                    e.1 = value;
+                    return false;
+                }
+            }
+            let pos = v.len();
+            if let Some(idx) = self.index.as_deref_mut().and_then(|l| l.get_mut()) {
+                debug_assert!(idx.get(&key).is_none(), "hot index disagrees with lookup");
+                let at = idx.pos.partition_point(|(k, _)| k < &key);
+                idx.pos.insert(at, (key.clone(), pos));
+            }
+            v.push((key, value));
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn get(&self, key: impl MapQuery<K>) -> Option<crate::proxied::View<'_, V>>
     where
         V: crate::proxied::Proxied + 'static,
@@ -906,6 +971,7 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
                 .and_then(|i| v.get_mut(i))
                 .map(|(_, val)| crate::proxied::AsMut::as_mut(val));
         }
+        #[cfg(pbrs_std)]
         if let (Some(raw), Some(arena)) = (self.raw, self.arena) {
             let kb = key.key_bytes();
             unsafe {
@@ -928,6 +994,7 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
     ///
     /// An earlier parsed duplicate can become visible. Other entries keep
     /// their relative order. Repeated removals erase every stored version.
+    #[cfg(pbrs_std)]
     pub fn remove(&mut self, key: impl MapQuery<K>) -> bool {
         let key = key.to_owned_key();
         if let Some(v) = self.inner.as_mut() {
@@ -960,6 +1027,26 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
         }
     }
 
+    #[cfg(not(pbrs_std))]
+    pub fn remove(&mut self, key: impl MapQuery<K>) -> bool {
+        let key = key.to_owned_key();
+        if let Some(v) = self.inner.as_mut() {
+            // Preserve every unrelated duplicate's order and reuse a built
+            // index without creating one on a mutation path.
+            let found = match self.index.as_deref().and_then(|l| l.get()) {
+                Some(idx) => idx.get(&key),
+                None => v.iter().rposition(|(k, _)| k == &key),
+            };
+            if let Some(i) = found {
+                remove_entry_at(v, self.index.as_deref_mut(), i);
+                return true;
+            }
+            false
+        } else {
+            false
+        }
+    }
+
     pub fn copy_from<'a>(
         &mut self,
         src: impl IntoIterator<Item = (impl MapQuery<K> + 'a, impl crate::proxied::IntoProxied<V>)>,
@@ -973,6 +1060,7 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
     }
 
     pub fn len(&self) -> usize {
+        #[cfg(pbrs_std)]
         if let Some(raw) = self.raw {
             return crate::runtime::kernel_map_len(raw);
         }
@@ -983,6 +1071,7 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
     }
 
     pub fn is_empty(&self) -> bool {
+        #[cfg(pbrs_std)]
         if self.raw.is_some() {
             return self.len() == 0;
         }
@@ -1007,6 +1096,7 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
             .map(|(_, v)| v)
     }
 
+    #[cfg(pbrs_std)]
     pub fn clear(&mut self) {
         if let Some(v) = self.inner.as_mut() {
             v.clear();
@@ -1018,13 +1108,24 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
             }
         }
     }
+
+    #[cfg(not(pbrs_std))]
+    pub fn clear(&mut self) {
+        if let Some(v) = self.inner.as_mut() {
+            v.clear();
+            Self::drop_index(&mut self.index);
+        }
+    }
 }
 
 impl<K: MapKey + fmt::Debug, V: MapValue + fmt::Debug> fmt::Debug for MapMut<'_, K, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.inner.as_ref() {
             Some(v) => f.debug_list().entries(v.iter()).finish(),
+            #[cfg(pbrs_std)]
             None => f.debug_struct("MapMut").field("raw", &self.raw).finish(),
+            #[cfg(not(pbrs_std))]
+            None => f.debug_struct("MapMut").finish(),
         }
     }
 }
@@ -1064,7 +1165,9 @@ impl<'msg, K: MapKey, V: MapValue> IntoView<'msg> for MapView<'msg, K, V> {
         MapView {
             inner: self.inner,
             index: self.index,
+            #[cfg(pbrs_std)]
             raw: self.raw,
+            #[cfg(pbrs_std)]
             enum_codec: self.enum_codec,
         }
     }
@@ -1077,7 +1180,9 @@ impl<K: MapKey, V: MapValue> AsView for MapMut<'_, K, V> {
         MapView {
             inner: self.inner.as_ref().map(|v| v.as_slice()),
             index: self.index.as_deref(),
+            #[cfg(pbrs_std)]
             raw: self.raw,
+            #[cfg(pbrs_std)]
             enum_codec: self.enum_codec,
         }
     }
@@ -1088,8 +1193,11 @@ impl<K: MapKey, V: MapValue> AsMut for MapMut<'_, K, V> {
         MapMut {
             inner: self.inner.as_deref_mut(),
             index: self.index.as_deref_mut(),
+            #[cfg(pbrs_std)]
             raw: self.raw,
+            #[cfg(pbrs_std)]
             enum_codec: self.enum_codec,
+            #[cfg(pbrs_std)]
             arena: self.arena,
         }
     }
@@ -1102,7 +1210,9 @@ impl<'msg, K: MapKey, V: MapValue> IntoView<'msg> for MapMut<'msg, K, V> {
         MapView {
             inner: self.inner.map(|v| v.as_slice()),
             index: self.index.map(|i| &*i),
+            #[cfg(pbrs_std)]
             raw: self.raw,
+            #[cfg(pbrs_std)]
             enum_codec: self.enum_codec,
         }
     }
@@ -1115,8 +1225,11 @@ impl<'msg, K: MapKey, V: MapValue> IntoMut<'msg> for MapMut<'msg, K, V> {
         MapMut {
             inner: self.inner,
             index: self.index,
+            #[cfg(pbrs_std)]
             raw: self.raw,
+            #[cfg(pbrs_std)]
             enum_codec: self.enum_codec,
+            #[cfg(pbrs_std)]
             arena: self.arena,
         }
     }
@@ -1160,6 +1273,7 @@ enum MapViewIterStorage<
     // yielded, without allocating a second collection of those same views.
     Typed(MapIter<'msg, K, V>),
     // Arena storage keeps its established snapshot and lifetime handling.
+    #[cfg(pbrs_std)]
     Raw {
         items: Vec<Option<(crate::proxied::View<'msg, K>, crate::proxied::View<'msg, V>)>>,
         i: usize,
@@ -1174,6 +1288,7 @@ impl<
 {
     #[inline]
     fn from_view(view: MapView<'msg, K, V>) -> Self {
+        #[cfg(pbrs_std)]
         if let Some(raw) = view.raw {
             return Self::from_raw_view(view, raw);
         }
@@ -1193,6 +1308,7 @@ impl<
 
     // Keep the raw projection loop out of the small borrowed constructor.
     #[inline(never)]
+    #[cfg(pbrs_std)]
     fn from_raw_view(view: MapView<'msg, K, V>, raw: crate::runtime::RawMap) -> Self {
         let mut items = Vec::new();
         unsafe {
@@ -1203,7 +1319,7 @@ impl<
                 }
                 // SAFETY: raw map views borrow their arena-owned keys for 'msg;
                 // safe callers cannot remove a key while a yielded view is live.
-                let key_bytes: &'msg [u8] = std::slice::from_raw_parts(kb.as_ptr(), kb.len());
+                let key_bytes: &'msg [u8] = core::slice::from_raw_parts(kb.as_ptr(), kb.len());
                 let Some(k) = crate::runtime::kernel_bytes_to_view::<K>(key_bytes) else {
                     continue;
                 };
@@ -1237,6 +1353,7 @@ where
                     crate::proxied::AsView::as_view(v),
                 )
             }),
+            #[cfg(pbrs_std)]
             MapViewIterStorage::Raw { items, i } => {
                 let item = items.get_mut(*i)?.take();
                 *i += 1;
@@ -1247,6 +1364,7 @@ where
     fn size_hint(&self) -> (usize, Option<usize>) {
         match &self.storage {
             MapViewIterStorage::Typed(iter) => iter.size_hint(),
+            #[cfg(pbrs_std)]
             MapViewIterStorage::Raw { items, i } => {
                 let remaining = items.len().saturating_sub(*i);
                 (remaining, Some(remaining))
@@ -1626,13 +1744,13 @@ mod tests {
 
     #[derive(Debug, Default)]
     struct KeyFaults {
-        ord: std::cell::Cell<bool>,
-        eq: std::cell::Cell<bool>,
-        drop_key: std::cell::Cell<Option<i32>>,
-        clones: std::cell::Cell<usize>,
+        ord: core::cell::Cell<bool>,
+        eq: core::cell::Cell<bool>,
+        drop_key: core::cell::Cell<Option<i32>>,
+        clones: core::cell::Cell<usize>,
     }
     #[derive(Debug)]
-    struct FaultKey(i32, std::rc::Rc<KeyFaults>);
+    struct FaultKey(i32, alloc::rc::Rc<KeyFaults>);
     impl Clone for FaultKey {
         fn clone(&self) -> Self {
             self.1.clones.set(self.1.clones.get() + 1);
@@ -1647,12 +1765,12 @@ mod tests {
     }
     impl Eq for FaultKey {}
     impl PartialOrd for FaultKey {
-        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
             Some(self.cmp(other))
         }
     }
     impl Ord for FaultKey {
-        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        fn cmp(&self, other: &Self) -> core::cmp::Ordering {
             assert!(!self.1.ord.replace(false), "armed Ord panic");
             self.0.cmp(&other.0)
         }
@@ -1680,11 +1798,11 @@ mod tests {
     }
     #[derive(Debug, Default)]
     struct ValueFaults {
-        drops: std::cell::RefCell<Vec<i32>>,
-        drop_value: std::cell::Cell<Option<i32>>,
+        drops: core::cell::RefCell<Vec<i32>>,
+        drop_value: core::cell::Cell<Option<i32>>,
     }
     #[derive(Clone, Debug)]
-    struct FaultValue(i32, std::rc::Rc<ValueFaults>);
+    struct FaultValue(i32, alloc::rc::Rc<ValueFaults>);
     impl Drop for FaultValue {
         fn drop(&mut self) {
             self.1.drops.borrow_mut().push(self.0);
@@ -1699,11 +1817,11 @@ mod tests {
         duplicate: bool,
     ) -> (
         Map<FaultKey, FaultValue>,
-        std::rc::Rc<KeyFaults>,
-        std::rc::Rc<ValueFaults>,
+        alloc::rc::Rc<KeyFaults>,
+        alloc::rc::Rc<ValueFaults>,
     ) {
-        let keys = std::rc::Rc::new(KeyFaults::default());
-        let values = std::rc::Rc::new(ValueFaults::default());
+        let keys = alloc::rc::Rc::new(KeyFaults::default());
+        let values = alloc::rc::Rc::new(ValueFaults::default());
         let mut map = Map::new();
         for id in 0..20 {
             map.push_entry(FaultKey(id, keys.clone()), FaultValue(id, values.clone()));
@@ -1832,12 +1950,12 @@ mod tests {
 
     #[test]
     fn empty_eq_and_zeroed() {
-        let z: Map<i32, i32> = unsafe { std::mem::zeroed() };
+        let z: Map<i32, i32> = unsafe { core::mem::zeroed() };
         assert!(z.is_empty());
         assert_eq!(z, Map::new());
         assert_eq!(
-            std::mem::size_of::<Map<i32, i32>>(),
-            std::mem::size_of::<usize>()
+            core::mem::size_of::<Map<i32, i32>>(),
+            core::mem::size_of::<usize>()
         );
         drop(z);
     }

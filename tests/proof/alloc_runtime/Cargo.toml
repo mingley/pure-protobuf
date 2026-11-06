@@ -1,0 +1,20 @@
+[package]
+name = "pbrs-alloc-runtime-proof"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+resolver = "2"
+
+[features]
+default = []
+std = ["pbrs/std"]
+
+[dependencies]
+pbrs = { path = "../../..", default-features = false, features = ["alloc-only"] }
+prost = { version = "=0.14.4", default-features = false, features = ["derive"] }
+
+[build-dependencies]
+pbrs = { path = "../../..", default-features = false, features = ["codegen"] }
+prost-build = "=0.14.4"

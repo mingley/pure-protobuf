@@ -1,6 +1,6 @@
 //! Encapsulation break for generated/typed messages. Not for application code.
 
-use std::fmt::Debug;
+use core::fmt::Debug;
 
 pub trait SealedInternal: Sized {}
 

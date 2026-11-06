@@ -84,6 +84,7 @@ jobs:
           python3 -B docs/evidence/rejected-packed-fused-20261106/check.py
           python3 -B docs/evidence/hosted-devloop-20261106/check.py --negative-controls
           python3 -B docs/evidence/rejected-packed-cache-first-20261106/check.py
+          python3 -B docs/evidence/rejected-packed-readiness-routing-20261106/check.py
       - name: Check standalone benchmark and interop lockfiles
         run: |
           for manifest in \
@@ -304,9 +305,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.85.0
+        with:
+          targets: thumbv7em-none-eabi
       - name: Install protoc
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - run: cargo test --locked -p pbrs --lib
+      - name: Alloc-only runtime at the core MSRV
+        run: |
+          cargo check --locked -p pbrs --target thumbv7em-none-eabi --no-default-features --features alloc-only
+          cargo test --locked -p pbrs --no-default-features --test alloc_cell
       - run: cargo test --locked -p pbrs-grpc --lib
       - run: cargo test --locked -p pbrs-grpc --test early_upload_response
       - run: cargo test --locked -p pbrs-grpc --lib queued_resets_do_not_spawn_dispatch_or_exhaust_rpc_slots

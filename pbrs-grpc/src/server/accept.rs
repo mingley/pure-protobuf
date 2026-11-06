@@ -1720,14 +1720,14 @@ pub(crate) async fn accept_loop_with_slots<D: Dispatch>(
             let accept = std::pin::pin!(listener.accept());
             let mut accept = Some(accept);
             std::future::poll_fn(|cx| {
-                if let Some(fut) = accept.as_mut() {
-                    if let Poll::Ready(res) = fut.as_mut().poll(cx) {
-                        return Poll::Ready(Some(res));
-                    }
-                }
                 if let Some(fut) = shutdown.as_mut() {
                     if fut.as_mut().poll(cx).is_ready() {
                         return Poll::Ready(None);
+                    }
+                }
+                if let Some(fut) = accept.as_mut() {
+                    if let Poll::Ready(res) = fut.as_mut().poll(cx) {
+                        return Poll::Ready(Some(res));
                     }
                 }
                 Poll::Pending
@@ -1853,14 +1853,14 @@ pub(crate) async fn accept_unix_loop<D: Dispatch>(
             let accept = std::pin::pin!(listener.accept());
             let mut accept = Some(accept);
             std::future::poll_fn(|cx| {
-                if let Some(fut) = accept.as_mut() {
-                    if let Poll::Ready(res) = fut.as_mut().poll(cx) {
-                        return Poll::Ready(Some(res));
-                    }
-                }
                 if let Some(fut) = shutdown.as_mut() {
                     if fut.as_mut().poll(cx).is_ready() {
                         return Poll::Ready(None);
+                    }
+                }
+                if let Some(fut) = accept.as_mut() {
+                    if let Poll::Ready(res) = fut.as_mut().poll(cx) {
+                        return Poll::Ready(Some(res));
                     }
                 }
                 Poll::Pending
@@ -1923,18 +1923,19 @@ pub(crate) async fn accept_incoming<D: Dispatch, I: Incoming>(
     let mut shutdown = Some(shutdown);
     let mut result = Ok(());
     loop {
+        tokio::task::consume_budget().await;
         let accepted = {
             let accept = std::pin::pin!(incoming.accept());
             let mut accept = Some(accept);
             std::future::poll_fn(|cx| {
-                if let Some(fut) = accept.as_mut() {
-                    if let Poll::Ready(res) = fut.as_mut().poll(cx) {
-                        return Poll::Ready(Some(res));
-                    }
-                }
                 if let Some(fut) = shutdown.as_mut() {
                     if fut.as_mut().poll(cx).is_ready() {
                         return Poll::Ready(None);
+                    }
+                }
+                if let Some(fut) = accept.as_mut() {
+                    if let Poll::Ready(res) = fut.as_mut().poll(cx) {
+                        return Poll::Ready(Some(res));
                     }
                 }
                 Poll::Pending

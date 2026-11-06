@@ -43,6 +43,8 @@ jobs:
             tests/proof/field_views/Cargo.toml \
             tests/proof/namespace_symbols/Cargo.toml \
             tests/proof/ordered_maps/Cargo.toml \
+            tests/proof/alloc_runtime/Cargo.toml \
+            tests/proof/alloc_runtime/legacy_std/Cargo.toml \
             tests/proof/codegen_parity/no_std/prost/Cargo.toml \
             tests/proof/codegen_parity/no_std/pbrs/Cargo.toml \
             tests/interop/tonic/Cargo.toml \
@@ -76,6 +78,10 @@ jobs:
             -- -D warnings
       - name: Check generated consumers and reproduce build gaps
         run: python3 tests/proof/codegen_parity/run.py --output work/parity-audit/codegen
+      - name: Check explicit alloc-only messages and legacy std consumers
+        run: |
+          python3 -B -m unittest discover -s tests/proof/alloc_runtime -p 'test_*.py' -q
+          python3 tests/proof/alloc_runtime/run.py --out work/parity-audit/alloc-runtime
       - name: Check generated bindings with unsafe code forbidden
         run: python3 tests/proof/safe_defaults/run.py --out work/parity-audit/safe-defaults
       - name: Check generated namespaces and runtime aliases

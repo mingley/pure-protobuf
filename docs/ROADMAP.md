@@ -25,12 +25,17 @@ Close the documented feature gaps, beat pinned tonic/prost in every applicable
 registered benchmark comparison, and publish qualified new versions of
 `pbrs`, `protobuf-tonic` and `pbrs-grpc`.
 
-The next implementation milestone is the five migration gaps recorded at
+The fixed starting inventory is the five migration gaps recorded at
 [`0ae8a43d`](https://github.com/mingley/pure-protobuf/tree/0ae8a43d3d08617c249c84a3f0d30f614494d70e):
 `btree_map`, `bytes` and `boxed` codegen controls, an alloc-only runtime, and
 custom connection executors in the static balanced-channel helpers. Broader
 coverage continues through the [API comparison](guides/comparison.md) and
 [parity register](parity.md).
+
+Current source has scoped consumers for all five surfaces, including explicit
+[alloc-only native messages](guides/alloc-only.md) on Cortex. The next milestone
+is exact-source qualification of these implementations. Full API coverage and
+matched performance comparisons remain required.
 
 | Track | Evidence needed to finish |
 |---|---|

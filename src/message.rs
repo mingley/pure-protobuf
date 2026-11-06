@@ -1,7 +1,9 @@
 use crate::error::{ParseError, SerializeError};
 use crate::internal::SealedInternal;
 use crate::proxied::{AsMut, AsView, IntoMut, IntoView, MutProxied};
-use std::fmt::Debug;
+#[cfg(not(pbrs_std))]
+use alloc::{borrow::ToOwned, format, string::String, vec::Vec};
+use core::fmt::Debug;
 
 /// Operations related to constructing a message.
 pub trait Parse: SealedInternal + Sized {
@@ -229,11 +231,11 @@ impl<T: crate::internal::Enum> Enum for T {
 
 /// An integer value wasn't known for an enum while converting.
 #[derive(Clone, PartialEq, Eq)]
-pub struct UnknownEnumValue<T>(i32, std::marker::PhantomData<T>);
+pub struct UnknownEnumValue<T>(i32, core::marker::PhantomData<T>);
 
 impl<T> UnknownEnumValue<T> {
     pub fn new(_private: crate::internal::Private, unknown_value: i32) -> Self {
-        Self(unknown_value, std::marker::PhantomData)
+        Self(unknown_value, core::marker::PhantomData)
     }
 
     pub fn value(self) -> i32 {
@@ -241,19 +243,19 @@ impl<T> UnknownEnumValue<T> {
     }
 }
 
-impl<T> std::fmt::Debug for UnknownEnumValue<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<T> core::fmt::Debug for UnknownEnumValue<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_tuple("UnknownEnumValue").field(&self.0).finish()
     }
 }
 
-impl<T: Enum> std::fmt::Display for UnknownEnumValue<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<T: Enum> core::fmt::Display for UnknownEnumValue<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{} is not a known value for {}", self.0, T::NAME)
     }
 }
 
-impl<T: Enum> std::error::Error for UnknownEnumValue<T> {}
+impl<T: Enum> core::error::Error for UnknownEnumValue<T> {}
 
 /// Message equality which may have false-negatives in the face of unknown fields.
 pub fn message_eq<T: Serialize>(a: &T, b: &T) -> bool {

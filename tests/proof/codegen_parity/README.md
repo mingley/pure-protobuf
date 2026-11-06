@@ -1,7 +1,7 @@
 # Code generator parity checks
 
 This suite compares pbrs with prost-build and prost 0.14.4. It reports selected
-representation controls and a functional deployment gap. It does
+representation controls and the legacy standard-library target boundary. It does
 not certify full compiler equivalence or measure performance.
 
 Run from the repository root, with Cargo and protoc on `PATH`:
@@ -90,12 +90,15 @@ mutation and codecs against pinned Prost controls. Run it alone with
 `--only ordered`. Old lazy ancestors keep their original raw wire until
 mutation; the consumer records this boundary and checks regenerated parents.
 
-The alloc-only control builds a `#![no_std]` library using prost's serialization
-API with default features off for `thumbv7em-none-eabi`. The equivalent pbrs
-consumer also disables all default features. The control requires prost to
-compile and pbrs to report a missing `std` crate before it records the deployment
-gap. This distinguishes lack of target installation from lack of runtime
-support. It checks compilation, not execution on embedded hardware.
+The legacy no-default target control builds generic serialization APIs for
+`thumbv7em-none-eabi`. Prost compiles without default features; pbrs intentionally
+retains its existing std profile when only default features are disabled, so
+that control requires a missing `std` diagnostic. Target installation failures
+do not count as that result. This records the legacy profile's boundary; it
+does not test the explicit alloc-only runtime. The separate
+[concrete alloc-only consumer](../alloc_runtime/README.md) builds real native
+and Prost messages with std host codegen and an alloc-only target runtime.
+Neither target compilation check executes firmware.
 
 The `pbrs_bytes_lightweight_gap` binary deliberately fails compilation.
 Use `run.py`, which verifies its diagnostics and runs the

@@ -91,6 +91,8 @@ pub(crate) fn packed_storage_ty(f: &FieldDescriptor) -> Cow<'static, str> {
 }
 
 pub(crate) fn field_storage_ty(f: &FieldDescriptor) -> Cow<'static, str> {
+    let boxed = runtime_path("::std::boxed::Box");
+
     let runtime = runtime_crate_path();
     if f.is_map {
         let (k, v) = map_kv(f);
@@ -105,7 +107,7 @@ pub(crate) fn field_storage_ty(f: &FieldDescriptor) -> Cow<'static, str> {
     } else if is_lazy_msg(f) {
         format!("{runtime}::rt::LazyMsg<{t}>").into()
     } else if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
-        format!("::core::option::Option<::std::boxed::Box<{t}>>").into()
+        format!("::core::option::Option<{boxed}<{t}>>").into()
     } else if is_option(f) {
         match f.field_type {
             FieldType::Bool => runtime_path("::pbrs::rt::OptBool"),
@@ -113,7 +115,7 @@ pub(crate) fn field_storage_ty(f: &FieldDescriptor) -> Cow<'static, str> {
                 runtime_path("::core::option::Option<::std::boxed::Box<::pbrs::rt::LazyStr>>")
             }
             FieldType::Bytes if is_selected_bytes(f) => {
-                format!("::core::option::Option<::std::boxed::Box<{t}>>").into()
+                format!("::core::option::Option<{boxed}<{t}>>").into()
             }
             FieldType::Bytes => {
                 runtime_path("::core::option::Option<::std::boxed::Box<::pbrs::rt::LazyBytes>>")
@@ -535,6 +537,9 @@ pub(crate) fn emit_clear_doc(src: &mut String, f: &FieldDescriptor) {
 }
 
 pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition2024: bool) {
+    let boxed = runtime_path("::std::boxed::Box");
+    let string = runtime_path("::std::string::String");
+
     let runtime = runtime_crate_path();
     bind_field_idents(desc);
     let name = rust_ident(&desc.full_name);
@@ -596,7 +601,7 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
     if use_cold {
         let _ = writeln!(
             src,
-            "    cold: ::core::option::Option<::std::boxed::Box<{cold_name}>>,"
+            "    cold: ::core::option::Option<{boxed}<{cold_name}>>,"
         );
     }
     let _ = writeln!(src, "    unknown: {runtime}::UnknownFields,");
@@ -643,7 +648,7 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
     if use_cold {
         let _ = writeln!(
             src,
-            "    #[inline(always)] fn cold_mut(&mut self) -> &mut {cold_name} {{ self.cold.get_or_insert_with(|| ::std::boxed::Box::new({cold_name}::default())) }}"
+            "    #[inline(always)] fn cold_mut(&mut self) -> &mut {cold_name} {{ self.cold.get_or_insert_with(|| {boxed}::new({cold_name}::default())) }}"
         );
     }
     let empty_ok = !desc
@@ -698,7 +703,7 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
         let _ = writeln!(src, "    const PACKAGE: &'static str = {package:?};");
         let _ = writeln!(
             src,
-            "    fn type_url() -> ::std::string::String {{ {type_url:?}.into() }}"
+            "    fn type_url() -> {string} {{ {type_url:?}.into() }}"
         );
         let _ = writeln!(src, "}}");
     }
@@ -746,6 +751,9 @@ pub(crate) fn emit_accessors(
     f: &FieldDescriptor,
     cold: ColdPlacement,
 ) {
+    let boxed = runtime_path("::std::boxed::Box");
+    let memo = runtime_path("::std::sync::OnceLock");
+
     let runtime = runtime_crate_path();
     let id = field_id(f);
     let m = field_raw(f);
@@ -829,7 +837,7 @@ pub(crate) fn emit_accessors(
             emit_field_getter_doc(src, desc, f);
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> &{t} {{ static DEFAULT: ::std::sync::OnceLock<{t}> = ::std::sync::OnceLock::new(); self.cold.as_ref().and_then(|c| c.{id}.as_deref()).unwrap_or_else(|| {runtime}::gen_support::default_instance(&DEFAULT)) }}"
+                "    pub fn {id}(&self) -> &{t} {{ static DEFAULT: {memo}<{t}> = {memo}::new(); self.cold.as_ref().and_then(|c| c.{id}.as_deref()).unwrap_or_else(|| {runtime}::gen_support::default_instance(&DEFAULT)) }}"
             );
             emit_opt_doc(src, f);
             let _ = writeln!(
@@ -845,7 +853,7 @@ pub(crate) fn emit_accessors(
             emit_field_getter_doc(src, desc, f);
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> &{t} {{ static DEFAULT: ::std::sync::OnceLock<{t}> = ::std::sync::OnceLock::new(); self.{id}.as_deref().unwrap_or_else(|| {runtime}::gen_support::default_instance(&DEFAULT)) }}"
+                "    pub fn {id}(&self) -> &{t} {{ static DEFAULT: {memo}<{t}> = {memo}::new(); self.{id}.as_deref().unwrap_or_else(|| {runtime}::gen_support::default_instance(&DEFAULT)) }}"
             );
             emit_opt_doc(src, f);
             let _ = writeln!(
@@ -867,7 +875,7 @@ pub(crate) fn emit_accessors(
         } else {
             let _ = writeln!(
                 src,
-                "        {st} = ::core::option::Option::Some(::std::boxed::Box::new(v));"
+                "        {st} = ::core::option::Option::Some({boxed}::new(v));"
             );
         }
         let _ = writeln!(src, "    }}");
@@ -885,7 +893,7 @@ pub(crate) fn emit_accessors(
         } else {
             let _ = writeln!(
                 src,
-                "    pub fn {id}_mut(&mut self) -> &mut {t} {{ self.cached_size.dirty(); {st}.get_or_insert_with(|| ::std::boxed::Box::new({t}::default())).as_mut() }}"
+                "    pub fn {id}_mut(&mut self) -> &mut {t} {{ self.cached_size.dirty(); {st}.get_or_insert_with(|| {boxed}::new({t}::default())).as_mut() }}"
             );
             emit_clear_doc(src, f);
             let _ = writeln!(
@@ -933,7 +941,7 @@ pub(crate) fn emit_accessors(
             emit_oneof_clear(src, desc, f, cold);
             let _ = writeln!(
                 src,
-                "        {st} = ::core::option::Option::Some(::std::boxed::Box::new({runtime}::rt::LazyStr::owned(v.into_proxied({runtime}::__internal::Private))));"
+                "        {st} = ::core::option::Option::Some({boxed}::new({runtime}::rt::LazyStr::owned(v.into_proxied({runtime}::__internal::Private))));"
             );
             let _ = writeln!(src, "    }}");
             emit_clear_doc(src, f);
@@ -991,7 +999,7 @@ pub(crate) fn emit_accessors(
             emit_set_doc(src, desc, f);
             let _ = writeln!(
                 src,
-                "    pub fn set_{m}(&mut self, v: impl {runtime}::IntoProxied<{runtime}::ProtoBytes>) {{ self.cached_size.dirty(); {st} = ::core::option::Option::Some(::std::boxed::Box::new({runtime}::rt::LazyBytes::owned(v.into_proxied({runtime}::__internal::Private)))); }}"
+                "    pub fn set_{m}(&mut self, v: impl {runtime}::IntoProxied<{runtime}::ProtoBytes>) {{ self.cached_size.dirty(); {st} = ::core::option::Option::Some({boxed}::new({runtime}::rt::LazyBytes::owned(v.into_proxied({runtime}::__internal::Private)))); }}"
             );
             emit_clear_doc(src, f);
             let _ = writeln!(
@@ -1250,6 +1258,8 @@ pub(crate) fn bytes_default_lit(f: &FieldDescriptor) -> String {
 }
 
 pub(crate) fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
+    let fmt = runtime_path("::std::fmt");
+
     let runtime = runtime_crate_path();
     let name = rust_ident(&ed.full_name);
     // Keep caller diagnostics on the public type while allowing its own implementations
@@ -1363,11 +1373,11 @@ pub(crate) fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
     let _ = writeln!(src, "}}");
     let _ = writeln!(
         src,
-        "{impl_deprecation_allowance}impl ::std::fmt::Debug for {name} {{"
+        "{impl_deprecation_allowance}impl {fmt}::Debug for {name} {{"
     );
     let _ = writeln!(
         src,
-        "    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {{"
+        "    fn fmt(&self, f: &mut {fmt}::Formatter<'_>) -> {fmt}::Result {{"
     );
     let _ = writeln!(
         src,

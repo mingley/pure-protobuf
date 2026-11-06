@@ -8,6 +8,7 @@
 //! ```
 
 #![deny(unsafe_op_in_unsafe_fn)]
+#![cfg_attr(not(pbrs_std), no_std)]
 #![expect(
     missing_docs,
     reason = "the v4 application API is described in the crate docs and README; per-item rustdoc is follow-up"
@@ -28,7 +29,26 @@
     reason = "wire parser and generated gencode: checked offsets, specified integer widths, String fmt is infallible"
 )]
 
+extern crate alloc;
 extern crate self as pbrs;
+
+#[cfg(all(not(pbrs_std), not(target_os = "none")))]
+compile_error!(
+    "alloc-only without std currently supports only bare-metal targets (target_os = none); enable std for host consumers"
+);
+#[cfg(all(not(pbrs_std), not(target_has_atomic = "ptr")))]
+compile_error!("alloc-only requires pointer compare-and-swap atomics");
+#[cfg(all(not(pbrs_std), not(target_has_atomic = "32")))]
+compile_error!("alloc-only requires 32-bit atomics");
+
+/// Allocation types used by generated alloc-only messages.
+#[doc(hidden)]
+pub mod __alloc {
+    pub use alloc::{borrow, boxed, collections, format, string, sync, vec};
+}
+
+#[cfg(not(pbrs_std))]
+mod alloc_cell;
 
 #[cfg(feature = "conformance")]
 mod any;
@@ -69,6 +89,7 @@ pub mod __internal {
         EntityType, Enum, MatcherEq, Private, SealedInternal, assert_compatible_gencode_version,
         entity_tag,
     };
+    #[cfg(pbrs_std)]
     pub use crate::runtime;
 }
 
@@ -105,9 +126,11 @@ mod proxied;
 mod repeated;
 pub mod rt;
 #[doc(hidden)]
+#[cfg(pbrs_std)]
 pub mod runtime;
 mod string;
 pub mod table;
+#[cfg(pbrs_std)]
 pub mod testdata;
 #[cfg(feature = "text")]
 pub mod text;

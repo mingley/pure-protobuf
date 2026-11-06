@@ -8,11 +8,13 @@
 use crate::error::ParseError;
 use crate::lazy::Wire;
 use crate::repeated::{Repeated, RepeatedMut, RepeatedView};
+use crate::rt::MemoCell as OnceLock;
 use crate::wire::{
     bulk_decode_varints, decode_varint, decode_zigzag32, decode_zigzag64, encode_varint,
     encode_zigzag32, encode_zigzag64,
 };
-use std::sync::OnceLock;
+#[cfg(not(pbrs_std))]
+use alloc::{boxed::Box, vec::Vec};
 
 #[cfg(test)]
 #[path = "packed/wire_tests.rs"]
@@ -122,7 +124,7 @@ macro_rules! fixed_codec {
                     // SAFETY: $elem is a fixed-width POD; protobuf wire is LE.
                     unsafe {
                         let dest = out.as_mut_ptr().add(start) as *mut u8;
-                        std::ptr::copy_nonoverlapping(buf.as_ptr(), dest, buf.len());
+                        core::ptr::copy_nonoverlapping(buf.as_ptr(), dest, buf.len());
                         out.set_len(start + n);
                     }
                 }
@@ -144,7 +146,7 @@ macro_rules! fixed_codec {
                     // is a live shared slice, so `byte_len` bytes at that
                     // address are valid and initialized (see §4.2).
                     let bytes = unsafe {
-                        std::slice::from_raw_parts(elems.as_ptr() as *const u8, byte_len)
+                        core::slice::from_raw_parts(elems.as_ptr() as *const u8, byte_len)
                     };
                     out.extend_from_slice(bytes);
                 }
@@ -362,7 +364,7 @@ impl<C: PackedCodec> Packed<C> {
         RepeatedMut::from_vec(self.force_vec())
     }
 
-    pub fn iter(&self) -> std::slice::Iter<'_, C::Elem> {
+    pub fn iter(&self) -> core::slice::Iter<'_, C::Elem> {
         self.as_slice().iter()
     }
 
@@ -446,12 +448,12 @@ impl<C: PackedCodec> PartialEq for Packed<C> {
     }
 }
 
-impl<C: PackedCodec> std::fmt::Debug for Packed<C>
+impl<C: PackedCodec> core::fmt::Debug for Packed<C>
 where
-    C::Elem: std::fmt::Debug,
+    C::Elem: core::fmt::Debug,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Debug::fmt(self.as_slice(), f)
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Debug::fmt(self.as_slice(), f)
     }
 }
 
@@ -509,7 +511,7 @@ mod tests {
 
     #[test]
     fn empty_eq_and_zeroed() {
-        let z: PackedI32 = unsafe { std::mem::zeroed() };
+        let z: PackedI32 = unsafe { core::mem::zeroed() };
         assert!(z.is_empty());
         assert_eq!(z, PackedI32::new());
         drop(z);

@@ -28,6 +28,14 @@ on:
       - 'src/generated/**'
       - 'tests/proof/codegen_parity/**'
       - 'tests/proof/ordered_maps/**'
+      - 'tests/proof/alloc_runtime/**'
+      - 'tests/alloc_cell.rs'
+      - 'src/alloc_cell.rs'
+      - 'src/rt.rs'
+      - 'src/repeated.rs'
+      - 'src/lib.rs'
+      - 'Cargo.toml'
+      - 'build.rs'
       - 'src/tree_map.rs'
       - 'src/json.rs'
       - 'src/table.rs'
@@ -64,6 +72,14 @@ on:
       - 'src/generated/**'
       - 'tests/proof/codegen_parity/**'
       - 'tests/proof/ordered_maps/**'
+      - 'tests/proof/alloc_runtime/**'
+      - 'tests/alloc_cell.rs'
+      - 'src/alloc_cell.rs'
+      - 'src/rt.rs'
+      - 'src/repeated.rs'
+      - 'src/lib.rs'
+      - 'Cargo.toml'
+      - 'build.rs'
       - 'src/tree_map.rs'
       - 'src/json.rs'
       - 'src/table.rs'
@@ -172,8 +188,25 @@ jobs:
           protoc --version
           cargo miri --version
           cargo miri run --locked --manifest-path tests/proof/ordered_maps/Cargo.toml
+  alloc-cell:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri, rust-src
+      - name: Miri on the alloc publication cell on 64-bit and 32-bit targets
+        env:
+          MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-strict-provenance"
+        run: |
+          set -euo pipefail
+          rustc --version
+          cargo miri --version
+          cargo miri test --locked -p pbrs --no-default-features --test alloc_cell
+          cargo miri test --locked -p pbrs --no-default-features --test alloc_cell --target i686-unknown-linux-gnu
   miri:
-    needs: [core, generated, http2, selected-bytes, ordered-maps]
+    needs: [core, generated, http2, selected-bytes, ordered-maps, alloc-cell]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -185,9 +218,12 @@ jobs:
           HTTP2_RESULT: ${{ needs.http2.result }}
           BYTES_RESULT: ${{ needs.selected-bytes.result }}
           ORDERED_RESULT: ${{ needs.ordered-maps.result }}
+          ALLOC_CELL_RESULT: ${{ needs.alloc-cell.result }}
         run: |
+          set -euo pipefail
           test "$CORE_RESULT" = success
           test "$GENERATED_RESULT" = success
           test "$HTTP2_RESULT" = success
           test "$BYTES_RESULT" = success
           test "$ORDERED_RESULT" = success
+          test "$ALLOC_CELL_RESULT" = success

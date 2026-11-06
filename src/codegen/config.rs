@@ -251,6 +251,7 @@ thread_local! {
     pub(crate) static EMIT_DEPS: Cell<bool> = const { Cell::new(false) };
     pub(crate) static OWNED_MESSAGE_FIELDS: Cell<bool> = const { Cell::new(false) };
     pub(crate) static SAFE_MESSAGE_DEFAULTS: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static ALLOC_ONLY: Cell<bool> = const { Cell::new(false) };
     pub(crate) static BOXED_FIELDS: RefCell<Option<std::sync::Arc<BoxedFieldIndex>>> =
         const { RefCell::new(None) };
     pub(crate) static BOXED_FIELD_NUMBERS: RefCell<std::collections::BTreeSet<u32>> =
@@ -357,9 +358,30 @@ pub(crate) fn runtime_crate_path() -> RuntimeCratePath {
 /// Resolve a framework-owned static fragment before user paths are formatted.
 pub(crate) fn runtime_path(default: &'static str) -> Cow<'static, str> {
     let runtime = runtime_crate_path();
+    // Match only complete framework-owned static fragments. User paths and
+    // attributes are formatted afterwards. The ordinary and alloc defaults
+    // both borrow static text instead of allocating replacement strings.
+    let owned = if alloc_only_enabled() {
+        match default {
+            "::std::boxed::Box" => "::pbrs::__alloc::boxed::Box",
+            "::std::string::String" => "::pbrs::__alloc::string::String",
+            "::std::vec::Vec" => "::pbrs::__alloc::vec::Vec",
+            "::std::sync::OnceLock" => "::pbrs::rt::MemoCell",
+            "::std::fmt" => "::core::fmt",
+            "::core::option::Option<::std::boxed::Box<::pbrs::rt::LazyStr>>" => {
+                "::core::option::Option<::pbrs::__alloc::boxed::Box<::pbrs::rt::LazyStr>>"
+            }
+            "::core::option::Option<::std::boxed::Box<::pbrs::rt::LazyBytes>>" => {
+                "::core::option::Option<::pbrs::__alloc::boxed::Box<::pbrs::rt::LazyBytes>>"
+            }
+            _ => default,
+        }
+    } else {
+        default
+    };
     match runtime.0 {
-        None => Cow::Borrowed(default),
-        Some(prefix) => Cow::Owned(default.replace("::pbrs::", &format!("{prefix}::"))),
+        None => Cow::Borrowed(owned),
+        Some(prefix) => Cow::Owned(owned.replace("::pbrs::", &format!("{prefix}::"))),
     }
 }
 
@@ -424,6 +446,70 @@ pub(crate) fn adapter_codec_path() -> Cow<'static, str> {
 #[cfg(test)]
 mod runtime_path_tests {
     use super::*;
+
+    #[test]
+    fn alloc_output_profile_paths_options_and_reset() {
+        let mut config = Config::new();
+        config.alloc_only(true);
+        assert_eq!(config.to_parameter_string(), "alloc_only=true");
+        let explicit = parse_plugin_parameter(&config.to_parameter_string()).expect("alloc option");
+        let resolved = resolve_options(&explicit);
+        assert!(resolved.alloc_only && resolved.no_reflect);
+        assert_eq!(resolved.stubs, StubStyle::None);
+        assert!(!resolved.emit_json && !resolved.emit_text && !resolved.shared_pool);
+        assert!(validate_resolved_options(&resolved).is_ok());
+        for suffix in [
+            "stubs=kernel",
+            "stubs=tonic",
+            "stubs=compat",
+            "no_reflect=false",
+            "emit_json=true",
+            "emit_text=true",
+            "shared_pool=true",
+            "shared_descriptor_set=true",
+        ] {
+            let option = parse_plugin_parameter(&format!("alloc_only=true,{suffix}"))
+                .expect("incompatible option is syntactically valid");
+            assert!(
+                matches!(validate_resolved_options(&resolve_options(&option)),
+                Err(CodegenError::InvalidParameter { key, .. }) if key == "alloc_only")
+            );
+        }
+        let guard = CodegenStateGuard::new();
+        apply_resolved_config(&resolved);
+        assert_eq!(
+            runtime_path("::std::boxed::Box"),
+            "::pbrs::__alloc::boxed::Box"
+        );
+        assert!(matches!(
+            runtime_path("::std::boxed::Box"),
+            Cow::Borrowed(_)
+        ));
+        assert_eq!(
+            runtime_path("::std::sync::OnceLock"),
+            "::pbrs::rt::MemoCell"
+        );
+        assert_eq!(runtime_path("::std::fmt"), "::core::fmt");
+        set_runtime_crate_path(Some("crate::runtime"));
+        let user = "crate::foreign::std::Owned";
+        assert_eq!(
+            format!("{}<{user}>", runtime_path("::std::boxed::Box")),
+            "crate::runtime::__alloc::boxed::Box<crate::foreign::std::Owned>"
+        );
+        drop(guard);
+        assert!(!alloc_only_enabled());
+        assert_eq!(runtime_path("::std::boxed::Box"), "::std::boxed::Box");
+        config.alloc_only(false);
+        assert_eq!(config.to_parameter_string(), "alloc_only=false");
+        assert!(
+            !resolve_options(
+                &parse_plugin_parameter(&config.to_parameter_string()).expect("false option")
+            )
+            .alloc_only
+        );
+        assert!(matches!(parse_plugin_parameter("alloc_only=perhaps"),
+            Err(CodegenError::InvalidParameter { key, .. }) if key == "alloc_only"));
+    }
 
     #[test]
     fn rpc_prefixes_normalize_without_rewriting_user_fragments_and_reset() {
@@ -509,6 +595,7 @@ impl CodegenStateGuard {
         EMIT_DEPS.with(|c| c.set(false));
         OWNED_MESSAGE_FIELDS.with(|c| c.set(false));
         SAFE_MESSAGE_DEFAULTS.with(|c| c.set(false));
+        ALLOC_ONLY.with(|c| c.set(false));
         BOXED_FIELDS.with(|c| *c.borrow_mut() = None);
         BOXED_FIELD_NUMBERS.with(|c| c.borrow_mut().clear());
         HAS_BOXED_FIELDS.with(|c| c.set(false));
@@ -614,6 +701,7 @@ pub(crate) struct ExplicitOptions {
     emit_deps: Option<bool>,
     owned_message_fields: Option<bool>,
     safe_message_defaults: Option<bool>,
+    alloc_only: Option<bool>,
     boxed_fields: Vec<String>,
     btree_fields: Vec<String>,
     bytes_fields: Vec<String>,
@@ -654,6 +742,7 @@ pub(crate) struct ResolvedConfig {
     pub(crate) emit_deps: bool,
     pub(crate) owned_message_fields: bool,
     pub(crate) safe_message_defaults: bool,
+    pub(crate) alloc_only: bool,
     pub(crate) boxed_fields: Vec<String>,
     pub(crate) btree_fields: Vec<String>,
     pub(crate) bytes_fields: Vec<String>,
@@ -860,6 +949,9 @@ pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions,
             "owned_message_fields" => {
                 explicit.owned_message_fields =
                     Some(parse_bool_param("owned_message_fields", val)?);
+            }
+            "alloc_only" => {
+                explicit.alloc_only = Some(parse_bool_param("alloc_only", val)?);
             }
             "safe_message_defaults" => {
                 explicit.safe_message_defaults =
@@ -1182,8 +1274,11 @@ pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions,
 }
 
 pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
+    let alloc_only = explicit.alloc_only.unwrap_or(false);
     let stubs = if let Some(s) = explicit.stubs {
         s
+    } else if alloc_only {
+        StubStyle::None
     } else {
         match std::env::var("PURE_PROTOBUF_STUBS").as_deref() {
             Ok("kernel") => StubStyle::Kernel,
@@ -1211,6 +1306,8 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
     };
     let shared_pool = if let Some(p) = explicit.shared_pool {
         p
+    } else if alloc_only {
+        false
     } else {
         matches!(
             std::env::var("PURE_PROTOBUF_SHARED_POOL").as_deref(),
@@ -1219,6 +1316,8 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
     };
     let no_reflect = if let Some(r) = explicit.no_reflect {
         r
+    } else if alloc_only {
+        true
     } else {
         matches!(
             std::env::var("PURE_PROTOBUF_NO_REFLECT").as_deref(),
@@ -1227,6 +1326,8 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
     };
     let emit_json = if let Some(j) = explicit.emit_json {
         j
+    } else if alloc_only {
+        false
     } else if let Ok(v) = std::env::var("PURE_PROTOBUF_EMIT_JSON") {
         !v.is_empty() && v != "0" && v != "false"
     } else {
@@ -1234,6 +1335,8 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
     };
     let emit_text = if let Some(t) = explicit.emit_text {
         t
+    } else if alloc_only {
+        false
     } else if let Ok(v) = std::env::var("PURE_PROTOBUF_EMIT_TEXT") {
         !v.is_empty() && v != "0" && v != "false"
     } else {
@@ -1278,6 +1381,7 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
         emit_deps,
         owned_message_fields: explicit.owned_message_fields.unwrap_or(false),
         safe_message_defaults: explicit.safe_message_defaults.unwrap_or(false),
+        alloc_only,
         boxed_fields: explicit.boxed_fields.clone(),
         btree_fields: explicit.btree_fields.clone(),
         bytes_fields: explicit.bytes_fields.clone(),
@@ -1346,6 +1450,27 @@ pub(crate) fn emit_text_enabled() -> bool {
 
 pub(crate) fn skip_debug() -> bool {
     SKIP_DEBUG.with(Cell::get)
+}
+
+pub(crate) fn alloc_only_enabled() -> bool {
+    ALLOC_ONLY.with(Cell::get)
+}
+
+pub(crate) fn validate_resolved_options(resolved: &ResolvedConfig) -> Result<(), CodegenError> {
+    if resolved.alloc_only
+        && (!resolved.no_reflect
+            || resolved.emit_json
+            || resolved.emit_text
+            || resolved.stubs != StubStyle::None
+            || resolved.shared_pool
+            || resolved.shared_descriptor_set)
+    {
+        return Err(CodegenError::InvalidParameter {
+            key: "alloc_only".into(),
+            detail: "alloc-only output requires reflection, JSON/text, service stubs and shared descriptors to be disabled".into(),
+        });
+    }
+    Ok(())
 }
 
 pub(crate) fn safe_message_defaults_enabled() -> bool {
@@ -1576,6 +1701,7 @@ pub struct Config {
     emit_deps: Option<bool>,
     owned_message_fields: Option<bool>,
     safe_message_defaults: Option<bool>,
+    alloc_only: Option<bool>,
     boxed_fields: Vec<String>,
     btree_fields: Vec<String>,
     bytes_fields: Vec<String>,
@@ -2106,6 +2232,20 @@ impl Config {
         self
     }
 
+    /// Generate messages for the explicit alloc-only runtime profile.
+    ///
+    /// This emits core/alloc paths and runtime-owned default cells. It defaults
+    /// to no reflection, JSON/text helpers or service stubs, overriding ambient
+    /// defaults for those options. Explicit incompatible options are rejected.
+    /// Generation still runs on a standard-library host; use this output with
+    /// a target dependency selecting `default-features = false, features = ["alloc-only"]`.
+    /// The plugin equivalent is `alloc_only=true`. Calling with `false` restores
+    /// ordinary output; it does not change the other explicit options.
+    pub fn alloc_only(&mut self, enable: bool) -> &mut Self {
+        self.alloc_only = Some(enable);
+        self
+    }
+
     /// Override the runtime crate path (default: "pbrs").
     pub fn runtime_crate(&mut self, crate_name: impl Into<String>) -> &mut Self {
         self.runtime_crate = Some(crate_name.into());
@@ -2265,6 +2405,9 @@ impl Config {
             } else {
                 opts.push(format!("type_name_domain={matcher}={domain}"));
             }
+        }
+        if let Some(alloc_only) = self.alloc_only {
+            opts.push(format!("alloc_only={alloc_only}"));
         }
         if let Some(owned_message_fields) = self.owned_message_fields {
             opts.push(format!("owned_message_fields={owned_message_fields}"));

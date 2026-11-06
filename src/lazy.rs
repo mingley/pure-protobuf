@@ -7,8 +7,10 @@
 use crate::error::ParseError;
 use crate::map::MapKey;
 use crate::string::{ProtoBytes, ProtoStr, ProtoString};
+use alloc::sync::Arc;
+#[cfg(not(pbrs_std))]
+use alloc::{boxed::Box, string::String, vec::Vec};
 use bytes::Bytes;
-use std::sync::Arc;
 
 /// Proto3 string UTF-8 check via `simdutf8`.
 ///
@@ -332,24 +334,24 @@ impl PartialEq for LazyStr {
 }
 impl Eq for LazyStr {}
 impl PartialOrd for LazyStr {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 impl Ord for LazyStr {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         self.as_bytes().cmp(other.as_bytes())
     }
 }
-impl std::hash::Hash for LazyStr {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+impl core::hash::Hash for LazyStr {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         self.as_bytes().hash(state);
     }
 }
 
-impl std::fmt::Debug for LazyStr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Debug::fmt(self.as_view(), f)
+impl core::fmt::Debug for LazyStr {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Debug::fmt(self.as_view(), f)
     }
 }
 
@@ -388,7 +390,7 @@ impl MapKey for LazyStr {}
 #[derive(Copy, Clone, Debug)]
 pub struct LazyStrView<'msg>(pub &'msg ProtoStr);
 
-impl std::ops::Deref for LazyStrView<'_> {
+impl core::ops::Deref for LazyStrView<'_> {
     type Target = ProtoStr;
     fn deref(&self) -> &ProtoStr {
         self.0
@@ -597,9 +599,9 @@ impl PartialEq for LazyBytes {
 }
 impl Eq for LazyBytes {}
 
-impl std::fmt::Debug for LazyBytes {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Debug::fmt(&self.as_bytes(), f)
+impl core::fmt::Debug for LazyBytes {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Debug::fmt(&self.as_bytes(), f)
     }
 }
 
@@ -638,7 +640,7 @@ impl crate::proxied::IntoProxied<LazyBytes> for Bytes {
 #[derive(Copy, Clone, Debug)]
 pub struct LazyBytesView<'msg>(pub &'msg [u8]);
 
-impl std::ops::Deref for LazyBytesView<'_> {
+impl core::ops::Deref for LazyBytesView<'_> {
     type Target = [u8];
     fn deref(&self) -> &[u8] {
         self.0
@@ -731,7 +733,7 @@ pub trait MergeBytes: Default + Sized {
 }
 
 struct LazyInner<T> {
-    parsed: std::sync::OnceLock<T>,
+    parsed: crate::rt::MemoCell<T>,
     wire: Option<Wire>,
     prevalidated: bool,
 }
@@ -767,7 +769,7 @@ impl<T> LazyMsg<T> {
     fn from_wire_state(w: Wire, prevalidated: bool) -> Self {
         Self {
             inner: Some(Box::new(LazyInner {
-                parsed: std::sync::OnceLock::new(),
+                parsed: crate::rt::MemoCell::new(),
                 wire: Some(w),
                 prevalidated,
             })),
@@ -775,7 +777,7 @@ impl<T> LazyMsg<T> {
     }
 
     pub fn from_parsed(msg: T, w: Wire) -> Self {
-        let parsed = std::sync::OnceLock::new();
+        let parsed = crate::rt::MemoCell::new();
         let _ = parsed.set(msg);
         Self {
             inner: Some(Box::new(LazyInner {
@@ -787,7 +789,7 @@ impl<T> LazyMsg<T> {
     }
 
     pub fn from_owned(msg: T) -> Self {
-        let parsed = std::sync::OnceLock::new();
+        let parsed = crate::rt::MemoCell::new();
         let _ = parsed.set(msg);
         Self {
             inner: Some(Box::new(LazyInner {
@@ -840,7 +842,7 @@ impl<T> LazyMsg<T> {
     {
         let inner = self.inner.get_or_insert_with(|| {
             Box::new(LazyInner {
-                parsed: std::sync::OnceLock::new(),
+                parsed: crate::rt::MemoCell::new(),
                 wire: None,
                 prevalidated: false,
             })
@@ -871,7 +873,7 @@ impl<T: Clone> Clone for LazyMsg<T> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.as_ref().map(|i| {
-                let parsed = std::sync::OnceLock::new();
+                let parsed = crate::rt::MemoCell::new();
                 if let Some(m) = i.parsed.get() {
                     let _ = parsed.set(m.clone());
                 }
@@ -891,9 +893,9 @@ impl<T: MergeBytes + PartialEq> PartialEq for LazyMsg<T> {
     }
 }
 
-impl<T: MergeBytes + std::fmt::Debug> std::fmt::Debug for LazyMsg<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Debug::fmt(&self.as_deref(), f)
+impl<T: MergeBytes + core::fmt::Debug> core::fmt::Debug for LazyMsg<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Debug::fmt(&self.as_deref(), f)
     }
 }
 

@@ -492,6 +492,8 @@ pub(crate) fn emit_codec(
 }
 
 pub(crate) fn emit_message_set_merge(src: &mut String, desc: &MessageDescriptor) {
+    let boxed = runtime_path("::std::boxed::Box");
+
     let runtime = runtime_crate_path();
     let _ = writeln!(
         src,
@@ -527,7 +529,7 @@ pub(crate) fn emit_message_set_merge(src: &mut String, desc: &MessageDescriptor)
         } else {
             let _ = writeln!(
                 src,
-                "                        {num} => {{ match &mut self.{id} {{ ::core::option::Option::Some(existing) => existing.{merge}(payload, depth + 1)?, ::core::option::Option::None => {{ let mut inner = {t}::default(); inner.{merge}(payload, depth + 1)?; self.{id} = ::core::option::Option::Some(::std::boxed::Box::new(inner)); }} }} }}"
+                "                        {num} => {{ match &mut self.{id} {{ ::core::option::Option::Some(existing) => existing.{merge}(payload, depth + 1)?, ::core::option::Option::None => {{ let mut inner = {t}::default(); inner.{merge}(payload, depth + 1)?; self.{id} = ::core::option::Option::Some({boxed}::new(inner)); }} }} }}"
             );
         }
     }
@@ -787,6 +789,8 @@ pub(crate) fn emit_merge_arm(
     edition2024: bool,
     cold: ColdPlacement,
 ) {
+    let boxed = runtime_path("::std::boxed::Box");
+
     let runtime = runtime_crate_path();
     let st = cold.store_mut(f);
     let num = f.number;
@@ -895,7 +899,7 @@ pub(crate) fn emit_merge_arm(
             emit_oneof_clear(src, desc, f, cold);
             let _ = writeln!(
                 src,
-                "                    match &mut {st} {{ ::core::option::Option::Some(existing) => existing.merge_group(data, wire, pos, {num}, depth + 1)?, ::core::option::Option::None => {{ let mut inner = {t}::default(); inner.merge_group(data, wire, pos, {num}, depth + 1)?; {st} = ::core::option::Option::Some(::std::boxed::Box::new(inner)); }} }}"
+                "                    match &mut {st} {{ ::core::option::Option::Some(existing) => existing.merge_group(data, wire, pos, {num}, depth + 1)?, ::core::option::Option::None => {{ let mut inner = {t}::default(); inner.merge_group(data, wire, pos, {num}, depth + 1)?; {st} = ::core::option::Option::Some({boxed}::new(inner)); }} }}"
             );
             let _ = writeln!(src, "                    }}");
         } else {
@@ -921,7 +925,7 @@ pub(crate) fn emit_merge_arm(
                 let enforce = !field_needs_initialization(f);
                 let _ = writeln!(
                     src,
-                    "                    match &mut {st} {{ ::core::option::Option::Some(existing) => {{ let mut ip = 0; let mut sw = {child_wire}; existing.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, ::core::option::Option::None)?; }} ::core::option::Option::None => {{ let mut inner = {t}::default(); let mut ip = 0; let mut sw = {child_wire}; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, ::core::option::Option::None)?; {st} = ::core::option::Option::Some(::std::boxed::Box::new(inner)); }} }}"
+                    "                    match &mut {st} {{ ::core::option::Option::Some(existing) => {{ let mut ip = 0; let mut sw = {child_wire}; existing.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, ::core::option::Option::None)?; }} ::core::option::Option::None => {{ let mut inner = {t}::default(); let mut ip = 0; let mut sw = {child_wire}; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, {enforce}, ::core::option::Option::None)?; {st} = ::core::option::Option::Some({boxed}::new(inner)); }} }}"
                 );
             }
             let _ = writeln!(src, "                    }}");
@@ -931,7 +935,7 @@ pub(crate) fn emit_merge_arm(
     if f.field_type == FieldType::String {
         let parse = lazy_str_from_parse(f);
         let assign = if is_option(f) {
-            format!("{st} = ::core::option::Option::Some(::std::boxed::Box::new({parse}))")
+            format!("{st} = ::core::option::Option::Some({boxed}::new({parse}))")
         } else {
             format!("{st} = {parse}")
         };
@@ -952,7 +956,7 @@ pub(crate) fn emit_merge_arm(
         };
         let assign = if is_option(f) {
             format!(
-                "{st} = ::core::option::Option::Some(::std::boxed::Box::new({runtime}::rt::{parse}(wire, data, s, e)))"
+                "{st} = ::core::option::Option::Some({boxed}::new({runtime}::rt::{parse}(wire, data, s, e)))"
             )
         } else {
             format!("{st} = {runtime}::rt::{parse}(wire, data, s, e)")

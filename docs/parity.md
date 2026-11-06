@@ -1,7 +1,8 @@
 # Tonic/prost parity and performance proof
 
 Current source supports selected eager boxed fields, ordered maps and shared byte storage,
-an opt-in generated forbid-unsafe policy, and direct endpoint URI origins.
+an opt-in generated forbid-unsafe policy, explicit alloc-only native messages,
+and direct endpoint URI origins.
 The consumer controls below establish those features' tested scope; remaining
 gaps and measured costs stay open.
 
@@ -37,7 +38,7 @@ their own source pins, controls, failures and full measured rows.
 | Selected bytes storage | [Consumer controls](../tests/proof/codegen_parity/bytes.md) compare selectors, values and shared/borrowed input with Prost 0.14.4 in selected, owned and forbid-unsafe profiles. Old eager-parent copying and format-generation limits remain explicit. |
 | Generated forbid-unsafe policy | Twelve checks pass across lazy, owned and boxed consumers; the ordinary generated profile fails the intentional forbid-unsafe control. Runtime dependencies keep their own unsafe implementations. |
 | Endpoint URI origins | [Eight public tests](../pbrs-grpc/tests/endpoint_origin.rs) cover direct native and Tonic URI routing, all four call shapes, TLS/SNI and clone overrides. Static balance helpers reject per-endpoint origins. |
-| Embedded, alloc-only runtime | Prost's generic API compiles for `thumbv7em-none-eabi`; pbrs requires `std` and fails. Concrete generated embedded messages still need their own controls. |
+| Embedded, alloc-only runtime | The [concrete consumer](../tests/proof/alloc_runtime/README.md) builds five native profiles and Prost 0.14.4 messages for `thumbv7em-none-eabi`, with separate std host codegen. Host functional checks explicitly enable std; firmware execution remains unverified. |
 | gRPC message presence against tonic 0.14.6 | All 18 raw-wire comparisons pass after the repair. |
 | Existing mixed-peer suite | All 41 tests pass after restoring native connection information in the tonic service adapter. |
 
@@ -107,8 +108,11 @@ regenerating only child messages.
 newly generated singular ancestor paths eager. Separately generated or explicit
 lazy wrappers can still forward their original wire until mutation; their
 typed child views do not rewrite that cache.
-The alloc-only runtime remains unsupported. HTTP/1.1 gRPC-Web is available
-through the documented Tower/Hyper recipe.
+
+The [alloc-only guide](guides/alloc-only.md) covers the explicit runtime and
+generation options. Legacy no-default builds retain std; enabling `std` wins
+over `alloc-only`. Reflection, formats, transports and the `rust_out` ABI remain
+std-only. HTTP/1.1 gRPC-Web is available through the documented Tower/Hyper recipe.
 
 At `bc8cec38`, pinned protobuf 35.1 conformance passed for clean default
 bindings and a fresh owned-binding overlay, through Edition 2023. The

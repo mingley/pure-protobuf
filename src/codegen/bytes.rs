@@ -237,6 +237,8 @@ pub(crate) fn emit_selected_bytes_accessors(
     field: &FieldDescriptor,
     cold: ColdPlacement,
 ) {
+    let boxed = runtime_path("::std::boxed::Box");
+
     let runtime = runtime_crate_path();
     let id = field_id(field);
     let raw = field_raw(field);
@@ -273,7 +275,7 @@ pub(crate) fn emit_selected_bytes_accessors(
         emit_oneof_clear(src, desc, field, cold);
         let _ = writeln!(
             src,
-            "        {store} = ::core::option::Option::Some(::std::boxed::Box::new(value.into_proxied({runtime}::__internal::Private)));"
+            "        {store} = ::core::option::Option::Some({boxed}::new(value.into_proxied({runtime}::__internal::Private)));"
         );
         let _ = writeln!(src, "    }}");
         emit_clear_doc(src, field);

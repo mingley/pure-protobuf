@@ -1,4 +1,6 @@
-use std::fmt;
+#[cfg(not(pbrs_std))]
+use alloc::string::String;
+use core::fmt;
 
 /// An error that happened during parsing.
 ///
@@ -16,7 +18,7 @@ impl ParseError {
     }
 }
 
-impl std::error::Error for ParseError {}
+impl core::error::Error for ParseError {}
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -36,7 +38,7 @@ impl SerializeError {
     }
 }
 
-impl std::error::Error for SerializeError {}
+impl core::error::Error for SerializeError {}
 
 impl fmt::Display for SerializeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

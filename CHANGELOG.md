@@ -10,6 +10,12 @@ or stable releases.
 
 ### pbrs 0.2.1
 
+- Add explicit `alloc-only` runtime and `Config::alloc_only(true)` generation
+  for native binary messages. Concrete Cortex consumers keep std host codegen
+  separate; std-backed host tests cover five generated profiles. Existing
+  no-default std behavior is preserved, and `std` wins when both modes are
+  enabled. Lazy cache publication adds boxed candidates; hardware execution
+  and performance remain unverified. See the [guide](docs/guides/alloc-only.md).
 - Add `Config::btree_map(paths)` with unique, ordered storage and typed map
   views and mutators. Regenerated ancestor paths reach the selected storage;
   older lazy ancestors can still forward their original wire.
@@ -86,6 +92,10 @@ or stable releases.
 
 ### pbrs-grpc 0.1.0-alpha.3
 
+- Prioritize ready shutdown signals over queued connections in TCP/TLS, Unix
+  and custom incoming accept loops. Custom sources also consume Tokio's
+  cooperative budget so a ready backlog lets other tasks signal shutdown.
+  Existing connections still drain.
 - Stop authorization policy watchers when their last provider drops. Serialize
   reload publication, clear recovered errors, and fail construction if the
   polling thread cannot start.

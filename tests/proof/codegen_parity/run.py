@@ -248,7 +248,12 @@ def main():
         })
         probes.append(probe)
 
-    no_std = {"target": args.embedded_target}
+    # This historical consumer disables Cargo defaults but does not select the
+    # explicit alloc-only profile. It intentionally retains std compatibility.
+    # The positive concrete Cortex profile is checked by alloc_runtime/run.py.
+    no_std = {"target": args.embedded_target,
+              "scope": "legacy default-features=false consumer; std remains required",
+              "alloc_only_proof": "tests/proof/alloc_runtime/run.py"}
     for peer in ["prost", "pbrs"]:
         result, control = run(f"no-std-{peer}", ["cargo", "check", "--locked", "--offline", "--manifest-path", str(HERE / "no_std" / peer / "Cargo.toml"), "--target", args.embedded_target])
         control["compiled"] = result.returncode == 0
@@ -258,7 +263,7 @@ def main():
 
     after_hashes = {str(path.relative_to(ROOT)): sha(path) for path in source_paths}
     report = {
-        "schema_version": 1,
+        "schema_version": 2,
         "revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
         "rustc": subprocess.check_output(["rustc", "--version"], env=env, text=True).strip(),
         "protoc": subprocess.check_output([selected_protoc, "--version"], env=env, text=True).strip(),
@@ -272,17 +277,17 @@ def main():
         "boxed_fields": boxed_fields,
         "bytes_fields": bytes_fields,
         "ordered_maps": ordered_maps,
-        "alloc_only_target": no_std,
+        "legacy_no_default_target": no_std,
         "source_sha256": after_hashes,
         "changed_source_files": [name for name in before_hashes if before_hashes[name] != after_hashes[name]],
         "generated_sha256": generated,
-        "verdict": "limited generated wire equivalence; alloc-only deployment retains a counterexample",
+        "verdict": "limited generated wire equivalence; legacy no-default consumer retains std dependencies",
         "limitations": [
             "Nine generated roundtrip cases are not an exhaustive schema or malformed-input corpus.",
             "Wire normalization uses prost value equality; map serialization order is not compared.",
             "Configuration probes compare the public build APIs and selected generated representations.",
             "pbrs uses its own map, byte storage and naming APIs; these failures do not prove a wire-format gap.",
-            "The alloc-only target control proves compilation availability, not execution on embedded hardware.",
+            "The legacy no-default control does not select alloc-only; the separate alloc_runtime proof builds concrete Cortex messages.",
             "No timing or ranking conclusion is drawn from build execution.",
             "Boxed selectors apply to singular message/group fields; Prost's scalar boxing output is not a supported compiled control.",
             "Selected bytes can copy through old/mixed eager parents; duplicate map removal and reflection-off complex codecs retain explicit counterexamples.",
@@ -303,7 +308,7 @@ def main():
         and not report["changed_source_files"]
     )
     (output / "results.json").write_text(json.dumps(report, indent=2) + "\n")
-    print(json.dumps({"harness_passed": report["harness_passed"], "consumer_cases": consumer["cases_passed"], "name_cases": options["name_cases_passed"], "any_cases": options["any_cases_passed"], "enum_cases": options["enum_cases_passed"], "attribute_cases": attributes["cases_passed"], "type_collision_cases": sum(case["cases_passed"] for case in collisions), "runtime_symbol_cases": sum(case["cases_passed"] for case in runtime_symbols), "boxed_cases": sum(case["cases_passed"] for case in boxed_fields), "boxed_selector_cases": sum(case["selector_cases_passed"] for case in boxed_fields), "bytes_cases": sum(case["cases_passed"] for case in bytes_fields["profiles"]), "bytes_selector_cases": sum(case["selector_cases_passed"] for case in bytes_fields["profiles"]), "configuration_gaps": sum(p["gap_reproduced"] for p in probes), "alloc_only_gap": no_std["functional_gap_reproduced"]}))
+    print(json.dumps({"harness_passed": report["harness_passed"], "consumer_cases": consumer["cases_passed"], "name_cases": options["name_cases_passed"], "any_cases": options["any_cases_passed"], "enum_cases": options["enum_cases_passed"], "attribute_cases": attributes["cases_passed"], "type_collision_cases": sum(case["cases_passed"] for case in collisions), "runtime_symbol_cases": sum(case["cases_passed"] for case in runtime_symbols), "boxed_cases": sum(case["cases_passed"] for case in boxed_fields), "boxed_selector_cases": sum(case["selector_cases_passed"] for case in boxed_fields), "bytes_cases": sum(case["cases_passed"] for case in bytes_fields["profiles"]), "bytes_selector_cases": sum(case["selector_cases_passed"] for case in bytes_fields["profiles"]), "configuration_gaps": sum(p["gap_reproduced"] for p in probes), "legacy_no_default_requires_std": no_std["functional_gap_reproduced"]}))
     return 0 if report["harness_passed"] else 1
 
 

@@ -1,0 +1,7 @@
+edition = "2024";
+package proof.alloc_ext;
+message Host {
+  int32 base = 1;
+  extensions 100 to 200;
+}
+extend Host { int32 value = 101 [default = 42]; }

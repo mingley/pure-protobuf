@@ -1,0 +1,17 @@
+syntax = "proto2";
+package proof.embedded_legacy;
+
+message Legacy {
+  required int32 required_value = 1;
+  optional string label = 2 [default = "legacy"];
+  optional bytes payload = 3 [default = "\377"];
+  optional group Nested = 4 {
+    required sint64 signed_value = 1;
+    optional bool active = 2 [default = true];
+  }
+  repeated group Items = 5 { optional uint64 id = 1; }
+  optional Legacy next = 6;
+  optional State state = 7 [default = ON];
+  repeated fixed64 words = 8 [packed = true];
+}
+enum State { OFF = 0; ON = 1; }

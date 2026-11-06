@@ -11,6 +11,12 @@ use std::path::Path;
 use std::process::Command;
 
 fn main() {
+    println!("cargo:rustc-check-cfg=cfg(pbrs_std)");
+    let alloc_only = std::env::var_os("CARGO_FEATURE_ALLOC_ONLY").is_some();
+    let explicit_std = std::env::var_os("CARGO_FEATURE_STD").is_some();
+    if explicit_std || !alloc_only {
+        println!("cargo:rustc-cfg=pbrs_std");
+    }
     if std::env::var_os("CARGO_FEATURE_CONFORMANCE").is_none() {
         println!("cargo:rerun-if-changed=build.rs");
         return;

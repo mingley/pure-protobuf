@@ -12,7 +12,8 @@ was reproduced; it does not mean full parity or a performance ranking.
 | Owned-message storage | `cargo run --locked --manifest-path tests/proof/owned_messages/Cargo.toml` | Checks merge, validation, shared-byte ownership, clone/mutation and default-profile isolation against independent controls. |
 | Lazy materialization | `cargo run --locked --manifest-path tests/proof/validated_lazy/Cargo.toml` | Checks single-pass descendant validation, partial-read allocation bounds, malformed input, clone/thread safety and old-code fallback. |
 | Generated forbid-unsafe policy | `python3 tests/proof/safe_defaults/run.py --out work/parity-safe-defaults` | Compiles lazy, owned and boxed consumers under `forbid(unsafe_code)` and requires the ordinary-profile negative control; runtime dependencies retain their own unsafe code. |
-| Generated consumers and embedded support | `python3 tests/proof/codegen_parity/run.py --output work/parity-codegen` | Runs valid roundtrips, build-configuration probes and an alloc-only target control. |
+| Generated consumers and legacy target boundary | `python3 tests/proof/codegen_parity/run.py --output work/parity-codegen` | Runs roundtrips, build-configuration probes and the std-required legacy no-default target control. |
+| Explicit alloc-only messages | `python3 tests/proof/alloc_runtime/run.py --out work/parity-alloc-runtime` | Builds concrete native and Prost Cortex messages with separate std host codegen, then runs std-backed host checks; see [scope](alloc_runtime/README.md). |
 | Field view accessor names | See [field view consumers](field_views/README.md) | Checks singular message/group view methods, existing field APIs, and wire values against Prost across four storage/default profiles. |
 | Generated namespaces | `python3 tests/proof/namespace_symbols/run.py --out work/parity-namespaces` | Checks framework symbol shadows, runtime aliases and preserved user paths across four storage/default profiles. |
 | RPC service namespaces | `python3 tests/proof/rpc_names/run.py --out work/parity-rpc-names` | Compiles 55 service names in four stub modes, strict aliases and a pinned Tonic reference against actual runtime artifacts. |
@@ -28,6 +29,8 @@ cargo fetch --locked --manifest-path tests/proof/codegen_parity/Cargo.toml
 cargo fetch --locked --manifest-path tests/proof/namespace_symbols/Cargo.toml
 cargo fetch --locked --manifest-path tests/proof/codegen_parity/no_std/prost/Cargo.toml
 cargo fetch --locked --manifest-path tests/proof/codegen_parity/no_std/pbrs/Cargo.toml
+cargo fetch --locked --manifest-path tests/proof/alloc_runtime/Cargo.toml
+cargo fetch --locked --manifest-path tests/proof/alloc_runtime/legacy_std/Cargo.toml
 ```
 
 Before running the safe-default consumer, cache its dependencies too:
@@ -36,8 +39,10 @@ Before running the safe-default consumer, cache its dependencies too:
 cargo fetch --locked --manifest-path tests/proof/safe_defaults/Cargo.toml
 ```
 
-Both Python runners use the downloaded dependencies offline. The embedded
-control checks compilation; it does not execute on embedded hardware.
+The Python runners use the downloaded dependencies offline. Cortex checks
+establish target compilation, not firmware execution. The legacy no-default
+control preserves pbrs std behavior; the explicit alloc-only consumer qualifies
+its separate target profile.
 The configured consumer also checks type names, type URLs, `Any` conversions
 and retained enum prefixes against Prost. Three boxed-field consumers check
 selected, default and owned storage against the same reference wire values.

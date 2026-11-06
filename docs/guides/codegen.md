@@ -5,8 +5,8 @@ or use `protoc-gen-pbrs` in an existing compiler pipeline. Inputs can be
 `.proto` files or a checked descriptor set. Native gRPC stubs are the default;
 Tonic stubs and messages-only output are explicit options.
 
-`boxed`, `bytes`, `btree_map` and `safe_message_defaults` below are additions
-in the unreleased `pbrs` 0.2.1 candidate.
+`boxed`, `bytes`, `btree_map`, `safe_message_defaults` and `alloc_only` are
+additions in the unreleased `pbrs` 0.2.1 candidate.
 
 | Need | Read |
 |---|---|
@@ -16,6 +16,7 @@ in the unreleased `pbrs` 0.2.1 candidate.
 | Store unique map entries in key order | [Ordered maps](maps.md) |
 | Forbid unsafe code in generated bindings | [Safe generated defaults](#safe-generated-defaults) |
 | Reduce generated metadata and format helpers | [Cargo features](#cargo-features) |
+| Generate native messages without target std | [Alloc-only setup](alloc-only.md) |
 | Generate without `protoc` during the application build | [Checked descriptor sets](#generating-from-a-checked-descriptor-set) |
 | Port a `prost-build` configuration | [Builder compatibility](#parity-with-tonic-build-and-prost-build) |
 
@@ -40,7 +41,7 @@ pbrs = "0.2"
 ### Cargo features
 
 The default `pbrs` feature set is source-compatible with earlier releases: it
-includes `codegen`, `reflect`, `json`, `text`, and the bundled conformance
+includes `std`, `codegen`, `reflect`, `json`, `text`, and the bundled conformance
 gencode. Use that default when you run `pbrs::codegen` from `build.rs` and also
 compile generated code in the same crate.
 
@@ -59,7 +60,10 @@ pbrs = { version = "0.2", default-features = false, features = ["codegen"] }
 descriptor-backed format helpers. A runtime crate that only uses the core
 binary wire API can depend on `pbrs = { version = "0.2", default-features =
 false }`; that profile does not compile the generator, descriptor pool, JSON,
-text, or bundled conformance gencode.
+text, or bundled conformance gencode. It still uses std. For explicit
+`alloc-only` runtime dependencies and `Config::alloc_only(true)` output, see
+the [Cortex guide](alloc-only.md). Host code generation uses std separately;
+the `std` feature wins if both runtime modes are enabled.
 
 Codegen can also emit a smaller accessor-only surface:
 
@@ -545,6 +549,7 @@ follows the sharing rule above; explicit external mappings remain available.
 | `protoc_arg` | `Config::protoc_arg` | Supported for direct `.proto` compilation. |
 | `emit_rerun_if_changed` | `Config::emit_rerun_if_changed` | Supported; defaults on. |
 | Shared embedded metadata | `Config::shared_descriptor_set` / `--pbrs_opt=shared_descriptor_set=true` | Opt-in for reflective multi-file output using its crate-root registry; defaults off. |
+| Alloc-only native output | `Config::alloc_only(true)` / `--pbrs_opt=alloc_only=true` | Explicit native binary profile with core/alloc paths; see [setup and limits](alloc-only.md). |
 | `include_file` | `Config::include_file` | Supported; defaults to `mod.rs`. |
 | `extern_path` | `Config::extern_path` / `--pbrs_opt=extern_path=.pkg=crate::pkg` | Supported with longest-prefix matching. |
 | `compile_well_known_types` | `Config::compile_well_known_types`; inverse of `Config::no_wkt` | Supported. Default is to generate pbrs WKTs. |
