@@ -5,6 +5,12 @@ stopped. They are dated investigations, usually local diagnostics. A result
 belongs to its recorded revision, host, workload, and peer versions; it does
 not automatically describe today's code.
 
+The [medium-string validator experiment](rejected-medium-core-utf8-20261106/README.md)
+remains unshipped. Its primary paired median improves by 6.6%, but nine
+representatives regress, including Unicode cases. All 756 CPU processes and
+84 allocation processes are retained. Unchanged Prost shifts limit timing
+attribution; the checker recomputes every row and the rejection.
+
 The [packed routing follow-up](rejected-packed-readiness-routing-20261106/README.md)
 remains unshipped after a large encode-then-getter loss in all nine pairs.
 Its record keeps all 432 CPU and 48 allocation processes, both full Prost

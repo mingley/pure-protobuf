@@ -114,6 +114,8 @@ These commands verify the archived source hashes and recompute the retained
 results; they do not run a new benchmark:
 
 ```sh
+python3 docs/evidence/hosted-devloop-20261106/check.py --negative-controls
+python3 docs/evidence/rejected-medium-core-utf8-20261106/check.py
 python3 docs/evidence/map-equality-20261105/check.py
 python3 docs/evidence/byte-ownership-20261105/check.py
 ```
