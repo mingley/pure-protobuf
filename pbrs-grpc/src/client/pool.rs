@@ -42,6 +42,15 @@ use tokio::net::UnixStream;
 use tokio::sync::{Mutex, OwnedSemaphorePermit, Semaphore, watch};
 use tokio::task::JoinSet;
 
+mod balanced;
+pub(super) use balanced::connect as connect_balanced;
+
+pub(super) struct BalanceInput {
+    pub(super) uri: http::Uri,
+    pub(super) address: std::net::SocketAddr,
+    pub(super) executor: crate::executor::TaskExecutor,
+}
+
 /// One pooled HTTP/2 client. `gen` changes whenever the slot is redialed, so a
 /// grabber that observed the previous generation die does not overwrite a
 /// reconnect that already landed. `send` is `None` until the first successful
@@ -138,6 +147,7 @@ pub(crate) struct LiveConn {
     /// [`Streaming`] so dropping the last [`Channel`] does not stop the
     /// connection under an in-flight stream.
     pub(crate) driver: Option<watch::Sender<bool>>,
+    /// Direct pool slot or private balanced-endpoint identity.
     pub(crate) slot: usize,
     pub(crate) r#gen: u64,
     /// round_robin subchannel address; `None` uses `slot`/`gen` in
@@ -222,6 +232,8 @@ pub(crate) enum Endpoint {
         /// (a selected policy with no runtime yet).
         lb: Option<LbPolicy>,
     },
+    /// Full-URI identities, separate from public resolver address identity.
+    Balanced(Arc<balanced::Balanced>),
 }
 
 impl Endpoint {
@@ -232,6 +244,7 @@ impl Endpoint {
             Self::Unix(path) => path.display().to_string(),
             Self::Once => "once".to_owned(),
             Self::Resolved { display, .. } => display.clone(),
+            Self::Balanced(state) => state.display.to_owned(),
         }
     }
 
@@ -910,7 +923,10 @@ impl ChannelInner {
     /// A live direct connection that can open a stream, without the acquire
     /// state machine. `None` means the caller should poll [`Self::acquire`].
     pub(crate) fn try_warm(&self) -> Option<LiveConn> {
-        if matches!(&self.endpoint, Endpoint::Resolved { lb: Some(_), .. }) {
+        if matches!(
+            &self.endpoint,
+            Endpoint::Resolved { lb: Some(_), .. } | Endpoint::Balanced(_)
+        ) {
             return None;
         }
         let i = self.pick().ok()?;
@@ -967,6 +983,9 @@ impl ChannelInner {
         health: Option<HealthDirective>,
         hash: Option<u64>,
     ) -> Result<LiveConn, Status> {
+        if let Endpoint::Balanced(state) = &self.endpoint {
+            return balanced::acquire(self, state, wait_for_ready, observer, health).await;
+        }
         if let Endpoint::Resolved {
             lb: Some(policy), ..
         } = &self.endpoint
@@ -2599,7 +2618,9 @@ impl ChannelInner {
         r#gen: u64,
         rr_addr: Option<&ResolvedAddress>,
     ) {
-        if let Some(addr) = rr_addr {
+        if let Endpoint::Balanced(state) = &self.endpoint {
+            state.discard(slot, r#gen).await;
+        } else if let Some(addr) = rr_addr {
             self.discard_rr(addr, r#gen).await;
         } else {
             self.discard(slot, r#gen).await;
@@ -2646,6 +2667,10 @@ async fn reconcile_rr(table: &RrTable, addrs: &[ResolvedAddress], grace: Duratio
             .filter_map(|addr| conns.remove(&addr))
             .collect()
     };
+    drain_entries(removed, grace).await;
+}
+
+async fn drain_entries(removed: Vec<Arc<Mutex<ConnSlot>>>, grace: Duration) {
     for entry in removed {
         let mut slot = entry.lock().await;
         if let Some(stop) = slot.stop.take() {
@@ -3016,6 +3041,9 @@ async fn handshake_io(
             finish_h2_with_executor(config, io, executor).await
         }
         Endpoint::Once => Err(Status::unavailable("channel has no address to redial")),
+        Endpoint::Balanced(_) => Err(Status::unavailable(
+            "balanced endpoints require an endpoint identity to dial",
+        )),
     }
 }
 
@@ -3285,14 +3313,48 @@ fn spawn_dial_attempt(
 /// other failures report unhealthy and retry with backoff, reset by
 /// any received message. The loop ends silently when the
 /// subconnection's stop channel fires (drain, discard, shutdown).
+enum HealthTarget {
+    Address {
+        policy: LbPolicy,
+        addr: ResolvedAddress,
+    },
+    Endpoint {
+        policy: Arc<crate::lb::KeyedRoundRobin<usize>>,
+        id: usize,
+    },
+}
+
+impl HealthTarget {
+    async fn gone(&self, stop: &watch::Receiver<bool>) {
+        match self {
+            Self::Address {
+                policy: LbPolicy::RoundRobin(policy),
+                addr,
+            } => policy.health_gone_from(addr, stop).await,
+            Self::Address { policy, addr } => policy.note_health_gone(addr).await,
+            Self::Endpoint { policy, id } => policy.health_gone_from(id, stop).await,
+        }
+    }
+
+    async fn report(&self, stop: &watch::Receiver<bool>, signal: HealthSignal) {
+        match self {
+            Self::Address {
+                policy: LbPolicy::RoundRobin(policy),
+                addr,
+            } => policy.health_report_from(addr, stop, signal).await,
+            Self::Address { policy, addr } => policy.note_health(addr, signal).await,
+            Self::Endpoint { policy, id } => policy.health_report_from(id, stop, signal).await,
+        }
+    }
+}
+
 struct HealthWatch {
     send: backend::SendRequest,
     authority: Authority,
     https: bool,
     wire: crate::config::Wire,
     frame: crate::wire::SegFrame,
-    addr: ResolvedAddress,
-    policy: LbPolicy,
+    target: HealthTarget,
     stop: watch::Receiver<bool>,
     backoff_rounds: u32,
     reported: Option<HealthSignal>,
@@ -3317,23 +3379,41 @@ impl HealthWatch {
                     return;
                 }
                 WatchEnd::Stopped => {
-                    self.policy.note_health_gone(&self.addr).await;
+                    self.target.gone(&self.stop).await;
                     return;
                 }
                 WatchEnd::Retry => {
+                    // A failed Watch on a dead/GOAWAY sender cannot recover
+                    // through another stream on that sender. Release health
+                    // ownership so an RPC can lazily redial the subchannel.
+                    // Application health failures on a usable transport keep
+                    // the ordinary retry/backoff path below.
+                    if self.transport_closed() {
+                        self.target.gone(&self.stop).await;
+                        return;
+                    }
                     self.report(HealthSignal::Unhealthy).await;
                     let delay = transient_backoff(self.backoff_rounds);
                     self.backoff_rounds = self.backoff_rounds.saturating_add(1);
                     tokio::select! {
                         () = tokio::time::sleep(delay) => {}
                         _ = self.stop.changed() => {
-                            self.policy.note_health_gone(&self.addr).await;
+                            self.target.gone(&self.stop).await;
                             return;
                         }
                     }
                 }
             }
         }
+    }
+
+    fn transport_closed(&self) -> bool {
+        // Clone clears the backend's pending-stream reservation. This probe
+        // only observes connection readiness/error and never reserves a new
+        // stream or replaces another pending stream's waker.
+        let mut send = self.send.clone();
+        let mut context = std::task::Context::from_waker(futures_util::task::noop_waker_ref());
+        matches!(send.poll_ready(&mut context), Poll::Ready(Err(_)))
     }
 
     async fn once(&mut self) -> WatchEnd {
@@ -3406,7 +3486,7 @@ impl HealthWatch {
     async fn report(&mut self, signal: HealthSignal) {
         if self.reported != Some(signal) {
             self.reported = Some(signal);
-            self.policy.note_health(&self.addr, signal).await;
+            self.target.report(&self.stop, signal).await;
         }
     }
 }
@@ -3596,32 +3676,76 @@ async fn ensure_health_watch(
     let Some(directive) = directive else {
         return Some(HealthSignal::Healthy);
     };
-    if policy.note_health_pending(addr).await {
-        let wire = inner.dial.wire();
-        let mut request = HealthCheckRequest::new();
-        request.set_service(directive.service.clone());
-        let frame = match crate::wire::encode_msg(&request, None, wire.limits, wire.gzip_level) {
-            Ok(frame) => frame,
-            Err(_) => {
-                policy.note_health_gone(addr).await;
-                return None;
-            }
-        };
-        let watch = HealthWatch {
-            send,
-            authority: inner.authority.clone(),
-            https: inner.tls.is_some(),
-            wire,
-            frame,
-            addr: addr.clone(),
+    let pending = match policy {
+        LbPolicy::RoundRobin(policy) => {
+            let table = inner.rr.as_ref()?;
+            admit_health_watch(&table.conns, policy.health_core(), addr, &stop).await?
+        }
+        _ => policy.note_health_pending(addr).await,
+    };
+    if pending {
+        let target = HealthTarget::Address {
             policy: policy.clone(),
-            stop: stop.clone(),
-            backoff_rounds: 0,
-            reported: None,
+            addr: addr.clone(),
         };
-        drop(tokio::spawn(watch.run()));
+        if spawn_health_watch(inner, target, send, stop.clone(), directive).is_err() {
+            match policy {
+                LbPolicy::RoundRobin(policy) => policy.health_gone_from(addr, &stop).await,
+                _ => policy.note_health_gone(addr).await,
+            }
+            return None;
+        }
     }
     wait_for_health(policy, addr, stop).await
+}
+
+/// Only a currently installed driver can claim Watch ownership. The fast
+/// path needs only the policy lock; changing a token validates map -> slot ->
+/// policy in that order. Reconciliation never holds policy while taking map.
+async fn admit_health_watch<K: Clone + Eq + std::hash::Hash>(
+    entries: &Mutex<HashMap<K, Arc<Mutex<ConnSlot>>>>,
+    policy: &crate::lb::KeyedRoundRobin<K>,
+    key: &K,
+    stop: &watch::Receiver<bool>,
+) -> Option<bool> {
+    if let Some(pending) = policy.begin_health_watch(key, stop).await {
+        return Some(pending);
+    }
+    let entries = entries.lock().await;
+    let entry = entries.get(key)?;
+    let slot = entry.lock().await;
+    let current = slot.stop.as_ref()?.subscribe();
+    if !current.same_channel(stop) || *stop.borrow() || stop.has_changed().is_err() {
+        return None;
+    }
+    policy.bind_health_connection(key, stop).await;
+    policy.begin_health_watch(key, stop).await
+}
+
+fn spawn_health_watch(
+    inner: &ChannelInner,
+    target: HealthTarget,
+    send: backend::SendRequest,
+    stop: watch::Receiver<bool>,
+    directive: &HealthDirective,
+) -> Result<(), Status> {
+    let wire = inner.dial.wire();
+    let mut request = HealthCheckRequest::new();
+    request.set_service(directive.service.clone());
+    let frame = crate::wire::encode_msg(&request, None, wire.limits, wire.gzip_level)?;
+    let watch = HealthWatch {
+        send,
+        authority: inner.authority.clone(),
+        https: inner.tls.is_some(),
+        wire,
+        frame,
+        target,
+        stop,
+        backoff_rounds: 0,
+        reported: None,
+    };
+    drop(tokio::spawn(watch.run()));
+    Ok(())
 }
 
 /// Gate connection reuse on health: with no directive the pooled
@@ -4168,6 +4292,55 @@ mod tests {
 
     fn tcp(n: u8) -> ResolvedAddress {
         ResolvedAddress::Tcp(format!("10.0.0.{n}:80").parse().expect("addr"))
+    }
+
+    #[tokio::test]
+    async fn watch_admission_rejects_old_slot_owner_before_and_after_new_watch() {
+        let policy = crate::lb::RoundRobin::new();
+        policy.update(vec![tcp(1)]).await;
+        let (_old_driver, old) = tokio::sync::watch::channel(false);
+        let (new_driver, new) = tokio::sync::watch::channel(false);
+        let entries = tokio::sync::Mutex::new(std::collections::HashMap::from([(
+            tcp(1),
+            Arc::new(tokio::sync::Mutex::new(ConnSlot {
+                r#gen: 1,
+                send: None,
+                stop: Some(new_driver.clone()),
+                busy: None,
+                address: Some(tcp(1)),
+                channelz_socket: None,
+                channelz_subchannel: None,
+            })),
+        )]));
+        assert_eq!(
+            super::admit_health_watch(&entries, policy.health_core(), &tcp(1), &old).await,
+            None
+        );
+        assert_eq!(
+            super::admit_health_watch(&entries, policy.health_core(), &tcp(1), &new).await,
+            Some(true)
+        );
+        policy
+            .health_report_from(&tcp(1), &new, crate::lb::HealthSignal::Healthy)
+            .await;
+        assert_eq!(
+            super::admit_health_watch(&entries, policy.health_core(), &tcp(1), &old).await,
+            None
+        );
+        policy.health_gone_from(&tcp(1), &old).await;
+        assert_eq!(
+            policy.health_of(&tcp(1)).await,
+            Some(crate::lb::HealthSignal::Healthy)
+        );
+        assert_eq!(
+            super::admit_health_watch(&entries, policy.health_core(), &tcp(1), &new).await,
+            Some(false)
+        );
+        new_driver.send(true).expect("stop active driver");
+        assert_eq!(
+            super::admit_health_watch(&entries, policy.health_core(), &tcp(1), &new).await,
+            None
+        );
     }
 
     #[tokio::test]

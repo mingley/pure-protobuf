@@ -624,6 +624,7 @@ dependencies = [
  "http",
  "http-body",
  "http-body-util",
+ "hyper",
  "indexmap",
  "libc",
  "opentelemetry",

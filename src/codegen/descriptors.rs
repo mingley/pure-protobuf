@@ -688,14 +688,6 @@ use {runtime}::prelude::*;\n\
                 if !services.is_empty() && (resolved.build_client || resolved.build_server) =>
             {
                 src.push_str("\n// --- gRPC stubs (protobuf-tonic, not tonic-prost) ---\n");
-                if resolved.codec_path.is_none() {
-                    src.push_str("use protobuf_tonic::ProtobufCodec;\n");
-                }
-                src.push_str("use ::std::convert::Infallible;\n");
-                src.push_str("use ::std::future::Future;\n");
-                src.push_str("use ::std::pin::Pin;\n");
-                src.push_str("use ::std::sync::Arc;\n");
-                src.push_str("use ::std::task::{Context, Poll};\n");
                 for svc in &services {
                     emit_service(&mut src, svc);
                 }

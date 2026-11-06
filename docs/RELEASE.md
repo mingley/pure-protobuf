@@ -99,8 +99,10 @@ Adapters remain free to use different versions from the core crate.
 
 ## Required CI
 
-`release.yml` calls [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
-on the **same SHA** and will not publish unless every required job succeeds:
+Tag pushes and manual requests call
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) on the **same SHA**
+and will not publish unless every required job succeeds. Automatic main
+rehearsals reuse the completed main-push run of that same CI policy:
 
 | Job | What it runs |
 |---|---|
@@ -148,8 +150,8 @@ development push; the publisher still requires every job on its exact SHA.
    core version needs aligned source requirements even if an adapter version
    stays put; verify that its *already-published* requirement admits the new
    core, and never claim a skipped adapter gained unpublished source changes.
-2. Land that change on `main` (CI must be green; that still does **not**
-   publish).
+2. Land that change on `main`. Successful CI starts an automatic package and
+   provenance rehearsal for that exact commit. Neither action publishes.
 3. Sign an annotated tag on the SHA with `v` plus a version that **matches at least one** crate
    manifest (for example `v0.2.1` for `pbrs` `0.2.1`, or
    `v0.1.0-alpha.3` for an adapter). Push the tag only after qualification:
@@ -158,20 +160,45 @@ development push; the publisher still requires every job on its exact SHA.
    git push origin v0.2.1
    ```
    The workflow rejects lightweight tags, unsigned tags, and signatures that
-   GitHub does not mark verified.
+   GitHub does not mark verified. The verified annotated tag must point
+   directly to the commit that passed CI and was checked out for publication.
 4. The tag run re-executes required CI, obtains a short-lived crates.io token
    through OIDC, then runs `./scripts/publish-crates.sh`
    in order `pbrs`, `protobuf-tonic`, `pbrs-grpc`. Already-published
    name/version pairs are skipped. After a new `pbrs` upload it waits for the
    crates.io index before the adapters.
-5. It packages all three crates, generates a CycloneDX JSON SBOM, and requests
-   a GitHub build-provenance attestation for those artifacts. On a successful
-   tag publish it creates a GitHub Release containing the `.crate` archives and
-   SBOM. The attestation remains independently verifiable through GitHub's
-   artifact-attestation API and CLI.
+5. It packages all three crates, records the source SHA, release mode and CI
+   authority in `release-context.json`, generates a CycloneDX JSON SBOM, and
+   requests a GitHub build-provenance attestation for those artifacts. On a
+   successful tag publish it creates a GitHub Release containing the `.crate`
+   archives, context record and SBOM. The attestation remains independently
+   verifiable through GitHub's artifact-attestation API and CLI.
 
 Publishers are serialized (`concurrency: crates-io-publish`) so two tags cannot
-upload at once.
+upload at once. Automatic and manual dry runs use a separate group for each
+SHA, so they cannot displace a queued publication.
+
+### Automatic rehearsal on main
+
+After the `ci` workflow succeeds for a push to this repository's `main`,
+`Release` can package and attest that commit without a manual dispatch. The
+event guard checks the upstream workflow path, repository name and numeric
+ID, event, branch, result and SHA. It also checks the actual checkout. A fork,
+failed or unfinished run, other workflow, or stale SHA is a no-op; its
+publisher job is skipped and it produces no release artifact.
+
+For a `workflow_run` event, GitHub's source context can point to a newer
+default-branch commit than the completed CI run. Rehearsal requires those
+SHAs to match before packaging. A newer commit must finish its own CI; an
+older success cannot qualify it. The resulting `.crate` archives, SBOM and
+`release-context.json` are retained as `release-provenance-<SHA>` and attested
+together. The context records the successful upstream CI run and its attempt.
+
+This path always selects `DRY_RUN=1`. It never authenticates to crates.io,
+checks a release tag, queries the registry's version-status API, uploads a
+crate or creates a GitHub Release. It still uses GitHub's OIDC permission to
+attest the artifacts. Successful packaging and provenance do not verify the
+registry's Trusted Publisher settings or qualify a production deployment.
 
 ### Manual dispatch (rehearsal or confirmed upload)
 

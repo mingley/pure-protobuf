@@ -663,7 +663,7 @@ fn builder_option_parity_client_only_and_tonic_codec_path() {
         "custom codec path must not import default codec"
     );
     assert!(
-        tonic_rs.contains("#[allow(dead_code)]\n#[derive(Clone, Debug)]\npub struct GreeterClient"),
+        tonic_rs.contains("#[allow(dead_code)]\n#[derive(::core::clone::Clone, ::core::fmt::Debug)]\npub struct GreeterClient"),
         "client attribute missing:\n{tonic_rs}"
     );
     assert!(

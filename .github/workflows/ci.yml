@@ -80,6 +80,8 @@ jobs:
           python3 -B docs/evidence/map-removal-20261106/check.py
           python3 -B docs/evidence/rejected-query-capability-20261106/check.py
           python3 -B docs/evidence/fresh-encode-warmup-20261106/check.py
+          python3 -B docs/evidence/rejected-packed-wire-cache-20261106/check.py
+          python3 -B docs/evidence/rejected-packed-fused-20261106/check.py
       - name: Check standalone benchmark and interop lockfiles
         run: |
           for manifest in \
@@ -99,7 +101,7 @@ jobs:
             tests.interop.test_cpp_runner tests.interop.test_http2_peer_proof \
             tests.interop.test_http2_probe_status tests.interop.test_upstream_http2_probe_report \
             tests.interop.test_qps_proof tests.interop.test_stack_matrix \
-            tests.interop.test_conformance_summary tests.test_publish_script \
+            tests.interop.test_conformance_summary tests.test_publish_script tests.test_release_context \
             tests.test_shared_consumer_report
       - name: gRPC campaign provenance and failure handling
         run: |

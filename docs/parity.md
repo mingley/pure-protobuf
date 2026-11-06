@@ -30,6 +30,7 @@ their own source pins, controls, failures and full measured rows.
 | Missing proto2 required field | pbrs rejects it; prost accepts it. |
 | Generated consumers | Base roundtrips and configured naming, type-URL, Any, enum and attribute controls pass against pinned Prost; see the [consumer guide](../tests/proof/codegen_parity/README.md) for exact cases. |
 | Field view accessor names | [25 schema cases](../tests/proof/field_views/README.md) compile accessor APIs and exchange values with Prost 0.14.4 in lazy, owned, safe and owned+safe profiles; valid existing APIs keep their names. |
+| RPC service names | [55 names](../tests/proof/rpc_names/README.md) compile in native, Tonic, compat and prost-native output: 220 consumers, 12 strict aliases and a pinned Tonic reference. |
 | Selected boxed fields | Selected, default and global-owned consumers each pass eight groups; 18 message-field selector placement controls compare with Prost 0.14.4. |
 | Selected bytes storage | [Consumer controls](../tests/proof/codegen_parity/bytes.md) compare selectors, values and shared/borrowed input with Prost 0.14.4 in selected, owned and forbid-unsafe profiles. Old eager-parent copying and format-generation limits remain explicit. |
 | Generated forbid-unsafe policy | Twelve checks pass across lazy, owned and boxed consumers; the ordinary generated profile fails the intentional forbid-unsafe control. Runtime dependencies keep their own unsafe implementations. |
@@ -52,8 +53,11 @@ backends and measured small-map costs alongside indexed update gains.
 The native transport now supports configurable TCP_NODELAY, client idle
 keepalive policy and custom connection-driver executors. The
 [transport guide](guides/transport-controls.md) explains defaults and scope.
-Executor selection does not replace Tokio I/O, timers or helper tasks; static
-balance helpers reject per-endpoint executors.
+Executor selection does not replace Tokio I/O, timers or helper tasks. Static
+and watched balance helpers preserve per-URI executors, including URI aliases
+of one socket, and drain replaced connections. Their update API remains a
+full snapshot, and request authority remains channel-wide rather than coming
+from the selected endpoint as in tonic.
 `Endpoint::origin(Uri)` sets logical request scheme and authority while
 preserving dialing, TLS and interceptor security context. Its path and query
 are ignored. `Channel::request_scheme()` exposes the logical scheme; a later
@@ -77,7 +81,9 @@ Generator-owned types, traits and value constructors use qualified paths. The
 message names and enum names `Some`, `None`, `Ok` and `Err` in four
 storage/default profiles with four runtime paths. It covers lowercase
 `pbrs`/`std`/`core` shadows while preserving explicit user paths and
-attribute/documentation literals. RPC services are outside this fixture.
+attribute/documentation literals. A separate
+[RPC consumer](../tests/proof/rpc_names/README.md) checks framework and generic
+name collisions in all four stub modes without renaming service identifiers.
 
 `Config::boxed(path)` constructs selected singular children during parsing
 while preserving pbrs accessors. Repeated and map fields retain their storage;

@@ -351,7 +351,10 @@ fn client_tls_wrong_ca_fails_verification() {
     ]);
     assert_eq!(out.status.code(), Some(1));
     let err = String::from_utf8_lossy(&out.stderr);
-    assert!(err.contains("tls handshake") || err.contains("UNAUTHENTICATED"));
+    assert!(
+        err.contains("tls handshake") || err.contains("UNAUTHENTICATED"),
+        "unexpected certificate-verification error: {err}"
+    );
 }
 
 #[test]

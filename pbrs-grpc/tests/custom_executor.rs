@@ -381,18 +381,6 @@ async fn dropping_scheduled_driver_closes_connection_and_releases_server_drain()
     wait_count(&server_executor.counts.finished, 1).await;
 }
 
-#[tokio::test]
-async fn balance_helpers_reject_executor_override_instead_of_ignoring_it() {
-    let endpoint = Endpoint::from_static("http://127.0.0.1:1")
-        .unwrap()
-        .executor(Discard);
-    let error = Endpoint::balance_list([endpoint], ChannelConfig::new())
-        .await
-        .unwrap_err();
-    assert_eq!(error.code(), Code::InvalidArgument);
-    assert!(error.message().contains("per-endpoint executors"));
-}
-
 struct PanicExecutor;
 impl Executor for PanicExecutor {
     fn execute(&self, _future: ExecutorFuture) {

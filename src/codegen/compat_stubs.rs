@@ -44,7 +44,10 @@ fn emit_compat_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor
         let _ = writeln!(src, "/// # Deprecated");
         let _ = writeln!(src, "#[deprecated]");
     }
-    let _ = writeln!(src, "pub trait {trait_name}: Send + Sync + 'static {{");
+    let _ = writeln!(
+        src,
+        "pub trait {trait_name}: ::core::marker::Send + ::core::marker::Sync + 'static {{"
+    );
     for m in &svc.methods {
         emit_doc_comments(src, &m.comments, "    ");
         if !m.comments.is_empty() {
@@ -67,7 +70,7 @@ fn emit_compat_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor
                 let assoc = stream_assoc(m);
                 let _ = writeln!(
                     src,
-                    "    type {assoc}: {C}::ResponseStream<Item = ::core::result::Result<{resp}, {C}::Status>> + Send + 'static;"
+                    "    type {assoc}: {C}::ResponseStream<Item = ::core::result::Result<{resp}, {C}::Status>> + ::core::marker::Send + 'static;"
                 );
                 emit_compat_server_streaming_trait(src, &fn_name, &req, &assoc, svc, m);
             }
@@ -75,7 +78,7 @@ fn emit_compat_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor
                 let assoc = stream_assoc(m);
                 let _ = writeln!(
                     src,
-                    "    type {assoc}: {C}::ResponseStream<Item = ::core::result::Result<{resp}, {C}::Status>> + Send + 'static;"
+                    "    type {assoc}: {C}::ResponseStream<Item = ::core::result::Result<{resp}, {C}::Status>> + ::core::marker::Send + 'static;"
                 );
                 emit_compat_bidi_trait(src, &fn_name, &req, &assoc, svc, m);
             }
@@ -94,7 +97,7 @@ fn emit_compat_unary_trait(
 ) {
     let _ = writeln!(
         src,
-        "    fn {fn_name}(&self, request: {C}::Request<{req}>) -> impl ::core::future::Future<Output = ::core::result::Result<{C}::Response<{resp}>, {C}::Status>> + Send{}",
+        "    fn {fn_name}(&self, request: {C}::Request<{req}>) -> impl ::core::future::Future<Output = ::core::result::Result<{C}::Response<{resp}>, {C}::Status>> + ::core::marker::Send{}",
         if generate_default_stubs() { " {" } else { ";" }
     );
     if generate_default_stubs() {
@@ -120,7 +123,7 @@ fn emit_compat_client_streaming_trait(
 ) {
     let _ = writeln!(
         src,
-        "    fn {fn_name}(&self, request: {C}::Request<{C}::Streaming<{req}>>) -> impl ::core::future::Future<Output = ::core::result::Result<{C}::Response<{resp}>, {C}::Status>> + Send{}",
+        "    fn {fn_name}(&self, request: {C}::Request<{C}::Streaming<{req}>>) -> impl ::core::future::Future<Output = ::core::result::Result<{C}::Response<{resp}>, {C}::Status>> + ::core::marker::Send{}",
         if generate_default_stubs() { " {" } else { ";" }
     );
     if generate_default_stubs() {
@@ -146,7 +149,7 @@ fn emit_compat_server_streaming_trait(
 ) {
     let _ = writeln!(
         src,
-        "    fn {fn_name}(&self, request: {C}::Request<{req}>) -> impl ::core::future::Future<Output = ::core::result::Result<{C}::Response<Self::{assoc}>, {C}::Status>> + Send{}",
+        "    fn {fn_name}(&self, request: {C}::Request<{req}>) -> impl ::core::future::Future<Output = ::core::result::Result<{C}::Response<Self::{assoc}>, {C}::Status>> + ::core::marker::Send{}",
         if generate_default_stubs() { " {" } else { ";" }
     );
     if generate_default_stubs() {
@@ -172,7 +175,7 @@ fn emit_compat_bidi_trait(
 ) {
     let _ = writeln!(
         src,
-        "    fn {fn_name}(&self, request: {C}::Request<{C}::Streaming<{req}>>) -> impl ::core::future::Future<Output = ::core::result::Result<{C}::Response<Self::{assoc}>, {C}::Status>> + Send{}",
+        "    fn {fn_name}(&self, request: {C}::Request<{C}::Streaming<{req}>>) -> impl ::core::future::Future<Output = ::core::result::Result<{C}::Response<Self::{assoc}>, {C}::Status>> + ::core::marker::Send{}",
         if generate_default_stubs() { " {" } else { ";" }
     );
     if generate_default_stubs() {
@@ -205,7 +208,7 @@ fn emit_compat_server(
         "    fn clone(&self) -> Self {{ Self {{ inner: ::std::sync::Arc::clone(&self.inner) }} }}"
     );
     let _ = writeln!(src, "}}");
-    let _ = writeln!(src, "impl<T: {trait_name}> {server}<T> {{");
+    let _ = writeln!(src, "impl<T: self::{trait_name}> {server}<T> {{");
     let _ = writeln!(src, "    pub const NAME: &'static str = \"{full_name}\";");
     let _ = writeln!(
         src,
@@ -220,11 +223,14 @@ fn emit_compat_server(
         "    pub async fn serve_listener(self, listener: {G}::codegen_support::TcpListener) -> ::core::result::Result<(), {C}::Status> {{ {G}::Server::new(self).serve_listener(listener).await }}"
     );
     let _ = writeln!(src, "}}");
-    let _ = writeln!(src, "impl<T: {trait_name}> {G}::Service for {server}<T> {{");
+    let _ = writeln!(
+        src,
+        "impl<T: self::{trait_name}> {G}::Service for {server}<T> {{"
+    );
     let _ = writeln!(src, "    const NAME: &'static str = \"{full_name}\";");
     let _ = writeln!(
         src,
-        "    fn call(&self, rpc: {G}::Rpc) -> impl ::core::future::Future<Output = ()> + Send {{"
+        "    fn call(&self, rpc: {G}::Rpc) -> impl ::core::future::Future<Output = ()> + ::core::marker::Send {{"
     );
     let _ = writeln!(
         src,
@@ -296,7 +302,7 @@ fn emit_compat_client(
     );
     let _ = writeln!(
         src,
-        "    pub async fn connect(target: impl Into<{G}::Target>) -> ::core::result::Result<Self, {C}::Status> {{ Ok(Self::new({G}::Channel::connect(target).await?)) }}"
+        "    pub async fn connect(target: impl ::core::convert::Into<{G}::Target>) -> ::core::result::Result<Self, {C}::Status> {{ ::core::result::Result::Ok(Self::new({G}::Channel::connect(target).await?)) }}"
     );
     for m in &svc.methods {
         emit_compat_client_method(src, m, path_prefix);

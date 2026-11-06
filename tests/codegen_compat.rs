@@ -378,7 +378,9 @@ fn test_codegen_stub_signatures_all_four_call_shapes() {
 
     // Verify all 4 call shape signatures in the generated trait:
     assert!(
-        v1_src.contains("pub trait CompatService: Send + Sync + 'static"),
+        v1_src.contains(
+            "pub trait CompatService: ::core::marker::Send + ::core::marker::Sync + 'static"
+        ),
         "missing CompatService trait"
     );
     // Unary:
@@ -461,7 +463,7 @@ fn test_codegen_stub_signatures_all_four_call_shapes() {
     let tonic_src =
         std::fs::read_to_string(out_tonic.join("compat.rs")).expect("read tonic compat.rs");
     assert!(
-        tonic_src.contains("use protobuf_tonic::ProtobufCodec;"),
+        tonic_src.contains("::protobuf_tonic::ProtobufCodec::<"),
         "tonic stubs must use ProtobufCodec"
     );
 

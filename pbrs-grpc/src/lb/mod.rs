@@ -47,6 +47,7 @@ pub(crate) use ring_hash::ensure_registered as ensure_ring_hash_registered;
 pub(crate) use ring_hash::xxh64;
 pub use ring_hash::{RingHash, RingHashFactory};
 pub(crate) use round_robin::ensure_registered as ensure_round_robin_registered;
+pub(crate) use round_robin::{KeyedPick, KeyedRoundRobin};
 pub use round_robin::{RoundRobin, RoundRobinFactory};
 pub(crate) use subset::ensure_registered as ensure_random_subsetting_registered;
 pub use subset::{RandomSubsetting, RandomSubsettingFactory};

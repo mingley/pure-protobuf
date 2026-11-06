@@ -9,6 +9,10 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_run:
+    workflows: [ci]
+    branches: [main]
+    types: [completed]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -20,9 +24,10 @@ on:
         type: string
         default: ''
 
-# Serialize all publishers so a retry cannot race a live upload.
+# Rehearsals cannot evict a pending upload from its concurrency group.
+# Actual publishers remain serialized so a retry cannot race a live upload.
 concurrency:
-  group: crates-io-publish
+  group: ${{ (github.event_name == 'workflow_run' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)) && format('release-rehearsal-{0}', github.sha) || 'crates-io-publish' }}
   cancel-in-progress: false
 
 permissions:
@@ -30,13 +35,46 @@ permissions:
 
 jobs:
   required:
+    # Automatic rehearsals reuse the exact successful main-push CI run.
+    # Every tag/manual request still executes the full reusable policy.
+    if: github.event_name != 'workflow_run'
     uses: ./.github/workflows/ci.yml
     permissions:
       contents: read
 
-  publish:
-    name: Publish to crates.io
+  context:
+    name: Select qualified release source
     needs: required
+    if: ${{ always() && !cancelled() && (github.event_name == 'workflow_run' || needs.required.result == 'success') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      eligible: ${{ steps.context.outputs.eligible }}
+      mode: ${{ steps.context.outputs.mode }}
+      source_sha: ${{ steps.context.outputs.source_sha }}
+      context_json: ${{ steps.context.outputs.context_json }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify release event policy
+        run: python3 -B -m unittest tests.test_release_context -q
+      - name: Select exact source and release mode
+        id: context
+        env:
+          REQUIRED_CI_RESULT: ${{ needs.required.result }}
+        run: python3 -B scripts/release-context.py
+
+  publish:
+    name: Package or publish crates
+    needs: [required, context]
+    if: >-
+      ${{ always() && !cancelled() && needs.context.result == 'success' &&
+          needs.context.outputs.eligible == 'true' &&
+          ((github.event_name == 'workflow_run' && needs.required.result == 'skipped' && needs.context.outputs.mode == 'dry-run') ||
+           (github.event_name != 'workflow_run' && needs.required.result == 'success')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -45,35 +83,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ needs.context.outputs.source_sha }}
           fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify selected source and release mode
+        id: mode
+        env:
+          REQUIRED_CI_RESULT: ${{ needs.required.result }}
+          RELEASE_CONTEXT_JSON: ${{ needs.context.outputs.context_json }}
+        run: python3 -B scripts/release-context.py --verify-context --metadata-path dist/release-context.json
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Decide dry-run vs upload
-        id: mode
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          REF: ${{ github.ref }}
-          DRY_RUN_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || '' }}
-          CONFIRM: ${{ github.event_name == 'workflow_dispatch' && inputs.confirm || '' }}
-        run: |
-          set -euo pipefail
-          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            if [[ "$DRY_RUN_INPUT" == "true" ]]; then
-              echo "mode=dry-run" >> "$GITHUB_OUTPUT"
-            elif [[ "$CONFIRM" == "publish" && "$REF" == refs/tags/v* ]]; then
-              echo "mode=publish" >> "$GITHUB_OUTPUT"
-            else
-              echo "::error::dispatch upload requires a v* tag ref, dry_run=false and confirm=publish"
-              exit 1
-            fi
-          elif [[ "$EVENT_NAME" == "push" && "$REF" == refs/tags/v* ]]; then
-            echo "mode=publish" >> "$GITHUB_OUTPUT"
-          else
-            echo "::error::unsupported event $EVENT_NAME $REF"
-            exit 1
-          fi
 
       - name: Fetch dependencies for offline package rehearsal
         if: steps.mode.outputs.mode == 'dry-run'
@@ -83,6 +105,7 @@ jobs:
         if: steps.mode.outputs.mode == 'publish'
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_SOURCE_SHA: ${{ needs.context.outputs.source_sha }}
         run: |
           set -euo pipefail
           object="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${GITHUB_REF_NAME}" --jq '.object')"
@@ -90,9 +113,13 @@ jobs:
             echo "::error::release tags must be annotated and signed (lightweight tag refused)"
             exit 1
           fi
-          verified="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/$(jq -r .sha <<<"$object")" --jq '.verification.verified')"
-          if [[ "$verified" != "true" ]]; then
+          tag="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/$(jq -r .sha <<<"$object")")"
+          if [[ "$(jq -r .verification.verified <<<"$tag")" != "true" ]]; then
             echo "::error::GitHub did not verify the release tag signature"
+            exit 1
+          fi
+          if [[ "$(jq -r .object.type <<<"$tag")" != "commit" || "$(jq -r .object.sha <<<"$tag")" != "$RELEASE_SOURCE_SHA" ]]; then
+            echo "::error::verified release tag does not target the checked-out CI commit"
             exit 1
           fi
 
@@ -119,7 +146,7 @@ jobs:
         with:
           path: .
           format: cyclonedx-json
-          output-file: dist/pure-protobuf-${{ github.sha }}.cdx.json
+          output-file: dist/pure-protobuf-${{ needs.context.outputs.source_sha }}.cdx.json
           upload-artifact: false
 
       - name: Attest release artifacts
@@ -130,7 +157,7 @@ jobs:
       - name: Retain dry-run and release evidence
         uses: actions/upload-artifact@v4
         with:
-          name: release-provenance-${{ github.sha }}
+          name: release-provenance-${{ needs.context.outputs.source_sha }}
           path: dist/
           if-no-files-found: error
 

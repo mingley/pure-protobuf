@@ -18,27 +18,135 @@ use tokio::sync::{Mutex, watch};
 /// round_robin policy state shared by a channel's picks.
 #[derive(Debug)]
 pub struct RoundRobin {
-    state: Mutex<State>,
+    core: KeyedRoundRobin<ResolvedAddress>,
+}
+
+/// Internal readiness result, independent of resolver address identity.
+#[derive(Debug)]
+pub(crate) enum KeyedPick<K> {
+    Use(K),
+    Wait,
+    Fail(Status),
+}
+
+impl RoundRobin {
+    /// Build a new policy. `round_robin` takes no config knobs.
+    #[must_use]
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self {
+            core: KeyedRoundRobin::new(),
+        })
+    }
+
+    /// Reconcile addresses while retaining surviving readiness and backoff.
+    pub async fn update(&self, addresses: Vec<ResolvedAddress>) {
+        self.core.update(addresses).await;
+    }
+
+    /// Rotate over ready addresses, or wait/fail when none can serve.
+    pub async fn pick(&self) -> Pick {
+        match self.core.pick().await {
+            KeyedPick::Use(address) => Pick::Use(address),
+            KeyedPick::Wait => Pick::Wait,
+            KeyedPick::Fail(status) => Pick::Fail(status),
+        }
+    }
+
+    /// Clear an address's failure backoff after a successful dial.
+    pub async fn note_success(&self, address: &ResolvedAddress) {
+        self.core.note_success(address).await;
+    }
+
+    /// Mark the first outstanding health Watch for an address.
+    pub async fn note_health_pending(&self, address: &ResolvedAddress) -> bool {
+        self.core.note_health_pending(address).await
+    }
+
+    /// Clear an ended health Watch and wake picks waiting for its report.
+    pub async fn note_health_gone(&self, address: &ResolvedAddress) {
+        self.core.note_health_gone(address).await;
+    }
+
+    /// Apply a health report for a known address and wake waiters.
+    pub async fn note_health(&self, address: &ResolvedAddress, signal: HealthSignal) {
+        self.core.note_health(address, signal).await;
+    }
+
+    /// Read the last health report, or `None` while the Watch is pending.
+    pub async fn health_of(&self, address: &ResolvedAddress) -> Option<HealthSignal> {
+        self.core.health_of(address).await
+    }
+
+    pub(crate) fn health_core(&self) -> &KeyedRoundRobin<ResolvedAddress> {
+        &self.core
+    }
+
+    pub(crate) async fn health_report_from(
+        &self,
+        address: &ResolvedAddress,
+        stop: &watch::Receiver<bool>,
+        signal: HealthSignal,
+    ) {
+        self.core.health_report_from(address, stop, signal).await;
+    }
+
+    pub(crate) async fn health_gone_from(
+        &self,
+        address: &ResolvedAddress,
+        stop: &watch::Receiver<bool>,
+    ) {
+        self.core.health_gone_from(address, stop).await;
+    }
+
+    /// Back off an address after a failed dial and wake waiters.
+    pub async fn note_failure(&self, address: &ResolvedAddress, status: Status) {
+        self.core.note_failure(address, status).await;
+    }
+
+    /// Subscribe to list, failure, and health changes.
+    #[must_use]
+    pub fn watch(&self) -> watch::Receiver<u64> {
+        self.core.watch()
+    }
+
+    pub(crate) async fn readiness(&self) -> Readiness {
+        self.core.readiness().await
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct KeyedRoundRobin<K> {
+    state: Mutex<State<K>>,
     changed: watch::Receiver<u64>,
     bump: watch::Sender<u64>,
 }
 
 #[derive(Debug)]
-struct State {
+struct State<K> {
     /// Resolver order; readiness consulted per pick.
-    addresses: Vec<ResolvedAddress>,
+    addresses: Vec<K>,
     /// Rotation cursor: index to start the next scan.
     cursor: usize,
     /// Per-address failure state; absent means ready.
-    down: HashMap<ResolvedAddress, Down>,
+    down: HashMap<K, Down>,
     /// A17 health reports; absent means unknown (treated ready
     /// unless the address is still awaiting its first Watch).
-    unhealthy: HashSet<ResolvedAddress>,
+    unhealthy: HashSet<K>,
     /// Addresses with a Watch in flight but no report yet. Skipped
     /// like down addresses; subchannels stay CONNECTING until the
     /// first response.
-    health_pending: HashSet<ResolvedAddress>,
+    health_pending: HashSet<K>,
+    /// Watch ownership survives the first report. The actual stop channel
+    /// distinguishes replaced connections even after address removal/re-add.
+    /// Public manual-report methods retain their independent interface.
+    health_watching: HashMap<K, WatchOwner>,
     last_error: Option<Status>,
+}
+
+#[derive(Debug)]
+struct WatchOwner {
+    stop: watch::Receiver<bool>,
+    watching: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -47,29 +155,30 @@ struct Down {
     rounds: u32,
 }
 
-impl RoundRobin {
+impl<K: Clone + Eq + std::hash::Hash> KeyedRoundRobin<K> {
     /// Build a new policy. `round_robin` takes no config knobs.
     #[must_use]
-    pub fn new() -> Arc<Self> {
+    pub(crate) fn new() -> Self {
         let (bump, changed) = watch::channel(0);
-        Arc::new(Self {
+        Self {
             state: Mutex::new(State {
                 addresses: Vec::new(),
                 cursor: 0,
                 down: HashMap::new(),
                 unhealthy: HashSet::new(),
                 health_pending: HashSet::new(),
+                health_watching: HashMap::new(),
                 last_error: None,
             }),
             changed,
             bump,
-        })
+        }
     }
 
     /// Reconcile a new address list. Surviving addresses keep their
     /// readiness; removed ones are forgotten (the pool drains their
     /// connections). Wakes [`Self::watch`] on any change.
-    pub async fn update(&self, addresses: Vec<ResolvedAddress>) {
+    pub(crate) async fn update(&self, addresses: Vec<K>) {
         let mut state = self.state.lock().await;
         if addresses == state.addresses {
             return;
@@ -77,6 +186,9 @@ impl RoundRobin {
         state.down.retain(|addr, _| addresses.contains(addr));
         state.unhealthy.retain(|addr| addresses.contains(addr));
         state.health_pending.retain(|addr| addresses.contains(addr));
+        state
+            .health_watching
+            .retain(|addr, _| addresses.contains(addr));
         state.addresses = addresses;
         if state.addresses.is_empty() {
             state.cursor = 0;
@@ -89,11 +201,11 @@ impl RoundRobin {
 
     /// Pick the next ready address in rotation, or wait/fail when
     /// none is usable. Expired backoffs rejoin the ready set lazily.
-    pub async fn pick(&self) -> Pick {
+    pub(crate) async fn pick(&self) -> KeyedPick<K> {
         let mut state = self.state.lock().await;
         let n = state.addresses.len();
         if n == 0 {
-            return Pick::Fail(Status::unavailable("round_robin: no addresses"));
+            return KeyedPick::Fail(Status::unavailable("round_robin: no addresses"));
         }
         let now = tokio::time::Instant::now();
         state.down.retain(|_, down| down.until > now);
@@ -110,7 +222,7 @@ impl RoundRobin {
                 continue;
             }
             state.cursor = (index + 1) % n;
-            return Pick::Use(addr);
+            return KeyedPick::Use(addr);
         }
         // Nothing ready: pending Watch calls mean CONNECTING (wait),
         // otherwise fail with the last dial error.
@@ -119,17 +231,17 @@ impl RoundRobin {
                 && !state.unhealthy.contains(addr)
                 && state.health_pending.contains(addr)
         }) {
-            return Pick::Wait;
+            return KeyedPick::Wait;
         }
         match state.last_error.clone() {
-            Some(status) => Pick::Fail(status),
-            None => Pick::Wait,
+            Some(status) => KeyedPick::Fail(status),
+            None => KeyedPick::Wait,
         }
     }
 
     /// Record a successful dial: the address is ready and its failure
     /// state clears.
-    pub async fn note_success(&self, addr: &ResolvedAddress) {
+    pub(crate) async fn note_success(&self, addr: &K) {
         let mut state = self.state.lock().await;
         state.down.remove(addr);
     }
@@ -138,7 +250,7 @@ impl RoundRobin {
     /// out of rotation until the first report (A17 CONNECTING).
     /// Returns whether this call newly marked the address (false when
     /// a Watch is already recorded in flight).
-    pub async fn note_health_pending(&self, addr: &ResolvedAddress) -> bool {
+    pub(crate) async fn note_health_pending(&self, addr: &K) -> bool {
         let mut state = self.state.lock().await;
         if state.addresses.contains(addr) {
             state.health_pending.insert(addr.clone())
@@ -150,7 +262,7 @@ impl RoundRobin {
     /// Clear a Watch record without reporting: the Watch ended (drain,
     /// discard, shutdown) before any terminal signal. Wakes waiters so
     /// they re-check; a redial re-pends and spawns a fresh Watch.
-    pub async fn note_health_gone(&self, addr: &ResolvedAddress) {
+    pub(crate) async fn note_health_gone(&self, addr: &K) {
         let mut state = self.state.lock().await;
         if state.health_pending.remove(addr) {
             self.bump
@@ -158,11 +270,104 @@ impl RoundRobin {
         }
     }
 
+    fn clear_watch(&self, state: &mut State<K>, addr: &K) {
+        let watching = state.health_watching.get_mut(addr).is_some_and(|owner| {
+            let was_watching = owner.watching;
+            owner.watching = false;
+            was_watching
+        });
+        let pending = state.health_pending.remove(addr);
+        let unhealthy = state.unhealthy.remove(addr);
+        if watching || pending || unhealthy {
+            self.bump
+                .send_modify(|generation| *generation = generation.wrapping_add(1));
+        }
+    }
+
+    /// Bind only after validating the actual pool-map entry and slot driver
+    /// under their locks. Admission cannot choose a newer connection itself.
+    pub(crate) async fn bind_health_connection(&self, addr: &K, stop: &watch::Receiver<bool>) {
+        let mut state = self.state.lock().await;
+        if !state.addresses.contains(addr) || *stop.borrow() || stop.has_changed().is_err() {
+            return;
+        }
+        if state
+            .health_watching
+            .get(addr)
+            .is_some_and(|owner| owner.stop.same_channel(stop))
+        {
+            return;
+        }
+        state.health_watching.insert(
+            addr.clone(),
+            WatchOwner {
+                stop: stop.clone(),
+                watching: false,
+            },
+        );
+        state.health_pending.insert(addr.clone());
+        state.unhealthy.remove(addr);
+    }
+
+    /// `None` requires a fresh pool-slot ownership check; a late old acquire
+    /// is never allowed to replace another connection's owner token.
+    pub(crate) async fn begin_health_watch(
+        &self,
+        addr: &K,
+        stop: &watch::Receiver<bool>,
+    ) -> Option<bool> {
+        let mut state = self.state.lock().await;
+        if !state.addresses.contains(addr) || *stop.borrow() || stop.has_changed().is_err() {
+            return None;
+        }
+        let owner = state.health_watching.get_mut(addr)?;
+        if !owner.stop.same_channel(stop) {
+            return None;
+        }
+        if owner.watching {
+            return Some(false);
+        }
+        owner.watching = true;
+        state.health_pending.insert(addr.clone());
+        Some(true)
+    }
+
+    pub(crate) async fn health_gone_from(&self, addr: &K, stop: &watch::Receiver<bool>) {
+        let mut state = self.state.lock().await;
+        if state
+            .health_watching
+            .get(addr)
+            .is_some_and(|owner| owner.stop.same_channel(stop))
+        {
+            self.clear_watch(&mut state, addr);
+        }
+    }
+
+    pub(crate) async fn health_report_from(
+        &self,
+        addr: &K,
+        stop: &watch::Receiver<bool>,
+        signal: HealthSignal,
+    ) {
+        let mut state = self.state.lock().await;
+        if state
+            .health_watching
+            .get(addr)
+            .is_some_and(|owner| owner.stop.same_channel(stop))
+        {
+            self.apply_health(&mut state, addr, signal);
+        }
+    }
+
     /// Record a Watch report: unhealthy addresses leave rotation
     /// immediately; healthy ones (re)join. Unknown addresses (removed
     /// mid-Watch) are ignored. Wakes waiters on any change.
-    pub async fn note_health(&self, addr: &ResolvedAddress, signal: HealthSignal) {
+    pub(crate) async fn note_health(&self, addr: &K, signal: HealthSignal) {
         let mut state = self.state.lock().await;
+        self.apply_health(&mut state, addr, signal);
+    }
+
+    fn apply_health(&self, state: &mut State<K>, addr: &K, signal: HealthSignal) {
         if !state.addresses.contains(addr) {
             return;
         }
@@ -179,7 +384,7 @@ impl RoundRobin {
 
     /// Last reported health: `None` while no Watch has reported.
     /// Unknown addresses report `None`.
-    pub async fn health_of(&self, addr: &ResolvedAddress) -> Option<HealthSignal> {
+    pub(crate) async fn health_of(&self, addr: &K) -> Option<HealthSignal> {
         let state = self.state.lock().await;
         if !state.addresses.contains(addr) || state.health_pending.contains(addr) {
             return None;
@@ -194,8 +399,11 @@ impl RoundRobin {
     /// Record a failed dial: the address backs off exponentially
     /// (same 1s × 1.6, 120s cap as pick_first) and rejoins rotation
     /// when the backoff lapses. Wakes waiters.
-    pub async fn note_failure(&self, addr: &ResolvedAddress, status: Status) {
+    pub(crate) async fn note_failure(&self, addr: &K, status: Status) {
         let mut state = self.state.lock().await;
+        if !state.addresses.contains(addr) {
+            return;
+        }
         let rounds = state.down.get(addr).map_or(0, |down| down.rounds);
         let delay = super::pick_first::transient_backoff(rounds);
         state.down.insert(
@@ -213,7 +421,7 @@ impl RoundRobin {
     /// Movement notifications: list updates and failures. Backoff
     /// expiry bumps nothing; waiters re-poll as well as watch.
     #[must_use]
-    pub fn watch(&self) -> watch::Receiver<u64> {
+    pub(crate) fn watch(&self) -> watch::Receiver<u64> {
         self.changed.clone()
     }
 
@@ -225,7 +433,7 @@ impl RoundRobin {
     pub(crate) async fn readiness(&self) -> Readiness {
         let state = self.state.lock().await;
         let now = tokio::time::Instant::now();
-        let usable = |addr: &ResolvedAddress| {
+        let usable = |addr: &K| {
             state.down.get(addr).is_none_or(|down| down.until <= now)
                 && !state.unhealthy.contains(addr)
                 && !state.health_pending.contains(addr)
@@ -379,5 +587,119 @@ mod tests {
             }
         }
         assert!(seen.iter().all(|s| *s));
+    }
+
+    #[tokio::test]
+    async fn watch_ownership_survives_first_report_and_clears_on_end() {
+        let rr = RoundRobin::new();
+        let (_driver, stop) = tokio::sync::watch::channel(false);
+        rr.update(vec![tcp(1)]).await;
+        rr.health_core()
+            .bind_health_connection(&tcp(1), &stop)
+            .await;
+        assert_eq!(
+            rr.health_core().begin_health_watch(&tcp(1), &stop).await,
+            Some(true)
+        );
+        rr.health_report_from(&tcp(1), &stop, super::HealthSignal::Unhealthy)
+            .await;
+        assert!(
+            rr.health_core().begin_health_watch(&tcp(1), &stop).await == Some(false),
+            "a report does not end its Watch"
+        );
+        rr.health_gone_from(&tcp(1), &stop).await;
+        assert!(
+            matches!(rr.pick().await, Pick::Use(_)),
+            "ended Watch no longer pins unhealthy state"
+        );
+        rr.health_core()
+            .bind_health_connection(&tcp(1), &stop)
+            .await;
+        assert_eq!(
+            rr.health_core().begin_health_watch(&tcp(1), &stop).await,
+            Some(true)
+        );
+    }
+
+    #[tokio::test]
+    async fn removed_connection_callbacks_cannot_change_readded_address_watch() {
+        let rr = RoundRobin::new();
+        let (_old_driver, old) = tokio::sync::watch::channel(false);
+        let (_new_driver, new) = tokio::sync::watch::channel(false);
+        rr.update(vec![tcp(1)]).await;
+        rr.health_core().bind_health_connection(&tcp(1), &old).await;
+        assert_eq!(
+            rr.health_core().begin_health_watch(&tcp(1), &old).await,
+            Some(true)
+        );
+        rr.health_report_from(&tcp(1), &old, super::HealthSignal::Healthy)
+            .await;
+        rr.update(Vec::new()).await;
+        rr.update(vec![tcp(1)]).await;
+        assert_eq!(
+            rr.health_core().begin_health_watch(&tcp(1), &old).await,
+            None
+        );
+        rr.health_core().bind_health_connection(&tcp(1), &new).await;
+        assert_eq!(
+            rr.health_core().begin_health_watch(&tcp(1), &new).await,
+            Some(true)
+        );
+        assert_eq!(
+            rr.health_core().begin_health_watch(&tcp(1), &old).await,
+            None
+        );
+        rr.health_report_from(&tcp(1), &old, super::HealthSignal::Unhealthy)
+            .await;
+        rr.health_gone_from(&tcp(1), &old).await;
+        assert_eq!(rr.health_of(&tcp(1)).await, None);
+        rr.health_report_from(&tcp(1), &new, super::HealthSignal::Healthy)
+            .await;
+        rr.health_report_from(&tcp(1), &old, super::HealthSignal::Unhealthy)
+            .await;
+        rr.health_gone_from(&tcp(1), &old).await;
+        assert_eq!(
+            rr.health_of(&tcp(1)).await,
+            Some(super::HealthSignal::Healthy)
+        );
+        assert_eq!(
+            rr.health_core().begin_health_watch(&tcp(1), &new).await,
+            Some(false)
+        );
+    }
+
+    #[tokio::test]
+    async fn retired_dial_failure_does_not_become_the_new_endpoints_error() {
+        let rr = RoundRobin::new();
+        rr.update(vec![tcp(1)]).await;
+        rr.update(vec![tcp(2)]).await;
+        rr.note_failure(&tcp(1), down()).await;
+        rr.note_health(&tcp(2), super::HealthSignal::Unhealthy)
+            .await;
+        assert!(matches!(rr.pick().await, Pick::Wait));
+    }
+
+    #[tokio::test]
+    async fn stopped_and_closed_connection_tokens_cannot_start_watches() {
+        let rr = RoundRobin::new();
+        rr.update(vec![tcp(1)]).await;
+        let (driver, stop) = tokio::sync::watch::channel(false);
+        rr.health_core()
+            .bind_health_connection(&tcp(1), &stop)
+            .await;
+        driver.send(true).expect("stop");
+        assert_eq!(
+            rr.health_core().begin_health_watch(&tcp(1), &stop).await,
+            None
+        );
+        let (driver, closed) = tokio::sync::watch::channel(false);
+        drop(driver);
+        rr.health_core()
+            .bind_health_connection(&tcp(1), &closed)
+            .await;
+        assert_eq!(
+            rr.health_core().begin_health_watch(&tcp(1), &closed).await,
+            None
+        );
     }
 }

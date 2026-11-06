@@ -110,7 +110,10 @@ pub(crate) fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &Servic
         let _ = writeln!(src, "/// # Deprecated");
         let _ = writeln!(src, "#[deprecated]");
     }
-    let _ = writeln!(src, "pub trait {trait_name}: Send + Sync + 'static {{");
+    let _ = writeln!(
+        src,
+        "pub trait {trait_name}: ::core::marker::Send + ::core::marker::Sync + 'static {{"
+    );
     for m in &svc.methods {
         let shape = shape_of(m);
         let fn_name = to_snake(&m.name);
@@ -203,7 +206,7 @@ pub(crate) fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &Servic
         if generate_default_stubs() {
             let _ = writeln!(
                 src,
-                "    ) -> impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{}>, {G}::Status>> + Send {{",
+                "    ) -> impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{}>, {G}::Status>> + ::core::marker::Send {{",
                 shape.trait_response
             );
             let _ = writeln!(src, "        async move {{");
@@ -218,7 +221,7 @@ pub(crate) fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &Servic
         } else {
             let _ = writeln!(
                 src,
-                "    ) -> impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{}>, {G}::Status>> + Send;",
+                "    ) -> impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{}>, {G}::Status>> + ::core::marker::Send;",
                 shape.trait_response
             );
         }
@@ -304,7 +307,7 @@ pub(crate) fn emit_kernel_server(
     let _ = writeln!(src, "    }}");
     let _ = writeln!(src, "}}");
 
-    let _ = writeln!(src, "impl<T: {trait_name}> {server}<T> {{");
+    let _ = writeln!(src, "impl<T: self::{trait_name}> {server}<T> {{");
     let _ = writeln!(src, "    /// Fully qualified proto service name.");
     let _ = writeln!(src, "    pub const NAME: &'static str = \"{full_name}\";");
     let _ = writeln!(
@@ -734,7 +737,7 @@ pub(crate) fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    pub async fn serve_with_shutdown(self, listener: {G}::codegen_support::TcpListener, shutdown: impl ::core::future::Future<Output = ()> + Send) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_with_shutdown(listener, shutdown).await }}"
+        "    pub async fn serve_with_shutdown(self, listener: {G}::codegen_support::TcpListener, shutdown: impl ::core::future::Future<Output = ()> + ::core::marker::Send) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_with_shutdown(listener, shutdown).await }}"
     );
     let _ = writeln!(
         src,
@@ -742,7 +745,7 @@ pub(crate) fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    pub async fn serve_until_shutdown(self, addr: ::std::net::SocketAddr, shutdown: impl ::core::future::Future<Output = ()> + Send) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_until_shutdown(addr, shutdown).await }}"
+        "    pub async fn serve_until_shutdown(self, addr: ::std::net::SocketAddr, shutdown: impl ::core::future::Future<Output = ()> + ::core::marker::Send) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_until_shutdown(addr, shutdown).await }}"
     );
     let _ = writeln!(
         src,
@@ -751,7 +754,7 @@ pub(crate) fn emit_kernel_server(
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(
         src,
-        "    pub async fn serve_unix(self, path: impl AsRef<::std::path::Path>) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_unix(path).await }}"
+        "    pub async fn serve_unix(self, path: impl ::core::convert::AsRef<::std::path::Path>) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_unix(path).await }}"
     );
     let _ = writeln!(
         src,
@@ -760,7 +763,7 @@ pub(crate) fn emit_kernel_server(
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(
         src,
-        "    pub async fn serve_unix_unlink(self, path: impl AsRef<::std::path::Path>) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_unix_unlink(path).await }}"
+        "    pub async fn serve_unix_unlink(self, path: impl ::core::convert::AsRef<::std::path::Path>) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_unix_unlink(path).await }}"
     );
     let _ = writeln!(
         src,
@@ -778,7 +781,7 @@ pub(crate) fn emit_kernel_server(
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(
         src,
-        "    pub async fn serve_unix_with_shutdown(self, listener: {G}::codegen_support::UnixListener, shutdown: impl ::core::future::Future<Output = ()> + Send) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_unix_with_shutdown(listener, shutdown).await }}"
+        "    pub async fn serve_unix_with_shutdown(self, listener: {G}::codegen_support::UnixListener, shutdown: impl ::core::future::Future<Output = ()> + ::core::marker::Send) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_unix_with_shutdown(listener, shutdown).await }}"
     );
     let _ = writeln!(
         src,
@@ -787,7 +790,7 @@ pub(crate) fn emit_kernel_server(
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(
         src,
-        "    pub async fn serve_unix_until_shutdown(self, path: impl AsRef<::std::path::Path>, shutdown: impl ::core::future::Future<Output = ()> + Send) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_unix_until_shutdown(path, shutdown).await }}"
+        "    pub async fn serve_unix_until_shutdown(self, path: impl ::core::convert::AsRef<::std::path::Path>, shutdown: impl ::core::future::Future<Output = ()> + ::core::marker::Send) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_unix_until_shutdown(path, shutdown).await }}"
     );
     let _ = writeln!(
         src,
@@ -796,7 +799,7 @@ pub(crate) fn emit_kernel_server(
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(
         src,
-        "    pub async fn serve_unix_unlink_until_shutdown(self, path: impl AsRef<::std::path::Path>, shutdown: impl ::core::future::Future<Output = ()> + Send) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_unix_unlink_until_shutdown(path, shutdown).await }}"
+        "    pub async fn serve_unix_unlink_until_shutdown(self, path: impl ::core::convert::AsRef<::std::path::Path>, shutdown: impl ::core::future::Future<Output = ()> + ::core::marker::Send) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_unix_unlink_until_shutdown(path, shutdown).await }}"
     );
     let _ = writeln!(
         src,
@@ -812,7 +815,7 @@ pub(crate) fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    pub async fn serve_tls_with_shutdown(self, listener: {G}::codegen_support::TcpListener, shutdown: impl ::core::future::Future<Output = ()> + Send, tls: {G}::ServerTls) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_tls_with_shutdown(listener, shutdown, tls).await }}"
+        "    pub async fn serve_tls_with_shutdown(self, listener: {G}::codegen_support::TcpListener, shutdown: impl ::core::future::Future<Output = ()> + ::core::marker::Send, tls: {G}::ServerTls) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_tls_with_shutdown(listener, shutdown, tls).await }}"
     );
     let _ = writeln!(
         src,
@@ -820,7 +823,7 @@ pub(crate) fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    pub async fn serve_tls_until_shutdown(self, addr: ::std::net::SocketAddr, shutdown: impl ::core::future::Future<Output = ()> + Send, tls: {G}::ServerTls) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_tls_until_shutdown(addr, shutdown, tls).await }}"
+        "    pub async fn serve_tls_until_shutdown(self, addr: ::std::net::SocketAddr, shutdown: impl ::core::future::Future<Output = ()> + ::core::marker::Send, tls: {G}::ServerTls) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_tls_until_shutdown(addr, shutdown, tls).await }}"
     );
     let _ = writeln!(
         src,
@@ -833,7 +836,7 @@ pub(crate) fn emit_kernel_server(
     let _ = writeln!(src, "    where");
     let _ = writeln!(
         src,
-        "        IO: {G}::codegen_support::AsyncRead + {G}::codegen_support::AsyncWrite + Unpin + Send + 'static,"
+        "        IO: {G}::codegen_support::AsyncRead + {G}::codegen_support::AsyncWrite + ::core::marker::Unpin + ::core::marker::Send + 'static,"
     );
     let _ = writeln!(src, "    {{");
     let _ = writeln!(src, "        self.into_server().serve_connection(io).await");
@@ -852,7 +855,7 @@ pub(crate) fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    pub async fn serve_with_incoming_shutdown<I: {G}::Incoming>(self, incoming: I, shutdown: impl ::core::future::Future<Output = ()> + Send) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_with_incoming_shutdown(incoming, shutdown).await }}"
+        "    pub async fn serve_with_incoming_shutdown<I: {G}::Incoming>(self, incoming: I, shutdown: impl ::core::future::Future<Output = ()> + ::core::marker::Send) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_with_incoming_shutdown(incoming, shutdown).await }}"
     );
     let _ = writeln!(
         src,
@@ -860,7 +863,10 @@ pub(crate) fn emit_kernel_server(
     );
     let _ = writeln!(src, "}}");
 
-    let _ = writeln!(src, "impl<T: {trait_name}> {G}::Service for {server}<T> {{");
+    let _ = writeln!(
+        src,
+        "impl<T: self::{trait_name}> {G}::Service for {server}<T> {{"
+    );
     let _ = writeln!(src, "    const NAME: &'static str = \"{full_name}\";");
     if full_name == "grpc.reflection.v1.ServerReflection" {
         let _ = writeln!(
@@ -880,12 +886,12 @@ pub(crate) fn emit_kernel_server(
         if boxed {
             let _ = writeln!(
                 src,
-                "    fn call_boxed(&self, rpc: {G}::Rpc) -> ::core::pin::Pin<::std::boxed::Box<dyn ::core::future::Future<Output = ()> + Send + '_>> {{"
+                "    fn call_boxed(&self, rpc: {G}::Rpc) -> ::core::pin::Pin<::std::boxed::Box<dyn ::core::future::Future<Output = ()> + ::core::marker::Send + '_>> {{"
             );
         } else {
             let _ = writeln!(
                 src,
-                "    fn call(&self, rpc: {G}::Rpc) -> impl ::core::future::Future<Output = ()> + Send {{"
+                "    fn call(&self, rpc: {G}::Rpc) -> impl ::core::future::Future<Output = ()> + ::core::marker::Send {{"
             );
         }
         let _ = writeln!(
@@ -944,11 +950,11 @@ pub(crate) fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    pub async fn connect(target: impl Into<{G}::Target>) -> ::core::result::Result<Self, {G}::Status> {{"
+        "    pub async fn connect(target: impl ::core::convert::Into<{G}::Target>) -> ::core::result::Result<Self, {G}::Status> {{"
     );
     let _ = writeln!(
         src,
-        "        Ok(Self::new({G}::Channel::connect(target).await?))"
+        "        ::core::result::Result::Ok(Self::new({G}::Channel::connect(target).await?))"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
@@ -957,11 +963,11 @@ pub(crate) fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    pub async fn connect_with(target: impl Into<{G}::Target>, config: {G}::ChannelConfig) -> ::core::result::Result<Self, {G}::Status> {{"
+        "    pub async fn connect_with(target: impl ::core::convert::Into<{G}::Target>, config: {G}::ChannelConfig) -> ::core::result::Result<Self, {G}::Status> {{"
     );
     let _ = writeln!(
         src,
-        "        Ok(Self::new({G}::Channel::connect_with(target, config).await?))"
+        "        ::core::result::Result::Ok(Self::new({G}::Channel::connect_with(target, config).await?))"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
@@ -978,11 +984,11 @@ pub(crate) fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    pub async fn connect_pool(target: impl Into<{G}::Target>, connections: usize) -> ::core::result::Result<Self, {G}::Status> {{"
+        "    pub async fn connect_pool(target: impl ::core::convert::Into<{G}::Target>, connections: usize) -> ::core::result::Result<Self, {G}::Status> {{"
     );
     let _ = writeln!(
         src,
-        "        Ok(Self::new({G}::Channel::connect_pool(target, connections).await?))"
+        "        ::core::result::Result::Ok(Self::new({G}::Channel::connect_pool(target, connections).await?))"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
@@ -991,11 +997,11 @@ pub(crate) fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    pub async fn connect_tls(target: impl Into<{G}::Target>, tls: {G}::ClientTls) -> ::core::result::Result<Self, {G}::Status> {{"
+        "    pub async fn connect_tls(target: impl ::core::convert::Into<{G}::Target>, tls: {G}::ClientTls) -> ::core::result::Result<Self, {G}::Status> {{"
     );
     let _ = writeln!(
         src,
-        "        Ok(Self::new({G}::Channel::connect_tls(target, tls).await?))"
+        "        ::core::result::Result::Ok(Self::new({G}::Channel::connect_tls(target, tls).await?))"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
@@ -1008,11 +1014,11 @@ pub(crate) fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    pub async fn connect_tls_with(target: impl Into<{G}::Target>, config: {G}::ChannelConfig, tls: {G}::ClientTls) -> ::core::result::Result<Self, {G}::Status> {{"
+        "    pub async fn connect_tls_with(target: impl ::core::convert::Into<{G}::Target>, config: {G}::ChannelConfig, tls: {G}::ClientTls) -> ::core::result::Result<Self, {G}::Status> {{"
     );
     let _ = writeln!(
         src,
-        "        Ok(Self::new({G}::Channel::connect_tls_with(target, config, tls).await?))"
+        "        ::core::result::Result::Ok(Self::new({G}::Channel::connect_tls_with(target, config, tls).await?))"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
@@ -1021,11 +1027,11 @@ pub(crate) fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    pub fn connect_lazy(target: impl Into<{G}::Target>) -> ::core::result::Result<Self, {G}::Status> {{"
+        "    pub fn connect_lazy(target: impl ::core::convert::Into<{G}::Target>) -> ::core::result::Result<Self, {G}::Status> {{"
     );
     let _ = writeln!(
         src,
-        "        Ok(Self::new({G}::Channel::connect_lazy(target)?))"
+        "        ::core::result::Result::Ok(Self::new({G}::Channel::connect_lazy(target)?))"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
@@ -1034,11 +1040,11 @@ pub(crate) fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    pub fn connect_lazy_with(target: impl Into<{G}::Target>, config: {G}::ChannelConfig) -> ::core::result::Result<Self, {G}::Status> {{"
+        "    pub fn connect_lazy_with(target: impl ::core::convert::Into<{G}::Target>, config: {G}::ChannelConfig) -> ::core::result::Result<Self, {G}::Status> {{"
     );
     let _ = writeln!(
         src,
-        "        Ok(Self::new({G}::Channel::connect_lazy_with(target, config)?))"
+        "        ::core::result::Result::Ok(Self::new({G}::Channel::connect_lazy_with(target, config)?))"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
@@ -1047,11 +1053,11 @@ pub(crate) fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    pub fn connect_tls_lazy(target: impl Into<{G}::Target>, tls: {G}::ClientTls) -> ::core::result::Result<Self, {G}::Status> {{"
+        "    pub fn connect_tls_lazy(target: impl ::core::convert::Into<{G}::Target>, tls: {G}::ClientTls) -> ::core::result::Result<Self, {G}::Status> {{"
     );
     let _ = writeln!(
         src,
-        "        Ok(Self::new({G}::Channel::connect_tls_lazy(target, tls)?))"
+        "        ::core::result::Result::Ok(Self::new({G}::Channel::connect_tls_lazy(target, tls)?))"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
@@ -1060,11 +1066,11 @@ pub(crate) fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    pub fn connect_tls_lazy_with(target: impl Into<{G}::Target>, config: {G}::ChannelConfig, tls: {G}::ClientTls) -> ::core::result::Result<Self, {G}::Status> {{"
+        "    pub fn connect_tls_lazy_with(target: impl ::core::convert::Into<{G}::Target>, config: {G}::ChannelConfig, tls: {G}::ClientTls) -> ::core::result::Result<Self, {G}::Status> {{"
     );
     let _ = writeln!(
         src,
-        "        Ok(Self::new({G}::Channel::connect_tls_lazy_with(target, config, tls)?))"
+        "        ::core::result::Result::Ok(Self::new({G}::Channel::connect_tls_lazy_with(target, config, tls)?))"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
@@ -1074,11 +1080,11 @@ pub(crate) fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(
         src,
-        "    pub async fn connect_unix(path: impl AsRef<::std::path::Path>) -> ::core::result::Result<Self, {G}::Status> {{"
+        "    pub async fn connect_unix(path: impl ::core::convert::AsRef<::std::path::Path>) -> ::core::result::Result<Self, {G}::Status> {{"
     );
     let _ = writeln!(
         src,
-        "        Ok(Self::new({G}::Channel::connect_unix(path).await?))"
+        "        ::core::result::Result::Ok(Self::new({G}::Channel::connect_unix(path).await?))"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
@@ -1092,11 +1098,11 @@ pub(crate) fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(
         src,
-        "    pub async fn connect_unix_with(path: impl AsRef<::std::path::Path>, config: {G}::ChannelConfig) -> ::core::result::Result<Self, {G}::Status> {{"
+        "    pub async fn connect_unix_with(path: impl ::core::convert::AsRef<::std::path::Path>, config: {G}::ChannelConfig) -> ::core::result::Result<Self, {G}::Status> {{"
     );
     let _ = writeln!(
         src,
-        "        Ok(Self::new({G}::Channel::connect_unix_with(path, config).await?))"
+        "        ::core::result::Result::Ok(Self::new({G}::Channel::connect_unix_with(path, config).await?))"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
@@ -1106,11 +1112,11 @@ pub(crate) fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(
         src,
-        "    pub fn connect_unix_lazy(path: impl AsRef<::std::path::Path>) -> ::core::result::Result<Self, {G}::Status> {{"
+        "    pub fn connect_unix_lazy(path: impl ::core::convert::AsRef<::std::path::Path>) -> ::core::result::Result<Self, {G}::Status> {{"
     );
     let _ = writeln!(
         src,
-        "        Ok(Self::new({G}::Channel::connect_unix_lazy(path)?))"
+        "        ::core::result::Result::Ok(Self::new({G}::Channel::connect_unix_lazy(path)?))"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
@@ -1120,11 +1126,11 @@ pub(crate) fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(
         src,
-        "    pub fn connect_unix_lazy_with(path: impl AsRef<::std::path::Path>, config: {G}::ChannelConfig) -> ::core::result::Result<Self, {G}::Status> {{"
+        "    pub fn connect_unix_lazy_with(path: impl ::core::convert::AsRef<::std::path::Path>, config: {G}::ChannelConfig) -> ::core::result::Result<Self, {G}::Status> {{"
     );
     let _ = writeln!(
         src,
-        "        Ok(Self::new({G}::Channel::connect_unix_lazy_with(path, config)?))"
+        "        ::core::result::Result::Ok(Self::new({G}::Channel::connect_unix_lazy_with(path, config)?))"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
@@ -1133,17 +1139,17 @@ pub(crate) fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    pub async fn from_io<IO>(io: IO, authority: impl Into<{G}::Target>) -> ::core::result::Result<Self, {G}::Status>"
+        "    pub async fn from_io<IO>(io: IO, authority: impl ::core::convert::Into<{G}::Target>) -> ::core::result::Result<Self, {G}::Status>"
     );
     let _ = writeln!(src, "    where");
     let _ = writeln!(
         src,
-        "        IO: {G}::codegen_support::AsyncRead + {G}::codegen_support::AsyncWrite + Unpin + Send + 'static,"
+        "        IO: {G}::codegen_support::AsyncRead + {G}::codegen_support::AsyncWrite + ::core::marker::Unpin + ::core::marker::Send + 'static,"
     );
     let _ = writeln!(src, "    {{");
     let _ = writeln!(
         src,
-        "        Ok(Self::new({G}::Channel::from_io(io, authority).await?))"
+        "        ::core::result::Result::Ok(Self::new({G}::Channel::from_io(io, authority).await?))"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
@@ -1156,17 +1162,17 @@ pub(crate) fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    pub async fn from_io_with<IO>(io: IO, authority: impl Into<{G}::Target>, config: {G}::ChannelConfig) -> ::core::result::Result<Self, {G}::Status>"
+        "    pub async fn from_io_with<IO>(io: IO, authority: impl ::core::convert::Into<{G}::Target>, config: {G}::ChannelConfig) -> ::core::result::Result<Self, {G}::Status>"
     );
     let _ = writeln!(src, "    where");
     let _ = writeln!(
         src,
-        "        IO: {G}::codegen_support::AsyncRead + {G}::codegen_support::AsyncWrite + Unpin + Send + 'static,"
+        "        IO: {G}::codegen_support::AsyncRead + {G}::codegen_support::AsyncWrite + ::core::marker::Unpin + ::core::marker::Send + 'static,"
     );
     let _ = writeln!(src, "    {{");
     let _ = writeln!(
         src,
-        "        Ok(Self::new({G}::Channel::from_io_with(io, authority, config).await?))"
+        "        ::core::result::Result::Ok(Self::new({G}::Channel::from_io_with(io, authority, config).await?))"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
@@ -1184,11 +1190,11 @@ pub(crate) fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    pub fn origin(self, authority: impl Into<{G}::Target>) -> ::core::result::Result<Self, {G}::Status> {{"
+        "    pub fn origin(self, authority: impl ::core::convert::Into<{G}::Target>) -> ::core::result::Result<Self, {G}::Status> {{"
     );
     let _ = writeln!(
         src,
-        "        Ok(Self {{ channel: self.channel.origin(authority)? }})"
+        "        ::core::result::Result::Ok(Self {{ channel: self.channel.origin(authority)? }})"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
@@ -1461,11 +1467,11 @@ pub(crate) fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    pub fn user_agent(self, prefix: impl AsRef<str>) -> ::core::result::Result<Self, {G}::Status> {{"
+        "    pub fn user_agent(self, prefix: impl ::core::convert::AsRef<str>) -> ::core::result::Result<Self, {G}::Status> {{"
     );
     let _ = writeln!(
         src,
-        "        Ok(Self {{ channel: self.channel.user_agent(prefix)? }})"
+        "        ::core::result::Result::Ok(Self {{ channel: self.channel.user_agent(prefix)? }})"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(

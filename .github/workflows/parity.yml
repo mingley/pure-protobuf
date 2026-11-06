@@ -78,6 +78,8 @@ jobs:
         run: python3 tests/proof/safe_defaults/run.py --out work/parity-audit/safe-defaults
       - name: Check generated namespaces and runtime aliases
         run: python3 tests/proof/namespace_symbols/run.py --out work/parity-audit/namespace-symbols
+      - name: Check generated RPC service names in every stub mode
+        run: python3 tests/proof/rpc_names/run.py --out work/parity-audit/rpc-names
       - name: Check field view accessor collisions
         run: |
           cargo run --locked --offline --manifest-path tests/proof/field_views/Cargo.toml \

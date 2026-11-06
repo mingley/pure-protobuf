@@ -10,6 +10,9 @@ or stable releases.
 
 ### pbrs 0.2.1
 
+- Qualify generated RPC framework references and service-trait paths so
+  services named `Send`, `Arc`, `T` and other framework/generic names compile
+  without renaming their public identifiers.
 - Add `Config::bytes(paths)` for selected `ProtoBytes` storage and shared
   getters. Initialize direct selected byte fields with valid defaults, and
   retain shared payload windows through matching generated parents. Older or
@@ -77,6 +80,12 @@ or stable releases.
 
 ### pbrs-grpc 0.1.0-alpha.3
 
+- Preserve per-endpoint executors and full URI identities in static and
+  watched balance helpers. Replace changed entries lazily and drain existing
+  calls. These helpers retain shared settings and channel-wide authority;
+  per-endpoint origins, TLS and hostname lookup remain unsupported.
+- Keep one health Watch per current round-robin connection, reject stale
+  owners after replacement, and recover after the health transport closes.
 - Add `Endpoint::origin(Uri)` and `Channel::request_scheme()` for logical
   request routing without changing dialing, TLS or interceptor security
   context. Origin paths and queries are ignored; static balance helpers
@@ -115,6 +124,10 @@ or stable releases.
   a `protoc` dependency for ordinary consumers.
 
 ### Release qualification
+
+Successful main CI can now start an exact-commit package and provenance
+rehearsal automatically. This path never uploads crates. Tagged publication
+also checks that the verified annotated tag targets the commit tested by CI.
 
 Publication requires the checks in [the release policy](docs/RELEASE.md),
 including required CI on the release SHA, isolated package consumers, a hosted

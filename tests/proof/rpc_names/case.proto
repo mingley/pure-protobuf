@@ -1,0 +1,11 @@
+syntax = "proto3";
+package proof.rpcnames;
+message Input {}
+message Output {}
+// Preserve user text: pbrs:: tonic:: protobuf_tonic:: std:: and core::.
+service ServiceName {
+  rpc Unary(Input) returns (Output);
+  rpc Client(stream Input) returns (Output);
+  rpc Server(Input) returns (stream Output);
+  rpc Bidi(stream Input) returns (stream Output);
+}

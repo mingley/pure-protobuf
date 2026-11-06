@@ -21,11 +21,9 @@ use http::Uri;
 use http::uri::Authority;
 use std::fmt;
 use std::future::Future;
-use std::io;
 use std::net::SocketAddr;
 #[cfg(unix)]
 use std::path::Path;
-use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Semaphore;
@@ -308,9 +306,9 @@ impl Endpoint {
     ///
     /// Applies to eager and lazy connections, reconnections and custom
     /// connectors. Other helper tasks and Tokio IO/timers retain their existing
-    /// runtime requirements. See [`crate::Executor`]. Per-endpoint executors
-    /// are not supported by the static balance helpers; those helpers reject
-    /// such endpoints instead of silently discarding the override.
+    /// runtime requirements. See [`crate::Executor`]. Balance helpers retain
+    /// each endpoint's executor, including distinct URI entries that dial
+    /// the same socket address.
     #[must_use]
     pub fn executor(mut self, executor: impl crate::Executor) -> Self {
         self.executor = crate::executor::TaskExecutor::new(executor);
@@ -383,35 +381,28 @@ impl Endpoint {
         config: ChannelConfig,
     ) -> Result<Channel, Status> {
         let endpoints: Vec<_> = endpoints.into_iter().collect();
-        let addrs = endpoint_socket_addrs(&endpoints)?;
-        let resolver = ResolverConfig::with_dns_provider(
-            endpoint_dns_bounds()?,
-            Arc::new(EndpointListDns(addrs)),
-        )
-        .with_txt_provider(Arc::new(EndpointListTxt));
-        Channel::connect_uri_with("dns:///pbrs-endpoint-list.invalid:443", config, resolver).await
+        pool::connect_balanced(endpoints, None, config).await
     }
 
     /// Dynamic round-robin balance over a watch channel of endpoint lists.
     ///
-    /// Updates are observed by the existing DNS resolver refresh loop; use
-    /// [`ResolverConfig`] / [`Channel::connect_uri`] directly for custom
-    /// resolver timing.
+    /// Each observed full list replaces membership. Full URI keys distinguish
+    /// entries, even when they dial the same socket. A changed executor for
+    /// an existing URI replaces that connection lazily; existing RPCs drain
+    /// within the configured connection-age grace. Unchanged cloned endpoints
+    /// retain their connections. Invalid later lists retain the last valid
+    /// list and emit a channelz warning; an empty later list removes all peers.
+    ///
+    /// This is a full-snapshot API, not tonic's keyed `Change` sender. It stops
+    /// picking a replaced entry when the new snapshot is processed; tonic can
+    /// use a prior ready entry once while its replacement becomes ready.
     pub async fn balance_channel(
         endpoints: watch::Receiver<Vec<Endpoint>>,
         config: ChannelConfig,
     ) -> Result<Channel, Status> {
-        let addrs = endpoint_socket_addrs(endpoints.borrow().as_slice())?;
-        let resolver = ResolverConfig::with_dns_provider(
-            endpoint_dns_bounds()?,
-            Arc::new(EndpointWatchDns { endpoints }),
-        )
-        .with_txt_provider(Arc::new(EndpointListTxt));
-        let channel =
-            Channel::connect_uri_with("dns:///pbrs-endpoint-channel.invalid:443", config, resolver)
-                .await?;
-        drop(addrs);
-        Ok(channel)
+        let mut endpoints = endpoints;
+        let initial = endpoints.borrow_and_update().clone();
+        pool::connect_balanced(initial, Some(endpoints), config).await
     }
 
     fn is_https(&self) -> bool {
@@ -460,69 +451,12 @@ impl Endpoint {
     }
 }
 
-#[derive(Debug)]
-struct EndpointListDns(Vec<SocketAddr>);
-
-impl crate::resolver::DnsLookup for EndpointListDns {
-    fn lookup(
-        &self,
-        _host: &str,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<SocketAddr>, io::Error>> + Send + '_>> {
-        let addrs = self.0.clone();
-        Box::pin(async move { Ok(addrs) })
-    }
-}
-
-#[derive(Debug)]
-struct EndpointWatchDns {
-    endpoints: watch::Receiver<Vec<Endpoint>>,
-}
-
-impl crate::resolver::DnsLookup for EndpointWatchDns {
-    fn lookup(
-        &self,
-        _host: &str,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<SocketAddr>, io::Error>> + Send + '_>> {
-        let endpoints = self.endpoints.borrow().clone();
-        Box::pin(async move {
-            endpoint_socket_addrs(&endpoints)
-                .map_err(|status| io::Error::new(io::ErrorKind::InvalidInput, status.message()))
-        })
-    }
-}
-
-#[derive(Debug)]
-struct EndpointListTxt;
-
-impl crate::resolver::TxtLookup for EndpointListTxt {
-    fn fetch_txt(
-        &self,
-        _name: &str,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<String>, io::Error>> + Send + '_>> {
-        Box::pin(async move {
-            Ok(vec![
-                r#"{"loadBalancingConfig": [{"round_robin": {}}]}"#.to_owned(),
-            ])
-        })
-    }
-}
-
-fn endpoint_socket_addrs(endpoints: &[Endpoint]) -> Result<Vec<SocketAddr>, Status> {
-    if endpoints.is_empty() {
-        return Err(Status::invalid_argument(
-            "balance_list needs at least one endpoint",
-        ));
-    }
+pub(super) fn balance_inputs(endpoints: &[Endpoint]) -> Result<Vec<pool::BalanceInput>, Status> {
     let mut out = Vec::with_capacity(endpoints.len());
     for endpoint in endpoints {
         if endpoint.origin.is_some() {
             return Err(Status::invalid_argument(
                 "balance_list/balance_channel do not support per-endpoint origins",
-            ));
-        }
-        if endpoint.executor.is_custom() {
-            return Err(Status::invalid_argument(
-                "balance_list/balance_channel do not support per-endpoint executors",
             ));
         }
         if endpoint.is_https() {
@@ -531,22 +465,16 @@ fn endpoint_socket_addrs(endpoints: &[Endpoint]) -> Result<Vec<SocketAddr>, Stat
             ));
         }
         let authority = endpoint.authority_with_default_port()?;
-        out.push(authority.parse().map_err(|e| {
-            Status::invalid_argument(format!("endpoint {authority:?} is not an IP:port: {e}"))
-        })?);
+        let address = authority.parse().map_err(|error| {
+            Status::invalid_argument(format!("endpoint {authority:?} is not an IP:port: {error}"))
+        })?;
+        out.push(pool::BalanceInput {
+            uri: endpoint.uri.clone(),
+            address,
+            executor: endpoint.executor.clone(),
+        });
     }
     Ok(out)
-}
-
-fn endpoint_dns_bounds() -> Result<crate::resolver::DnsConfig, Status> {
-    crate::resolver::DnsConfig::new(
-        Duration::from_secs(60),
-        Duration::from_secs(60),
-        Duration::from_secs(60),
-        Duration::from_secs(1),
-        Duration::from_secs(1),
-        Duration::ZERO,
-    )
 }
 
 /// Per-clone overlays. Clones share this handle until a setter replaces it,

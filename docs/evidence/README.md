@@ -5,6 +5,17 @@ stopped. They are dated investigations, usually local diagnostics. A result
 belongs to its recorded revision, host, workload, and peer versions; it does
 not automatically describe today's code.
 
+The [fused packed-encoding follow-up](rejected-packed-fused-20261106/README.md)
+also remains unshipped. It improves fresh and noncanonical encoding but slows
+cached encoding and encode-then-get workloads. Its complete comparison,
+correctness checks and static inspection remain available.
+
+The [November 6 packed-wire cache experiment](rejected-packed-wire-cache-20261106/README.md)
+reduces fresh-encoding allocations and CPU, but slows cached encoding,
+owned inputs and noncanonical wire. The candidate was rejected. All measured
+rows, both Prost output APIs and the independent cache-recovery fix remain
+in the record.
+
 The [November 6 fresh-encoding repair](fresh-encode-warmup-20261106/README.md)
 separates warmup and measured objects. Earlier development-loop fresh rows
 could reuse packed-field caches. The record exposes the cold allocation cost,

@@ -15,6 +15,7 @@ was reproduced; it does not mean full parity or a performance ranking.
 | Generated consumers and embedded support | `python3 tests/proof/codegen_parity/run.py --output work/parity-codegen` | Runs valid roundtrips, build-configuration probes and an alloc-only target control. |
 | Field view accessor names | See [field view consumers](field_views/README.md) | Checks singular message/group view methods, existing field APIs, and wire values against Prost across four storage/default profiles. |
 | Generated namespaces | `python3 tests/proof/namespace_symbols/run.py --out work/parity-namespaces` | Checks framework symbol shadows, runtime aliases and preserved user paths across four storage/default profiles. |
+| RPC service namespaces | `python3 tests/proof/rpc_names/run.py --out work/parity-rpc-names` | Compiles 55 service names in four stub modes, strict aliases and a pinned Tonic reference against actual runtime artifacts. |
 | gRPC message presence | `cargo test --locked --manifest-path tests/proof/tonic_parity/Cargo.toml -- --nocapture` | Compares missing and framed-empty messages against tonic, including peer-error precedence. |
 | Codec costs | See [codec benchmark](codec_benchmark/README.md) | Keeps parse-only and reading every field separate; saves all comparative results. |
 | RPC CPU claim preflight | `python3 scripts/verify-performance-claim.py --help` | Checks supplied campaign evidence and recomputes intervals; cannot certify a world ranking. |

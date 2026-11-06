@@ -5,6 +5,8 @@
 
 | Read | Scope |
 |---|---|
+| [Rejected fused packed encoding](evidence/rejected-packed-fused-20261106/README.md) | Fresh and noncanonical gains with cached and getter regressions; all 432 processes, November 6 |
+| [Rejected packed-wire cache](evidence/rejected-packed-wire-cache-20261106/README.md) | Fresh-encode gains with cached and noncanonical regressions; all 432 processes, November 6 |
 | [Fresh-encode warmup repair](evidence/fresh-encode-warmup-20261106/README.md) | Separate warmup objects and retain the previously hidden cold-allocation cost, November 6 |
 | [Map removal](#map-removal-november-6) | Correctness repair, indexed update gains and small-map costs, November 6 |
 | [Rejected borrowed queries](evidence/rejected-query-capability-20261106/README.md) | Lookup allocation gains with a repeatable small-map loss, November 6 |

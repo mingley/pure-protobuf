@@ -73,6 +73,15 @@ impl TaskExecutor {
         self.0.is_some()
     }
 
+    /// Cloned endpoint configurations retain their scheduler identity.
+    pub(crate) fn same_instance(&self, other: &Self) -> bool {
+        match (&self.0, &other.0) {
+            (None, None) => true,
+            (Some(left), Some(right)) => Arc::ptr_eq(left, right),
+            _ => false,
+        }
+    }
+
     pub(crate) fn spawn(&self, future: impl Future<Output = ()> + Send + 'static) {
         match &self.0 {
             Some(executor) => {

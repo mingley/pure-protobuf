@@ -1617,7 +1617,7 @@ fn protoc_plugin_custom_runtime_and_adapter_crate_aliases() {
     assert!(status_tonic.success());
     let gen_tonic = std::fs::read_to_string(tmp_tonic.join("hello.rs")).unwrap();
     assert!(
-        gen_tonic.contains("use ::custom_tonic::ProtobufCodec;"),
+        gen_tonic.contains("::custom_tonic::ProtobufCodec::<"),
         "tonic stubs must reference custom tonic crate: {gen_tonic}"
     );
     assert!(

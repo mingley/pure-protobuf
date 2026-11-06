@@ -101,6 +101,9 @@ tonic-gzip = ["tonic", "tonic/gzip"]
 grpc-web = []
 
 [dev-dependencies]
+# Direct trait path for the optional Tonic executor compatibility oracle.
+# Hyper is already locked transitively; this does not alter shipping features.
+hyper = "1"
 # In-memory metrics assertions for tests/otel.rs (GF-01).
 opentelemetry_sdk = { version = "0.31", default-features = false, features = ["metrics", "testing", "experimental_metrics_custom_reader"] }
 # The hostile-peer tests speak raw HTTP/2 so they can send bytes no

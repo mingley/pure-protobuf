@@ -52,7 +52,6 @@ pub fn generate_from_file_descriptor_set(
 #[allow(clippy::all, reason = \"generated prost pbrs-grpc stubs\")]\n\
 #[allow(clippy::pedantic, reason = \"generated prost pbrs-grpc stubs\")]\n",
         );
-        src.push_str("use std::sync::Arc;\n\n");
         for svc in &services {
             emit_service(&mut src, svc);
         }
@@ -161,7 +160,10 @@ fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
 }
 
 fn emit_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor) {
-    let _ = writeln!(src, "pub trait {trait_name}: Send + Sync + 'static {{");
+    let _ = writeln!(
+        src,
+        "pub trait {trait_name}: ::core::marker::Send + ::core::marker::Sync + 'static {{"
+    );
     for method in sorted_methods(svc) {
         let fn_name = to_snake(&method.name);
         let req = prost_type_path(&method.input_type);
@@ -170,25 +172,25 @@ fn emit_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor) {
             (false, false) => {
                 let _ = writeln!(
                     src,
-                    "    fn {fn_name}(&self, request: {G}::Request<{req}>) -> impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{resp}>, {G}::Status>> + Send {{"
+                    "    fn {fn_name}(&self, request: {G}::Request<{req}>) -> impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{resp}>, {G}::Status>> + ::core::marker::Send {{"
                 );
             }
             (true, false) => {
                 let _ = writeln!(
                     src,
-                    "    fn {fn_name}(&self, request: {G}::Request<{P}::Streaming<{req}>>) -> impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{resp}>, {G}::Status>> + Send {{"
+                    "    fn {fn_name}(&self, request: {G}::Request<{P}::Streaming<{req}>>) -> impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{resp}>, {G}::Status>> + ::core::marker::Send {{"
                 );
             }
             (false, true) => {
                 let _ = writeln!(
                     src,
-                    "    fn {fn_name}(&self, request: {G}::Request<{req}>) -> impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{P}::Streaming<{resp}>>, {G}::Status>> + Send {{"
+                    "    fn {fn_name}(&self, request: {G}::Request<{req}>) -> impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{P}::Streaming<{resp}>>, {G}::Status>> + ::core::marker::Send {{"
                 );
             }
             (true, true) => {
                 let _ = writeln!(
                     src,
-                    "    fn {fn_name}(&self, request: {G}::Request<{P}::Streaming<{req}>>) -> impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{P}::Streaming<{resp}>>, {G}::Status>> + Send {{"
+                    "    fn {fn_name}(&self, request: {G}::Request<{P}::Streaming<{req}>>) -> impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{P}::Streaming<{resp}>>, {G}::Status>> + ::core::marker::Send {{"
                 );
             }
         }
@@ -212,15 +214,21 @@ fn emit_server(
     full_name: &str,
     svc: &ServiceDescriptor,
 ) {
-    let _ = writeln!(src, "#[derive(Clone)]");
-    let _ = writeln!(src, "pub struct {server}<T> {{ inner: Arc<T> }}");
-    let _ = writeln!(src, "impl<T: {trait_name}> {server}<T> {{");
+    let _ = writeln!(src, "#[derive(::core::clone::Clone)]");
     let _ = writeln!(
         src,
-        "    pub fn new(inner: T) -> Self {{ Self {{ inner: Arc::new(inner) }} }}"
+        "pub struct {server}<T> {{ inner: ::std::sync::Arc<T> }}"
+    );
+    let _ = writeln!(src, "impl<T: self::{trait_name}> {server}<T> {{");
+    let _ = writeln!(
+        src,
+        "    pub fn new(inner: T) -> Self {{ Self {{ inner: ::std::sync::Arc::new(inner) }} }}"
     );
     let _ = writeln!(src, "}}\n");
-    let _ = writeln!(src, "impl<T: {trait_name}> {G}::Service for {server}<T> {{");
+    let _ = writeln!(
+        src,
+        "impl<T: self::{trait_name}> {G}::Service for {server}<T> {{"
+    );
     let _ = writeln!(src, "    const NAME: &'static str = \"{full_name}\";");
     // Select the method before boxing so an unrelated method's state machine
     // cannot enlarge every RPC's handler allocation. Keep the direct hook too.
@@ -228,7 +236,7 @@ fn emit_server(
         if boxed {
             let _ = writeln!(
                 src,
-                "    fn call_boxed(&self, rpc: {G}::Rpc) -> ::core::pin::Pin<::std::boxed::Box<dyn ::core::future::Future<Output = ()> + Send + '_>> {{"
+                "    fn call_boxed(&self, rpc: {G}::Rpc) -> ::core::pin::Pin<::std::boxed::Box<dyn ::core::future::Future<Output = ()> + ::core::marker::Send + '_>> {{"
             );
         } else {
             let _ = writeln!(src, "    async fn call(&self, rpc: {G}::Rpc) {{");
@@ -260,7 +268,10 @@ fn emit_server(
                 "rpc.{dispatch}(move |request: {G}::Request<{request_type}>| async move {{ inner.{fn_name}(request.map({P}::{request_map})).await.map({P}::{response_map}) }})"
             );
             let _ = writeln!(src, "            \"{}\" => {{", method.name);
-            let _ = writeln!(src, "                let inner = Arc::clone(&self.inner);");
+            let _ = writeln!(
+                src,
+                "                let inner = ::std::sync::Arc::clone(&self.inner);"
+            );
             if boxed {
                 let _ = writeln!(src, "                ::std::boxed::Box::pin({future})");
             } else {
@@ -283,7 +294,7 @@ fn emit_server(
 }
 
 fn emit_client(src: &mut String, client: &str, svc: &ServiceDescriptor, path_prefix: &str) {
-    let _ = writeln!(src, "#[derive(Clone, Debug)]");
+    let _ = writeln!(src, "#[derive(::core::clone::Clone, ::core::fmt::Debug)]");
     let _ = writeln!(src, "pub struct {client} {{ channel: {G}::Channel }}");
     let _ = writeln!(src, "impl {client} {{");
     let _ = writeln!(
@@ -316,7 +327,7 @@ fn emit_client_method(src: &mut String, method: &MethodDescriptor, path_prefix: 
         (true, false) => {
             let _ = writeln!(
                 src,
-                "    pub fn {fn_name}(&self, request: {G}::Request<()>) -> ({P}::StreamSender<{req}>, impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{resp}>, {G}::Status>> + Send + 'static) {{"
+                "    pub fn {fn_name}(&self, request: {G}::Request<()>) -> ({P}::StreamSender<{req}>, impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{resp}>, {G}::Status>> + ::core::marker::Send + 'static) {{"
             );
             let _ = writeln!(
                 src,
@@ -343,7 +354,7 @@ fn emit_client_method(src: &mut String, method: &MethodDescriptor, path_prefix: 
         (true, true) => {
             let _ = writeln!(
                 src,
-                "    pub fn {fn_name}(&self, request: {G}::Request<()>) -> ({P}::StreamSender<{req}>, impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{P}::Streaming<{resp}>>, {G}::Status>> + Send + 'static) {{"
+                "    pub fn {fn_name}(&self, request: {G}::Request<()>) -> ({P}::StreamSender<{req}>, impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{P}::Streaming<{resp}>>, {G}::Status>> + ::core::marker::Send + 'static) {{"
             );
             let _ = writeln!(
                 src,

@@ -3,6 +3,15 @@
 use super::*;
 use crate::dynamic::{MethodDescriptor, ServiceDescriptor};
 
+/// Resolve the built-in codec before inserting any configured user path.
+fn service_codec_path() -> std::borrow::Cow<'static, str> {
+    if CODEC_PATH.with(|configured| configured.borrow().is_some()) {
+        std::borrow::Cow::Owned(tonic_codec_path())
+    } else {
+        std::borrow::Cow::Borrowed("::protobuf_tonic::ProtobufCodec")
+    }
+}
+
 pub(crate) fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
     let mut svc_clone = (*svc).clone();
     svc_clone.methods.sort_by(|a, b| a.name.cmp(&b.name));
@@ -22,7 +31,10 @@ pub(crate) fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
         let _ = writeln!(src, "#[deprecated]");
     }
     if build_server() {
-        let _ = writeln!(src, "pub trait {svc_ty}: Send + Sync + 'static {{");
+        let _ = writeln!(
+            src,
+            "pub trait {svc_ty}: ::core::marker::Send + ::core::marker::Sync + 'static {{"
+        );
         for m in &svc.methods {
             emit_service_trait_method(src, m);
         }
@@ -30,55 +42,61 @@ pub(crate) fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
     }
     if build_client() {
         emit_client_attributes(src, &svc.full_name, "");
-        let _ = writeln!(src, "#[derive(Clone, Debug)]");
+        let _ = writeln!(src, "#[derive(::core::clone::Clone, ::core::fmt::Debug)]");
         let _ = writeln!(src, "pub struct {client}<T> {{");
-        let _ = writeln!(src, "    inner: tonic::client::Grpc<T>,");
+        let _ = writeln!(src, "    inner: ::tonic::client::Grpc<T>,");
         let _ = writeln!(src, "}}");
         let _ = writeln!(src, "impl<T> {client}<T>");
         let _ = writeln!(src, "where");
-        let _ = writeln!(src, "    T: tonic::client::GrpcService<tonic::body::Body>,");
-        let _ = writeln!(src, "    T::Error: Into<tonic::codegen::StdError>,");
         let _ = writeln!(
             src,
-            "    T::ResponseBody: tonic::codegen::Body<Data = tonic::codegen::Bytes> + Send + 'static,"
+            "    T: ::tonic::client::GrpcService<::tonic::body::Body>,"
         );
         let _ = writeln!(
             src,
-            "    <T::ResponseBody as tonic::codegen::Body>::Error: Into<tonic::codegen::StdError> + Send,"
+            "    T::Error: ::core::convert::Into<::tonic::codegen::StdError>,"
+        );
+        let _ = writeln!(
+            src,
+            "    T::ResponseBody: ::tonic::codegen::Body<Data = ::tonic::codegen::Bytes> + ::core::marker::Send + 'static,"
+        );
+        let _ = writeln!(
+            src,
+            "    <T::ResponseBody as ::tonic::codegen::Body>::Error: ::core::convert::Into<::tonic::codegen::StdError> + ::core::marker::Send,"
         );
         let _ = writeln!(src, "{{");
         let _ = writeln!(
             src,
-            "    pub fn new(inner: T) -> Self {{ Self {{ inner: tonic::client::Grpc::new(inner) }} }}"
+            "    pub fn new(inner: T) -> Self {{ Self {{ inner: ::tonic::client::Grpc::new(inner) }} }}"
         );
         let _ = writeln!(
             src,
-            "    pub fn with_interceptor<F>(inner: T, interceptor: F) -> {client}<tonic::service::interceptor::InterceptedService<T, F>>"
+            "    pub fn with_interceptor<F>(inner: T, interceptor: F) -> {client}<::tonic::service::interceptor::InterceptedService<T, F>>"
         );
         let _ = writeln!(src, "    where");
-        let _ = writeln!(src, "        F: tonic::service::Interceptor,");
+        let _ = writeln!(src, "        F: ::tonic::service::Interceptor,");
         let _ = writeln!(src, "        T::ResponseBody: ::core::default::Default,");
         let _ = writeln!(
             src,
-            "        T: tonic::codegen::Service<http::Request<tonic::body::Body>, Response = http::Response<<T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody>>,"
+            "        T: ::tonic::codegen::Service<::http::Request<::tonic::body::Body>, Response = ::http::Response<<T as ::tonic::client::GrpcService<::tonic::body::Body>>::ResponseBody>>,"
         );
         let _ = writeln!(
             src,
-            "        <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error: Into<tonic::codegen::StdError> + Send + Sync,"
+            "        <T as ::tonic::codegen::Service<::http::Request<::tonic::body::Body>>>::Error: ::core::convert::Into<::tonic::codegen::StdError> + ::core::marker::Send + ::core::marker::Sync,"
         );
         let _ = writeln!(src, "    {{");
         let _ = writeln!(
             src,
-            "        {client}::new(tonic::service::interceptor::InterceptedService::new(inner, interceptor))"
+            "        {client}::new(::tonic::service::interceptor::InterceptedService::new(inner, interceptor))"
         );
         let _ = writeln!(src, "    }}");
         let _ = writeln!(
             src,
-            "    pub fn send_compressed(mut self, encoding: tonic::codec::CompressionEncoding) -> Self {{ self.inner = self.inner.send_compressed(encoding); self }}"
+            "    pub fn send_compressed(mut self, encoding: ::tonic::codec::CompressionEncoding) -> Self {{ self.inner = self.inner.send_compressed(encoding); self }}"
         );
         let _ = writeln!(
             src,
-            "    pub fn accept_compressed(mut self, encoding: tonic::codec::CompressionEncoding) -> Self {{ self.inner = self.inner.accept_compressed(encoding); self }}"
+            "    pub fn accept_compressed(mut self, encoding: ::tonic::codec::CompressionEncoding) -> Self {{ self.inner = self.inner.accept_compressed(encoding); self }}"
         );
         let _ = writeln!(
             src,
@@ -98,19 +116,25 @@ pub(crate) fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
     }
     emit_server_attributes(src, &svc.full_name, "");
     let _ = writeln!(src, "pub struct {server}<T> {{");
-    let _ = writeln!(src, "    inner: Arc<T>,");
+    let _ = writeln!(src, "    inner: ::std::sync::Arc<T>,");
     let _ = writeln!(
         src,
-        "    accept_compression_encodings: tonic::codec::EnabledCompressionEncodings,"
+        "    accept_compression_encodings: ::tonic::codec::EnabledCompressionEncodings,"
     );
     let _ = writeln!(
         src,
-        "    send_compression_encodings: tonic::codec::EnabledCompressionEncodings,"
+        "    send_compression_encodings: ::tonic::codec::EnabledCompressionEncodings,"
     );
-    let _ = writeln!(src, "    max_decoding_message_size: Option<usize>,");
-    let _ = writeln!(src, "    max_encoding_message_size: Option<usize>,");
+    let _ = writeln!(
+        src,
+        "    max_decoding_message_size: ::core::option::Option<usize>,"
+    );
+    let _ = writeln!(
+        src,
+        "    max_encoding_message_size: ::core::option::Option<usize>,"
+    );
     let _ = writeln!(src, "}}");
-    let _ = writeln!(src, "impl<T> Clone for {server}<T> {{");
+    let _ = writeln!(src, "impl<T> ::core::clone::Clone for {server}<T> {{");
     let _ = writeln!(src, "    fn clone(&self) -> Self {{");
     let _ = writeln!(src, "        Self {{");
     let _ = writeln!(src, "            inner: self.inner.clone(),");
@@ -133,10 +157,10 @@ pub(crate) fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
     let _ = writeln!(src, "        }}");
     let _ = writeln!(src, "    }}");
     let _ = writeln!(src, "}}");
-    let _ = writeln!(src, "impl<T: {svc_ty}> {server}<T> {{");
+    let _ = writeln!(src, "impl<T: self::{svc_ty}> {server}<T> {{");
     let _ = writeln!(src, "    pub fn new(inner: T) -> Self {{");
     let _ = writeln!(src, "        Self {{");
-    let _ = writeln!(src, "            inner: Arc::new(inner),");
+    let _ = writeln!(src, "            inner: ::std::sync::Arc::new(inner),");
     let _ = writeln!(
         src,
         "            accept_compression_encodings: ::core::default::Default::default(),"
@@ -145,71 +169,80 @@ pub(crate) fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
         src,
         "            send_compression_encodings: ::core::default::Default::default(),"
     );
-    let _ = writeln!(src, "            max_decoding_message_size: None,");
-    let _ = writeln!(src, "            max_encoding_message_size: None,");
+    let _ = writeln!(
+        src,
+        "            max_decoding_message_size: ::core::option::Option::None,"
+    );
+    let _ = writeln!(
+        src,
+        "            max_encoding_message_size: ::core::option::Option::None,"
+    );
     let _ = writeln!(src, "        }}");
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    pub fn with_interceptor<F>(inner: T, interceptor: F) -> tonic::service::interceptor::InterceptedService<Self, F>"
+        "    pub fn with_interceptor<F>(inner: T, interceptor: F) -> ::tonic::service::interceptor::InterceptedService<Self, F>"
     );
-    let _ = writeln!(src, "    where F: tonic::service::Interceptor {{");
+    let _ = writeln!(src, "    where F: ::tonic::service::Interceptor {{");
     let _ = writeln!(
         src,
-        "        tonic::service::interceptor::InterceptedService::new(Self::new(inner), interceptor)"
+        "        ::tonic::service::interceptor::InterceptedService::new(Self::new(inner), interceptor)"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    pub fn accept_compressed(mut self, encoding: tonic::codec::CompressionEncoding) -> Self {{ self.accept_compression_encodings.enable(encoding); self }}"
+        "    pub fn accept_compressed(mut self, encoding: ::tonic::codec::CompressionEncoding) -> Self {{ self.accept_compression_encodings.enable(encoding); self }}"
     );
     let _ = writeln!(
         src,
-        "    pub fn send_compressed(mut self, encoding: tonic::codec::CompressionEncoding) -> Self {{ self.send_compression_encodings.enable(encoding); self }}"
+        "    pub fn send_compressed(mut self, encoding: ::tonic::codec::CompressionEncoding) -> Self {{ self.send_compression_encodings.enable(encoding); self }}"
     );
     let _ = writeln!(
         src,
-        "    pub fn max_decoding_message_size(mut self, limit: usize) -> Self {{ self.max_decoding_message_size = Some(limit); self }}"
+        "    pub fn max_decoding_message_size(mut self, limit: usize) -> Self {{ self.max_decoding_message_size = ::core::option::Option::Some(limit); self }}"
     );
     let _ = writeln!(
         src,
-        "    pub fn max_encoding_message_size(mut self, limit: usize) -> Self {{ self.max_encoding_message_size = Some(limit); self }}"
+        "    pub fn max_encoding_message_size(mut self, limit: usize) -> Self {{ self.max_encoding_message_size = ::core::option::Option::Some(limit); self }}"
     );
     let _ = writeln!(src, "}}");
     let _ = writeln!(
         src,
-        "impl<T: {svc_ty}> tonic::server::NamedService for {server}<T> {{"
+        "impl<T: self::{svc_ty}> ::tonic::server::NamedService for {server}<T> {{"
     );
     let _ = writeln!(src, "    const NAME: &'static str = \"{}\";", svc.full_name);
     let _ = writeln!(src, "}}");
     let _ = writeln!(
         src,
-        "impl<T, B> tonic::codegen::Service<http::Request<B>> for {server}<T>"
+        "impl<T, B> ::tonic::codegen::Service<::http::Request<B>> for {server}<T>"
     );
     let _ = writeln!(src, "where");
-    let _ = writeln!(src, "    T: {svc_ty},");
-    let _ = writeln!(src, "    B: tonic::codegen::Body + Send + 'static,");
+    let _ = writeln!(src, "    T: self::{svc_ty},");
     let _ = writeln!(
         src,
-        "    B::Error: Into<tonic::codegen::StdError> + Send + 'static,"
+        "    B: ::tonic::codegen::Body + ::core::marker::Send + 'static,"
+    );
+    let _ = writeln!(
+        src,
+        "    B::Error: ::core::convert::Into<::tonic::codegen::StdError> + ::core::marker::Send + 'static,"
     );
     let _ = writeln!(src, "{{");
     let _ = writeln!(
         src,
-        "    type Response = http::Response<tonic::body::Body>;"
+        "    type Response = ::http::Response<::tonic::body::Body>;"
     );
-    let _ = writeln!(src, "    type Error = Infallible;");
+    let _ = writeln!(src, "    type Error = ::core::convert::Infallible;");
     let _ = writeln!(
         src,
-        "    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;"
-    );
-    let _ = writeln!(
-        src,
-        "    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {{ Poll::Ready(Ok(())) }}"
+        "    type Future = ::core::pin::Pin<::std::boxed::Box<dyn ::core::future::Future<Output = ::core::result::Result<Self::Response, Self::Error>> + ::core::marker::Send>>;"
     );
     let _ = writeln!(
         src,
-        "    fn call(&mut self, req: http::Request<B>) -> Self::Future {{"
+        "    fn poll_ready(&mut self, _cx: &mut ::core::task::Context<'_>) -> ::core::task::Poll<::core::result::Result<(), Self::Error>> {{ ::core::task::Poll::Ready(::core::result::Result::Ok(())) }}"
+    );
+    let _ = writeln!(
+        src,
+        "    fn call(&mut self, req: ::http::Request<B>) -> Self::Future {{"
     );
     let _ = writeln!(src, "        let inner = self.inner.clone();");
     let _ = writeln!(
@@ -219,7 +252,7 @@ pub(crate) fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
     let _ = writeln!(src, "        let send = self.send_compression_encodings;");
     let _ = writeln!(src, "        let max_dec = self.max_decoding_message_size;");
     let _ = writeln!(src, "        let max_enc = self.max_encoding_message_size;");
-    let _ = writeln!(src, "        Box::pin(async move {{");
+    let _ = writeln!(src, "        ::std::boxed::Box::pin(async move {{");
     let _ = writeln!(src, "            match req.uri().path() {{");
     for m in &svc.methods {
         emit_server_route(src, m, &path_prefix, &svc_ty);
@@ -227,7 +260,7 @@ pub(crate) fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
     let _ = writeln!(src, "                _ => {{");
     let _ = writeln!(
         src,
-        "                    let mut response = http::Response::new(tonic::body::Body::default());"
+        "                    let mut response = ::http::Response::new(::tonic::body::Body::default());"
     );
     let _ = writeln!(
         src,
@@ -235,13 +268,16 @@ pub(crate) fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
     );
     let _ = writeln!(
         src,
-        "                    headers.insert(tonic::Status::GRPC_STATUS, (tonic::Code::Unimplemented as i32).into());"
+        "                    headers.insert(::tonic::Status::GRPC_STATUS, (::tonic::Code::Unimplemented as i32).into());"
     );
     let _ = writeln!(
         src,
-        "                    headers.insert(http::header::CONTENT_TYPE, tonic::metadata::GRPC_CONTENT_TYPE);"
+        "                    headers.insert(::http::header::CONTENT_TYPE, ::tonic::metadata::GRPC_CONTENT_TYPE);"
     );
-    let _ = writeln!(src, "                    Ok(response)");
+    let _ = writeln!(
+        src,
+        "                    ::core::result::Result::Ok(response)"
+    );
     let _ = writeln!(src, "                }}");
     let _ = writeln!(src, "            }}");
     let _ = writeln!(src, "        }})");
@@ -295,33 +331,33 @@ pub(crate) fn emit_service_trait_method(src: &mut String, m: &MethodDescriptor) 
         (false, false) => {
             let _ = writeln!(
                 src,
-                "    fn {fn_name}(&self, request: tonic::Request<{req}>) -> impl Future<Output = Result<tonic::Response<{resp}>, tonic::Status>> + Send;"
+                "    fn {fn_name}(&self, request: ::tonic::Request<{req}>) -> impl ::core::future::Future<Output = ::core::result::Result<::tonic::Response<{resp}>, ::tonic::Status>> + ::core::marker::Send;"
             );
         }
         (true, true) => {
             let _ = writeln!(
                 src,
-                "    type {assoc}: tokio_stream::Stream<Item = Result<{resp}, tonic::Status>> + Send + 'static;"
+                "    type {assoc}: ::tokio_stream::Stream<Item = ::core::result::Result<{resp}, ::tonic::Status>> + ::core::marker::Send + 'static;"
             );
             let _ = writeln!(
                 src,
-                "    fn {fn_name}(&self, request: tonic::Request<tonic::Streaming<{req}>>) -> impl Future<Output = Result<tonic::Response<Self::{assoc}>, tonic::Status>> + Send;"
+                "    fn {fn_name}(&self, request: ::tonic::Request<::tonic::Streaming<{req}>>) -> impl ::core::future::Future<Output = ::core::result::Result<::tonic::Response<Self::{assoc}>, ::tonic::Status>> + ::core::marker::Send;"
             );
         }
         (true, false) => {
             let _ = writeln!(
                 src,
-                "    fn {fn_name}(&self, request: tonic::Request<tonic::Streaming<{req}>>) -> impl Future<Output = Result<tonic::Response<{resp}>, tonic::Status>> + Send;"
+                "    fn {fn_name}(&self, request: ::tonic::Request<::tonic::Streaming<{req}>>) -> impl ::core::future::Future<Output = ::core::result::Result<::tonic::Response<{resp}>, ::tonic::Status>> + ::core::marker::Send;"
             );
         }
         (false, true) => {
             let _ = writeln!(
                 src,
-                "    type {assoc}: tokio_stream::Stream<Item = Result<{resp}, tonic::Status>> + Send + 'static;"
+                "    type {assoc}: ::tokio_stream::Stream<Item = ::core::result::Result<{resp}, ::tonic::Status>> + ::core::marker::Send + 'static;"
             );
             let _ = writeln!(
                 src,
-                "    fn {fn_name}(&self, request: tonic::Request<{req}>) -> impl Future<Output = Result<tonic::Response<Self::{assoc}>, tonic::Status>> + Send;"
+                "    fn {fn_name}(&self, request: ::tonic::Request<{req}>) -> impl ::core::future::Future<Output = ::core::result::Result<::tonic::Response<Self::{assoc}>, ::tonic::Status>> + ::core::marker::Send;"
             );
         }
     }
@@ -332,7 +368,7 @@ pub(crate) fn emit_client_method(src: &mut String, m: &MethodDescriptor, prefix:
     let req = rust_type_path(&m.input_type);
     let resp = rust_type_path(&m.output_type);
     let path = format!("{prefix}/{}", m.name);
-    let codec = tonic_codec_path();
+    let codec = service_codec_path();
     emit_doc_comments(src, &m.comments, "    ");
     if !m.comments.is_empty() {
         let _ = writeln!(src, "    ///");
@@ -374,68 +410,68 @@ pub(crate) fn emit_client_method(src: &mut String, m: &MethodDescriptor, prefix:
         (false, false) => {
             let _ = writeln!(
                 src,
-                "    pub async fn {fn_name}(&mut self, request: tonic::Request<{req}>) -> Result<tonic::Response<{resp}>, tonic::Status> {{"
+                "    pub async fn {fn_name}(&mut self, request: ::tonic::Request<{req}>) -> ::core::result::Result<::tonic::Response<{resp}>, ::tonic::Status> {{"
             );
             let _ = writeln!(
                 src,
-                "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;"
+                "        self.inner.ready().await.map_err(|e| ::tonic::Status::unknown(e.into().to_string()))?;"
             );
             let _ = writeln!(
                 src,
-                "        self.inner.unary(request, http::uri::PathAndQuery::from_static(\"{path}\"), {codec}::<{req}, {resp}>::default()).await"
+                "        self.inner.unary(request, ::http::uri::PathAndQuery::from_static(\"{path}\"), {codec}::<{req}, {resp}>::default()).await"
             );
             let _ = writeln!(src, "    }}");
         }
         (true, true) => {
             let _ = writeln!(
                 src,
-                "    pub async fn {fn_name}<S>(&mut self, request: tonic::Request<S>) -> Result<tonic::Response<tonic::Streaming<{resp}>>, tonic::Status>"
+                "    pub async fn {fn_name}<S>(&mut self, request: ::tonic::Request<S>) -> ::core::result::Result<::tonic::Response<::tonic::Streaming<{resp}>>, ::tonic::Status>"
             );
             let _ = writeln!(
                 src,
-                "    where S: tokio_stream::Stream<Item = {req}> + Send + 'static {{"
+                "    where S: ::tokio_stream::Stream<Item = {req}> + ::core::marker::Send + 'static {{"
             );
             let _ = writeln!(
                 src,
-                "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;"
+                "        self.inner.ready().await.map_err(|e| ::tonic::Status::unknown(e.into().to_string()))?;"
             );
             let _ = writeln!(
                 src,
-                "        self.inner.streaming(request, http::uri::PathAndQuery::from_static(\"{path}\"), {codec}::<{req}, {resp}>::default()).await"
+                "        self.inner.streaming(request, ::http::uri::PathAndQuery::from_static(\"{path}\"), {codec}::<{req}, {resp}>::default()).await"
             );
             let _ = writeln!(src, "    }}");
         }
         (true, false) => {
             let _ = writeln!(
                 src,
-                "    pub async fn {fn_name}<S>(&mut self, request: tonic::Request<S>) -> Result<tonic::Response<{resp}>, tonic::Status>"
+                "    pub async fn {fn_name}<S>(&mut self, request: ::tonic::Request<S>) -> ::core::result::Result<::tonic::Response<{resp}>, ::tonic::Status>"
             );
             let _ = writeln!(
                 src,
-                "    where S: tokio_stream::Stream<Item = {req}> + Send + 'static {{"
+                "    where S: ::tokio_stream::Stream<Item = {req}> + ::core::marker::Send + 'static {{"
             );
             let _ = writeln!(
                 src,
-                "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;"
+                "        self.inner.ready().await.map_err(|e| ::tonic::Status::unknown(e.into().to_string()))?;"
             );
             let _ = writeln!(
                 src,
-                "        self.inner.client_streaming(request, http::uri::PathAndQuery::from_static(\"{path}\"), {codec}::<{req}, {resp}>::default()).await"
+                "        self.inner.client_streaming(request, ::http::uri::PathAndQuery::from_static(\"{path}\"), {codec}::<{req}, {resp}>::default()).await"
             );
             let _ = writeln!(src, "    }}");
         }
         (false, true) => {
             let _ = writeln!(
                 src,
-                "    pub async fn {fn_name}(&mut self, request: tonic::Request<{req}>) -> Result<tonic::Response<tonic::Streaming<{resp}>>, tonic::Status> {{"
+                "    pub async fn {fn_name}(&mut self, request: ::tonic::Request<{req}>) -> ::core::result::Result<::tonic::Response<::tonic::Streaming<{resp}>>, ::tonic::Status> {{"
             );
             let _ = writeln!(
                 src,
-                "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;"
+                "        self.inner.ready().await.map_err(|e| ::tonic::Status::unknown(e.into().to_string()))?;"
             );
             let _ = writeln!(
                 src,
-                "        self.inner.server_streaming(request, http::uri::PathAndQuery::from_static(\"{path}\"), {codec}::<{req}, {resp}>::default()).await"
+                "        self.inner.server_streaming(request, ::http::uri::PathAndQuery::from_static(\"{path}\"), {codec}::<{req}, {resp}>::default()).await"
             );
             let _ = writeln!(src, "    }}");
         }
@@ -452,23 +488,26 @@ pub(crate) fn emit_server_route(
     let req = rust_type_path(&m.input_type);
     let resp = rust_type_path(&m.output_type);
     let path = format!("{prefix}/{}", m.name);
-    let codec = tonic_codec_path();
+    let codec = service_codec_path();
     match (m.client_streaming, m.server_streaming) {
         (false, false) => {
             let _ = writeln!(src, "                \"{path}\" => {{");
-            let _ = writeln!(src, "                    struct Svc<T>(Arc<T>);");
             let _ = writeln!(
                 src,
-                "                    impl<T: {svc_ty}> tonic::server::UnaryService<{req}> for Svc<T> {{"
+                "                    struct Svc<T>(::std::sync::Arc<T>);"
+            );
+            let _ = writeln!(
+                src,
+                "                    impl<T: self::{svc_ty}> ::tonic::server::UnaryService<{req}> for Svc<T> {{"
             );
             let _ = writeln!(src, "                        type Response = {resp};");
             let _ = writeln!(
                 src,
-                "                        type Future = Pin<Box<dyn Future<Output = Result<tonic::Response<{resp}>, tonic::Status>> + Send>>;"
+                "                        type Future = ::core::pin::Pin<::std::boxed::Box<dyn ::core::future::Future<Output = ::core::result::Result<::tonic::Response<{resp}>, ::tonic::Status>> + ::core::marker::Send>>;"
             );
             let _ = writeln!(
                 src,
-                "                        fn call(&mut self, request: tonic::Request<{req}>) -> Self::Future {{"
+                "                        fn call(&mut self, request: ::tonic::Request<{req}>) -> Self::Future {{"
             );
             let _ = writeln!(
                 src,
@@ -476,27 +515,30 @@ pub(crate) fn emit_server_route(
             );
             let _ = writeln!(
                 src,
-                "                            Box::pin(async move {{ inner.{fn_name}(request).await }})"
+                "                            ::std::boxed::Box::pin(async move {{ inner.{fn_name}(request).await }})"
             );
             let _ = writeln!(src, "                        }}");
             let _ = writeln!(src, "                    }}");
             let _ = writeln!(
                 src,
-                "                    let mut grpc = tonic::server::Grpc::new({codec}::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);"
+                "                    let mut grpc = ::tonic::server::Grpc::new({codec}::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);"
             );
             let _ = writeln!(
                 src,
-                "                    Ok(grpc.unary(Svc(inner), req).await)"
+                "                    ::core::result::Result::Ok(grpc.unary(Svc(inner), req).await)"
             );
             let _ = writeln!(src, "                }}");
         }
         (true, true) => {
             let assoc = format!("{}Stream", m.name);
             let _ = writeln!(src, "                \"{path}\" => {{");
-            let _ = writeln!(src, "                    struct Svc<T>(Arc<T>);");
             let _ = writeln!(
                 src,
-                "                    impl<T: {svc_ty}> tonic::server::StreamingService<{req}> for Svc<T> {{"
+                "                    struct Svc<T>(::std::sync::Arc<T>);"
+            );
+            let _ = writeln!(
+                src,
+                "                    impl<T: self::{svc_ty}> ::tonic::server::StreamingService<{req}> for Svc<T> {{"
             );
             let _ = writeln!(src, "                        type Response = {resp};");
             let _ = writeln!(
@@ -505,11 +547,11 @@ pub(crate) fn emit_server_route(
             );
             let _ = writeln!(
                 src,
-                "                        type Future = Pin<Box<dyn Future<Output = Result<tonic::Response<Self::ResponseStream>, tonic::Status>> + Send>>;"
+                "                        type Future = ::core::pin::Pin<::std::boxed::Box<dyn ::core::future::Future<Output = ::core::result::Result<::tonic::Response<Self::ResponseStream>, ::tonic::Status>> + ::core::marker::Send>>;"
             );
             let _ = writeln!(
                 src,
-                "                        fn call(&mut self, request: tonic::Request<tonic::Streaming<{req}>>) -> Self::Future {{"
+                "                        fn call(&mut self, request: ::tonic::Request<::tonic::Streaming<{req}>>) -> Self::Future {{"
             );
             let _ = writeln!(
                 src,
@@ -517,35 +559,38 @@ pub(crate) fn emit_server_route(
             );
             let _ = writeln!(
                 src,
-                "                            Box::pin(async move {{ inner.{fn_name}(request).await }})"
+                "                            ::std::boxed::Box::pin(async move {{ inner.{fn_name}(request).await }})"
             );
             let _ = writeln!(src, "                        }}");
             let _ = writeln!(src, "                    }}");
             let _ = writeln!(
                 src,
-                "                    let mut grpc = tonic::server::Grpc::new({codec}::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);"
+                "                    let mut grpc = ::tonic::server::Grpc::new({codec}::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);"
             );
             let _ = writeln!(
                 src,
-                "                    Ok(grpc.streaming(Svc(inner), req).await)"
+                "                    ::core::result::Result::Ok(grpc.streaming(Svc(inner), req).await)"
             );
             let _ = writeln!(src, "                }}");
         }
         (true, false) => {
             let _ = writeln!(src, "                \"{path}\" => {{");
-            let _ = writeln!(src, "                    struct Svc<T>(Arc<T>);");
             let _ = writeln!(
                 src,
-                "                    impl<T: {svc_ty}> tonic::server::ClientStreamingService<{req}> for Svc<T> {{"
+                "                    struct Svc<T>(::std::sync::Arc<T>);"
+            );
+            let _ = writeln!(
+                src,
+                "                    impl<T: self::{svc_ty}> ::tonic::server::ClientStreamingService<{req}> for Svc<T> {{"
             );
             let _ = writeln!(src, "                        type Response = {resp};");
             let _ = writeln!(
                 src,
-                "                        type Future = Pin<Box<dyn Future<Output = Result<tonic::Response<{resp}>, tonic::Status>> + Send>>;"
+                "                        type Future = ::core::pin::Pin<::std::boxed::Box<dyn ::core::future::Future<Output = ::core::result::Result<::tonic::Response<{resp}>, ::tonic::Status>> + ::core::marker::Send>>;"
             );
             let _ = writeln!(
                 src,
-                "                        fn call(&mut self, request: tonic::Request<tonic::Streaming<{req}>>) -> Self::Future {{"
+                "                        fn call(&mut self, request: ::tonic::Request<::tonic::Streaming<{req}>>) -> Self::Future {{"
             );
             let _ = writeln!(
                 src,
@@ -553,27 +598,30 @@ pub(crate) fn emit_server_route(
             );
             let _ = writeln!(
                 src,
-                "                            Box::pin(async move {{ inner.{fn_name}(request).await }})"
+                "                            ::std::boxed::Box::pin(async move {{ inner.{fn_name}(request).await }})"
             );
             let _ = writeln!(src, "                        }}");
             let _ = writeln!(src, "                    }}");
             let _ = writeln!(
                 src,
-                "                    let mut grpc = tonic::server::Grpc::new({codec}::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);"
+                "                    let mut grpc = ::tonic::server::Grpc::new({codec}::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);"
             );
             let _ = writeln!(
                 src,
-                "                    Ok(grpc.client_streaming(Svc(inner), req).await)"
+                "                    ::core::result::Result::Ok(grpc.client_streaming(Svc(inner), req).await)"
             );
             let _ = writeln!(src, "                }}");
         }
         (false, true) => {
             let assoc = format!("{}Stream", m.name);
             let _ = writeln!(src, "                \"{path}\" => {{");
-            let _ = writeln!(src, "                    struct Svc<T>(Arc<T>);");
             let _ = writeln!(
                 src,
-                "                    impl<T: {svc_ty}> tonic::server::ServerStreamingService<{req}> for Svc<T> {{"
+                "                    struct Svc<T>(::std::sync::Arc<T>);"
+            );
+            let _ = writeln!(
+                src,
+                "                    impl<T: self::{svc_ty}> ::tonic::server::ServerStreamingService<{req}> for Svc<T> {{"
             );
             let _ = writeln!(src, "                        type Response = {resp};");
             let _ = writeln!(
@@ -582,11 +630,11 @@ pub(crate) fn emit_server_route(
             );
             let _ = writeln!(
                 src,
-                "                        type Future = Pin<Box<dyn Future<Output = Result<tonic::Response<Self::ResponseStream>, tonic::Status>> + Send>>;"
+                "                        type Future = ::core::pin::Pin<::std::boxed::Box<dyn ::core::future::Future<Output = ::core::result::Result<::tonic::Response<Self::ResponseStream>, ::tonic::Status>> + ::core::marker::Send>>;"
             );
             let _ = writeln!(
                 src,
-                "                        fn call(&mut self, request: tonic::Request<{req}>) -> Self::Future {{"
+                "                        fn call(&mut self, request: ::tonic::Request<{req}>) -> Self::Future {{"
             );
             let _ = writeln!(
                 src,
@@ -594,17 +642,17 @@ pub(crate) fn emit_server_route(
             );
             let _ = writeln!(
                 src,
-                "                            Box::pin(async move {{ inner.{fn_name}(request).await }})"
+                "                            ::std::boxed::Box::pin(async move {{ inner.{fn_name}(request).await }})"
             );
             let _ = writeln!(src, "                        }}");
             let _ = writeln!(src, "                    }}");
             let _ = writeln!(
                 src,
-                "                    let mut grpc = tonic::server::Grpc::new({codec}::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);"
+                "                    let mut grpc = ::tonic::server::Grpc::new({codec}::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);"
             );
             let _ = writeln!(
                 src,
-                "                    Ok(grpc.server_streaming(Svc(inner), req).await)"
+                "                    ::core::result::Result::Ok(grpc.server_streaming(Svc(inner), req).await)"
             );
             let _ = writeln!(src, "                }}");
         }

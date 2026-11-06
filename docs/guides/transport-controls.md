@@ -87,11 +87,33 @@ last channel handle. A custom executor also overrides connection placement
 when using per-core serving; accept loops keep their existing placement.
 
 This selects connection scheduling. Socket I/O, timers and retry, upload,
-resolver and keepalive helper tasks still require Tokio. Static balance helpers
-reject endpoints carrying custom executors. `serve_connection` remains polled
-by its caller; an executor setter does not move that caller-owned future.
+resolver and keepalive helper tasks still require Tokio. `serve_connection`
+remains polled by its caller; an executor setter does not move that
+caller-owned future.
 
-See the [executor tests](../../pbrs-grpc/tests/custom_executor.rs) and
+`Endpoint::balance_list` and `balance_channel` retain each endpoint's executor.
+Their plaintext IP endpoint lists use the full URI as the connection key:
+different URIs can dial the same socket with different executors. The last
+entry for an identical URI wins. The helpers' `config` argument supplies the
+shared connection settings.
+
+The watched helper processes full snapshots directly. Unchanged endpoint
+clones retain their connections; a changed executor for the same URI replaces
+its connection lazily. Existing RPCs drain within `max_connection_age_grace`.
+An empty update removes every peer. An invalid update leaves the previous
+valid list active and emits a channelz warning. This differs from tonic's
+keyed `Change` API: tonic may use a previous ready entry once while its
+replacement becomes ready; native snapshots stop selecting that entry when
+the update is processed.
+
+These helpers still use a channel-level request authority and plaintext HTTP
+scheme. `Channel::origin` overrides authority for the whole balanced channel;
+the selected URI does not supply it as it does in tonic. Per-endpoint origins,
+TLS and hostname lookup remain unsupported by these helpers. Use resolver
+channels for the existing DNS, Unix and TLS routing APIs.
+
+See the [executor tests](../../pbrs-grpc/tests/custom_executor.rs),
+[balanced executor tests](../../pbrs-grpc/tests/balance_executors.rs), and
 [transport policy tests](../../pbrs-grpc/tests/transport_policies.rs) for working
 examples and lifecycle checks. The [comparison guide](comparison.md) lists the
 remaining tonic migration differences.
