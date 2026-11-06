@@ -29,6 +29,7 @@ their own source pins, controls, failures and full measured rows.
 | Protobuf parse and merge against prost 0.14.4 | 652 of 654 proto3 operations agree. The other two use the same wrong-wire-type input. |
 | Missing proto2 required field | pbrs rejects it; prost accepts it. |
 | Generated consumers | Base roundtrips and configured naming, type-URL, Any, enum and attribute controls pass against pinned Prost; see the [consumer guide](../tests/proof/codegen_parity/README.md) for exact cases. |
+| Field view accessor names | [25 schema cases](../tests/proof/field_views/README.md) compile accessor APIs and exchange values with Prost 0.14.4 in lazy, owned, safe and owned+safe profiles; valid existing APIs keep their names. |
 | Selected boxed fields | Selected, default and global-owned consumers each pass eight groups; 18 message-field selector placement controls compare with Prost 0.14.4. |
 | Generated forbid-unsafe policy | Twelve checks pass across lazy, owned and boxed consumers; the ordinary generated profile fails the intentional forbid-unsafe control. Runtime dependencies keep their own unsafe implementations. |
 | Endpoint URI origins | [Eight public tests](../pbrs-grpc/tests/endpoint_origin.rs) cover direct native and Tonic URI routing, all four call shapes, TLS/SNI and clone overrides. Static balance helpers reject per-endpoint origins. |
@@ -40,6 +41,12 @@ A wrong wire type for a known field is preserved as unknown by pbrs and
 rejected by prost. Missing required-field handling also differs. These are
 measured policy differences, not evidence that pbrs should abandon protobuf
 conformance to imitate prost.
+
+Map removal preserves unrelated entries' relative order and duplicate-key
+winners. It still removes only the target key's last stored occurrence;
+an earlier parsed duplicate can reappear, unlike Prost/HashMap deletion.
+The [removal record](evidence/map-removal-20261106/README.md) includes all three
+backends and measured small-map costs alongside indexed update gains.
 
 The native transport now supports configurable TCP_NODELAY, client idle
 keepalive policy and custom connection-driver executors. The

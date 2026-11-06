@@ -1,0 +1,6 @@
+syntax = "proto3";
+package proof.shared;
+message Child { int32 value = 1; }
+// Genuine message names coexist with generated view/mut proxy types.
+message ChildView { int32 marker = 1; }
+message ChildMut { int32 marker = 1; }

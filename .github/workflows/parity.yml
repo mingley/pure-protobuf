@@ -39,6 +39,7 @@ jobs:
             tests/proof/validated_lazy/Cargo.toml \
             tests/proof/codegen_parity/Cargo.toml \
             tests/proof/safe_defaults/Cargo.toml \
+            tests/proof/field_views/Cargo.toml \
             tests/proof/codegen_parity/no_std/prost/Cargo.toml \
             tests/proof/codegen_parity/no_std/pbrs/Cargo.toml \
             tests/interop/tonic/Cargo.toml \
@@ -74,6 +75,16 @@ jobs:
         run: python3 tests/proof/codegen_parity/run.py --output work/parity-audit/codegen
       - name: Check generated bindings with unsafe code forbidden
         run: python3 tests/proof/safe_defaults/run.py --out work/parity-audit/safe-defaults
+      - name: Check field view accessor collisions
+        run: |
+          cargo run --locked --offline --manifest-path tests/proof/field_views/Cargo.toml \
+            > work/parity-audit/field-views-lazy.log 2>&1
+          cargo run --locked --offline --manifest-path tests/proof/field_views/Cargo.toml --features owned \
+            > work/parity-audit/field-views-owned.log 2>&1
+          cargo run --locked --offline --manifest-path tests/proof/field_views/Cargo.toml --features safe \
+            > work/parity-audit/field-views-safe.log 2>&1
+          cargo run --locked --offline --manifest-path tests/proof/field_views/Cargo.toml --features owned,safe \
+            > work/parity-audit/field-views-owned-safe.log 2>&1
       - name: Compare gRPC message presence with tonic
         run: |
           cargo test --locked --offline --manifest-path tests/proof/tonic_parity/Cargo.toml \

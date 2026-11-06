@@ -5,6 +5,16 @@ stopped. They are dated investigations, usually local diagnostics. A result
 belongs to its recorded revision, host, workload, and peer versions; it does
 not automatically describe today's code.
 
+The [November 6 map-removal record](map-removal-20261106/README.md) fixes
+unrelated duplicate-key corruption and reuses warm indexes. All seven measured
+rows remain visible: large indexed cycles improve, while small and unindexed
+removals cost more. Target-key history still differs from Prost deletion.
+
+The [November 6 borrowed-query experiment](rejected-query-capability-20261106/README.md)
+removes indexed long-string query allocations but slows a small LazyStr map.
+The candidate was rejected. Its record also retains the separate-build-path
+confound, source controls and every measured row.
+
 The [November 5 numbered-name record](naming-cursors-20261105/README.md)
 retains the repeated-prefix allocator gains, ordinary-schema controls and a
 separate combined default-generation check. Ordinary costs remain mixed;

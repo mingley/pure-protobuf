@@ -1,0 +1,3 @@
+syntax = "proto3";
+package proof.external;
+message External { int32 marker = 1; }

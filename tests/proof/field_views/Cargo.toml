@@ -1,0 +1,24 @@
+[package]
+name = "pbrs-field-view-proof"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[features]
+default = []
+owned = []
+safe = []
+
+[dependencies]
+pbrs = { path = "../../..", default-features = false }
+prost = "=0.14.4"
+
+[build-dependencies]
+pbrs = { path = "../../..", default-features = false, features = ["codegen"] }
+prost-build = "=0.14.4"
+
+[profile.dev]
+debug = 0
+incremental = false

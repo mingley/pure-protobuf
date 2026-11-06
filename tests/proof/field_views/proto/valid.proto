@@ -1,0 +1,12 @@
+syntax = "proto3";
+package proof.views;
+import "child.proto";
+message ScalarNear { int32 child = 1; int32 child_view = 2; }
+message RepeatedNear { repeated proof.shared.Child child = 1; int32 child_view = 2; }
+message MapNear { map<string, proof.shared.Child> child = 1; int32 child_view = 2; }
+message RenamedNear { proof.shared.Child clone = 1; int32 clone_view = 2; }
+message KeywordNear { repeated proof.shared.Child type = 1; int32 type_view = 2; }
+message PresenceNear { proof.shared.Child has_thing = 1; int32 thing_view = 2; }
+message ClearNear { proof.shared.Child clear_thing = 1; int32 thing_view = 2; }
+message MapPresenceNear { proof.shared.Child has_thing = 1; map<string, int32> thing_view = 2; }
+message RepeatedClearNear { proof.shared.Child clear_thing = 1; repeated int32 thing_view = 2; }

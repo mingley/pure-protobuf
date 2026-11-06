@@ -5,13 +5,14 @@ format. `pbrs-grpc` provides the native HTTP/2 client and server;
 `protobuf-tonic` integrates pbrs messages with tonic 0.14+. Start with the
 [documentation index](README.md) for working examples and task guides.
 
-At source `1c6ec8ca`, all 11 required [CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/41966656512),
-[compatibility checks](https://github.com/mingley/pure-protobuf/actions/runs/41966656499),
-[parity audit](https://github.com/mingley/pure-protobuf/actions/runs/41966656520)
-and [development-loop performance workflow](https://github.com/mingley/pure-protobuf/actions/runs/41966656583)
-passed. The parity audit reproduces known differences as well as successful
-comparisons. These results apply to that commit; later changes need their own
-checks.
+At source `12478bee`, all 11 required [CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42143022252),
+[compatibility checks](https://github.com/mingley/pure-protobuf/actions/runs/42143022241)
+and the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42143022335)
+passed. Its runtime source at `6f9798aa` also passed
+[Miri](https://github.com/mingley/pure-protobuf/actions/runs/42137443546) and the
+[development-loop performance workflow](https://github.com/mingley/pure-protobuf/actions/runs/42137443576).
+The parity audit reproduces known differences as well as successful comparisons.
+These results apply to the named commits; later changes need their own checks.
 
 Choose the default lazy message layout for sparse reads and unchanged
 forwarding, [owned nested messages](guides/codegen.md#owned-nested-message-fields)
@@ -21,6 +22,12 @@ for selected singular children. The opt-in
 forbid-unsafe generated consumers; runtime dependencies retain their own
 unsafe implementations. Literal `Default`, `Map` and `Enum` schemas now
 have focused lazy/owned namespace controls.
+
+The [field-view consumers](../tests/proof/field_views/README.md) check 25 schema
+cases across four profiles, including accessor collisions and unchanged valid
+APIs. Map removal preserves unrelated duplicate-key winners and repairs an
+existing index. Its [cost record](evidence/map-removal-20261106/README.md) retains
+small-map regressions and the remaining target-deletion difference from Prost.
 
 Direct endpoints support URI origins independently of dialing and TLS;
 the [transport guide](guides/transport-controls.md#request-origin-and-dial-target)

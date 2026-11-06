@@ -410,6 +410,14 @@ collisions can change its Rust identifiers. Refer to nested types through
 their generated nesting modules rather than incidental flat implementation
 aliases, whose names can change when the schema grows.
 
+Singular message and group fields also have a `_view` method. If that method
+collides with another field accessor, the generator gives the conflicting
+field a numbered Rust suffix. Its protobuf name and wire number stay the same.
+Maps, repeated fields and scalar fields have no such view method and keep
+their existing accessors when no collision exists. The
+[field-view consumers](../../tests/proof/field_views/README.md) check these
+cases, raw keywords and previously renamed fields.
+
 The repair does not cover two protobuf names that produce the same Rust
 snake-case module name. The [generated-consumer controls](../../tests/proof/codegen_parity/README.md)
 show the tested collisions, imported types and external mappings.

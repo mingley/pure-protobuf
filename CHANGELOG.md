@@ -10,6 +10,12 @@ or stable releases.
 
 ### pbrs 0.2.1
 
+- Preserve unrelated duplicate-key winners when removing a map entry and
+  repair an existing lookup index without rebuilding it. Removal still
+  exposes earlier stored versions of the target key.
+- Resolve collisions between singular message/group view methods and other
+  field accessors. Previously valid field APIs keep their names; regenerate
+  bindings for schemas that formerly produced duplicate methods.
 - Add `Config::boxed(path)` selectors for eager singular child storage, with
   unchanged pbrs accessors. Imported children keep their generated profile;
   repeated and map fields keep their storage.

@@ -77,6 +77,8 @@ jobs:
           python3 -B docs/evidence/naming-cursors-20261105/check.py
           python3 -B docs/evidence/safe-defaults-20261105/check.py
           python3 -B docs/evidence/endpoint-origin-20261105/check.py
+          python3 -B docs/evidence/map-removal-20261106/check.py
+          python3 -B docs/evidence/rejected-query-capability-20261106/check.py
       - name: Check standalone benchmark and interop lockfiles
         run: |
           for manifest in \

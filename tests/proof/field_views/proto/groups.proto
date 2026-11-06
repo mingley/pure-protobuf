@@ -1,0 +1,10 @@
+syntax = "proto2";
+package proof.groups;
+message GroupClash {
+  optional group Child = 1 { optional int32 value = 1; }
+  optional int32 child_view = 2;
+}
+message RepeatedGroupNear {
+  repeated group Child = 1 { optional int32 value = 1; }
+  optional int32 child_view = 2;
+}

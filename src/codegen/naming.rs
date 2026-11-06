@@ -522,6 +522,112 @@ pub(crate) fn field_name_with_collision_avoidance(
     name.to_string()
 }
 
+/// Whether `emit_accessors` adds a borrowed message-view method for this field.
+pub(crate) fn has_view_accessor(f: &FieldDescriptor) -> bool {
+    !f.is_map
+        && f.cardinality != Cardinality::Repeated
+        && matches!(f.field_type, FieldType::Message | FieldType::Group)
+}
+
+/// The inherent method names emitted for a field, without Rust raw prefixes.
+/// Keep this in step with `messages::emit_accessors`: maps and repeated fields
+/// return before the singular-field presence and view methods are emitted.
+pub(crate) fn field_accessor_names(f: &FieldDescriptor, raw: &str, id: &str) -> Vec<String> {
+    let id = id.trim_start_matches("r#");
+    let mut names = Vec::with_capacity(7);
+    names.push(id.to_string());
+    names.push(format!("set_{raw}"));
+    if f.is_map || f.cardinality == Cardinality::Repeated {
+        names.push(format!("{id}_mut"));
+        return names;
+    }
+    if has_view_accessor(f) {
+        names.push(format!("{id}_mut"));
+        names.push(format!("{id}_view"));
+    }
+    if is_option(f) {
+        names.push(format!("{id}_opt"));
+        names.push(format!("has_{raw}"));
+        names.push(format!("clear_{raw}"));
+    }
+    names
+}
+
+fn avoid_view_accessor_collisions(
+    desc: &MessageDescriptor,
+    ids: &mut std::collections::BTreeMap<u32, Rc<str>>,
+    raws: &mut std::collections::BTreeMap<u32, Rc<str>>,
+) {
+    // Every view method ends in `_view`. Most messages cannot have a conflict,
+    // so keep their established allocation path free of method-name tables.
+    if !desc.fields.values().any(has_view_accessor)
+        || !desc
+            .fields
+            .values()
+            .any(|f| ids[&f.number].ends_with("_view") || raws[&f.number].ends_with("_view"))
+    {
+        return;
+    }
+
+    let mut views = std::collections::BTreeMap::new();
+    let mut methods = std::collections::BTreeMap::<String, usize>::new();
+    for f in desc.fields.values() {
+        let id = &ids[&f.number];
+        if has_view_accessor(f) {
+            views.insert(format!("{}_view", id.trim_start_matches("r#")), f.number);
+        }
+        for name in field_accessor_names(f, &raws[&f.number], id) {
+            *methods.entry(name).or_default() += 1;
+        }
+    }
+
+    // Reserve every actual view first. Only schemas with an emitted-method
+    // collision change names; e.g. scalar/repeated `child` + `child_view` and
+    // renamed `clone` + `clone_view` keep their existing public accessors.
+    for f in desc.fields.values() {
+        let old_id = &ids[&f.number];
+        let old_names = field_accessor_names(f, &raws[&f.number], old_id);
+        if !old_names
+            .iter()
+            .any(|name| views.get(name).is_some_and(|owner| *owner != f.number))
+        {
+            continue;
+        }
+        for name in old_names {
+            let count = methods
+                .get_mut(&name)
+                .expect("every old accessor was counted before collision resolution");
+            *count -= 1;
+            if *count == 0 {
+                methods.remove(&name);
+            }
+        }
+        if has_view_accessor(f) {
+            views.remove(&format!("{}_view", old_id.trim_start_matches("r#")));
+        }
+        let base = format!("{}_{}", old_id.trim_start_matches("r#"), f.number);
+        let mut candidate = base.clone();
+        let mut suffix = 2;
+        loop {
+            let names = field_accessor_names(f, &candidate, &candidate);
+            if names.iter().all(|name| !methods.contains_key(name)) {
+                for name in names {
+                    *methods.entry(name).or_default() += 1;
+                }
+                if has_view_accessor(f) {
+                    views.insert(format!("{candidate}_view"), f.number);
+                }
+                let candidate: Rc<str> = Rc::from(candidate);
+                ids.insert(f.number, Rc::clone(&candidate));
+                raws.insert(f.number, candidate);
+                break;
+            }
+            candidate = format!("{base}_{suffix}");
+            suffix += 1;
+        }
+    }
+}
+
 pub(crate) fn bind_field_idents(desc: &MessageDescriptor) {
     bind_boxed_fields(desc);
     let mut used = std::collections::BTreeSet::new();
@@ -550,6 +656,7 @@ pub(crate) fn bind_field_idents(desc: &MessageDescriptor) {
         out.insert(f.number, id);
         raws.insert(f.number, raw);
     }
+    avoid_view_accessor_collisions(desc, &mut out, &mut raws);
     FIELD_IDENTS.with(|c| *c.borrow_mut() = out);
     FIELD_RAWS.with(|c| *c.borrow_mut() = raws);
 }

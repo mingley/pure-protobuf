@@ -5,6 +5,8 @@
 
 | Read | Scope |
 |---|---|
+| [Map removal](#map-removal-november-6) | Correctness repair, indexed update gains and small-map costs, November 6 |
+| [Rejected borrowed queries](evidence/rejected-query-capability-20261106/README.md) | Lookup allocation gains with a repeatable small-map loss, November 6 |
 | [Numbered name allocation](#numbered-name-allocation-november-5) | Repeated-prefix generation and ordinary controls, November 5 |
 | [Safe generated defaults](#safe-generated-defaults-november-5) | Opt-in construction, encoding, parse and build costs, November 5 |
 | [Endpoint origin cost](#endpoint-origin-cost-november-5) | Matched in-memory unary CPU, allocation and layout observations, November 5 |
@@ -25,6 +27,32 @@ Choose a result by the operation you need to improve. Each record names its
 source, workload, controls and remaining losses; the tables cover different
 scopes. These local diagnostics do not establish wins on every benchmark,
 complete feature parity or an overall ranking.
+
+## Map removal, November 6
+
+Removing an entry now preserves unrelated duplicate-key winners and repairs
+an existing lookup index. The [full record](evidence/map-removal-20261106/README.md)
+retains the corruption reproducer, panic and ownership controls, and all seven
+performance rows. Removal still exposes an earlier stored duplicate of the
+target key; it does not match Prost/HashMap deletion in that case.
+
+| Owned-map operation | New / old CPU | Pair range |
+|---|---:|---:|
+| Remove/read/reinsert, 8 integer keys | 1.557 | 1.538–1.771 |
+| Remove/read/reinsert, 8 short string keys | 1.395 | 1.346–1.434 |
+| Remove/read/reinsert, 256 integer keys | 0.152 | 0.148–0.169 |
+| Remove/read/reinsert, 64 long string keys | 0.103 | 0.098–0.115 |
+| Remove/read/reinsert, 256 long string keys | 0.053 | 0.052–0.054 |
+| Single removal, unindexed 8-key integer map | 1.294 | 1.203–1.403 |
+| Single removal, unindexed 256-key integer map | 1.232 | 1.190–1.287 |
+
+These are nine pairs per row against an isolated overlay of `6f9798aa` on a
+shared host. Small and unindexed removals cost more; large indexed cycles avoid
+rebuilding the index and cloning its keys. For 256-key maps over 256 cycles,
+separate allocation counts fall from 512 to zero calls for integer keys and
+from 66,560 to 512 calls for long string keys. Retained memory, typed/raw mutator CPU and
+tonic/Prost performance are unmeasured. This correctness fix does not establish
+a general speedup.
 
 ## Numbered name allocation, November 5
 

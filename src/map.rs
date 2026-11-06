@@ -16,8 +16,8 @@ const INDEX_THRESHOLD: usize = 16;
 
 /// Sorted unique key -> last wire position. One `Vec` (no per-key node
 /// allocation); lookups are binary searches. Built lazily on the first
-/// large-map read, updated incrementally by `insert`, dropped on any other
-/// mutation. Wire order and duplicates stay in `entries`, so encode order,
+/// large-map read, updated incrementally by `insert` and `remove`, dropped on
+/// other mutations. Wire order and duplicates stay in `entries`, so encode order,
 /// `pairs()` and last-wins semantics are unchanged.
 struct LastWinsIndex<K> {
     pos: Vec<(K, usize)>,
@@ -35,6 +35,29 @@ impl<K: MapKey> LastWinsIndex<K> {
 
     fn is_last(&self, key: &K, i: usize) -> bool {
         self.get(key) == Some(i)
+    }
+
+    fn remove_position<V>(&mut self, entries: &[(K, V)], key: &K, removed: usize) -> bool {
+        let previous = entries[..removed]
+            .iter()
+            .rposition(|(stored, _)| stored == key);
+        let mut removed_slot = None;
+        for (slot, (_, position)) in self.pos.iter_mut().enumerate() {
+            if *position == removed {
+                removed_slot = Some(slot);
+            } else if *position > removed {
+                *position -= 1;
+            }
+        }
+        let Some(slot) = removed_slot else {
+            return false;
+        };
+        if let Some(previous) = previous {
+            self.pos[slot].1 = previous;
+        } else {
+            self.pos.remove(slot);
+        }
+        true
     }
 }
 
@@ -103,6 +126,33 @@ fn last_wins_get<'a, K: MapKey, V>(
 ) -> Option<&'a V> {
     let pos = last_wins_pos(entries, index, key)?;
     entries.get(pos).map(|(_, v)| v)
+}
+
+fn remove_entry_at<K: MapKey, V>(
+    entries: &mut Vec<(K, V)>,
+    mut index: Option<&mut LastWins<K>>,
+    position: usize,
+) -> V {
+    // Keep the cache absent until repair completes. A user key's Eq or Drop
+    // may panic after entries change; a caught panic must not expose stale
+    // positions. No index is built on a mutation path.
+    let cached = index.as_deref_mut().and_then(OnceLock::take);
+    // Stable removal preserves the winner of every unrelated duplicate key.
+    // Keep the removed tuple alive through repair, including unwinding.
+    let removed = entries.remove(position);
+    if let Some(mut cached) = cached {
+        if entries.len() >= INDEX_THRESHOLD && cached.remove_position(entries, &removed.0, position)
+        {
+            if let Some(index) = index {
+                *index = OnceLock::from(cached);
+            }
+        }
+    }
+    // Drop the key before moving the value into the return place: if key
+    // destruction panics, the local value must still be dropped on unwind.
+    let (key, value) = removed;
+    drop(key);
+    value
 }
 
 /// Types allowed as map keys.
@@ -433,17 +483,19 @@ impl<K: MapKey, V: MapValue> Map<K, V> {
         last_wins_get(&inner.entries, Some(&inner.index), key)
     }
 
+    /// Remove the last stored entry with this key and return its value.
+    ///
+    /// An earlier parsed duplicate can become visible. Other entries keep
+    /// their relative order. Repeated removals erase every stored version.
     pub fn remove(&mut self, key: &K) -> Option<V> {
         let inner = self.0.as_mut()?;
-        // Same no-build rule as `insert`; the swap may move an entry and an
-        // earlier duplicate may remain, so a built index is dropped and
-        // rebuilt lazily on the next large-map read.
+        // Remove the last occurrence while preserving unrelated wire order.
+        // Reuse an existing index without building one on mutation.
         let i = match inner.index.get() {
             Some(idx) => idx.get(key),
             None => inner.entries.iter().rposition(|(k, _)| k == key),
         }?;
-        let out = inner.entries.swap_remove(i).1;
-        inner.index = OnceLock::new();
+        let out = remove_entry_at(&mut inner.entries, Some(&mut inner.index), i);
         if inner.entries.is_empty() {
             self.0 = None;
         }
@@ -846,19 +898,21 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
         None
     }
 
+    /// Remove the last stored entry with this key, returning whether it existed.
+    ///
+    /// An earlier parsed duplicate can become visible. Other entries keep
+    /// their relative order. Repeated removals erase every stored version.
     pub fn remove(&mut self, key: impl MapQuery<K>) -> bool {
         let key = key.to_owned_key();
         if let Some(v) = self.inner.as_mut() {
-            // Same no-build rule as `insert_owned`; the swap may move an
-            // entry and an earlier duplicate may remain, so a built index is
-            // dropped and rebuilt lazily on the next large-map read.
+            // Preserve every unrelated duplicate's order and reuse a built
+            // index without creating one on a mutation path.
             let found = match self.index.as_deref().and_then(|l| l.get()) {
                 Some(idx) => idx.get(&key),
                 None => v.iter().rposition(|(k, _)| k == &key),
             };
             if let Some(i) = found {
-                v.swap_remove(i);
-                Self::drop_index(&mut self.index);
+                remove_entry_at(v, self.index.as_deref_mut(), i);
                 return true;
             }
             false
@@ -867,7 +921,7 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
                 let kb = crate::runtime::kernel_key_bytes(key.clone());
                 let mut entries = (*raw).entries.borrow_mut();
                 if let Some(i) = entries.iter().rposition(|(k, _)| k == &kb) {
-                    let (_, old) = entries.swap_remove(i);
+                    let (_, old) = entries.remove(i);
                     drop(entries);
                     crate::runtime::kernel_map_release_value(raw, old);
                     true
@@ -1221,6 +1275,534 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn unrelated_duplicate_fixture(n: usize) -> Vec<(i32, i32)> {
+        let mut entries: Vec<_> = (0..n - 4).map(|i| (100 + i as i32, i as i32)).collect();
+        entries.extend([(2, 20), (1, 10), (2, 21), (2, 22)]);
+        entries
+    }
+
+    #[test]
+    fn owned_remove_keeps_unrelated_duplicate_winner() {
+        let mut failures = Vec::new();
+        for n in [4, 15, 16, 17, 64] {
+            for warm in [false, true] {
+                let mut map = Map::new();
+                for (key, value) in unrelated_duplicate_fixture(n) {
+                    map.push_entry(key, value);
+                }
+                assert_eq!(MapView::from_slice(map.pairs()).get(2), Some(22));
+                if warm {
+                    assert_eq!(map.get(&2), Some(&22));
+                }
+                assert_eq!(map.remove(&1), Some(10));
+                let actual = map.get(&2).copied();
+                if actual != Some(22) {
+                    failures.push((n, warm, actual));
+                }
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "unrelated winners changed: {failures:?}"
+        );
+    }
+
+    #[test]
+    fn typed_mut_remove_keeps_unrelated_duplicate_winner() {
+        let mut failures = Vec::new();
+        for n in [4, 15, 16, 17, 64] {
+            for warm in [false, true] {
+                let mut map = Map::new();
+                for (key, value) in unrelated_duplicate_fixture(n) {
+                    map.push_entry(key, value);
+                }
+                assert_eq!(MapView::from_slice(map.pairs()).get(2), Some(22));
+                if warm {
+                    assert_eq!(map.get(&2), Some(&22));
+                }
+                assert!(map.as_mut().remove(1));
+                let actual = map.as_view().get(2);
+                if actual != Some(22) {
+                    failures.push((n, warm, actual));
+                }
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "unrelated winners changed: {failures:?}"
+        );
+    }
+
+    #[test]
+    fn raw_mut_remove_keeps_unrelated_duplicate_winner() {
+        let mut failures = Vec::new();
+        for n in [4, 15, 16, 17, 64] {
+            for warm in [false, true] {
+                let arena = crate::runtime::Arena::new();
+                let raw = arena.alloc_map();
+                // SAFETY: the arena owns the map; these entries have i32 key/value types.
+                unsafe {
+                    (*raw).entries.borrow_mut().extend(
+                        unrelated_duplicate_fixture(n)
+                            .into_iter()
+                            .map(|(key, value)| {
+                                (
+                                    key.to_le_bytes().to_vec(),
+                                    crate::runtime::FieldKind::I32(value),
+                                )
+                            }),
+                    );
+                }
+                // SAFETY: the arena outlives this exclusive mutator with matching types.
+                let mut map: MapMut<'_, i32, i32> = unsafe {
+                    MapMut::from_inner(
+                        crate::internal::Private,
+                        crate::runtime::InnerMapMut::new(raw, &arena),
+                    )
+                };
+                if warm {
+                    assert_eq!(map.get(2), Some(22));
+                }
+                assert!(map.remove(1));
+                let actual = map.get(2);
+                if actual != Some(22) {
+                    failures.push((n, warm, actual));
+                }
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "unrelated winners changed: {failures:?}"
+        );
+    }
+
+    #[test]
+    fn removing_target_keeps_historical_pop_duplicate_behavior() {
+        let mut map = Map::new();
+        for (key, value) in [(1, 10), (1, 11), (2, 20)] {
+            map.push_entry(key, value);
+        }
+        assert_eq!(map.remove(&1), Some(11));
+        assert_eq!(map.get(&1), Some(&10));
+        assert!(map.as_mut().remove(1));
+        assert_eq!(map.get(&1), None);
+        assert_eq!(map.get(&2), Some(&20));
+    }
+
+    #[test]
+    fn removal_matches_stable_pop_model_across_backends() {
+        fn model_get(entries: &[(i32, i32)], key: i32) -> Option<i32> {
+            entries
+                .iter()
+                .rev()
+                .find(|(stored, _)| *stored == key)
+                .map(|(_, value)| *value)
+        }
+        fn logical(entries: &[(i32, i32)]) -> Vec<(i32, i32)> {
+            entries
+                .iter()
+                .enumerate()
+                .filter(|(i, (key, _))| entries[i + 1..].iter().all(|(later, _)| later != key))
+                .map(|(_, entry)| *entry)
+                .collect()
+        }
+        for seed in 0..12 {
+            let mut state = seed + 1u64;
+            let mut model = Vec::new();
+            let mut owned = Map::new();
+            let mut typed = Map::new();
+            let arena = crate::runtime::Arena::new();
+            let raw = arena.alloc_map();
+            for step in 0..256 {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                let key = ((state >> 8) % 19) as i32 - 9;
+                let value = step + seed as i32 * 1000;
+                match state % 16 {
+                    0..=5 => {
+                        model.push((key, value));
+                        owned.push_entry(key, value);
+                        typed.push_entry(key, value);
+                        // SAFETY: no view or mutator is live; arena owns matching i32 entries.
+                        unsafe {
+                            (*raw).entries.borrow_mut().push((
+                                key.to_le_bytes().to_vec(),
+                                crate::runtime::FieldKind::I32(value),
+                            ));
+                        }
+                    }
+                    6..=10 => {
+                        let before = model.iter().rposition(|(stored, _)| *stored == key);
+                        let expected = before.map(|position| model.remove(position).1);
+                        assert_eq!(owned.remove(&key), expected, "seed={seed} step={step}");
+                        assert_eq!(typed.as_mut().remove(key), expected.is_some());
+                        // SAFETY: exclusive matching map mutator is scoped to this operation.
+                        let mut raw_mut: MapMut<'_, i32, i32> = unsafe {
+                            MapMut::from_inner(
+                                crate::internal::Private,
+                                crate::runtime::InnerMapMut::new(raw, &arena),
+                            )
+                        };
+                        assert_eq!(raw_mut.remove(key), expected.is_some());
+                    }
+                    11..=14 => {
+                        let fresh = if let Some(position) =
+                            model.iter().rposition(|(stored, _)| *stored == key)
+                        {
+                            model[position].1 = value;
+                            false
+                        } else {
+                            model.push((key, value));
+                            true
+                        };
+                        assert_eq!(owned.insert(key, value), fresh);
+                        assert_eq!(typed.as_mut().insert(key, value), fresh);
+                        // SAFETY: exclusive matching map mutator is scoped to this operation.
+                        let mut raw_mut: MapMut<'_, i32, i32> = unsafe {
+                            MapMut::from_inner(
+                                crate::internal::Private,
+                                crate::runtime::InnerMapMut::new(raw, &arena),
+                            )
+                        };
+                        assert_eq!(raw_mut.insert(key, value), fresh);
+                    }
+                    _ => {
+                        model.clear();
+                        owned.clear();
+                        typed.as_mut().clear();
+                        // SAFETY: exclusive matching map mutator is scoped to this operation.
+                        let mut raw_mut: MapMut<'_, i32, i32> = unsafe {
+                            MapMut::from_inner(
+                                crate::internal::Private,
+                                crate::runtime::InnerMapMut::new(raw, &arena),
+                            )
+                        };
+                        raw_mut.clear();
+                    }
+                }
+                let expected = logical(&model);
+                assert_eq!(owned.pairs(), model.as_slice(), "seed={seed} step={step}");
+                assert_eq!(typed.pairs(), model.as_slice(), "seed={seed} step={step}");
+                assert_eq!(
+                    owned.iter().map(|(k, v)| (*k, *v)).collect::<Vec<_>>(),
+                    expected
+                );
+                assert_eq!(typed.as_view().iter().collect::<Vec<_>>(), expected);
+                // SAFETY: this immutable view is dropped before the next mutation.
+                let raw_view: MapView<'_, i32, i32> = unsafe { MapView::from_raw_ptr(raw) };
+                assert_eq!(raw_view.iter().collect::<Vec<_>>(), expected);
+                assert_eq!(owned.len(), expected.len());
+                assert_eq!(typed.len(), expected.len());
+                assert_eq!(raw_view.len(), expected.len());
+                for query in -10..=10 {
+                    let expected = model_get(&model, query);
+                    assert_eq!(owned.get(&query).copied(), expected);
+                    assert_eq!(typed.as_view().get(query), expected);
+                    assert_eq!(raw_view.get(query), expected);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn removal_preserves_cache_threshold_and_capacity_policy() {
+        for n in [1, 4, 15, 16, 17, 64] {
+            for warm in [false, true] {
+                for through_mut in [false, true] {
+                    let mut map = Map::new();
+                    for i in 0..n {
+                        map.push_entry(i, i);
+                    }
+                    if warm {
+                        assert_eq!(map.get(&0), Some(&0));
+                    }
+                    let capacity = map.0.as_ref().map(|inner| inner.entries.capacity());
+                    if through_mut {
+                        assert!(map.as_mut().remove(0));
+                    } else {
+                        assert_eq!(map.remove(&0), Some(0));
+                    }
+                    if n == 1 && !through_mut {
+                        assert!(map.0.is_none());
+                    } else {
+                        let inner = map.0.as_ref();
+                        assert_eq!(inner.map(|inner| inner.entries.capacity()), capacity);
+                        assert_eq!(
+                            inner.is_some_and(|inner| inner.index.get().is_some()),
+                            warm && n > INDEX_THRESHOLD as i32
+                        );
+                    }
+                    // Clear keeps typed entry capacity and drops its index; owned clear frees it.
+                    if through_mut {
+                        map.as_mut().clear();
+                        assert_eq!(
+                            map.0.as_ref().map(|inner| inner.entries.capacity()),
+                            capacity
+                        );
+                        assert!(
+                            map.0
+                                .as_ref()
+                                .is_some_and(|inner| inner.index.get().is_none())
+                        );
+                    } else {
+                        map.clear();
+                        assert!(map.0.is_none());
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn raw_removal_releases_only_removed_bytes_and_keeps_survivors_live() {
+        let arena = crate::runtime::Arena::new();
+        let raw = arena.alloc_map();
+        // SAFETY: the arena owns both matching raw key/value storage and each retained value.
+        unsafe {
+            for (key, value) in [(2i32, 20u8), (1, 10), (2, 21), (2, 22)] {
+                let pointer = crate::runtime::retain_bytes(&(*raw).strs, vec![value; 96]);
+                (*raw).entries.borrow_mut().push((
+                    key.to_le_bytes().to_vec(),
+                    crate::runtime::FieldKind::Bytes(pointer),
+                ));
+            }
+        }
+        // SAFETY: this exclusive mutator has matching i32/ProtoBytes entries in a live arena.
+        let mut map: MapMut<'_, i32, crate::string::ProtoBytes> = unsafe {
+            MapMut::from_inner(
+                crate::internal::Private,
+                crate::runtime::InnerMapMut::new(raw, &arena),
+            )
+        };
+        assert!(map.remove(1));
+        assert_eq!(map.get(2).map(|value| value.to_vec()), Some(vec![22; 96]));
+        // SAFETY: storage is inspected without mutation while the arena and mutator are live.
+        assert_eq!(unsafe { (*raw).strs.borrow().len() }, 3);
+        assert!(map.remove(2));
+        assert_eq!(map.get(2).map(|value| value.to_vec()), Some(vec![21; 96]));
+        // SAFETY: same live owner, after the preceding field view was dropped.
+        assert_eq!(unsafe { (*raw).strs.borrow().len() }, 2);
+        assert!(map.remove(2));
+        assert_eq!(map.get(2).map(|value| value.to_vec()), Some(vec![20; 96]));
+        assert!(map.remove(2));
+        assert_eq!(map.get(2), None);
+        assert!(!map.remove(2));
+        // SAFETY: no retained entry remains; each removed allocation was released once.
+        assert!(unsafe { (*raw).strs.borrow().is_empty() });
+        assert!(map.insert(3, crate::string::ProtoBytes::from(vec![7; 128])));
+        assert_eq!(map.get(3).map(<[u8]>::len), Some(128));
+        map.clear();
+        // SAFETY: clear has released all raw bytes storage while the arena remains live.
+        assert!(unsafe { (*raw).strs.borrow().is_empty() });
+    }
+
+    #[derive(Debug, Default)]
+    struct KeyFaults {
+        ord: std::cell::Cell<bool>,
+        eq: std::cell::Cell<bool>,
+        drop_key: std::cell::Cell<Option<i32>>,
+        clones: std::cell::Cell<usize>,
+    }
+    #[derive(Debug)]
+    struct FaultKey(i32, std::rc::Rc<KeyFaults>);
+    impl Clone for FaultKey {
+        fn clone(&self) -> Self {
+            self.1.clones.set(self.1.clones.get() + 1);
+            Self(self.0, self.1.clone())
+        }
+    }
+    impl PartialEq for FaultKey {
+        fn eq(&self, other: &Self) -> bool {
+            assert!(!self.1.eq.replace(false), "armed Eq panic");
+            self.0 == other.0
+        }
+    }
+    impl Eq for FaultKey {}
+    impl PartialOrd for FaultKey {
+        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+    impl Ord for FaultKey {
+        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            assert!(!self.1.ord.replace(false), "armed Ord panic");
+            self.0.cmp(&other.0)
+        }
+    }
+    impl Drop for FaultKey {
+        fn drop(&mut self) {
+            let armed = self.1.drop_key.get() == Some(self.0);
+            if armed {
+                self.1.drop_key.set(None);
+            }
+            assert!(!armed, "armed key Drop panic");
+        }
+    }
+    impl MapKey for FaultKey {}
+    impl MapQuery<FaultKey> for &FaultKey {
+        fn eq_key(&self, key: &FaultKey) -> bool {
+            *self == key
+        }
+        fn to_owned_key(&self) -> FaultKey {
+            (*self).clone()
+        }
+        fn key_bytes(&self) -> Vec<u8> {
+            self.0.to_le_bytes().to_vec()
+        }
+    }
+    #[derive(Debug, Default)]
+    struct ValueFaults {
+        drops: std::cell::RefCell<Vec<i32>>,
+        drop_value: std::cell::Cell<Option<i32>>,
+    }
+    #[derive(Clone, Debug)]
+    struct FaultValue(i32, std::rc::Rc<ValueFaults>);
+    impl Drop for FaultValue {
+        fn drop(&mut self) {
+            self.1.drops.borrow_mut().push(self.0);
+            let armed = self.1.drop_value.get() == Some(self.0);
+            if armed {
+                self.1.drop_value.set(None);
+            }
+            assert!(!armed, "armed value Drop panic");
+        }
+    }
+    fn fault_map(
+        duplicate: bool,
+    ) -> (
+        Map<FaultKey, FaultValue>,
+        std::rc::Rc<KeyFaults>,
+        std::rc::Rc<ValueFaults>,
+    ) {
+        let keys = std::rc::Rc::new(KeyFaults::default());
+        let values = std::rc::Rc::new(ValueFaults::default());
+        let mut map = Map::new();
+        for id in 0..20 {
+            map.push_entry(FaultKey(id, keys.clone()), FaultValue(id, values.clone()));
+        }
+        if duplicate {
+            map.push_entry(FaultKey(1, keys.clone()), FaultValue(20, values.clone()));
+        }
+        assert_eq!(map.len(), 20); // Warm the index with all fault flags disabled.
+        (map, keys, values)
+    }
+    fn assert_value_drops_once(values: &ValueFaults, n: i32) {
+        let mut drops = values.drops.borrow().clone();
+        drops.sort_unstable();
+        assert_eq!(drops, (0..n).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn removal_panic_guards_prevent_stale_visible_indexes() {
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+        // Ord runs during lookup, before mutation; the existing cache stays valid.
+        let (mut map, keys, values) = fault_map(false);
+        let query = FaultKey(1, keys.clone());
+        keys.ord.set(true);
+        assert!(catch_unwind(AssertUnwindSafe(|| map.remove(&query))).is_err());
+        assert_eq!(map.pairs().len(), 20);
+        assert!(
+            map.0
+                .as_ref()
+                .is_some_and(|inner| inner.index.get().is_some())
+        );
+        assert!(values.drops.borrow().is_empty());
+        assert_eq!(map.get(&query).map(|value| value.0), Some(1));
+        drop(map);
+        assert_value_drops_once(&values, 20);
+
+        // Eq can panic during repair after stable removal; cache must be absent.
+        let (mut map, keys, values) = fault_map(false);
+        let query = FaultKey(1, keys.clone());
+        keys.eq.set(true);
+        assert!(catch_unwind(AssertUnwindSafe(|| map.remove(&query))).is_err());
+        assert_eq!(map.pairs().len(), 19);
+        assert!(
+            map.0
+                .as_ref()
+                .is_some_and(|inner| inner.index.get().is_none())
+        );
+        assert_eq!(*values.drops.borrow(), [1]);
+        assert_eq!(map.get(&query).map(|value| value.0), None);
+        assert_eq!(
+            map.get(&FaultKey(2, keys.clone())).map(|value| value.0),
+            Some(2)
+        );
+        drop(map);
+        assert_value_drops_once(&values, 20);
+
+        for duplicate in [false, true] {
+            let (mut map, keys, values) = fault_map(duplicate);
+            let query = FaultKey(1, keys.clone());
+            keys.drop_key.set(Some(1));
+            assert!(catch_unwind(AssertUnwindSafe(|| map.remove(&query))).is_err());
+            assert_eq!(map.pairs().len(), if duplicate { 20 } else { 19 });
+            // Removing a unique index key can panic before restore. With a previous
+            // version, the removed entry key drops only after complete restoration.
+            assert_eq!(
+                map.0
+                    .as_ref()
+                    .is_some_and(|inner| inner.index.get().is_some()),
+                duplicate
+            );
+            assert_eq!(*values.drops.borrow(), [if duplicate { 20 } else { 1 }]);
+            assert_eq!(map.get(&query).map(|value| value.0), duplicate.then_some(1));
+            assert_eq!(
+                map.get(&FaultKey(2, keys.clone())).map(|value| value.0),
+                Some(2)
+            );
+            drop(map);
+            assert_value_drops_once(&values, if duplicate { 21 } else { 20 });
+        }
+
+        // A typed mutator drops its removed value after cache repair.
+        let (mut map, keys, values) = fault_map(false);
+        let query = FaultKey(1, keys.clone());
+        values.drop_value.set(Some(1));
+        assert!(catch_unwind(AssertUnwindSafe(|| map.as_mut().remove(&query))).is_err());
+        assert_eq!(map.pairs().len(), 19);
+        assert!(
+            map.0
+                .as_ref()
+                .is_some_and(|inner| inner.index.get().is_some())
+        );
+        assert_eq!(*values.drops.borrow(), [1]);
+        assert_eq!(map.get(&query).map(|value| value.0), None);
+        drop(map);
+        assert_value_drops_once(&values, 20);
+    }
+
+    #[test]
+    fn warm_removal_reuses_index_without_key_clones() {
+        let (mut map, keys, values) = fault_map(false);
+        keys.clones.set(0);
+        let before = map
+            .0
+            .as_ref()
+            .and_then(|inner| inner.index.get())
+            .map(|index| index.pos.as_ptr());
+        let removed = map.remove(&FaultKey(7, keys.clone()));
+        assert_eq!(removed.as_ref().map(|value| value.0), Some(7));
+        assert_eq!(
+            map.0
+                .as_ref()
+                .and_then(|inner| inner.index.get())
+                .map(|index| index.pos.as_ptr()),
+            before
+        );
+        for key in 0..20 {
+            assert_eq!(
+                map.get(&FaultKey(key, keys.clone())).map(|value| value.0),
+                (key != 7).then_some(key)
+            );
+        }
+        assert_eq!(keys.clones.get(), 0);
+        drop(removed);
+        drop(map);
+        assert_value_drops_once(&values, 20);
+    }
 
     #[test]
     fn empty_eq_and_zeroed() {

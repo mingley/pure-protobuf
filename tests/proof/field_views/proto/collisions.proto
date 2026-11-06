@@ -1,0 +1,50 @@
+syntax = "proto3";
+package proof.views;
+import "child.proto";
+import "external.proto";
+message GetterClash { proof.shared.Child child = 1; int32 child_view = 2; }
+message RawKeywordClash { proof.shared.Child type = 1; int32 type_view = 2; }
+message RenamedBaseClash {
+  proof.shared.Child clone = 1;
+  int32 clone_field_view = 2;
+  int32 clone_view = 3;
+}
+message PresenceClash { proof.shared.Child has_thing = 1; optional int32 thing_view = 2; }
+message SetterClash { proof.shared.Child set_thing = 1; int32 thing_view = 2; }
+message ClearClash { proof.shared.Child clear_thing = 1; optional int32 thing_view = 2; }
+message MessageRenameTrap {
+  proof.shared.Child child = 1;
+  proof.shared.Child child_view = 2;
+  int32 child_view_2_mut = 3;
+  int32 child_view_2_opt = 4;
+  int32 child_view_2_view = 5;
+  int32 child_view_2_2 = 6;
+}
+message RawHelperTrap {
+  proof.shared.Child has_thing = 1;
+  optional int32 thing_view = 2;
+  int32 has_thing_view_2 = 3;
+  int32 set_thing_view_2 = 4;
+  int32 clear_thing_view_2 = 5;
+}
+message ScalarSuffixNear {
+  proof.shared.Child child = 1;
+  int32 child_view = 2;
+  int32 child_view_2_mut = 3;
+}
+message ProxyClash {
+  proof.shared.ChildView child = 1;
+  int32 child_view = 2;
+  proof.shared.ChildMut other = 3;
+}
+message ExternClash { proof.external.External child = 1; int32 child_view = 2; }
+message ReverseNumberClash { int32 child_view = 1; proof.shared.Child child = 2; }
+message ViewChain {
+  proof.shared.Child child = 1;
+  proof.shared.Child child_view = 2;
+  int32 child_view_view = 3;
+}
+message OneofClash {
+  oneof choice { proof.shared.Child child = 1; int32 other = 3; }
+  int32 child_view = 2;
+}
