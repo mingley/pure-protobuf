@@ -19,6 +19,31 @@ live task status. Use the two [task plans](plan/README.md) and
 | What is required for a supported release? | GR packages below, then [release policy](RELEASE.md) |
 | What did the audit find? | [Repository audit](audit-2026-09-29.md) |
 
+## Goal and next milestone
+
+Close the documented feature gaps, beat pinned tonic/prost in every applicable
+registered benchmark comparison, and publish qualified new versions of
+`pbrs`, `protobuf-tonic` and `pbrs-grpc`.
+
+The next implementation milestone is the five migration gaps recorded at
+[`0ae8a43d`](https://github.com/mingley/pure-protobuf/tree/0ae8a43d3d08617c249c84a3f0d30f614494d70e):
+`btree_map`, `bytes` and `boxed` codegen controls, an alloc-only runtime, and
+custom connection executors in the static balanced-channel helpers. Broader
+coverage continues through the [API comparison](guides/comparison.md) and
+[parity register](parity.md).
+
+| Track | Evidence needed to finish |
+|---|---|
+| Feature coverage | Each gap has real behavior, a public or generated consumer, and a pinned reference comparison or deployment test. Update the parity register with the tested scope and source. |
+| Performance | Every applicable tonic/prost comparison in the [category register](../bench/scoreboard/categories.json) has matched repeated results that satisfy the [benchmark contract](benchmark-contract.md). Keep losing, blocked and unmeasured cases visible until resolved. |
+| Publication | New versions of all three crates meet their applicable [release requirements](RELEASE.md), and the published versions and artifacts match the qualified release commit. |
+
+Advance in small batches: close one missing behavior or remove one measured
+cost, run the relevant correctness and regression checks, then push the
+verified change to `main`. Record the commit, raw results and remaining work.
+A passing component test or a faster local row closes only its tested scope;
+use the existing task cards to assign the next batch.
+
 GR-01/GR-02 foundation slices have landed. Their presence does not imply
 every current check passes: the audit found a rustdoc failure and an upstream
 enum-map regression. Later GR packages remain qualification outcomes, even

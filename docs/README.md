@@ -15,6 +15,7 @@ Start with a working example, then open the guide for your task.
 | Deploy and operate a service | [TLS, limits and shutdown](guides/production-service.md), [operations](guides/operations.md) |
 | Check release readiness | [Current candidate checks](evidence/readiness-followup-20261102/README.md), [release policy](RELEASE.md) |
 | Compare performance | [Results](benchmarks.md), [run benchmarks](benchmarks/running.md) |
+| Follow the implementation goal | [Goal and next milestone](ROADMAP.md#goal-and-next-milestone), [current work queue](../TODO.md) |
 
 For exact API signatures, use [docs.rs](https://docs.rs/pbrs) or run
 `cargo doc --workspace --no-deps --open`. Check the
