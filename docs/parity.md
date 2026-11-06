@@ -39,6 +39,7 @@ their own source pins, controls, failures and full measured rows.
 | Selected bytes storage | [Consumer controls](../tests/proof/codegen_parity/bytes.md) compare selectors, values and shared/borrowed input with Prost 0.14.4 in selected, owned and forbid-unsafe profiles. Old eager-parent copying and format-generation limits remain explicit. |
 | Generated forbid-unsafe policy | Twelve checks pass across lazy, owned and boxed consumers; the ordinary generated profile fails the intentional forbid-unsafe control. Runtime dependencies keep their own unsafe implementations. |
 | Endpoint URI origins | [Eight public tests](../pbrs-grpc/tests/endpoint_origin.rs) cover direct native and Tonic URI routing, all four call shapes, TLS/SNI and clone overrides. Static balance helpers reject per-endpoint origins. |
+| Balanced endpoint authority | [23 public tests](../pbrs-grpc/tests/balance_executors.rs) cover selected URI authority, all four native and opaque Tonic call shapes, clone overrides, retries, hedges, health, binary logs and endpoint replacement. Per-endpoint origins, TLS and hostname lookup remain unsupported. |
 | Embedded, alloc-only runtime | The [concrete consumer](../tests/proof/alloc_runtime/README.md) builds five native profiles and Prost 0.14.4 messages for `thumbv7em-none-eabi`, with separate std host codegen. Host functional checks explicitly enable std; firmware execution remains unverified. |
 | gRPC message presence against tonic 0.14.6 | All 18 raw-wire comparisons pass after the repair. |
 | Existing mixed-peer suite | All 41 tests pass after restoring native connection information in the tonic service adapter. |
@@ -62,8 +63,10 @@ keepalive policy and custom connection-driver executors. The
 Executor selection does not replace Tokio I/O, timers or helper tasks. Static
 and watched balance helpers preserve per-URI executors, including URI aliases
 of one socket, and drain replaced connections. Their update API remains a
-full snapshot, and request authority remains channel-wide rather than coming
-from the selected endpoint as in tonic.
+full snapshot. Each RPC attempt uses its acquired connection's endpoint
+authority unless `Channel::origin` explicitly pins the clone's authority.
+Background health Watches use their own connection's endpoint authority;
+channel getters and client call labels retain the configured channel context.
 `Endpoint::origin(Uri)` sets logical request scheme and authority while
 preserving dialing, TLS and interceptor security context. Its path and query
 are ignored. `Channel::request_scheme()` exposes the logical scheme; a later

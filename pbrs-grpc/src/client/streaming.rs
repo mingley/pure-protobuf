@@ -1467,12 +1467,12 @@ impl super::Channel {
                             return Err(status);
                         }
                     };
-                    let (slot, r#gen, lease, driver, rr_addr, live_socket) = (
+                    let (slot, r#gen, lease, driver, route, live_socket) = (
                         live.slot,
                         live.r#gen,
                         live.lease,
                         live.driver,
-                        live.rr_addr,
+                        live.route,
                         live.channelz_socket,
                     );
                     let _load = live.load;
@@ -1502,9 +1502,10 @@ impl super::Channel {
                         .and_then(|budget| deadline_from(Some(budget)))
                         .map(|capped| deadline.map_or(capped, |overall| overall.min(capped)))
                         .or(deadline);
+                    let routing = channel.local.for_attempt(route.authority());
                     match run_server_stream_frame(
                         live.send,
-                        channel.local.as_ref(),
+                        &routing,
                         path,
                         &md,
                         req_timeout,
@@ -1575,7 +1576,7 @@ impl super::Channel {
                             channel.local.retry_stats.record_transparent_retry();
                             channel
                                 .inner
-                                .discard_conn(slot, r#gen, rr_addr.as_ref())
+                                .discard_conn(slot, r#gen, route.resolved_address())
                                 .await;
                             attempt_idx += 1;
                         }
@@ -1614,7 +1615,7 @@ impl super::Channel {
                                     if status.is_transport() {
                                         channel
                                             .inner
-                                            .discard_conn(slot, r#gen, rr_addr.as_ref())
+                                            .discard_conn(slot, r#gen, route.resolved_address())
                                             .await;
                                     }
                                     finish_attempt(&mut attempt_guard, &status);
@@ -1668,7 +1669,7 @@ impl super::Channel {
                             if status.is_transport() {
                                 channel
                                     .inner
-                                    .discard_conn(slot, r#gen, rr_addr.as_ref())
+                                    .discard_conn(slot, r#gen, route.resolved_address())
                                     .await;
                             }
                             if cancel_rx.is_cancelled() {
@@ -1884,20 +1885,13 @@ impl super::Channel {
                         &md,
                         compress,
                         &user_agent,
+                        tap.as_ref(),
                     )
                     .await
                 {
                     Ok(opened) => {
                         if let (Some(obs), Some(queue_start)) = (&observer, &queue_start) {
                             obs.on_queue_wait(&labels(), queue_start.elapsed());
-                        }
-                        if let Some(tap) = &tap {
-                            tap.log_client_header(
-                                &md,
-                                path,
-                                channel.local.authority.as_str(),
-                                req_timeout,
-                            );
                         }
                         opened
                     }
@@ -2229,20 +2223,13 @@ impl super::Channel {
                         &md,
                         compress,
                         &user_agent,
+                        tap.as_ref(),
                     )
                     .await
                 {
                     Ok(opened) => {
                         if let (Some(obs), Some(queue_start)) = (&observer, &queue_start) {
                             obs.on_queue_wait(&labels(), queue_start.elapsed());
-                        }
-                        if let Some(tap) = &tap {
-                            tap.log_client_header(
-                                &md,
-                                path,
-                                channel.local.authority.as_str(),
-                                req_timeout,
-                            );
                         }
                         opened
                     }

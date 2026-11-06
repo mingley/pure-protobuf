@@ -7,6 +7,7 @@
 |---|---|
 | [Latest full hosted comparison](evidence/hosted-devloop-10d94697-20261106/README.md) | All 1,634 cells at `10d94697`, with selected wins, remaining Prost losses and instrumentation limits, November 6 |
 | [Earlier full hosted comparison](evidence/hosted-devloop-20261106/README.md) | All 1,634 cells and repaired fresh lifecycle at `05a3cca5`, November 6 |
+| [Balanced authority storage](evidence/balanced-authority-storage-20261106/README.md) | Dev/test layout and constructor allocations for the routing fix; remaining costs included, November 6 |
 | [Rejected medium-string validator](evidence/rejected-medium-core-utf8-20261106/README.md) | An 80-byte name gain with Unicode and boundary losses; all 756 CPU processes, November 6 |
 | [Rejected packed readiness routing](evidence/rejected-packed-readiness-routing-20261106/README.md) | Fresh gains with a remaining large encode-then-getter loss; all 432 processes, November 6 |
 | [Rejected cache-first packed encoding](evidence/rejected-packed-cache-first-20261106/README.md) | A local fresh TAT win against pinned Prost with large getter and owned regressions, November 6 |

@@ -5,6 +5,12 @@ stopped. They are dated investigations, usually local diagnostics. A result
 belongs to its recorded revision, host, workload, and peer versions; it does
 not automatically describe today's code.
 
+The [balanced authority storage record](balanced-authority-storage-20261106/README.md)
+checks the selected-endpoint routing fix with all 216 constructor records and
+three native layouts. The owned route enum restores the connection handle's
+previous size. Direct call futures still request extra bytes
+in this dev/test profile; the record makes no CPU or release performance claim.
+
 The [full hosted comparison at `10d94697`](hosted-devloop-10d94697-20261106/README.md)
 retains all 1,634 cells from the official artifact. Selected fresh encoding,
 name decoding and mixed-blob encoding still lose to Prost. Cached encoding

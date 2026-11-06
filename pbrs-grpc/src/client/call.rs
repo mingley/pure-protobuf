@@ -854,9 +854,10 @@ impl super::Channel {
         md: &crate::metadata::Metadata,
         compress: bool,
         user_agent: &http::HeaderValue,
+        tap: Option<&crate::binlog::CallLogger>,
     ) -> impl std::future::Future<Output = Result<Opened, Status>> {
         self.open_retrying_in::<TokioRuntime>(
-            cancel_rx, timeout, deadline, wait, path, md, compress, user_agent,
+            cancel_rx, timeout, deadline, wait, path, md, compress, user_agent, tap,
         )
     }
 
@@ -876,6 +877,7 @@ impl super::Channel {
         md: &crate::metadata::Metadata,
         compress: bool,
         user_agent: &http::HeaderValue,
+        tap: Option<&crate::binlog::CallLogger>,
     ) -> Result<Opened, Status> {
         let mut retried = false;
         loop {
@@ -883,18 +885,19 @@ impl super::Channel {
             let live = self
                 .grab_in::<R>(&cancel_rx, deadline, wait, Some(md))
                 .await?;
-            let (slot, r#gen, lease, driver, rr_addr, channelz_socket) = (
+            let (slot, r#gen, lease, driver, route, channelz_socket) = (
                 live.slot,
                 live.r#gen,
                 live.lease,
                 live.driver,
-                live.rr_addr,
+                live.route,
                 live.channelz_socket,
             );
             let load = live.load;
+            let routing = self.local.for_attempt(route.authority());
             match open_in::<R>(
                 live.send,
-                self.local.as_ref(),
+                &routing,
                 path,
                 md,
                 timeout,
@@ -907,6 +910,9 @@ impl super::Channel {
             .await
             {
                 Ok((resp_fut, send)) => {
+                    if let Some(tap) = tap {
+                        tap.log_client_header(md, path, routing.authority().as_str(), timeout);
+                    }
                     return Ok(Opened {
                         load,
                         lease,
@@ -922,11 +928,15 @@ impl super::Channel {
                         && self.inner.endpoint.can_redial() =>
                 {
                     retried = true;
-                    self.inner.discard_conn(slot, r#gen, rr_addr.as_ref()).await;
+                    self.inner
+                        .discard_conn(slot, r#gen, route.resolved_address())
+                        .await;
                 }
                 Err(status) => {
                     if status.is_transport() {
-                        self.inner.discard_conn(slot, r#gen, rr_addr.as_ref()).await;
+                        self.inner
+                            .discard_conn(slot, r#gen, route.resolved_address())
+                            .await;
                     }
                     return Err(status);
                 }

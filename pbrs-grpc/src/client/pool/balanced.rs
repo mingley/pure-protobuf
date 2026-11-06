@@ -4,9 +4,11 @@ use super::*;
 use crate::client::channel::{Endpoint as ClientEndpoint, balance_inputs};
 use crate::lb::{KeyedPick, KeyedRoundRobin};
 
-struct Route {
+pub(crate) struct Route {
     id: usize,
     uri: http::Uri,
+    /// Preserve the URI spelling, including a leading-zero port.
+    pub(crate) authority: Authority,
     address: ResolvedAddress,
     executor: crate::executor::TaskExecutor,
 }
@@ -77,6 +79,9 @@ fn snapshot(
                 })?;
                 Arc::new(Route {
                     id,
+                    authority: input.uri.authority().cloned().ok_or_else(|| {
+                        Status::invalid_argument("balanced endpoint URI needs an authority")
+                    })?,
                     uri: input.uri,
                     address,
                     executor: input.executor,
@@ -317,7 +322,7 @@ impl Balanced {
             if let Some(send) = send {
                 if let Ok(ready) = send.ready().await {
                     if self
-                        .health_ok(inner, id, &ready, &driver, health.as_ref())
+                        .health_ok(inner, &route, &ready, &driver, health.as_ref())
                         .await
                     {
                         return Ok(LiveConn {
@@ -327,8 +332,8 @@ impl Balanced {
                             driver,
                             slot: id,
                             r#gen: generation,
-                            rr_addr: None,
                             channelz_socket: socket,
+                            route: ConnectionRoute::Balanced(route),
                         });
                     }
                     continue;
@@ -385,7 +390,7 @@ impl Balanced {
                         }
                     }
                     if !self
-                        .health_ok(inner, id, &send, &driver, health.as_ref())
+                        .health_ok(inner, &route, &send, &driver, health.as_ref())
                         .await
                     {
                         continue;
@@ -397,8 +402,8 @@ impl Balanced {
                         driver,
                         slot: id,
                         r#gen: generation,
-                        rr_addr: None,
                         channelz_socket: socket,
+                        route: ConnectionRoute::Balanced(route),
                     });
                 }
                 Err(status) => {
@@ -434,7 +439,7 @@ impl Balanced {
     async fn health_ok(
         &self,
         inner: &ChannelInner,
-        id: usize,
+        route: &Route,
         send: &backend::SendRequest,
         driver: &Option<watch::Sender<bool>>,
         directive: Option<&HealthDirective>,
@@ -442,6 +447,7 @@ impl Balanced {
         let Some(directive) = directive else {
             return true;
         };
+        let id = route.id;
         let Some(mut stop) = driver.as_ref().map(watch::Sender::subscribe) else {
             return true;
         };
@@ -457,7 +463,16 @@ impl Balanced {
                 policy: Arc::clone(&self.policy),
                 id,
             };
-            if spawn_health_watch(inner, target, send.clone(), stop.clone(), directive).is_err() {
+            if spawn_health_watch(
+                inner,
+                &route.authority,
+                target,
+                send.clone(),
+                stop.clone(),
+                directive,
+            )
+            .is_err()
+            {
                 self.policy.health_gone_from(&id, &stop).await;
                 return false;
             }

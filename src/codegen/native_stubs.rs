@@ -1207,7 +1207,7 @@ pub(crate) fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    /// The HTTP/2 `:authority` this client sends. See [`{g}::Channel::authority`]. Applies to every call shape."
+        "    /// The configured channel authority before endpoint selection. Balanced requests can use a selected endpoint's authority; see [`{g}::Channel::authority`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(

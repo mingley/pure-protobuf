@@ -371,11 +371,16 @@ impl Endpoint {
         Ok(self.apply_origin(channel))
     }
 
-    /// Static round-robin balance over endpoint URI authorities.
+    /// Static round-robin balance over endpoint URIs.
     ///
-    /// This facade supports TCP `http://host:port` endpoints that resolve to
-    /// socket addresses. `https` lists are rejected because one native channel
-    /// carries one TLS server name.
+    /// Supports plaintext TCP `http://IP:port` endpoints. Each RPC attempt uses
+    /// its selected URI authority, preserving its spelling; URI paths and
+    /// queries do not replace the method path. [`Channel::origin`] pins request
+    /// authority on that clone while other clones retain endpoint selection.
+    /// Health watches use the selected target without caller-clone overrides.
+    ///
+    /// Connection settings are shared through `config`. Per-endpoint origins,
+    /// TLS, and hostname lookup remain unsupported by this helper.
     pub async fn balance_list(
         endpoints: impl IntoIterator<Item = Endpoint>,
         config: ChannelConfig,
@@ -385,6 +390,9 @@ impl Endpoint {
     }
 
     /// Dynamic round-robin balance over a watch channel of endpoint lists.
+    ///
+    /// Request routing, clone overrides, and supported endpoint settings match
+    /// [`Self::balance_list`].
     ///
     /// Each observed full list replaces membership. Full URI keys distinguish
     /// entries, even when they dial the same socket. A changed executor for
@@ -494,9 +502,11 @@ pub(crate) struct ChannelLocal {
     pub(crate) https: bool,
     /// Logical request origin, separate from transport security and dialing.
     pub(crate) origin: Option<Arc<Uri>>,
-    /// `:authority` this clone sends. Defaults to the dial [`Target`];
-    /// [`Channel::origin`] overrides it.
+    /// Configured authority. Balanced attempts use their selected URI unless
+    /// [`Channel::origin`] explicitly overrides this clone.
     pub(crate) authority: Authority,
+    /// An explicit clone override wins over a selected balanced URI.
+    pub(crate) authority_override: bool,
     pub(crate) observer: Option<Arc<dyn LifecycleObserver>>,
     /// Attached JSON service config (A6/A21/A24), if any. Clones share it.
     pub(crate) service_config: SharedServiceConfig,
@@ -507,6 +517,20 @@ pub(crate) struct ChannelLocal {
 }
 
 impl ChannelLocal {
+    /// Resolve routing from the connection actually picked for this attempt.
+    /// The borrowed metadata cannot change when a balance snapshot is replaced.
+    #[inline]
+    pub(crate) fn for_attempt<'a>(&'a self, selected: Option<&'a Authority>) -> AttemptRouting<'a> {
+        AttemptRouting {
+            local: self,
+            authority: if self.authority_override {
+                None
+            } else {
+                selected
+            },
+        }
+    }
+
     #[inline]
     pub(crate) fn request_scheme(&self) -> Result<&http::uri::Scheme, Status> {
         match &self.origin {
@@ -543,8 +567,29 @@ impl RequestRouting for ChannelLocal {
     }
 }
 
-/// Background health and load watches use their shared resolver pool's target.
-/// Endpoint origins cannot enter these pools: balanced endpoints reject them.
+/// A request borrows its acquired endpoint metadata until HEADERS are opened.
+/// No endpoint metadata is allocated or retained for ordinary direct/RR pools.
+pub(crate) struct AttemptRouting<'a> {
+    local: &'a ChannelLocal,
+    authority: Option<&'a Authority>,
+}
+
+impl RequestRouting for AttemptRouting<'_> {
+    fn authority(&self) -> &Authority {
+        self.authority.unwrap_or(&self.local.authority)
+    }
+
+    fn request_scheme(&self) -> Result<&http::uri::Scheme, Status> {
+        // Balanced inputs are plaintext HTTP. Preserve explicit clone scheme
+        // overlays and direct Endpoint origins, independently of TLS identity.
+        self.local.request_scheme()
+    }
+}
+
+/// Maintenance watches use the shared transport target: resolver health and
+/// load watches retain their resolver authority; balanced health watches use
+/// their selected endpoint authority. Caller-clone overlays do not affect them.
+/// Balanced endpoints still reject per-endpoint origins.
 pub(crate) struct DirectRouting<'a> {
     pub(crate) authority: &'a Authority,
     pub(crate) https: bool,
@@ -1043,6 +1088,10 @@ impl super::Channel {
 
     /// Override the HTTP/2 `:authority` this clone sends.
     ///
+    /// On a balanced channel, this pins every selected endpoint to the same
+    /// request authority. Other clones continue using their selected URI.
+    /// Shared health watches retain their selected transport target.
+    ///
     /// Applies to every call shape, including over TLS, mTLS, Unix, and
     /// [`Self::from_io`]. Dial still uses the [`Target`] passed to
     /// [`Self::connect`] / [`Self::connect_tls`] / [`Self::connect_unix`];
@@ -1078,7 +1127,10 @@ impl super::Channel {
         let authority = target.authority().parse().map_err(|e| {
             Status::invalid_argument(format!("invalid origin {:?}: {e}", target.authority()))
         })?;
-        Ok(self.with_local(|local| local.authority = authority))
+        Ok(self.with_local(|local| {
+            local.authority = authority;
+            local.authority_override = true;
+        }))
     }
 
     /// [`Self::from_io`] with `config`. Applies to every call shape.
@@ -1565,8 +1617,11 @@ impl super::Channel {
     /// Run `interceptor` on every outbound RPC before the stream opens.
     /// Applies to every call shape.
     /// Calling this twice stacks: the first interceptor runs first. The
-    /// interceptor sees the method path, service, method, `:authority`,
-    /// `:scheme`, `user-agent`, and message caps, and can set metadata, a
+    /// interceptor sees the method path, service, method, configured channel
+    /// authority, transport/security scheme, user-agent, and message caps.
+    /// Balanced endpoint selection happens later on each attempt, so
+    /// [`crate::Outgoing::authority`] exposes the channel context rather than
+    /// the eventual endpoint. The interceptor can set metadata, a
     /// user-agent prefix ([`crate::Outgoing::set_user_agent`]), a
     /// timeout / deadline Instant, wait-for-ready, compression, or typed
     /// extensions.
@@ -1761,13 +1816,16 @@ impl super::Channel {
         self.with_local(|local| local.binlog = Some(Arc::new(logger)))
     }
 
-    /// The `:authority` sent with every request.
+    /// The configured channel authority.
     ///
     /// Taken from the [`Target`] used to dial, unless [`Endpoint::origin`] or
     /// [`Self::origin`] overrode it on this clone. A [`SocketAddr`] is that
     /// address (`127.0.0.1:port`), not TLS SNI (`ClientTls` verifies a name
     /// such as `localhost` separately). Unix sockets send `localhost`
-    /// until [`Self::origin`]. Applies to every call shape.
+    /// until [`Self::origin`]. Balanced channels expose their diagnostic target
+    /// before endpoint selection; their requests use the selected URI authority
+    /// unless this clone has an explicit [`Self::origin`] override. Interceptor
+    /// and call-start labels retain this preselection channel context.
     /// Distinct from [`Self::origin`], which sets it.
     #[must_use]
     pub fn authority(&self) -> &str {

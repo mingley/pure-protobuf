@@ -105,8 +105,10 @@ or stable releases.
   polling thread cannot start.
 - Preserve per-endpoint executors and full URI identities in static and
   watched balance helpers. Replace changed entries lazily and drain existing
-  calls. These helpers retain shared settings and channel-wide authority;
-  per-endpoint origins, TLS and hostname lookup remain unsupported.
+  calls. RPC attempts use the selected endpoint's authority unless an explicit
+  `Channel::origin` pins that clone. Health Watches keep their endpoint's
+  authority; getters retain configured channel context. Connection settings
+  remain shared; per-endpoint origins, TLS and hostname lookup are unsupported.
 - Keep one health Watch per current round-robin connection, reject stale
   owners after replacement, and recover after the health transport closes.
 - Add `Endpoint::origin(Uri)` and `Channel::request_scheme()` for logical

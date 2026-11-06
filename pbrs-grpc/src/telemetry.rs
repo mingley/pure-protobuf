@@ -124,6 +124,9 @@ impl<'a> CallLabels<'a> {
     }
 
     /// The authority or host:port destination, if known.
+    ///
+    /// Client labels retain the configured channel identity from before
+    /// balanced endpoint selection. Server labels reflect the received request.
     #[must_use]
     pub fn authority(&self) -> Option<&'a str> {
         self.authority
@@ -1346,7 +1349,7 @@ impl<'a> TelemetryContext<'a> {
         self.call.path()
     }
 
-    /// Authority or destination host:port.
+    /// Authority or destination host:port. See [`CallLabels::authority`].
     #[must_use]
     pub fn authority(&self) -> Option<&'a str> {
         self.call.authority()

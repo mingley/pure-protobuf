@@ -64,9 +64,12 @@ other targets remain unverified; reflection, formats, transports and the
 `rust_out` ABI stay std-only. Existing no-default builds retain std, and the
 `std` feature wins when enabled.
 
-Static balance helpers preserve per-endpoint executors and full URI identities;
-their connection settings and request authority remain channel-wide. They
-still reject per-endpoint origins, TLS and hostname lookup.
+Static balance helpers preserve per-endpoint executors and full URI identities.
+RPCs use the selected endpoint's authority unless `Channel::origin` pins an
+authority on that clone. Connection settings remain shared; per-endpoint
+origins, TLS and hostname lookup remain unsupported. The
+[transport guide](guides/transport-controls.md#connection-executors) explains
+how configured channel getters differ from selected wire routing.
 See the [parity summary](parity.md) and
 [API comparison](guides/comparison.md) for tested behavior and boundaries.
 

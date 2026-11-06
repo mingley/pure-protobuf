@@ -75,6 +75,10 @@ struct Peer {
     accepted: Arc<AtomicUsize>,
     health: Arc<AtomicUsize>,
     fail_next_health: Arc<AtomicBool>,
+    require_health_authority: Arc<AtomicBool>,
+    refuse_next_rpc: Arc<AtomicBool>,
+    fail_next_rpc: Arc<AtomicBool>,
+    hold_next_rpc: Arc<AtomicBool>,
     authorities: Arc<tokio::sync::Mutex<Vec<String>>>,
     close: watch::Sender<usize>,
     release: watch::Sender<bool>,
@@ -88,6 +92,10 @@ impl Peer {
         let accepted = Arc::new(AtomicUsize::new(0));
         let health = Arc::new(AtomicUsize::new(0));
         let fail_next_health = Arc::new(AtomicBool::new(false));
+        let require_health_authority = Arc::new(AtomicBool::new(false));
+        let refuse_next_rpc = Arc::new(AtomicBool::new(false));
+        let fail_next_rpc = Arc::new(AtomicBool::new(false));
+        let hold_next_rpc = Arc::new(AtomicBool::new(false));
         let authorities = Arc::new(tokio::sync::Mutex::new(Vec::new()));
         let (close, closed) = watch::channel(0);
         let (release, released) = watch::channel(false);
@@ -95,6 +103,11 @@ impl Peer {
         let health_calls = Arc::clone(&health);
         let observed = Arc::clone(&authorities);
         let failed_health = Arc::clone(&fail_next_health);
+        let required_health = Arc::clone(&require_health_authority);
+        let refused_rpc = Arc::clone(&refuse_next_rpc);
+        let failed_rpc = Arc::clone(&fail_next_rpc);
+        let held_rpc = Arc::clone(&hold_next_rpc);
+        let expected_authority = addr.to_string();
         let task = tokio::spawn(async move {
             let mut tasks = JoinSet::new();
             loop {
@@ -109,6 +122,11 @@ impl Peer {
                         let health = Arc::clone(&health_calls);
                         let observed = Arc::clone(&observed);
                         let failed_health = Arc::clone(&failed_health);
+                        let required_health = Arc::clone(&required_health);
+                        let refused_rpc = Arc::clone(&refused_rpc);
+                        let failed_rpc = Arc::clone(&failed_rpc);
+                        let held_rpc = Arc::clone(&held_rpc);
+                        let expected_authority = expected_authority.clone();
                         tasks.spawn(async move {
                             let mut connection = match h2::server::handshake(io).await {
                                 Ok(connection) => connection,
@@ -125,19 +143,46 @@ impl Peer {
                                         let health = Arc::clone(&health);
                                         let observed = Arc::clone(&observed);
                                         let failed_health = Arc::clone(&failed_health);
+                                        let required_health = Arc::clone(&required_health);
+                                        let refused_rpc = Arc::clone(&refused_rpc);
+                                        let failed_rpc = Arc::clone(&failed_rpc);
+                                        let held_rpc = Arc::clone(&held_rpc);
+                                        let expected_authority = expected_authority.clone();
                                         handlers.spawn(async move {
                                             let path = request.uri().path().to_owned();
-                                            observed.lock().await.push(request.uri().authority().unwrap().as_str().to_owned());
+                                            assert_eq!(request.uri().scheme_str(), Some("http"));
+                                            let authority = request.uri().authority().unwrap().as_str().to_owned();
+                                            observed.lock().await.push(authority.clone());
                                             assert!(!path.contains('?'), "origin path/query is not a method path");
                                             let mut body = request.into_body();
                                             while let Some(data) = body.data().await {
                                                 let Ok(data) = data else { return; };
                                                 body.flow_control().release_capacity(data.len()).unwrap();
                                             }
+                                            let is_health = path == "/grpc.health.v1.Health/Watch";
+                                            if !is_health && refused_rpc.swap(false, Ordering::SeqCst) {
+                                                respond.send_reset(h2::Reason::REFUSED_STREAM);
+                                                return;
+                                            }
+                                            if (is_health && required_health.load(Ordering::SeqCst) && authority != expected_authority)
+                                                || (!is_health && failed_rpc.swap(false, Ordering::SeqCst))
+                                            {
+                                                let response = http::Response::builder().status(200)
+                                                    .header("content-type", "application/grpc")
+                                                    .header("grpc-status", "14")
+                                                    .header("grpc-retry-pushback-ms", "0")
+                                                    .body(()).unwrap();
+                                                respond.send_response(response, true).ok();
+                                                return;
+                                            }
+                                            if !is_health && held_rpc.swap(false, Ordering::SeqCst) {
+                                                while !*released.borrow() {
+                                                    if released.changed().await.is_err() { return; }
+                                                }
+                                            }
                                             let response = http::Response::builder().status(200)
                                                 .header("content-type", "application/grpc").body(()).unwrap();
                                             let Ok(mut output) = respond.send_response(response, false) else { return; };
-                                            let is_health = path == "/grpc.health.v1.Health/Watch";
                                             let payload = if is_health {
                                                 health.fetch_add(1, Ordering::SeqCst);
                                                 if failed_health.swap(false, Ordering::SeqCst) {
@@ -188,6 +233,10 @@ impl Peer {
             accepted,
             health,
             fail_next_health,
+            require_health_authority,
+            refuse_next_rpc,
+            fail_next_rpc,
+            hold_next_rpc,
             authorities,
             close,
             release,
@@ -327,7 +376,7 @@ async fn same_socket_uri_aliases_keep_separate_default_and_custom_connections() 
             .lock()
             .await
             .iter()
-            .all(|authority| authority == "pbrs-endpoint-list.invalid:443")
+            .all(|authority| authority == &peer.addr.to_string())
     );
     drop(channel);
     count(&executor.0.finished, 1).await;
@@ -440,6 +489,13 @@ async fn same_uri_executor_update_drains_old_stream_without_migrating_it() {
             .is_none()
     );
     drop(old);
+    assert!(
+        peer.authorities
+            .lock()
+            .await
+            .iter()
+            .all(|authority| authority == &peer.addr.to_string())
+    );
     count(&a.0.finished, 1).await;
     drop(publish);
     drop(client);
@@ -1063,8 +1119,12 @@ mod reference {
         let b = Recording::default();
         let channel = Endpoint::balance_list(
             [
-                peer.endpoint("one").executor(a.clone()),
-                peer.endpoint("two").executor(b.clone()),
+                Endpoint::from_shared(format!("http://127.0.0.1:{}/one", peer.addr.port()))
+                    .unwrap()
+                    .executor(a.clone()),
+                Endpoint::from_shared(format!("http://127.0.0.1:0{}/two", peer.addr.port()))
+                    .unwrap()
+                    .executor(b.clone()),
             ],
             ChannelConfig::new(),
         )
@@ -1075,6 +1135,18 @@ mod reference {
             shapes(&mut client).await,
             ["OPAQUE:1", "OPAQUE:2"].repeat(4)
         );
+        assert_eq!(
+            *peer.authorities.lock().await,
+            [
+                format!("127.0.0.1:{}", peer.addr.port()),
+                format!("127.0.0.1:0{}", peer.addr.port())
+            ]
+            .iter()
+            .cycle()
+            .take(8)
+            .cloned()
+            .collect::<Vec<_>>()
+        );
         assert_eq!(a.0.scheduled.load(Ordering::SeqCst), 1);
         assert_eq!(b.0.scheduled.load(Ordering::SeqCst), 1);
         drop(client);
@@ -1084,7 +1156,7 @@ mod reference {
     }
 
     #[tokio::test]
-    async fn selected_uri_authority_is_a_remaining_native_balancing_difference() {
+    async fn selected_uri_authorities_match_tonic_and_preserve_raw_port_spelling() {
         let peer = Peer::start("AUTHORITY", false).await;
         let first = format!("http://127.0.0.1:{}/one", peer.addr.port());
         let second = format!("http://127.0.0.1:0{}/two", peer.addr.port());
@@ -1099,12 +1171,17 @@ mod reference {
             all_shapes_twice(channel.clone()).await,
             ["AUTHORITY:1", "AUTHORITY:2"].repeat(4)
         );
-        assert!(
-            peer.authorities
-                .lock()
-                .await
-                .iter()
-                .all(|authority| authority == "pbrs-endpoint-list.invalid:443")
+        let expected = [first.clone(), second.clone()].map(|uri| {
+            uri.parse::<http::Uri>()
+                .unwrap()
+                .authority()
+                .unwrap()
+                .as_str()
+                .to_owned()
+        });
+        assert_eq!(
+            *peer.authorities.lock().await,
+            expected.iter().cycle().take(8).cloned().collect::<Vec<_>>()
         );
         drop(channel);
         peer.authorities.lock().await.clear();
@@ -1127,4 +1204,224 @@ mod reference {
         }
         peer.stop().await;
     }
+}
+
+fn logged(channel: Channel) -> (Channel, Arc<pbrs_grpc::binlog::VecSink>) {
+    use pbrs_grpc::binlog::{BinaryLogFilter, BinaryLogger, VecSink};
+    let sink = Arc::new(VecSink::new());
+    let logger = BinaryLogger::new(BinaryLogFilter::parse("*{h}").unwrap(), sink.clone());
+    (channel.binary_logger(logger), sink)
+}
+
+fn logged_authorities(sink: &pbrs_grpc::binlog::VecSink) -> Vec<String> {
+    sink.records()
+        .into_iter()
+        .filter_map(|record| match record.entry.payload {
+            Some(pbrs_grpc::binlog::Payload::ClientHeader(header)) => Some(header.authority),
+            _ => None,
+        })
+        .collect()
+}
+
+async fn assert_authorities(peer: &Peer, expected: &str, count: usize) {
+    let actual = std::mem::take(&mut *peer.authorities.lock().await);
+    assert_eq!(actual, vec![expected; count]);
+}
+
+#[tokio::test]
+async fn selected_endpoint_authorities_and_binary_logs_follow_all_four_shapes() {
+    let a = Peer::start("A", false).await;
+    let b = Peer::start("B", false).await;
+    let channel = Endpoint::balance_list(
+        [a.endpoint("ignored-a"), b.endpoint("ignored-b")],
+        ChannelConfig::new(),
+    )
+    .await
+    .unwrap();
+    let (channel, sink) = logged(channel);
+    assert_eq!(
+        all_shapes_twice(channel.clone()).await,
+        ["A:1", "B:1"].repeat(4)
+    );
+    assert_authorities(&a, &a.addr.to_string(), 4).await;
+    assert_authorities(&b, &b.addr.to_string(), 4).await;
+    assert_eq!(
+        logged_authorities(&sink),
+        [a.addr.to_string(), b.addr.to_string()]
+            .iter()
+            .cycle()
+            .take(8)
+            .cloned()
+            .collect::<Vec<_>>()
+    );
+    drop(channel);
+    a.stop().await;
+    b.stop().await;
+}
+
+#[tokio::test]
+async fn clone_authority_overrides_include_the_diagnostic_sentinel() {
+    let a = Peer::start("A", false).await;
+    let b = Peer::start("B", false).await;
+    let base = Endpoint::balance_list([a.endpoint("a"), b.endpoint("b")], ChannelConfig::new())
+        .await
+        .unwrap();
+    let diagnostic = base.authority().to_owned();
+    assert_eq!(diagnostic, "pbrs-endpoint-list.invalid:443");
+    for authority in ["virtual.example:7443", diagnostic.as_str()] {
+        let (overridden, sink) = logged(base.clone().origin(authority).unwrap());
+        assert_eq!(overridden.authority(), authority);
+        assert_eq!(
+            all_shapes_twice(overridden.clone()).await,
+            ["A:1", "B:1"].repeat(4)
+        );
+        assert_authorities(&a, authority, 4).await;
+        assert_authorities(&b, authority, 4).await;
+        assert_eq!(logged_authorities(&sink), vec![authority; 8]);
+        drop(overridden);
+        assert_eq!(
+            all_shapes_twice(base.clone()).await,
+            ["A:1", "B:1"].repeat(4)
+        );
+        assert_authorities(&a, &a.addr.to_string(), 4).await;
+        assert_authorities(&b, &b.addr.to_string(), 4).await;
+    }
+    assert_eq!(base.authority(), diagnostic);
+    drop(base);
+    a.stop().await;
+    b.stop().await;
+}
+
+#[tokio::test]
+async fn direct_channel_authority_keeps_the_original_target() {
+    let peer = Peer::start("DIRECT", false).await;
+    let base = Channel::connect(peer.addr).await.unwrap();
+    assert_eq!(base.authority(), peer.addr.to_string());
+    for channel in [
+        base.clone(),
+        base.clone().origin("direct.override:81").unwrap(),
+        base.clone(),
+    ] {
+        let expected = channel.authority().to_owned();
+        let (channel, sink) = logged(channel);
+        assert_eq!(all_shapes_twice(channel).await, vec!["DIRECT:1"; 8]);
+        assert_authorities(&peer, &expected, 8).await;
+        assert_eq!(logged_authorities(&sink), vec![expected; 8]);
+    }
+    drop(base);
+    peer.stop().await;
+}
+
+#[tokio::test]
+async fn balanced_health_uses_selected_target_without_clone_authority_overlay() {
+    let a = Peer::start("A", false).await;
+    let b = Peer::start("B", false).await;
+    a.require_health_authority.store(true, Ordering::SeqCst);
+    b.require_health_authority.store(true, Ordering::SeqCst);
+    let channel = Endpoint::balance_list(
+        [a.endpoint("a"), b.endpoint("b")],
+        ChannelConfig::new().health_checking(true),
+    )
+    .await
+    .unwrap()
+    .service_config(r#"{"healthCheckConfig":{"serviceName":"virtual-host"}}"#)
+    .unwrap()
+    .origin("user-rpc.override:7443")
+    .unwrap();
+    assert_eq!(
+        all_shapes_twice(channel.clone()).await,
+        ["A:1", "B:1"].repeat(4)
+    );
+    for peer in [&a, &b] {
+        let observed = peer.authorities.lock().await;
+        assert_eq!(
+            observed.first().unwrap(),
+            &peer.addr.to_string(),
+            "health uses the selected transport target"
+        );
+        assert_eq!(
+            observed
+                .iter()
+                .filter(|a| *a == "user-rpc.override:7443")
+                .count(),
+            4
+        );
+        assert_eq!(observed.len(), 5);
+        assert_eq!(peer.health.load(Ordering::SeqCst), 1);
+    }
+    drop(channel);
+    a.stop().await;
+    b.stop().await;
+}
+
+#[tokio::test]
+async fn retries_and_transparent_redials_use_each_new_selected_authority() {
+    for server_stream in [false, true] {
+        for transparent in [false, true] {
+            let a = Peer::start("FIRST", false).await;
+            let b = Peer::start("SECOND", false).await;
+            if transparent {
+                a.refuse_next_rpc.store(true, Ordering::SeqCst);
+            } else {
+                a.fail_next_rpc.store(true, Ordering::SeqCst);
+            }
+            let mut channel =
+                Endpoint::balance_list([a.endpoint("a"), b.endpoint("b")], ChannelConfig::new())
+                    .await
+                    .unwrap();
+            if !transparent {
+                channel = channel.service_config(r#"{"methodConfig":[{"name":[{}],"retryPolicy":{"maxAttempts":2,"initialBackoff":"0.001s","maxBackoff":"0.001s","backoffMultiplier":1.0,"retryableStatusCodes":["UNAVAILABLE"]}}]}"#).unwrap();
+            }
+            let (channel, sink) = logged(channel);
+            let client = GreeterClient::new(channel.clone());
+            if server_stream {
+                tokio::time::timeout(BOUND, async {
+                    let mut response = client
+                        .server_hello(Request::new(message()))
+                        .await
+                        .unwrap()
+                        .into_inner();
+                    assert_eq!(tag(&response.message().await.unwrap().unwrap()), "SECOND:1");
+                    assert!(response.message().await.unwrap().is_none());
+                })
+                .await
+                .unwrap();
+            } else {
+                assert_eq!(unary(&client).await.unwrap(), "SECOND:1");
+            }
+            assert_authorities(&a, &a.addr.to_string(), 1).await;
+            assert_authorities(&b, &b.addr.to_string(), 1).await;
+            assert_eq!(
+                logged_authorities(&sink),
+                [a.addr.to_string(), b.addr.to_string()]
+            );
+            drop(client);
+            drop(channel);
+            a.stop().await;
+            b.stop().await;
+        }
+    }
+}
+
+#[tokio::test]
+async fn hedged_attempts_keep_independent_selected_authorities() {
+    let a = Peer::start("HELD", false).await;
+    let b = Peer::start("WINNER", false).await;
+    a.hold_next_rpc.store(true, Ordering::SeqCst);
+    let channel = Endpoint::balance_list([a.endpoint("a"), b.endpoint("b")], ChannelConfig::new()).await.unwrap()
+        .service_config(r#"{"methodConfig":[{"name":[{}],"hedgingPolicy":{"maxAttempts":2,"hedgingDelay":"0.001s","nonFatalStatusCodes":["UNAVAILABLE"]}}]}"#).unwrap();
+    let (channel, sink) = logged(channel);
+    let client = GreeterClient::new(channel.clone());
+    assert_eq!(unary(&client).await.unwrap(), "WINNER:1");
+    assert_authorities(&a, &a.addr.to_string(), 1).await;
+    assert_authorities(&b, &b.addr.to_string(), 1).await;
+    assert_eq!(
+        logged_authorities(&sink),
+        [a.addr.to_string(), b.addr.to_string()]
+    );
+    a.release.send(true).unwrap();
+    drop(client);
+    drop(channel);
+    a.stop().await;
+    b.stop().await;
 }

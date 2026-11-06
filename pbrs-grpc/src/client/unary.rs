@@ -473,14 +473,16 @@ impl super::Channel {
                             return Err(status);
                         }
                     };
-                    let (slot, r#gen, rr_addr) = (live.slot, live.r#gen, live.rr_addr);
+                    let (slot, r#gen, route) = (live.slot, live.r#gen, live.route);
                     let live_socket = live.channelz_socket;
                     let _load = live.load;
                     // A48 least-request: RAII in-flight count for this
                     // attempt; drops (releasing) on every exit path.
-                    let _lr =
-                        super::pool::track_least_request(&channel.inner.endpoint, rr_addr.as_ref())
-                            .await;
+                    let _lr = super::pool::track_least_request(
+                        &channel.inner.endpoint,
+                        route.resolved_address(),
+                    )
+                    .await;
                     let byte_permit = match channel.local.byte_budget.acquire(replay.total_len()) {
                         Ok(p) => p,
                         Err(status) => {
@@ -513,9 +515,10 @@ impl super::Channel {
                     if let Some(socket) = live_socket {
                         crate::channelz::Registry::global().note_stream_started(socket, true);
                     }
+                    let routing = channel.local.for_attempt(route.authority());
                     let result = run_unary_frame(
                         live.send,
-                        channel.local.as_ref(),
+                        &routing,
                         path,
                         &md,
                         req_timeout,
@@ -554,7 +557,7 @@ impl super::Channel {
                             }
                             channel
                                 .inner
-                                .discard_conn(slot, r#gen, rr_addr.as_ref())
+                                .discard_conn(slot, r#gen, route.resolved_address())
                                 .await;
                             attempt_idx += 1;
                         }
@@ -588,7 +591,7 @@ impl super::Channel {
                             };
                             super::pool::ingest_orca_report(
                                 &channel.inner.endpoint,
-                                rr_addr.as_ref(),
+                                route.resolved_address(),
                                 trailers,
                             )
                             .await;
@@ -597,12 +600,12 @@ impl super::Channel {
                             match &result {
                                 Ok(_) => super::pool::ingest_call_status(
                                     &channel.inner.endpoint,
-                                    rr_addr.as_ref(),
+                                    route.resolved_address(),
                                     &Status::ok(),
                                 ),
                                 Err(status) => super::pool::ingest_call_status(
                                     &channel.inner.endpoint,
-                                    rr_addr.as_ref(),
+                                    route.resolved_address(),
                                     status,
                                 ),
                             }
@@ -635,7 +638,7 @@ impl super::Channel {
                                         if status.is_transport() {
                                             channel
                                                 .inner
-                                                .discard_conn(slot, r#gen, rr_addr.as_ref())
+                                                .discard_conn(slot, r#gen, route.resolved_address())
                                                 .await;
                                         }
                                         finish_attempt(&mut attempt_guard, status);
@@ -694,7 +697,7 @@ impl super::Channel {
                                 if status.is_transport() {
                                     channel
                                         .inner
-                                        .discard_conn(slot, r#gen, rr_addr.as_ref())
+                                        .discard_conn(slot, r#gen, route.resolved_address())
                                         .await;
                                 }
                             }

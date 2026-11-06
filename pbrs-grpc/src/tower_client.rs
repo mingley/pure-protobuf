@@ -284,6 +284,7 @@ where
 #[cfg(feature = "tonic")]
 mod tonic_transport {
     use super::Channel;
+    use crate::client::channel::RequestRouting;
     use crate::client::pool::{LiveConn, ingest_call_status, track_least_request};
     use crate::transport::{FlowControl, Reason, RecvStream, SendRequest, SendStream, h2};
     use bytes::Bytes;
@@ -383,10 +384,12 @@ mod tonic_transport {
             )
             .await
             .map_err(status)?;
-        let load = track_least_request(&channel.inner.endpoint, live.rr_addr.as_ref()).await;
+        let load =
+            track_least_request(&channel.inner.endpoint, live.route.resolved_address()).await;
+        let routing = channel.local.for_attempt(live.route.authority());
         parts.uri = Uri::builder()
             .scheme(scheme)
-            .authority(channel.local.authority.clone())
+            .authority(routing.authority().clone())
             .path_and_query(parts.uri.path_and_query().cloned().ok_or_else(|| {
                 Status::invalid_argument("gRPC request URI requires a method path")
             })?)
@@ -429,7 +432,7 @@ mod tonic_transport {
             Err(error) => {
                 channel
                     .inner
-                    .discard_conn(live.slot, live.r#gen, live.rr_addr.as_ref())
+                    .discard_conn(live.slot, live.r#gen, live.route.resolved_address())
                     .await;
                 return Err(status(crate::Status::from_h2_pre_headers(error)));
             }
@@ -642,7 +645,9 @@ mod tonic_transport {
             if !self.reported {
                 ingest_call_status(
                     &self.channel.inner.endpoint,
-                    self.live.as_ref().and_then(|live| live.rr_addr.as_ref()),
+                    self.live
+                        .as_ref()
+                        .and_then(|live| live.route.resolved_address()),
                     status,
                 );
                 self.reported = true;

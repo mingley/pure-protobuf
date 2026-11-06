@@ -1200,8 +1200,13 @@ impl<'a> Outgoing<'a> {
         self
     }
 
-    /// The HTTP/2 `:authority` this channel sends, e.g. `127.0.0.1:50051`
+    /// The configured channel authority, e.g. `127.0.0.1:50051`
     /// or `localhost` on a Unix socket.
+    ///
+    /// Interceptors run before balanced endpoint selection. On such channels
+    /// this is the diagnostic channel target, unless this clone has an explicit
+    /// [`crate::Channel::origin`] override; the wire and binary-log header use
+    /// the endpoint actually selected for each attempt.
     ///
     /// TLS uses the channel [`crate::Target`], not SNI, unless
     /// [`crate::Endpoint::origin`] or [`crate::Channel::origin`] overrode it

@@ -106,11 +106,22 @@ keyed `Change` API: tonic may use a previous ready entry once while its
 replacement becomes ready; native snapshots stop selecting that entry when
 the update is processed.
 
-These helpers still use a channel-level request authority and plaintext HTTP
-scheme. `Channel::origin` overrides authority for the whole balanced channel;
-the selected URI does not supply it as it does in tonic. Per-endpoint origins,
-TLS and hostname lookup remain unsupported by these helpers. Use resolver
-channels for the existing DNS, Unix and TLS routing APIs.
+Balanced RPCs use the acquired connection's endpoint authority. Each retry or
+hedge follows the connection chosen for that attempt. `Channel::origin` pins
+authority for requests from that clone, including when the supplied value
+equals its existing configured authority. Other clones keep selecting endpoint
+authorities. Per-connection health Watches use their endpoint authority rather
+than a caller clone's override.
+
+`Channel::authority()`, generated client getters, `Outgoing::authority()` and
+client `CallLabels::authority()` expose the configured channel context before
+a peer is selected. They can differ from a balanced RPC's wire authority.
+Server `Request::authority()` and client binary-log headers expose the selected
+wire value. The logical request scheme keeps its existing channel policy.
+
+Connection settings remain shared. These helpers still support only plaintext
+IP endpoints and reject per-endpoint origins, TLS and hostname lookup. Use
+resolver channels for the existing DNS, Unix and TLS routing APIs.
 
 See the [executor tests](../../pbrs-grpc/tests/custom_executor.rs),
 [balanced executor tests](../../pbrs-grpc/tests/balance_executors.rs), and

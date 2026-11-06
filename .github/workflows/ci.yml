@@ -87,6 +87,7 @@ jobs:
           python3 -B docs/evidence/rejected-packed-cache-first-20261106/check.py
           python3 -B docs/evidence/rejected-packed-readiness-routing-20261106/check.py
           python3 -B docs/evidence/rejected-medium-core-utf8-20261106/check.py
+          python3 -B docs/evidence/balanced-authority-storage-20261106/check.py
       - name: Check standalone benchmark and interop lockfiles
         run: |
           for manifest in \

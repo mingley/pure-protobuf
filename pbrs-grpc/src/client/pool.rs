@@ -136,6 +136,32 @@ impl Drop for SlotLoadGuard {
     }
 }
 
+/// A connection uses either a direct slot, a resolver address, or a balanced
+/// endpoint identity. Retain that owned identity through each RPC attempt.
+pub(crate) enum ConnectionRoute {
+    Slot,
+    Resolved(ResolvedAddress),
+    Balanced(Arc<balanced::Route>),
+}
+
+impl ConnectionRoute {
+    #[inline]
+    pub(crate) fn resolved_address(&self) -> Option<&ResolvedAddress> {
+        match self {
+            Self::Resolved(address) => Some(address),
+            Self::Slot | Self::Balanced(_) => None,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn authority(&self) -> Option<&Authority> {
+        match self {
+            Self::Balanced(route) => Some(&route.authority),
+            Self::Slot | Self::Resolved(_) => None,
+        }
+    }
+}
+
 /// A sender taken from a pool slot, plus the generation so a raced `GOAWAY`
 /// can discard this slot instead of writing into a reconnect that already
 /// landed.
@@ -150,15 +176,14 @@ pub(crate) struct LiveConn {
     /// Direct pool slot or private balanced-endpoint identity.
     pub(crate) slot: usize,
     pub(crate) r#gen: u64,
-    /// round_robin subchannel address; `None` uses `slot`/`gen` in
-    /// [`ChannelInner::slots`], `Some` discards by address in the
-    /// round_robin table.
-    pub(crate) rr_addr: Option<ResolvedAddress>,
     /// Channelz socket serving this connection, for stream/message
     /// counters. The registry resolves it per record, so a socket
     /// that unregistered mid-RPC (handoff, discard) silently drops
     /// late increments instead of misattributing them.
     pub(crate) channelz_socket: Option<crate::channelz::SocketId>,
+    /// Resolver addresses and immutable balanced endpoint metadata are
+    /// mutually exclusive. Own the selected identity until this attempt ends.
+    pub(crate) route: ConnectionRoute,
 }
 
 /// One subchannel per round_robin address, grown and shrunk with the
@@ -713,6 +738,7 @@ pub(crate) fn finish_channel_with_executor(
             https,
             origin: None,
             authority,
+            authority_override: false,
             observer: None,
             service_config,
             retry_stats: Arc::new(RetryStatsRecorder::new()),
@@ -961,8 +987,8 @@ impl ChannelInner {
                 driver,
                 slot: i,
                 r#gen,
-                rr_addr: None,
                 channelz_socket,
+                route: ConnectionRoute::Slot,
             });
         }
         None
@@ -1066,8 +1092,8 @@ impl ChannelInner {
                         driver,
                         slot: i,
                         r#gen,
-                        rr_addr: None,
                         channelz_socket,
+                        route: ConnectionRoute::Slot,
                     });
                 }
             }
@@ -1151,8 +1177,8 @@ impl ChannelInner {
                                 driver,
                                 slot: 0,
                                 r#gen,
-                                rr_addr: None,
                                 channelz_socket,
+                                route: ConnectionRoute::Slot,
                             });
                         }
                         continue;
@@ -1229,8 +1255,8 @@ impl ChannelInner {
                             driver,
                             slot: 0,
                             r#gen,
-                            rr_addr: None,
                             channelz_socket,
+                            route: ConnectionRoute::Slot,
                         });
                     }
                     dialed.stop.send(true).ok();
@@ -1348,8 +1374,8 @@ impl ChannelInner {
                             driver,
                             slot: 0,
                             r#gen,
-                            rr_addr: Some(addr),
                             channelz_socket,
+                            route: ConnectionRoute::Resolved(addr),
                         });
                     }
                     continue;
@@ -1400,8 +1426,8 @@ impl ChannelInner {
                             driver,
                             slot: 0,
                             r#gen,
-                            rr_addr: Some(addr),
                             channelz_socket,
+                            route: ConnectionRoute::Resolved(addr),
                         });
                     }
                     dialed.stop.send(true).ok();
@@ -1517,8 +1543,8 @@ impl ChannelInner {
                             driver,
                             slot: 0,
                             r#gen,
-                            rr_addr: Some(addr),
                             channelz_socket,
+                            route: ConnectionRoute::Resolved(addr),
                         });
                     }
                     continue;
@@ -1571,8 +1597,8 @@ impl ChannelInner {
                             driver,
                             slot: 0,
                             r#gen,
-                            rr_addr: Some(addr),
                             channelz_socket,
+                            route: ConnectionRoute::Resolved(addr),
                         });
                     }
                     dialed.stop.send(true).ok();
@@ -1688,8 +1714,8 @@ impl ChannelInner {
                             driver,
                             slot: 0,
                             r#gen,
-                            rr_addr: Some(addr),
                             channelz_socket,
+                            route: ConnectionRoute::Resolved(addr),
                         });
                     }
                     continue;
@@ -1740,8 +1766,8 @@ impl ChannelInner {
                             driver,
                             slot: 0,
                             r#gen,
-                            rr_addr: Some(addr),
                             channelz_socket,
+                            route: ConnectionRoute::Resolved(addr),
                         });
                     }
                     dialed.stop.send(true).ok();
@@ -1856,8 +1882,8 @@ impl ChannelInner {
                             driver,
                             slot: 0,
                             r#gen,
-                            rr_addr: Some(addr),
                             channelz_socket,
+                            route: ConnectionRoute::Resolved(addr),
                         });
                     }
                     continue;
@@ -1908,8 +1934,8 @@ impl ChannelInner {
                             driver,
                             slot: 0,
                             r#gen,
-                            rr_addr: Some(addr),
                             channelz_socket,
+                            route: ConnectionRoute::Resolved(addr),
                         });
                     }
                     dialed.stop.send(true).ok();
@@ -2028,8 +2054,8 @@ impl ChannelInner {
                             driver,
                             slot: 0,
                             r#gen,
-                            rr_addr: Some(addr),
                             channelz_socket,
+                            route: ConnectionRoute::Resolved(addr),
                         });
                     }
                     continue;
@@ -2082,8 +2108,8 @@ impl ChannelInner {
                             driver,
                             slot: 0,
                             r#gen,
-                            rr_addr: Some(addr),
                             channelz_socket,
+                            route: ConnectionRoute::Resolved(addr),
                         });
                     }
                     dialed.stop.send(true).ok();
@@ -2202,8 +2228,8 @@ impl ChannelInner {
                             driver,
                             slot: 0,
                             r#gen,
-                            rr_addr: Some(addr),
                             channelz_socket,
+                            route: ConnectionRoute::Resolved(addr),
                         });
                     }
                     continue;
@@ -2256,8 +2282,8 @@ impl ChannelInner {
                             driver,
                             slot: 0,
                             r#gen,
-                            rr_addr: Some(addr),
                             channelz_socket,
+                            route: ConnectionRoute::Resolved(addr),
                         });
                     }
                     dialed.stop.send(true).ok();
@@ -2377,8 +2403,8 @@ impl ChannelInner {
                             driver,
                             slot: 0,
                             r#gen,
-                            rr_addr: Some(addr),
                             channelz_socket,
+                            route: ConnectionRoute::Resolved(addr),
                         });
                     }
                     continue;
@@ -2431,8 +2457,8 @@ impl ChannelInner {
                             driver,
                             slot: 0,
                             r#gen,
-                            rr_addr: Some(addr),
                             channelz_socket,
+                            route: ConnectionRoute::Resolved(addr),
                         });
                     }
                     dialed.stop.send(true).ok();
@@ -2936,8 +2962,8 @@ fn drive_direct_redial<'a>(
                         driver,
                         slot: slot_index,
                         r#gen: generation,
-                        rr_addr: None,
                         channelz_socket,
+                        route: ConnectionRoute::Slot,
                     });
                 }
                 dialed.stop.send(true).ok();
@@ -3688,7 +3714,16 @@ async fn ensure_health_watch(
             policy: policy.clone(),
             addr: addr.clone(),
         };
-        if spawn_health_watch(inner, target, send, stop.clone(), directive).is_err() {
+        if spawn_health_watch(
+            inner,
+            &inner.authority,
+            target,
+            send,
+            stop.clone(),
+            directive,
+        )
+        .is_err()
+        {
             match policy {
                 LbPolicy::RoundRobin(policy) => policy.health_gone_from(addr, &stop).await,
                 _ => policy.note_health_gone(addr).await,
@@ -3724,6 +3759,7 @@ async fn admit_health_watch<K: Clone + Eq + std::hash::Hash>(
 
 fn spawn_health_watch(
     inner: &ChannelInner,
+    authority: &Authority,
     target: HealthTarget,
     send: backend::SendRequest,
     stop: watch::Receiver<bool>,
@@ -3735,7 +3771,7 @@ fn spawn_health_watch(
     let frame = crate::wire::encode_msg(&request, None, wire.limits, wire.gzip_level)?;
     let watch = HealthWatch {
         send,
-        authority: inner.authority.clone(),
+        authority: authority.clone(),
         https: inner.tls.is_some(),
         wire,
         frame,
