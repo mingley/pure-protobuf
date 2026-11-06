@@ -32,10 +32,12 @@ custom connection executors in the static balanced-channel helpers. Broader
 coverage continues through the [API comparison](guides/comparison.md) and
 [parity register](parity.md).
 
-Current source has scoped consumers for all five surfaces, including explicit
-[alloc-only native messages](guides/alloc-only.md) on Cortex. The next milestone
-is exact-source qualification of these implementations. Full API coverage and
-matched performance comparisons remain required.
+All five surfaces have scoped consumers, including explicit
+[alloc-only native messages](guides/alloc-only.md) on Cortex. Their runtime and
+migration implementations passed the [exact-source semantic and packaging
+checks](status.md) at `10d94697`. The next milestone closes the remaining
+[API comparison rows](guides/comparison.md) and measured losses against pinned
+tonic/prost, then completes sustained release qualification.
 
 | Track | Evidence needed to finish |
 |---|---|

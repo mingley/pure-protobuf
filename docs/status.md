@@ -5,16 +5,20 @@ format. `pbrs-grpc` provides the native HTTP/2 client and server;
 `protobuf-tonic` integrates pbrs messages with tonic 0.14+. Start with the
 [documentation index](README.md) for working examples and task guides.
 
-At source `d897ccdd`, all 11 required [CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42183608085),
-[compatibility checks](https://github.com/mingley/pure-protobuf/actions/runs/42183608028)
-and the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42183608073)
-passed. At earlier source `acc81922`, all five
-[Miri lanes and their aggregate](https://github.com/mingley/pure-protobuf/actions/runs/42177356040)
-passed: library, generated kernels with nested JSON, HTTP/2, selected bytes
-and ordered maps. The byte lane uses 32 KiB segmented input and smaller JSON/text
-fixtures, as recorded in its proof runner. The parity audit reproduces known
-differences as well as successful comparisons. These results apply to the
-commits they name; later alloc-only work has separate local evidence.
+At source `10d94697`, all 11 required [CI jobs](https://github.com/mingley/pure-protobuf/actions/runs/42200176047),
+the [parity audit](https://github.com/mingley/pure-protobuf/actions/runs/42200175988)
+and five enabled [compatibility jobs](https://github.com/mingley/pure-protobuf/actions/runs/42200176048)
+passed. The optional sanitizer and fuzz jobs in the compatibility workflow
+were skipped. The parity audit reproduces known differences as well as
+successful comparisons.
+
+All six [Miri lanes and their aggregate](https://github.com/mingley/pure-protobuf/actions/runs/42200175953)
+passed: library (174 tests), generated kernels with nested JSON, HTTP/2, selected bytes,
+ordered maps and the alloc publication cell. These run on the default 64-bit
+host; the cell also passes 25 cases on interpreted i686, with 25 on the host.
+The other lanes do not establish 32-bit coverage. Byte checks use 32 KiB
+segmented input and 16-byte JSON/text fixtures; ordered maps run on the host
+only. These results apply to this source; later changes need their own checks.
 
 Choose the default lazy message layout for sparse reads and unchanged
 forwarding, [owned nested messages](guides/codegen.md#owned-nested-message-fields)
@@ -67,15 +71,15 @@ See the [parity summary](parity.md) and
 [API comparison](guides/comparison.md) for tested behavior and boundaries.
 
 The core `0.2.1` and adapter `0.1.0-alpha.3` candidates remain unpublished.
-An exact-source [hosted rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42187033851)
-packaged all three at `d897ccdd`. The
-[retained artifact](https://github.com/mingley/pure-protobuf/actions/runs/42187033851/artifacts/13488392114)
-contains the packages, SBOM and release-context record. All package VCS records
-and the context match that commit; the context names its successful CI run.
-The workflow created a [provenance attestation](https://github.com/mingley/pure-protobuf/attestations/64405117)
-and performed no registry upload. Sustained production qualification remains
-open; use the [release policy](RELEASE.md) for readiness requirements and the
-[work queue](../TODO.md) for implementation work.
+An exact-source [hosted rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42205359709)
+packaged all three at `10d94697`. The
+[retained artifact](https://github.com/mingley/pure-protobuf/actions/runs/42205359709/artifacts/13495653395)
+contains the packages, SBOM and release-context record. The context names that
+commit's successful CI, and all 430 mapped package files match its Git bytes.
+The workflow reported creating a [provenance attestation](https://github.com/mingley/pure-protobuf/attestations/64451418)
+and performed no registry authentication or upload. Sustained production
+qualification remains open; use the [release policy](RELEASE.md) for readiness
+requirements and the [work queue](../TODO.md) for implementation work.
 
 The [November 5 status history](evidence/status-history-20261105.md) preserves
 earlier checks and measurements with their original source revisions. The
