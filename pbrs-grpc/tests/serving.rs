@@ -701,9 +701,15 @@ fn channel_origin_documents_with_authority() {
     );
     assert!(
         src.contains(
-            "There is no grpc-go `WithAuthority`: that sets `:authority` and the\n    /// TLS authentication server name. This overlay is `:authority` only.\n    /// Distinct from [`crate::ClientTls`] (SNI / certificate name). Distinct\n    /// from tonic `Endpoint::origin` (Uri, also `:scheme`). There is no\n    /// `CallAuthority`: interceptors cannot override `:authority` per call."
+            "There is no grpc-go `WithAuthority`: that sets `:authority` and the\n    /// TLS authentication server name. This overlay is `:authority` only.\n    /// Distinct from [`crate::ClientTls`] (SNI / certificate name). Distinct\n    /// from [`Endpoint::origin`] (URI, also `:scheme`). There is no\n    /// `CallAuthority`: interceptors cannot override `:authority` per call."
         ),
         "Channel::origin rustdoc must Distinct :authority-only overlay from grpc-go WithAuthority TLS server name"
+    );
+    assert!(
+        src.contains(
+            "[`Endpoint::origin`] takes a `Uri` and sets a logical scheme as well.\n    /// This authority-only setter preserves that logical scheme, if present;\n    /// otherwise the request scheme follows [`Self::connect_tls`] or\n    /// [`Self::https_scheme`]."
+        ),
+        "Channel::origin rustdoc must preserve the logical scheme from Endpoint::origin"
     );
     assert_eq!(
         src.matches("There is no grpc-go `WithAuthority`").count(),
