@@ -38,6 +38,7 @@ jobs:
             tests/proof/owned_messages/Cargo.toml \
             tests/proof/validated_lazy/Cargo.toml \
             tests/proof/codegen_parity/Cargo.toml \
+            tests/proof/safe_defaults/Cargo.toml \
             tests/proof/codegen_parity/no_std/prost/Cargo.toml \
             tests/proof/codegen_parity/no_std/pbrs/Cargo.toml \
             tests/interop/tonic/Cargo.toml \
@@ -71,6 +72,8 @@ jobs:
             -- -D warnings
       - name: Check generated consumers and reproduce build gaps
         run: python3 tests/proof/codegen_parity/run.py --output work/parity-audit/codegen
+      - name: Check generated bindings with unsafe code forbidden
+        run: python3 tests/proof/safe_defaults/run.py --out work/parity-audit/safe-defaults
       - name: Compare gRPC message presence with tonic
         run: |
           cargo test --locked --offline --manifest-path tests/proof/tonic_parity/Cargo.toml \

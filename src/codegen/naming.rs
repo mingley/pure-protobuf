@@ -156,23 +156,50 @@ pub(crate) fn field_raw(f: &FieldDescriptor) -> Rc<str> {
     })
 }
 
+fn try_reserve_type_ident(
+    id: &str,
+    is_message: bool,
+    used: &mut std::collections::BTreeSet<String>,
+) -> bool {
+    let bare = id.trim_start_matches("r#");
+    if used.contains(bare) {
+        return false;
+    }
+    let proxies = if is_message {
+        let view = format!("{bare}View");
+        if used.contains(&view) {
+            return false;
+        }
+        let mut_ = format!("{bare}Mut");
+        if used.contains(&mut_) {
+            return false;
+        }
+        Some((view, mut_))
+    } else {
+        None
+    };
+    used.insert(bare.to_string());
+    if let Some((view, mut_)) = proxies {
+        used.insert(view);
+        used.insert(mut_);
+    }
+    true
+}
+
 fn allocate_type_idents<'a>(
     names: impl IntoIterator<Item = (&'a str, String)>,
     messages: &std::collections::BTreeSet<String>,
 ) -> std::collections::BTreeMap<String, String> {
     let mut used: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    // Message candidates reserve companion names too; an enum can still use
+    // a bare name that a message rejected because of an occupied companion.
+    let mut next_message_suffix = std::collections::BTreeMap::<String, usize>::new();
+    let mut next_enum_suffix = std::collections::BTreeMap::<String, usize>::new();
     let mut out = std::collections::BTreeMap::new();
     for (full, last) in names {
         let is_message = messages.contains(full);
-        let available = |id: &str| {
-            let id = id.trim_start_matches("r#");
-            !used.contains(id)
-                && (!is_message
-                    || (!used.contains(&format!("{id}View"))
-                        && !used.contains(&format!("{id}Mut"))))
-        };
         let mut id = last;
-        if !available(&id) {
+        if !try_reserve_type_ident(&id, is_message, &mut used) {
             let parent = full.rsplit_once('.').map(|x| x.0).unwrap_or("X");
             // Raw markers belong to one complete identifier. Embedding one
             // between a parent and a child would produce `Outerr#type`.
@@ -183,17 +210,25 @@ fn allocate_type_idents<'a>(
                 id.trim_start_matches("r#")
             );
             id = rust_ident_from_last(&stem);
-            let mut suffix = 2;
-            while !available(&id) {
-                id = format!("{stem}_{suffix}");
-                suffix += 1;
+            if !try_reserve_type_ident(&id, is_message, &mut used) {
+                // Reservations never disappear. Each smaller suffix already
+                // rejected or reserved for this stem therefore stays occupied.
+                // Resume after it instead of retrying the same growing prefix.
+                let next_suffix = if is_message {
+                    &mut next_message_suffix
+                } else {
+                    &mut next_enum_suffix
+                };
+                let mut suffix = next_suffix.get(&stem).copied().unwrap_or(2);
+                loop {
+                    id = format!("{stem}_{suffix}");
+                    suffix += 1;
+                    if try_reserve_type_ident(&id, is_message, &mut used) {
+                        break;
+                    }
+                }
+                next_suffix.insert(stem, suffix);
             }
-        }
-        let bare = id.trim_start_matches("r#");
-        used.insert(bare.to_string());
-        if is_message {
-            used.insert(format!("{bare}View"));
-            used.insert(format!("{bare}Mut"));
         }
         out.insert(full.to_string(), id);
     }
@@ -488,6 +523,7 @@ pub(crate) fn field_name_with_collision_avoidance(
 }
 
 pub(crate) fn bind_field_idents(desc: &MessageDescriptor) {
+    bind_boxed_fields(desc);
     let mut used = std::collections::BTreeSet::new();
     let mut raw_used = std::collections::BTreeSet::new();
     let mut out = std::collections::BTreeMap::new();
@@ -611,7 +647,7 @@ pub(crate) fn is_lazy_msg(f: &FieldDescriptor) -> bool {
         && f.cardinality != Cardinality::Repeated
         && f.field_type == FieldType::Message
         && !f.delimited
-        && !OWNED_MESSAGE_FIELDS.with(|owned| owned.get())
+        && !eager_message_field(f)
 }
 
 pub(crate) fn is_wkt_msg(f: &FieldDescriptor) -> bool {
@@ -910,6 +946,17 @@ mod tests {
             "pkg.C",
             "pkg.C.B",
             "pkg.C.B.X",
+            "pkg.D",
+            "pkg.D.B",
+            "pkg.D.B.X",
+            "pkg.E",
+            "pkg.E.B",
+            "pkg.E.B.X",
+            "pkg.F",
+            "pkg.F.B",
+            "pkg.F.B.X",
+            "pkg.BX_2",
+            "pkg.BX_3View",
             "pkg.Foo",
             "pkg.FooMut",
             "pkg.FooView",
@@ -917,7 +964,11 @@ mod tests {
             "pkg.RawB.type",
         ]
         .map(str::to_string);
-        let messages = names.iter().cloned().collect();
+        let messages = names
+            .iter()
+            .filter(|full| full.as_str() != "pkg.F.B.X")
+            .cloned()
+            .collect();
         let aliases = scoped_type_idents(names.iter().map(String::as_str), &messages);
         let index = aliases
             .into_iter()
@@ -927,7 +978,10 @@ mod tests {
         let ids = flat_type_idents(&names, &messages);
         assert_eq!(ids.get("pkg.A.X").map(String::as_str), Some("X"));
         assert_eq!(ids.get("pkg.B.X").map(String::as_str), Some("BX"));
-        assert_eq!(ids.get("pkg.C.B.X").map(String::as_str), Some("BX_2"));
+        assert_eq!(ids.get("pkg.C.B.X").map(String::as_str), Some("BX_4"));
+        assert_eq!(ids.get("pkg.D.B.X").map(String::as_str), Some("BX_5"));
+        assert_eq!(ids.get("pkg.E.B.X").map(String::as_str), Some("BX_6"));
+        assert_eq!(ids.get("pkg.F.B.X").map(String::as_str), Some("BX_3"));
         assert_eq!(ids.get("pkg.FooMut").map(String::as_str), Some("FooMut_"));
         assert_eq!(ids.get("pkg.FooView").map(String::as_str), Some("FooView_"));
         assert_eq!(ids.get("pkg.RawA.type").map(String::as_str), Some("r#type"));
@@ -936,11 +990,13 @@ mod tests {
             Some("RawBtype")
         );
         let mut emitted = std::collections::BTreeSet::new();
-        for id in ids.values() {
+        for (full, id) in &ids {
             let bare = id.trim_start_matches("r#");
             assert!(emitted.insert(bare.to_string()));
-            assert!(emitted.insert(format!("{bare}View")));
-            assert!(emitted.insert(format!("{bare}Mut")));
+            if messages.contains(full) {
+                assert!(emitted.insert(format!("{bare}View")));
+                assert!(emitted.insert(format!("{bare}Mut")));
+            }
         }
     }
 

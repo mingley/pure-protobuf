@@ -14,15 +14,29 @@ comparisons. These results apply to that commit; later changes need their own
 checks.
 
 Choose the default lazy message layout for sparse reads and unchanged
-forwarding, or generate [owned nested messages](guides/codegen.md#owned-nested-message-fields)
-for complete traversal. The [benchmark results](benchmarks.md) retain measured
-gains, losses and their source scope. The November 4 recursive-validator
-record is a local CPU diagnostic; full tonic/prost parity and an overall
-performance ranking remain unproven.
+forwarding, [owned nested messages](guides/codegen.md#owned-nested-message-fields)
+for complete traversal, or [`boxed(path)`](guides/codegen.md#box-selected-nested-fields)
+for selected singular children. The opt-in
+[safe-default profile](guides/codegen.md#safe-generated-defaults) supports
+forbid-unsafe generated consumers; runtime dependencies retain their own
+unsafe implementations. Literal `Default`, `Map` and `Enum` schemas now
+have focused lazy/owned namespace controls.
 
-Remaining migration gaps include `btree_map`, `bytes` and `boxed` codegen
+Direct endpoints support URI origins independently of dialing and TLS;
+the [transport guide](guides/transport-controls.md#request-origin-and-dial-target)
+explains logical request scheme, authority and clone overrides. The
+[benchmark results](benchmarks.md) retain local naming gains, safe-default
+costs and origin overhead alongside earlier results. Full tonic/prost parity
+and an overall performance ranking remain unproven.
+
+Next comparisons should cover default nested full reads, string-key map
+lookup allocations with small-map controls, compression using the same Prost
+codec, and matched consumer builds.
+
+Remaining migration gaps include `btree_map` and `bytes` codegen
 controls, an alloc-only runtime, and custom executors in the static balanced
-channel helpers. See the [parity summary](parity.md) and
+channel helpers. Static balance helpers also reject per-endpoint origins.
+See the [parity summary](parity.md) and
 [API comparison](guides/comparison.md) for tested behavior and boundaries.
 
 The core `0.2.1` and adapter `0.1.0-alpha.3` candidates remain unpublished.

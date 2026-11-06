@@ -111,8 +111,8 @@ mod __gen_google_protobuf_struct_proto {
     use pbrs::prelude::*;
     use pbrs::UnknownFields;
     use pbrs::{
-        Enum, Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
-        RepeatedView, SerializeError, UnknownEnumValue,
+        ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut, RepeatedView, SerializeError,
+        UnknownEnumValue,
     };
 
     fn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {
@@ -157,7 +157,7 @@ mod __gen_google_protobuf_struct_proto {
             Self(val)
         }
     }
-    impl Default for NullValue {
+    impl ::core::default::Default for NullValue {
         fn default() -> Self {
             Self(0)
         }
@@ -189,7 +189,7 @@ mod __gen_google_protobuf_struct_proto {
             self
         }
     }
-    impl Enum for NullValue {
+    impl pbrs::Enum for NullValue {
         const NAME: &'static str = "NullValue";
         fn is_known(value: i32) -> bool {
             matches!(value, 0)
@@ -214,7 +214,7 @@ mod __gen_google_protobuf_struct_proto {
         }
     }
     impl Eq for ListValue {}
-    impl Default for ListValue {
+    impl ::core::default::Default for ListValue {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -223,7 +223,7 @@ mod __gen_google_protobuf_struct_proto {
     impl ListValue {
         /// Creates a new, default instance of [`ListValue`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -500,7 +500,7 @@ mod __gen_google_protobuf_struct_proto {
     #[derive(Clone, Debug)]
     pub struct Struct {
         /// Unordered map of dynamically typed values.
-        fields: Map<pbrs::rt::LazyStr, PbValue>,
+        fields: pbrs::Map<pbrs::rt::LazyStr, PbValue>,
         unknown: UnknownFields,
         cached_size: pbrs::rt::CachedSize,
     }
@@ -513,7 +513,7 @@ mod __gen_google_protobuf_struct_proto {
         }
     }
     impl Eq for Struct {}
-    impl Default for Struct {
+    impl ::core::default::Default for Struct {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -522,7 +522,7 @@ mod __gen_google_protobuf_struct_proto {
     impl Struct {
         /// Creates a new, default instance of [`Struct`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -533,16 +533,16 @@ mod __gen_google_protobuf_struct_proto {
         /// Field `fields` (number 1).
         ///
         /// Map field with key `pbrs::rt::LazyStr` and value `PbValue`. Empty by default.
-        pub fn fields(&self) -> MapView<'_, pbrs::rt::LazyStr, PbValue> {
+        pub fn fields(&self) -> pbrs::MapView<'_, pbrs::rt::LazyStr, PbValue> {
             self.fields.as_view()
         }
         /// Returns a mutable view of field `fields`.
-        pub fn fields_mut(&mut self) -> MapMut<'_, pbrs::rt::LazyStr, PbValue> {
+        pub fn fields_mut(&mut self) -> pbrs::MapMut<'_, pbrs::rt::LazyStr, PbValue> {
             self.cached_size.dirty();
             self.fields.as_mut()
         }
         /// Sets the value of `fields`.
-        pub fn set_fields(&mut self, v: Map<pbrs::rt::LazyStr, PbValue>) {
+        pub fn set_fields(&mut self, v: pbrs::Map<pbrs::rt::LazyStr, PbValue>) {
             self.cached_size.dirty();
             self.fields = v;
         }
@@ -849,7 +849,7 @@ mod __gen_google_protobuf_struct_proto {
         struct_value: pbrs::rt::LazyMsg<Struct>,
         list_value: pbrs::rt::LazyMsg<ListValue>,
     }
-    impl Default for PbValueCold {
+    impl ::core::default::Default for PbValueCold {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -911,7 +911,7 @@ mod __gen_google_protobuf_struct_proto {
         }
     }
     impl Eq for PbValue {}
-    impl Default for PbValue {
+    impl ::core::default::Default for PbValue {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -920,7 +920,7 @@ mod __gen_google_protobuf_struct_proto {
     impl PbValue {
         /// Creates a new, default instance of [`PbValue`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         #[inline(always)]
         fn cold_mut(&mut self) -> &mut PbValueCold {
@@ -955,8 +955,8 @@ mod __gen_google_protobuf_struct_proto {
             self.number_value = None;
             self.cold_mut().string_value = None;
             self.bool_value = pbrs::rt::OptBool::NONE;
-            self.cold_mut().struct_value = Default::default();
-            self.cold_mut().list_value = Default::default();
+            self.cold_mut().struct_value = ::core::default::Default::default();
+            self.cold_mut().list_value = ::core::default::Default::default();
             self.null_value = Some(v.into());
         }
         /// Clears field `null_value`, marking it unset.
@@ -991,8 +991,8 @@ mod __gen_google_protobuf_struct_proto {
             self.null_value = None;
             self.cold_mut().string_value = None;
             self.bool_value = pbrs::rt::OptBool::NONE;
-            self.cold_mut().struct_value = Default::default();
-            self.cold_mut().list_value = Default::default();
+            self.cold_mut().struct_value = ::core::default::Default::default();
+            self.cold_mut().list_value = ::core::default::Default::default();
             self.number_value = Some(v);
         }
         /// Clears field `number_value`, marking it unset.
@@ -1034,8 +1034,8 @@ mod __gen_google_protobuf_struct_proto {
             self.null_value = None;
             self.number_value = None;
             self.bool_value = pbrs::rt::OptBool::NONE;
-            self.cold_mut().struct_value = Default::default();
-            self.cold_mut().list_value = Default::default();
+            self.cold_mut().struct_value = ::core::default::Default::default();
+            self.cold_mut().list_value = ::core::default::Default::default();
             self.cold_mut().string_value = Some(Box::new(pbrs::rt::LazyStr::owned(
                 v.into_proxied(pbrs::__internal::Private),
             )));
@@ -1069,8 +1069,8 @@ mod __gen_google_protobuf_struct_proto {
             self.null_value = None;
             self.number_value = None;
             self.cold_mut().string_value = None;
-            self.cold_mut().struct_value = Default::default();
-            self.cold_mut().list_value = Default::default();
+            self.cold_mut().struct_value = ::core::default::Default::default();
+            self.cold_mut().list_value = ::core::default::Default::default();
             self.bool_value = pbrs::rt::OptBool::some(v);
         }
         /// Clears field `bool_value`, marking it unset.
@@ -1111,7 +1111,7 @@ mod __gen_google_protobuf_struct_proto {
             self.number_value = None;
             self.cold_mut().string_value = None;
             self.bool_value = pbrs::rt::OptBool::NONE;
-            self.cold_mut().list_value = Default::default();
+            self.cold_mut().list_value = ::core::default::Default::default();
             self.cold_mut().struct_value = pbrs::rt::LazyMsg::from_owned(v);
         }
         /// Returns a mutable reference to `struct_value`, initializing it with default values if unset.
@@ -1157,7 +1157,7 @@ mod __gen_google_protobuf_struct_proto {
             self.number_value = None;
             self.cold_mut().string_value = None;
             self.bool_value = pbrs::rt::OptBool::NONE;
-            self.cold_mut().struct_value = Default::default();
+            self.cold_mut().struct_value = ::core::default::Default::default();
             self.cold_mut().list_value = pbrs::rt::LazyMsg::from_owned(v);
         }
         /// Returns a mutable reference to `list_value`, initializing it with default values if unset.
@@ -1258,8 +1258,8 @@ mod __gen_google_protobuf_struct_proto {
                             self.number_value = None;
                             self.cold_mut().string_value = None;
                             self.bool_value = pbrs::rt::OptBool::NONE;
-                            self.cold_mut().struct_value = Default::default();
-                            self.cold_mut().list_value = Default::default();
+                            self.cold_mut().struct_value = ::core::default::Default::default();
+                            self.cold_mut().list_value = ::core::default::Default::default();
                             self.null_value = Some(pbrs::rt::decode_varint(data, pos)? as i32);
                         }
                         _ => self
@@ -1277,8 +1277,8 @@ mod __gen_google_protobuf_struct_proto {
                             self.null_value = None;
                             self.cold_mut().string_value = None;
                             self.bool_value = pbrs::rt::OptBool::NONE;
-                            self.cold_mut().struct_value = Default::default();
-                            self.cold_mut().list_value = Default::default();
+                            self.cold_mut().struct_value = ::core::default::Default::default();
+                            self.cold_mut().list_value = ::core::default::Default::default();
                             self.number_value =
                                 Some(f64::from_bits(pbrs::rt::read_fixed64(data, pos)?));
                         }
@@ -1297,8 +1297,8 @@ mod __gen_google_protobuf_struct_proto {
                             self.null_value = None;
                             self.number_value = None;
                             self.cold_mut().string_value = None;
-                            self.cold_mut().struct_value = Default::default();
-                            self.cold_mut().list_value = Default::default();
+                            self.cold_mut().struct_value = ::core::default::Default::default();
+                            self.cold_mut().list_value = ::core::default::Default::default();
                             self.bool_value =
                                 pbrs::rt::OptBool::some(pbrs::rt::decode_varint(data, pos)? != 0);
                         }
@@ -1338,8 +1338,8 @@ mod __gen_google_protobuf_struct_proto {
                         self.null_value = None;
                         self.number_value = None;
                         self.bool_value = pbrs::rt::OptBool::NONE;
-                        self.cold_mut().struct_value = Default::default();
-                        self.cold_mut().list_value = Default::default();
+                        self.cold_mut().struct_value = ::core::default::Default::default();
+                        self.cold_mut().list_value = ::core::default::Default::default();
                         let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         self.cold_mut().string_value = Some(Box::new(
                             pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?,
@@ -1358,7 +1358,7 @@ mod __gen_google_protobuf_struct_proto {
                         self.number_value = None;
                         self.cold_mut().string_value = None;
                         self.bool_value = pbrs::rt::OptBool::NONE;
-                        self.cold_mut().list_value = Default::default();
+                        self.cold_mut().list_value = ::core::default::Default::default();
                         let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         if self.cold_mut().struct_value.is_some() {
                             let mut ip = 0;
@@ -1401,7 +1401,7 @@ mod __gen_google_protobuf_struct_proto {
                         self.number_value = None;
                         self.cold_mut().string_value = None;
                         self.bool_value = pbrs::rt::OptBool::NONE;
-                        self.cold_mut().struct_value = Default::default();
+                        self.cold_mut().struct_value = ::core::default::Default::default();
                         let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                         if self.cold_mut().list_value.is_some() {
                             let mut ip = 0;

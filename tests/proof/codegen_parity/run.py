@@ -18,7 +18,7 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
-METHODS = ["btree_map", "bytes", "boxed"]
+METHODS = ["btree_map", "bytes"]
 
 
 def sha(path):
@@ -104,6 +104,34 @@ def main():
             "scope": "flattened identifiers, message View/Mut names, scoped imported aliases, synthetic map entries and explicit renamed external parents",
         })
         collisions.append(collision)
+    runtime_symbols = []
+    for profile, binary in [
+        ("lazy", "pbrs_runtime_symbols"),
+        ("owned", "pbrs_owned_runtime_symbols"),
+    ]:
+        result, symbols = run(f"runtime-symbols-{profile}", ["cargo", "run", "--locked", "--offline", "--manifest-path", str(manifest), "--bin", binary])
+        symbols.update({
+            "profile": profile,
+            "passed": result.returncode == 0,
+            "cases_passed": result.stdout.count(b"PASS runtime-symbol-"),
+            "scope": "literal Default/Map/Enum schema names, typed view and mutator macros, and cross-file wire values against Prost",
+        })
+        runtime_symbols.append(symbols)
+    boxed_fields = []
+    for profile, binary in [
+        ("selected", "pbrs_boxed"),
+        ("default", "pbrs_boxed_default"),
+        ("owned", "pbrs_boxed_owned"),
+    ]:
+        result, boxed = run(f"boxed-fields-{profile}", ["cargo", "run", "--locked", "--offline", "--manifest-path", str(manifest), "--bin", binary])
+        boxed.update({
+            "profile": profile,
+            "passed": result.returncode == 0,
+            "cases_passed": result.stdout.count(b"PASS boxed-case "),
+            "selector_cases_passed": result.stdout.count(b"PASS boxed-selector "),
+            "scope": "selected eager boxed singular messages, same-schema wire values, sharing and validation; message-selector source placement against Prost",
+        })
+        boxed_fields.append(boxed)
     probes = []
     for method in METHODS:
         result, probe = run(method, ["cargo", "check", "--locked", "--offline", "--manifest-path", str(manifest), "--bin", f"pbrs_{method}"])
@@ -136,6 +164,8 @@ def main():
         "configured_options": options,
         "attribute_selectors": attributes,
         "type_collisions": collisions,
+        "runtime_symbols": runtime_symbols,
+        "boxed_fields": boxed_fields,
         "alloc_only_target": no_std,
         "source_sha256": after_hashes,
         "changed_source_files": [name for name in before_hashes if before_hashes[name] != after_hashes[name]],
@@ -148,6 +178,7 @@ def main():
             "pbrs uses its own map, byte storage and naming APIs; these failures do not prove a wire-format gap.",
             "The alloc-only target control proves compilation availability, not execution on embedded hardware.",
             "No timing or ranking conclusion is drawn from build execution.",
+            "Boxed selectors apply to singular message/group fields; Prost's scalar boxing output is not a supported compiled control.",
         ],
     }
     report["harness_passed"] = (
@@ -155,12 +186,15 @@ def main():
         and options["semantic_controls_match"]
         and attributes["passed"] and attributes["cases_passed"] == 13
         and all(case["passed"] and case["cases_passed"] == 4 for case in collisions)
+        and all(case["passed"] and case["cases_passed"] == 4 for case in runtime_symbols)
+        and all(case["passed"] and case["cases_passed"] == 8 for case in boxed_fields)
+        and [case["selector_cases_passed"] for case in boxed_fields] == [18, 0, 0]
         and all(probe["gap_reproduced"] for probe in probes)
         and no_std["functional_gap_reproduced"]
         and not report["changed_source_files"]
     )
     (output / "results.json").write_text(json.dumps(report, indent=2) + "\n")
-    print(json.dumps({"harness_passed": report["harness_passed"], "consumer_cases": consumer["cases_passed"], "name_cases": options["name_cases_passed"], "any_cases": options["any_cases_passed"], "enum_cases": options["enum_cases_passed"], "attribute_cases": attributes["cases_passed"], "type_collision_cases": sum(case["cases_passed"] for case in collisions), "configuration_gaps": sum(p["gap_reproduced"] for p in probes), "alloc_only_gap": no_std["functional_gap_reproduced"]}))
+    print(json.dumps({"harness_passed": report["harness_passed"], "consumer_cases": consumer["cases_passed"], "name_cases": options["name_cases_passed"], "any_cases": options["any_cases_passed"], "enum_cases": options["enum_cases_passed"], "attribute_cases": attributes["cases_passed"], "type_collision_cases": sum(case["cases_passed"] for case in collisions), "runtime_symbol_cases": sum(case["cases_passed"] for case in runtime_symbols), "boxed_cases": sum(case["cases_passed"] for case in boxed_fields), "boxed_selector_cases": sum(case["selector_cases_passed"] for case in boxed_fields), "configuration_gaps": sum(p["gap_reproduced"] for p in probes), "alloc_only_gap": no_std["functional_gap_reproduced"]}))
     return 0 if report["harness_passed"] else 1
 
 

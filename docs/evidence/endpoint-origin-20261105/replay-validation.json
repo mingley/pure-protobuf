@@ -1,0 +1,29 @@
+{
+  "recorded_utc": "2026-11-06T00:14:28.241385+00:00",
+  "scope": "portable source preparation only; no new compilation or timing",
+  "attempts": [
+    {
+      "command": [
+        "python3",
+        "docs/evidence/endpoint-origin-20261105/prepare.py",
+        "--out",
+        "/workspace/pure-protobuf/work/native-origin-capsule-prepare-check"
+      ],
+      "exit_code": 1,
+      "failure": "initial strict manifest equality found src/main.rs differed from the older initial driver copy in both variants; source exports matched",
+      "resolution": "portable preparation now validates the refreshed identical main.rs that all four actual build records bind"
+    },
+    {
+      "command": [
+        "python3",
+        "docs/evidence/endpoint-origin-20261105/prepare.py",
+        "--out",
+        "/workspace/pure-protobuf/work/native-origin-capsule-prepare-check-fixed"
+      ],
+      "exit_code": 0,
+      "git_inputs": 407,
+      "overlays": 10,
+      "baseline_commit": "dc2261c8efe6fa99bf6c3583fa642f09ee7249cf"
+    }
+  ]
+}

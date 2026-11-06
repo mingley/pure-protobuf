@@ -360,6 +360,7 @@ mod tonic_transport {
     ) -> Result<Response<tonic::body::Body>, Status> {
         let (mut parts, body) = request.into_parts();
         check_policies(&channel, parts.uri.path())?;
+        let scheme = channel.local.request_scheme().map_err(status)?.clone();
         let rpc_permit = channel
             .local
             .rpc_slots
@@ -384,7 +385,7 @@ mod tonic_transport {
             .map_err(status)?;
         let load = track_least_request(&channel.inner.endpoint, live.rr_addr.as_ref()).await;
         parts.uri = Uri::builder()
-            .scheme(channel.scheme())
+            .scheme(scheme)
             .authority(channel.local.authority.clone())
             .path_and_query(parts.uri.path_and_query().cloned().ok_or_else(|| {
                 Status::invalid_argument("gRPC request URI requires a method path")

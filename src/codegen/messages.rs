@@ -4,13 +4,17 @@ use super::*;
 use crate::dynamic::{Cardinality, FieldDescriptor, FieldType, MessageDescriptor};
 use std::borrow::Cow;
 
-pub(crate) fn emit_zeroed_fields_struct<'a>(
+pub(crate) fn emit_fields_struct<'a>(
     src: &mut String,
     name: &str,
     message: &str,
     field_attributes: bool,
     fields: impl Iterator<Item = &'a FieldDescriptor>,
 ) {
+    let safe_defaults = safe_message_defaults_enabled();
+    if safe_defaults {
+        let _ = writeln!(src, "#[derive(::core::default::Default)]");
+    }
     if skip_debug() {
         let _ = writeln!(src, "#[derive(Clone, PartialEq)]");
     } else {
@@ -24,13 +28,15 @@ pub(crate) fn emit_zeroed_fields_struct<'a>(
         let _ = writeln!(src, "    {}: {},", field_id(f), field_storage_ty(f));
     }
     let _ = writeln!(src, "}}");
-    let _ = writeln!(src, "impl Default for {name} {{");
-    let _ = writeln!(src, "    #[inline(always)]");
-    let _ = writeln!(
-        src,
-        "    fn default() -> Self {{ unsafe {{ pbrs::rt::zeroed_message() }} }}"
-    );
-    let _ = writeln!(src, "}}");
+    if !safe_defaults {
+        let _ = writeln!(src, "impl ::core::default::Default for {name} {{");
+        let _ = writeln!(src, "    #[inline(always)]");
+        let _ = writeln!(
+            src,
+            "    fn default() -> Self {{ unsafe {{ pbrs::rt::zeroed_message() }} }}"
+        );
+        let _ = writeln!(src, "}}");
+    }
 }
 
 pub(crate) fn emit_box_eq(src: &mut String, field: &str, ty: &str) {
@@ -76,7 +82,7 @@ pub(crate) fn packed_storage_ty(f: &FieldDescriptor) -> &'static str {
 pub(crate) fn field_storage_ty(f: &FieldDescriptor) -> Cow<'static, str> {
     if f.is_map {
         let (k, v) = map_kv(f);
-        return format!("Map<{k}, {v}>").into();
+        return format!("pbrs::Map<{k}, {v}>").into();
     }
     let t = scalar_type(f);
     if is_packed_scalar(f) {
@@ -517,8 +523,9 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
     let cold = ColdPlacement::for_message(desc);
     let use_cold = cold.uses_cold_storage();
     let field_attributes = has_field_attributes();
+    let safe_defaults = safe_message_defaults_enabled();
     if use_cold {
-        emit_zeroed_fields_struct(
+        emit_fields_struct(
             src,
             &cold_name,
             &desc.full_name,
@@ -538,6 +545,9 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
     }
     emit_type_attributes(src, &desc.full_name, "");
     emit_message_attributes(src, &desc.full_name, "");
+    if safe_defaults {
+        let _ = writeln!(src, "#[derive(::core::default::Default)]");
+    }
     if skip_debug() {
         let _ = writeln!(src, "#[derive(Clone)]");
     } else {
@@ -577,12 +587,14 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
     let _ = writeln!(src, "    }}");
     let _ = writeln!(src, "}}");
     let _ = writeln!(src, "impl Eq for {name} {{}}");
-    let _ = writeln!(src, "impl Default for {name} {{");
-    let _ = writeln!(src, "    #[inline(always)]");
-    let _ = writeln!(src, "    fn default() -> Self {{");
-    let _ = writeln!(src, "        unsafe {{ pbrs::rt::zeroed_message() }}");
-    let _ = writeln!(src, "    }}");
-    let _ = writeln!(src, "}}");
+    if !safe_defaults {
+        let _ = writeln!(src, "impl ::core::default::Default for {name} {{");
+        let _ = writeln!(src, "    #[inline(always)]");
+        let _ = writeln!(src, "    fn default() -> Self {{");
+        let _ = writeln!(src, "        unsafe {{ pbrs::rt::zeroed_message() }}");
+        let _ = writeln!(src, "    }}");
+        let _ = writeln!(src, "}}");
+    }
 
     let _ = writeln!(src, "impl {name} {{");
     let _ = writeln!(
@@ -591,7 +603,7 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
     );
     let _ = writeln!(
         src,
-        "    pub fn new() -> Self {{ <Self as Default>::default() }}"
+        "    pub fn new() -> Self {{ <Self as ::core::default::Default>::default() }}"
     );
     if use_cold {
         let _ = writeln!(
@@ -672,7 +684,7 @@ pub(crate) fn emit_oneof_clear(
         if let Some(sib) = desc.field(*n) {
             let st = cold.store_mut(sib);
             if is_lazy_msg(sib) {
-                let _ = writeln!(src, "        {st} = Default::default();");
+                let _ = writeln!(src, "        {st} = ::core::default::Default::default();");
             } else if is_option(sib) && sib.field_type == FieldType::Bool {
                 let _ = writeln!(src, "        {st} = pbrs::rt::OptBool::NONE;");
             } else if is_option(sib) {
@@ -680,7 +692,7 @@ pub(crate) fn emit_oneof_clear(
             } else if sib.cardinality == Cardinality::Repeated || sib.is_map {
                 let _ = writeln!(src, "        {st}.clear();");
             } else {
-                let _ = writeln!(src, "        {st} = Default::default();");
+                let _ = writeln!(src, "        {st} = ::core::default::Default::default();");
             }
         }
     }
@@ -701,23 +713,23 @@ pub(crate) fn emit_accessors(
         if cold.stored_cold(f) {
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> MapView<'_, {k}, {v}> {{ self.cold.as_ref().map(|c| c.{id}.as_view()).unwrap_or_else(MapView::empty) }}"
+                "    pub fn {id}(&self) -> pbrs::MapView<'_, {k}, {v}> {{ self.cold.as_ref().map(|c| c.{id}.as_view()).unwrap_or_else(pbrs::MapView::empty) }}"
             );
         } else {
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> MapView<'_, {k}, {v}> {{ self.{id}.as_view() }}"
+                "    pub fn {id}(&self) -> pbrs::MapView<'_, {k}, {v}> {{ self.{id}.as_view() }}"
             );
         }
         emit_mut_doc(src, f, false);
         let _ = writeln!(
             src,
-            "    pub fn {id}_mut(&mut self) -> MapMut<'_, {k}, {v}> {{ self.cached_size.dirty(); {st}.as_mut() }}"
+            "    pub fn {id}_mut(&mut self) -> pbrs::MapMut<'_, {k}, {v}> {{ self.cached_size.dirty(); {st}.as_mut() }}"
         );
         emit_set_doc(src, desc, f);
         let _ = writeln!(
             src,
-            "    pub fn set_{m}(&mut self, v: Map<{k}, {v}>) {{ self.cached_size.dirty(); {st} = v; }}"
+            "    pub fn set_{m}(&mut self, v: pbrs::Map<{k}, {v}>) {{ self.cached_size.dirty(); {st} = v; }}"
         );
         return;
     }
@@ -1267,7 +1279,7 @@ pub(crate) fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
         );
         let _ = writeln!(
             src,
-            "        if <Self as Enum>::is_known(val) {{ Ok(Self(val)) }} else {{ Err(UnknownEnumValue::new(pbrs::__internal::Private, val)) }}"
+            "        if <Self as pbrs::Enum>::is_known(val) {{ Ok(Self(val)) }} else {{ Err(UnknownEnumValue::new(pbrs::__internal::Private, val)) }}"
         );
         let _ = writeln!(src, "    }}");
         let _ = writeln!(src, "}}");
@@ -1281,7 +1293,7 @@ pub(crate) fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
     }
     let _ = writeln!(
         src,
-        "{impl_deprecation_allowance}impl Default for {name} {{"
+        "{impl_deprecation_allowance}impl ::core::default::Default for {name} {{"
     );
     let _ = writeln!(src, "    fn default() -> Self {{ Self({first}) }}");
     let _ = writeln!(src, "}}");
@@ -1323,7 +1335,10 @@ pub(crate) fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
         "    fn into_view<'shorter>(self) -> Self where 'msg: 'shorter {{ self }}"
     );
     let _ = writeln!(src, "}}");
-    let _ = writeln!(src, "{impl_deprecation_allowance}impl Enum for {name} {{");
+    let _ = writeln!(
+        src,
+        "{impl_deprecation_allowance}impl pbrs::Enum for {name} {{"
+    );
     let _ = writeln!(src, "    const NAME: &'static str = \"{name}\";");
     if known.is_empty() {
         let _ = writeln!(src, "    fn is_known(_: i32) -> bool {{ false }}");

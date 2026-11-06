@@ -3,6 +3,9 @@
 TCP tuning, HTTP/2 keepalive and task scheduling are independent choices.
 Configure them before connecting or starting a server.
 
+The endpoint-origin APIs below are additions in the unreleased `pbrs-grpc`
+0.1.0-alpha.3 candidate.
+
 ## Client configuration
 
 ```rust
@@ -39,6 +42,24 @@ if the RPC ends.
 The idle policy also applies when `adaptive_window(true)` is enabled. Separate
 BDP probes triggered by received DATA remain enabled. TCP operating-system
 keepalive uses the separate `tcp_keepalive*` settings.
+
+## Request origin and dial target
+
+`Endpoint::origin(uri)` sets the request URI's scheme and authority without
+changing dialing, TLS or certificate server-name choices. It takes an
+`http::Uri`, supports any valid scheme, and ignores the origin's path and
+query so the RPC keeps its method path. An origin missing a scheme or
+authority is rejected when an RPC starts, before hooks, encoding or headers.
+
+`Channel::request_scheme()` reports that logical wire scheme.
+`Channel::scheme()` and client interceptor security context keep their
+transport scheme. A later `Channel::origin(authority)` replaces only the
+authority on that clone and preserves the logical scheme. Static balance
+helpers reject endpoints with configured origins.
+
+The [endpoint-origin tests](../../pbrs-grpc/tests/endpoint_origin.rs) cover all
+four call shapes, eager/lazy/custom connections, TLS/SNI, clone overrides and
+Tonic comparisons.
 
 ## Server TCP behavior
 

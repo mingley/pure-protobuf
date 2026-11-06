@@ -72,6 +72,11 @@ jobs:
           "$RUNNER_TEMP/devloop-counter-tests"
       - name: Bundled regeneration safety contracts (no Rust build or protoc)
         run: python3 -B -m unittest tests.test_regen_generated -q
+      - name: Verify archived diagnostic evidence
+        run: |
+          python3 -B docs/evidence/naming-cursors-20261105/check.py
+          python3 -B docs/evidence/safe-defaults-20261105/check.py
+          python3 -B docs/evidence/endpoint-origin-20261105/check.py
       - name: Check standalone benchmark and interop lockfiles
         run: |
           for manifest in \

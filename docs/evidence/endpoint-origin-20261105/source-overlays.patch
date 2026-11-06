@@ -1,0 +1,916 @@
+diff --git a/pbrs-grpc/src/client/call.rs b/pbrs-grpc/src/client/call.rs
+index 3d7f3ea1..26459ce2 100644
+--- a/pbrs-grpc/src/client/call.rs
++++ b/pbrs-grpc/src/client/call.rs
+@@ -1,5 +1,6 @@
+ //! Per-call machinery: attempts, commitment, and send/open races.
+ 
++use super::channel::RequestRouting;
+ use super::pool::{ChannelInner, HealthDirective, LiveConn};
+ use crate::request::{Request, Response};
+ use crate::rt::{Runtime, TokioRuntime};
+@@ -10,12 +11,11 @@ use crate::transport::{
+     Error as TransportError, Reason, RecvStream, SendRequest, SendStream, h2 as backend,
+ };
+ use crate::wire::{
+-    ImmediateSend, SegFrame, begin_stock_request, grpc_request, send_frame, send_frame_if_ready,
+-    status_from,
++    ImmediateSend, SegFrame, begin_stock_request, grpc_request, grpc_request_with_scheme,
++    send_frame, send_frame_if_ready, status_from,
+ };
+ use futures_util::future::Either;
+ use http::HeaderValue;
+-use http::uri::Authority;
+ use std::future::{Future, poll_fn};
+ use std::pin::Pin;
+ use std::sync::Arc;
+@@ -262,7 +262,7 @@ fn finish_request_send<R: Runtime>(
+ )]
+ pub(crate) fn open(
+     send_req: backend::SendRequest,
+-    authority: &Authority,
++    routing: &impl RequestRouting,
+     path: &'static str,
+     md: &crate::metadata::Metadata,
+     timeout: Option<Duration>,
+@@ -271,12 +271,11 @@ pub(crate) fn open(
+     send_codec: Option<crate::compression::CompressionAlgorithm>,
+     accept_gzip: bool,
+     user_agent: &HeaderValue,
+-    https: bool,
+ ) -> impl std::future::Future<Output = Result<(backend::ResponseFuture, backend::SendStream), Status>>
+ {
+     open_in::<TokioRuntime>(
+         send_req,
+-        authority,
++        routing,
+         path,
+         md,
+         timeout,
+@@ -285,7 +284,6 @@ pub(crate) fn open(
+         send_codec,
+         accept_gzip,
+         user_agent,
+-        https,
+     )
+ }
+ 
+@@ -296,7 +294,7 @@ pub(crate) fn open(
+ )]
+ pub(crate) async fn open_in<R: Runtime>(
+     mut send_req: backend::SendRequest,
+-    authority: &Authority,
++    routing: &impl RequestRouting,
+     path: &'static str,
+     md: &crate::metadata::Metadata,
+     timeout: Option<Duration>,
+@@ -305,8 +303,11 @@ pub(crate) async fn open_in<R: Runtime>(
+     send_codec: Option<crate::compression::CompressionAlgorithm>,
+     accept_gzip: bool,
+     user_agent: &HeaderValue,
+-    https: bool,
+ ) -> Result<(backend::ResponseFuture, backend::SendStream), Status> {
++    let scheme = routing.request_scheme()?;
++    let https = *scheme == http::uri::Scheme::HTTPS;
++    let standard_scheme = https || *scheme == http::uri::Scheme::HTTP;
++    let authority = routing.authority();
+     if timeout.is_some_and(|d| d.is_zero()) {
+         return Err(Status::deadline_exceeded());
+     }
+@@ -317,7 +318,8 @@ pub(crate) async fn open_in<R: Runtime>(
+     // No deadline: the stock block does not carry grpc-timeout, so the
+     // request head is not needed. Copying it only to throw it away costs
+     // two 216-byte moves.
+-    let stock_admission = deadline.is_none()
++    let stock_admission = standard_scheme
++        && deadline.is_none()
+         && begin_stock_request(
+             authority,
+             path,
+@@ -331,16 +333,29 @@ pub(crate) async fn open_in<R: Runtime>(
+     let mut admission = if stock_admission {
+         send_req.send_stock_when_ready(false)
+     } else {
+-        let http_req = grpc_request(
+-            authority,
+-            path,
+-            md,
+-            remaining,
+-            send_codec,
+-            accept_gzip,
+-            user_agent,
+-            https,
+-        )?;
++        let http_req = if standard_scheme {
++            grpc_request(
++                authority,
++                path,
++                md,
++                remaining,
++                send_codec,
++                accept_gzip,
++                user_agent,
++                https,
++            )?
++        } else {
++            grpc_request_with_scheme(
++                authority,
++                path,
++                md,
++                remaining,
++                send_codec,
++                accept_gzip,
++                user_agent,
++                scheme,
++            )?
++        };
+         send_req.send_request_when_ready(http_req, false)
+     };
+     // Stock admission has no deadline and no grpc-timeout, and cancel was
+@@ -716,6 +731,8 @@ impl super::Channel {
+         path: &'static str,
+         req: &mut Request<T>,
+     ) -> Result<(), Status> {
++        // Reject a malformed endpoint origin before hooks, encoding or dialing.
++        self.local.request_scheme()?;
+         if req.timeout().is_none() {
+             if let Some(timeout) = self.local.config.rpc_timeout() {
+                 req.set_timeout(timeout);
+@@ -877,7 +894,7 @@ impl super::Channel {
+             let load = live.load;
+             match open_in::<R>(
+                 live.send,
+-                &self.local.authority,
++                self.local.as_ref(),
+                 path,
+                 md,
+                 timeout,
+@@ -886,7 +903,6 @@ impl super::Channel {
+                 compress.then_some(self.local.config.send_algorithm()),
+                 self.local.config.accepts_compressed(),
+                 user_agent,
+-                self.local.https,
+             )
+             .await
+             {
+diff --git a/pbrs-grpc/src/client/channel.rs b/pbrs-grpc/src/client/channel.rs
+index 2acf8ca6..68f2d111 100644
+--- a/pbrs-grpc/src/client/channel.rs
++++ b/pbrs-grpc/src/client/channel.rs
+@@ -233,6 +233,7 @@ pub struct Endpoint {
+     uri: Uri,
+     config: ChannelConfig,
+     executor: crate::executor::TaskExecutor,
++    origin: Option<Arc<Uri>>,
+ }
+ 
+ impl Endpoint {
+@@ -273,6 +274,7 @@ impl Endpoint {
+             uri,
+             config: ChannelConfig::default(),
+             executor: crate::executor::TaskExecutor::default(),
++            origin: None,
+         })
+     }
+ 
+@@ -283,6 +285,25 @@ impl Endpoint {
+         self
+     }
+ 
++    /// Override the request URI's scheme and authority.
++    ///
++    /// This does not change dialing, TLS or certificate server-name choices.
++    /// The origin's path and query are ignored;
++    /// generated and native calls retain their method path. Any URI scheme is
++    /// supported. An origin without both a scheme and authority fails the RPC
++    /// with [`Code::InvalidArgument`] before request headers are sent.
++    ///
++    /// [`Channel::scheme`] and client interceptor security context continue to
++    /// describe the transport. [`Channel::origin`] can replace the authority
++    /// again on a connected clone without changing this scheme override.
++    /// [`Channel::request_scheme`] reports the logical wire scheme. Static
++    /// balance helpers reject endpoints with origins.
++    #[must_use]
++    pub fn origin(mut self, origin: Uri) -> Self {
++        self.origin = Some(Arc::new(origin));
++        self
++    }
++
+     /// Schedule this endpoint's HTTP/2 connection drivers on `executor`.
+     ///
+     /// Applies to eager and lazy connections, reconnections and custom
+@@ -306,14 +327,23 @@ impl Endpoint {
+     pub async fn connect(&self) -> Result<Channel, Status> {
+         let target = self.target()?;
+         let tls = self.is_https().then(|| self.client_tls()).transpose()?;
+-        pool::connect_inner_with_executor(target, self.config, tls, self.executor.clone()).await
++        let channel =
++            pool::connect_inner_with_executor(target, self.config, tls, self.executor.clone())
++                .await?;
++        Ok(self.apply_origin(channel))
+     }
+ 
+     /// Build a lazy channel using the endpoint's scheme.
+     pub fn connect_lazy(&self) -> Result<Channel, Status> {
+         let target = self.target()?;
+         let tls = self.is_https().then(|| self.client_tls()).transpose()?;
+-        pool::connect_lazy_inner_with_executor(target, self.config, tls, self.executor.clone())
++        let channel = pool::connect_lazy_inner_with_executor(
++            target,
++            self.config,
++            tls,
++            self.executor.clone(),
++        )?;
++        Ok(self.apply_origin(channel))
+     }
+ 
+     /// Connect through a custom connector that returns an already-open IO.
+@@ -335,11 +365,12 @@ impl Endpoint {
+             self.executor.clone(),
+         )
+         .await?;
+-        Ok(if self.is_https() {
++        let channel = if self.is_https() {
+             channel.https_scheme()
+         } else {
+             channel
+-        })
++        };
++        Ok(self.apply_origin(channel))
+     }
+ 
+     /// Static round-robin balance over endpoint URI authorities.
+@@ -387,6 +418,18 @@ impl Endpoint {
+         self.uri.scheme_str() == Some("https")
+     }
+ 
++    fn apply_origin(&self, channel: Channel) -> Channel {
++        match &self.origin {
++            Some(origin) => channel.with_local(|local| {
++                if let Some(authority) = origin.authority() {
++                    local.authority = authority.clone();
++                }
++                local.origin = Some(Arc::clone(origin));
++            }),
++            None => channel,
++        }
++    }
++
+     fn target(&self) -> Result<Target, Status> {
+         Ok(Target::from(self.authority_with_default_port()?))
+     }
+@@ -472,6 +515,11 @@ fn endpoint_socket_addrs(endpoints: &[Endpoint]) -> Result<Vec<SocketAddr>, Stat
+     }
+     let mut out = Vec::with_capacity(endpoints.len());
+     for endpoint in endpoints {
++        if endpoint.origin.is_some() {
++            return Err(Status::invalid_argument(
++                "balance_list/balance_channel do not support per-endpoint origins",
++            ));
++        }
+         if endpoint.executor.is_custom() {
+             return Err(Status::invalid_argument(
+                 "balance_list/balance_channel do not support per-endpoint executors",
+@@ -512,9 +560,12 @@ pub(crate) struct ChannelLocal {
+     pub(crate) rpc_slots: Option<Arc<Semaphore>>,
+     pub(crate) byte_budget: ByteBudgetTracker,
+     pub(crate) user_agent: HeaderValue,
+-    /// `:scheme` this clone sends. TLS channels start `true`; [`Channel::from_io`]
+-    /// starts `false` until [`Channel::https_scheme`].
++    /// Transport/security scheme. Logical endpoint origins do not change it.
++    /// TLS channels start `true`; [`Channel::from_io`] starts `false` until
++    /// [`Channel::https_scheme`].
+     pub(crate) https: bool,
++    /// Logical request origin, separate from transport security and dialing.
++    pub(crate) origin: Option<Arc<Uri>>,
+     /// `:authority` this clone sends. Defaults to the dial [`Target`];
+     /// [`Channel::origin`] overrides it.
+     pub(crate) authority: Authority,
+@@ -527,6 +578,64 @@ pub(crate) struct ChannelLocal {
+     pub(crate) binlog: Option<Arc<crate::binlog::BinaryLogger>>,
+ }
+ 
++impl ChannelLocal {
++    #[inline]
++    pub(crate) fn request_scheme(&self) -> Result<&http::uri::Scheme, Status> {
++        match &self.origin {
++            Some(origin) => {
++                if origin.authority().is_none() {
++                    return Err(Status::invalid_argument("origin URI needs an authority"));
++                }
++                origin
++                    .scheme()
++                    .ok_or_else(|| Status::invalid_argument("origin URI needs a scheme"))
++            }
++            None => Ok(if self.https {
++                &http::uri::Scheme::HTTPS
++            } else {
++                &http::uri::Scheme::HTTP
++            }),
++        }
++    }
++}
++
++/// Request routing is independent of the transport's security context.
++pub(crate) trait RequestRouting: Sync {
++    fn authority(&self) -> &Authority;
++    fn request_scheme(&self) -> Result<&http::uri::Scheme, Status>;
++}
++
++impl RequestRouting for ChannelLocal {
++    fn authority(&self) -> &Authority {
++        &self.authority
++    }
++
++    fn request_scheme(&self) -> Result<&http::uri::Scheme, Status> {
++        ChannelLocal::request_scheme(self)
++    }
++}
++
++/// Background health and load watches use their shared resolver pool's target.
++/// Endpoint origins cannot enter these pools: balanced endpoints reject them.
++pub(crate) struct DirectRouting<'a> {
++    pub(crate) authority: &'a Authority,
++    pub(crate) https: bool,
++}
++
++impl RequestRouting for DirectRouting<'_> {
++    fn authority(&self) -> &Authority {
++        self.authority
++    }
++
++    fn request_scheme(&self) -> Result<&http::uri::Scheme, Status> {
++        Ok(if self.https {
++            &http::uri::Scheme::HTTPS
++        } else {
++            &http::uri::Scheme::HTTP
++        })
++    }
++}
++
+ /// A prior-knowledge HTTP/2 connection (or small pool) to a gRPC server.
+ ///
+ /// Cloning is cheap and shares the underlying connections, so a `Channel` is
+@@ -1011,13 +1120,14 @@ impl super::Channel {
+     /// [`Self::connect`] / [`Self::connect_tls`] / [`Self::connect_unix`];
+     /// this overlay does not rebind the socket. Distinct from
+     /// [`crate::ClientTls`]: that is SNI / certificate name, not this header.
+-    /// Distinct from tonic's `Endpoint::origin`, which takes a `Uri` and
+-    /// also sets `:scheme`; scheme on this kernel is [`Self::connect_tls`]
+-    /// or [`Self::https_scheme`].
++    /// [`Endpoint::origin`] takes a `Uri` and sets a logical scheme as well.
++    /// This authority-only setter preserves that logical scheme, if present;
++    /// otherwise the request scheme follows [`Self::connect_tls`] or
++    /// [`Self::https_scheme`].
+     /// There is no grpc-go `WithAuthority`: that sets `:authority` and the
+     /// TLS authentication server name. This overlay is `:authority` only.
+     /// Distinct from [`crate::ClientTls`] (SNI / certificate name). Distinct
+-    /// from tonic `Endpoint::origin` (Uri, also `:scheme`). There is no
++    /// from [`Endpoint::origin`] (URI, also `:scheme`). There is no
+     /// `CallAuthority`: interceptors cannot override `:authority` per call.
+     ///
+     /// Unix defaults to `localhost`; this overlay can replace it.
+@@ -1725,8 +1835,8 @@ impl super::Channel {
+ 
+     /// The `:authority` sent with every request.
+     ///
+-    /// Taken from the [`Target`] used to dial, unless [`Self::origin`]
+-    /// overrode it on this clone. A [`SocketAddr`] is that
++    /// Taken from the [`Target`] used to dial, unless [`Endpoint::origin`] or
++    /// [`Self::origin`] overrode it on this clone. A [`SocketAddr`] is that
+     /// address (`127.0.0.1:port`), not TLS SNI (`ClientTls` verifies a name
+     /// such as `localhost` separately). Unix sockets send `localhost`
+     /// until [`Self::origin`]. Applies to every call shape.
+@@ -1736,15 +1846,26 @@ impl super::Channel {
+         self.local.authority.as_str()
+     }
+ 
+-    /// HTTP/2 `:scheme` this clone sends.
++    /// Transport/security scheme used by this clone's client interceptors.
+     ///
+     /// `https` after [`Self::connect_tls`] or [`Self::https_scheme`], otherwise
+     /// `http`. Same string as [`crate::Outgoing::scheme`]. Applies to every
+-    /// call shape.
++    /// call shape. [`Endpoint::origin`] changes the logical request scheme
++    /// independently; inspect that with [`Self::request_scheme`].
+     #[must_use]
+     pub fn scheme(&self) -> &'static str {
+         if self.local.https { "https" } else { "http" }
+     }
++
++    /// Logical HTTP/2 `:scheme` sent with requests.
++    ///
++    /// Defaults to [`Self::scheme`]. An [`Endpoint::origin`] overrides it
++    /// without changing transport security, dialing or TLS verification.
++    /// Returns [`Code::InvalidArgument`] when that origin lacks a scheme or
++    /// authority, matching the error returned when an RPC starts.
++    pub fn request_scheme(&self) -> Result<&str, Status> {
++        self.local.request_scheme().map(http::uri::Scheme::as_str)
++    }
+ }
+ 
+ #[cfg(test)]
+diff --git a/pbrs-grpc/src/client/pool.rs b/pbrs-grpc/src/client/pool.rs
+index 01dc8b2a..99aef6d2 100644
+--- a/pbrs-grpc/src/client/pool.rs
++++ b/pbrs-grpc/src/client/pool.rs
+@@ -698,6 +698,7 @@ pub(crate) fn finish_channel_with_executor(
+             byte_budget: ByteBudgetTracker::default(),
+             user_agent: crate::wire::STOCK_UA.clone(),
+             https,
++            origin: None,
+             authority,
+             observer: None,
+             service_config,
+@@ -3340,13 +3341,17 @@ impl HealthWatch {
+             return WatchEnd::Stopped;
+         }
+         let md = Metadata::new();
++        let routing = super::channel::DirectRouting {
++            authority: &self.authority,
++            https: self.https,
++        };
+         // Channelz: LB-internal maintenance stream, not attributed to the
+         // socket's data counters. `stop` aborts the watch without sharing
+         // the per-RPC cancel flag.
+         let response = tokio::select! {
+             response = run_server_stream::<HealthCheckResponse>(
+                 self.send.clone(),
+-                &self.authority,
++                &routing,
+                 "/grpc.health.v1.Health/Watch",
+                 &md,
+                 None,
+@@ -3356,7 +3361,6 @@ impl HealthWatch {
+                 crate::rpc_cancel::RpcCancel::new(),
+                 self.wire,
+                 crate::wire::PBRS_GRPC_UA,
+-                self.https,
+                 BytePermit::empty(),
+                 None,
+                 None,
+@@ -3466,13 +3470,17 @@ impl OobWatch {
+             return OobEnd::Stopped;
+         }
+         let md = Metadata::new();
++        let routing = super::channel::DirectRouting {
++            authority: &self.authority,
++            https: self.https,
++        };
+         // Channelz: LB-internal maintenance stream, not attributed to the
+         // socket's data counters. `stop` aborts the stream without sharing
+         // the per-RPC cancel flag.
+         let response = tokio::select! {
+             response = run_server_stream::<OrcaLoadReport>(
+                 self.send.clone(),
+-                &self.authority,
++                &routing,
+                 "/xds.service.orca.v3.OpenRcaService/StreamCoreMetrics",
+                 &md,
+                 None,
+@@ -3482,7 +3490,6 @@ impl OobWatch {
+                 crate::rpc_cancel::RpcCancel::new(),
+                 self.wire,
+                 crate::wire::PBRS_GRPC_UA,
+-                self.https,
+                 BytePermit::empty(),
+                 None,
+                 None,
+diff --git a/pbrs-grpc/src/client/retry.rs b/pbrs-grpc/src/client/retry.rs
+index dd0c3e35..21056564 100644
+--- a/pbrs-grpc/src/client/retry.rs
++++ b/pbrs-grpc/src/client/retry.rs
+@@ -329,7 +329,6 @@ pub(crate) struct HedgeUnary {
+     pub(crate) cancel_rx: crate::rpc_cancel::RpcCancel,
+     pub(crate) wire: Wire,
+     pub(crate) ua: HeaderValue,
+-    pub(crate) https: bool,
+     pub(crate) policy: HedgingPolicy,
+     pub(crate) call_guard: CallGuard,
+     pub(crate) owned_labels: Option<Box<OwnedCallLabels>>,
+@@ -362,7 +361,6 @@ where
+     let cancel_rx = req.cancel_rx.clone();
+     let wire = req.wire;
+     let ua = req.ua.clone();
+-    let https = req.https;
+     let observer = req.observer.clone();
+     let owned_labels = req.owned_labels.clone();
+     let tap = req.binlog.clone();
+@@ -411,7 +409,7 @@ where
+             }
+             match run_unary(
+                 live.send,
+-                &channel.local.authority,
++                channel.local.as_ref(),
+                 path,
+                 &md,
+                 req_timeout,
+@@ -421,7 +419,6 @@ where
+                 cancel_rx.clone(),
+                 wire,
+                 ua.clone(),
+-                https,
+                 byte_permit,
+                 tap.as_ref(),
+             )
+diff --git a/pbrs-grpc/src/client/streaming.rs b/pbrs-grpc/src/client/streaming.rs
+index b07279ae..6cfd2605 100644
+--- a/pbrs-grpc/src/client/streaming.rs
++++ b/pbrs-grpc/src/client/streaming.rs
+@@ -27,7 +27,6 @@ use crate::wire::{
+ };
+ use bytes::Bytes;
+ use http::HeaderValue;
+-use http::uri::Authority;
+ use std::future::Future;
+ use std::pin::Pin;
+ use std::time::Duration;
+@@ -38,7 +37,7 @@ use std::time::Duration;
+ )]
+ pub(crate) async fn run_server_stream<Resp>(
+     send_req: backend::SendRequest,
+-    authority: &Authority,
++    routing: &impl super::channel::RequestRouting,
+     path: &'static str,
+     md: &crate::metadata::Metadata,
+     timeout: Option<Duration>,
+@@ -48,7 +47,6 @@ pub(crate) async fn run_server_stream<Resp>(
+     cancel_rx: crate::rpc_cancel::RpcCancel,
+     wire: Wire,
+     user_agent: HeaderValue,
+-    https: bool,
+     permit: BytePermit,
+     tap: Option<&CallLogger>,
+     socket: Option<crate::channelz::SocketId>,
+@@ -57,8 +55,8 @@ where
+     Resp: CodecMessage + Send + 'static,
+ {
+     run_server_stream_frame(
+-        send_req, authority, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
+-        user_agent, https, permit, tap, socket, None,
++        send_req, routing, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
++        user_agent, permit, tap, socket, None,
+     )
+     .await
+ }
+@@ -70,7 +68,7 @@ where
+ )]
+ async fn run_server_stream_frame<Resp>(
+     send_req: backend::SendRequest,
+-    authority: &Authority,
++    routing: &impl super::channel::RequestRouting,
+     path: &'static str,
+     md: &crate::metadata::Metadata,
+     timeout: Option<Duration>,
+@@ -80,7 +78,6 @@ async fn run_server_stream_frame<Resp>(
+     cancel_rx: crate::rpc_cancel::RpcCancel,
+     wire: Wire,
+     user_agent: HeaderValue,
+-    https: bool,
+     permit: BytePermit,
+     tap: Option<&CallLogger>,
+     socket: Option<crate::channelz::SocketId>,
+@@ -91,7 +88,7 @@ where
+ {
+     let outcome = run_server_stream_inner(
+         send_req,
+-        authority,
++        routing,
+         path,
+         md,
+         timeout,
+@@ -101,7 +98,6 @@ where
+         cancel_rx,
+         wire,
+         user_agent,
+-        https,
+         permit,
+         tap,
+         socket,
+@@ -122,7 +118,7 @@ where
+ )]
+ async fn run_server_stream_inner<Resp>(
+     send_req: backend::SendRequest,
+-    authority: &Authority,
++    routing: &impl super::channel::RequestRouting,
+     path: &'static str,
+     md: &crate::metadata::Metadata,
+     timeout: Option<Duration>,
+@@ -132,7 +128,6 @@ async fn run_server_stream_inner<Resp>(
+     cancel_rx: crate::rpc_cancel::RpcCancel,
+     wire: Wire,
+     user_agent: HeaderValue,
+-    https: bool,
+     permit: BytePermit,
+     tap: Option<&CallLogger>,
+     socket: Option<crate::channelz::SocketId>,
+@@ -143,11 +138,11 @@ where
+ {
+     let mut commitment = AttemptCommitment::Uncommitted;
+     if let Some(tap) = tap {
+-        tap.log_client_header(md, path, authority.as_str(), timeout);
++        tap.log_client_header(md, path, routing.authority().as_str(), timeout);
+     }
+     let (mut resp_fut, mut send_stream) = match open(
+         send_req,
+-        authority,
++        routing,
+         path,
+         md,
+         timeout,
+@@ -156,7 +151,6 @@ where
+         compress.then_some(wire.send_codec),
+         wire.accept_gzip,
+         &user_agent,
+-        https,
+     )
+     .await
+     {
+@@ -1390,7 +1384,6 @@ impl super::Channel {
+                 };
+                 // The original message is no longer needed after encoding.
+                 drop(msg);
+-                let https = channel.local.https;
+                 let ua = ua.unwrap_or_else(|| channel.local.user_agent.clone());
+                 let permit = match channel.take_rpc_slot() {
+                     Ok(p) => p,
+@@ -1511,7 +1504,7 @@ impl super::Channel {
+                         .or(deadline);
+                     match run_server_stream_frame(
+                         live.send,
+-                        &channel.local.authority,
++                        channel.local.as_ref(),
+                         path,
+                         &md,
+                         req_timeout,
+@@ -1521,7 +1514,6 @@ impl super::Channel {
+                         cancel_rx.clone(),
+                         wire,
+                         ua.clone(),
+-                        https,
+                         byte_permit,
+                         tap.as_ref(),
+                         live_socket,
+diff --git a/pbrs-grpc/src/client/unary.rs b/pbrs-grpc/src/client/unary.rs
+index 8a65a7f8..c1d7361a 100644
+--- a/pbrs-grpc/src/client/unary.rs
++++ b/pbrs-grpc/src/client/unary.rs
+@@ -23,7 +23,6 @@ use crate::timeout::{deadline_from, remaining_timeout};
+ use crate::transport::h2 as backend;
+ use crate::wire::{SegFrame, encode_msg, finish_unary};
+ use http::HeaderValue;
+-use http::uri::Authority;
+ use std::time::Duration;
+ 
+ // A configured retryable status cannot authorize replay after response
+@@ -48,7 +47,7 @@ impl UnaryFailure {
+ )]
+ pub(crate) async fn run_unary<Resp>(
+     send_req: backend::SendRequest,
+-    authority: &Authority,
++    routing: &impl super::channel::RequestRouting,
+     path: &'static str,
+     md: &crate::metadata::Metadata,
+     timeout: Option<Duration>,
+@@ -58,7 +57,6 @@ pub(crate) async fn run_unary<Resp>(
+     cancel_rx: crate::rpc_cancel::RpcCancel,
+     wire: Wire,
+     user_agent: HeaderValue,
+-    https: bool,
+     permit: BytePermit,
+     tap: Option<&CallLogger>,
+ ) -> Result<Response<Resp>, Status>
+@@ -66,8 +64,8 @@ where
+     Resp: CodecMessage + Send,
+ {
+     run_unary_frame(
+-        send_req, authority, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
+-        user_agent, https, permit, tap, None,
++        send_req, routing, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
++        user_agent, permit, tap, None,
+     )
+     .await
+     .map_err(|failure| failure.status)
+@@ -80,7 +78,7 @@ where
+ )]
+ async fn run_unary_frame<Resp>(
+     send_req: backend::SendRequest,
+-    authority: &Authority,
++    routing: &impl super::channel::RequestRouting,
+     path: &'static str,
+     md: &crate::metadata::Metadata,
+     timeout: Option<Duration>,
+@@ -90,7 +88,6 @@ async fn run_unary_frame<Resp>(
+     cancel_rx: crate::rpc_cancel::RpcCancel,
+     wire: Wire,
+     user_agent: HeaderValue,
+-    https: bool,
+     permit: BytePermit,
+     tap: Option<&CallLogger>,
+     policy_dispatch: Option<&mut PolicyRetryDispatch<'_>>,
+@@ -100,7 +97,7 @@ where
+ {
+     let outcome = run_unary_inner(
+         send_req,
+-        authority,
++        routing,
+         path,
+         md,
+         timeout,
+@@ -110,7 +107,6 @@ where
+         cancel_rx,
+         wire,
+         user_agent,
+-        https,
+         permit,
+         tap,
+         policy_dispatch,
+@@ -130,7 +126,7 @@ where
+ )]
+ async fn run_unary_inner<Resp>(
+     send_req: backend::SendRequest,
+-    authority: &Authority,
++    routing: &impl super::channel::RequestRouting,
+     path: &'static str,
+     md: &crate::metadata::Metadata,
+     timeout: Option<Duration>,
+@@ -140,7 +136,6 @@ async fn run_unary_inner<Resp>(
+     cancel_rx: crate::rpc_cancel::RpcCancel,
+     wire: Wire,
+     user_agent: HeaderValue,
+-    https: bool,
+     permit: BytePermit,
+     tap: Option<&CallLogger>,
+     policy_dispatch: Option<&mut PolicyRetryDispatch<'_>>,
+@@ -150,11 +145,11 @@ where
+ {
+     let mut commitment = AttemptCommitment::Uncommitted;
+     if let Some(tap) = tap {
+-        tap.log_client_header(md, path, authority.as_str(), timeout);
++        tap.log_client_header(md, path, routing.authority().as_str(), timeout);
+     }
+     let (mut resp_fut, mut send_stream) = match open(
+         send_req,
+-        authority,
++        routing,
+         path,
+         md,
+         timeout,
+@@ -163,7 +158,6 @@ where
+         compress.then_some(wire.send_codec),
+         wire.accept_gzip,
+         &user_agent,
+-        https,
+     )
+     .await
+     {
+@@ -373,7 +367,6 @@ impl super::Channel {
+                 };
+                 // The original message is no longer needed after encoding.
+                 drop(msg);
+-                let https = channel.local.https;
+                 let ua = ua.unwrap_or_else(|| channel.local.user_agent.clone());
+                 let _permit = match channel.take_rpc_slot() {
+                     Ok(p) => p,
+@@ -405,7 +398,6 @@ impl super::Channel {
+                             cancel_rx,
+                             wire,
+                             ua,
+-                            https,
+                             policy,
+                             call_guard,
+                             owned_labels,
+@@ -523,7 +515,7 @@ impl super::Channel {
+                     }
+                     let result = run_unary_frame(
+                         live.send,
+-                        &channel.local.authority,
++                        channel.local.as_ref(),
+                         path,
+                         &md,
+                         req_timeout,
+@@ -533,7 +525,6 @@ impl super::Channel {
+                         cancel_rx.clone(),
+                         wire,
+                         ua.clone(),
+-                        https,
+                         byte_permit,
+                         tap.as_ref(),
+                         policy_dispatch.as_mut(),
+diff --git a/pbrs-grpc/src/request.rs b/pbrs-grpc/src/request.rs
+index 0bd3bd8b..671840ff 100644
+--- a/pbrs-grpc/src/request.rs
++++ b/pbrs-grpc/src/request.rs
+@@ -1204,20 +1204,22 @@ impl<'a> Outgoing<'a> {
+     /// or `localhost` on a Unix socket.
+     ///
+     /// TLS uses the channel [`crate::Target`], not SNI, unless
+-    /// [`crate::Channel::origin`] overrode it on this clone. Applies to every call
+-    /// shape.
++    /// [`crate::Endpoint::origin`] or [`crate::Channel::origin`] overrode it
++    /// on this clone. Applies to every call shape.
+     #[must_use]
+     pub fn authority(&self) -> &'a str {
+         self.authority
+     }
+ 
+-    /// HTTP/2 `:scheme` this channel sends.
++    /// Transport/security scheme for this channel.
+     ///
+     /// Same string as [`crate::Channel::scheme`]: `https` when the channel was
+     /// built with [`crate::ClientTls`], or when a [`crate::Channel::from_io`]
+     /// clone called [`crate::Channel::https_scheme`]. Otherwise `http`
+-    /// (cleartext TCP, Unix, and `from_io` without that overlay). Matches
+-    /// what the kernel writes on the request. Applies to every call shape.
++    /// (cleartext TCP, Unix, and `from_io` without that overlay). A logical
++    /// [`crate::Endpoint::origin`] does not change this security context;
++    /// [`crate::Channel::request_scheme`] reports its wire scheme. Applies to
++    /// every call shape.
+     #[must_use]
+     pub fn scheme(&self) -> &'static str {
+         self.scheme
+diff --git a/pbrs-grpc/src/tower_client.rs b/pbrs-grpc/src/tower_client.rs
+index 86fd9bb3..767cb862 100644
+--- a/pbrs-grpc/src/tower_client.rs
++++ b/pbrs-grpc/src/tower_client.rs
+@@ -360,6 +360,7 @@ mod tonic_transport {
+     ) -> Result<Response<tonic::body::Body>, Status> {
+         let (mut parts, body) = request.into_parts();
+         check_policies(&channel, parts.uri.path())?;
++        let scheme = channel.local.request_scheme().map_err(status)?.clone();
+         let rpc_permit = channel
+             .local
+             .rpc_slots
+@@ -384,7 +385,7 @@ mod tonic_transport {
+             .map_err(status)?;
+         let load = track_least_request(&channel.inner.endpoint, live.rr_addr.as_ref()).await;
+         parts.uri = Uri::builder()
+-            .scheme(channel.scheme())
++            .scheme(scheme)
+             .authority(channel.local.authority.clone())
+             .path_and_query(parts.uri.path_and_query().cloned().ok_or_else(|| {
+                 Status::invalid_argument("gRPC request URI requires a method path")
+diff --git a/pbrs-grpc/src/wire.rs b/pbrs-grpc/src/wire.rs
+index ace181dd..9c790571 100644
+--- a/pbrs-grpc/src/wire.rs
++++ b/pbrs-grpc/src/wire.rs
+@@ -13,9 +13,9 @@ pub(crate) use frame_reader::{
+ };
+ pub(crate) use headers::{
+     DEFAULT_UA, PBRS_GRPC_UA, RequestReject, STOCK_UA, accepts_gzip, begin_stock_request,
+-    check_request, effective_timeout, grpc_encoding, grpc_request, inbound_codec_from_token,
+-    preferred_codec, select_outbound_codec, select_stream_codec, soonest, timeout_from_headers,
+-    user_agent_value,
++    check_request, effective_timeout, grpc_encoding, grpc_request, grpc_request_with_scheme,
++    inbound_codec_from_token, preferred_codec, select_outbound_codec, select_stream_codec, soonest,
++    timeout_from_headers, user_agent_value,
+ };
+ pub(crate) use out_batch::{OutBatch, let_producer_catch_up};
+ pub(crate) use send::{
+diff --git a/pbrs-grpc/src/wire/headers.rs b/pbrs-grpc/src/wire/headers.rs
+index 1071effe..d4a31ee0 100644
+--- a/pbrs-grpc/src/wire/headers.rs
++++ b/pbrs-grpc/src/wire/headers.rs
+@@ -216,6 +216,42 @@ pub(crate) fn grpc_request(
+     )
+ }
+ 
++/// Construct a request with a non-HTTP(S) logical scheme. The stock header
++/// cache keys its scheme as a boolean, so these requests must remain uncached.
++#[cold]
++#[inline(never)]
++#[allow(
++    clippy::too_many_arguments,
++    reason = "cold custom-origin headers mirror ordinary request wire options"
++)]
++pub(crate) fn grpc_request_with_scheme(
++    authority: &Authority,
++    path: &'static str,
++    md: &Metadata,
++    timeout: Option<Duration>,
++    send_codec: Option<CompressionAlgorithm>,
++    accept_gzip: bool,
++    user_agent: &HeaderValue,
++    scheme: &Scheme,
++) -> Result<Request<()>, Status> {
++    let mut request = grpc_request_miss(
++        authority,
++        path,
++        md,
++        timeout,
++        send_codec,
++        accept_gzip,
++        user_agent,
++        false,
++        false,
++    )?;
++    let mut parts = std::mem::take(request.uri_mut()).into_parts();
++    parts.scheme = Some(scheme.clone());
++    *request.uri_mut() = http::Uri::from_parts(parts)
++        .map_err(|error| Status::invalid_argument(error.to_string()))?;
++    Ok(request)
++}
++
+ fn is_stock_request(
+     md: &Metadata,
+     timeout: Option<Duration>,

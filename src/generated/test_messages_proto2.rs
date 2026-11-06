@@ -111,8 +111,8 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     use pbrs::prelude::*;
     use pbrs::UnknownFields;
     use pbrs::{
-        Enum, Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
-        RepeatedView, SerializeError, UnknownEnumValue,
+        ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut, RepeatedView, SerializeError,
+        UnknownEnumValue,
     };
 
     fn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {
@@ -148,14 +148,14 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl TryFrom<i32> for Bool {
         type Error = UnknownEnumValue<Self>;
         fn try_from(val: i32) -> Result<Self, Self::Error> {
-            if <Self as Enum>::is_known(val) {
+            if <Self as pbrs::Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
                 Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
-    impl Default for Bool {
+    impl ::core::default::Default for Bool {
         fn default() -> Self {
             Self(0)
         }
@@ -187,7 +187,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             self
         }
     }
-    impl Enum for Bool {
+    impl pbrs::Enum for Bool {
         const NAME: &'static str = "Bool";
         fn is_known(value: i32) -> bool {
             matches!(value, 0 | 1)
@@ -226,14 +226,14 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl TryFrom<i32> for ForeignEnumProto2 {
         type Error = UnknownEnumValue<Self>;
         fn try_from(val: i32) -> Result<Self, Self::Error> {
-            if <Self as Enum>::is_known(val) {
+            if <Self as pbrs::Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
                 Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
-    impl Default for ForeignEnumProto2 {
+    impl ::core::default::Default for ForeignEnumProto2 {
         fn default() -> Self {
             Self(0)
         }
@@ -265,7 +265,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             self
         }
     }
-    impl Enum for ForeignEnumProto2 {
+    impl pbrs::Enum for ForeignEnumProto2 {
         const NAME: &'static str = "ForeignEnumProto2";
         fn is_known(value: i32) -> bool {
             matches!(value, 0 | 1 | 2)
@@ -309,14 +309,14 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl TryFrom<i32> for NestedEnum {
         type Error = UnknownEnumValue<Self>;
         fn try_from(val: i32) -> Result<Self, Self::Error> {
-            if <Self as Enum>::is_known(val) {
+            if <Self as pbrs::Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
                 Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
-    impl Default for NestedEnum {
+    impl ::core::default::Default for NestedEnum {
         fn default() -> Self {
             Self(0)
         }
@@ -348,7 +348,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             self
         }
     }
-    impl Enum for NestedEnum {
+    impl pbrs::Enum for NestedEnum {
         const NAME: &'static str = "NestedEnum";
         fn is_known(value: i32) -> bool {
             matches!(value, 0 | 1 | 2 | -1)
@@ -392,14 +392,14 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl TryFrom<i32> for TestAllTypesProto2NestedEnum {
         type Error = UnknownEnumValue<Self>;
         fn try_from(val: i32) -> Result<Self, Self::Error> {
-            if <Self as Enum>::is_known(val) {
+            if <Self as pbrs::Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
                 Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
-    impl Default for TestAllTypesProto2NestedEnum {
+    impl ::core::default::Default for TestAllTypesProto2NestedEnum {
         fn default() -> Self {
             Self(0)
         }
@@ -431,7 +431,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
             self
         }
     }
-    impl Enum for TestAllTypesProto2NestedEnum {
+    impl pbrs::Enum for TestAllTypesProto2NestedEnum {
         const NAME: &'static str = "TestAllTypesProto2NestedEnum";
         fn is_known(value: i32) -> bool {
             matches!(value, 0 | 1 | 2 | -1)
@@ -449,7 +449,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for EnumOnlyProto2 {}
-    impl Default for EnumOnlyProto2 {
+    impl ::core::default::Default for EnumOnlyProto2 {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -458,7 +458,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl EnumOnlyProto2 {
         /// Creates a new, default instance of [`EnumOnlyProto2`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -677,7 +677,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for ForeignMessageProto2 {}
-    impl Default for ForeignMessageProto2 {
+    impl ::core::default::Default for ForeignMessageProto2 {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -686,7 +686,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl ForeignMessageProto2 {
         /// Creates a new, default instance of [`ForeignMessageProto2`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -982,7 +982,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for GroupField {}
-    impl Default for GroupField {
+    impl ::core::default::Default for GroupField {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -991,7 +991,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl GroupField {
         /// Creates a new, default instance of [`GroupField`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -1349,7 +1349,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for NullHypothesisProto2 {}
-    impl Default for NullHypothesisProto2 {
+    impl ::core::default::Default for NullHypothesisProto2 {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -1358,7 +1358,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl NullHypothesisProto2 {
         /// Creates a new, default instance of [`NullHypothesisProto2`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -1581,7 +1581,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for OneStringProto2 {}
-    impl Default for OneStringProto2 {
+    impl ::core::default::Default for OneStringProto2 {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -1590,7 +1590,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl OneStringProto2 {
         /// Creates a new, default instance of [`OneStringProto2`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -1893,7 +1893,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for ProtoWithKeywords {}
-    impl Default for ProtoWithKeywords {
+    impl ::core::default::Default for ProtoWithKeywords {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -1902,7 +1902,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl ProtoWithKeywords {
         /// Creates a new, default instance of [`ProtoWithKeywords`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -2545,7 +2545,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for TestAllRequiredTypesProto2 {}
-    impl Default for TestAllRequiredTypesProto2 {
+    impl ::core::default::Default for TestAllRequiredTypesProto2 {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -2554,7 +2554,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl TestAllRequiredTypesProto2 {
         /// Creates a new, default instance of [`TestAllRequiredTypesProto2`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = false;
@@ -4776,7 +4776,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for Data {}
-    impl Default for Data {
+    impl ::core::default::Default for Data {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -4785,7 +4785,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl Data {
         /// Creates a new, default instance of [`Data`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = false;
@@ -5133,7 +5133,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for MessageSetCorrect {}
-    impl Default for MessageSetCorrect {
+    impl ::core::default::Default for MessageSetCorrect {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -5142,7 +5142,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl MessageSetCorrect {
         /// Creates a new, default instance of [`MessageSetCorrect`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -5711,7 +5711,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for MessageSetCorrectExtension1 {}
-    impl Default for MessageSetCorrectExtension1 {
+    impl ::core::default::Default for MessageSetCorrectExtension1 {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -5720,7 +5720,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl MessageSetCorrectExtension1 {
         /// Creates a new, default instance of [`MessageSetCorrectExtension1`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = false;
@@ -6002,7 +6002,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for MessageSetCorrectExtension2 {}
-    impl Default for MessageSetCorrectExtension2 {
+    impl ::core::default::Default for MessageSetCorrectExtension2 {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -6011,7 +6011,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl MessageSetCorrectExtension2 {
         /// Creates a new, default instance of [`MessageSetCorrectExtension2`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = false;
@@ -6294,7 +6294,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for NestedMessage {}
-    impl Default for NestedMessage {
+    impl ::core::default::Default for NestedMessage {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -6303,7 +6303,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl NestedMessage {
         /// Creates a new, default instance of [`NestedMessage`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = false;
@@ -6728,7 +6728,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         unpacked_bool: Repeated<bool>,
         unpacked_nested_enum: Repeated<i32>,
     }
-    impl Default for TestAllTypesProto2Cold {
+    impl ::core::default::Default for TestAllTypesProto2Cold {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -6774,30 +6774,30 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         repeated_string_piece: Repeated<pbrs::rt::LazyStr>,
         repeated_cord: Repeated<pbrs::rt::LazyStr>,
         /// Map
-        map_int32_int32: Map<i32, i32>,
-        map_int64_int64: Map<i64, i64>,
-        map_uint32_uint32: Map<u32, u32>,
-        map_uint64_uint64: Map<u64, u64>,
-        map_sint32_sint32: Map<i32, i32>,
-        map_sint64_sint64: Map<i64, i64>,
-        map_fixed32_fixed32: Map<u32, u32>,
-        map_fixed64_fixed64: Map<u64, u64>,
-        map_sfixed32_sfixed32: Map<i32, i32>,
-        map_sfixed64_sfixed64: Map<i64, i64>,
-        map_int32_float: Map<i32, f32>,
-        map_int32_double: Map<i32, f64>,
-        map_bool_bool: Map<bool, bool>,
-        map_string_string: Map<pbrs::rt::LazyStr, pbrs::rt::LazyStr>,
-        map_string_bytes: Map<pbrs::rt::LazyStr, pbrs::rt::LazyBytes>,
-        map_string_nested_message: Map<pbrs::rt::LazyStr, TestAllTypesProto2NestedMessage>,
-        map_string_foreign_message: Map<pbrs::rt::LazyStr, ForeignMessageProto2>,
-        map_string_nested_enum: Map<pbrs::rt::LazyStr, i32>,
-        map_string_foreign_enum: Map<pbrs::rt::LazyStr, i32>,
+        map_int32_int32: pbrs::Map<i32, i32>,
+        map_int64_int64: pbrs::Map<i64, i64>,
+        map_uint32_uint32: pbrs::Map<u32, u32>,
+        map_uint64_uint64: pbrs::Map<u64, u64>,
+        map_sint32_sint32: pbrs::Map<i32, i32>,
+        map_sint64_sint64: pbrs::Map<i64, i64>,
+        map_fixed32_fixed32: pbrs::Map<u32, u32>,
+        map_fixed64_fixed64: pbrs::Map<u64, u64>,
+        map_sfixed32_sfixed32: pbrs::Map<i32, i32>,
+        map_sfixed64_sfixed64: pbrs::Map<i64, i64>,
+        map_int32_float: pbrs::Map<i32, f32>,
+        map_int32_double: pbrs::Map<i32, f64>,
+        map_bool_bool: pbrs::Map<bool, bool>,
+        map_string_string: pbrs::Map<pbrs::rt::LazyStr, pbrs::rt::LazyStr>,
+        map_string_bytes: pbrs::Map<pbrs::rt::LazyStr, pbrs::rt::LazyBytes>,
+        map_string_nested_message: pbrs::Map<pbrs::rt::LazyStr, TestAllTypesProto2NestedMessage>,
+        map_string_foreign_message: pbrs::Map<pbrs::rt::LazyStr, ForeignMessageProto2>,
+        map_string_nested_enum: pbrs::Map<pbrs::rt::LazyStr, i32>,
+        map_string_foreign_enum: pbrs::Map<pbrs::rt::LazyStr, i32>,
         packed_fixed32: pbrs::rt::PackedFx32,
         packed_fixed64: pbrs::rt::PackedFx64,
         packed_float: pbrs::rt::PackedF32,
-        map_int32_nested_message: Map<i32, TestAllTypesProto2NestedMessage>,
-        map_int32_bool: Map<i32, bool>,
+        map_int32_nested_message: pbrs::Map<i32, TestAllTypesProto2NestedMessage>,
+        map_int32_bool: pbrs::Map<i32, bool>,
         oneof_uint32: Option<u32>,
         oneof_nested_message: pbrs::rt::LazyMsg<TestAllTypesProto2NestedMessage>,
         oneof_string: Option<Box<pbrs::rt::LazyStr>>,
@@ -7178,7 +7178,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for TestAllTypesProto2 {}
-    impl Default for TestAllTypesProto2 {
+    impl ::core::default::Default for TestAllTypesProto2 {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -7187,7 +7187,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl TestAllTypesProto2 {
         /// Creates a new, default instance of [`TestAllTypesProto2`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         #[inline(always)]
         fn cold_mut(&mut self) -> &mut TestAllTypesProto2Cold {
@@ -8188,244 +8188,252 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         /// Field `map_int32_int32` (number 56).
         ///
         /// Map field with key `i32` and value `i32`. Empty by default.
-        pub fn map_int32_int32(&self) -> MapView<'_, i32, i32> {
+        pub fn map_int32_int32(&self) -> pbrs::MapView<'_, i32, i32> {
             self.map_int32_int32.as_view()
         }
         /// Returns a mutable view of field `map_int32_int32`.
-        pub fn map_int32_int32_mut(&mut self) -> MapMut<'_, i32, i32> {
+        pub fn map_int32_int32_mut(&mut self) -> pbrs::MapMut<'_, i32, i32> {
             self.cached_size.dirty();
             self.map_int32_int32.as_mut()
         }
         /// Sets the value of `map_int32_int32`.
-        pub fn set_map_int32_int32(&mut self, v: Map<i32, i32>) {
+        pub fn set_map_int32_int32(&mut self, v: pbrs::Map<i32, i32>) {
             self.cached_size.dirty();
             self.map_int32_int32 = v;
         }
         /// Field `map_int64_int64` (number 57).
         ///
         /// Map field with key `i64` and value `i64`. Empty by default.
-        pub fn map_int64_int64(&self) -> MapView<'_, i64, i64> {
+        pub fn map_int64_int64(&self) -> pbrs::MapView<'_, i64, i64> {
             self.map_int64_int64.as_view()
         }
         /// Returns a mutable view of field `map_int64_int64`.
-        pub fn map_int64_int64_mut(&mut self) -> MapMut<'_, i64, i64> {
+        pub fn map_int64_int64_mut(&mut self) -> pbrs::MapMut<'_, i64, i64> {
             self.cached_size.dirty();
             self.map_int64_int64.as_mut()
         }
         /// Sets the value of `map_int64_int64`.
-        pub fn set_map_int64_int64(&mut self, v: Map<i64, i64>) {
+        pub fn set_map_int64_int64(&mut self, v: pbrs::Map<i64, i64>) {
             self.cached_size.dirty();
             self.map_int64_int64 = v;
         }
         /// Field `map_uint32_uint32` (number 58).
         ///
         /// Map field with key `u32` and value `u32`. Empty by default.
-        pub fn map_uint32_uint32(&self) -> MapView<'_, u32, u32> {
+        pub fn map_uint32_uint32(&self) -> pbrs::MapView<'_, u32, u32> {
             self.map_uint32_uint32.as_view()
         }
         /// Returns a mutable view of field `map_uint32_uint32`.
-        pub fn map_uint32_uint32_mut(&mut self) -> MapMut<'_, u32, u32> {
+        pub fn map_uint32_uint32_mut(&mut self) -> pbrs::MapMut<'_, u32, u32> {
             self.cached_size.dirty();
             self.map_uint32_uint32.as_mut()
         }
         /// Sets the value of `map_uint32_uint32`.
-        pub fn set_map_uint32_uint32(&mut self, v: Map<u32, u32>) {
+        pub fn set_map_uint32_uint32(&mut self, v: pbrs::Map<u32, u32>) {
             self.cached_size.dirty();
             self.map_uint32_uint32 = v;
         }
         /// Field `map_uint64_uint64` (number 59).
         ///
         /// Map field with key `u64` and value `u64`. Empty by default.
-        pub fn map_uint64_uint64(&self) -> MapView<'_, u64, u64> {
+        pub fn map_uint64_uint64(&self) -> pbrs::MapView<'_, u64, u64> {
             self.map_uint64_uint64.as_view()
         }
         /// Returns a mutable view of field `map_uint64_uint64`.
-        pub fn map_uint64_uint64_mut(&mut self) -> MapMut<'_, u64, u64> {
+        pub fn map_uint64_uint64_mut(&mut self) -> pbrs::MapMut<'_, u64, u64> {
             self.cached_size.dirty();
             self.map_uint64_uint64.as_mut()
         }
         /// Sets the value of `map_uint64_uint64`.
-        pub fn set_map_uint64_uint64(&mut self, v: Map<u64, u64>) {
+        pub fn set_map_uint64_uint64(&mut self, v: pbrs::Map<u64, u64>) {
             self.cached_size.dirty();
             self.map_uint64_uint64 = v;
         }
         /// Field `map_sint32_sint32` (number 60).
         ///
         /// Map field with key `i32` and value `i32`. Empty by default.
-        pub fn map_sint32_sint32(&self) -> MapView<'_, i32, i32> {
+        pub fn map_sint32_sint32(&self) -> pbrs::MapView<'_, i32, i32> {
             self.map_sint32_sint32.as_view()
         }
         /// Returns a mutable view of field `map_sint32_sint32`.
-        pub fn map_sint32_sint32_mut(&mut self) -> MapMut<'_, i32, i32> {
+        pub fn map_sint32_sint32_mut(&mut self) -> pbrs::MapMut<'_, i32, i32> {
             self.cached_size.dirty();
             self.map_sint32_sint32.as_mut()
         }
         /// Sets the value of `map_sint32_sint32`.
-        pub fn set_map_sint32_sint32(&mut self, v: Map<i32, i32>) {
+        pub fn set_map_sint32_sint32(&mut self, v: pbrs::Map<i32, i32>) {
             self.cached_size.dirty();
             self.map_sint32_sint32 = v;
         }
         /// Field `map_sint64_sint64` (number 61).
         ///
         /// Map field with key `i64` and value `i64`. Empty by default.
-        pub fn map_sint64_sint64(&self) -> MapView<'_, i64, i64> {
+        pub fn map_sint64_sint64(&self) -> pbrs::MapView<'_, i64, i64> {
             self.map_sint64_sint64.as_view()
         }
         /// Returns a mutable view of field `map_sint64_sint64`.
-        pub fn map_sint64_sint64_mut(&mut self) -> MapMut<'_, i64, i64> {
+        pub fn map_sint64_sint64_mut(&mut self) -> pbrs::MapMut<'_, i64, i64> {
             self.cached_size.dirty();
             self.map_sint64_sint64.as_mut()
         }
         /// Sets the value of `map_sint64_sint64`.
-        pub fn set_map_sint64_sint64(&mut self, v: Map<i64, i64>) {
+        pub fn set_map_sint64_sint64(&mut self, v: pbrs::Map<i64, i64>) {
             self.cached_size.dirty();
             self.map_sint64_sint64 = v;
         }
         /// Field `map_fixed32_fixed32` (number 62).
         ///
         /// Map field with key `u32` and value `u32`. Empty by default.
-        pub fn map_fixed32_fixed32(&self) -> MapView<'_, u32, u32> {
+        pub fn map_fixed32_fixed32(&self) -> pbrs::MapView<'_, u32, u32> {
             self.map_fixed32_fixed32.as_view()
         }
         /// Returns a mutable view of field `map_fixed32_fixed32`.
-        pub fn map_fixed32_fixed32_mut(&mut self) -> MapMut<'_, u32, u32> {
+        pub fn map_fixed32_fixed32_mut(&mut self) -> pbrs::MapMut<'_, u32, u32> {
             self.cached_size.dirty();
             self.map_fixed32_fixed32.as_mut()
         }
         /// Sets the value of `map_fixed32_fixed32`.
-        pub fn set_map_fixed32_fixed32(&mut self, v: Map<u32, u32>) {
+        pub fn set_map_fixed32_fixed32(&mut self, v: pbrs::Map<u32, u32>) {
             self.cached_size.dirty();
             self.map_fixed32_fixed32 = v;
         }
         /// Field `map_fixed64_fixed64` (number 63).
         ///
         /// Map field with key `u64` and value `u64`. Empty by default.
-        pub fn map_fixed64_fixed64(&self) -> MapView<'_, u64, u64> {
+        pub fn map_fixed64_fixed64(&self) -> pbrs::MapView<'_, u64, u64> {
             self.map_fixed64_fixed64.as_view()
         }
         /// Returns a mutable view of field `map_fixed64_fixed64`.
-        pub fn map_fixed64_fixed64_mut(&mut self) -> MapMut<'_, u64, u64> {
+        pub fn map_fixed64_fixed64_mut(&mut self) -> pbrs::MapMut<'_, u64, u64> {
             self.cached_size.dirty();
             self.map_fixed64_fixed64.as_mut()
         }
         /// Sets the value of `map_fixed64_fixed64`.
-        pub fn set_map_fixed64_fixed64(&mut self, v: Map<u64, u64>) {
+        pub fn set_map_fixed64_fixed64(&mut self, v: pbrs::Map<u64, u64>) {
             self.cached_size.dirty();
             self.map_fixed64_fixed64 = v;
         }
         /// Field `map_sfixed32_sfixed32` (number 64).
         ///
         /// Map field with key `i32` and value `i32`. Empty by default.
-        pub fn map_sfixed32_sfixed32(&self) -> MapView<'_, i32, i32> {
+        pub fn map_sfixed32_sfixed32(&self) -> pbrs::MapView<'_, i32, i32> {
             self.map_sfixed32_sfixed32.as_view()
         }
         /// Returns a mutable view of field `map_sfixed32_sfixed32`.
-        pub fn map_sfixed32_sfixed32_mut(&mut self) -> MapMut<'_, i32, i32> {
+        pub fn map_sfixed32_sfixed32_mut(&mut self) -> pbrs::MapMut<'_, i32, i32> {
             self.cached_size.dirty();
             self.map_sfixed32_sfixed32.as_mut()
         }
         /// Sets the value of `map_sfixed32_sfixed32`.
-        pub fn set_map_sfixed32_sfixed32(&mut self, v: Map<i32, i32>) {
+        pub fn set_map_sfixed32_sfixed32(&mut self, v: pbrs::Map<i32, i32>) {
             self.cached_size.dirty();
             self.map_sfixed32_sfixed32 = v;
         }
         /// Field `map_sfixed64_sfixed64` (number 65).
         ///
         /// Map field with key `i64` and value `i64`. Empty by default.
-        pub fn map_sfixed64_sfixed64(&self) -> MapView<'_, i64, i64> {
+        pub fn map_sfixed64_sfixed64(&self) -> pbrs::MapView<'_, i64, i64> {
             self.map_sfixed64_sfixed64.as_view()
         }
         /// Returns a mutable view of field `map_sfixed64_sfixed64`.
-        pub fn map_sfixed64_sfixed64_mut(&mut self) -> MapMut<'_, i64, i64> {
+        pub fn map_sfixed64_sfixed64_mut(&mut self) -> pbrs::MapMut<'_, i64, i64> {
             self.cached_size.dirty();
             self.map_sfixed64_sfixed64.as_mut()
         }
         /// Sets the value of `map_sfixed64_sfixed64`.
-        pub fn set_map_sfixed64_sfixed64(&mut self, v: Map<i64, i64>) {
+        pub fn set_map_sfixed64_sfixed64(&mut self, v: pbrs::Map<i64, i64>) {
             self.cached_size.dirty();
             self.map_sfixed64_sfixed64 = v;
         }
         /// Field `map_int32_float` (number 66).
         ///
         /// Map field with key `i32` and value `f32`. Empty by default.
-        pub fn map_int32_float(&self) -> MapView<'_, i32, f32> {
+        pub fn map_int32_float(&self) -> pbrs::MapView<'_, i32, f32> {
             self.map_int32_float.as_view()
         }
         /// Returns a mutable view of field `map_int32_float`.
-        pub fn map_int32_float_mut(&mut self) -> MapMut<'_, i32, f32> {
+        pub fn map_int32_float_mut(&mut self) -> pbrs::MapMut<'_, i32, f32> {
             self.cached_size.dirty();
             self.map_int32_float.as_mut()
         }
         /// Sets the value of `map_int32_float`.
-        pub fn set_map_int32_float(&mut self, v: Map<i32, f32>) {
+        pub fn set_map_int32_float(&mut self, v: pbrs::Map<i32, f32>) {
             self.cached_size.dirty();
             self.map_int32_float = v;
         }
         /// Field `map_int32_double` (number 67).
         ///
         /// Map field with key `i32` and value `f64`. Empty by default.
-        pub fn map_int32_double(&self) -> MapView<'_, i32, f64> {
+        pub fn map_int32_double(&self) -> pbrs::MapView<'_, i32, f64> {
             self.map_int32_double.as_view()
         }
         /// Returns a mutable view of field `map_int32_double`.
-        pub fn map_int32_double_mut(&mut self) -> MapMut<'_, i32, f64> {
+        pub fn map_int32_double_mut(&mut self) -> pbrs::MapMut<'_, i32, f64> {
             self.cached_size.dirty();
             self.map_int32_double.as_mut()
         }
         /// Sets the value of `map_int32_double`.
-        pub fn set_map_int32_double(&mut self, v: Map<i32, f64>) {
+        pub fn set_map_int32_double(&mut self, v: pbrs::Map<i32, f64>) {
             self.cached_size.dirty();
             self.map_int32_double = v;
         }
         /// Field `map_bool_bool` (number 68).
         ///
         /// Map field with key `bool` and value `bool`. Empty by default.
-        pub fn map_bool_bool(&self) -> MapView<'_, bool, bool> {
+        pub fn map_bool_bool(&self) -> pbrs::MapView<'_, bool, bool> {
             self.map_bool_bool.as_view()
         }
         /// Returns a mutable view of field `map_bool_bool`.
-        pub fn map_bool_bool_mut(&mut self) -> MapMut<'_, bool, bool> {
+        pub fn map_bool_bool_mut(&mut self) -> pbrs::MapMut<'_, bool, bool> {
             self.cached_size.dirty();
             self.map_bool_bool.as_mut()
         }
         /// Sets the value of `map_bool_bool`.
-        pub fn set_map_bool_bool(&mut self, v: Map<bool, bool>) {
+        pub fn set_map_bool_bool(&mut self, v: pbrs::Map<bool, bool>) {
             self.cached_size.dirty();
             self.map_bool_bool = v;
         }
         /// Field `map_string_string` (number 69).
         ///
         /// Map field with key `pbrs::rt::LazyStr` and value `pbrs::rt::LazyStr`. Empty by default.
-        pub fn map_string_string(&self) -> MapView<'_, pbrs::rt::LazyStr, pbrs::rt::LazyStr> {
+        pub fn map_string_string(&self) -> pbrs::MapView<'_, pbrs::rt::LazyStr, pbrs::rt::LazyStr> {
             self.map_string_string.as_view()
         }
         /// Returns a mutable view of field `map_string_string`.
         pub fn map_string_string_mut(
             &mut self,
-        ) -> MapMut<'_, pbrs::rt::LazyStr, pbrs::rt::LazyStr> {
+        ) -> pbrs::MapMut<'_, pbrs::rt::LazyStr, pbrs::rt::LazyStr> {
             self.cached_size.dirty();
             self.map_string_string.as_mut()
         }
         /// Sets the value of `map_string_string`.
-        pub fn set_map_string_string(&mut self, v: Map<pbrs::rt::LazyStr, pbrs::rt::LazyStr>) {
+        pub fn set_map_string_string(
+            &mut self,
+            v: pbrs::Map<pbrs::rt::LazyStr, pbrs::rt::LazyStr>,
+        ) {
             self.cached_size.dirty();
             self.map_string_string = v;
         }
         /// Field `map_string_bytes` (number 70).
         ///
         /// Map field with key `pbrs::rt::LazyStr` and value `pbrs::rt::LazyBytes`. Empty by default.
-        pub fn map_string_bytes(&self) -> MapView<'_, pbrs::rt::LazyStr, pbrs::rt::LazyBytes> {
+        pub fn map_string_bytes(
+            &self,
+        ) -> pbrs::MapView<'_, pbrs::rt::LazyStr, pbrs::rt::LazyBytes> {
             self.map_string_bytes.as_view()
         }
         /// Returns a mutable view of field `map_string_bytes`.
         pub fn map_string_bytes_mut(
             &mut self,
-        ) -> MapMut<'_, pbrs::rt::LazyStr, pbrs::rt::LazyBytes> {
+        ) -> pbrs::MapMut<'_, pbrs::rt::LazyStr, pbrs::rt::LazyBytes> {
             self.cached_size.dirty();
             self.map_string_bytes.as_mut()
         }
         /// Sets the value of `map_string_bytes`.
-        pub fn set_map_string_bytes(&mut self, v: Map<pbrs::rt::LazyStr, pbrs::rt::LazyBytes>) {
+        pub fn set_map_string_bytes(
+            &mut self,
+            v: pbrs::Map<pbrs::rt::LazyStr, pbrs::rt::LazyBytes>,
+        ) {
             self.cached_size.dirty();
             self.map_string_bytes = v;
         }
@@ -8434,20 +8442,20 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         /// Map field with key `pbrs::rt::LazyStr` and value `TestAllTypesProto2NestedMessage`. Empty by default.
         pub fn map_string_nested_message(
             &self,
-        ) -> MapView<'_, pbrs::rt::LazyStr, TestAllTypesProto2NestedMessage> {
+        ) -> pbrs::MapView<'_, pbrs::rt::LazyStr, TestAllTypesProto2NestedMessage> {
             self.map_string_nested_message.as_view()
         }
         /// Returns a mutable view of field `map_string_nested_message`.
         pub fn map_string_nested_message_mut(
             &mut self,
-        ) -> MapMut<'_, pbrs::rt::LazyStr, TestAllTypesProto2NestedMessage> {
+        ) -> pbrs::MapMut<'_, pbrs::rt::LazyStr, TestAllTypesProto2NestedMessage> {
             self.cached_size.dirty();
             self.map_string_nested_message.as_mut()
         }
         /// Sets the value of `map_string_nested_message`.
         pub fn set_map_string_nested_message(
             &mut self,
-            v: Map<pbrs::rt::LazyStr, TestAllTypesProto2NestedMessage>,
+            v: pbrs::Map<pbrs::rt::LazyStr, TestAllTypesProto2NestedMessage>,
         ) {
             self.cached_size.dirty();
             self.map_string_nested_message = v;
@@ -8457,20 +8465,20 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         /// Map field with key `pbrs::rt::LazyStr` and value `ForeignMessageProto2`. Empty by default.
         pub fn map_string_foreign_message(
             &self,
-        ) -> MapView<'_, pbrs::rt::LazyStr, ForeignMessageProto2> {
+        ) -> pbrs::MapView<'_, pbrs::rt::LazyStr, ForeignMessageProto2> {
             self.map_string_foreign_message.as_view()
         }
         /// Returns a mutable view of field `map_string_foreign_message`.
         pub fn map_string_foreign_message_mut(
             &mut self,
-        ) -> MapMut<'_, pbrs::rt::LazyStr, ForeignMessageProto2> {
+        ) -> pbrs::MapMut<'_, pbrs::rt::LazyStr, ForeignMessageProto2> {
             self.cached_size.dirty();
             self.map_string_foreign_message.as_mut()
         }
         /// Sets the value of `map_string_foreign_message`.
         pub fn set_map_string_foreign_message(
             &mut self,
-            v: Map<pbrs::rt::LazyStr, ForeignMessageProto2>,
+            v: pbrs::Map<pbrs::rt::LazyStr, ForeignMessageProto2>,
         ) {
             self.cached_size.dirty();
             self.map_string_foreign_message = v;
@@ -8478,32 +8486,32 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         /// Field `map_string_nested_enum` (number 73).
         ///
         /// Map field with key `pbrs::rt::LazyStr` and value `i32`. Empty by default.
-        pub fn map_string_nested_enum(&self) -> MapView<'_, pbrs::rt::LazyStr, i32> {
+        pub fn map_string_nested_enum(&self) -> pbrs::MapView<'_, pbrs::rt::LazyStr, i32> {
             self.map_string_nested_enum.as_view()
         }
         /// Returns a mutable view of field `map_string_nested_enum`.
-        pub fn map_string_nested_enum_mut(&mut self) -> MapMut<'_, pbrs::rt::LazyStr, i32> {
+        pub fn map_string_nested_enum_mut(&mut self) -> pbrs::MapMut<'_, pbrs::rt::LazyStr, i32> {
             self.cached_size.dirty();
             self.map_string_nested_enum.as_mut()
         }
         /// Sets the value of `map_string_nested_enum`.
-        pub fn set_map_string_nested_enum(&mut self, v: Map<pbrs::rt::LazyStr, i32>) {
+        pub fn set_map_string_nested_enum(&mut self, v: pbrs::Map<pbrs::rt::LazyStr, i32>) {
             self.cached_size.dirty();
             self.map_string_nested_enum = v;
         }
         /// Field `map_string_foreign_enum` (number 74).
         ///
         /// Map field with key `pbrs::rt::LazyStr` and value `i32`. Empty by default.
-        pub fn map_string_foreign_enum(&self) -> MapView<'_, pbrs::rt::LazyStr, i32> {
+        pub fn map_string_foreign_enum(&self) -> pbrs::MapView<'_, pbrs::rt::LazyStr, i32> {
             self.map_string_foreign_enum.as_view()
         }
         /// Returns a mutable view of field `map_string_foreign_enum`.
-        pub fn map_string_foreign_enum_mut(&mut self) -> MapMut<'_, pbrs::rt::LazyStr, i32> {
+        pub fn map_string_foreign_enum_mut(&mut self) -> pbrs::MapMut<'_, pbrs::rt::LazyStr, i32> {
             self.cached_size.dirty();
             self.map_string_foreign_enum.as_mut()
         }
         /// Sets the value of `map_string_foreign_enum`.
-        pub fn set_map_string_foreign_enum(&mut self, v: Map<pbrs::rt::LazyStr, i32>) {
+        pub fn set_map_string_foreign_enum(&mut self, v: pbrs::Map<pbrs::rt::LazyStr, i32>) {
             self.cached_size.dirty();
             self.map_string_foreign_enum = v;
         }
@@ -9047,20 +9055,20 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         /// Map field with key `i32` and value `TestAllTypesProto2NestedMessage`. Empty by default.
         pub fn map_int32_nested_message(
             &self,
-        ) -> MapView<'_, i32, TestAllTypesProto2NestedMessage> {
+        ) -> pbrs::MapView<'_, i32, TestAllTypesProto2NestedMessage> {
             self.map_int32_nested_message.as_view()
         }
         /// Returns a mutable view of field `map_int32_nested_message`.
         pub fn map_int32_nested_message_mut(
             &mut self,
-        ) -> MapMut<'_, i32, TestAllTypesProto2NestedMessage> {
+        ) -> pbrs::MapMut<'_, i32, TestAllTypesProto2NestedMessage> {
             self.cached_size.dirty();
             self.map_int32_nested_message.as_mut()
         }
         /// Sets the value of `map_int32_nested_message`.
         pub fn set_map_int32_nested_message(
             &mut self,
-            v: Map<i32, TestAllTypesProto2NestedMessage>,
+            v: pbrs::Map<i32, TestAllTypesProto2NestedMessage>,
         ) {
             self.cached_size.dirty();
             self.map_int32_nested_message = v;
@@ -9068,16 +9076,16 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         /// Field `map_int32_bool` (number 104).
         ///
         /// Map field with key `i32` and value `bool`. Empty by default.
-        pub fn map_int32_bool(&self) -> MapView<'_, i32, bool> {
+        pub fn map_int32_bool(&self) -> pbrs::MapView<'_, i32, bool> {
             self.map_int32_bool.as_view()
         }
         /// Returns a mutable view of field `map_int32_bool`.
-        pub fn map_int32_bool_mut(&mut self) -> MapMut<'_, i32, bool> {
+        pub fn map_int32_bool_mut(&mut self) -> pbrs::MapMut<'_, i32, bool> {
             self.cached_size.dirty();
             self.map_int32_bool.as_mut()
         }
         /// Sets the value of `map_int32_bool`.
-        pub fn set_map_int32_bool(&mut self, v: Map<i32, bool>) {
+        pub fn set_map_int32_bool(&mut self, v: pbrs::Map<i32, bool>) {
             self.cached_size.dirty();
             self.map_int32_bool = v;
         }
@@ -9100,7 +9108,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         /// Part of a oneof: clears any other set field in the oneof.
         pub fn set_oneof_uint32(&mut self, v: u32) {
             self.cached_size.dirty();
-            self.oneof_nested_message = Default::default();
+            self.oneof_nested_message = ::core::default::Default::default();
             self.oneof_string = None;
             self.oneof_bytes = None;
             self.oneof_bool = pbrs::rt::OptBool::NONE;
@@ -9185,7 +9193,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         pub fn set_oneof_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
             self.oneof_uint32 = None;
-            self.oneof_nested_message = Default::default();
+            self.oneof_nested_message = ::core::default::Default::default();
             self.oneof_bytes = None;
             self.oneof_bool = pbrs::rt::OptBool::NONE;
             self.oneof_uint64 = None;
@@ -9252,7 +9260,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         pub fn set_oneof_bool(&mut self, v: bool) {
             self.cached_size.dirty();
             self.oneof_uint32 = None;
-            self.oneof_nested_message = Default::default();
+            self.oneof_nested_message = ::core::default::Default::default();
             self.oneof_string = None;
             self.oneof_bytes = None;
             self.oneof_uint64 = None;
@@ -9286,7 +9294,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         pub fn set_oneof_uint64(&mut self, v: u64) {
             self.cached_size.dirty();
             self.oneof_uint32 = None;
-            self.oneof_nested_message = Default::default();
+            self.oneof_nested_message = ::core::default::Default::default();
             self.oneof_string = None;
             self.oneof_bytes = None;
             self.oneof_bool = pbrs::rt::OptBool::NONE;
@@ -9320,7 +9328,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         pub fn set_oneof_float(&mut self, v: f32) {
             self.cached_size.dirty();
             self.oneof_uint32 = None;
-            self.oneof_nested_message = Default::default();
+            self.oneof_nested_message = ::core::default::Default::default();
             self.oneof_string = None;
             self.oneof_bytes = None;
             self.oneof_bool = pbrs::rt::OptBool::NONE;
@@ -9354,7 +9362,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         pub fn set_oneof_double(&mut self, v: f64) {
             self.cached_size.dirty();
             self.oneof_uint32 = None;
-            self.oneof_nested_message = Default::default();
+            self.oneof_nested_message = ::core::default::Default::default();
             self.oneof_string = None;
             self.oneof_bytes = None;
             self.oneof_bool = pbrs::rt::OptBool::NONE;
@@ -9388,7 +9396,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         pub fn set_oneof_enum(&mut self, v: impl Into<i32>) {
             self.cached_size.dirty();
             self.oneof_uint32 = None;
-            self.oneof_nested_message = Default::default();
+            self.oneof_nested_message = ::core::default::Default::default();
             self.oneof_string = None;
             self.oneof_bytes = None;
             self.oneof_bool = pbrs::rt::OptBool::NONE;
@@ -13330,7 +13338,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                     },
                     111 => match w {
                         pbrs::rt::WIRE_VARINT => {
-                            self.oneof_nested_message = Default::default();
+                            self.oneof_nested_message = ::core::default::Default::default();
                             self.oneof_string = None;
                             self.oneof_bytes = None;
                             self.oneof_bool = pbrs::rt::OptBool::NONE;
@@ -13396,7 +13404,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                     113 => match w {
                         pbrs::rt::WIRE_LEN => {
                             self.oneof_uint32 = None;
-                            self.oneof_nested_message = Default::default();
+                            self.oneof_nested_message = ::core::default::Default::default();
                             self.oneof_bytes = None;
                             self.oneof_bool = pbrs::rt::OptBool::NONE;
                             self.oneof_uint64 = None;
@@ -13418,7 +13426,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                     114 => match w {
                         pbrs::rt::WIRE_LEN => {
                             self.oneof_uint32 = None;
-                            self.oneof_nested_message = Default::default();
+                            self.oneof_nested_message = ::core::default::Default::default();
                             self.oneof_string = None;
                             self.oneof_bool = pbrs::rt::OptBool::NONE;
                             self.oneof_uint64 = None;
@@ -13440,7 +13448,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                     115 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             self.oneof_uint32 = None;
-                            self.oneof_nested_message = Default::default();
+                            self.oneof_nested_message = ::core::default::Default::default();
                             self.oneof_string = None;
                             self.oneof_bytes = None;
                             self.oneof_uint64 = None;
@@ -13460,7 +13468,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                     116 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             self.oneof_uint32 = None;
-                            self.oneof_nested_message = Default::default();
+                            self.oneof_nested_message = ::core::default::Default::default();
                             self.oneof_string = None;
                             self.oneof_bytes = None;
                             self.oneof_bool = pbrs::rt::OptBool::NONE;
@@ -13479,7 +13487,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                     117 => match w {
                         pbrs::rt::WIRE_I32 => {
                             self.oneof_uint32 = None;
-                            self.oneof_nested_message = Default::default();
+                            self.oneof_nested_message = ::core::default::Default::default();
                             self.oneof_string = None;
                             self.oneof_bytes = None;
                             self.oneof_bool = pbrs::rt::OptBool::NONE;
@@ -13499,7 +13507,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                     118 => match w {
                         pbrs::rt::WIRE_I64 => {
                             self.oneof_uint32 = None;
-                            self.oneof_nested_message = Default::default();
+                            self.oneof_nested_message = ::core::default::Default::default();
                             self.oneof_string = None;
                             self.oneof_bytes = None;
                             self.oneof_bool = pbrs::rt::OptBool::NONE;
@@ -13519,7 +13527,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                     119 => match w {
                         pbrs::rt::WIRE_VARINT => {
                             self.oneof_uint32 = None;
-                            self.oneof_nested_message = Default::default();
+                            self.oneof_nested_message = ::core::default::Default::default();
                             self.oneof_string = None;
                             self.oneof_bytes = None;
                             self.oneof_bool = pbrs::rt::OptBool::NONE;
@@ -18464,7 +18472,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for TestAllTypesProto2Data {}
-    impl Default for TestAllTypesProto2Data {
+    impl ::core::default::Default for TestAllTypesProto2Data {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -18473,7 +18481,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl TestAllTypesProto2Data {
         /// Creates a new, default instance of [`TestAllTypesProto2Data`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -18843,7 +18851,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for ExtensionWithOneof {}
-    impl Default for ExtensionWithOneof {
+    impl ::core::default::Default for ExtensionWithOneof {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -18852,7 +18860,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl ExtensionWithOneof {
         /// Creates a new, default instance of [`ExtensionWithOneof`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -19239,7 +19247,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for TestAllTypesProto2MessageSetCorrect {}
-    impl Default for TestAllTypesProto2MessageSetCorrect {
+    impl ::core::default::Default for TestAllTypesProto2MessageSetCorrect {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -19248,7 +19256,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl TestAllTypesProto2MessageSetCorrect {
         /// Creates a new, default instance of [`TestAllTypesProto2MessageSetCorrect`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -19961,7 +19969,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for TestAllTypesProto2MessageSetCorrectExtension1 {}
-    impl Default for TestAllTypesProto2MessageSetCorrectExtension1 {
+    impl ::core::default::Default for TestAllTypesProto2MessageSetCorrectExtension1 {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -19970,7 +19978,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl TestAllTypesProto2MessageSetCorrectExtension1 {
         /// Creates a new, default instance of [`TestAllTypesProto2MessageSetCorrectExtension1`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -20274,7 +20282,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for TestAllTypesProto2MessageSetCorrectExtension2 {}
-    impl Default for TestAllTypesProto2MessageSetCorrectExtension2 {
+    impl ::core::default::Default for TestAllTypesProto2MessageSetCorrectExtension2 {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -20283,7 +20291,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl TestAllTypesProto2MessageSetCorrectExtension2 {
         /// Creates a new, default instance of [`TestAllTypesProto2MessageSetCorrectExtension2`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -20688,7 +20696,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for MultiWordGroupField {}
-    impl Default for MultiWordGroupField {
+    impl ::core::default::Default for MultiWordGroupField {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -20697,7 +20705,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl MultiWordGroupField {
         /// Creates a new, default instance of [`MultiWordGroupField`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -21068,7 +21076,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for TestAllTypesProto2NestedMessage {}
-    impl Default for TestAllTypesProto2NestedMessage {
+    impl ::core::default::Default for TestAllTypesProto2NestedMessage {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -21077,7 +21085,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl TestAllTypesProto2NestedMessage {
         /// Creates a new, default instance of [`TestAllTypesProto2NestedMessage`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -21483,7 +21491,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for TestLargeOneof {}
-    impl Default for TestLargeOneof {
+    impl ::core::default::Default for TestLargeOneof {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -21492,7 +21500,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl TestLargeOneof {
         /// Creates a new, default instance of [`TestLargeOneof`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -21524,10 +21532,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         /// Part of a oneof: clears any other set field in the oneof.
         pub fn set_a1(&mut self, v: A1) {
             self.cached_size.dirty();
-            self.a2 = Default::default();
-            self.a3 = Default::default();
-            self.a4 = Default::default();
-            self.a5 = Default::default();
+            self.a2 = ::core::default::Default::default();
+            self.a3 = ::core::default::Default::default();
+            self.a4 = ::core::default::Default::default();
+            self.a5 = ::core::default::Default::default();
             self.a1 = pbrs::rt::LazyMsg::from_owned(v);
         }
         /// Returns a mutable reference to `a1`, initializing it with default values if unset.
@@ -21566,10 +21574,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         /// Part of a oneof: clears any other set field in the oneof.
         pub fn set_a2(&mut self, v: A2) {
             self.cached_size.dirty();
-            self.a1 = Default::default();
-            self.a3 = Default::default();
-            self.a4 = Default::default();
-            self.a5 = Default::default();
+            self.a1 = ::core::default::Default::default();
+            self.a3 = ::core::default::Default::default();
+            self.a4 = ::core::default::Default::default();
+            self.a5 = ::core::default::Default::default();
             self.a2 = pbrs::rt::LazyMsg::from_owned(v);
         }
         /// Returns a mutable reference to `a2`, initializing it with default values if unset.
@@ -21608,10 +21616,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         /// Part of a oneof: clears any other set field in the oneof.
         pub fn set_a3(&mut self, v: A3) {
             self.cached_size.dirty();
-            self.a1 = Default::default();
-            self.a2 = Default::default();
-            self.a4 = Default::default();
-            self.a5 = Default::default();
+            self.a1 = ::core::default::Default::default();
+            self.a2 = ::core::default::Default::default();
+            self.a4 = ::core::default::Default::default();
+            self.a5 = ::core::default::Default::default();
             self.a3 = pbrs::rt::LazyMsg::from_owned(v);
         }
         /// Returns a mutable reference to `a3`, initializing it with default values if unset.
@@ -21650,10 +21658,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         /// Part of a oneof: clears any other set field in the oneof.
         pub fn set_a4(&mut self, v: A4) {
             self.cached_size.dirty();
-            self.a1 = Default::default();
-            self.a2 = Default::default();
-            self.a3 = Default::default();
-            self.a5 = Default::default();
+            self.a1 = ::core::default::Default::default();
+            self.a2 = ::core::default::Default::default();
+            self.a3 = ::core::default::Default::default();
+            self.a5 = ::core::default::Default::default();
             self.a4 = pbrs::rt::LazyMsg::from_owned(v);
         }
         /// Returns a mutable reference to `a4`, initializing it with default values if unset.
@@ -21692,10 +21700,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         /// Part of a oneof: clears any other set field in the oneof.
         pub fn set_a5(&mut self, v: A5) {
             self.cached_size.dirty();
-            self.a1 = Default::default();
-            self.a2 = Default::default();
-            self.a3 = Default::default();
-            self.a4 = Default::default();
+            self.a1 = ::core::default::Default::default();
+            self.a2 = ::core::default::Default::default();
+            self.a3 = ::core::default::Default::default();
+            self.a4 = ::core::default::Default::default();
             self.a5 = pbrs::rt::LazyMsg::from_owned(v);
         }
         /// Returns a mutable reference to `a5`, initializing it with default values if unset.
@@ -21793,10 +21801,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                 match n {
                     1 => match w {
                         pbrs::rt::WIRE_LEN => {
-                            self.a2 = Default::default();
-                            self.a3 = Default::default();
-                            self.a4 = Default::default();
-                            self.a5 = Default::default();
+                            self.a2 = ::core::default::Default::default();
+                            self.a3 = ::core::default::Default::default();
+                            self.a4 = ::core::default::Default::default();
+                            self.a5 = ::core::default::Default::default();
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.a1.is_some() {
                                 let mut ip = 0;
@@ -21835,10 +21843,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                     },
                     2 => match w {
                         pbrs::rt::WIRE_LEN => {
-                            self.a1 = Default::default();
-                            self.a3 = Default::default();
-                            self.a4 = Default::default();
-                            self.a5 = Default::default();
+                            self.a1 = ::core::default::Default::default();
+                            self.a3 = ::core::default::Default::default();
+                            self.a4 = ::core::default::Default::default();
+                            self.a5 = ::core::default::Default::default();
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.a2.is_some() {
                                 let mut ip = 0;
@@ -21877,10 +21885,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                     },
                     3 => match w {
                         pbrs::rt::WIRE_LEN => {
-                            self.a1 = Default::default();
-                            self.a2 = Default::default();
-                            self.a4 = Default::default();
-                            self.a5 = Default::default();
+                            self.a1 = ::core::default::Default::default();
+                            self.a2 = ::core::default::Default::default();
+                            self.a4 = ::core::default::Default::default();
+                            self.a5 = ::core::default::Default::default();
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.a3.is_some() {
                                 let mut ip = 0;
@@ -21919,10 +21927,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                     },
                     4 => match w {
                         pbrs::rt::WIRE_LEN => {
-                            self.a1 = Default::default();
-                            self.a2 = Default::default();
-                            self.a3 = Default::default();
-                            self.a5 = Default::default();
+                            self.a1 = ::core::default::Default::default();
+                            self.a2 = ::core::default::Default::default();
+                            self.a3 = ::core::default::Default::default();
+                            self.a5 = ::core::default::Default::default();
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.a4.is_some() {
                                 let mut ip = 0;
@@ -21961,10 +21969,10 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
                     },
                     5 => match w {
                         pbrs::rt::WIRE_LEN => {
-                            self.a1 = Default::default();
-                            self.a2 = Default::default();
-                            self.a3 = Default::default();
-                            self.a4 = Default::default();
+                            self.a1 = ::core::default::Default::default();
+                            self.a2 = ::core::default::Default::default();
+                            self.a3 = ::core::default::Default::default();
+                            self.a4 = ::core::default::Default::default();
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.a5.is_some() {
                                 let mut ip = 0;
@@ -22466,7 +22474,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for A1 {}
-    impl Default for A1 {
+    impl ::core::default::Default for A1 {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -22475,7 +22483,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl A1 {
         /// Creates a new, default instance of [`A1`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -22690,7 +22698,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for A2 {}
-    impl Default for A2 {
+    impl ::core::default::Default for A2 {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -22699,7 +22707,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl A2 {
         /// Creates a new, default instance of [`A2`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -22914,7 +22922,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for A3 {}
-    impl Default for A3 {
+    impl ::core::default::Default for A3 {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -22923,7 +22931,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl A3 {
         /// Creates a new, default instance of [`A3`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -23138,7 +23146,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for A4 {}
-    impl Default for A4 {
+    impl ::core::default::Default for A4 {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -23147,7 +23155,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl A4 {
         /// Creates a new, default instance of [`A4`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -23362,7 +23370,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for A5 {}
-    impl Default for A5 {
+    impl ::core::default::Default for A5 {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -23371,7 +23379,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl A5 {
         /// Creates a new, default instance of [`A5`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -23581,7 +23589,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         optionalgroup: Option<Box<OptionalGroup>>,
         repeated_int32: Repeated<i32>,
     }
-    impl Default for UnknownToTestAllTypesCold {
+    impl ::core::default::Default for UnknownToTestAllTypesCold {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -23626,7 +23634,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for UnknownToTestAllTypes {}
-    impl Default for UnknownToTestAllTypes {
+    impl ::core::default::Default for UnknownToTestAllTypes {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -23635,7 +23643,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl UnknownToTestAllTypes {
         /// Creates a new, default instance of [`UnknownToTestAllTypes`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         #[inline(always)]
         fn cold_mut(&mut self) -> &mut UnknownToTestAllTypesCold {
@@ -24313,7 +24321,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
         }
     }
     impl Eq for OptionalGroup {}
-    impl Default for OptionalGroup {
+    impl ::core::default::Default for OptionalGroup {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -24322,7 +24330,7 @@ mod __gen_google_protobuf_test_messages_proto2_proto {
     impl OptionalGroup {
         /// Creates a new, default instance of [`OptionalGroup`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;

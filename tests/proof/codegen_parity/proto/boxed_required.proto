@@ -1,0 +1,7 @@
+syntax = "proto2";
+package proof.boxed_required;
+
+message RequiredChild {
+  required int32 value = 1;
+  optional bytes payload = 2;
+}

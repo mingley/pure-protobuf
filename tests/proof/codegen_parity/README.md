@@ -56,8 +56,29 @@ not reserve public names. These are selected naming controls; other cases,
 such as two message names that produce the same module name, remain outside
 their scope.
 
-Three small pbrs consumers still reproduce absent `btree_map`, `bytes` and
-`boxed` build methods. These are API and representation customization gaps.
+The lazy and owned runtime-symbol consumers keep the literal schema names
+`Default`, `Map` and `Enum`. They exercise oneof resets, default typed views,
+mutators and cross-file singular, repeated and map fields against Prost.
+Generator-owned traits and map containers must resolve independently of those
+schema names. Other runtime and prelude name collisions remain outside this
+bounded repair.
+
+Three boxed-field consumers run the same eight case groups with selected,
+default and global-owned layouts. Selected singular messages use eager
+`Option<Box<T>>` storage while ordinary accessors stay unchanged. The checks
+cover shared byte ownership, imported children, duplicate-message merging,
+oneof replacement, required-field policy, malformed input, recursion limits,
+and JSON/text roundtrips against the pinned Prost wire control. Builder and
+descriptor-set generation must produce identical source. Eighteen selector
+cases compare message declarations, including real one-member oneofs,
+synthetic optional fields, qualified prefixes, suffixes, boundaries and the
+repeated/map exemption. The `*` spelling is literal, as in Prost. Compiled
+reference configurations select eligible messages: Prost can emit invalid
+scalar derives for unrestricted scalar boxing, so the placement matrix is
+not a claim that such scalar configurations compile.
+
+Two small pbrs consumers still reproduce absent `btree_map` and `bytes`
+build methods. These are API and representation customization gaps.
 pbrs provides its own map and byte storage; an absent method does not establish
 a wire-format failure. The Prost control generates and checks each requested
 representation independently.
@@ -69,7 +90,7 @@ compile and pbrs to report a missing `std` crate before it records the deploymen
 gap. This distinguishes lack of target installation from lack of runtime
 support. It checks compilation, not execution on embedded hardware.
 
-The `pbrs_btree_map`, `pbrs_bytes` and `pbrs_boxed` binaries deliberately fail
+The `pbrs_btree_map` and `pbrs_bytes` binaries deliberately fail
 compilation. Use `run.py`, which verifies those diagnostics and executes the
 positive consumers, rather than `cargo test --all-targets` on this isolated
 proof package. If a remaining capability is implemented, replace its expected

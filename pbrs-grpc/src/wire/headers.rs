@@ -216,6 +216,42 @@ pub(crate) fn grpc_request(
     )
 }
 
+/// Construct a request with a non-HTTP(S) logical scheme. The stock header
+/// cache keys its scheme as a boolean, so these requests must remain uncached.
+#[cold]
+#[inline(never)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "cold custom-origin headers mirror ordinary request wire options"
+)]
+pub(crate) fn grpc_request_with_scheme(
+    authority: &Authority,
+    path: &'static str,
+    md: &Metadata,
+    timeout: Option<Duration>,
+    send_codec: Option<CompressionAlgorithm>,
+    accept_gzip: bool,
+    user_agent: &HeaderValue,
+    scheme: &Scheme,
+) -> Result<Request<()>, Status> {
+    let mut request = grpc_request_miss(
+        authority,
+        path,
+        md,
+        timeout,
+        send_codec,
+        accept_gzip,
+        user_agent,
+        false,
+        false,
+    )?;
+    let mut parts = std::mem::take(request.uri_mut()).into_parts();
+    parts.scheme = Some(scheme.clone());
+    *request.uri_mut() = http::Uri::from_parts(parts)
+        .map_err(|error| Status::invalid_argument(error.to_string()))?;
+    Ok(request)
+}
+
 fn is_stock_request(
     md: &Metadata,
     timeout: Option<Duration>,

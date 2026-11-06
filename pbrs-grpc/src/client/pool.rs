@@ -698,6 +698,7 @@ pub(crate) fn finish_channel_with_executor(
             byte_budget: ByteBudgetTracker::default(),
             user_agent: crate::wire::STOCK_UA.clone(),
             https,
+            origin: None,
             authority,
             observer: None,
             service_config,
@@ -3340,13 +3341,17 @@ impl HealthWatch {
             return WatchEnd::Stopped;
         }
         let md = Metadata::new();
+        let routing = super::channel::DirectRouting {
+            authority: &self.authority,
+            https: self.https,
+        };
         // Channelz: LB-internal maintenance stream, not attributed to the
         // socket's data counters. `stop` aborts the watch without sharing
         // the per-RPC cancel flag.
         let response = tokio::select! {
             response = run_server_stream::<HealthCheckResponse>(
                 self.send.clone(),
-                &self.authority,
+                &routing,
                 "/grpc.health.v1.Health/Watch",
                 &md,
                 None,
@@ -3356,7 +3361,6 @@ impl HealthWatch {
                 crate::rpc_cancel::RpcCancel::new(),
                 self.wire,
                 crate::wire::PBRS_GRPC_UA,
-                self.https,
                 BytePermit::empty(),
                 None,
                 None,
@@ -3466,13 +3470,17 @@ impl OobWatch {
             return OobEnd::Stopped;
         }
         let md = Metadata::new();
+        let routing = super::channel::DirectRouting {
+            authority: &self.authority,
+            https: self.https,
+        };
         // Channelz: LB-internal maintenance stream, not attributed to the
         // socket's data counters. `stop` aborts the stream without sharing
         // the per-RPC cancel flag.
         let response = tokio::select! {
             response = run_server_stream::<OrcaLoadReport>(
                 self.send.clone(),
-                &self.authority,
+                &routing,
                 "/xds.service.orca.v3.OpenRcaService/StreamCoreMetrics",
                 &md,
                 None,
@@ -3482,7 +3490,6 @@ impl OobWatch {
                 crate::rpc_cancel::RpcCancel::new(),
                 self.wire,
                 crate::wire::PBRS_GRPC_UA,
-                self.https,
                 BytePermit::empty(),
                 None,
                 None,

@@ -1204,20 +1204,22 @@ impl<'a> Outgoing<'a> {
     /// or `localhost` on a Unix socket.
     ///
     /// TLS uses the channel [`crate::Target`], not SNI, unless
-    /// [`crate::Channel::origin`] overrode it on this clone. Applies to every call
-    /// shape.
+    /// [`crate::Endpoint::origin`] or [`crate::Channel::origin`] overrode it
+    /// on this clone. Applies to every call shape.
     #[must_use]
     pub fn authority(&self) -> &'a str {
         self.authority
     }
 
-    /// HTTP/2 `:scheme` this channel sends.
+    /// Transport/security scheme for this channel.
     ///
     /// Same string as [`crate::Channel::scheme`]: `https` when the channel was
     /// built with [`crate::ClientTls`], or when a [`crate::Channel::from_io`]
     /// clone called [`crate::Channel::https_scheme`]. Otherwise `http`
-    /// (cleartext TCP, Unix, and `from_io` without that overlay). Matches
-    /// what the kernel writes on the request. Applies to every call shape.
+    /// (cleartext TCP, Unix, and `from_io` without that overlay). A logical
+    /// [`crate::Endpoint::origin`] does not change this security context;
+    /// [`crate::Channel::request_scheme`] reports its wire scheme. Applies to
+    /// every call shape.
     #[must_use]
     pub fn scheme(&self) -> &'static str {
         self.scheme

@@ -111,8 +111,8 @@ mod __gen_google_protobuf_wrappers_proto {
     use pbrs::prelude::*;
     use pbrs::UnknownFields;
     use pbrs::{
-        Enum, Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
-        RepeatedView, SerializeError, UnknownEnumValue,
+        ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut, RepeatedView, SerializeError,
+        UnknownEnumValue,
     };
 
     fn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {
@@ -143,7 +143,7 @@ mod __gen_google_protobuf_wrappers_proto {
         }
     }
     impl Eq for BoolValue {}
-    impl Default for BoolValue {
+    impl ::core::default::Default for BoolValue {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -152,7 +152,7 @@ mod __gen_google_protobuf_wrappers_proto {
     impl BoolValue {
         /// Creates a new, default instance of [`BoolValue`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -413,7 +413,7 @@ mod __gen_google_protobuf_wrappers_proto {
         }
     }
     impl Eq for BytesValue {}
-    impl Default for BytesValue {
+    impl ::core::default::Default for BytesValue {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -422,7 +422,7 @@ mod __gen_google_protobuf_wrappers_proto {
     impl BytesValue {
         /// Creates a new, default instance of [`BytesValue`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -685,7 +685,7 @@ mod __gen_google_protobuf_wrappers_proto {
         }
     }
     impl Eq for DoubleValue {}
-    impl Default for DoubleValue {
+    impl ::core::default::Default for DoubleValue {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -694,7 +694,7 @@ mod __gen_google_protobuf_wrappers_proto {
     impl DoubleValue {
         /// Creates a new, default instance of [`DoubleValue`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -954,7 +954,7 @@ mod __gen_google_protobuf_wrappers_proto {
         }
     }
     impl Eq for FloatValue {}
-    impl Default for FloatValue {
+    impl ::core::default::Default for FloatValue {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -963,7 +963,7 @@ mod __gen_google_protobuf_wrappers_proto {
     impl FloatValue {
         /// Creates a new, default instance of [`FloatValue`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -1223,7 +1223,7 @@ mod __gen_google_protobuf_wrappers_proto {
         }
     }
     impl Eq for Int32Value {}
-    impl Default for Int32Value {
+    impl ::core::default::Default for Int32Value {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -1232,7 +1232,7 @@ mod __gen_google_protobuf_wrappers_proto {
     impl Int32Value {
         /// Creates a new, default instance of [`Int32Value`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -1493,7 +1493,7 @@ mod __gen_google_protobuf_wrappers_proto {
         }
     }
     impl Eq for Int64Value {}
-    impl Default for Int64Value {
+    impl ::core::default::Default for Int64Value {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -1502,7 +1502,7 @@ mod __gen_google_protobuf_wrappers_proto {
     impl Int64Value {
         /// Creates a new, default instance of [`Int64Value`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -1763,7 +1763,7 @@ mod __gen_google_protobuf_wrappers_proto {
         }
     }
     impl Eq for StringValue {}
-    impl Default for StringValue {
+    impl ::core::default::Default for StringValue {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -1772,7 +1772,7 @@ mod __gen_google_protobuf_wrappers_proto {
     impl StringValue {
         /// Creates a new, default instance of [`StringValue`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -2039,7 +2039,7 @@ mod __gen_google_protobuf_wrappers_proto {
         }
     }
     impl Eq for UInt32Value {}
-    impl Default for UInt32Value {
+    impl ::core::default::Default for UInt32Value {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -2048,7 +2048,7 @@ mod __gen_google_protobuf_wrappers_proto {
     impl UInt32Value {
         /// Creates a new, default instance of [`UInt32Value`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -2309,7 +2309,7 @@ mod __gen_google_protobuf_wrappers_proto {
         }
     }
     impl Eq for UInt64Value {}
-    impl Default for UInt64Value {
+    impl ::core::default::Default for UInt64Value {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -2318,7 +2318,7 @@ mod __gen_google_protobuf_wrappers_proto {
     impl UInt64Value {
         /// Creates a new, default instance of [`UInt64Value`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;

@@ -1,0 +1,10 @@
+syntax = "proto3";
+package proof.runtime_symbols.imported;
+import "runtime_symbols.proto";
+
+message Holder {
+  .proof.runtime_symbols.Default child = 1;
+  repeated .proof.runtime_symbols.Default children = 2;
+  map<string, .proof.runtime_symbols.Map> maps = 3;
+  .proof.runtime_symbols.Enum state = 4;
+}

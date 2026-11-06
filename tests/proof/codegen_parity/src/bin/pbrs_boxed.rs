@@ -1,3 +1,3 @@
-fn main() {
-    pbrs::codegen::Config::new().boxed(".proof.case.Payload.nested");
-}
+include!(concat!(env!("OUT_DIR"), "/native-boxed/mod.rs"));
+const REPORT_SELECTORS: bool = true;
+include!("../boxed.rs");

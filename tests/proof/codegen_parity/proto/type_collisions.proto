@@ -4,6 +4,13 @@ package proof.collisions;
 message A { message X { int32 value = 1; } }
 message B { message X { int32 value = 1; } }
 message C { message B { message X { int32 value = 1; } } }
+message D { message B { message X { int32 value = 1; } } }
+message E { message B { message X { int32 value = 1; } } }
+// A message must skip both occupied bare names and occupied companions.
+message BX_2 {}
+message BX_3View {}
+// An enum can use the bare BX_3 left free by those message reservations.
+message F { message B { enum X { X_ZERO = 0; X_ONE = 1; } } }
 
 message Foo { int32 value = 1; }
 message FooMut {

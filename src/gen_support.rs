@@ -481,7 +481,7 @@ mod dynamic_support {
                 }
             }
 
-            impl Default for $Owned {
+            impl ::core::default::Default for $Owned {
                 fn default() -> Self {
                     let pool = $pool;
                     let desc = pool
@@ -770,7 +770,7 @@ macro_rules! impl_typed_message {
                 $View(self)
             }
         }
-        impl Default for $View<'_> {
+        impl ::core::default::Default for $View<'_> {
             fn default() -> Self {
                 static DEFAULT: std::sync::OnceLock<$Owned> = std::sync::OnceLock::new();
                 $View($crate::gen_support::default_instance(&DEFAULT))
@@ -911,12 +911,12 @@ macro_rules! impl_typed_message {
         }
         impl $crate::Clear for $Owned {
             fn clear(&mut self) {
-                *self = <Self as Default>::default();
+                *self = <Self as ::core::default::Default>::default();
             }
         }
         impl $crate::Clear for $Mut<'_> {
             fn clear(&mut self) {
-                *self.0 = <$Owned as Default>::default();
+                *self.0 = <$Owned as ::core::default::Default>::default();
             }
         }
         impl $crate::ClearAndParse for $Owned {

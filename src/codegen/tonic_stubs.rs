@@ -57,7 +57,7 @@ pub(crate) fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
         );
         let _ = writeln!(src, "    where");
         let _ = writeln!(src, "        F: tonic::service::Interceptor,");
-        let _ = writeln!(src, "        T::ResponseBody: Default,");
+        let _ = writeln!(src, "        T::ResponseBody: ::core::default::Default,");
         let _ = writeln!(
             src,
             "        T: tonic::codegen::Service<http::Request<tonic::body::Body>, Response = http::Response<<T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody>>,"
@@ -139,11 +139,11 @@ pub(crate) fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
     let _ = writeln!(src, "            inner: Arc::new(inner),");
     let _ = writeln!(
         src,
-        "            accept_compression_encodings: Default::default(),"
+        "            accept_compression_encodings: ::core::default::Default::default(),"
     );
     let _ = writeln!(
         src,
-        "            send_compression_encodings: Default::default(),"
+        "            send_compression_encodings: ::core::default::Default::default(),"
     );
     let _ = writeln!(src, "            max_decoding_message_size: None,");
     let _ = writeln!(src, "            max_encoding_message_size: None,");

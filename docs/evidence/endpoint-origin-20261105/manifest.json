@@ -1,0 +1,25 @@
+{
+  "schema": "pbrs.endpoint-origin-capsule.v1",
+  "assembled_utc": "2026-11-06T00:13:06.684322+00:00",
+  "provenance": "local selected-input and output hashes; not hosted attestation or a filesystem-read trace",
+  "baseline_commit": "dc2261c8efe6fa99bf6c3583fa642f09ee7249cf",
+  "artifact_sha256": {
+    ".gitattributes": "85f1ec83424b3b845ed82afde3673d847deadbce932d43c0374c561546e60fc4",
+    "README.md": "6673756ca142c0b69d737b29b61676d61ec1c00cc8d8c5087254467973f77414",
+    "build.py": "240f34e1ad97f019db4e28507722357ba28b44ff0a1fbd3fb8c3f19a09528575",
+    "check.py": "badb2c50ce2d87dd851a8270d42dbc5b4031a6ff1030b947ca4e223f2dec72e6",
+    "main.rs": "ce1951e2a247f0e3f6aa0b832b941bcb1924c11045d179b444f0d1cf8836d207",
+    "measure.py": "fbeecdb57d6a135a8e4924bc090fb3ef9d3bb4a356010415dfa84609a34bac71",
+    "portable-baseline.json": "d29e98e6572f8973e3f6eeee8de128d2e0ba9c786b88be2c41c544dbde42c447",
+    "portable-replay-validation.json": "28215f06393b29562569fe0368acce88cced2ea6f80b5a8f7173b970c6264fc4",
+    "prepare.py": "9331712511a40f657ec782278cbda9fa6049045b5fa6fe0da996a48d6cda35af",
+    "raw.tar.gz": "53785677e57089bea5c5340c52ca5d7308a1b0320cdb5b4ebff5f3e9c42c5d7d",
+    "replay-validation.json": "dc207ac254c3a23aa774db16d9885ad35bae1cbf46255e2412de3ab3f8bc366c",
+    "results.json": "0e314a27451c0224963dfd113f73de06904853c71a1ba1ba825395bca92be1df",
+    "source-manifest.json": "368b4945e64673c3165b9a1da3acc19244ffb167679f2bb978a11d1bfc55a012",
+    "source-overlays.patch": "bf1990698d7b62d10df836ac968e424f13f179d2adb0a34595b7fdde46aaae9c",
+    "source-overlays.tar.gz": "29b2b5f7fa9565bf445fe696df831845e4040db04326bd9e1fe1cf3e15c768da"
+  },
+  "portable_baseline_commit": "0ae8a43d3d08617c249c84a3f0d30f614494d70e",
+  "portable_alias_added_utc": "2026-11-06T00:22:38.640961+00:00"
+}

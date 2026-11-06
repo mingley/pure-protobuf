@@ -329,7 +329,6 @@ pub(crate) struct HedgeUnary {
     pub(crate) cancel_rx: crate::rpc_cancel::RpcCancel,
     pub(crate) wire: Wire,
     pub(crate) ua: HeaderValue,
-    pub(crate) https: bool,
     pub(crate) policy: HedgingPolicy,
     pub(crate) call_guard: CallGuard,
     pub(crate) owned_labels: Option<Box<OwnedCallLabels>>,
@@ -362,7 +361,6 @@ where
     let cancel_rx = req.cancel_rx.clone();
     let wire = req.wire;
     let ua = req.ua.clone();
-    let https = req.https;
     let observer = req.observer.clone();
     let owned_labels = req.owned_labels.clone();
     let tap = req.binlog.clone();
@@ -411,7 +409,7 @@ where
             }
             match run_unary(
                 live.send,
-                &channel.local.authority,
+                channel.local.as_ref(),
                 path,
                 &md,
                 req_timeout,
@@ -421,7 +419,6 @@ where
                 cancel_rx.clone(),
                 wire,
                 ua.clone(),
-                https,
                 byte_permit,
                 tap.as_ref(),
             )

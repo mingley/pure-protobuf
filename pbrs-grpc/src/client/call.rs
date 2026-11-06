@@ -1,5 +1,6 @@
 //! Per-call machinery: attempts, commitment, and send/open races.
 
+use super::channel::RequestRouting;
 use super::pool::{ChannelInner, HealthDirective, LiveConn};
 use crate::request::{Request, Response};
 use crate::rt::{Runtime, TokioRuntime};
@@ -10,12 +11,11 @@ use crate::transport::{
     Error as TransportError, Reason, RecvStream, SendRequest, SendStream, h2 as backend,
 };
 use crate::wire::{
-    ImmediateSend, SegFrame, begin_stock_request, grpc_request, send_frame, send_frame_if_ready,
-    status_from,
+    ImmediateSend, SegFrame, begin_stock_request, grpc_request, grpc_request_with_scheme,
+    send_frame, send_frame_if_ready, status_from,
 };
 use futures_util::future::Either;
 use http::HeaderValue;
-use http::uri::Authority;
 use std::future::{Future, poll_fn};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -262,7 +262,7 @@ fn finish_request_send<R: Runtime>(
 )]
 pub(crate) fn open(
     send_req: backend::SendRequest,
-    authority: &Authority,
+    routing: &impl RequestRouting,
     path: &'static str,
     md: &crate::metadata::Metadata,
     timeout: Option<Duration>,
@@ -271,12 +271,11 @@ pub(crate) fn open(
     send_codec: Option<crate::compression::CompressionAlgorithm>,
     accept_gzip: bool,
     user_agent: &HeaderValue,
-    https: bool,
 ) -> impl std::future::Future<Output = Result<(backend::ResponseFuture, backend::SendStream), Status>>
 {
     open_in::<TokioRuntime>(
         send_req,
-        authority,
+        routing,
         path,
         md,
         timeout,
@@ -285,7 +284,6 @@ pub(crate) fn open(
         send_codec,
         accept_gzip,
         user_agent,
-        https,
     )
 }
 
@@ -296,7 +294,7 @@ pub(crate) fn open(
 )]
 pub(crate) async fn open_in<R: Runtime>(
     mut send_req: backend::SendRequest,
-    authority: &Authority,
+    routing: &impl RequestRouting,
     path: &'static str,
     md: &crate::metadata::Metadata,
     timeout: Option<Duration>,
@@ -305,8 +303,11 @@ pub(crate) async fn open_in<R: Runtime>(
     send_codec: Option<crate::compression::CompressionAlgorithm>,
     accept_gzip: bool,
     user_agent: &HeaderValue,
-    https: bool,
 ) -> Result<(backend::ResponseFuture, backend::SendStream), Status> {
+    let scheme = routing.request_scheme()?;
+    let https = *scheme == http::uri::Scheme::HTTPS;
+    let standard_scheme = https || *scheme == http::uri::Scheme::HTTP;
+    let authority = routing.authority();
     if timeout.is_some_and(|d| d.is_zero()) {
         return Err(Status::deadline_exceeded());
     }
@@ -317,7 +318,8 @@ pub(crate) async fn open_in<R: Runtime>(
     // No deadline: the stock block does not carry grpc-timeout, so the
     // request head is not needed. Copying it only to throw it away costs
     // two 216-byte moves.
-    let stock_admission = deadline.is_none()
+    let stock_admission = standard_scheme
+        && deadline.is_none()
         && begin_stock_request(
             authority,
             path,
@@ -331,16 +333,29 @@ pub(crate) async fn open_in<R: Runtime>(
     let mut admission = if stock_admission {
         send_req.send_stock_when_ready(false)
     } else {
-        let http_req = grpc_request(
-            authority,
-            path,
-            md,
-            remaining,
-            send_codec,
-            accept_gzip,
-            user_agent,
-            https,
-        )?;
+        let http_req = if standard_scheme {
+            grpc_request(
+                authority,
+                path,
+                md,
+                remaining,
+                send_codec,
+                accept_gzip,
+                user_agent,
+                https,
+            )?
+        } else {
+            grpc_request_with_scheme(
+                authority,
+                path,
+                md,
+                remaining,
+                send_codec,
+                accept_gzip,
+                user_agent,
+                scheme,
+            )?
+        };
         send_req.send_request_when_ready(http_req, false)
     };
     // Stock admission has no deadline and no grpc-timeout, and cancel was
@@ -716,6 +731,8 @@ impl super::Channel {
         path: &'static str,
         req: &mut Request<T>,
     ) -> Result<(), Status> {
+        // Reject a malformed endpoint origin before hooks, encoding or dialing.
+        self.local.request_scheme()?;
         if req.timeout().is_none() {
             if let Some(timeout) = self.local.config.rpc_timeout() {
                 req.set_timeout(timeout);
@@ -877,7 +894,7 @@ impl super::Channel {
             let load = live.load;
             match open_in::<R>(
                 live.send,
-                &self.local.authority,
+                self.local.as_ref(),
                 path,
                 md,
                 timeout,
@@ -886,7 +903,6 @@ impl super::Channel {
                 compress.then_some(self.local.config.send_algorithm()),
                 self.local.config.accepts_compressed(),
                 user_agent,
-                self.local.https,
             )
             .await
             {

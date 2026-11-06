@@ -111,8 +111,8 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
     use pbrs::prelude::*;
     use pbrs::UnknownFields;
     use pbrs::{
-        Enum, Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
-        RepeatedView, SerializeError, UnknownEnumValue,
+        ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut, RepeatedView, SerializeError,
+        UnknownEnumValue,
     };
 
     fn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {
@@ -154,7 +154,7 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
             Self(val)
         }
     }
-    impl Default for ForeignEnumEditionUnstable {
+    impl ::core::default::Default for ForeignEnumEditionUnstable {
         fn default() -> Self {
             Self(0)
         }
@@ -186,7 +186,7 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
             self
         }
     }
-    impl Enum for ForeignEnumEditionUnstable {
+    impl pbrs::Enum for ForeignEnumEditionUnstable {
         const NAME: &'static str = "ForeignEnumEditionUnstable";
         fn is_known(value: i32) -> bool {
             matches!(value, 0 | 1 | 2)
@@ -208,7 +208,7 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         }
     }
     impl Eq for ComplexMessage {}
-    impl Default for ComplexMessage {
+    impl ::core::default::Default for ComplexMessage {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -217,7 +217,7 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
     impl ComplexMessage {
         /// Creates a new, default instance of [`ComplexMessage`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -506,7 +506,7 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         }
     }
     impl Eq for ForeignMessageEditionUnstable {}
-    impl Default for ForeignMessageEditionUnstable {
+    impl ::core::default::Default for ForeignMessageEditionUnstable {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -515,7 +515,7 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
     impl ForeignMessageEditionUnstable {
         /// Creates a new, default instance of [`ForeignMessageEditionUnstable`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -799,16 +799,16 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         repeated_int32: pbrs::rt::PackedSfx32,
         repeated_foreign_message: Repeated<ForeignMessageEditionUnstable>,
         repeated_foreign_enum: pbrs::rt::PackedI32,
-        map_int32_int32: Map<i32, i32>,
-        map_bool_bool: Map<bool, bool>,
-        map_string_string: Map<pbrs::rt::LazyStr, pbrs::rt::LazyStr>,
-        map_string_foreign_message: Map<pbrs::rt::LazyStr, ForeignMessageEditionUnstable>,
-        map_string_foreign_enum: Map<pbrs::rt::LazyStr, i32>,
+        map_int32_int32: pbrs::Map<i32, i32>,
+        map_bool_bool: pbrs::Map<bool, bool>,
+        map_string_string: pbrs::Map<pbrs::rt::LazyStr, pbrs::rt::LazyStr>,
+        map_string_foreign_message: pbrs::Map<pbrs::rt::LazyStr, ForeignMessageEditionUnstable>,
+        map_string_foreign_enum: pbrs::Map<pbrs::rt::LazyStr, i32>,
         optional_bytes: Option<Box<pbrs::rt::LazyBytes>>,
         repeated_bytes: Repeated<pbrs::rt::LazyBytes>,
-        map_string_bytes: Map<pbrs::rt::LazyStr, pbrs::rt::LazyBytes>,
+        map_string_bytes: pbrs::Map<pbrs::rt::LazyStr, pbrs::rt::LazyBytes>,
     }
-    impl Default for TestAllTypesEditionUnstableCold {
+    impl ::core::default::Default for TestAllTypesEditionUnstableCold {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -858,7 +858,7 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         }
     }
     impl Eq for TestAllTypesEditionUnstable {}
-    impl Default for TestAllTypesEditionUnstable {
+    impl ::core::default::Default for TestAllTypesEditionUnstable {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -867,7 +867,7 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
     impl TestAllTypesEditionUnstable {
         /// Creates a new, default instance of [`TestAllTypesEditionUnstable`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         #[inline(always)]
         fn cold_mut(&mut self) -> &mut TestAllTypesEditionUnstableCold {
@@ -1085,59 +1085,62 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         /// Field `map_int32_int32` (number 8).
         ///
         /// Map field with key `i32` and value `i32`. Empty by default.
-        pub fn map_int32_int32(&self) -> MapView<'_, i32, i32> {
+        pub fn map_int32_int32(&self) -> pbrs::MapView<'_, i32, i32> {
             self.cold
                 .as_ref()
                 .map(|c| c.map_int32_int32.as_view())
-                .unwrap_or_else(MapView::empty)
+                .unwrap_or_else(pbrs::MapView::empty)
         }
         /// Returns a mutable view of field `map_int32_int32`.
-        pub fn map_int32_int32_mut(&mut self) -> MapMut<'_, i32, i32> {
+        pub fn map_int32_int32_mut(&mut self) -> pbrs::MapMut<'_, i32, i32> {
             self.cached_size.dirty();
             self.cold_mut().map_int32_int32.as_mut()
         }
         /// Sets the value of `map_int32_int32`.
-        pub fn set_map_int32_int32(&mut self, v: Map<i32, i32>) {
+        pub fn set_map_int32_int32(&mut self, v: pbrs::Map<i32, i32>) {
             self.cached_size.dirty();
             self.cold_mut().map_int32_int32 = v;
         }
         /// Field `map_bool_bool` (number 9).
         ///
         /// Map field with key `bool` and value `bool`. Empty by default.
-        pub fn map_bool_bool(&self) -> MapView<'_, bool, bool> {
+        pub fn map_bool_bool(&self) -> pbrs::MapView<'_, bool, bool> {
             self.cold
                 .as_ref()
                 .map(|c| c.map_bool_bool.as_view())
-                .unwrap_or_else(MapView::empty)
+                .unwrap_or_else(pbrs::MapView::empty)
         }
         /// Returns a mutable view of field `map_bool_bool`.
-        pub fn map_bool_bool_mut(&mut self) -> MapMut<'_, bool, bool> {
+        pub fn map_bool_bool_mut(&mut self) -> pbrs::MapMut<'_, bool, bool> {
             self.cached_size.dirty();
             self.cold_mut().map_bool_bool.as_mut()
         }
         /// Sets the value of `map_bool_bool`.
-        pub fn set_map_bool_bool(&mut self, v: Map<bool, bool>) {
+        pub fn set_map_bool_bool(&mut self, v: pbrs::Map<bool, bool>) {
             self.cached_size.dirty();
             self.cold_mut().map_bool_bool = v;
         }
         /// Field `map_string_string` (number 10).
         ///
         /// Map field with key `pbrs::rt::LazyStr` and value `pbrs::rt::LazyStr`. Empty by default.
-        pub fn map_string_string(&self) -> MapView<'_, pbrs::rt::LazyStr, pbrs::rt::LazyStr> {
+        pub fn map_string_string(&self) -> pbrs::MapView<'_, pbrs::rt::LazyStr, pbrs::rt::LazyStr> {
             self.cold
                 .as_ref()
                 .map(|c| c.map_string_string.as_view())
-                .unwrap_or_else(MapView::empty)
+                .unwrap_or_else(pbrs::MapView::empty)
         }
         /// Returns a mutable view of field `map_string_string`.
         pub fn map_string_string_mut(
             &mut self,
-        ) -> MapMut<'_, pbrs::rt::LazyStr, pbrs::rt::LazyStr> {
+        ) -> pbrs::MapMut<'_, pbrs::rt::LazyStr, pbrs::rt::LazyStr> {
             self.cached_size.dirty();
             self.cold_mut().map_string_string.as_mut()
         }
         /// Sets the value of `map_string_string`.
-        pub fn set_map_string_string(&mut self, v: Map<pbrs::rt::LazyStr, pbrs::rt::LazyStr>) {
+        pub fn set_map_string_string(
+            &mut self,
+            v: pbrs::Map<pbrs::rt::LazyStr, pbrs::rt::LazyStr>,
+        ) {
             self.cached_size.dirty();
             self.cold_mut().map_string_string = v;
         }
@@ -1146,23 +1149,23 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         /// Map field with key `pbrs::rt::LazyStr` and value `ForeignMessageEditionUnstable`. Empty by default.
         pub fn map_string_foreign_message(
             &self,
-        ) -> MapView<'_, pbrs::rt::LazyStr, ForeignMessageEditionUnstable> {
+        ) -> pbrs::MapView<'_, pbrs::rt::LazyStr, ForeignMessageEditionUnstable> {
             self.cold
                 .as_ref()
                 .map(|c| c.map_string_foreign_message.as_view())
-                .unwrap_or_else(MapView::empty)
+                .unwrap_or_else(pbrs::MapView::empty)
         }
         /// Returns a mutable view of field `map_string_foreign_message`.
         pub fn map_string_foreign_message_mut(
             &mut self,
-        ) -> MapMut<'_, pbrs::rt::LazyStr, ForeignMessageEditionUnstable> {
+        ) -> pbrs::MapMut<'_, pbrs::rt::LazyStr, ForeignMessageEditionUnstable> {
             self.cached_size.dirty();
             self.cold_mut().map_string_foreign_message.as_mut()
         }
         /// Sets the value of `map_string_foreign_message`.
         pub fn set_map_string_foreign_message(
             &mut self,
-            v: Map<pbrs::rt::LazyStr, ForeignMessageEditionUnstable>,
+            v: pbrs::Map<pbrs::rt::LazyStr, ForeignMessageEditionUnstable>,
         ) {
             self.cached_size.dirty();
             self.cold_mut().map_string_foreign_message = v;
@@ -1170,19 +1173,19 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         /// Field `map_string_foreign_enum` (number 12).
         ///
         /// Map field with key `pbrs::rt::LazyStr` and value `i32`. Empty by default.
-        pub fn map_string_foreign_enum(&self) -> MapView<'_, pbrs::rt::LazyStr, i32> {
+        pub fn map_string_foreign_enum(&self) -> pbrs::MapView<'_, pbrs::rt::LazyStr, i32> {
             self.cold
                 .as_ref()
                 .map(|c| c.map_string_foreign_enum.as_view())
-                .unwrap_or_else(MapView::empty)
+                .unwrap_or_else(pbrs::MapView::empty)
         }
         /// Returns a mutable view of field `map_string_foreign_enum`.
-        pub fn map_string_foreign_enum_mut(&mut self) -> MapMut<'_, pbrs::rt::LazyStr, i32> {
+        pub fn map_string_foreign_enum_mut(&mut self) -> pbrs::MapMut<'_, pbrs::rt::LazyStr, i32> {
             self.cached_size.dirty();
             self.cold_mut().map_string_foreign_enum.as_mut()
         }
         /// Sets the value of `map_string_foreign_enum`.
-        pub fn set_map_string_foreign_enum(&mut self, v: Map<pbrs::rt::LazyStr, i32>) {
+        pub fn set_map_string_foreign_enum(&mut self, v: pbrs::Map<pbrs::rt::LazyStr, i32>) {
             self.cached_size.dirty();
             self.cold_mut().map_string_foreign_enum = v;
         }
@@ -1246,21 +1249,26 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         /// Field `map_string_bytes` (number 15).
         ///
         /// Map field with key `pbrs::rt::LazyStr` and value `pbrs::rt::LazyBytes`. Empty by default.
-        pub fn map_string_bytes(&self) -> MapView<'_, pbrs::rt::LazyStr, pbrs::rt::LazyBytes> {
+        pub fn map_string_bytes(
+            &self,
+        ) -> pbrs::MapView<'_, pbrs::rt::LazyStr, pbrs::rt::LazyBytes> {
             self.cold
                 .as_ref()
                 .map(|c| c.map_string_bytes.as_view())
-                .unwrap_or_else(MapView::empty)
+                .unwrap_or_else(pbrs::MapView::empty)
         }
         /// Returns a mutable view of field `map_string_bytes`.
         pub fn map_string_bytes_mut(
             &mut self,
-        ) -> MapMut<'_, pbrs::rt::LazyStr, pbrs::rt::LazyBytes> {
+        ) -> pbrs::MapMut<'_, pbrs::rt::LazyStr, pbrs::rt::LazyBytes> {
             self.cached_size.dirty();
             self.cold_mut().map_string_bytes.as_mut()
         }
         /// Sets the value of `map_string_bytes`.
-        pub fn set_map_string_bytes(&mut self, v: Map<pbrs::rt::LazyStr, pbrs::rt::LazyBytes>) {
+        pub fn set_map_string_bytes(
+            &mut self,
+            v: pbrs::Map<pbrs::rt::LazyStr, pbrs::rt::LazyBytes>,
+        ) {
             self.cached_size.dirty();
             self.cold_mut().map_string_bytes = v;
         }

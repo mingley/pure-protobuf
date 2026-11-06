@@ -1,0 +1,19 @@
+syntax = "proto3";
+package proof.runtime_symbols;
+
+message Default {
+  int32 value = 1;
+  oneof choice {
+    string text = 2;
+    int32 number = 3;
+  }
+}
+
+message Map {
+  map<string, Default> entries = 1;
+}
+
+enum Enum {
+  ENUM_UNSPECIFIED = 0;
+  ENUM_PRESENT = 1;
+}

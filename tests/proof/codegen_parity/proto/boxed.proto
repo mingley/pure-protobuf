@@ -1,0 +1,33 @@
+syntax = "proto3";
+package proof.boxed;
+
+import "boxed_imported.proto";
+import "boxed_required.proto";
+
+message Leaf {
+  int32 value = 1;
+  bytes payload = 2;
+  string label = 3;
+}
+
+message Parent {
+  Leaf chosen = 1;
+  Leaf deferred = 2;
+  repeated Leaf many = 3;
+  map<int32, Leaf> lookup = 4;
+  oneof choice {
+    Leaf one = 5;
+    Leaf two = 6;
+  }
+  oneof single {
+    Leaf lone = 7;
+  }
+  optional Leaf optional_child = 8;
+  proof.boxed_external.Imported imported = 9;
+  proof.boxed_required.RequiredChild required_child = 10;
+}
+
+message Node {
+  Node next = 1;
+  int32 value = 2;
+}

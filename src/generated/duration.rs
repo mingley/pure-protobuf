@@ -111,8 +111,8 @@ mod __gen_google_protobuf_duration_proto {
     use pbrs::prelude::*;
     use pbrs::UnknownFields;
     use pbrs::{
-        Enum, Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
-        RepeatedView, SerializeError, UnknownEnumValue,
+        ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut, RepeatedView, SerializeError,
+        UnknownEnumValue,
     };
 
     fn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {
@@ -208,7 +208,7 @@ mod __gen_google_protobuf_duration_proto {
         }
     }
     impl Eq for Duration {}
-    impl Default for Duration {
+    impl ::core::default::Default for Duration {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -217,7 +217,7 @@ mod __gen_google_protobuf_duration_proto {
     impl Duration {
         /// Creates a new, default instance of [`Duration`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;

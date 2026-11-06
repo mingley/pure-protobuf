@@ -1,0 +1,99 @@
+{
+  "schema": "pbrs.endpoint-origin-portable-replay-validation.v1",
+  "verified_utc": "2026-11-06T00:23:14.487842+00:00",
+  "scope": "source-only replay and capture checker against a fresh shallow Git; no Cargo build or benchmark rerun",
+  "public_commit_present": "0ae8a43d3d08617c249c84a3f0d30f614494d70e",
+  "recorded_commit_absent": "dc2261c8efe6fa99bf6c3583fa642f09ee7249cf",
+  "selected_git_inputs": 407,
+  "candidate_overlays": 10,
+  "reconstruction": {
+    "recorded_baseline_commit": "dc2261c8efe6fa99bf6c3583fa642f09ee7249cf",
+    "git_baseline_commit": "0ae8a43d3d08617c249c84a3f0d30f614494d70e",
+    "portable_alias_manifest_sha256": "d29e98e6572f8973e3f6eeee8de128d2e0ba9c786b88be2c41c544dbde42c447"
+  },
+  "commands": [
+    {
+      "command": [
+        "git",
+        "init",
+        "/workspace/pure-protobuf/work/native-origin-portability-0ae-only/repo"
+      ],
+      "cwd": "/workspace/pure-protobuf",
+      "exit_code": 0,
+      "stdout": "Initialized empty Git repository in /workspace/pure-protobuf/work/native-origin-portability-0ae-only/repo/.git/\n",
+      "stderr": "hint: Using 'master' as the name for the initial branch. This default branch name\nhint: will change to \"main\" in Git 3.0. To configure the initial branch name\nhint: to use in all of your new repositories, which will suppress this warning,\nhint: call:\nhint:\nhint: \tgit config --global init.defaultBranch <name>\nhint:\nhint: Names commonly chosen instead of 'master' are 'main', 'trunk' and\nhint: 'development'. The just-created branch can be renamed via this command:\nhint:\nhint: \tgit branch -m <name>\nhint:\nhint: Disable this message with \"git config set advice.defaultBranchName false\"\n"
+    },
+    {
+      "command": [
+        "git",
+        "fetch",
+        "--no-tags",
+        "--depth=1",
+        "file:///workspace/pure-protobuf",
+        "0ae8a43d3d08617c249c84a3f0d30f614494d70e"
+      ],
+      "cwd": "/workspace/pure-protobuf/work/native-origin-portability-0ae-only/repo",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "From file:///workspace/pure-protobuf\n * branch            0ae8a43d3d08617c249c84a3f0d30f614494d70e -> FETCH_HEAD\n"
+    },
+    {
+      "command": [
+        "git",
+        "update-ref",
+        "refs/heads/main",
+        "0ae8a43d3d08617c249c84a3f0d30f614494d70e"
+      ],
+      "cwd": "/workspace/pure-protobuf/work/native-origin-portability-0ae-only/repo",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "cat-file",
+        "-e",
+        "0ae8a43d3d08617c249c84a3f0d30f614494d70e^{commit}"
+      ],
+      "cwd": "/workspace/pure-protobuf/work/native-origin-portability-0ae-only/repo",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "cat-file",
+        "-e",
+        "dc2261c8efe6fa99bf6c3583fa642f09ee7249cf^{commit}"
+      ],
+      "cwd": "/workspace/pure-protobuf/work/native-origin-portability-0ae-only/repo",
+      "exit_code": 128,
+      "stdout": "",
+      "stderr": "fatal: Not a valid object name dc2261c8efe6fa99bf6c3583fa642f09ee7249cf^{commit}\n"
+    },
+    {
+      "command": [
+        "python3",
+        "/workspace/pure-protobuf/work/native-origin-portability-0ae-only/repo/docs/evidence/endpoint-origin-20261105/check.py"
+      ],
+      "cwd": "/workspace/pure-protobuf/work/native-origin-portability-0ae-only/repo",
+      "exit_code": 0,
+      "stdout": "PASS: capsule hashes, 407 public Git baseline inputs, 4 builds, 12 prechecks, 72 measured processes, paired summaries, layout, and retained resource failures\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python3",
+        "/workspace/pure-protobuf/work/native-origin-portability-0ae-only/repo/docs/evidence/endpoint-origin-20261105/prepare.py",
+        "--out",
+        "/workspace/pure-protobuf/work/native-origin-portability-0ae-only/replay"
+      ],
+      "cwd": "/workspace/pure-protobuf/work/native-origin-portability-0ae-only/repo",
+      "exit_code": 0,
+      "stdout": "{\n  \"git_inputs\": 407,\n  \"overlays\": 10,\n  \"recorded_baseline\": \"dc2261c8efe6fa99bf6c3583fa642f09ee7249cf\",\n  \"reconstruction_baseline\": \"0ae8a43d3d08617c249c84a3f0d30f614494d70e\"\n}\n",
+      "stderr": ""
+    }
+  ]
+}

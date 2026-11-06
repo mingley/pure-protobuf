@@ -1,0 +1,48 @@
+syntax = "proto2";
+package safe.defaults;
+
+enum State {
+  STATE_DEFAULT = 3;
+  STATE_READY = 9;
+}
+
+message Child {
+  optional int32 value = 1 [default = 7];
+}
+
+message Required {
+  required int32 value = 1;
+}
+
+message Presence {
+  optional bool enabled = 1 [default = true];
+  optional int32 count = 2 [default = 17];
+  optional sint64 delta = 3 [default = -7];
+  optional uint32 limit = 4 [default = 19];
+  optional uint64 maximum = 5 [default = 23];
+  optional float sample = 6 [default = nan];
+  optional double ratio = 7 [default = inf];
+  optional string name = 8 [default = "fallback"];
+  optional bytes data = 9 [default = "\001\000"];
+  optional State state = 10 [default = STATE_READY];
+  optional Child child = 11;
+  optional int64 ordinary = 12;
+  optional fixed32 fixed = 13;
+  optional fixed64 wide = 14;
+  optional sfixed32 signed = 15;
+  optional sfixed64 signed_wide = 16;
+  repeated int32 values = 17 [packed = true];
+  repeated bool flags = 18 [packed = true];
+  repeated double weights = 19 [packed = true];
+  repeated Child children = 20;
+  map<string, int64> counts = 21;
+  oneof choice {
+    bool flag = 22;
+    Child picked = 23;
+  }
+  optional group Legacy = 24 {
+    optional int32 value = 1 [default = 11];
+  }
+  repeated float samples = 25 [packed = true];
+  repeated sint64 offsets = 26 [packed = true];
+}

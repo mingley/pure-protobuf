@@ -188,6 +188,8 @@ fn main() {
     assert!(!plain_enum.contains("impl pbrs::Name for"));
     assert!(plain_enum.contains("pub const Ready:"));
     assert!(!plain_enum.contains("pub const StateReady:"));
+    build_boxed_controls(&out, &includes);
+    build_runtime_symbol_controls(&out, &includes);
     for file in [
         "case.proto",
         "external.proto",
@@ -196,7 +198,201 @@ fn main() {
         "options_proto2.proto",
         "type_collisions.proto",
         "type_collision_use.proto",
+        "boxed.proto",
+        "boxed_imported.proto",
+        "boxed_required.proto",
+        "runtime_symbols.proto",
+        "runtime_symbols_import.proto",
     ] {
         println!("cargo:rerun-if-changed=proto/{file}");
     }
+}
+
+fn build_runtime_symbol_controls(out: &std::path::Path, includes: &[PathBuf]) {
+    let files = ["runtime_symbols.proto", "runtime_symbols_import.proto"];
+    for (directory, owned) in [
+        ("native-runtime-symbols", false),
+        ("native-runtime-symbols-owned", true),
+    ] {
+        pbrs::codegen::Config::new()
+            .out_dir(out.join(directory))
+            .emit_kernel_stubs(false)
+            .owned_message_fields(owned)
+            .compile_protos(&files, includes)
+            .unwrap();
+    }
+    let prost_out = out.join("prost-runtime-symbols");
+    fs::create_dir_all(&prost_out).unwrap();
+    prost_build::Config::new()
+        .out_dir(prost_out)
+        .compile_protos(&files, includes)
+        .unwrap();
+}
+
+fn boxed_configuration() -> pbrs::codegen::Config {
+    let mut config = pbrs::codegen::Config::new();
+    for path in BOXED_SELECTION {
+        config.boxed(path);
+    }
+    config.emit_kernel_stubs(false);
+    config
+}
+
+const BOXED_SELECTION: [&str; 7] = [
+    ".proof.boxed.Parent.chosen",
+    ".proof.boxed.Parent.choice.one",
+    ".proof.boxed.Parent.single.lone",
+    ".proof.boxed.Parent.optional_child",
+    ".proof.boxed.Parent.imported",
+    ".proof.boxed.Parent.required_child",
+    ".proof.boxed.Node.next",
+];
+
+fn field_boxed(source: &str, field: &str, native: bool) -> bool {
+    let marker = match (native, field) {
+        (false, "one") => "One(".to_owned(),
+        (false, "two") => "Two(".to_owned(),
+        (false, "lone") => "Lone(".to_owned(),
+        (false, _) => format!("pub {field}:"),
+        (true, _) => format!("{field}:"),
+    };
+    let mut declaration = String::new();
+    let mut depth = 0_i32;
+    let mut found = false;
+    for line in source.lines().map(str::trim) {
+        if !found && line.starts_with(&marker) {
+            found = true;
+        }
+        if found {
+            declaration.push_str(line);
+            for character in line.chars() {
+                if matches!(character, '<' | '(') {
+                    depth += 1;
+                } else if matches!(character, '>' | ')') {
+                    depth -= 1;
+                }
+            }
+            if depth == 0 && line.ends_with(',') {
+                return declaration.contains("Box<");
+            }
+        }
+    }
+    panic!("field {field} declaration was not found in generated source");
+}
+
+fn build_boxed_controls(out: &std::path::Path, includes: &[PathBuf]) {
+    let files = [
+        "boxed.proto",
+        "boxed_imported.proto",
+        "boxed_required.proto",
+    ];
+    let descriptor = out.join("boxed.fds");
+    boxed_configuration()
+        .out_dir(out.join("native-boxed"))
+        .file_descriptor_set_path(&descriptor)
+        .compile_protos(&files, includes)
+        .unwrap();
+    boxed_configuration()
+        .out_dir(out.join("native-boxed-descriptor"))
+        .compile_descriptor_set(&descriptor, &files, includes)
+        .unwrap();
+    for filename in [
+        "boxed.rs",
+        "boxed_imported.rs",
+        "boxed_required.rs",
+        "mod.rs",
+    ] {
+        assert_eq!(
+            fs::read(out.join("native-boxed").join(filename)).unwrap(),
+            fs::read(out.join("native-boxed-descriptor").join(filename)).unwrap(),
+            "boxed builder and descriptor entry points differ for {filename}"
+        );
+    }
+    pbrs::codegen::Config::new()
+        .out_dir(out.join("native-boxed-default"))
+        .emit_kernel_stubs(false)
+        .compile_protos(&files, includes)
+        .unwrap();
+    boxed_configuration()
+        .out_dir(out.join("native-boxed-owned"))
+        .owned_message_fields(true)
+        .compile_protos(&files, includes)
+        .unwrap();
+    let reference_out = out.join("prost-boxed");
+    fs::create_dir_all(&reference_out).unwrap();
+    let mut reference = prost_build::Config::new();
+    for selector in BOXED_SELECTION {
+        reference.boxed(selector);
+    }
+    reference
+        .out_dir(reference_out)
+        .compile_protos(&files, includes)
+        .unwrap();
+    // Compare message field selection with Prost. Its unrestricted global
+    // matcher also boxes scalar declarations, which its scalar derive rejects;
+    // the compiled consumer uses eligible message selectors above.
+    let mut report = String::new();
+    for (index, (label, selector)) in [
+        ("global", "."),
+        ("qualified", ".proof.boxed.Parent.chosen"),
+        ("message-prefix", ".proof.boxed.Parent"),
+        ("package-prefix", ".proof.boxed"),
+        ("relative", "Parent.chosen"),
+        ("relative-field", "chosen"),
+        ("oneof-qualified", ".proof.boxed.Parent.choice.one"),
+        ("oneof-suffix", "choice.one"),
+        ("oneof-prefix", ".proof.boxed.Parent.choice"),
+        ("oneof-missing-name", ".proof.boxed.Parent.one"),
+        ("one-member-oneof", ".proof.boxed.Parent.single.lone"),
+        ("synthetic-optional", ".proof.boxed.Parent.optional_child"),
+        (
+            "synthetic-name-ignored",
+            ".proof.boxed.Parent._optional_child.optional_child",
+        ),
+        ("component-boundary", ".proof.boxed.Parentish"),
+        ("wildcard-is-literal", "*"),
+        ("repeated-exempt", ".proof.boxed.Parent.many"),
+        ("map-exempt", ".proof.boxed.Parent.lookup"),
+        ("empty", ""),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let native_out = out.join(format!("boxed-selectors/native-{index}"));
+        let prost_out = out.join(format!("boxed-selectors/prost-{index}"));
+        fs::create_dir_all(&prost_out).unwrap();
+        pbrs::codegen::Config::new()
+            .out_dir(&native_out)
+            .emit_kernel_stubs(false)
+            .boxed(selector)
+            .compile_protos(&files, includes)
+            .unwrap();
+        prost_build::Config::new()
+            .out_dir(&prost_out)
+            .boxed(selector)
+            .compile_protos(&files, includes)
+            .unwrap();
+        let native = fs::read_to_string(native_out.join("boxed.rs")).unwrap();
+        let prost = fs::read_to_string(prost_out.join("proof.boxed.rs")).unwrap();
+        for field in [
+            "chosen",
+            "deferred",
+            "many",
+            "lookup",
+            "one",
+            "two",
+            "lone",
+            "optional_child",
+            "imported",
+            "required_child",
+        ] {
+            assert_eq!(
+                field_boxed(&native, field, true),
+                field_boxed(&prost, field, false),
+                "boxed selector {selector:?} differs for {field}"
+            );
+        }
+        report.push_str(&format!("PASS boxed-selector {label} {selector:?}\n"));
+    }
+    fs::write(out.join("boxed-selectors.txt"), report).unwrap();
 }

@@ -13,9 +13,9 @@ pub(crate) use frame_reader::{
 };
 pub(crate) use headers::{
     DEFAULT_UA, PBRS_GRPC_UA, RequestReject, STOCK_UA, accepts_gzip, begin_stock_request,
-    check_request, effective_timeout, grpc_encoding, grpc_request, inbound_codec_from_token,
-    preferred_codec, select_outbound_codec, select_stream_codec, soonest, timeout_from_headers,
-    user_agent_value,
+    check_request, effective_timeout, grpc_encoding, grpc_request, grpc_request_with_scheme,
+    inbound_codec_from_token, preferred_codec, select_outbound_codec, select_stream_codec, soonest,
+    timeout_from_headers, user_agent_value,
 };
 pub(crate) use out_batch::{OutBatch, let_producer_catch_up};
 pub(crate) use send::{

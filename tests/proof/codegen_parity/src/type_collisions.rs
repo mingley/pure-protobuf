@@ -1,7 +1,10 @@
 use pbrs::{Parse, Serialize};
 use prost::Message;
 
-#[allow(dead_code, reason = "reference parent messages only scope nested test types")]
+#[allow(
+    dead_code,
+    reason = "reference parent messages only scope nested test types"
+)]
 mod reference {
     pub mod proof {
         pub mod collisions {
@@ -76,6 +79,32 @@ fn main() {
     assert_eq!(constructed.a().value(), 1);
     assert_eq!(constructed.b().value(), 2);
     assert_eq!(constructed.c().value(), 3);
+    let mut c_flat = native::BX_4::new();
+    c_flat.set_value(30);
+    assert_eq!(
+        native::c::b::X::parse(&c_flat.serialize().unwrap())
+            .unwrap()
+            .value(),
+        30
+    );
+    let mut d_flat = native::BX_5::new();
+    d_flat.set_value(40);
+    assert_eq!(
+        native::d::b::X::parse(&d_flat.serialize().unwrap())
+            .unwrap()
+            .value(),
+        40
+    );
+    let mut e_flat = native::BX_6::new();
+    e_flat.set_value(50);
+    assert_eq!(
+        native::e::b::X::parse(&e_flat.serialize().unwrap())
+            .unwrap()
+            .value(),
+        50
+    );
+    assert_eq!(native::BX_3::One, native::f::b::X::One);
+    assert_eq!(native::BX_3::One.0, peer::f::b::X::One as i32);
     println!("PASS type-collision repeated parent prefixes");
 
     let mut foo = native::Foo::new();

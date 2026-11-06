@@ -1,0 +1,182 @@
+{
+  "schema": "pbrs.endpoint-origin-evidence.v1",
+  "baseline_commit": "dc2261c8efe6fa99bf6c3583fa642f09ee7249cf",
+  "scope": "shared-host current-thread in-memory unary client+server process CPU; not network/TLS/RPC ranking",
+  "started_utc": "2026-11-06T00:07:42.318032+00:00",
+  "finished_utc": "2026-11-06T00:07:50.346584+00:00",
+  "cpu_affinity": [
+    0
+  ],
+  "processes": 72,
+  "layout_bytes": {
+    "baseline": {
+      "channel_local": 176,
+      "channel": 16
+    },
+    "candidate": {
+      "channel_local": 184,
+      "channel": 16
+    }
+  },
+  "binary_bytes": {
+    "baseline-cpu": 4662016,
+    "baseline-allocations": 4687936,
+    "candidate-cpu": 4671760,
+    "candidate-allocations": 4695896
+  },
+  "modes": [
+    {
+      "mode": "stock",
+      "paired_new_old_cpu": [
+        0.9882154896267752,
+        0.9715717192965513,
+        0.9647426880929452,
+        1.0128398677515007,
+        0.9928885366104967,
+        1.0231756553615503,
+        1.0629378221606234,
+        1.0124055759973813,
+        1.004193077040795
+      ],
+      "median_ratio": 1.004193077040795,
+      "range": [
+        0.9647426880929452,
+        1.0629378221606234
+      ],
+      "baseline_cpu_ns": 5993.49215,
+      "candidate_cpu_ns": 5972.45855,
+      "allocations": {
+        "baseline": [
+          {
+            "calls_per_rpc": 11.0,
+            "bytes_per_rpc": 15070.0
+          },
+          {
+            "calls_per_rpc": 11.0,
+            "bytes_per_rpc": 15070.0
+          },
+          {
+            "calls_per_rpc": 11.0,
+            "bytes_per_rpc": 15070.0
+          }
+        ],
+        "candidate": [
+          {
+            "calls_per_rpc": 11.0,
+            "bytes_per_rpc": 15062.0
+          },
+          {
+            "calls_per_rpc": 11.0,
+            "bytes_per_rpc": 15062.0
+          },
+          {
+            "calls_per_rpc": 11.0,
+            "bytes_per_rpc": 15062.0
+          }
+        ]
+      }
+    },
+    {
+      "mode": "deadline",
+      "paired_new_old_cpu": [
+        0.9972204262145257,
+        0.9797378823589913,
+        1.017321990688597,
+        1.032625637340055,
+        1.0543052345409445,
+        0.9873026437666756,
+        1.022403854611025,
+        0.9965009787495673,
+        1.0037991647088529
+      ],
+      "median_ratio": 1.0037991647088529,
+      "range": [
+        0.9797378823589913,
+        1.0543052345409445
+      ],
+      "baseline_cpu_ns": 7951.01455,
+      "candidate_cpu_ns": 8031.13965,
+      "allocations": {
+        "baseline": [
+          {
+            "calls_per_rpc": 25.0,
+            "bytes_per_rpc": 21446.0
+          },
+          {
+            "calls_per_rpc": 25.0,
+            "bytes_per_rpc": 21446.0
+          },
+          {
+            "calls_per_rpc": 25.0,
+            "bytes_per_rpc": 21446.0
+          }
+        ],
+        "candidate": [
+          {
+            "calls_per_rpc": 25.0,
+            "bytes_per_rpc": 21438.0
+          },
+          {
+            "calls_per_rpc": 25.0,
+            "bytes_per_rpc": 21438.0
+          },
+          {
+            "calls_per_rpc": 25.0,
+            "bytes_per_rpc": 21438.0
+          }
+        ]
+      }
+    },
+    {
+      "mode": "origin-http",
+      "paired_new_old_cpu": [
+        0.9834257276875679,
+        1.0113146546753708,
+        1.0056346566548278,
+        1.0015500560351642,
+        0.9766795168328629,
+        1.1253771284261245,
+        0.9999260927787563,
+        1.1015485258911666,
+        1.000690384512174
+      ],
+      "median_ratio": 1.0015500560351642,
+      "range": [
+        0.9766795168328629,
+        1.1253771284261245
+      ],
+      "baseline_cpu_ns": 5947.13255,
+      "candidate_cpu_ns": 5980.6426,
+      "allocations": {
+        "baseline": [
+          {
+            "calls_per_rpc": 11.0,
+            "bytes_per_rpc": 15070.0
+          },
+          {
+            "calls_per_rpc": 11.0,
+            "bytes_per_rpc": 15070.0
+          },
+          {
+            "calls_per_rpc": 11.0,
+            "bytes_per_rpc": 15070.0
+          }
+        ],
+        "candidate": [
+          {
+            "calls_per_rpc": 11.0,
+            "bytes_per_rpc": 15062.0
+          },
+          {
+            "calls_per_rpc": 11.0,
+            "bytes_per_rpc": 15062.0
+          },
+          {
+            "calls_per_rpc": 11.0,
+            "bytes_per_rpc": 15062.0
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+syntax = "proto3";
+package safe.defaults;
+import "legacy.proto";
+
+message Record {
+  int64 id = 1;
+  string text = 2;
+  bytes data = 3;
+  repeated string tags = 4;
+  repeated bytes blobs = 5;
+  repeated int32 numbers = 6 [packed = true];
+  map<string, int32> counts = 7;
+  map<int32, bytes> payloads = 8;
+  Child child = 9;
+  repeated Child children = 10;
+  oneof selection {
+    bool flag = 11;
+    string note = 12;
+    bytes raw_choice = 13;
+    Child chosen = 14;
+  }
+  optional bool enabled = 15;
+  optional int64 total = 16;
+  double ratio = 17;
+  float sample = 18;
+}

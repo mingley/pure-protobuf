@@ -27,7 +27,6 @@ use crate::wire::{
 };
 use bytes::Bytes;
 use http::HeaderValue;
-use http::uri::Authority;
 use std::future::Future;
 use std::pin::Pin;
 use std::time::Duration;
@@ -38,7 +37,7 @@ use std::time::Duration;
 )]
 pub(crate) async fn run_server_stream<Resp>(
     send_req: backend::SendRequest,
-    authority: &Authority,
+    routing: &impl super::channel::RequestRouting,
     path: &'static str,
     md: &crate::metadata::Metadata,
     timeout: Option<Duration>,
@@ -48,7 +47,6 @@ pub(crate) async fn run_server_stream<Resp>(
     cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     user_agent: HeaderValue,
-    https: bool,
     permit: BytePermit,
     tap: Option<&CallLogger>,
     socket: Option<crate::channelz::SocketId>,
@@ -57,8 +55,8 @@ where
     Resp: CodecMessage + Send + 'static,
 {
     run_server_stream_frame(
-        send_req, authority, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
-        user_agent, https, permit, tap, socket, None,
+        send_req, routing, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
+        user_agent, permit, tap, socket, None,
     )
     .await
 }
@@ -70,7 +68,7 @@ where
 )]
 async fn run_server_stream_frame<Resp>(
     send_req: backend::SendRequest,
-    authority: &Authority,
+    routing: &impl super::channel::RequestRouting,
     path: &'static str,
     md: &crate::metadata::Metadata,
     timeout: Option<Duration>,
@@ -80,7 +78,6 @@ async fn run_server_stream_frame<Resp>(
     cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     user_agent: HeaderValue,
-    https: bool,
     permit: BytePermit,
     tap: Option<&CallLogger>,
     socket: Option<crate::channelz::SocketId>,
@@ -91,7 +88,7 @@ where
 {
     let outcome = run_server_stream_inner(
         send_req,
-        authority,
+        routing,
         path,
         md,
         timeout,
@@ -101,7 +98,6 @@ where
         cancel_rx,
         wire,
         user_agent,
-        https,
         permit,
         tap,
         socket,
@@ -122,7 +118,7 @@ where
 )]
 async fn run_server_stream_inner<Resp>(
     send_req: backend::SendRequest,
-    authority: &Authority,
+    routing: &impl super::channel::RequestRouting,
     path: &'static str,
     md: &crate::metadata::Metadata,
     timeout: Option<Duration>,
@@ -132,7 +128,6 @@ async fn run_server_stream_inner<Resp>(
     cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     user_agent: HeaderValue,
-    https: bool,
     permit: BytePermit,
     tap: Option<&CallLogger>,
     socket: Option<crate::channelz::SocketId>,
@@ -143,11 +138,11 @@ where
 {
     let mut commitment = AttemptCommitment::Uncommitted;
     if let Some(tap) = tap {
-        tap.log_client_header(md, path, authority.as_str(), timeout);
+        tap.log_client_header(md, path, routing.authority().as_str(), timeout);
     }
     let (mut resp_fut, mut send_stream) = match open(
         send_req,
-        authority,
+        routing,
         path,
         md,
         timeout,
@@ -156,7 +151,6 @@ where
         compress.then_some(wire.send_codec),
         wire.accept_gzip,
         &user_agent,
-        https,
     )
     .await
     {
@@ -1390,7 +1384,6 @@ impl super::Channel {
                 };
                 // The original message is no longer needed after encoding.
                 drop(msg);
-                let https = channel.local.https;
                 let ua = ua.unwrap_or_else(|| channel.local.user_agent.clone());
                 let permit = match channel.take_rpc_slot() {
                     Ok(p) => p,
@@ -1511,7 +1504,7 @@ impl super::Channel {
                         .or(deadline);
                     match run_server_stream_frame(
                         live.send,
-                        &channel.local.authority,
+                        channel.local.as_ref(),
                         path,
                         &md,
                         req_timeout,
@@ -1521,7 +1514,6 @@ impl super::Channel {
                         cancel_rx.clone(),
                         wire,
                         ua.clone(),
-                        https,
                         byte_permit,
                         tap.as_ref(),
                         live_socket,

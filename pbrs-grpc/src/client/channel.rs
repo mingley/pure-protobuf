@@ -233,6 +233,7 @@ pub struct Endpoint {
     uri: Uri,
     config: ChannelConfig,
     executor: crate::executor::TaskExecutor,
+    origin: Option<Arc<Uri>>,
 }
 
 impl Endpoint {
@@ -273,6 +274,7 @@ impl Endpoint {
             uri,
             config: ChannelConfig::default(),
             executor: crate::executor::TaskExecutor::default(),
+            origin: None,
         })
     }
 
@@ -280,6 +282,25 @@ impl Endpoint {
     #[must_use]
     pub fn with_config(mut self, config: ChannelConfig) -> Self {
         self.config = config;
+        self
+    }
+
+    /// Override the request URI's scheme and authority.
+    ///
+    /// This does not change dialing, TLS or certificate server-name choices.
+    /// The origin's path and query are ignored;
+    /// generated and native calls retain their method path. Any URI scheme is
+    /// supported. An origin without both a scheme and authority fails the RPC
+    /// with [`Code::InvalidArgument`] before request headers are sent.
+    ///
+    /// [`Channel::scheme`] and client interceptor security context continue to
+    /// describe the transport. [`Channel::origin`] can replace the authority
+    /// again on a connected clone without changing this scheme override.
+    /// [`Channel::request_scheme`] reports the logical wire scheme. Static
+    /// balance helpers reject endpoints with origins.
+    #[must_use]
+    pub fn origin(mut self, origin: Uri) -> Self {
+        self.origin = Some(Arc::new(origin));
         self
     }
 
@@ -306,14 +327,23 @@ impl Endpoint {
     pub async fn connect(&self) -> Result<Channel, Status> {
         let target = self.target()?;
         let tls = self.is_https().then(|| self.client_tls()).transpose()?;
-        pool::connect_inner_with_executor(target, self.config, tls, self.executor.clone()).await
+        let channel =
+            pool::connect_inner_with_executor(target, self.config, tls, self.executor.clone())
+                .await?;
+        Ok(self.apply_origin(channel))
     }
 
     /// Build a lazy channel using the endpoint's scheme.
     pub fn connect_lazy(&self) -> Result<Channel, Status> {
         let target = self.target()?;
         let tls = self.is_https().then(|| self.client_tls()).transpose()?;
-        pool::connect_lazy_inner_with_executor(target, self.config, tls, self.executor.clone())
+        let channel = pool::connect_lazy_inner_with_executor(
+            target,
+            self.config,
+            tls,
+            self.executor.clone(),
+        )?;
+        Ok(self.apply_origin(channel))
     }
 
     /// Connect through a custom connector that returns an already-open IO.
@@ -335,11 +365,12 @@ impl Endpoint {
             self.executor.clone(),
         )
         .await?;
-        Ok(if self.is_https() {
+        let channel = if self.is_https() {
             channel.https_scheme()
         } else {
             channel
-        })
+        };
+        Ok(self.apply_origin(channel))
     }
 
     /// Static round-robin balance over endpoint URI authorities.
@@ -385,6 +416,18 @@ impl Endpoint {
 
     fn is_https(&self) -> bool {
         self.uri.scheme_str() == Some("https")
+    }
+
+    fn apply_origin(&self, channel: Channel) -> Channel {
+        match &self.origin {
+            Some(origin) => channel.with_local(|local| {
+                if let Some(authority) = origin.authority() {
+                    local.authority = authority.clone();
+                }
+                local.origin = Some(Arc::clone(origin));
+            }),
+            None => channel,
+        }
     }
 
     fn target(&self) -> Result<Target, Status> {
@@ -472,6 +515,11 @@ fn endpoint_socket_addrs(endpoints: &[Endpoint]) -> Result<Vec<SocketAddr>, Stat
     }
     let mut out = Vec::with_capacity(endpoints.len());
     for endpoint in endpoints {
+        if endpoint.origin.is_some() {
+            return Err(Status::invalid_argument(
+                "balance_list/balance_channel do not support per-endpoint origins",
+            ));
+        }
         if endpoint.executor.is_custom() {
             return Err(Status::invalid_argument(
                 "balance_list/balance_channel do not support per-endpoint executors",
@@ -512,9 +560,12 @@ pub(crate) struct ChannelLocal {
     pub(crate) rpc_slots: Option<Arc<Semaphore>>,
     pub(crate) byte_budget: ByteBudgetTracker,
     pub(crate) user_agent: HeaderValue,
-    /// `:scheme` this clone sends. TLS channels start `true`; [`Channel::from_io`]
-    /// starts `false` until [`Channel::https_scheme`].
+    /// Transport/security scheme. Logical endpoint origins do not change it.
+    /// TLS channels start `true`; [`Channel::from_io`] starts `false` until
+    /// [`Channel::https_scheme`].
     pub(crate) https: bool,
+    /// Logical request origin, separate from transport security and dialing.
+    pub(crate) origin: Option<Arc<Uri>>,
     /// `:authority` this clone sends. Defaults to the dial [`Target`];
     /// [`Channel::origin`] overrides it.
     pub(crate) authority: Authority,
@@ -525,6 +576,64 @@ pub(crate) struct ChannelLocal {
     pub(crate) retry_stats: Arc<RetryStatsRecorder>,
     /// Binary logger. Clones share it.
     pub(crate) binlog: Option<Arc<crate::binlog::BinaryLogger>>,
+}
+
+impl ChannelLocal {
+    #[inline]
+    pub(crate) fn request_scheme(&self) -> Result<&http::uri::Scheme, Status> {
+        match &self.origin {
+            Some(origin) => {
+                if origin.authority().is_none() {
+                    return Err(Status::invalid_argument("origin URI needs an authority"));
+                }
+                origin
+                    .scheme()
+                    .ok_or_else(|| Status::invalid_argument("origin URI needs a scheme"))
+            }
+            None => Ok(if self.https {
+                &http::uri::Scheme::HTTPS
+            } else {
+                &http::uri::Scheme::HTTP
+            }),
+        }
+    }
+}
+
+/// Request routing is independent of the transport's security context.
+pub(crate) trait RequestRouting: Sync {
+    fn authority(&self) -> &Authority;
+    fn request_scheme(&self) -> Result<&http::uri::Scheme, Status>;
+}
+
+impl RequestRouting for ChannelLocal {
+    fn authority(&self) -> &Authority {
+        &self.authority
+    }
+
+    fn request_scheme(&self) -> Result<&http::uri::Scheme, Status> {
+        ChannelLocal::request_scheme(self)
+    }
+}
+
+/// Background health and load watches use their shared resolver pool's target.
+/// Endpoint origins cannot enter these pools: balanced endpoints reject them.
+pub(crate) struct DirectRouting<'a> {
+    pub(crate) authority: &'a Authority,
+    pub(crate) https: bool,
+}
+
+impl RequestRouting for DirectRouting<'_> {
+    fn authority(&self) -> &Authority {
+        self.authority
+    }
+
+    fn request_scheme(&self) -> Result<&http::uri::Scheme, Status> {
+        Ok(if self.https {
+            &http::uri::Scheme::HTTPS
+        } else {
+            &http::uri::Scheme::HTTP
+        })
+    }
 }
 
 /// A prior-knowledge HTTP/2 connection (or small pool) to a gRPC server.
@@ -1011,13 +1120,14 @@ impl super::Channel {
     /// [`Self::connect`] / [`Self::connect_tls`] / [`Self::connect_unix`];
     /// this overlay does not rebind the socket. Distinct from
     /// [`crate::ClientTls`]: that is SNI / certificate name, not this header.
-    /// Distinct from tonic's `Endpoint::origin`, which takes a `Uri` and
-    /// also sets `:scheme`; scheme on this kernel is [`Self::connect_tls`]
-    /// or [`Self::https_scheme`].
+    /// [`Endpoint::origin`] takes a `Uri` and sets a logical scheme as well.
+    /// This authority-only setter preserves that logical scheme, if present;
+    /// otherwise the request scheme follows [`Self::connect_tls`] or
+    /// [`Self::https_scheme`].
     /// There is no grpc-go `WithAuthority`: that sets `:authority` and the
     /// TLS authentication server name. This overlay is `:authority` only.
     /// Distinct from [`crate::ClientTls`] (SNI / certificate name). Distinct
-    /// from tonic `Endpoint::origin` (Uri, also `:scheme`). There is no
+    /// from [`Endpoint::origin`] (URI, also `:scheme`). There is no
     /// `CallAuthority`: interceptors cannot override `:authority` per call.
     ///
     /// Unix defaults to `localhost`; this overlay can replace it.
@@ -1725,8 +1835,8 @@ impl super::Channel {
 
     /// The `:authority` sent with every request.
     ///
-    /// Taken from the [`Target`] used to dial, unless [`Self::origin`]
-    /// overrode it on this clone. A [`SocketAddr`] is that
+    /// Taken from the [`Target`] used to dial, unless [`Endpoint::origin`] or
+    /// [`Self::origin`] overrode it on this clone. A [`SocketAddr`] is that
     /// address (`127.0.0.1:port`), not TLS SNI (`ClientTls` verifies a name
     /// such as `localhost` separately). Unix sockets send `localhost`
     /// until [`Self::origin`]. Applies to every call shape.
@@ -1736,14 +1846,25 @@ impl super::Channel {
         self.local.authority.as_str()
     }
 
-    /// HTTP/2 `:scheme` this clone sends.
+    /// Transport/security scheme used by this clone's client interceptors.
     ///
     /// `https` after [`Self::connect_tls`] or [`Self::https_scheme`], otherwise
     /// `http`. Same string as [`crate::Outgoing::scheme`]. Applies to every
-    /// call shape.
+    /// call shape. [`Endpoint::origin`] changes the logical request scheme
+    /// independently; inspect that with [`Self::request_scheme`].
     #[must_use]
     pub fn scheme(&self) -> &'static str {
         if self.local.https { "https" } else { "http" }
+    }
+
+    /// Logical HTTP/2 `:scheme` sent with requests.
+    ///
+    /// Defaults to [`Self::scheme`]. An [`Endpoint::origin`] overrides it
+    /// without changing transport security, dialing or TLS verification.
+    /// Returns [`Code::InvalidArgument`] when that origin lacks a scheme or
+    /// authority, matching the error returned when an RPC starts.
+    pub fn request_scheme(&self) -> Result<&str, Status> {
+        self.local.request_scheme().map(http::uri::Scheme::as_str)
     }
 }
 

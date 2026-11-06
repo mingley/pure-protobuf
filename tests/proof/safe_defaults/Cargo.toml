@@ -1,0 +1,27 @@
+[package]
+name = "pbrs-safe-defaults-proof"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[features]
+default = []
+owned = []
+boxed = []
+# Measurement control: ordinary generated defaults in a consumer that allows
+# unsafe code. The default consumer always forbids unsafe code.
+ordinary-control = []
+# Negative control: keep the forbid policy while generating ordinary defaults.
+forbid-legacy = []
+
+[dependencies]
+pbrs = { path = "../../..", default-features = false }
+
+[build-dependencies]
+pbrs = { path = "../../..", default-features = false, features = ["codegen"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

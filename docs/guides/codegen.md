@@ -5,10 +5,14 @@ or use `protoc-gen-pbrs` in an existing compiler pipeline. Inputs can be
 `.proto` files or a checked descriptor set. Native gRPC stubs are the default;
 Tonic stubs and messages-only output are explicit options.
 
+`boxed` and `safe_message_defaults` below are additions in the unreleased
+`pbrs` 0.2.1 candidate.
+
 | Need | Read |
 |---|---|
 | Pick native, tonic or messages-only output | [Stub modes](#stub-generation-summary) |
-| Read or mutate nested messages efficiently | [Lazy and owned storage](#owned-nested-message-fields) |
+| Read or mutate nested messages efficiently | [Lazy and owned storage](#owned-nested-message-fields), [selected fields](#box-selected-nested-fields) |
+| Forbid unsafe code in generated bindings | [Safe generated defaults](#safe-generated-defaults) |
 | Reduce generated metadata and format helpers | [Cargo features](#cargo-features) |
 | Generate without `protoc` during the application build | [Checked descriptor sets](#generating-from-a-checked-descriptor-set) |
 | Port a `prost-build` configuration | [Builder compatibility](#parity-with-tonic-build-and-prost-build) |
@@ -75,6 +79,26 @@ Defaults stay source-compatible: reflection bytes plus JSON and text methods
 are still emitted unless you opt out. `no_reflect=true` remains supported as a
 shorthand for disabling reflection and, unless separately requested, generated
 JSON/text methods.
+
+### Safe generated defaults
+
+Use this option when the consuming crate requires `#![forbid(unsafe_code)]`
+in its generated bindings:
+
+```rust
+pbrs::codegen::Config::new()
+    .safe_message_defaults(true)
+    .compile_protos(&["proto/service.proto"], &["proto"])?;
+```
+
+It uses field defaults for messages and cold storage instead of generated
+unsafe zero initialization. Runtime dependencies retain their own unsafe
+implementations. Message layouts, accessors and wire behavior stay the same.
+The default is `false`; the plugin option is `safe_message_defaults=true`.
+Check construction, parsing and consumer build costs before choosing this
+profile; removing generated unsafe code does not establish a speedup. The
+[consumer proof](../../tests/proof/safe_defaults/README.md) covers lazy,
+owned and selected boxed fields.
 
 ### Shared descriptor storage
 
@@ -152,6 +176,33 @@ Its compact size cache leaves sizes at least `u32::MAX` uncached; serialization
 still computes and returns their full `u64` sizes.
 The plugin equivalent is `owned_message_fields=true`; there is no environment
 variable for this option.
+
+### Box selected nested fields
+
+Use `boxed(path)` to construct selected singular child messages during parsing
+while leaving other fields lazy:
+
+```rust
+pbrs::codegen::Config::new()
+    .boxed(".example.Request.metadata")
+    .compile_protos(&["proto/service.proto"], &["proto"])?;
+```
+
+A selected field uses owned `Option<Box<T>>` storage; its pbrs accessors stay
+the same. This moves child construction into parsing and serializes from
+fields instead of reusing untouched child wire. Measure parse, full-read and
+allocation costs for the application workload.
+
+Selectors use protobuf names: `.` selects all eligible fields, a qualified
+prefix selects its descendants, and a relative suffix matches across
+packages. A real oneof member uses `Parent.choice.child`; a synthetic
+optional oneof uses the ordinary `Parent.child` path. Repeated and map fields
+keep their storage, and group fields are already eagerly boxed. The global
+`owned_message_fields(true)` profile already owns all singular children;
+imported child types keep the profile with which they were generated.
+The plugin equivalent is `boxed=.example.Request.metadata`. The
+[selector and consumer controls](../../tests/proof/codegen_parity/README.md)
+record the tested Prost comparisons.
 
 ### Message names, type URLs and enum prefixes
 
@@ -450,6 +501,8 @@ Supported `--pbrs_opt` options:
 - `stubs=none`: Emit messages only.
 - `emit_deps=true`: Emit imported non-WKT definitions.
 - `owned_message_fields=true`: Construct singular nested messages during parsing.
+- `boxed=.pkg.Parent.child`: Construct selected singular child messages during parsing.
+- `safe_message_defaults=true`: Emit field defaults for consumers that forbid generated unsafe code.
 - `no_wkt=true`: Suppress Well-Known Types emission.
 
 ---
@@ -479,6 +532,7 @@ follows the sharing rule above; explicit external mappings remain available.
 | `message_attribute` | `Config::message_attribute` | Supports the same selectors for messages. |
 | `enum_attribute` | `Config::enum_attribute` | Supports the same selectors for enums. |
 | `field_attribute` | `Config::field_attribute` | Supports the same selectors for generated field storage. |
+| `boxed` | `Config::boxed` / `--pbrs_opt=boxed=.pkg.Parent.child` | Selects eager singular message storage; repeated and map fields are unchanged. See [selected fields](#box-selected-nested-fields). |
 | `build_client` | `Config::build_client` / `--pbrs_opt=build_client=false` | Supported for native and Tonic adapter stubs. |
 | `build_server` | `Config::build_server` / `--pbrs_opt=build_server=false` | Supported for native and Tonic adapter stubs. |
 | `client_attribute` | `Config::client_attribute` | Supported on generated client structs, keyed by service full name. |

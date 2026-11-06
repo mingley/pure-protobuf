@@ -235,6 +235,9 @@ impl From<CodegenError> for ParseError {
 // The latter is distinct from the private flattened name of an emitted type.
 pub(crate) type TypeFileIndex = std::collections::BTreeMap<String, (String, String, String)>;
 
+pub(crate) type BoxedFieldIndex =
+    std::collections::BTreeMap<String, std::collections::BTreeSet<u32>>;
+
 thread_local! {
     pub(crate) static IDENTS: RefCell<std::collections::BTreeMap<String, String>> =
         const { RefCell::new(std::collections::BTreeMap::new()) };
@@ -245,6 +248,12 @@ thread_local! {
     pub(crate) static STUBS: Cell<StubStyle> = const { Cell::new(StubStyle::Kernel) };
     pub(crate) static EMIT_DEPS: Cell<bool> = const { Cell::new(false) };
     pub(crate) static OWNED_MESSAGE_FIELDS: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static SAFE_MESSAGE_DEFAULTS: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static BOXED_FIELDS: RefCell<Option<std::sync::Arc<BoxedFieldIndex>>> =
+        const { RefCell::new(None) };
+    pub(crate) static BOXED_FIELD_NUMBERS: RefCell<std::collections::BTreeSet<u32>> =
+        const { RefCell::new(std::collections::BTreeSet::new()) };
+    pub(crate) static HAS_BOXED_FIELDS: Cell<bool> = const { Cell::new(false) };
     pub(crate) static ENABLE_TYPE_NAMES: Cell<bool> = const { Cell::new(false) };
     pub(crate) static RETAIN_ENUM_PREFIX: Cell<bool> = const { Cell::new(false) };
     pub(crate) static TYPE_NAME_DOMAINS: RefCell<Vec<(String, String)>> = const { RefCell::new(Vec::new()) };
@@ -309,6 +318,10 @@ impl CodegenStateGuard {
         STUBS.with(|c| c.set(StubStyle::Kernel));
         EMIT_DEPS.with(|c| c.set(false));
         OWNED_MESSAGE_FIELDS.with(|c| c.set(false));
+        SAFE_MESSAGE_DEFAULTS.with(|c| c.set(false));
+        BOXED_FIELDS.with(|c| *c.borrow_mut() = None);
+        BOXED_FIELD_NUMBERS.with(|c| c.borrow_mut().clear());
+        HAS_BOXED_FIELDS.with(|c| c.set(false));
         ENABLE_TYPE_NAMES.with(|c| c.set(false));
         RETAIN_ENUM_PREFIX.with(|c| c.set(false));
         TYPE_NAME_DOMAINS.with(|c| c.borrow_mut().clear());
@@ -402,6 +415,8 @@ pub(crate) struct ExplicitOptions {
     stubs: Option<StubStyle>,
     emit_deps: Option<bool>,
     owned_message_fields: Option<bool>,
+    safe_message_defaults: Option<bool>,
+    boxed_fields: Vec<String>,
     enable_type_names: Option<bool>,
     retain_enum_prefix: Option<bool>,
     type_name_domains: Vec<(String, String)>,
@@ -438,6 +453,8 @@ pub(crate) struct ResolvedConfig {
     pub(crate) stubs: StubStyle,
     pub(crate) emit_deps: bool,
     pub(crate) owned_message_fields: bool,
+    pub(crate) safe_message_defaults: bool,
+    pub(crate) boxed_fields: Vec<String>,
     pub(crate) enable_type_names: bool,
     pub(crate) retain_enum_prefix: bool,
     pub(crate) type_name_domains: Vec<(String, String)>,
@@ -641,6 +658,25 @@ pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions,
             "owned_message_fields" => {
                 explicit.owned_message_fields =
                     Some(parse_bool_param("owned_message_fields", val)?);
+            }
+            "safe_message_defaults" => {
+                explicit.safe_message_defaults =
+                    Some(parse_bool_param("safe_message_defaults", val)?);
+            }
+            "boxed" | "boxed_hex" => {
+                let value = val.ok_or_else(|| CodegenError::InvalidParameter {
+                    key: key.to_string(),
+                    detail: "expected a protobuf field selector".to_string(),
+                })?;
+                let selector = if key == "boxed_hex" {
+                    decode_parameter_hex(value).map_err(|_| CodegenError::InvalidParameter {
+                        key: key.to_string(),
+                        detail: "expected a hexadecimal UTF-8 field selector".to_string(),
+                    })?
+                } else {
+                    value.to_string()
+                };
+                explicit.boxed_fields.push(selector);
             }
             "no_wkt" => {
                 explicit.no_wkt = Some(parse_bool_param("no_wkt", val)?);
@@ -1009,6 +1045,8 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
         stubs,
         emit_deps,
         owned_message_fields: explicit.owned_message_fields.unwrap_or(false),
+        safe_message_defaults: explicit.safe_message_defaults.unwrap_or(false),
+        boxed_fields: explicit.boxed_fields.clone(),
         enable_type_names: explicit.enable_type_names.unwrap_or(false),
         retain_enum_prefix: explicit.retain_enum_prefix.unwrap_or(false),
         type_name_domains: explicit.type_name_domains.clone(),
@@ -1076,6 +1114,10 @@ pub(crate) fn skip_debug() -> bool {
     SKIP_DEBUG.with(Cell::get)
 }
 
+pub(crate) fn safe_message_defaults_enabled() -> bool {
+    SAFE_MESSAGE_DEFAULTS.with(Cell::get)
+}
+
 pub(crate) fn tonic_codec_path() -> String {
     CODEC_PATH
         .with(|c| c.borrow().clone())
@@ -1083,9 +1125,13 @@ pub(crate) fn tonic_codec_path() -> String {
 }
 
 fn attr_path_matches(rule_path: &str, fq_path: &str) -> bool {
+    rule_path == "*" || protobuf_path_matches(rule_path, fq_path)
+}
+
+pub(crate) fn protobuf_path_matches(rule_path: &str, fq_path: &str) -> bool {
     // A leading dot selects a fully qualified prefix; a relative path
     // selects a suffix. Match whole protobuf name components only.
-    if rule_path == "." || rule_path == "*" {
+    if rule_path == "." {
         return true;
     }
     let fq = fq_path.trim_start_matches('.');
@@ -1295,6 +1341,8 @@ pub struct Config {
     stubs: Option<StubStyle>,
     emit_deps: Option<bool>,
     owned_message_fields: Option<bool>,
+    safe_message_defaults: Option<bool>,
+    boxed_fields: Vec<String>,
     enable_type_names: Option<bool>,
     retain_enum_prefix: Option<bool>,
     type_name_domains: Vec<(String, String)>,
@@ -1563,6 +1611,49 @@ impl Config {
     /// The protoc plugin equivalent is `owned_message_fields=true`.
     pub fn owned_message_fields(&mut self, enable: bool) -> &mut Self {
         self.owned_message_fields = Some(enable);
+        self
+    }
+
+    /// Initialize generated message fields through their `Default` implementations.
+    ///
+    /// Defaults to `false`. Enabling this profile removes the generated
+    /// zero-initialization blocks and their `unsafe_code` allowance, so the
+    /// bindings can be included in a crate with `#![forbid(unsafe_code)]`.
+    /// Runtime dependencies retain their own implementations and lint policy.
+    ///
+    /// The message layout, accessors and wire format stay unchanged. Ordinary
+    /// generation keeps its existing initialization strategy; this profile can
+    /// change construction and consumer-build costs. Imported types retain the
+    /// profile with which they were generated.
+    ///
+    /// The protoc plugin equivalent is `safe_message_defaults=true`.
+    pub fn safe_message_defaults(&mut self, enable: bool) -> &mut Self {
+        self.safe_message_defaults = Some(enable);
+        self
+    }
+
+    /// Store matched singular message fields as eagerly parsed `Box` values.
+    ///
+    /// The default layout stores these fields lazily behind an indirection.
+    /// Selecting a field replaces that lazy metadata with `Option<Box<T>>`;
+    /// the generated accessors remain unchanged. This can help when the
+    /// application always reads that child, without selecting the owned
+    /// profile for every singular message field.
+    /// Selected children serialize from their fields instead of forwarding
+    /// their original child wire. Unread selected fields also do more work
+    /// during parsing, so this is a workload choice rather than a speed guarantee.
+    ///
+    /// Matching follows Prost: `.` selects all fields, a leading dot matches
+    /// a qualified prefix, and a relative path matches a suffix. Real oneof
+    /// paths include the oneof name, for example `Parent.choice.child`.
+    /// Repeated fields and maps are unchanged. Groups and fields generated
+    /// with [`Self::owned_message_fields`] are already eagerly boxed.
+    /// Child types retain the layout with which they were generated.
+    ///
+    /// The protoc plugin equivalent is `boxed=Parent.child`. Repeated calls
+    /// add selectors; the option does not expose Prost-style public fields.
+    pub fn boxed<P: AsRef<str>>(&mut self, path: P) -> &mut Self {
+        self.boxed_fields.push(path.as_ref().to_string());
         self
     }
 
@@ -1877,6 +1968,16 @@ impl Config {
         }
         if let Some(owned_message_fields) = self.owned_message_fields {
             opts.push(format!("owned_message_fields={owned_message_fields}"));
+        }
+        if let Some(safe_message_defaults) = self.safe_message_defaults {
+            opts.push(format!("safe_message_defaults={safe_message_defaults}"));
+        }
+        for selector in &self.boxed_fields {
+            if selector.contains(',') || selector.trim() != selector {
+                opts.push(format!("boxed_hex={}", parameter_hex(selector)));
+            } else {
+                opts.push(format!("boxed={selector}"));
+            }
         }
         if let Some(no_wkt) = self.no_wkt {
             opts.push(format!("no_wkt={no_wkt}"));
@@ -2322,7 +2423,7 @@ mod owned_message_profile_tests {
         encode_varint(out, value);
     }
 
-    fn request(parameter: &str) -> Vec<u8> {
+    pub(super) fn request(parameter: &str) -> Vec<u8> {
         let mut request = Vec::new();
         encode_len_field(&mut request, 2, parameter.as_bytes());
         for index in 0..2 {
@@ -2455,6 +2556,73 @@ mod owned_message_profile_tests {
 }
 
 #[cfg(test)]
+mod safe_message_default_tests {
+    use super::*;
+
+    #[test]
+    fn builder_and_plugin_resolve_safe_message_defaults_explicitly() {
+        let mut config = Config::new();
+        assert!(!resolve_options(&ExplicitOptions::default()).safe_message_defaults);
+        config.safe_message_defaults(true);
+        assert_eq!(config.to_parameter_string(), "safe_message_defaults=true");
+        let explicit =
+            parse_plugin_parameter(&config.to_parameter_string()).expect("safe defaults");
+        assert!(resolve_options(&explicit).safe_message_defaults);
+        config.safe_message_defaults(false);
+        let explicit =
+            parse_plugin_parameter(&config.to_parameter_string()).expect("ordinary defaults");
+        assert!(!resolve_options(&explicit).safe_message_defaults);
+        assert!(matches!(
+            parse_plugin_parameter("safe_message_defaults=perhaps"),
+            Err(CodegenError::InvalidParameter { key, .. }) if key == "safe_message_defaults"
+        ));
+    }
+
+    #[test]
+    fn default_policy_applies_to_all_targets_without_leaking_between_requests() {
+        let generate = |parameter: &str| {
+            crate::codegen::generate_from_code_generator_request(
+                &super::owned_message_profile_tests::request(parameter),
+            )
+            .expect("generate default policy")
+        };
+        let ordinary = generate("stubs=none");
+        for suffix in ["", ",owned_message_fields=true", ",skip_debug=true"] {
+            let safe = generate(&format!("stubs=none,safe_message_defaults=true{suffix}"));
+            let sources: Vec<_> = safe.iter().filter(|(name, _)| name != "mod.rs").collect();
+            assert_eq!(sources.len(), 2);
+            for (_, source) in sources {
+                assert!(source.contains("derive(::core::default::Default)"));
+                assert!(!source.contains("zeroed_message()"));
+                assert!(!source.contains("allow(unsafe_code"));
+            }
+            assert!(!SAFE_MESSAGE_DEFAULTS.with(Cell::get));
+        }
+        assert_eq!(ordinary, generate("stubs=none,safe_message_defaults=false"));
+        assert_eq!(ordinary, generate("stubs=none"));
+        assert!(
+            ordinary
+                .iter()
+                .any(|(_, source)| source.contains("zeroed_message()"))
+        );
+        let resolved = resolve_options(
+            &parse_plugin_parameter("safe_message_defaults=true").expect("safe default option"),
+        );
+        std::thread::spawn(move || {
+            assert!(!SAFE_MESSAGE_DEFAULTS.with(Cell::get));
+            {
+                let _guard = CodegenStateGuard::new();
+                crate::codegen::apply_resolved_config(&resolved);
+                assert!(SAFE_MESSAGE_DEFAULTS.with(Cell::get));
+            }
+            assert!(!SAFE_MESSAGE_DEFAULTS.with(Cell::get));
+        })
+        .join()
+        .expect("default policy worker");
+    }
+}
+
+#[cfg(test)]
 mod type_name_config_tests {
     use super::*;
 
@@ -2542,5 +2710,69 @@ mod type_name_config_tests {
         })
         .join()
         .expect("name worker");
+    }
+}
+
+#[cfg(test)]
+mod boxed_profile_tests {
+    use super::*;
+
+    #[test]
+    fn boxed_builder_and_plugin_preserve_selectors() {
+        let paths = [
+            ".pkg.Parent.child",
+            "Parent.choice.child",
+            "child",
+            ".",
+            "*",
+            "",
+            " .pkg.Parent.child ",
+            "unknown, selector",
+            "unknown=selector",
+        ];
+        let mut config = Config::new();
+        for path in paths {
+            config.boxed(path);
+        }
+        let parameter = config.to_parameter_string();
+        assert!(parameter.contains("boxed_hex="));
+        let parsed = parse_plugin_parameter(&parameter).expect("boxed selectors");
+        assert_eq!(parsed.boxed_fields, paths);
+        assert_eq!(resolve_options(&parsed).boxed_fields, paths);
+        for invalid in ["boxed", "boxed_hex=0", "boxed_hex=gg", "boxed_hex=ff"] {
+            assert!(matches!(
+                parse_plugin_parameter(invalid),
+                Err(CodegenError::InvalidParameter { .. })
+            ));
+        }
+    }
+
+    #[test]
+    fn boxed_selection_changes_only_the_selected_message_and_resets() {
+        let generate = |parameter: &str| {
+            crate::codegen::generate_from_code_generator_request(
+                &super::owned_message_profile_tests::request(parameter),
+            )
+            .expect("boxed generation")
+        };
+        let baseline = generate("stubs=none");
+        let selected = generate("stubs=none,boxed=.profile.p0.Parent.child");
+        let source = |files: &Vec<(String, String)>, parent: &str| {
+            files
+                .iter()
+                .find(|(_, source)| source.contains(&format!("The `{parent}` protobuf message")))
+                .map(|(_, source)| source.clone())
+                .expect("parent source")
+        };
+        let selected_parent = source(&selected, "profile.p0.Parent");
+        assert!(selected_parent.contains("child: Option<Box<Child>>"));
+        assert!(selected_parent.contains("cached_size: pbrs::rt::CachedSize,"));
+        assert!(selected_parent.contains("wire.as_ref().map(|source| source.window(s, e))"));
+        assert!(source(&selected, "profile.p1.Parent").contains("child: pbrs::rt::LazyMsg<Child>"));
+        assert_eq!(baseline, generate("stubs=none,boxed=*"));
+        assert_eq!(baseline, generate("stubs=none,boxed="));
+        assert_eq!(baseline, generate("stubs=none"));
+        assert!(!HAS_BOXED_FIELDS.with(Cell::get));
+        assert!(BOXED_FIELDS.with(|fields| fields.borrow().is_none()));
     }
 }

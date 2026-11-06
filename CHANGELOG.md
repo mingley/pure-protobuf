@@ -10,6 +10,17 @@ or stable releases.
 
 ### pbrs 0.2.1
 
+- Add `Config::boxed(path)` selectors for eager singular child storage, with
+  unchanged pbrs accessors. Imported children keep their generated profile;
+  repeated and map fields keep their storage.
+- Add opt-in `safe_message_defaults(true)` for generated consumers that
+  forbid unsafe code. Layouts and wire behavior stay unchanged; runtime
+  dependencies keep their own unsafe code. Construction and encoding costs
+  vary, so the existing default profile is preserved.
+- Qualify generator-owned traits, containers and macros so literal schema
+  names `Default`, `Map` and `Enum` compile in the tested profiles.
+- Cache numbered collision suffixes and reuse message companion names,
+  avoiding repeated prefix searches while preserving the tested names.
 - Transfer owned byte buffers through repeated/map setters and singular
   `Cow::Owned`/boxed-slice setters without copying the payload. Taking a
   `Vec` retains its spare capacity; borrowed inputs still copy their bytes.
@@ -46,6 +57,10 @@ or stable releases.
 
 ### pbrs-grpc 0.1.0-alpha.3
 
+- Add `Endpoint::origin(Uri)` and `Channel::request_scheme()` for logical
+  request routing without changing dialing, TLS or interceptor security
+  context. Origin paths and queries are ignored; static balance helpers
+  reject per-endpoint origins.
 - Round `grpc-timeout` values upward when a larger unit is needed, preserving
   the requested budget through the wire-format maximum. Check local deadline
   overflow in outgoing interceptors and retry attempts, and reject signed

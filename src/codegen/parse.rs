@@ -108,6 +108,7 @@ fn borrowed_self_validation(desc: &MessageDescriptor, initialize_tree: bool) -> 
         || desc.message_set_wire_format
         || desc.is_map_entry
         || OWNED_MESSAGE_FIELDS.with(|owned| owned.get())
+        || HAS_BOXED_FIELDS.with(|has| has.get())
     {
         return false;
     }
@@ -771,7 +772,7 @@ pub(crate) fn emit_merge_arm(
     let st = cold.store_mut(f);
     let num = f.number;
     let child_wire = if matches!(f.field_type, FieldType::Message | FieldType::Group)
-        && OWNED_MESSAGE_FIELDS.with(|owned| owned.get())
+        && eager_message_field(f)
     {
         "wire.as_ref().map(|source| source.window(s, e))"
     } else {

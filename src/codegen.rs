@@ -24,6 +24,7 @@ const fn build_hex_byte_chunk() -> [[u8; 5]; 256] {
     table
 }
 
+mod boxed;
 mod compat_stubs;
 mod config;
 mod descriptors;
@@ -39,6 +40,7 @@ mod reflection;
 mod text;
 mod tonic_stubs;
 
+pub(crate) use boxed::*;
 pub(crate) use compat_stubs::*;
 pub(crate) use config::*;
 pub(crate) use descriptors::*;

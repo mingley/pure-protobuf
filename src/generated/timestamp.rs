@@ -111,8 +111,8 @@ mod __gen_google_protobuf_timestamp_proto {
     use pbrs::prelude::*;
     use pbrs::UnknownFields;
     use pbrs::{
-        Enum, Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
-        RepeatedView, SerializeError, UnknownEnumValue,
+        ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut, RepeatedView, SerializeError,
+        UnknownEnumValue,
     };
 
     fn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {
@@ -238,7 +238,7 @@ mod __gen_google_protobuf_timestamp_proto {
         }
     }
     impl Eq for Timestamp {}
-    impl Default for Timestamp {
+    impl ::core::default::Default for Timestamp {
         #[inline(always)]
         fn default() -> Self {
             unsafe { pbrs::rt::zeroed_message() }
@@ -247,7 +247,7 @@ mod __gen_google_protobuf_timestamp_proto {
     impl Timestamp {
         /// Creates a new, default instance of [`Timestamp`].
         pub fn new() -> Self {
-            <Self as Default>::default()
+            <Self as ::core::default::Default>::default()
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;

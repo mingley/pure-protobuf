@@ -23,7 +23,6 @@ use crate::timeout::{deadline_from, remaining_timeout};
 use crate::transport::h2 as backend;
 use crate::wire::{SegFrame, encode_msg, finish_unary};
 use http::HeaderValue;
-use http::uri::Authority;
 use std::time::Duration;
 
 // A configured retryable status cannot authorize replay after response
@@ -48,7 +47,7 @@ impl UnaryFailure {
 )]
 pub(crate) async fn run_unary<Resp>(
     send_req: backend::SendRequest,
-    authority: &Authority,
+    routing: &impl super::channel::RequestRouting,
     path: &'static str,
     md: &crate::metadata::Metadata,
     timeout: Option<Duration>,
@@ -58,7 +57,6 @@ pub(crate) async fn run_unary<Resp>(
     cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     user_agent: HeaderValue,
-    https: bool,
     permit: BytePermit,
     tap: Option<&CallLogger>,
 ) -> Result<Response<Resp>, Status>
@@ -66,8 +64,8 @@ where
     Resp: CodecMessage + Send,
 {
     run_unary_frame(
-        send_req, authority, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
-        user_agent, https, permit, tap, None,
+        send_req, routing, path, md, timeout, deadline, compress, frame, cancel_rx, wire,
+        user_agent, permit, tap, None,
     )
     .await
     .map_err(|failure| failure.status)
@@ -80,7 +78,7 @@ where
 )]
 async fn run_unary_frame<Resp>(
     send_req: backend::SendRequest,
-    authority: &Authority,
+    routing: &impl super::channel::RequestRouting,
     path: &'static str,
     md: &crate::metadata::Metadata,
     timeout: Option<Duration>,
@@ -90,7 +88,6 @@ async fn run_unary_frame<Resp>(
     cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     user_agent: HeaderValue,
-    https: bool,
     permit: BytePermit,
     tap: Option<&CallLogger>,
     policy_dispatch: Option<&mut PolicyRetryDispatch<'_>>,
@@ -100,7 +97,7 @@ where
 {
     let outcome = run_unary_inner(
         send_req,
-        authority,
+        routing,
         path,
         md,
         timeout,
@@ -110,7 +107,6 @@ where
         cancel_rx,
         wire,
         user_agent,
-        https,
         permit,
         tap,
         policy_dispatch,
@@ -130,7 +126,7 @@ where
 )]
 async fn run_unary_inner<Resp>(
     send_req: backend::SendRequest,
-    authority: &Authority,
+    routing: &impl super::channel::RequestRouting,
     path: &'static str,
     md: &crate::metadata::Metadata,
     timeout: Option<Duration>,
@@ -140,7 +136,6 @@ async fn run_unary_inner<Resp>(
     cancel_rx: crate::rpc_cancel::RpcCancel,
     wire: Wire,
     user_agent: HeaderValue,
-    https: bool,
     permit: BytePermit,
     tap: Option<&CallLogger>,
     policy_dispatch: Option<&mut PolicyRetryDispatch<'_>>,
@@ -150,11 +145,11 @@ where
 {
     let mut commitment = AttemptCommitment::Uncommitted;
     if let Some(tap) = tap {
-        tap.log_client_header(md, path, authority.as_str(), timeout);
+        tap.log_client_header(md, path, routing.authority().as_str(), timeout);
     }
     let (mut resp_fut, mut send_stream) = match open(
         send_req,
-        authority,
+        routing,
         path,
         md,
         timeout,
@@ -163,7 +158,6 @@ where
         compress.then_some(wire.send_codec),
         wire.accept_gzip,
         &user_agent,
-        https,
     )
     .await
     {
@@ -373,7 +367,6 @@ impl super::Channel {
                 };
                 // The original message is no longer needed after encoding.
                 drop(msg);
-                let https = channel.local.https;
                 let ua = ua.unwrap_or_else(|| channel.local.user_agent.clone());
                 let _permit = match channel.take_rpc_slot() {
                     Ok(p) => p,
@@ -405,7 +398,6 @@ impl super::Channel {
                             cancel_rx,
                             wire,
                             ua,
-                            https,
                             policy,
                             call_guard,
                             owned_labels,
@@ -523,7 +515,7 @@ impl super::Channel {
                     }
                     let result = run_unary_frame(
                         live.send,
-                        &channel.local.authority,
+                        channel.local.as_ref(),
                         path,
                         &md,
                         req_timeout,
@@ -533,7 +525,6 @@ impl super::Channel {
                         cancel_rx.clone(),
                         wire,
                         ua.clone(),
-                        https,
                         byte_permit,
                         tap.as_ref(),
                         policy_dispatch.as_mut(),
