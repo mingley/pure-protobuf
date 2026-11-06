@@ -5,6 +5,11 @@ stopped. They are dated investigations, usually local diagnostics. A result
 belongs to its recorded revision, host, workload, and peer versions; it does
 not automatically describe today's code.
 
+The [November 6 fresh-encoding repair](fresh-encode-warmup-20261106/README.md)
+separates warmup and measured objects. Earlier development-loop fresh rows
+could reuse packed-field caches. The record exposes the cold allocation cost,
+keeps all three codec controls, and makes no runtime speed claim.
+
 The [November 6 map-removal record](map-removal-20261106/README.md) fixes
 unrelated duplicate-key corruption and reuses warm indexes. All seven measured
 rows remain visible: large indexed cycles improve, while small and unindexed

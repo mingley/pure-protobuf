@@ -195,6 +195,10 @@ struct CellResult {
     /// Prepared RPC input length; absent in historical reports.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     input_wire_bytes: Option<u64>,
+    /// Fresh encoding uses separate objects for warmup and measurement.
+    /// Absent in historical reports, whose caches could be warmed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    fresh_encode_profile: Option<String>,
     allocs: Metric,
     alloc_bytes: Metric,
     syscalls: Metric,
@@ -298,6 +302,8 @@ struct ChildOutput {
     input_wire_fingerprint: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     input_wire_bytes: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    fresh_encode_profile: Option<String>,
     /// Per-site user-space copy counts over the timed window (SB-13).
     /// Missing on outputs predating the metric; all zeros when the
     /// `copy-counts` features are off.
@@ -1725,6 +1731,25 @@ async fn rpc_tonic_server_stream(iters: u64, payload: &[u8]) -> u64 {
 // Child protocol: `run-cell` prints exactly one `__CHILD__ <json>` line
 // on stderr (stdout stays clean for tool wrappers that merge streams).
 
+const FRESH_ENCODE_PROFILE: &str = "independent-warmup-v1";
+
+fn is_fresh_encode_cell(cell: &str) -> bool {
+    matches!(
+        cell,
+        "codec.pbrs.fresh_encode" | "codec.prost.fresh_encode" | "codec.v4.fresh_encode"
+    )
+}
+
+fn require_fresh_encode_profile(cell: &str, profile: Option<&str>) {
+    if is_fresh_encode_cell(cell) {
+        assert_eq!(
+            profile,
+            Some(FRESH_ENCODE_PROFILE),
+            "fresh encode measurement profile missing or incompatible for {cell}"
+        );
+    }
+}
+
 fn child_json(cell: &str, iters: u64, allocs: u64, bytes: u64, wall: Duration) -> String {
     child_json_with_input(cell, iters, allocs, bytes, wall, None)
 }
@@ -1765,6 +1790,7 @@ fn child_json_with_input_bytes(
         wall_ns: wall.as_nanos() as u64,
         input_wire_fingerprint,
         input_wire_bytes,
+        fresh_encode_profile: is_fresh_encode_cell(cell).then(|| FRESH_ENCODE_PROFILE.to_owned()),
         copy_counts: Some(read_copy_counts()),
     })
     .expect("child json")
@@ -1773,8 +1799,19 @@ fn child_json_with_input_bytes(
 fn run_codec_cell(cell: &str, iters: u64, warmup: u64, prepare_iters: u64) {
     let case = CodecCase::prepare(cell, prepare_iters.max(iters));
     let n = iters as usize;
-    for i in 0..warmup as usize {
-        black_box(codec_work(cell, &case, i % n.max(1)));
+    if is_fresh_encode_cell(cell) {
+        if warmup != 0 {
+            // Each warmup and measured object must be encoded only once.
+            // Reusing measured objects here populated pbrs' packed caches.
+            let warmup_case = CodecCase::prepare(cell, warmup);
+            for i in 0..warmup as usize {
+                black_box(codec_work(cell, &warmup_case, i));
+            }
+        }
+    } else {
+        for i in 0..warmup as usize {
+            black_box(codec_work(cell, &case, i % n.max(1)));
+        }
     }
     // Fresh-encode cells consume one message per iter; decode cells reuse
     // the wire bytes. All allocation happens inside the window.
@@ -2054,12 +2091,14 @@ fn run_child(
     };
     let wrapper: &[String] = tool.as_ref().map_or(&[], |t| t.wrapper.as_slice());
     let (child, stderr) = run_cell_process(exe, cell, iters, prepare_iters, wrapper);
+    require_fresh_encode_profile(cell, child.fresh_encode_profile.as_deref());
     let first = parse_perf_instructions(&stderr).or_else(|| parse_callgrind_instructions(&stderr));
     let instructions = if let (Some(tool), Some(first)) = (tool.as_ref(), first) {
         let double_iters = iters.checked_mul(2).expect("differential iters overflow");
         let (double_child, double_stderr) =
             run_cell_process(exe, cell, double_iters, prepare_iters, &tool.wrapper);
         assert_eq!(double_child.iters, double_iters);
+        require_fresh_encode_profile(cell, double_child.fresh_encode_profile.as_deref());
         assert_adoption_input(
             cell,
             child.input_wire_fingerprint.as_deref(),
@@ -2144,9 +2183,12 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
         let mut instruction_method: Option<&'static str> = None;
         let mut input_wire_fingerprint: Option<String> = None;
         let mut input_wire_bytes: Option<u64> = None;
+        let mut fresh_encode_profile: Option<String> = None;
         for _ in 0..repeats {
             let (child, instr, sys, futex) = run_child(&exe, cell, cell_iters, &tools);
             assert_eq!(child.iters, cell_iters);
+            require_fresh_encode_profile(cell, child.fresh_encode_profile.as_deref());
+            fresh_encode_profile.clone_from(&child.fresh_encode_profile);
             #[cfg(feature = "bridge")]
             if cell.starts_with("codec.adoption.bridge.") {
                 pbrs_adoption_corpus::bridge::require_matching_input(
@@ -2230,6 +2272,7 @@ fn run_matrix(cells: &[&str], iters: u64, repeats: u32) -> Report {
             repeats,
             input_wire_fingerprint,
             input_wire_bytes,
+            fresh_encode_profile,
             instructions: if !complete_instructions {
                 Metric::not_run(if tools.perf || tools.valgrind {
                     "instruction counter output missing or invalid in one or more repeats"
@@ -2308,6 +2351,10 @@ fn compare_reports(baseline: &Report, current: &Report, rpc: bool) -> bool {
             println!("{}: new cell, no baseline", cell.id);
             continue;
         };
+        if old.fresh_encode_profile.is_some() || cell.fresh_encode_profile.is_some() {
+            require_fresh_encode_profile(&cell.id, old.fresh_encode_profile.as_deref());
+            require_fresh_encode_profile(&cell.id, cell.fresh_encode_profile.as_deref());
+        }
         #[cfg(feature = "bridge")]
         if cell.id.starts_with("codec.adoption.bridge.") {
             // New bridge reports require an actual-source identity even when
@@ -2654,6 +2701,67 @@ mod input_tests {
         ChildOutput, Duration, Metric, Report, assert_adoption_input, assert_rpc_input_bytes,
         child_json, child_json_with_input_bytes, compare_reports,
     };
+
+    #[test]
+    fn fresh_encode_children_report_the_object_lifecycle() {
+        for cell in [
+            "codec.pbrs.fresh_encode",
+            "codec.prost.fresh_encode",
+            "codec.v4.fresh_encode",
+        ] {
+            let child: ChildOutput =
+                serde_json::from_str(&child_json(cell, 4, 0, 0, Duration::ZERO)).unwrap();
+            assert_eq!(
+                child.fresh_encode_profile.as_deref(),
+                Some(super::FRESH_ENCODE_PROFILE)
+            );
+            super::require_fresh_encode_profile(cell, child.fresh_encode_profile.as_deref());
+            for invalid in [None, Some("reused-warmup-objects")] {
+                assert!(
+                    std::panic::catch_unwind(|| {
+                        super::require_fresh_encode_profile(cell, invalid);
+                    })
+                    .is_err()
+                );
+            }
+        }
+        let other: ChildOutput = serde_json::from_str(&child_json(
+            "codec.pbrs.cached_encode",
+            4,
+            0,
+            0,
+            Duration::ZERO,
+        ))
+        .unwrap();
+        assert!(other.fresh_encode_profile.is_none());
+    }
+
+    #[test]
+    fn fresh_encode_comparisons_reject_mixed_object_lifecycles() {
+        for cell in [
+            "codec.pbrs.fresh_encode",
+            "codec.prost.fresh_encode",
+            "codec.v4.fresh_encode",
+        ] {
+            let mut legacy = report(None);
+            legacy.cells[0].id = cell.to_owned();
+            let mut current = legacy.clone();
+            current.cells[0].fresh_encode_profile = Some(super::FRESH_ENCODE_PROFILE.to_owned());
+            assert!(compare_reports(&legacy, &legacy, false));
+            assert!(compare_reports(&current, &current, false));
+            assert!(
+                std::panic::catch_unwind(|| compare_reports(&legacy, &current, false)).is_err()
+            );
+            assert!(
+                std::panic::catch_unwind(|| compare_reports(&current, &legacy, false)).is_err()
+            );
+            let mut unknown = current.clone();
+            unknown.cells[0].fresh_encode_profile = Some("unknown".to_owned());
+            assert!(
+                std::panic::catch_unwind(|| compare_reports(&current, &unknown, false)).is_err()
+            );
+        }
+    }
 
     #[test]
     fn measured_metric_deserializes_from_value_with_tiny_numbers() {

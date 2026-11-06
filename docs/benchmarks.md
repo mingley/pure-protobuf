@@ -5,6 +5,7 @@
 
 | Read | Scope |
 |---|---|
+| [Fresh-encode warmup repair](evidence/fresh-encode-warmup-20261106/README.md) | Separate warmup objects and retain the previously hidden cold-allocation cost, November 6 |
 | [Map removal](#map-removal-november-6) | Correctness repair, indexed update gains and small-map costs, November 6 |
 | [Rejected borrowed queries](evidence/rejected-query-capability-20261106/README.md) | Lookup allocation gains with a repeatable small-map loss, November 6 |
 | [Numbered name allocation](#numbered-name-allocation-november-5) | Repeated-prefix generation and ordinary controls, November 5 |

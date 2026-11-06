@@ -150,6 +150,23 @@ class PreparedInputCompat(unittest.TestCase):
             self.assertEqual(self.snapshot(base), before)
             self.assertFalse(record.exists())
 
+    def test_unreviewed_head_fresh_encode_profile_fails_before_mutation(self):
+        commit = "a35701582fb9e6964c855386b0d9c991c50345ba"
+        with tempfile.TemporaryDirectory() as temp:
+            base, head, record, canary = self.fixture(Path(temp), commit)
+            before = self.snapshot(base)
+            unchanged_canary = canary.read_bytes()
+            candidate = head / "bench/devloop/src/main.rs"
+            source = candidate.read_bytes()
+            marker = b'const FRESH_ENCODE_PROFILE: &str = "independent-warmup-v1";'
+            self.assertEqual(source.count(marker), 1)
+            candidate.write_bytes(source.replace(marker, marker.replace(b"warmup-v1", b"warmup-v2")))
+            with self.assertRaisesRegex(ValueError, "head input reporting differs"):
+                self.run_overlay(base, head, record, commit)
+            self.assertEqual(self.snapshot(base), before)
+            self.assertEqual(canary.read_bytes(), unchanged_canary)
+            self.assertFalse(record.exists())
+
     def test_unknown_commit_with_identical_harness_is_left_unchanged(self):
         commit = "a35701582fb9e6964c855386b0d9c991c50345ba"
         with tempfile.TemporaryDirectory() as temp:

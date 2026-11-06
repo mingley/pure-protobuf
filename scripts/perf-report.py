@@ -11,6 +11,10 @@ import sys
 SHA = re.compile(r"[0-9a-f]{40}\Z")
 METRICS = ("instructions", "allocs", "alloc_bytes", "syscalls", "locks", "wall_ns")
 REQUIRED_METRICS = ("allocs", "alloc_bytes", "wall_ns")
+FRESH_ENCODE_PROFILE = "independent-warmup-v1"
+FRESH_ENCODE_CELLS = frozenset((
+    "codec.pbrs.fresh_encode", "codec.prost.fresh_encode", "codec.v4.fresh_encode",
+))
 
 
 def revisions(event_name, event, default_head):
@@ -82,6 +86,12 @@ def validate_report(report, expected_sha, label):
         if name in cells:
             errors.append(f"{label}: duplicate cell {name}")
         cells[name] = cell
+        profile = cell.get("fresh_encode_profile")
+        if profile is not None:
+            if name not in FRESH_ENCODE_CELLS:
+                errors.append(f"{label}/{name}: unexpected fresh encode profile")
+            elif not isinstance(profile, str) or profile != FRESH_ENCODE_PROFILE:
+                errors.append(f"{label}/{name}: unsupported fresh encode profile {profile!r}")
         for key in ("kind", "codec"):
             if not isinstance(cell.get(key), str) or not cell[key]:
                 errors.append(f"{label}/{name}: missing {key}")
@@ -115,8 +125,20 @@ def validate_pair(base, head, base_sha, head_sha):
     if not common:
         errors.append("no common measured cells")
     eligible = {}
+    fresh_encode_lifecycles = {}
     for name in common:
         before, after = old[name], new[name]
+        if name in FRESH_ENCODE_CELLS:
+            before_profile = before.get("fresh_encode_profile")
+            after_profile = after.get("fresh_encode_profile")
+            if before_profile is None and after_profile is None:
+                fresh_encode_lifecycles[name] = "legacy-unreported"
+            elif before_profile == after_profile == FRESH_ENCODE_PROFILE:
+                fresh_encode_lifecycles[name] = FRESH_ENCODE_PROFILE
+            else:
+                fresh_encode_lifecycles[name] = "incompatible"
+            if before_profile != after_profile:
+                errors.append(f"{name}: fresh encode profiles differ between base and head")
         for key in ("kind", "codec", "iters", "repeats"):
             if before.get(key) != after.get(key):
                 errors.append(f"{name}: {key} differs between base and head")
@@ -148,6 +170,7 @@ def validate_pair(base, head, base_sha, head_sha):
         "common_cells": common,
         "new_cells": sorted(new.keys() - old.keys()),
         "removed_cells": sorted(old.keys() - new.keys()),
+        "fresh_encode_lifecycles": fresh_encode_lifecycles,
         "eligible_metrics": eligible if not errors else {},
     }
 
@@ -163,6 +186,12 @@ def summary(result, base, head):
     lines += ["", f"Common cells: {len(result['common_cells'])}; "
               f"new: {len(result['new_cells'])}; removed: {len(result['removed_cells'])}.",
               "Missing counters stay not_run and are excluded from eligible_metrics."]
+    lifecycles = result.get("fresh_encode_lifecycles", {}).values()
+    if "legacy-unreported" in lifecycles:
+        lines.append("Legacy fresh-encode cells have no lifecycle profile and may reuse warmed "
+                     "objects; they do not establish independent fresh-object costs.")
+    if FRESH_ENCODE_PROFILE in lifecycles:
+        lines.append(f"Fresh-encode profile `{FRESH_ENCODE_PROFILE}` uses independent warmup objects.")
     if result["qualified_for_noise"]:
         old = {cell["id"]: cell for cell in base["cells"]}
         new = {cell["id"]: cell for cell in head["cells"]}

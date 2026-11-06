@@ -38,6 +38,15 @@ reports `(instructions_2N - instructions_N) / N`. The JSON
 lack it are legacy whole-process counts. `not_run` never passes or fails a
 comparison; it skips.
 
+Fresh-encode rows prepare separate message sets for warmup and measurement.
+Each measured object is encoded once, and preparation stays outside the
+window. New reports carry `fresh_encode_profile: "independent-warmup-v1"`;
+collection requires it, and comparison rejects a corrected row paired with
+an older lifecycle. Historical rows could reuse warmed packed-field caches.
+The [repair record](../../docs/evidence/fresh-encode-warmup-20261106/README.md)
+retains the detecting allocation counts and all codec controls. This lifecycle
+is distinct from cached encoding and construction-plus-encoding cells.
+
 Adoption codec and RPC rows retain `input_wire_fingerprint`. The collector
 requires it to match across N/2N children and repeats; comparison rejects a
 missing or different fingerprint when either report supplies one. Older

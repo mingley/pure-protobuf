@@ -1,0 +1,43 @@
+{
+  "schema": "pbrs.fresh-encode-warmup.v1",
+  "base_commit": "e72629e4bf6225b5b18b72e64c758eb3a174518d",
+  "archive_sha256": "641f48e34b2e51f354838ea4ad8982fcafa15fd296f3689194900cd8f46ae2ff",
+  "files": {
+    "baseline-build.json": {
+      "bytes": 161051,
+      "sha256": "521874c20fe589bd0e643e047fb1f80163e1d3c61996bae17c2f67e6a6bdecad"
+    },
+    "baseline-build.log": {
+      "bytes": 402,
+      "sha256": "817014e5b8d4a0f55e84fbda73f0bcee01b1f65ee65c379d5b5df82c38c6d203"
+    },
+    "baseline-main.rs": {
+      "bytes": 100661,
+      "sha256": "68760ddf2d44a75d516280f4ec417e0ab07c491be90c9ab798629d3ac4474b16"
+    },
+    "baseline.json": {
+      "bytes": 16552,
+      "sha256": "36845061bdf036150bce371834c470dbf91cd709e039587eb7bbdb5f82b20ed3"
+    },
+    "candidate-build.json": {
+      "bytes": 161185,
+      "sha256": "ae1b77dd01300e100c931f406937bfdf5eb674ab9c40152989e48d370907d2e9"
+    },
+    "candidate-build.log": {
+      "bytes": 3592,
+      "sha256": "2fadda51488fd2bda7460d8ea361ccb8b6c8d8e9905d7c7a4ec4a88aebc43cb6"
+    },
+    "candidate-main.rs": {
+      "bytes": 105077,
+      "sha256": "91bb2bd496c928a31877255035c9b29884af62157edbc78605c67627238dfbd7"
+    },
+    "candidate.json": {
+      "bytes": 17854,
+      "sha256": "7f51bbfc58f078f044e480cc91a5255b5024d095783e8fed1e4d35160f862493"
+    },
+    "harness.patch": {
+      "bytes": 8987,
+      "sha256": "de721fc9ca6289f6ff2292ffcf71fcde8eac4b04cc84f8cb90864f3a7257de00"
+    }
+  }
+}
