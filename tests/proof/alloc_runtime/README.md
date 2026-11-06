@@ -5,7 +5,10 @@ This proof builds concrete native messages and Prost 0.14.4 messages for
 `std`; the target dependency selects only `alloc-only`. Resolver 2 keeps their
 feature sets separate. Compiler artifact receipts record both contexts.
 
-Install Rust, Python 3, `protoc` and the target, then fetch the locked dependencies:
+Install Rust, Python 3, protobuf compiler 35.1 and the target, then fetch the
+locked dependencies. The Edition 2024 extension control requires that compiler;
+older distribution packages may not support it. CI builds the repository's pin
+with `scripts/build-pinned-protoc.sh` and exports its absolute path as `PROTOC`.
 
 ```sh
 rustup target add thumbv7em-none-eabi

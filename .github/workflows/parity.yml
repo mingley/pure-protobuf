@@ -29,8 +29,21 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: thumbv7em-none-eabi
-      - name: Install protobuf compiler
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Install compiler build tools
+        run: sudo apt-get update && sudo apt-get install -y cmake g++
+      - uses: actions/cache@v4
+        with:
+          path: third_party/protobuf
+          key: protobuf-src-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
+      - uses: actions/cache@v4
+        with:
+          path: target/pinned-protoc-build
+          key: pinned-protoc-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
+      - name: Build and select the pinned protobuf compiler
+        run: |
+          scripts/build-pinned-protoc.sh
+          echo "$PWD/target/pinned-protoc-build" >> "$GITHUB_PATH"
+          echo "PROTOC=$PWD/target/pinned-protoc-build/protoc" >> "$GITHUB_ENV"
       - name: Fetch locked consumer dependencies
         run: |
           for manifest in \
@@ -81,7 +94,8 @@ jobs:
       - name: Check explicit alloc-only messages and legacy std consumers
         run: |
           python3 -B -m unittest discover -s tests/proof/alloc_runtime -p 'test_*.py' -q
-          python3 tests/proof/alloc_runtime/run.py --out work/parity-audit/alloc-runtime
+          python3 tests/proof/alloc_runtime/run.py --out work/parity-audit/alloc-runtime \
+            --target-dir target/parity-alloc-runtime
       - name: Check generated bindings with unsafe code forbidden
         run: python3 tests/proof/safe_defaults/run.py --out work/parity-audit/safe-defaults
       - name: Check generated namespaces and runtime aliases
