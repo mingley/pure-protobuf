@@ -31,6 +31,7 @@ mod counters;
 #[path = "../cells/map.rs"]
 mod map_cells;
 mod scheduler_rpc;
+mod tat_preflight;
 #[path = "../cells/text.rs"]
 mod text_cells;
 mod tonic_transport_rpc;
@@ -696,6 +697,9 @@ impl CodecCase {
             touch_v4(&v4_msg),
         );
         assert_eq!((a, b, c), (a, a, a), "touch checksums must agree");
+        // Validate complete fixture values with preparation-only copies. No
+        // getter touches a measured message or its fresh-encode pool here.
+        tat_preflight::check_wire(cell, &wire);
         let n = iters as usize;
         let mut pbrs_fresh = Vec::with_capacity(n);
         let mut prost_fresh = Vec::with_capacity(n);

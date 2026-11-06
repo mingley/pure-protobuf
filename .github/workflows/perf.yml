@@ -123,7 +123,7 @@ jobs:
 
       - name: Check benchmark comparison diagnostics
         id: diagnostics
-        run: cargo test --locked --manifest-path bench/devloop/Cargo.toml --test comparison_diagnostics
+        run: cargo test --locked --manifest-path bench/devloop/Cargo.toml --test comparison_diagnostics --bin devloop
 
       - name: Use instruction counters only when available
         id: counters

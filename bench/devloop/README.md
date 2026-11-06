@@ -115,8 +115,16 @@ The matrix has expanded beyond the original 16 cells. Run
 inventory of the current revision.
 
 Codec cells share one populated `TestAllTypesProto3` specimen: pbrs
-builds it by hand, prost and protobuf v4 parse the same wire bytes
-(also proving wire compatibility), and touch checksums must agree.
+builds it by hand, prost and protobuf v4 parse the same wire bytes,
+and touch checksums must agree.
+
+Preparation also checks exact native/Prost fixture values using private
+copies: all nine populated TAT fields, repeated strings, map cardinality and
+the zero-key entry. Ordered values retain their order; maps can change wire
+order or omit default entry subfields. These checks leave measured messages
+and fresh-encode pools untouched. They cover the registered fixture fields;
+v4 retains the checksum check. The [perf workflow](../../.github/workflows/perf.yml)
+runs the binary unit tests and comparison diagnostics before measurement.
 
 - `codec.{pbrs,prost,v4}.{fresh_encode,cached_encode,owned_decode,parse_touch}`
 - `rpc.{pbrs,tonic}.{unary,server_stream}` — closed-loop loopback
