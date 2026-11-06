@@ -499,6 +499,7 @@ pub(crate) fn emit_typed_extensions(
     selected: &[SelectedExtension],
     target: &str,
 ) {
+    let runtime = runtime_crate_path();
     let selected: Vec<_> = selected
         .iter()
         .filter(|extension| file_matches_single(target, &extension.host.file_name))
@@ -512,14 +513,14 @@ pub(crate) fn emit_typed_extensions(
             continue;
         }
         let host = rust_ident(&extension.host.full_name);
-        let _ = writeln!(src, "impl pbrs::ExtensionHost for {host} {{");
+        let _ = writeln!(src, "impl {runtime}::ExtensionHost for {host} {{");
         let _ = writeln!(
             src,
-            "    fn __extension_fields(&self) -> &UnknownFields {{ &self.unknown }}"
+            "    fn __extension_fields(&self) -> &{runtime}::UnknownFields {{ &self.unknown }}"
         );
         let _ = writeln!(
             src,
-            "    fn __extension_fields_mut(&mut self) -> &mut UnknownFields {{ self.cached_size.dirty(); &mut self.unknown }}"
+            "    fn __extension_fields_mut(&mut self) -> &mut {runtime}::UnknownFields {{ self.cached_size.dirty(); &mut self.unknown }}"
         );
         let _ = writeln!(src, "}}");
         let _ = writeln!(src, "impl {host} {{");
@@ -529,7 +530,7 @@ pub(crate) fn emit_typed_extensions(
         );
         let _ = writeln!(
             src,
-            "    pub fn get_extension<V: pbrs::ExtensionValue>(&self, e: &pbrs::Extension<Self, V>) -> V {{ e.get(self) }}"
+            "    pub fn get_extension<V: {runtime}::ExtensionValue>(&self, e: &{runtime}::Extension<Self, V>) -> V {{ e.get(self) }}"
         );
         let _ = writeln!(
             src,
@@ -537,7 +538,7 @@ pub(crate) fn emit_typed_extensions(
         );
         let _ = writeln!(
             src,
-            "    pub fn has_extension<V: pbrs::ExtensionValue>(&self, e: &pbrs::Extension<Self, V>) -> bool {{ e.has(self) }}"
+            "    pub fn has_extension<V: {runtime}::ExtensionValue>(&self, e: &{runtime}::Extension<Self, V>) -> bool {{ e.has(self) }}"
         );
         let _ = writeln!(
             src,
@@ -545,7 +546,7 @@ pub(crate) fn emit_typed_extensions(
         );
         let _ = writeln!(
             src,
-            "    pub fn set_extension<V: pbrs::ExtensionValue>(&mut self, e: &pbrs::Extension<Self, V>, value: V) {{ e.set(self, value); }}"
+            "    pub fn set_extension<V: {runtime}::ExtensionValue>(&mut self, e: &{runtime}::Extension<Self, V>, value: V) {{ e.set(self, value); }}"
         );
         let _ = writeln!(
             src,
@@ -553,7 +554,7 @@ pub(crate) fn emit_typed_extensions(
         );
         let _ = writeln!(
             src,
-            "    pub fn clear_extension<V: pbrs::ExtensionValue>(&mut self, e: &pbrs::Extension<Self, V>) {{ e.clear(self); }}"
+            "    pub fn clear_extension<V: {runtime}::ExtensionValue>(&mut self, e: &{runtime}::Extension<Self, V>) {{ e.clear(self); }}"
         );
         let _ = writeln!(src, "}}");
     }
@@ -571,7 +572,7 @@ pub(crate) fn emit_typed_extensions(
         );
         let _ = writeln!(
             src,
-            "    pub const {}: pbrs::Extension<super::{host}, i32> = pbrs::Extension::__new({}, {:?}, {}).expect(\"validated extension number\");",
+            "    pub const {}: {runtime}::Extension<super::{host}, i32> = {runtime}::Extension::__new({}, {:?}, {}).expect(\"validated extension number\");",
             extension.identifier, extension.number, extension.full_name, extension.default
         );
     }

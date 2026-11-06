@@ -22,6 +22,11 @@ on:
       - 'pbrs-grpc/Cargo.toml'
       - 'scripts/miri-grpc-kernels.py'
       - 'src/runtime/**'
+      - 'src/runtime.rs'
+      - 'src/codegen.rs'
+      - 'src/codegen/**'
+      - 'src/generated/**'
+      - 'tests/proof/codegen_parity/**'
       - 'src/table.rs'
       - 'src/packed.rs'
       - 'src/wire.rs'
@@ -50,6 +55,11 @@ on:
       - 'pbrs-grpc/Cargo.toml'
       - 'scripts/miri-grpc-kernels.py'
       - 'src/runtime/**'
+      - 'src/runtime.rs'
+      - 'src/codegen.rs'
+      - 'src/codegen/**'
+      - 'src/generated/**'
+      - 'tests/proof/codegen_parity/**'
       - 'src/table.rs'
       - 'src/packed.rs'
       - 'src/wire.rs'
@@ -64,14 +74,17 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_BUILD_JOBS: "2"
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: "0"
 
 permissions:
   contents: read
 
 jobs:
-  miri:
+  core:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
@@ -85,9 +98,51 @@ jobs:
           rustc --version
           cargo miri --version
           cargo miri test --locked -p pbrs --lib --test runtime --test upb_kernel
+  http2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri, rust-src
       - name: Miri on the shipping embedded HTTP/2 kernels
         env:
           MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-strict-provenance"
         run: |
           set -euo pipefail
           python3 scripts/miri-grpc-kernels.py
+  selected-bytes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri, rust-src
+      - name: Install protobuf compiler for generated consumers
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Miri on selected byte storage and mutator contracts
+        env:
+          MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-strict-provenance"
+        run: |
+          set -euo pipefail
+          rustc --version
+          protoc --version
+          cargo miri --version
+          cargo miri run --locked --manifest-path tests/proof/codegen_parity/Cargo.toml --bin pbrs_bytes -- --small-formats
+  miri:
+    needs: [core, http2, selected-bytes]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every Miri lane to pass
+        env:
+          CORE_RESULT: ${{ needs.core.result }}
+          HTTP2_RESULT: ${{ needs.http2.result }}
+          BYTES_RESULT: ${{ needs.selected-bytes.result }}
+        run: |
+          test "$CORE_RESULT" = success
+          test "$HTTP2_RESULT" = success
+          test "$BYTES_RESULT" = success

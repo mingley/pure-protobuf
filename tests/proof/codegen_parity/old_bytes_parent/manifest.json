@@ -1,0 +1,18 @@
+{
+  "base_commit": "6f9798aa2935e5b50603b96a650bf4432ce779bd",
+  "plugin_sha256": "004e1d2dbc68dffe12336e56a24c01d1c360008755480e73d3be68615ea1cae0",
+  "features": [
+    "codegen",
+    "json",
+    "text"
+  ],
+  "default_features": false,
+  "input_output_sha256": {
+    "proto/bytes.proto": "6466b64f59f48877e444fd346a6ed9f6071534c7df381cf9420d9d20fb680d16",
+    "proto/bytes_external.proto": "3c3153f889100a9946a061c815fa58147e6b2f113732a8b4ab323d6e82024714",
+    "proto/bytes_legacy.proto": "fe03353614d5339ce3090c59ad4cefc6fca134d7a6aa08f600a7b454d740f782",
+    "proto/bytes_old_parent.proto": "f34e49731d4b5c398628fb4d0cd65209984453d3561cb6e054bc389a637c8f76",
+    "old_bytes_parent/bytes_old_parent.rs": "0fab13045e77fe56b800792eb9e8ff7cbfe8ae65c13a414ae92e60f566647b3d"
+  },
+  "scope": "frozen pre-bytes parent resolves a Child supplied by the selected consumer; values must match and eager descendants deliberately copy shared input"
+}

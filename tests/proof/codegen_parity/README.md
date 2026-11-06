@@ -77,11 +77,17 @@ reference configurations select eligible messages: Prost can emit invalid
 scalar derives for unrestricted scalar boxing, so the placement matrix is
 not a claim that such scalar configurations compile.
 
-Two small pbrs consumers still reproduce absent `btree_map` and `bytes`
-build methods. These are API and representation customization gaps.
-pbrs provides its own map and byte storage; an absent method does not establish
-a wire-format failure. The Prost control generates and checks each requested
-representation independently.
+The [selected bytes controls](bytes.md) compare real Bytes-backed storage and
+twenty-one selectors with Prost. Selected, owned and safe-default consumers
+cover payload sharing, presence/defaults, mutation, JSON/text and segmented
+output. Focused mode runs with `--only bytes`. Older-parent copying, duplicate
+map removal and reflection-off complex codecs remain explicit controls and
+counterexamples.
+
+One small pbrs consumer still reproduces the absent `btree_map` build method.
+This is an API and representation customization gap. pbrs provides its own map
+storage; the absent method does not establish a wire-format failure. The Prost
+control generates and checks the requested representation independently.
 
 The alloc-only control builds a `#![no_std]` library using prost's serialization
 API with default features off for `thumbv7em-none-eabi`. The equivalent pbrs
@@ -90,8 +96,8 @@ compile and pbrs to report a missing `std` crate before it records the deploymen
 gap. This distinguishes lack of target installation from lack of runtime
 support. It checks compilation, not execution on embedded hardware.
 
-The `pbrs_btree_map` and `pbrs_bytes` binaries deliberately fail
-compilation. Use `run.py`, which verifies those diagnostics and executes the
+The `pbrs_btree_map` and `pbrs_bytes_lightweight_gap` binaries deliberately fail
+compilation. Use `run.py`, which verifies those diagnostics and runs the
 positive consumers, rather than `cargo test --all-targets` on this isolated
-proof package. If a remaining capability is implemented, replace its expected
-counterexample with a behavioral regression test.
+proof package. Replace each expected counterexample when the corresponding
+capability is implemented and verified.

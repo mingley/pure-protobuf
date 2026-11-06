@@ -483,6 +483,23 @@ impl<K: MapKey, V: MapValue> Map<K, V> {
         last_wins_get(&inner.entries, Some(&inner.index), key)
     }
 
+    fn get_query(&self, key: impl MapQuery<K>) -> Option<&V> {
+        let inner = self.0.as_ref()?;
+        if let Some(index) = hot_index(&inner.entries, Some(&inner.index)) {
+            let owned = key.to_owned_key();
+            return index
+                .get(&owned)
+                .and_then(|pos| inner.entries.get(pos))
+                .map(|(_, value)| value);
+        }
+        inner
+            .entries
+            .iter()
+            .rev()
+            .find(|(stored, _)| key.eq_key(stored))
+            .map(|(_, value)| value)
+    }
+
     /// Remove the last stored entry with this key and return its value.
     ///
     /// An earlier parsed duplicate can become visible. Other entries keep
@@ -550,6 +567,15 @@ impl<K: MapKey, V: MapValue> Map<K, V> {
         self.0
             .as_deref()
             .map_or(&[], |inner| inner.entries.as_slice())
+    }
+}
+
+impl<K: MapKey> Map<K, crate::ProtoBytes> {
+    /// Retain a byte value's shared buffer without copying its payload.
+    ///
+    /// Lookup follows the same last-wins rules as [`MapView::get`].
+    pub fn get_shared(&self, key: impl MapQuery<K>) -> Option<crate::ProtoBytes> {
+        self.get_query(key).cloned()
     }
 }
 

@@ -2,9 +2,11 @@
 
 use super::*;
 use crate::error::ParseError;
+use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::rc::Rc;
 
 /// An error that occurred during protobuf code generation.
 #[derive(Debug)]
@@ -254,6 +256,15 @@ thread_local! {
     pub(crate) static BOXED_FIELD_NUMBERS: RefCell<std::collections::BTreeSet<u32>> =
         const { RefCell::new(std::collections::BTreeSet::new()) };
     pub(crate) static HAS_BOXED_FIELDS: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static BYTES_FIELDS: RefCell<Option<std::sync::Arc<BytesFieldIndex>>> =
+        const { RefCell::new(None) };
+    pub(crate) static BYTES_FIELD_NUMBERS: RefCell<std::collections::BTreeSet<u32>> =
+        const { RefCell::new(std::collections::BTreeSet::new()) };
+    pub(crate) static BYTES_SHARED_CHILDREN: RefCell<std::collections::BTreeSet<u32>> =
+        const { RefCell::new(std::collections::BTreeSet::new()) };
+    pub(crate) static HAS_BYTES_FIELDS: Cell<bool> = const { Cell::new(false) };
+    pub(crate) static BYTES_ACCESSORS: RefCell<std::collections::BTreeMap<u32, BytesAccessors>> =
+        const { RefCell::new(std::collections::BTreeMap::new()) };
     pub(crate) static ENABLE_TYPE_NAMES: Cell<bool> = const { Cell::new(false) };
     pub(crate) static RETAIN_ENUM_PREFIX: Cell<bool> = const { Cell::new(false) };
     pub(crate) static TYPE_NAME_DOMAINS: RefCell<Vec<(String, String)>> = const { RefCell::new(Vec::new()) };
@@ -281,7 +292,7 @@ thread_local! {
         const { RefCell::new(None) };
     pub(crate) static EXTERN_PATHS: RefCell<Vec<(String, String)>> =
         const { RefCell::new(Vec::new()) };
-    pub(crate) static RUNTIME_CRATE: RefCell<Option<String>> =
+    pub(crate) static RUNTIME_CRATE: RefCell<Option<Rc<str>>> =
         const { RefCell::new(None) };
     pub(crate) static GRPC_CRATE: RefCell<Option<String>> =
         const { RefCell::new(None) };
@@ -303,6 +314,88 @@ thread_local! {
         const { RefCell::new(Vec::new()) };
 }
 
+/// An emission prefix whose ordinary path requires no allocation or Rc.
+pub(crate) struct RuntimeCratePath(Option<Rc<str>>);
+
+impl RuntimeCratePath {
+    fn as_str(&self) -> &str {
+        self.0.as_deref().unwrap_or("::pbrs")
+    }
+}
+
+impl std::fmt::Display for RuntimeCratePath {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+pub(crate) fn set_runtime_crate_path(path: Option<&str>) {
+    let configured = path
+        .map(str::trim)
+        .filter(|path| !matches!(*path, "pbrs" | "::pbrs"));
+    RUNTIME_CRATE.with(|current| {
+        *current.borrow_mut() = configured.map(|path| {
+            let first = path.split("::").next().unwrap_or_default().trim();
+            if path.starts_with("::") || matches!(first, "crate" | "self" | "super") {
+                Rc::from(path)
+            } else {
+                Rc::from(format!("::{path}"))
+            }
+        });
+    });
+}
+
+pub(crate) fn runtime_crate_path() -> RuntimeCratePath {
+    RuntimeCratePath(RUNTIME_CRATE.with(|current| current.borrow().clone()))
+}
+
+/// Resolve a framework-owned static fragment before user paths are formatted.
+pub(crate) fn runtime_path(default: &'static str) -> Cow<'static, str> {
+    let runtime = runtime_crate_path();
+    match runtime.0 {
+        None => Cow::Borrowed(default),
+        Some(prefix) => Cow::Owned(default.replace("::pbrs::", &format!("{prefix}::"))),
+    }
+}
+
+#[cfg(test)]
+mod runtime_path_tests {
+    use super::*;
+
+    #[test]
+    fn framework_prefixes_are_absolute_without_rewriting_user_fragments() {
+        let guard = CodegenStateGuard::new();
+        assert!(matches!(
+            runtime_path("::pbrs::ParseError"),
+            Cow::Borrowed(_)
+        ));
+        for (configured, expected) in [
+            ("pb_runtime", "::pb_runtime"),
+            ("::pb_runtime", "::pb_runtime"),
+            ("crate::runtime", "crate::runtime"),
+            ("self::runtime", "self::runtime"),
+            ("super::runtime", "super::runtime"),
+        ] {
+            set_runtime_crate_path(Some(configured));
+            let runtime = runtime_crate_path();
+            let user = "crate::foreign::pbrs::Child";
+            assert_eq!(
+                format!("{runtime}::Repeated<{user}>"),
+                format!("{expected}::Repeated<{user}>")
+            );
+            assert_eq!(
+                runtime_path("::pbrs::ParseError"),
+                format!("{expected}::ParseError")
+            );
+        }
+        drop(guard);
+        assert!(matches!(
+            runtime_path("::pbrs::ParseError"),
+            Cow::Borrowed(_)
+        ));
+    }
+}
+
 pub(crate) struct CodegenStateGuard;
 
 impl CodegenStateGuard {
@@ -322,6 +415,11 @@ impl CodegenStateGuard {
         BOXED_FIELDS.with(|c| *c.borrow_mut() = None);
         BOXED_FIELD_NUMBERS.with(|c| c.borrow_mut().clear());
         HAS_BOXED_FIELDS.with(|c| c.set(false));
+        BYTES_FIELDS.with(|c| *c.borrow_mut() = None);
+        BYTES_FIELD_NUMBERS.with(|c| c.borrow_mut().clear());
+        BYTES_SHARED_CHILDREN.with(|c| c.borrow_mut().clear());
+        HAS_BYTES_FIELDS.with(|c| c.set(false));
+        BYTES_ACCESSORS.with(|c| c.borrow_mut().clear());
         ENABLE_TYPE_NAMES.with(|c| c.set(false));
         RETAIN_ENUM_PREFIX.with(|c| c.set(false));
         TYPE_NAME_DOMAINS.with(|c| c.borrow_mut().clear());
@@ -417,6 +515,7 @@ pub(crate) struct ExplicitOptions {
     owned_message_fields: Option<bool>,
     safe_message_defaults: Option<bool>,
     boxed_fields: Vec<String>,
+    bytes_fields: Vec<String>,
     enable_type_names: Option<bool>,
     retain_enum_prefix: Option<bool>,
     type_name_domains: Vec<(String, String)>,
@@ -455,6 +554,7 @@ pub(crate) struct ResolvedConfig {
     pub(crate) owned_message_fields: bool,
     pub(crate) safe_message_defaults: bool,
     pub(crate) boxed_fields: Vec<String>,
+    pub(crate) bytes_fields: Vec<String>,
     pub(crate) enable_type_names: bool,
     pub(crate) retain_enum_prefix: bool,
     pub(crate) type_name_domains: Vec<(String, String)>,
@@ -677,6 +777,21 @@ pub(crate) fn parse_plugin_parameter(parameter: &str) -> Result<ExplicitOptions,
                     value.to_string()
                 };
                 explicit.boxed_fields.push(selector);
+            }
+            "bytes" | "bytes_hex" => {
+                let value = val.ok_or_else(|| CodegenError::InvalidParameter {
+                    key: key.to_string(),
+                    detail: "expected a protobuf field selector".to_string(),
+                })?;
+                let selector = if key == "bytes_hex" {
+                    decode_parameter_hex(value).map_err(|_| CodegenError::InvalidParameter {
+                        key: key.to_string(),
+                        detail: "expected a hexadecimal UTF-8 field selector".to_string(),
+                    })?
+                } else {
+                    value.to_string()
+                };
+                explicit.bytes_fields.push(selector);
             }
             "no_wkt" => {
                 explicit.no_wkt = Some(parse_bool_param("no_wkt", val)?);
@@ -1047,6 +1162,7 @@ pub(crate) fn resolve_options(explicit: &ExplicitOptions) -> ResolvedConfig {
         owned_message_fields: explicit.owned_message_fields.unwrap_or(false),
         safe_message_defaults: explicit.safe_message_defaults.unwrap_or(false),
         boxed_fields: explicit.boxed_fields.clone(),
+        bytes_fields: explicit.bytes_fields.clone(),
         enable_type_names: explicit.enable_type_names.unwrap_or(false),
         retain_enum_prefix: explicit.retain_enum_prefix.unwrap_or(false),
         type_name_domains: explicit.type_name_domains.clone(),
@@ -1343,6 +1459,7 @@ pub struct Config {
     owned_message_fields: Option<bool>,
     safe_message_defaults: Option<bool>,
     boxed_fields: Vec<String>,
+    bytes_fields: Vec<String>,
     enable_type_names: Option<bool>,
     retain_enum_prefix: Option<bool>,
     type_name_domains: Vec<(String, String)>,
@@ -1654,6 +1771,41 @@ impl Config {
     /// add selectors; the option does not expose Prost-style public fields.
     pub fn boxed<P: AsRef<str>>(&mut self, path: P) -> &mut Self {
         self.boxed_fields.push(path.as_ref().to_string());
+        self
+    }
+
+    /// Use eager, shared-buffer storage for matching protobuf `bytes` fields.
+    ///
+    /// Paths match protobuf names: `.` selects all fields, a leading-dot path
+    /// selects a package/message/field prefix, and a relative path selects a
+    /// suffix on whole name components. Oneof members use the containing
+    /// message's field path, without the oneof name. Map byte values match
+    /// `Parent.value`, following prost-build 0.14's synthetic value path.
+    /// Each call replaces the previous selection; an empty iterator clears it.
+    ///
+    /// Borrowed getters stay `&[u8]`. Selected fields gain a `_shared` getter
+    /// returning a cheap [`crate::ProtoBytes`] clone (with a numeric suffix if
+    /// that name is occupied), and presence fields also gain `_shared_opt`.
+    /// Repeated/map shared getters take an index/key and return `Option<ProtoBytes>`.
+    /// [`crate::ProtoBytes::as_shared`] exposes the retained `bytes::Bytes`.
+    /// Selected repeated/map values use [`crate::ProtoBytes`] in their views.
+    /// Shared input retains payload windows, including small fields; this can
+    /// retain the entire input frame. Borrowed input copies the payload.
+    /// Affected direct-value structs receive valid field initialization.
+    /// Newly generated parents pass shared input through selected child trees;
+    /// older or differently configured eager parents may still copy child
+    /// payloads. This does not change the child's selected storage or values.
+    ///
+    /// Plugin parameters are `bytes=Parent.data` and `bytes_hex=<utf8-hex>`.
+    pub fn bytes<I, S>(&mut self, paths: I) -> &mut Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        self.bytes_fields = paths
+            .into_iter()
+            .map(|path| path.as_ref().to_owned())
+            .collect();
         self
     }
 
@@ -1979,6 +2131,13 @@ impl Config {
                 opts.push(format!("boxed={selector}"));
             }
         }
+        for selector in &self.bytes_fields {
+            if selector.contains(',') || selector.trim() != selector {
+                opts.push(format!("bytes_hex={}", parameter_hex(selector)));
+            } else {
+                opts.push(format!("bytes={selector}"));
+            }
+        }
         if let Some(no_wkt) = self.no_wkt {
             opts.push(format!("no_wkt={no_wkt}"));
         }
@@ -1990,6 +2149,12 @@ impl Config {
         }
         if let Some(no_reflect) = self.no_reflect {
             opts.push(format!("no_reflect={no_reflect}"));
+        }
+        if let Some(emit_json) = self.emit_json {
+            opts.push(format!("emit_json={emit_json}"));
+        }
+        if let Some(emit_text) = self.emit_text {
+            opts.push(format!("emit_text={emit_text}"));
         }
         if let Some(build_client) = self.build_client {
             opts.push(format!("build_client={build_client}"));
@@ -2513,22 +2678,20 @@ mod owned_message_profile_tests {
         assert!(
             lazy_sources
                 .iter()
-                .all(|source| source.contains("child: pbrs::rt::LazyMsg<Child>"))
+                .all(|source| source.contains("child: ::pbrs::rt::LazyMsg<Child>"))
         );
-        assert!(
-            owned_sources
-                .iter()
-                .all(|source| source.contains("child: Option<Box<Child>>"))
-        );
+        assert!(owned_sources.iter().all(|source| {
+            source.contains("child: ::core::option::Option<::std::boxed::Box<Child>>")
+        }));
         assert!(
             lazy_sources
                 .iter()
-                .all(|source| source.contains("cached_size: pbrs::rt::CachedSize,"))
+                .all(|source| source.contains("cached_size: ::pbrs::rt::CachedSize,"))
         );
         assert!(
             owned_sources
                 .iter()
-                .all(|source| source.contains("cached_size: pbrs::rt::CachedSize32,"))
+                .all(|source| source.contains("cached_size: ::pbrs::rt::CachedSize32,"))
         );
         assert_eq!(default, generate("stubs=none,owned_message_fields=false"));
         assert_eq!(default, generate("stubs=none"));
@@ -2765,14 +2928,83 @@ mod boxed_profile_tests {
                 .expect("parent source")
         };
         let selected_parent = source(&selected, "profile.p0.Parent");
-        assert!(selected_parent.contains("child: Option<Box<Child>>"));
-        assert!(selected_parent.contains("cached_size: pbrs::rt::CachedSize,"));
+        assert!(
+            selected_parent.contains("child: ::core::option::Option<::std::boxed::Box<Child>>")
+        );
+        assert!(selected_parent.contains("cached_size: ::pbrs::rt::CachedSize,"));
         assert!(selected_parent.contains("wire.as_ref().map(|source| source.window(s, e))"));
-        assert!(source(&selected, "profile.p1.Parent").contains("child: pbrs::rt::LazyMsg<Child>"));
+        assert!(
+            source(&selected, "profile.p1.Parent").contains("child: ::pbrs::rt::LazyMsg<Child>")
+        );
         assert_eq!(baseline, generate("stubs=none,boxed=*"));
         assert_eq!(baseline, generate("stubs=none,boxed="));
         assert_eq!(baseline, generate("stubs=none"));
         assert!(!HAS_BOXED_FIELDS.with(Cell::get));
         assert!(BOXED_FIELDS.with(|fields| fields.borrow().is_none()));
+    }
+}
+
+#[cfg(test)]
+mod bytes_profile_tests {
+    use super::*;
+
+    #[test]
+    fn bytes_selection_replaces_and_roundtrips_plugin_selectors() {
+        let paths = [
+            ".pkg.Data.payload",
+            "Data.payload",
+            ".",
+            "*",
+            "",
+            " comma,selector ",
+            "equal=selector",
+        ];
+        let mut config = Config::new();
+        config.bytes(["discarded"]);
+        config.bytes(paths);
+        let parsed =
+            parse_plugin_parameter(&config.to_parameter_string()).expect("bytes selectors");
+        assert_eq!(parsed.bytes_fields, paths);
+        assert_eq!(resolve_options(&parsed).bytes_fields, paths);
+        config.bytes(std::iter::empty::<&str>());
+        assert!(config.to_parameter_string().is_empty());
+        for invalid in ["bytes", "bytes_hex=0", "bytes_hex=gg", "bytes_hex=ff"] {
+            assert!(matches!(
+                parse_plugin_parameter(invalid),
+                Err(CodegenError::InvalidParameter { .. })
+            ));
+        }
+    }
+
+    #[test]
+    fn explicit_json_and_text_flags_reach_generated_methods() {
+        for enabled in [false, true] {
+            let mut config = Config::new();
+            config
+                .emit_reflection(false)
+                .emit_json(enabled)
+                .emit_text(enabled);
+            let parameter = config.to_parameter_string();
+            let parsed = parse_plugin_parameter(&parameter).expect("codec flags");
+            assert_eq!(parsed.emit_json, Some(enabled));
+            assert_eq!(parsed.emit_text, Some(enabled));
+            let output = crate::codegen::generate_from_code_generator_request(
+                &super::owned_message_profile_tests::request(&format!("stubs=none,{parameter}")),
+            )
+            .expect("codec generation");
+            let message_sources: Vec<_> = output
+                .iter()
+                .filter(|(_, source)| source.contains("pub struct Child"))
+                .collect();
+            assert_eq!(message_sources.len(), 2);
+            for (_, source) in message_sources {
+                assert_eq!(source.contains("pub fn to_json("), enabled);
+                assert_eq!(source.contains("pub fn from_json("), enabled);
+                assert_eq!(source.contains("pub fn to_text("), enabled);
+                assert_eq!(source.contains("pub fn from_text("), enabled);
+            }
+        }
+        let config = Config::new();
+        assert!(config.to_parameter_string().is_empty());
     }
 }

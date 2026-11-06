@@ -79,6 +79,8 @@ pub fn generate_from_code_generator_request(
     })?;
     let boxed_fields = select_boxed_fields(&proto_files, &pool, &resolved.boxed_fields)?;
     BOXED_FIELDS.with(|fields| *fields.borrow_mut() = boxed_fields);
+    BYTES_FIELDS
+        .with(|fields| *fields.borrow_mut() = select_bytes_fields(&pool, &resolved.bytes_fields));
     // Collected once: the per-target loops below used to re-clone the full
     // name lists (and rebuild the message-name set) for every target.
     let msg_names: Vec<String> = pool.collect_names();
@@ -393,6 +395,7 @@ pub fn generate_from_code_generator_request(
     // (plus thread-local codegen state): this lets multi-target requests
     // emit files on worker threads while staying byte-identical.
     let emit_one = |target: &String| -> Result<Vec<(String, String)>, CodegenError> {
+        let runtime = runtime_crate_path();
         let mut partial: Vec<(String, String)> = Vec::new();
         let norm_target = normalize_proto_path_str(target);
         CURRENT_TARGET.with(|c| *c.borrow_mut() = norm_target.clone());
@@ -445,9 +448,8 @@ mod {gen_mod} {{\n\
 #![allow(clippy::cast_possible_wrap, reason = \"protobuf wire format varint and field number conversions\")]\n\
 #![allow(clippy::cast_sign_loss, reason = \"protobuf wire format varint and field number conversions\")]\n\
 #![allow(clippy::let_underscore_must_use, reason = \"ignoring results in generated wire helpers\")]\n\
-use pbrs::prelude::*;\n\
-use pbrs::{{ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut, RepeatedView, SerializeError, UnknownEnumValue}};\n\
-use pbrs::UnknownFields;\n\n"
+use {runtime}::prelude::*;\n\
+\n"
         );
         // Generated text dwarfs the descriptor bytes; pre-size the buffer
         // so per-message emission does not repeatedly reallocate + memcpy.
@@ -456,11 +458,11 @@ use pbrs::UnknownFields;\n\n"
             // Accessor/binary tests: skip FileDescriptorSet hex and JSON/text.
         } else if resolved.shared_pool {
             src.push_str(
-                "fn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {\n    pbrs::gencode::conformance_pool()\n}\n\n",
+                &format!("fn generated_pool() -> ::std::sync::Arc<{runtime}::DescriptorPool> {{\n    {runtime}::gencode::conformance_pool()\n}}\n\n"),
             );
         } else if share_descriptors {
             src.push_str(&format!(
-                "/// FileDescriptorSet bytes shared through the generated root registry.\npub const FILE_DESCRIPTOR_SET: &[u8] = crate::{SHARED_DESCRIPTOR_MODULE}::FILE_DESCRIPTOR_SET;\n\nfn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {{\n    crate::{SHARED_DESCRIPTOR_MODULE}::generated_pool()\n}}\n\n",
+                "/// FileDescriptorSet bytes shared through the generated root registry.\npub const FILE_DESCRIPTOR_SET: &[u8] = crate::{SHARED_DESCRIPTOR_MODULE}::FILE_DESCRIPTOR_SET;\n\nfn generated_pool() -> ::std::sync::Arc<{runtime}::DescriptorPool> {{\n    crate::{SHARED_DESCRIPTOR_MODULE}::generated_pool()\n}}\n\n",
             ));
         } else {
             src.push_str(
@@ -469,7 +471,7 @@ use pbrs::UnknownFields;\n\n"
                     .expect("FDS block prebuilt when reflection is on"),
             );
             src.push_str(
-                "#[allow(clippy::expect_used, reason = \"embedded descriptor bytes were validated during code generation\")]\nfn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {\n    static P: std::sync::OnceLock<std::sync::Arc<pbrs::DescriptorPool>> = std::sync::OnceLock::new();\n    P.get_or_init(|| {\n        std::sync::Arc::new(pbrs::DescriptorPool::from_file_descriptor_set(FILE_DESCRIPTOR_SET).expect(\"fds\"))\n    }).clone()\n}\n\n",
+                &format!("#[allow(clippy::expect_used, reason = \"embedded descriptor bytes were validated during code generation\")]\nfn generated_pool() -> ::std::sync::Arc<{runtime}::DescriptorPool> {{\n    static P: ::std::sync::OnceLock<::std::sync::Arc<{runtime}::DescriptorPool>> = ::std::sync::OnceLock::new();\n    P.get_or_init(|| {{\n        ::std::sync::Arc::new({runtime}::DescriptorPool::from_file_descriptor_set(FILE_DESCRIPTOR_SET).expect(\"fds\"))\n    }}).clone()\n}}\n\n"),
             );
         }
         let direct_pub_files = pool.public_import_files(std::slice::from_ref(target));
@@ -689,11 +691,11 @@ use pbrs::UnknownFields;\n\n"
                 if resolved.codec_path.is_none() {
                     src.push_str("use protobuf_tonic::ProtobufCodec;\n");
                 }
-                src.push_str("use std::convert::Infallible;\n");
-                src.push_str("use std::future::Future;\n");
-                src.push_str("use std::pin::Pin;\n");
-                src.push_str("use std::sync::Arc;\n");
-                src.push_str("use std::task::{Context, Poll};\n");
+                src.push_str("use ::std::convert::Infallible;\n");
+                src.push_str("use ::std::future::Future;\n");
+                src.push_str("use ::std::pin::Pin;\n");
+                src.push_str("use ::std::sync::Arc;\n");
+                src.push_str("use ::std::task::{Context, Poll};\n");
                 for svc in &services {
                     emit_service(&mut src, svc);
                 }
@@ -727,11 +729,6 @@ use pbrs::UnknownFields;\n\n"
         if let Some(tc) = &resolved.tonic_crate {
             if tc != "protobuf_tonic" {
                 src = src.replace("protobuf_tonic", tc);
-            }
-        }
-        if let Some(rc) = &resolved.runtime_crate {
-            if rc != "pbrs" {
-                src = src.replace("pbrs::", &format!("{rc}::"));
             }
         }
         let rel_rs = if let Some(stripped) = norm_target.strip_suffix(".proto") {
@@ -775,6 +772,7 @@ use pbrs::UnknownFields;\n\n"
         let type_files_snapshot = TYPE_FILES.with(|c| c.take());
         let required_types_snapshot = REQUIRED_MESSAGE_TYPES.with(|types| types.take());
         let boxed_fields_snapshot = BOXED_FIELDS.with(|fields| fields.take());
+        let bytes_fields_snapshot = BYTES_FIELDS.with(|fields| fields.take());
         let chunk_size = targets.len().div_ceil(worker_count);
         // Shared references for the workers (bound outside so the `move`
         // closures copy references instead of moving owned values).
@@ -783,6 +781,7 @@ use pbrs::UnknownFields;\n\n"
         let snapshot_ref = &type_files_snapshot;
         let required_snapshot_ref = &required_types_snapshot;
         let boxed_snapshot_ref = &boxed_fields_snapshot;
+        let bytes_snapshot_ref = &bytes_fields_snapshot;
         let ordered: Vec<TargetEmission> = std::thread::scope(|s| {
             let mut handles = Vec::new();
             for (chunk_idx, group) in targets.chunks(chunk_size).enumerate() {
@@ -794,6 +793,7 @@ use pbrs::UnknownFields;\n\n"
                     REQUIRED_MESSAGE_TYPES
                         .with(|types| *types.borrow_mut() = required_snapshot_ref.clone());
                     BOXED_FIELDS.with(|fields| *fields.borrow_mut() = boxed_snapshot_ref.clone());
+                    BYTES_FIELDS.with(|fields| *fields.borrow_mut() = bytes_snapshot_ref.clone());
                     let mut part = Vec::with_capacity(group.len());
                     for (offset, target) in group.iter().enumerate() {
                         part.push((base + offset, emit_ref(target)));
@@ -841,16 +841,11 @@ use pbrs::UnknownFields;\n\n"
                 ),
             });
         }
-        let mut helper = shared_descriptor_source(
+        let helper = shared_descriptor_source(
             fds_block
                 .as_deref()
                 .expect("FDS block prebuilt for shared descriptors"),
         );
-        if let Some(rc) = &resolved.runtime_crate {
-            if rc != "pbrs" {
-                helper = helper.replace("pbrs::", &format!("{rc}::"));
-            }
-        }
         let _ = writeln!(
             mod_rs,
             "mod {SHARED_DESCRIPTOR_MODULE} {{ include!(\"{SHARED_DESCRIPTOR_FILE}\"); }}"
@@ -910,7 +905,7 @@ pub(crate) fn apply_resolved_config(resolved: &ResolvedConfig) {
     DISABLE_COMMENTS.with(|c| c.set(resolved.disable_comments));
     SKIP_DEBUG.with(|c| c.set(resolved.skip_debug));
     EXTERN_PATHS.with(|c| *c.borrow_mut() = resolved.extern_paths.clone());
-    RUNTIME_CRATE.with(|c| *c.borrow_mut() = resolved.runtime_crate.clone());
+    set_runtime_crate_path(resolved.runtime_crate.as_deref());
     GRPC_CRATE.with(|c| *c.borrow_mut() = resolved.grpc_crate.clone());
     TONIC_CRATE.with(|c| *c.borrow_mut() = resolved.tonic_crate.clone());
     CODEC_PATH.with(|c| *c.borrow_mut() = resolved.codec_path.clone());

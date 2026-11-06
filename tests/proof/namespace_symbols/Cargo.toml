@@ -1,0 +1,22 @@
+[package]
+name = "pbrs-namespace-symbols-proof"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[features]
+default = []
+owned = []
+safe = []
+# Negative control: the original macro form requires a caller-provided view Default.
+bare-legacy = []
+
+[dependencies]
+pbrs = { path = "../../..", default-features = false, features = ["json", "text"] }
+prost = "=0.14.4"
+
+[build-dependencies]
+pbrs = { path = "../../..", default-features = false, features = ["codegen", "json", "text"] }
+prost-build = "=0.14.4"

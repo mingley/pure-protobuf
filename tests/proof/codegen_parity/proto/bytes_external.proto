@@ -1,0 +1,8 @@
+syntax = "proto3";
+package proof.bytes_external;
+message Imported {
+  bytes payload = 1;
+  message Nested { bytes payload = 1; }
+  Nested nested = 2;
+  repeated Nested children = 3;
+}

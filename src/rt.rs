@@ -3,6 +3,7 @@
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 pub use crate::error::{ParseError, SerializeError};
+pub use crate::lazy::parse_proto_bytes;
 pub use crate::lazy::{LazyBytes, LazyMsg, LazyStr, MergeBytes, Wire, require_utf8};
 pub use crate::packed::{
     Bools, FixedI32, FixedI64, FixedU32, FixedU64, Ieee32, Ieee64, Packed, PackedBool, PackedCodec,
@@ -10,6 +11,7 @@ pub use crate::packed::{
     PackedSfx32, PackedSfx64, PackedU32, PackedU64, VarintI32, VarintI64, VarintU32, VarintU64,
     ZigZag32, ZigZag64,
 };
+pub use crate::wire::encode_proto_bytes_field_shared;
 pub use crate::wire::{
     SHARED_SEND_THRESHOLD, UnknownField, UnknownFields, WIRE_EGROUP, WIRE_I32, WIRE_I64, WIRE_LEN,
     WIRE_SGROUP, WIRE_VARINT, WireOut, capture_unknown, capture_unknown_with_depth, check_size,

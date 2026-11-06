@@ -461,10 +461,10 @@ enum Mode { MODE_ZERO = 0; }
 
     let generated = std::fs::read_to_string(out.join("selectors.rs")).unwrap();
     assert!(generated.contains(
-        "#[doc = \"all-types\"]\n#[doc = \"packet-type\"]\n#[doc = \"package-message\"]\n#[derive(Clone, Debug)]\npub struct Packet"
+        "#[doc = \"all-types\"]\n#[doc = \"packet-type\"]\n#[doc = \"package-message\"]\n#[derive(::core::clone::Clone, ::core::fmt::Debug)]\npub struct Packet"
     ));
     assert!(generated.contains(
-        "#[doc = \"all-types\"]\n#[doc = \"child-type\"]\n#[doc = \"package-message\"]\n#[derive(Clone, Debug)]\npub struct Child"
+        "#[doc = \"all-types\"]\n#[doc = \"child-type\"]\n#[doc = \"package-message\"]\n#[derive(::core::clone::Clone, ::core::fmt::Debug)]\npub struct Child"
     ));
     assert!(
         generated
@@ -476,13 +476,13 @@ enum Mode { MODE_ZERO = 0; }
     );
     assert!(generated.contains("struct PacketCold {"));
     assert!(generated.contains(
-        "    #[doc = \"all-fields\"]\n    #[doc = \"packet-fields\"]\n    #[doc = \"payload-field\"]\n    #[allow(dead_code, unused_variables)]\n    payload: pbrs::rt::LazyBytes,"
+        "    #[doc = \"all-fields\"]\n    #[doc = \"packet-fields\"]\n    #[doc = \"payload-field\"]\n    #[allow(dead_code, unused_variables)]\n    payload: ::pbrs::rt::LazyBytes,"
     ));
     assert!(generated.contains(
-        "    #[doc = \"all-fields\"]\n    #[doc = \"packet-fields\"]\n    #[doc = \"note-field\"]\n    note: pbrs::rt::LazyStr,"
+        "    #[doc = \"all-fields\"]\n    #[doc = \"packet-fields\"]\n    #[doc = \"note-field\"]\n    note: ::pbrs::rt::LazyStr,"
     ));
     assert!(generated.contains(
-        "    #[doc = \"all-fields\"]\n    #[doc = \"note-field\"]\n    note: pbrs::rt::LazyStr,"
+        "    #[doc = \"all-fields\"]\n    #[doc = \"note-field\"]\n    note: ::pbrs::rt::LazyStr,"
     ));
     assert!(!generated.contains("wrong-prefix"));
     assert!(!generated.contains("wrong-suffix"));
@@ -499,11 +499,9 @@ enum Mode { MODE_ZERO = 0; }
         .expect("generate comma-containing attribute from descriptor set");
     let descriptor_generated =
         std::fs::read_to_string(descriptor_out.join("selectors.rs")).unwrap();
-    assert!(
-        descriptor_generated.contains(
-            "    #[allow(dead_code, unused_variables)]\n    payload: pbrs::rt::LazyBytes,"
-        )
-    );
+    assert!(descriptor_generated.contains(
+        "    #[allow(dead_code, unused_variables)]\n    payload: ::pbrs::rt::LazyBytes,"
+    ));
 
     std::fs::create_dir_all(tmp.join("src")).unwrap();
     std::fs::write(
@@ -604,7 +602,7 @@ service Demo {
         "use_arc_self(true) must change service receiver:\n{generated}"
     );
     assert!(
-        generated.contains("#[allow(dead_code)]\n#[derive(Clone)]\npub struct Item"),
+        generated.contains("#[allow(dead_code)]\n#[derive(::core::clone::Clone)]\npub struct Item"),
         "message attribute missing:\n{generated}"
     );
     assert!(
@@ -612,11 +610,11 @@ service Demo {
         "enum attribute missing:\n{generated}"
     );
     assert!(
-        generated.contains("#[allow(dead_code)]\n    name: pbrs::rt::LazyStr"),
+        generated.contains("#[allow(dead_code)]\n    name: ::pbrs::rt::LazyStr"),
         "field attribute missing:\n{generated}"
     );
     assert!(
-        generated.contains("#[derive(Clone)]\npub struct Item"),
+        generated.contains("#[derive(::core::clone::Clone)]\npub struct Item"),
         "skip_debug must remove Debug from message derive:\n{generated}"
     );
     assert!(

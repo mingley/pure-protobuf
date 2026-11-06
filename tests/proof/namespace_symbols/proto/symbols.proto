@@ -1,0 +1,103 @@
+syntax = "proto3";
+package proof.symbols;
+import "external.proto";
+
+message Result { int32 value = 1; }
+message Option { int32 value = 1; }
+message Vec { int32 value = 1; }
+message Box { int32 value = 1; }
+message String { int32 value = 1; }
+message Clone { int32 value = 1; }
+message Eq { int32 value = 1; }
+message PartialEq { int32 value = 1; }
+message From { int32 value = 1; }
+message TryFrom { int32 value = 1; }
+message AsRef { int32 value = 1; }
+message AsView { int32 value = 1; }
+message ParseError { int32 value = 1; }
+message SerializeError { int32 value = 1; }
+message ProtoBytes { int32 value = 1; }
+message ProtoString { int32 value = 1; }
+message Repeated { int32 value = 1; }
+message RepeatedView { int32 value = 1; }
+message RepeatedMut { int32 value = 1; }
+message UnknownEnumValue { int32 value = 1; }
+message UnknownFields { int32 value = 1; }
+message Default { int32 value = 1; }
+message Map { int32 value = 1; }
+message Enum { int32 value = 1; }
+message Hash { int32 value = 1; }
+message Ord { int32 value = 1; }
+message PartialOrd { int32 value = 1; }
+message Into { int32 value = 1; }
+message Copy { int32 value = 1; }
+message Debug { int32 value = 1; }
+message IntoIterator { int32 value = 1; }
+message pbrs { int32 value = 1; }
+message std { int32 value = 1; }
+message core { int32 value = 1; }
+
+enum Some { SOME_ZERO = 0; SOME_ONE = 1; }
+enum None { NONE_ZERO = 0; NONE_ONE = 1; }
+enum Ok { OK_ZERO = 0; OK_ONE = 1; }
+enum Err { ERR_ZERO = 0; ERR_ONE = 1; }
+
+// user docs pbrs::Child ::pbrs::Child ::std::Path
+message Record {
+  optional int32 count = 1;
+  optional string label = 2;
+  bytes blob = 3;
+  proof.external.External external = 4;
+  Result f_result_value = 10;
+  Option f_option_value = 11;
+  Vec f_vec_value = 12;
+  Box f_box_value = 13;
+  String f_string_value = 14;
+  Clone f_clone_value = 15;
+  Eq f_eq_value = 16;
+  PartialEq f_partial_eq_value = 17;
+  From f_from_value = 18;
+  TryFrom f_try_from_value = 19;
+  AsRef f_as_ref_value = 20;
+  AsView f_as_view_value = 21;
+  ParseError f_parse_error_value = 22;
+  SerializeError f_serialize_error_value = 23;
+  ProtoBytes f_proto_bytes_value = 24;
+  ProtoString f_proto_string_value = 25;
+  Repeated f_repeated_value = 26;
+  RepeatedView f_repeated_view_value = 27;
+  RepeatedMut f_repeated_mut_value = 28;
+  UnknownEnumValue f_unknown_enum_value_value = 29;
+  UnknownFields f_unknown_fields_value = 30;
+  Default f_default_value = 31;
+  Map f_map_value = 32;
+  Enum f_enum_value = 33;
+  Hash f_hash_value = 34;
+  Ord f_ord_value = 35;
+  PartialOrd f_partial_ord_value = 36;
+  Into f_into_value = 37;
+  Copy f_copy_value = 38;
+  Debug f_debug_value = 39;
+  IntoIterator f_into_iterator_value = 40;
+  pbrs f_pbrs_value = 41;
+  std f_std_value = 42;
+  core f_core_value = 43;
+  repeated Clone children = 100;
+  map<string, Clone> entries = 101;
+  Some some_value = 102;
+  None none_value = 103;
+  Ok ok_value = 104;
+  Err err_value = 105;
+  repeated Some enum_values = 106;
+  oneof choice {
+    bool chosen_flag = 110;
+    string chosen_text = 111;
+    Clone picked = 112;
+  }
+  repeated int32 numbers = 120;
+  repeated bool flags = 121;
+  repeated double weights = 122;
+  repeated float samples = 123;
+  repeated sint64 offsets = 124;
+  repeated uint32 ports = 125;
+}

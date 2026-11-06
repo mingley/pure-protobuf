@@ -18,17 +18,73 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
-METHODS = ["btree_map", "bytes"]
+METHODS = ["btree_map"]
 
 
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def run_bytes_controls(manifest, run):
+    profiles = []
+    for profile, binary in [
+        ("selected", "pbrs_bytes"), ("owned", "pbrs_bytes_owned"), ("safe", "pbrs_bytes_safe"),
+    ]:
+        result, control = run(f"bytes-{profile}", ["cargo", "run", "--locked", "--offline", "--manifest-path", str(manifest), "--bin", binary])
+        control.update(profile=profile, passed=result.returncode == 0,
+                       cases_passed=result.stdout.count(b"PASS bytes-case "),
+                       selector_cases_passed=result.stdout.count(b"PASS bytes-selector "))
+        profiles.append(control)
+    controls = []
+    for name, binary, marker in [
+        ("default", "pbrs_bytes_default_control", b"PASS bytes-default "),
+        ("old-parent", "pbrs_bytes_old_parent", b"PASS bytes-old-parent "),
+        ("lightweight", "pbrs_bytes_lightweight", b"PASS bytes-lightweight "),
+    ]:
+        result, control = run(f"bytes-{name}", ["cargo", "run", "--locked", "--offline", "--manifest-path", str(manifest), "--bin", binary])
+        control.update(name=name, passed=result.returncode == 0, cases_passed=result.stdout.count(marker))
+        if name == "old-parent":
+            control["duplicate_remove_difference_reproduced"] = result.stdout.count(b"KNOWN-GAP bytes-map-remove ") == 1
+            control["old_source_scope"] = "frozen6f generated parent and current unconfigured parent, both linked to the current runtime"
+        controls.append(control)
+    result, lightweight_gap = run("bytes-lightweight-gap", ["cargo", "check", "--locked", "--offline", "--manifest-path", str(manifest), "--bin", "pbrs_bytes_lightweight_gap"])
+    lightweight_gap.update(
+        reproduced=result.returncode != 0 and result.stderr.count(b"error[E0599]") == 4
+        and all(f"`{method}`".encode() in result.stderr for method in ["to_json", "from_json", "to_text", "from_text"]),
+        scope="existing complex-schema typed-codec subset when reflection fallback is disabled; not a Prost JSON comparison",
+    )
+    prefixes = []
+    for prefix in ["default", "relative", "absolute", "local"]:
+        result, control = run(f"bytes-prefix-{prefix}", ["cargo", "run", "--locked", "--offline", "--manifest-path", str(manifest), "--bin", f"pbrs_bytes_prefix_{prefix}"])
+        control.update(prefix=prefix, passed=result.returncode == 0, cases_passed=result.stdout.count(b"PASS bytes-prefix "))
+        prefixes.append(control)
+    frozen = json.loads((HERE / "old_bytes_parent/manifest.json").read_text())
+    return {
+        "profiles": profiles, "controls": controls, "prefixes": prefixes, "lightweight_gap": lightweight_gap,
+        "frozen_old_source_valid": all(sha(HERE / path) == expected for path, expected in frozen["input_output_sha256"].items()),
+        "scope": "selected Bytes-backed storage, sharing, codecs, source selection and explicit old/mixed-binding limits",
+    }
+
+
+def bytes_controls_passed(control):
+    return (
+        len(control["profiles"]) == 3
+        and all(case["passed"] and case["cases_passed"] == 13 for case in control["profiles"])
+        and [case["selector_cases_passed"] for case in control["profiles"]] == [21, 0, 0]
+        and len(control["controls"]) == 3
+        and all(case["passed"] and case["cases_passed"] == 1 for case in control["controls"])
+        and next(case for case in control["controls"] if case["name"] == "old-parent")["duplicate_remove_difference_reproduced"]
+        and control["lightweight_gap"]["reproduced"] and control["frozen_old_source_valid"]
+        and len(control["prefixes"]) == 4
+        and all(case["passed"] and case["cases_passed"] == 1 for case in control["prefixes"])
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--embedded-target", default="thumbv7em-none-eabi")
+    parser.add_argument("--only", choices=["all", "bytes"], default="all", help="run the focused bytes controls without the embedded-target and unrelated suites")
     args = parser.parse_args()
     output = args.output.resolve()
     if output.exists():
@@ -55,6 +111,29 @@ def main():
         (output / f"{name}.stdout").write_bytes(result.stdout)
         (output / f"{name}.stderr").write_bytes(result.stderr)
         return result, {"command": command, "exit_code": result.returncode}
+
+    if args.only == "bytes":
+        controls = run_bytes_controls(manifest, run)
+        after_hashes = {str(path.relative_to(ROOT)): sha(path) for path in source_paths}
+        report = {
+            "schema_version": 1,
+            "revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+            "rustc": subprocess.check_output(["rustc", "--version"], env=env, text=True).strip(),
+            "protoc": subprocess.check_output([selected_protoc, "--version"], env=env, text=True).strip(),
+            "protoc_sha256": sha(Path(selected_protoc)), "bytes_fields": controls,
+            "source_sha256": after_hashes,
+            "changed_source_files": [name for name in before_hashes if before_hashes[name] != after_hashes[name]],
+            "limitations": [
+                "No timing or ranking conclusion follows from these functional controls.",
+                "Older or differently configured eager parents can copy selected child payloads.",
+                "Duplicate-key removal exposes an earlier pbrs map entry; Prost removes the logical key.",
+                "With reflection disabled, complex schemas outside the typed subset omit JSON/text methods.",
+            ],
+        }
+        report["harness_passed"] = bytes_controls_passed(controls) and not report["changed_source_files"]
+        (output / "results.json").write_text(json.dumps(report, indent=2) + "\n")
+        print(json.dumps({"harness_passed": report["harness_passed"], "bytes_cases": sum(case["cases_passed"] for case in controls["profiles"]), "bytes_selector_cases": sum(case["selector_cases_passed"] for case in controls["profiles"]), "controls": len(controls["controls"]), "lightweight_gap": controls["lightweight_gap"]["reproduced"]}))
+        return 0 if report["harness_passed"] else 1
 
     result, consumer = run("consumer", ["cargo", "run", "--locked", "--offline", "--manifest-path", str(manifest), "--bin", "pbrs-codegen-parity-proof"])
     consumer["passed"] = result.returncode == 0
@@ -132,6 +211,7 @@ def main():
             "scope": "selected eager boxed singular messages, same-schema wire values, sharing and validation; message-selector source placement against Prost",
         })
         boxed_fields.append(boxed)
+    bytes_fields = run_bytes_controls(manifest, run)
     probes = []
     for method in METHODS:
         result, probe = run(method, ["cargo", "check", "--locked", "--offline", "--manifest-path", str(manifest), "--bin", f"pbrs_{method}"])
@@ -166,6 +246,7 @@ def main():
         "type_collisions": collisions,
         "runtime_symbols": runtime_symbols,
         "boxed_fields": boxed_fields,
+        "bytes_fields": bytes_fields,
         "alloc_only_target": no_std,
         "source_sha256": after_hashes,
         "changed_source_files": [name for name in before_hashes if before_hashes[name] != after_hashes[name]],
@@ -179,6 +260,7 @@ def main():
             "The alloc-only target control proves compilation availability, not execution on embedded hardware.",
             "No timing or ranking conclusion is drawn from build execution.",
             "Boxed selectors apply to singular message/group fields; Prost's scalar boxing output is not a supported compiled control.",
+            "Selected bytes can copy through old/mixed eager parents; duplicate map removal and reflection-off complex codecs retain explicit counterexamples.",
         ],
     }
     report["harness_passed"] = (
@@ -189,12 +271,13 @@ def main():
         and all(case["passed"] and case["cases_passed"] == 4 for case in runtime_symbols)
         and all(case["passed"] and case["cases_passed"] == 8 for case in boxed_fields)
         and [case["selector_cases_passed"] for case in boxed_fields] == [18, 0, 0]
+        and bytes_controls_passed(bytes_fields)
         and all(probe["gap_reproduced"] for probe in probes)
         and no_std["functional_gap_reproduced"]
         and not report["changed_source_files"]
     )
     (output / "results.json").write_text(json.dumps(report, indent=2) + "\n")
-    print(json.dumps({"harness_passed": report["harness_passed"], "consumer_cases": consumer["cases_passed"], "name_cases": options["name_cases_passed"], "any_cases": options["any_cases_passed"], "enum_cases": options["enum_cases_passed"], "attribute_cases": attributes["cases_passed"], "type_collision_cases": sum(case["cases_passed"] for case in collisions), "runtime_symbol_cases": sum(case["cases_passed"] for case in runtime_symbols), "boxed_cases": sum(case["cases_passed"] for case in boxed_fields), "boxed_selector_cases": sum(case["selector_cases_passed"] for case in boxed_fields), "configuration_gaps": sum(p["gap_reproduced"] for p in probes), "alloc_only_gap": no_std["functional_gap_reproduced"]}))
+    print(json.dumps({"harness_passed": report["harness_passed"], "consumer_cases": consumer["cases_passed"], "name_cases": options["name_cases_passed"], "any_cases": options["any_cases_passed"], "enum_cases": options["enum_cases_passed"], "attribute_cases": attributes["cases_passed"], "type_collision_cases": sum(case["cases_passed"] for case in collisions), "runtime_symbol_cases": sum(case["cases_passed"] for case in runtime_symbols), "boxed_cases": sum(case["cases_passed"] for case in boxed_fields), "boxed_selector_cases": sum(case["selector_cases_passed"] for case in boxed_fields), "bytes_cases": sum(case["cases_passed"] for case in bytes_fields["profiles"]), "bytes_selector_cases": sum(case["selector_cases_passed"] for case in bytes_fields["profiles"]), "configuration_gaps": sum(p["gap_reproduced"] for p in probes), "alloc_only_gap": no_std["functional_gap_reproduced"]}))
     return 0 if report["harness_passed"] else 1
 
 

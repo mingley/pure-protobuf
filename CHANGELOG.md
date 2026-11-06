@@ -10,6 +10,17 @@ or stable releases.
 
 ### pbrs 0.2.1
 
+- Add `Config::bytes(paths)` for selected `ProtoBytes` storage and shared
+  getters. Initialize direct selected byte fields with valid defaults, and
+  retain shared payload windows through matching generated parents. Older or
+  differently configured eager parents can still copy child payloads.
+- Forward shared-byte merges through typed message mutators. Both typed and
+  arena-backed mutators now honor explicit merges without required-field
+  enforcement while preserving ordinary enforcement.
+- Preserve explicit JSON/text generation flags through builder serialization.
+- Invalidate packed-field encoding caches before conversion, preventing stale
+  output when a custom decoder returns an error or panics and the container
+  is reused.
 - Preserve unrelated duplicate-key winners when removing a map entry and
   repair an existing lookup index without rebuilding it. Removal still
   exposes earlier stored versions of the target key.
@@ -23,8 +34,11 @@ or stable releases.
   forbid unsafe code. Layouts and wire behavior stay unchanged; runtime
   dependencies keep their own unsafe code. Construction and encoding costs
   vary, so the existing default profile is preserved.
-- Qualify generator-owned traits, containers and macros so literal schema
-  names `Default`, `Map` and `Enum` compile in the tested profiles.
+- Qualify generator-owned symbols and resolve runtime prefixes before adding
+  user paths or literals. Message names that shadow runtime/prelude symbols,
+  including lowercase `pbrs` and `std`, compile in the tested profiles.
+- Add an optional sixth `default_view` argument to `impl_generated_message!`;
+  existing five-argument callers keep their own view `Default` implementation.
 - Cache numbered collision suffixes and reuse message companion names,
   avoiding repeated prefix searches while preserving the tested names.
 - Transfer owned byte buffers through repeated/map setters and singular

@@ -1,4 +1,5 @@
 use std::{env, fs, path::PathBuf};
+mod bytes_build;
 
 fn main() {
     let out = PathBuf::from(env::var_os("OUT_DIR").unwrap());
@@ -190,6 +191,7 @@ fn main() {
     assert!(!plain_enum.contains("pub const StateReady:"));
     build_boxed_controls(&out, &includes);
     build_runtime_symbol_controls(&out, &includes);
+    bytes_build::build(&out, &includes);
     for file in [
         "case.proto",
         "external.proto",

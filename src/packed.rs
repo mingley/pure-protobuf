@@ -14,6 +14,10 @@ use crate::wire::{
 };
 use std::sync::OnceLock;
 
+#[cfg(test)]
+#[path = "packed/wire_tests.rs"]
+mod wire_tests;
+
 pub trait PackedCodec: Sized {
     type Elem: Copy + Default + PartialEq;
     /// Fixed-width packing has a unique encoding; varints must be recoded canonical.
@@ -379,6 +383,7 @@ impl<C: PackedCodec> Packed<C> {
         let Some(i) = self.inner.as_mut() else {
             return Vec::new();
         };
+        i.encoded = OnceLock::new();
         if let Some(v) = i.decoded.take() {
             i.wire = None;
             v

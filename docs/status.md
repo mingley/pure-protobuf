@@ -20,8 +20,14 @@ for complete traversal, or [`boxed(path)`](guides/codegen.md#box-selected-nested
 for selected singular children. The opt-in
 [safe-default profile](guides/codegen.md#safe-generated-defaults) supports
 forbid-unsafe generated consumers; runtime dependencies retain their own
-unsafe implementations. Literal `Default`, `Map` and `Enum` schemas now
-have focused lazy/owned namespace controls.
+unsafe implementations. The
+[namespace controls](../tests/proof/namespace_symbols/README.md) cover names
+such as `Default`, `Some`, `pbrs`, `std` and `core`, plus runtime aliases,
+while preserving user paths and literals.
+
+[`Config::bytes(paths)`](guides/bytes.md) selects shared `ProtoBytes` storage
+with owned shared getters and valid generated defaults. Shared input can be
+retained; borrowed input copies payloads, and older eager parents can also copy.
 
 The [field-view consumers](../tests/proof/field_views/README.md) check 25 schema
 cases across four profiles, including accessor collisions and unchanged valid
@@ -40,9 +46,8 @@ Next comparisons should cover default nested full reads, string-key map
 lookup allocations with small-map controls, compression using the same Prost
 codec, and matched consumer builds.
 
-Remaining migration gaps include `btree_map` and `bytes` codegen
-controls, an alloc-only runtime, and custom executors in the static balanced
-channel helpers. Static balance helpers also reject per-endpoint origins.
+Remaining migration gaps include `btree_map` codegen controls, an alloc-only
+runtime, and custom executors in the static balanced channel helpers. Static balance helpers also reject per-endpoint origins.
 See the [parity summary](parity.md) and
 [API comparison](guides/comparison.md) for tested behavior and boundaries.
 

@@ -675,6 +675,23 @@ impl<'msg> crate::proxied::IntoView<'msg> for LazyBytesView<'msg> {
     }
 }
 
+/// Decode a selected eager Bytes-backed payload without retaining private wire.
+///
+/// Shared input is sliced without copying. Borrowed/private input copies only
+/// this payload, so retaining the selected value does not retain a private
+/// parent allocation. The span must already have been bounds-checked.
+#[doc(hidden)]
+#[inline]
+pub fn parse_proto_bytes(wire: &Option<Wire>, data: &[u8], start: usize, end: usize) -> ProtoBytes {
+    if start == end {
+        return ProtoBytes::new();
+    }
+    match wire.as_ref().map(|wire| &wire.inner) {
+        Some(WireInner::Shared(bytes)) => ProtoBytes::from(bytes.slice(start..end)),
+        _ => ProtoBytes::from(&data[start..end]),
+    }
+}
+
 /// Generated messages implement this so [`LazyMsg`] can validate without
 /// constructing `T`, then materialize on first getter.
 pub trait MergeBytes: Default + Sized {

@@ -108,15 +108,10 @@ mod __gen_google_protobuf_field_mask_proto {
         clippy::let_underscore_must_use,
         reason = "ignoring results in generated wire helpers"
     )]
-    use pbrs::prelude::*;
-    use pbrs::UnknownFields;
-    use pbrs::{
-        ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut, RepeatedView, SerializeError,
-        UnknownEnumValue,
-    };
+    use ::pbrs::prelude::*;
 
-    fn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {
-        pbrs::gencode::conformance_pool()
+    fn generated_pool() -> ::std::sync::Arc<::pbrs::DescriptorPool> {
+        ::pbrs::gencode::conformance_pool()
     }
 
     /// `FieldMask` represents a set of symbolic field paths, for example:
@@ -318,14 +313,14 @@ mod __gen_google_protobuf_field_mask_proto {
     /// `INVALID_ARGUMENT` error if any path is unmappable.
     ///
     /// The `google.protobuf.FieldMask` protobuf message.
-    #[derive(Clone, Debug)]
+    #[derive(::core::clone::Clone, ::core::fmt::Debug)]
     pub struct FieldMask {
         /// The set of field mask paths.
-        paths: Repeated<pbrs::rt::LazyStr>,
-        unknown: UnknownFields,
-        cached_size: pbrs::rt::CachedSize,
+        paths: ::pbrs::Repeated<::pbrs::rt::LazyStr>,
+        unknown: ::pbrs::UnknownFields,
+        cached_size: ::pbrs::rt::CachedSize,
     }
-    impl PartialEq for FieldMask {
+    impl ::core::cmp::PartialEq for FieldMask {
         fn eq(&self, other: &Self) -> bool {
             if self.paths != other.paths {
                 return false;
@@ -333,11 +328,11 @@ mod __gen_google_protobuf_field_mask_proto {
             self.unknown == other.unknown
         }
     }
-    impl Eq for FieldMask {}
+    impl ::core::cmp::Eq for FieldMask {}
     impl ::core::default::Default for FieldMask {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { pbrs::rt::zeroed_message() }
+            unsafe { ::pbrs::rt::zeroed_message() }
         }
     }
     impl FieldMask {
@@ -353,228 +348,282 @@ mod __gen_google_protobuf_field_mask_proto {
         ///
         /// Field `paths` (number 1).
         ///
-        /// Repeated field of `pbrs::rt::LazyStr`. Empty by default.
-        pub fn paths(&self) -> RepeatedView<'_, pbrs::rt::LazyStr> {
+        /// Repeated field of `::pbrs::rt::LazyStr`. Empty by default.
+        pub fn paths(&self) -> ::pbrs::RepeatedView<'_, ::pbrs::rt::LazyStr> {
             self.paths.as_view()
         }
         /// Returns a mutable view of field `paths`.
-        pub fn paths_mut(&mut self) -> RepeatedMut<'_, pbrs::rt::LazyStr> {
+        pub fn paths_mut(&mut self) -> ::pbrs::RepeatedMut<'_, ::pbrs::rt::LazyStr> {
             self.cached_size.dirty();
             self.paths.as_mut()
         }
         /// Sets the value of `paths`.
-        pub fn set_paths(&mut self, v: impl IntoIterator<Item = pbrs::rt::LazyStr>) {
+        pub fn set_paths(
+            &mut self,
+            v: impl ::core::iter::IntoIterator<Item = ::pbrs::rt::LazyStr>,
+        ) {
             self.cached_size.dirty();
             self.paths = v.into_iter().collect();
         }
         #[inline(always)]
-        pub fn check_required(&self) -> Result<(), ParseError> {
-            Ok(())
+        pub fn check_required(&self) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            ::core::result::Result::Ok(())
         }
-        pub fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+        pub fn merge_bytes(
+            &mut self,
+            data: &[u8],
+            depth: u32,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
                 return self.check_required();
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                true,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_bytes_dont_enforce(
             &mut self,
             data: &[u8],
             depth: u32,
-        ) -> Result<(), ParseError> {
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
-                return Ok(());
+                return ::core::result::Result::Ok(());
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                false,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_group(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            self.merge_inner(data, wire, pos, depth, false, Some(num))
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            self.merge_inner(
+                data,
+                wire,
+                pos,
+                depth,
+                false,
+                ::core::option::Option::Some(num),
+            )
         }
         pub fn merge_inner(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let _ = enforce;
             self.cached_size.dirty();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                        ::pbrs::rt::WIRE_LEN => {
+                            let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                             let rest = data.len().saturating_sub(e);
                             if rest > 2 {
                                 self.paths.reserve(1 + rest / (e - s + 2).max(1));
                             }
                             self.paths
-                                .push(pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?);
+                                .push(::pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?);
                             while *pos < data.len()
-                                && data[*pos] == ((1 << 3) | pbrs::rt::WIRE_LEN) as u8
+                                && data[*pos] == ((1 << 3) | ::pbrs::rt::WIRE_LEN) as u8
                             {
                                 *pos += 1;
-                                let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                                let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                                 self.paths
-                                    .push(pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?);
+                                    .push(::pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?);
                             }
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown_with_depth(
+                            .push(::pbrs::rt::capture_unknown_with_depth(
                                 data, pos, n, w, depth,
                             )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
             if enforce {
                 self.check_required()?;
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn validate_inner(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            Self::validate_until(wire, pos, depth, None)
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            Self::validate_until(wire, pos, depth, ::core::option::Option::None)
         }
         pub fn validate_until(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            pbrs::rt::require_utf8(&data[s..e])?;
+                        ::pbrs::rt::WIRE_LEN => {
+                            let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
+                            ::pbrs::rt::require_utf8(&data[s..e])?;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                    _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn compute_size(&self) -> u64 {
-            if let Some(n) = self.cached_size.get() {
+            if let ::core::option::Option::Some(n) = self.cached_size.get() {
                 return n;
             }
             let mut n = self.unknown.encoded_len();
             for t in self.paths.iter() {
-                n += pbrs::rt::key_len_value_len(1, t.as_bytes().len() as u64);
+                n += ::pbrs::rt::key_len_value_len(1, t.as_bytes().len() as u64);
             }
             self.cached_size.set(n);
             n
         }
-        pub fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
+        pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             for t in self.paths.iter() {
-                pbrs::rt::encode_len_field(out, 1, t.as_bytes());
+                ::pbrs::rt::encode_len_field(out, 1, t.as_bytes());
             }
             self.unknown.encode(out);
         }
-        pub fn to_json(&self) -> Result<String, SerializeError> {
-            Ok(self.to_json_value()?.to_string())
+        pub fn to_json(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(self.to_json_value()?.to_string())
         }
-        pub fn from_json(json: &str) -> Result<Self, ParseError> {
+        pub fn from_json(json: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             Self::from_json_ignore(json, false)
         }
-        pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let v = pbrs::json::parse(json)?;
+        pub fn from_json_ignore(
+            json: &str,
+            ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let v = ::pbrs::json::parse(json)?;
             Self::from_json_value(&v, ignore)
         }
-        pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
-            pbrs::json::field_mask(self.paths().iter().map(|p| p.0.as_bytes()))
+        pub fn to_json_value(
+            &self,
+        ) -> ::core::result::Result<::pbrs::json::Json, ::pbrs::SerializeError> {
+            ::pbrs::json::field_mask(self.paths().iter().map(|p| p.0.as_bytes()))
         }
-        pub fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+        pub fn from_json_value(
+            v: &::pbrs::json::Json,
+            _ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            for path in pbrs::json::as_field_mask(v)? {
+            for path in ::pbrs::json::as_field_mask(v)? {
                 msg.paths_mut().push(path);
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
-        pub fn to_text(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            Ok(out)
+            ::core::result::Result::Ok(out)
         }
-        pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text_with_unknown(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
-            Ok(out)
+            ::pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            ::core::result::Result::Ok(out)
         }
-        pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let mut reader = pbrs::text::TextReader::new(text);
+        pub fn from_text(text: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let mut reader = ::pbrs::text::TextReader::new(text);
             let msg = Self::from_text_reader(&mut reader)?;
             reader.finish()?;
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
-        pub fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+        pub fn write_text(
+            &self,
+            out: &mut ::std::string::String,
+            indent: usize,
+        ) -> ::core::result::Result<(), ::pbrs::SerializeError> {
             for item in self.paths() {
-                pbrs::text::write_named_string(out, indent, "paths", item.as_bytes());
+                ::pbrs::text::write_named_string(out, indent, "paths", item.as_bytes());
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn from_text_reader(
-            reader: &mut pbrs::text::TextReader<'_>,
-        ) -> Result<Self, ParseError> {
+            reader: &mut ::pbrs::text::TextReader<'_>,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            while let Some(field) = reader.next_field()? {
+            while let ::core::option::Option::Some(field) = reader.next_field()? {
                 match field.name() {
                     "paths" => {
                         if reader.at_list() {
@@ -588,19 +637,24 @@ mod __gen_google_protobuf_field_mask_proto {
                             msg.paths_mut().push(reader.read_string()?);
                         }
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {}", field.name()))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {}",
+                            field.name()
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
         pub fn from_text_value(
-            fields: &[(String, pbrs::text::TextValue)],
-        ) -> Result<Self, ParseError> {
+            fields: &[(::std::string::String, ::pbrs::text::TextValue)],
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
             for (key, val) in fields {
                 match key.as_str() {
                     "paths" => {
-                        if let Some(items) = val.as_list() {
+                        if let ::core::option::Option::Some(items) = val.as_list() {
                             for item in items {
                                 msg.paths_mut().push(item.as_str()?);
                             }
@@ -608,13 +662,17 @@ mod __gen_google_protobuf_field_mask_proto {
                             msg.paths_mut().push(val.as_str()?);
                         }
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {key}"
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
     }
-    pbrs::impl_typed_message!(FieldMask, FieldMaskView, FieldMaskMut);
+    ::pbrs::impl_typed_message!(FieldMask, FieldMaskView, FieldMaskMut);
 }
 #[allow(unused_imports, reason = "generated re-exports may not all be used")]
 pub use __gen_google_protobuf_field_mask_proto::*;

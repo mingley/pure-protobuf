@@ -4,30 +4,37 @@ use super::*;
 use crate::dynamic::{Cardinality, FieldDescriptor, FieldType, MessageDescriptor};
 
 pub(crate) fn text_write_named(f: &FieldDescriptor, name: &str, expr: &str, view: bool) -> String {
+    let runtime = runtime_crate_path();
     match f.field_type {
-        FieldType::Bool => format!("pbrs::text::write_named_bool(out, indent, {name}, {expr})"),
+        FieldType::Bool => {
+            format!("{runtime}::text::write_named_bool(out, indent, {name}, {expr})")
+        }
         FieldType::Int32 | FieldType::Sint32 | FieldType::Sfixed32 => {
-            format!("pbrs::text::write_named_int32(out, indent, {name}, {expr})")
+            format!("{runtime}::text::write_named_int32(out, indent, {name}, {expr})")
         }
         FieldType::Int64 | FieldType::Sint64 | FieldType::Sfixed64 => {
-            format!("pbrs::text::write_named_int64(out, indent, {name}, {expr})")
+            format!("{runtime}::text::write_named_int64(out, indent, {name}, {expr})")
         }
         FieldType::Uint32 | FieldType::Fixed32 => {
-            format!("pbrs::text::write_named_uint32(out, indent, {name}, {expr})")
+            format!("{runtime}::text::write_named_uint32(out, indent, {name}, {expr})")
         }
         FieldType::Uint64 | FieldType::Fixed64 => {
-            format!("pbrs::text::write_named_uint64(out, indent, {name}, {expr})")
+            format!("{runtime}::text::write_named_uint64(out, indent, {name}, {expr})")
         }
-        FieldType::Float => format!("pbrs::text::write_named_float(out, indent, {name}, {expr})"),
-        FieldType::Double => format!("pbrs::text::write_named_double(out, indent, {name}, {expr})"),
+        FieldType::Float => {
+            format!("{runtime}::text::write_named_float(out, indent, {name}, {expr})")
+        }
+        FieldType::Double => {
+            format!("{runtime}::text::write_named_double(out, indent, {name}, {expr})")
+        }
         FieldType::String => {
-            format!("pbrs::text::write_named_string(out, indent, {name}, {expr}.as_bytes())")
+            format!("{runtime}::text::write_named_string(out, indent, {name}, {expr}.as_bytes())")
         }
-        FieldType::Bytes if view => {
-            format!("pbrs::text::write_named_string(out, indent, {name}, {expr}.as_bytes())")
+        FieldType::Bytes if view && !is_selected_bytes(f) => {
+            format!("{runtime}::text::write_named_string(out, indent, {name}, {expr}.as_bytes())")
         }
         FieldType::Bytes => {
-            format!("pbrs::text::write_named_string(out, indent, {name}, {expr})")
+            format!("{runtime}::text::write_named_string(out, indent, {name}, {expr})")
         }
         FieldType::Enum => {
             let n = if view {
@@ -36,22 +43,25 @@ pub(crate) fn text_write_named(f: &FieldDescriptor, name: &str, expr: &str, view
                 format!("i32::from({expr})")
             };
             format!(
-                "{{ let n = {n}; pbrs::text::write_named_enum(out, indent, {name}, {}, n); }}",
+                "{{ let n = {n}; {runtime}::text::write_named_enum(out, indent, {name}, {}, n); }}",
                 enum_name_from_i32(f, "n")
             )
         }
-        _ => format!("pbrs::text::write_named_int32(out, indent, {name}, {expr})"),
+        _ => format!("{runtime}::text::write_named_int32(out, indent, {name}, {expr})"),
     }
 }
 
 pub(crate) fn text_write_value(f: &FieldDescriptor, expr: &str, view: bool) -> String {
+    let runtime = runtime_crate_path();
     match f.field_type {
         FieldType::Bool => format!("out.push_str(if {expr} {{ \"true\" }} else {{ \"false\" }})"),
-        FieldType::Float => format!("pbrs::text::write_float_lit(out, {expr})"),
-        FieldType::Double => format!("pbrs::text::write_double_lit(out, {expr})"),
-        FieldType::String => format!("pbrs::text::write_bytes_lit({expr}.as_bytes(), out)"),
-        FieldType::Bytes if view => format!("pbrs::text::write_bytes_lit({expr}.as_bytes(), out)"),
-        FieldType::Bytes => format!("pbrs::text::write_bytes_lit({expr}, out)"),
+        FieldType::Float => format!("{runtime}::text::write_float_lit(out, {expr})"),
+        FieldType::Double => format!("{runtime}::text::write_double_lit(out, {expr})"),
+        FieldType::String => format!("{runtime}::text::write_bytes_lit({expr}.as_bytes(), out)"),
+        FieldType::Bytes if view && !is_selected_bytes(f) => {
+            format!("{runtime}::text::write_bytes_lit({expr}.as_bytes(), out)")
+        }
+        FieldType::Bytes => format!("{runtime}::text::write_bytes_lit({expr}, out)"),
         FieldType::Enum => {
             let n = if view {
                 expr.to_string()
@@ -59,7 +69,7 @@ pub(crate) fn text_write_value(f: &FieldDescriptor, expr: &str, view: bool) -> S
                 format!("i32::from({expr})")
             };
             format!(
-                "{{ let n = {n}; pbrs::text::write_enum_lit(out, {}, n); }}",
+                "{{ let n = {n}; {runtime}::text::write_enum_lit(out, {}, n); }}",
                 enum_name_from_i32(f, "n")
             )
         }
@@ -72,8 +82,8 @@ pub(crate) fn text_write_value(f: &FieldDescriptor, expr: &str, view: bool) -> S
         | FieldType::Uint32
         | FieldType::Fixed32
         | FieldType::Uint64
-        | FieldType::Fixed64 => format!("pbrs::text::write_int_lit(out, {expr})"),
-        _ => format!("pbrs::text::write_int_lit(out, {expr})"),
+        | FieldType::Fixed64 => format!("{runtime}::text::write_int_lit(out, {expr})"),
+        _ => format!("{runtime}::text::write_int_lit(out, {expr})"),
     }
 }
 
@@ -96,10 +106,11 @@ pub(crate) fn text_decode_leaf(f: &FieldDescriptor, val: &str) -> String {
 }
 
 pub(crate) fn text_map_key_write(ty: FieldType, k: &str) -> String {
+    let runtime = runtime_crate_path();
     match ty {
-        FieldType::String => format!("pbrs::text::write_bytes_lit({k}.as_bytes(), out)"),
+        FieldType::String => format!("{runtime}::text::write_bytes_lit({k}.as_bytes(), out)"),
         FieldType::Bool => format!("out.push_str(if {k} {{ \"true\" }} else {{ \"false\" }})"),
-        _ => format!("pbrs::text::write_int_lit(out, {k})"),
+        _ => format!("{runtime}::text::write_int_lit(out, {k})"),
     }
 }
 
@@ -117,7 +128,7 @@ pub(crate) fn text_map_key_default(ty: FieldType) -> &'static str {
 pub(crate) fn text_map_val_default(f: &FieldDescriptor) -> String {
     match f.field_type {
         FieldType::String => "\"\"".into(),
-        FieldType::Bytes => "Vec::<u8>::new()".into(),
+        FieldType::Bytes => "::std::vec::Vec::<u8>::new()".into(),
         FieldType::Bool => "false".into(),
         FieldType::Float => "0.0f32".into(),
         FieldType::Double => "0.0f64".into(),
@@ -154,7 +165,7 @@ pub(crate) fn text_read_scalar(f: &FieldDescriptor) -> String {
 /// Owned default for a streaming map key (strings own; scalars copy).
 fn text_stream_map_key_default(ty: FieldType) -> &'static str {
     match ty {
-        FieldType::String => "String::new()",
+        FieldType::String => "::std::string::String::new()",
         _ => text_map_key_default(ty),
     }
 }
@@ -162,46 +173,47 @@ fn text_stream_map_key_default(ty: FieldType) -> &'static str {
 /// Owned default for a streaming map value (strings own; the rest match [`text_map_val_default`]).
 fn text_stream_map_val_default(f: &FieldDescriptor) -> String {
     match f.field_type {
-        FieldType::String => "String::new()".into(),
+        FieldType::String => "::std::string::String::new()".into(),
         _ => text_map_val_default(f),
     }
 }
 
 pub(crate) fn emit_typed_text(src: &mut String, desc: &MessageDescriptor) {
+    let runtime = runtime_crate_path();
     let _ = writeln!(
         src,
-        "    pub fn to_text(&self) -> Result<String, SerializeError> {{"
+        "    pub fn to_text(&self) -> ::core::result::Result<::std::string::String, {runtime}::SerializeError> {{"
     );
-    let _ = writeln!(src, "        let mut out = String::new();");
+    let _ = writeln!(src, "        let mut out = ::std::string::String::new();");
     let _ = writeln!(src, "        self.write_text(&mut out, 0)?;");
-    let _ = writeln!(src, "        Ok(out)");
+    let _ = writeln!(src, "        ::core::result::Result::Ok(out)");
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {{"
+        "    pub fn to_text_with_unknown(&self) -> ::core::result::Result<::std::string::String, {runtime}::SerializeError> {{"
     );
-    let _ = writeln!(src, "        let mut out = String::new();");
+    let _ = writeln!(src, "        let mut out = ::std::string::String::new();");
     let _ = writeln!(src, "        self.write_text(&mut out, 0)?;");
     let _ = writeln!(
         src,
-        "        pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);"
+        "        {runtime}::text::write_unknown_fields(&self.unknown, &mut out, 0);"
     );
-    let _ = writeln!(src, "        Ok(out)");
+    let _ = writeln!(src, "        ::core::result::Result::Ok(out)");
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    pub fn from_text(text: &str) -> Result<Self, ParseError> {{"
+        "    pub fn from_text(text: &str) -> ::core::result::Result<Self, {runtime}::ParseError> {{"
     );
     let _ = writeln!(
         src,
-        "        let mut reader = pbrs::text::TextReader::new(text);"
+        "        let mut reader = {runtime}::text::TextReader::new(text);"
     );
     let _ = writeln!(
         src,
         "        let msg = Self::from_text_reader(&mut reader)?;"
     );
     let _ = writeln!(src, "        reader.finish()?;");
-    let _ = writeln!(src, "        Ok(msg)");
+    let _ = writeln!(src, "        ::core::result::Result::Ok(msg)");
     let _ = writeln!(src, "    }}");
     emit_write_text(src, desc);
     emit_from_text_reader(src, desc);
@@ -209,9 +221,10 @@ pub(crate) fn emit_typed_text(src: &mut String, desc: &MessageDescriptor) {
 }
 
 pub(crate) fn emit_write_text(src: &mut String, desc: &MessageDescriptor) {
+    let runtime = runtime_crate_path();
     let _ = writeln!(
         src,
-        "    pub fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {{"
+        "    pub fn write_text(&self, out: &mut ::std::string::String, indent: usize) -> ::core::result::Result<(), {runtime}::SerializeError> {{"
     );
     for f in desc.fields.values() {
         let id = field_id(f);
@@ -230,7 +243,7 @@ pub(crate) fn emit_write_text(src: &mut String, desc: &MessageDescriptor) {
             let _ = writeln!(src, "        if !self.{id}().is_empty() {{");
             let _ = writeln!(
                 src,
-                "            let mut items: Vec<_> = self.{id}().iter().collect();"
+                "            let mut items: ::std::vec::Vec<_> = self.{id}().iter().collect();"
             );
             let _ = writeln!(src, "            {sort};");
             let _ = writeln!(src, "            for (k, v) in items {{");
@@ -238,21 +251,31 @@ pub(crate) fn emit_write_text(src: &mut String, desc: &MessageDescriptor) {
             if value_is_msg {
                 let _ = writeln!(
                     src,
-                    "                pbrs::text::write_map_entry(out, indent, {name}, |out| {{ {key_write}; }}, |out| {{"
+                    "                {runtime}::text::write_map_entry(out, indent, {name}, |out| {{ {key_write}; }}, |out| {{"
                 );
                 let _ = writeln!(src, "                    out.push_str(\"{{\\n\");");
                 let _ = writeln!(src, "                    v.write_text(out, indent + 4)?;");
-                let _ = writeln!(src, "                    pbrs::text::pad(out, indent + 2);");
-                let _ = writeln!(src, "                    out.push_str(\"}}\\n\");");
-                let _ = writeln!(src, "                    Ok(())");
-                let _ = writeln!(src, "                }}, true)?;");
-            } else {
-                let val_write = vf
-                    .map(|v| text_write_value(v, "v", true))
-                    .unwrap_or_else(|| "out.push_str(&v.to_string())".into());
                 let _ = writeln!(
                     src,
-                    "                pbrs::text::write_map_entry(out, indent, {name}, |out| {{ {key_write}; }}, |out| {{ {val_write}; Ok(()) }}, false)?;"
+                    "                    {runtime}::text::pad(out, indent + 2);"
+                );
+                let _ = writeln!(src, "                    out.push_str(\"}}\\n\");");
+                let _ = writeln!(src, "                    ::core::result::Result::Ok(())");
+                let _ = writeln!(src, "                }}, true)?;");
+            } else {
+                let val_write = if map_val_ty(f) == FieldType::Bytes {
+                    if is_selected_bytes(f) {
+                        format!("{runtime}::text::write_bytes_lit(v, out)")
+                    } else {
+                        format!("{runtime}::text::write_bytes_lit(v.as_bytes(), out)")
+                    }
+                } else {
+                    vf.map(|v| text_write_value(v, "v", true))
+                        .unwrap_or_else(|| "out.push_str(&v.to_string())".into())
+                };
+                let _ = writeln!(
+                    src,
+                    "                {runtime}::text::write_map_entry(out, indent, {name}, |out| {{ {key_write}; }}, |out| {{ {val_write}; ::core::result::Result::Ok(()) }}, false)?;"
                 );
             }
             let _ = writeln!(src, "            }}");
@@ -260,11 +283,11 @@ pub(crate) fn emit_write_text(src: &mut String, desc: &MessageDescriptor) {
         } else if f.cardinality == Cardinality::Repeated {
             if f.field_type == FieldType::Message {
                 let _ = writeln!(src, "        for item in self.{id}() {{");
-                let _ = writeln!(src, "            pbrs::text::pad(out, indent);");
+                let _ = writeln!(src, "            {runtime}::text::pad(out, indent);");
                 let _ = writeln!(src, "            out.push_str({name});");
                 let _ = writeln!(src, "            out.push_str(\" {{\\n\");");
                 let _ = writeln!(src, "            item.write_text(out, indent + 2)?;");
-                let _ = writeln!(src, "            pbrs::text::pad(out, indent);");
+                let _ = writeln!(src, "            {runtime}::text::pad(out, indent);");
                 let _ = writeln!(src, "            out.push_str(\"}}\\n\");");
                 let _ = writeln!(src, "        }}");
             } else {
@@ -278,11 +301,11 @@ pub(crate) fn emit_write_text(src: &mut String, desc: &MessageDescriptor) {
             }
         } else if f.field_type == FieldType::Message {
             let _ = writeln!(src, "        if self.has_{m}() {{");
-            let _ = writeln!(src, "            pbrs::text::pad(out, indent);");
+            let _ = writeln!(src, "            {runtime}::text::pad(out, indent);");
             let _ = writeln!(src, "            out.push_str({name});");
             let _ = writeln!(src, "            out.push_str(\" {{\\n\");");
             let _ = writeln!(src, "            self.{id}().write_text(out, indent + 2)?;");
-            let _ = writeln!(src, "            pbrs::text::pad(out, indent);");
+            let _ = writeln!(src, "            {runtime}::text::pad(out, indent);");
             let _ = writeln!(src, "            out.push_str(\"}}\\n\");");
             let _ = writeln!(src, "        }}");
         } else {
@@ -295,19 +318,20 @@ pub(crate) fn emit_write_text(src: &mut String, desc: &MessageDescriptor) {
             let _ = writeln!(src, "        }}");
         }
     }
-    let _ = writeln!(src, "        Ok(())");
+    let _ = writeln!(src, "        ::core::result::Result::Ok(())");
     let _ = writeln!(src, "    }}");
 }
 
 pub(crate) fn emit_from_text_reader(src: &mut String, desc: &MessageDescriptor) {
+    let runtime = runtime_crate_path();
     let _ = writeln!(
         src,
-        "    pub fn from_text_reader(reader: &mut pbrs::text::TextReader<'_>) -> Result<Self, ParseError> {{"
+        "    pub fn from_text_reader(reader: &mut {runtime}::text::TextReader<'_>) -> ::core::result::Result<Self, {runtime}::ParseError> {{"
     );
     let _ = writeln!(src, "        let mut msg = Self::new();");
     let _ = writeln!(
         src,
-        "        while let Some(field) = reader.next_field()? {{"
+        "        while let ::core::option::Option::Some(field) = reader.next_field()? {{"
     );
     let _ = writeln!(src, "            match field.name() {{");
     for f in desc.fields.values() {
@@ -349,7 +373,7 @@ pub(crate) fn emit_from_text_reader(src: &mut String, desc: &MessageDescriptor) 
             );
             let _ = writeln!(
                 src,
-                "                    while let Some(entry) = reader.next_field()? {{"
+                "                    while let ::core::option::Option::Some(entry) = reader.next_field()? {{"
             );
             let _ = writeln!(src, "                        match entry.name() {{");
             let _ = writeln!(
@@ -362,7 +386,7 @@ pub(crate) fn emit_from_text_reader(src: &mut String, desc: &MessageDescriptor) 
             );
             let _ = writeln!(
                 src,
-                "                            _ => return Err(ParseError::owned(format!(\"unknown field {{}}\", entry.name()))),"
+                "                            _ => return ::core::result::Result::Err({runtime}::ParseError::owned(format!(\"unknown field {{}}\", entry.name()))),"
             );
             let _ = writeln!(src, "                        }}");
             let _ = writeln!(src, "                    }}");
@@ -454,18 +478,19 @@ pub(crate) fn emit_from_text_reader(src: &mut String, desc: &MessageDescriptor) 
     }
     let _ = writeln!(
         src,
-        "                _ => return Err(ParseError::owned(format!(\"unknown field {{}}\", field.name()))),"
+        "                _ => return ::core::result::Result::Err({runtime}::ParseError::owned(format!(\"unknown field {{}}\", field.name()))),"
     );
     let _ = writeln!(src, "            }}");
     let _ = writeln!(src, "        }}");
-    let _ = writeln!(src, "        Ok(msg)");
+    let _ = writeln!(src, "        ::core::result::Result::Ok(msg)");
     let _ = writeln!(src, "    }}");
 }
 
 pub(crate) fn emit_from_text_value(src: &mut String, desc: &MessageDescriptor) {
+    let runtime = runtime_crate_path();
     let _ = writeln!(
         src,
-        "    pub fn from_text_value(fields: &[(String, pbrs::text::TextValue)]) -> Result<Self, ParseError> {{"
+        "    pub fn from_text_value(fields: &[(::std::string::String, {runtime}::text::TextValue)]) -> ::core::result::Result<Self, {runtime}::ParseError> {{"
     );
     let _ = writeln!(src, "        let mut msg = Self::new();");
     let _ = writeln!(src, "        for (key, val) in fields {{");
@@ -517,7 +542,7 @@ pub(crate) fn emit_from_text_value(src: &mut String, desc: &MessageDescriptor) {
             );
             let _ = writeln!(
                 src,
-                "                            _ => return Err(ParseError::owned(format!(\"unknown field {{ek}}\"))),"
+                "                            _ => return ::core::result::Result::Err({runtime}::ParseError::owned(format!(\"unknown field {{ek}}\"))),"
             );
             let _ = writeln!(src, "                        }}");
             let _ = writeln!(src, "                    }}");
@@ -527,7 +552,7 @@ pub(crate) fn emit_from_text_value(src: &mut String, desc: &MessageDescriptor) {
             let one = text_decode_leaf(f, "val");
             let _ = writeln!(
                 src,
-                "                    if let Some(items) = val.as_list() {{"
+                "                    if let ::core::option::Option::Some(items) = val.as_list() {{"
             );
             let _ = writeln!(src, "                        for item in items {{");
             let _ = writeln!(
@@ -555,68 +580,69 @@ pub(crate) fn emit_from_text_value(src: &mut String, desc: &MessageDescriptor) {
     }
     let _ = writeln!(
         src,
-        "                _ => return Err(ParseError::owned(format!(\"unknown field {{key}}\"))),"
+        "                _ => return ::core::result::Result::Err({runtime}::ParseError::owned(format!(\"unknown field {{key}}\"))),"
     );
     let _ = writeln!(src, "            }}");
     let _ = writeln!(src, "        }}");
-    let _ = writeln!(src, "        Ok(msg)");
+    let _ = writeln!(src, "        ::core::result::Result::Ok(msg)");
     let _ = writeln!(src, "    }}");
 }
 
 pub(crate) fn emit_dynamic_text(src: &mut String, full_name: &str) {
+    let runtime = runtime_crate_path();
     let _ = writeln!(
         src,
-        "    pub fn to_text(&self) -> Result<String, SerializeError> {{"
+        "    pub fn to_text(&self) -> ::core::result::Result<::std::string::String, {runtime}::SerializeError> {{"
     );
     let _ = writeln!(
         src,
-        "        let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new(\"text\"))?;"
+        "        let b = {runtime}::Serialize::serialize(self).map_err(|_| {runtime}::SerializeError::new(\"text\"))?;"
     );
     let _ = writeln!(src, "        let pool = generated_pool();");
     let _ = writeln!(
         src,
-        "        let desc = pool.get_message(\"{full_name}\").ok_or_else(|| SerializeError::new(\"missing desc\"))?;"
+        "        let desc = pool.get_message(\"{full_name}\").ok_or_else(|| {runtime}::SerializeError::new(\"missing desc\"))?;"
     );
     let _ = writeln!(
         src,
-        "        pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b).map_err(|_| SerializeError::new(\"text\"))?.to_text()"
+        "        {runtime}::DynamicMessage::parse_with_pool(desc, ::core::option::Option::Some(pool), &b).map_err(|_| {runtime}::SerializeError::new(\"text\"))?.to_text()"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {{"
+        "    pub fn to_text_with_unknown(&self) -> ::core::result::Result<::std::string::String, {runtime}::SerializeError> {{"
     );
     let _ = writeln!(
         src,
-        "        let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new(\"text\"))?;"
+        "        let b = {runtime}::Serialize::serialize(self).map_err(|_| {runtime}::SerializeError::new(\"text\"))?;"
     );
     let _ = writeln!(src, "        let pool = generated_pool();");
     let _ = writeln!(
         src,
-        "        let desc = pool.get_message(\"{full_name}\").ok_or_else(|| SerializeError::new(\"missing desc\"))?;"
+        "        let desc = pool.get_message(\"{full_name}\").ok_or_else(|| {runtime}::SerializeError::new(\"missing desc\"))?;"
     );
     let _ = writeln!(
         src,
-        "        pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b).map_err(|_| SerializeError::new(\"text\"))?.to_text_with_unknown()"
+        "        {runtime}::DynamicMessage::parse_with_pool(desc, ::core::option::Option::Some(pool), &b).map_err(|_| {runtime}::SerializeError::new(\"text\"))?.to_text_with_unknown()"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    pub fn from_text(text: &str) -> Result<Self, ParseError> {{"
+        "    pub fn from_text(text: &str) -> ::core::result::Result<Self, {runtime}::ParseError> {{"
     );
     let _ = writeln!(src, "        let pool = generated_pool();");
     let _ = writeln!(
         src,
-        "        let desc = pool.get_message(\"{full_name}\").ok_or_else(|| ParseError::owned(\"missing desc\".into()))?;"
+        "        let desc = pool.get_message(\"{full_name}\").ok_or_else(|| {runtime}::ParseError::owned(\"missing desc\".into()))?;"
     );
     let _ = writeln!(
         src,
-        "        let d = pbrs::DynamicMessage::from_text_with_pool(desc, Some(pool), text)?;"
+        "        let d = {runtime}::DynamicMessage::from_text_with_pool(desc, ::core::option::Option::Some(pool), text)?;"
     );
     let _ = writeln!(
         src,
-        "        let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;"
+        "        let b = {runtime}::Serialize::serialize(&d).map_err(|e| {runtime}::ParseError::owned(e.to_string()))?;"
     );
-    let _ = writeln!(src, "        <Self as pbrs::Parse>::parse(&b)");
+    let _ = writeln!(src, "        <Self as {runtime}::Parse>::parse(&b)");
     let _ = writeln!(src, "    }}");
 }

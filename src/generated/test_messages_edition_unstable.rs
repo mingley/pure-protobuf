@@ -108,20 +108,23 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         clippy::let_underscore_must_use,
         reason = "ignoring results in generated wire helpers"
     )]
-    use pbrs::prelude::*;
-    use pbrs::UnknownFields;
-    use pbrs::{
-        ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut, RepeatedView, SerializeError,
-        UnknownEnumValue,
-    };
+    use ::pbrs::prelude::*;
 
-    fn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {
-        pbrs::gencode::conformance_pool()
+    fn generated_pool() -> ::std::sync::Arc<::pbrs::DescriptorPool> {
+        ::pbrs::gencode::conformance_pool()
     }
 
     /// The `protobuf_test_messages.edition_unstable.ForeignEnumEditionUnstable` enum.
     #[repr(transparent)]
-    #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+    #[derive(
+        ::core::clone::Clone,
+        ::core::marker::Copy,
+        ::core::cmp::PartialEq,
+        ::core::cmp::Eq,
+        ::core::hash::Hash,
+        ::core::cmp::PartialOrd,
+        ::core::cmp::Ord,
+    )]
     pub struct ForeignEnumEditionUnstable(pub i32);
     #[allow(non_upper_case_globals, reason = "protobuf enum names")]
     impl ForeignEnumEditionUnstable {
@@ -134,22 +137,22 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         ///
         /// Enum value `ForeignBaz` (2).
         pub const ForeignBaz: ForeignEnumEditionUnstable = ForeignEnumEditionUnstable(2);
-        fn constant_name(self) -> Option<&'static str> {
+        fn constant_name(self) -> ::core::option::Option<&'static str> {
             #[allow(unreachable_patterns, reason = "open enums")]
-            Some(match self.0 {
+            ::core::option::Option::Some(match self.0 {
                 0 => "ForeignFoo",
                 1 => "ForeignBar",
                 2 => "ForeignBaz",
-                _ => return None,
+                _ => return ::core::option::Option::None,
             })
         }
     }
-    impl From<ForeignEnumEditionUnstable> for i32 {
+    impl ::core::convert::From<ForeignEnumEditionUnstable> for i32 {
         fn from(v: ForeignEnumEditionUnstable) -> i32 {
             v.0
         }
     }
-    impl From<i32> for ForeignEnumEditionUnstable {
+    impl ::core::convert::From<i32> for ForeignEnumEditionUnstable {
         fn from(val: i32) -> Self {
             Self(val)
         }
@@ -159,26 +162,26 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
             Self(0)
         }
     }
-    impl std::fmt::Debug for ForeignEnumEditionUnstable {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            if let Some(n) = self.constant_name() {
+    impl ::std::fmt::Debug for ForeignEnumEditionUnstable {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+            if let ::core::option::Option::Some(n) = self.constant_name() {
                 write!(f, "ForeignEnumEditionUnstable::{n}")
             } else {
                 write!(f, "ForeignEnumEditionUnstable::from({})", self.0)
             }
         }
     }
-    impl pbrs::__internal::SealedInternal for ForeignEnumEditionUnstable {}
-    impl pbrs::Proxied for ForeignEnumEditionUnstable {
+    impl ::pbrs::__internal::SealedInternal for ForeignEnumEditionUnstable {}
+    impl ::pbrs::Proxied for ForeignEnumEditionUnstable {
         type View<'msg> = ForeignEnumEditionUnstable;
     }
-    impl pbrs::AsView for ForeignEnumEditionUnstable {
+    impl ::pbrs::AsView for ForeignEnumEditionUnstable {
         type Proxied = Self;
         fn as_view(&self) -> Self {
             *self
         }
     }
-    impl<'msg> pbrs::IntoView<'msg> for ForeignEnumEditionUnstable {
+    impl<'msg> ::pbrs::IntoView<'msg> for ForeignEnumEditionUnstable {
         fn into_view<'shorter>(self) -> Self
         where
             'msg: 'shorter,
@@ -186,20 +189,20 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
             self
         }
     }
-    impl pbrs::Enum for ForeignEnumEditionUnstable {
+    impl ::pbrs::Enum for ForeignEnumEditionUnstable {
         const NAME: &'static str = "ForeignEnumEditionUnstable";
         fn is_known(value: i32) -> bool {
             matches!(value, 0 | 1 | 2)
         }
     }
     /// The `protobuf_test_messages.edition_unstable.ComplexMessage` protobuf message.
-    #[derive(Clone, Debug)]
+    #[derive(::core::clone::Clone, ::core::fmt::Debug)]
     pub struct ComplexMessage {
-        d: Option<i32>,
-        unknown: UnknownFields,
-        cached_size: pbrs::rt::CachedSize,
+        d: ::core::option::Option<i32>,
+        unknown: ::pbrs::UnknownFields,
+        cached_size: ::pbrs::rt::CachedSize,
     }
-    impl PartialEq for ComplexMessage {
+    impl ::core::cmp::PartialEq for ComplexMessage {
         fn eq(&self, other: &Self) -> bool {
             if self.d != other.d {
                 return false;
@@ -207,11 +210,11 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
             self.unknown == other.unknown
         }
     }
-    impl Eq for ComplexMessage {}
+    impl ::core::cmp::Eq for ComplexMessage {}
     impl ::core::default::Default for ComplexMessage {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { pbrs::rt::zeroed_message() }
+            unsafe { ::pbrs::rt::zeroed_message() }
         }
     }
     impl ComplexMessage {
@@ -235,269 +238,336 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
             self.d.unwrap_or(0)
         }
         /// Returns `Some` if field `d` is set, or `None` if unset.
-        pub fn d_opt(&self) -> Option<i32> {
+        pub fn d_opt(&self) -> ::core::option::Option<i32> {
             self.d.map(|v| v)
         }
         /// Sets the value of `d`.
         pub fn set_d(&mut self, v: i32) {
             self.cached_size.dirty();
-            self.d = Some(v);
+            self.d = ::core::option::Option::Some(v);
         }
         /// Clears field `d`, marking it unset.
         pub fn clear_d(&mut self) {
             self.cached_size.dirty();
-            self.d = None;
+            self.d = ::core::option::Option::None;
         }
         #[inline(always)]
-        pub fn check_required(&self) -> Result<(), ParseError> {
-            Ok(())
+        pub fn check_required(&self) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            ::core::result::Result::Ok(())
         }
-        pub fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+        pub fn merge_bytes(
+            &mut self,
+            data: &[u8],
+            depth: u32,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
                 return self.check_required();
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                true,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_bytes_dont_enforce(
             &mut self,
             data: &[u8],
             depth: u32,
-        ) -> Result<(), ParseError> {
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
-                return Ok(());
+                return ::core::result::Result::Ok(());
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                false,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_group(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            self.merge_inner(data, wire, pos, depth, false, Some(num))
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            self.merge_inner(
+                data,
+                wire,
+                pos,
+                depth,
+                false,
+                ::core::option::Option::Some(num),
+            )
         }
         pub fn merge_inner(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let _ = enforce;
             self.cached_size.dirty();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_I32 => {
-                            self.d = Some(pbrs::rt::read_fixed32(data, pos)? as i32);
+                        ::pbrs::rt::WIRE_I32 => {
+                            self.d = ::core::option::Option::Some(::pbrs::rt::read_fixed32(
+                                data, pos,
+                            )?
+                                as i32);
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown_with_depth(
+                            .push(::pbrs::rt::capture_unknown_with_depth(
                                 data, pos, n, w, depth,
                             )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
             if enforce {
                 self.check_required()?;
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn validate_inner(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            Self::validate_until(wire, pos, depth, None)
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            Self::validate_until(wire, pos, depth, ::core::option::Option::None)
         }
         pub fn validate_until(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_I32 => {
-                            let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
+                        ::pbrs::rt::WIRE_I32 => {
+                            let _ = ::pbrs::rt::read_fixed32(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                    _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn compute_size(&self) -> u64 {
-            if let Some(n) = self.cached_size.get() {
+            if let ::core::option::Option::Some(n) = self.cached_size.get() {
                 return n;
             }
             let mut n = self.unknown.encoded_len();
-            if let Some(v) = self.d {
-                n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_I32) + 4;
+            if let ::core::option::Option::Some(v) = self.d {
+                n += ::pbrs::rt::tag_len(1, ::pbrs::rt::WIRE_I32) + 4;
             }
             self.cached_size.set(n);
             n
         }
-        pub fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
-            if let Some(v) = self.d {
-                pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_I32);
+        pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
+            if let ::core::option::Option::Some(v) = self.d {
+                ::pbrs::rt::encode_tag(out, 1, ::pbrs::rt::WIRE_I32);
                 (out).extend_from_slice(&((v) as u32).to_le_bytes());
             }
             self.unknown.encode(out);
         }
-        pub fn to_json(&self) -> Result<String, SerializeError> {
-            Ok(self.to_json_value()?.to_string())
+        pub fn to_json(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(self.to_json_value()?.to_string())
         }
-        pub fn from_json(json: &str) -> Result<Self, ParseError> {
+        pub fn from_json(json: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             Self::from_json_ignore(json, false)
         }
-        pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let v = pbrs::json::parse(json)?;
+        pub fn from_json_ignore(
+            json: &str,
+            ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let v = ::pbrs::json::parse(json)?;
             Self::from_json_value(&v, ignore)
         }
-        pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
-            let mut map = pbrs::json::JsonMap::new();
+        pub fn to_json_value(
+            &self,
+        ) -> ::core::result::Result<::pbrs::json::Json, ::pbrs::SerializeError> {
+            let mut map = ::pbrs::json::JsonMap::new();
             if self.has_d() {
-                let _ = map.insert("d".into(), pbrs::json::int32(self.d()));
+                let _ = map.insert("d".into(), ::pbrs::json::int32(self.d()));
             }
-            Ok(pbrs::json::Json::Object(map))
+            ::core::result::Result::Ok(::pbrs::json::Json::Object(map))
         }
-        pub fn from_json_value(v: &pbrs::json::Json, ignore: bool) -> Result<Self, ParseError> {
+        pub fn from_json_value(
+            v: &::pbrs::json::Json,
+            ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let obj = v
                 .as_object()
-                .ok_or_else(|| ParseError::new("json message must be an object"))?;
+                .ok_or_else(|| ::pbrs::ParseError::new("json message must be an object"))?;
             let mut msg = Self::new();
-            let mut seen = std::collections::BTreeSet::<u32>::new();
+            let mut seen = ::std::collections::BTreeSet::<u32>::new();
             for (key, val) in obj {
                 match key.as_str() {
                     "d" => {
                         if !seen.insert(1u32) {
-                            return Err(ParseError::owned(format!("duplicate json field {key}")));
+                            return ::core::result::Result::Err(::pbrs::ParseError::owned(
+                                format!("duplicate json field {key}"),
+                            ));
                         }
                         if val.is_null() {
                             continue;
                         }
-                        msg.set_d(pbrs::json::as_i32(val)?);
+                        msg.set_d(::pbrs::json::as_i32(val)?);
                     }
                     _ => {
                         if !ignore {
-                            return Err(ParseError::owned(format!("unknown json field {key}")));
+                            return ::core::result::Result::Err(::pbrs::ParseError::owned(
+                                format!("unknown json field {key}"),
+                            ));
                         }
                     }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
-        pub fn to_text(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            Ok(out)
+            ::core::result::Result::Ok(out)
         }
-        pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text_with_unknown(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
-            Ok(out)
+            ::pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            ::core::result::Result::Ok(out)
         }
-        pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let mut reader = pbrs::text::TextReader::new(text);
+        pub fn from_text(text: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let mut reader = ::pbrs::text::TextReader::new(text);
             let msg = Self::from_text_reader(&mut reader)?;
             reader.finish()?;
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
-        pub fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+        pub fn write_text(
+            &self,
+            out: &mut ::std::string::String,
+            indent: usize,
+        ) -> ::core::result::Result<(), ::pbrs::SerializeError> {
             if self.has_d() {
-                pbrs::text::write_named_int32(out, indent, "d", self.d());
+                ::pbrs::text::write_named_int32(out, indent, "d", self.d());
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn from_text_reader(
-            reader: &mut pbrs::text::TextReader<'_>,
-        ) -> Result<Self, ParseError> {
+            reader: &mut ::pbrs::text::TextReader<'_>,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            while let Some(field) = reader.next_field()? {
+            while let ::core::option::Option::Some(field) = reader.next_field()? {
                 match field.name() {
                     "d" => {
                         msg.set_d(reader.read_i32()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {}", field.name()))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {}",
+                            field.name()
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
         pub fn from_text_value(
-            fields: &[(String, pbrs::text::TextValue)],
-        ) -> Result<Self, ParseError> {
+            fields: &[(::std::string::String, ::pbrs::text::TextValue)],
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
             for (key, val) in fields {
                 match key.as_str() {
                     "d" => {
                         msg.set_d(val.as_i32()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {key}"
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
     }
-    pbrs::impl_typed_message!(ComplexMessage, ComplexMessageView, ComplexMessageMut);
+    ::pbrs::impl_typed_message!(ComplexMessage, ComplexMessageView, ComplexMessageMut);
     /// The `protobuf_test_messages.edition_unstable.ForeignMessageEditionUnstable` protobuf message.
-    #[derive(Clone, Debug)]
+    #[derive(::core::clone::Clone, ::core::fmt::Debug)]
     pub struct ForeignMessageEditionUnstable {
-        c: Option<i32>,
-        unknown: UnknownFields,
-        cached_size: pbrs::rt::CachedSize,
+        c: ::core::option::Option<i32>,
+        unknown: ::pbrs::UnknownFields,
+        cached_size: ::pbrs::rt::CachedSize,
     }
-    impl PartialEq for ForeignMessageEditionUnstable {
+    impl ::core::cmp::PartialEq for ForeignMessageEditionUnstable {
         fn eq(&self, other: &Self) -> bool {
             if self.c != other.c {
                 return false;
@@ -505,11 +575,11 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
             self.unknown == other.unknown
         }
     }
-    impl Eq for ForeignMessageEditionUnstable {}
+    impl ::core::cmp::Eq for ForeignMessageEditionUnstable {}
     impl ::core::default::Default for ForeignMessageEditionUnstable {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { pbrs::rt::zeroed_message() }
+            unsafe { ::pbrs::rt::zeroed_message() }
         }
     }
     impl ForeignMessageEditionUnstable {
@@ -533,299 +603,366 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
             self.c.unwrap_or(0)
         }
         /// Returns `Some` if field `c` is set, or `None` if unset.
-        pub fn c_opt(&self) -> Option<i32> {
+        pub fn c_opt(&self) -> ::core::option::Option<i32> {
             self.c.map(|v| v)
         }
         /// Sets the value of `c`.
         pub fn set_c(&mut self, v: i32) {
             self.cached_size.dirty();
-            self.c = Some(v);
+            self.c = ::core::option::Option::Some(v);
         }
         /// Clears field `c`, marking it unset.
         pub fn clear_c(&mut self) {
             self.cached_size.dirty();
-            self.c = None;
+            self.c = ::core::option::Option::None;
         }
         #[inline(always)]
-        pub fn check_required(&self) -> Result<(), ParseError> {
-            Ok(())
+        pub fn check_required(&self) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            ::core::result::Result::Ok(())
         }
-        pub fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+        pub fn merge_bytes(
+            &mut self,
+            data: &[u8],
+            depth: u32,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
                 return self.check_required();
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                true,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_bytes_dont_enforce(
             &mut self,
             data: &[u8],
             depth: u32,
-        ) -> Result<(), ParseError> {
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
-                return Ok(());
+                return ::core::result::Result::Ok(());
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                false,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_group(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            self.merge_inner(data, wire, pos, depth, false, Some(num))
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            self.merge_inner(
+                data,
+                wire,
+                pos,
+                depth,
+                false,
+                ::core::option::Option::Some(num),
+            )
         }
         pub fn merge_inner(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let _ = enforce;
             self.cached_size.dirty();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_I32 => {
-                            self.c = Some(pbrs::rt::read_fixed32(data, pos)? as i32);
+                        ::pbrs::rt::WIRE_I32 => {
+                            self.c = ::core::option::Option::Some(::pbrs::rt::read_fixed32(
+                                data, pos,
+                            )?
+                                as i32);
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown_with_depth(
+                            .push(::pbrs::rt::capture_unknown_with_depth(
                                 data, pos, n, w, depth,
                             )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
             if enforce {
                 self.check_required()?;
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn validate_inner(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            Self::validate_until(wire, pos, depth, None)
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            Self::validate_until(wire, pos, depth, ::core::option::Option::None)
         }
         pub fn validate_until(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_I32 => {
-                            let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
+                        ::pbrs::rt::WIRE_I32 => {
+                            let _ = ::pbrs::rt::read_fixed32(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                    _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn compute_size(&self) -> u64 {
-            if let Some(n) = self.cached_size.get() {
+            if let ::core::option::Option::Some(n) = self.cached_size.get() {
                 return n;
             }
             let mut n = self.unknown.encoded_len();
-            if let Some(v) = self.c {
-                n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_I32) + 4;
+            if let ::core::option::Option::Some(v) = self.c {
+                n += ::pbrs::rt::tag_len(1, ::pbrs::rt::WIRE_I32) + 4;
             }
             self.cached_size.set(n);
             n
         }
-        pub fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
-            if let Some(v) = self.c {
-                pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_I32);
+        pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
+            if let ::core::option::Option::Some(v) = self.c {
+                ::pbrs::rt::encode_tag(out, 1, ::pbrs::rt::WIRE_I32);
                 (out).extend_from_slice(&((v) as u32).to_le_bytes());
             }
             self.unknown.encode(out);
         }
-        pub fn to_json(&self) -> Result<String, SerializeError> {
-            Ok(self.to_json_value()?.to_string())
+        pub fn to_json(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(self.to_json_value()?.to_string())
         }
-        pub fn from_json(json: &str) -> Result<Self, ParseError> {
+        pub fn from_json(json: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             Self::from_json_ignore(json, false)
         }
-        pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let v = pbrs::json::parse(json)?;
+        pub fn from_json_ignore(
+            json: &str,
+            ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let v = ::pbrs::json::parse(json)?;
             Self::from_json_value(&v, ignore)
         }
-        pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
-            let mut map = pbrs::json::JsonMap::new();
+        pub fn to_json_value(
+            &self,
+        ) -> ::core::result::Result<::pbrs::json::Json, ::pbrs::SerializeError> {
+            let mut map = ::pbrs::json::JsonMap::new();
             if self.has_c() {
-                let _ = map.insert("c".into(), pbrs::json::int32(self.c()));
+                let _ = map.insert("c".into(), ::pbrs::json::int32(self.c()));
             }
-            Ok(pbrs::json::Json::Object(map))
+            ::core::result::Result::Ok(::pbrs::json::Json::Object(map))
         }
-        pub fn from_json_value(v: &pbrs::json::Json, ignore: bool) -> Result<Self, ParseError> {
+        pub fn from_json_value(
+            v: &::pbrs::json::Json,
+            ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let obj = v
                 .as_object()
-                .ok_or_else(|| ParseError::new("json message must be an object"))?;
+                .ok_or_else(|| ::pbrs::ParseError::new("json message must be an object"))?;
             let mut msg = Self::new();
-            let mut seen = std::collections::BTreeSet::<u32>::new();
+            let mut seen = ::std::collections::BTreeSet::<u32>::new();
             for (key, val) in obj {
                 match key.as_str() {
                     "c" => {
                         if !seen.insert(1u32) {
-                            return Err(ParseError::owned(format!("duplicate json field {key}")));
+                            return ::core::result::Result::Err(::pbrs::ParseError::owned(
+                                format!("duplicate json field {key}"),
+                            ));
                         }
                         if val.is_null() {
                             continue;
                         }
-                        msg.set_c(pbrs::json::as_i32(val)?);
+                        msg.set_c(::pbrs::json::as_i32(val)?);
                     }
                     _ => {
                         if !ignore {
-                            return Err(ParseError::owned(format!("unknown json field {key}")));
+                            return ::core::result::Result::Err(::pbrs::ParseError::owned(
+                                format!("unknown json field {key}"),
+                            ));
                         }
                     }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
-        pub fn to_text(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            Ok(out)
+            ::core::result::Result::Ok(out)
         }
-        pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text_with_unknown(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
-            Ok(out)
+            ::pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            ::core::result::Result::Ok(out)
         }
-        pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let mut reader = pbrs::text::TextReader::new(text);
+        pub fn from_text(text: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let mut reader = ::pbrs::text::TextReader::new(text);
             let msg = Self::from_text_reader(&mut reader)?;
             reader.finish()?;
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
-        pub fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+        pub fn write_text(
+            &self,
+            out: &mut ::std::string::String,
+            indent: usize,
+        ) -> ::core::result::Result<(), ::pbrs::SerializeError> {
             if self.has_c() {
-                pbrs::text::write_named_int32(out, indent, "c", self.c());
+                ::pbrs::text::write_named_int32(out, indent, "c", self.c());
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn from_text_reader(
-            reader: &mut pbrs::text::TextReader<'_>,
-        ) -> Result<Self, ParseError> {
+            reader: &mut ::pbrs::text::TextReader<'_>,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            while let Some(field) = reader.next_field()? {
+            while let ::core::option::Option::Some(field) = reader.next_field()? {
                 match field.name() {
                     "c" => {
                         msg.set_c(reader.read_i32()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {}", field.name()))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {}",
+                            field.name()
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
         pub fn from_text_value(
-            fields: &[(String, pbrs::text::TextValue)],
-        ) -> Result<Self, ParseError> {
+            fields: &[(::std::string::String, ::pbrs::text::TextValue)],
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
             for (key, val) in fields {
                 match key.as_str() {
                     "c" => {
                         msg.set_c(val.as_i32()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {key}"
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
     }
-    pbrs::impl_typed_message!(
+    ::pbrs::impl_typed_message!(
         ForeignMessageEditionUnstable,
         ForeignMessageEditionUnstableView,
         ForeignMessageEditionUnstableMut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(::core::clone::Clone, ::core::fmt::Debug, ::core::cmp::PartialEq)]
     struct TestAllTypesEditionUnstableCold {
-        optional_foreign_message: pbrs::rt::LazyMsg<ForeignMessageEditionUnstable>,
-        recursive_message: pbrs::rt::LazyMsg<TestAllTypesEditionUnstable>,
-        repeated_int32: pbrs::rt::PackedSfx32,
-        repeated_foreign_message: Repeated<ForeignMessageEditionUnstable>,
-        repeated_foreign_enum: pbrs::rt::PackedI32,
-        map_int32_int32: pbrs::Map<i32, i32>,
-        map_bool_bool: pbrs::Map<bool, bool>,
-        map_string_string: pbrs::Map<pbrs::rt::LazyStr, pbrs::rt::LazyStr>,
-        map_string_foreign_message: pbrs::Map<pbrs::rt::LazyStr, ForeignMessageEditionUnstable>,
-        map_string_foreign_enum: pbrs::Map<pbrs::rt::LazyStr, i32>,
-        optional_bytes: Option<Box<pbrs::rt::LazyBytes>>,
-        repeated_bytes: Repeated<pbrs::rt::LazyBytes>,
-        map_string_bytes: pbrs::Map<pbrs::rt::LazyStr, pbrs::rt::LazyBytes>,
+        optional_foreign_message: ::pbrs::rt::LazyMsg<ForeignMessageEditionUnstable>,
+        recursive_message: ::pbrs::rt::LazyMsg<TestAllTypesEditionUnstable>,
+        repeated_int32: ::pbrs::rt::PackedSfx32,
+        repeated_foreign_message: ::pbrs::Repeated<ForeignMessageEditionUnstable>,
+        repeated_foreign_enum: ::pbrs::rt::PackedI32,
+        map_int32_int32: ::pbrs::Map<i32, i32>,
+        map_bool_bool: ::pbrs::Map<bool, bool>,
+        map_string_string: ::pbrs::Map<::pbrs::rt::LazyStr, ::pbrs::rt::LazyStr>,
+        map_string_foreign_message: ::pbrs::Map<::pbrs::rt::LazyStr, ForeignMessageEditionUnstable>,
+        map_string_foreign_enum: ::pbrs::Map<::pbrs::rt::LazyStr, i32>,
+        optional_bytes: ::core::option::Option<::std::boxed::Box<::pbrs::rt::LazyBytes>>,
+        repeated_bytes: ::pbrs::Repeated<::pbrs::rt::LazyBytes>,
+        map_string_bytes: ::pbrs::Map<::pbrs::rt::LazyStr, ::pbrs::rt::LazyBytes>,
     }
     impl ::core::default::Default for TestAllTypesEditionUnstableCold {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { pbrs::rt::zeroed_message() }
+            unsafe { ::pbrs::rt::zeroed_message() }
         }
     }
     /// The `protobuf_test_messages.edition_unstable.TestAllTypesEditionUnstable` protobuf message.
-    #[derive(Clone, Debug)]
+    #[derive(::core::clone::Clone, ::core::fmt::Debug)]
     pub struct TestAllTypesEditionUnstable {
         /// Singular
-        optional_int32: Option<i32>,
-        optional_foreign_enum: Option<i32>,
-        extension_int32: Option<i32>,
-        cold: Option<Box<TestAllTypesEditionUnstableCold>>,
-        unknown: UnknownFields,
-        cached_size: pbrs::rt::CachedSize,
+        optional_int32: ::core::option::Option<i32>,
+        optional_foreign_enum: ::core::option::Option<i32>,
+        extension_int32: ::core::option::Option<i32>,
+        cold: ::core::option::Option<::std::boxed::Box<TestAllTypesEditionUnstableCold>>,
+        unknown: ::pbrs::UnknownFields,
+        cached_size: ::pbrs::rt::CachedSize,
     }
-    impl PartialEq for TestAllTypesEditionUnstable {
+    impl ::core::cmp::PartialEq for TestAllTypesEditionUnstable {
         fn eq(&self, other: &Self) -> bool {
             if self.optional_int32 != other.optional_int32 {
                 return false;
@@ -837,18 +974,18 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                 return false;
             }
             match (self.cold.as_deref(), other.cold.as_deref()) {
-                (None, None) => {}
-                (Some(a), Some(b)) => {
+                (::core::option::Option::None, ::core::option::Option::None) => {}
+                (::core::option::Option::Some(a), ::core::option::Option::Some(b)) => {
                     if a != b {
                         return false;
                     }
                 }
-                (None, Some(b)) => {
+                (::core::option::Option::None, ::core::option::Option::Some(b)) => {
                     if *b != TestAllTypesEditionUnstableCold::default() {
                         return false;
                     }
                 }
-                (Some(a), None) => {
+                (::core::option::Option::Some(a), ::core::option::Option::None) => {
                     if *a != TestAllTypesEditionUnstableCold::default() {
                         return false;
                     }
@@ -857,11 +994,11 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
             self.unknown == other.unknown
         }
     }
-    impl Eq for TestAllTypesEditionUnstable {}
+    impl ::core::cmp::Eq for TestAllTypesEditionUnstable {}
     impl ::core::default::Default for TestAllTypesEditionUnstable {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { pbrs::rt::zeroed_message() }
+            unsafe { ::pbrs::rt::zeroed_message() }
         }
     }
     impl TestAllTypesEditionUnstable {
@@ -871,8 +1008,9 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         }
         #[inline(always)]
         fn cold_mut(&mut self) -> &mut TestAllTypesEditionUnstableCold {
-            self.cold
-                .get_or_insert_with(|| Box::new(TestAllTypesEditionUnstableCold::default()))
+            self.cold.get_or_insert_with(|| {
+                ::std::boxed::Box::new(TestAllTypesEditionUnstableCold::default())
+            })
         }
         /// Whether an empty byte slice is a valid encoding of this message.
         pub const EMPTY_PARSE_OK: bool = true;
@@ -892,18 +1030,18 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
             self.optional_int32.unwrap_or(0)
         }
         /// Returns `Some` if field `optional_int32` is set, or `None` if unset.
-        pub fn optional_int32_opt(&self) -> Option<i32> {
+        pub fn optional_int32_opt(&self) -> ::core::option::Option<i32> {
             self.optional_int32.map(|v| v)
         }
         /// Sets the value of `optional_int32`.
         pub fn set_optional_int32(&mut self, v: i32) {
             self.cached_size.dirty();
-            self.optional_int32 = Some(v);
+            self.optional_int32 = ::core::option::Option::Some(v);
         }
         /// Clears field `optional_int32`, marking it unset.
         pub fn clear_optional_int32(&mut self) {
             self.cached_size.dirty();
-            self.optional_int32 = None;
+            self.optional_int32 = ::core::option::Option::None;
         }
         /// Returns `true` if field `optional_foreign_message` is set.
         pub fn has_optional_foreign_message(&self) -> bool {
@@ -915,15 +1053,17 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         ///
         /// Message field with explicit presence. Returns a reference to the message, or the default instance if unset.
         pub fn optional_foreign_message(&self) -> &ForeignMessageEditionUnstable {
-            static DEFAULT: std::sync::OnceLock<ForeignMessageEditionUnstable> =
-                std::sync::OnceLock::new();
+            static DEFAULT: ::std::sync::OnceLock<ForeignMessageEditionUnstable> =
+                ::std::sync::OnceLock::new();
             self.cold
                 .as_ref()
                 .and_then(|c| c.optional_foreign_message.as_deref())
-                .unwrap_or_else(|| pbrs::gen_support::default_instance(&DEFAULT))
+                .unwrap_or_else(|| ::pbrs::gen_support::default_instance(&DEFAULT))
         }
         /// Returns `Some` if field `optional_foreign_message` is set, or `None` if unset.
-        pub fn optional_foreign_message_opt(&self) -> Option<&ForeignMessageEditionUnstable> {
+        pub fn optional_foreign_message_opt(
+            &self,
+        ) -> ::core::option::Option<&ForeignMessageEditionUnstable> {
             self.cold
                 .as_ref()
                 .and_then(|c| c.optional_foreign_message.as_deref())
@@ -935,7 +1075,7 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         /// Sets the value of `optional_foreign_message`.
         pub fn set_optional_foreign_message(&mut self, v: ForeignMessageEditionUnstable) {
             self.cached_size.dirty();
-            self.cold_mut().optional_foreign_message = pbrs::rt::LazyMsg::from_owned(v);
+            self.cold_mut().optional_foreign_message = ::pbrs::rt::LazyMsg::from_owned(v);
         }
         /// Returns a mutable reference to `optional_foreign_message`, initializing it with default values if unset.
         pub fn optional_foreign_message_mut(&mut self) -> &mut ForeignMessageEditionUnstable {
@@ -958,19 +1098,21 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
             ForeignEnumEditionUnstable(self.optional_foreign_enum.unwrap_or(0))
         }
         /// Returns `Some` if field `optional_foreign_enum` is set, or `None` if unset.
-        pub fn optional_foreign_enum_opt(&self) -> Option<ForeignEnumEditionUnstable> {
+        pub fn optional_foreign_enum_opt(
+            &self,
+        ) -> ::core::option::Option<ForeignEnumEditionUnstable> {
             self.optional_foreign_enum
                 .map(|v| ForeignEnumEditionUnstable(v))
         }
         /// Sets the value of `optional_foreign_enum`.
-        pub fn set_optional_foreign_enum(&mut self, v: impl Into<i32>) {
+        pub fn set_optional_foreign_enum(&mut self, v: impl ::core::convert::Into<i32>) {
             self.cached_size.dirty();
-            self.optional_foreign_enum = Some(v.into());
+            self.optional_foreign_enum = ::core::option::Option::Some(v.into());
         }
         /// Clears field `optional_foreign_enum`, marking it unset.
         pub fn clear_optional_foreign_enum(&mut self) {
             self.cached_size.dirty();
-            self.optional_foreign_enum = None;
+            self.optional_foreign_enum = ::core::option::Option::None;
         }
         /// Returns `true` if field `recursive_message` is set.
         pub fn has_recursive_message(&self) -> bool {
@@ -982,15 +1124,17 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         ///
         /// Message field with explicit presence. Returns a reference to the message, or the default instance if unset.
         pub fn recursive_message(&self) -> &TestAllTypesEditionUnstable {
-            static DEFAULT: std::sync::OnceLock<TestAllTypesEditionUnstable> =
-                std::sync::OnceLock::new();
+            static DEFAULT: ::std::sync::OnceLock<TestAllTypesEditionUnstable> =
+                ::std::sync::OnceLock::new();
             self.cold
                 .as_ref()
                 .and_then(|c| c.recursive_message.as_deref())
-                .unwrap_or_else(|| pbrs::gen_support::default_instance(&DEFAULT))
+                .unwrap_or_else(|| ::pbrs::gen_support::default_instance(&DEFAULT))
         }
         /// Returns `Some` if field `recursive_message` is set, or `None` if unset.
-        pub fn recursive_message_opt(&self) -> Option<&TestAllTypesEditionUnstable> {
+        pub fn recursive_message_opt(
+            &self,
+        ) -> ::core::option::Option<&TestAllTypesEditionUnstable> {
             self.cold
                 .as_ref()
                 .and_then(|c| c.recursive_message.as_deref())
@@ -1002,7 +1146,7 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         /// Sets the value of `recursive_message`.
         pub fn set_recursive_message(&mut self, v: TestAllTypesEditionUnstable) {
             self.cached_size.dirty();
-            self.cold_mut().recursive_message = pbrs::rt::LazyMsg::from_owned(v);
+            self.cold_mut().recursive_message = ::pbrs::rt::LazyMsg::from_owned(v);
         }
         /// Returns a mutable reference to `recursive_message`, initializing it with default values if unset.
         pub fn recursive_message_mut(&mut self) -> &mut TestAllTypesEditionUnstable {
@@ -1019,43 +1163,45 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         /// Field `repeated_int32` (number 5).
         ///
         /// Repeated field of `i32` (wire format: packed). Empty by default.
-        pub fn repeated_int32(&self) -> RepeatedView<'_, i32> {
+        pub fn repeated_int32(&self) -> ::pbrs::RepeatedView<'_, i32> {
             self.cold
                 .as_ref()
                 .map(|c| c.repeated_int32.as_view())
-                .unwrap_or_else(|| RepeatedView::from_slice(&[]))
+                .unwrap_or_else(|| ::pbrs::RepeatedView::from_slice(&[]))
         }
         /// Returns a mutable view of field `repeated_int32`.
-        pub fn repeated_int32_mut(&mut self) -> RepeatedMut<'_, i32> {
+        pub fn repeated_int32_mut(&mut self) -> ::pbrs::RepeatedMut<'_, i32> {
             self.cached_size.dirty();
             self.cold_mut().repeated_int32.as_mut()
         }
         /// Sets the value of `repeated_int32`.
-        pub fn set_repeated_int32(&mut self, v: impl IntoIterator<Item = i32>) {
+        pub fn set_repeated_int32(&mut self, v: impl ::core::iter::IntoIterator<Item = i32>) {
             self.cached_size.dirty();
             self.cold_mut().repeated_int32 =
-                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
+                ::pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         /// Field `repeated_foreign_message` (number 6).
         ///
         /// Repeated field of `ForeignMessageEditionUnstable`. Empty by default.
-        pub fn repeated_foreign_message(&self) -> RepeatedView<'_, ForeignMessageEditionUnstable> {
+        pub fn repeated_foreign_message(
+            &self,
+        ) -> ::pbrs::RepeatedView<'_, ForeignMessageEditionUnstable> {
             self.cold
                 .as_ref()
                 .map(|c| c.repeated_foreign_message.as_view())
-                .unwrap_or_else(|| RepeatedView::from_slice(&[]))
+                .unwrap_or_else(|| ::pbrs::RepeatedView::from_slice(&[]))
         }
         /// Returns a mutable view of field `repeated_foreign_message`.
         pub fn repeated_foreign_message_mut(
             &mut self,
-        ) -> RepeatedMut<'_, ForeignMessageEditionUnstable> {
+        ) -> ::pbrs::RepeatedMut<'_, ForeignMessageEditionUnstable> {
             self.cached_size.dirty();
             self.cold_mut().repeated_foreign_message.as_mut()
         }
         /// Sets the value of `repeated_foreign_message`.
         pub fn set_repeated_foreign_message(
             &mut self,
-            v: impl IntoIterator<Item = ForeignMessageEditionUnstable>,
+            v: impl ::core::iter::IntoIterator<Item = ForeignMessageEditionUnstable>,
         ) {
             self.cached_size.dirty();
             self.cold_mut().repeated_foreign_message = v.into_iter().collect();
@@ -1063,129 +1209,136 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
         /// Field `repeated_foreign_enum` (number 7).
         ///
         /// Repeated field of `i32` (wire format: packed). Empty by default.
-        pub fn repeated_foreign_enum(&self) -> RepeatedView<'_, i32> {
+        pub fn repeated_foreign_enum(&self) -> ::pbrs::RepeatedView<'_, i32> {
             self.cold
                 .as_ref()
                 .map(|c| c.repeated_foreign_enum.as_view())
-                .unwrap_or_else(|| RepeatedView::from_slice(&[]))
+                .unwrap_or_else(|| ::pbrs::RepeatedView::from_slice(&[]))
         }
         /// Returns a mutable view of field `repeated_foreign_enum`.
-        pub fn repeated_foreign_enum_mut(&mut self) -> RepeatedMut<'_, i32> {
+        pub fn repeated_foreign_enum_mut(&mut self) -> ::pbrs::RepeatedMut<'_, i32> {
             self.cached_size.dirty();
             self.cold_mut().repeated_foreign_enum.as_mut()
         }
         /// Sets the value of `repeated_foreign_enum`.
-        pub fn set_repeated_foreign_enum(&mut self, v: impl IntoIterator<Item = i32>) {
+        pub fn set_repeated_foreign_enum(
+            &mut self,
+            v: impl ::core::iter::IntoIterator<Item = i32>,
+        ) {
             self.cached_size.dirty();
             self.cold_mut().repeated_foreign_enum =
-                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
+                ::pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         /// Map
         ///
         /// Field `map_int32_int32` (number 8).
         ///
         /// Map field with key `i32` and value `i32`. Empty by default.
-        pub fn map_int32_int32(&self) -> pbrs::MapView<'_, i32, i32> {
+        pub fn map_int32_int32(&self) -> ::pbrs::MapView<'_, i32, i32> {
             self.cold
                 .as_ref()
                 .map(|c| c.map_int32_int32.as_view())
-                .unwrap_or_else(pbrs::MapView::empty)
+                .unwrap_or_else(::pbrs::MapView::empty)
         }
         /// Returns a mutable view of field `map_int32_int32`.
-        pub fn map_int32_int32_mut(&mut self) -> pbrs::MapMut<'_, i32, i32> {
+        pub fn map_int32_int32_mut(&mut self) -> ::pbrs::MapMut<'_, i32, i32> {
             self.cached_size.dirty();
             self.cold_mut().map_int32_int32.as_mut()
         }
         /// Sets the value of `map_int32_int32`.
-        pub fn set_map_int32_int32(&mut self, v: pbrs::Map<i32, i32>) {
+        pub fn set_map_int32_int32(&mut self, v: ::pbrs::Map<i32, i32>) {
             self.cached_size.dirty();
             self.cold_mut().map_int32_int32 = v;
         }
         /// Field `map_bool_bool` (number 9).
         ///
         /// Map field with key `bool` and value `bool`. Empty by default.
-        pub fn map_bool_bool(&self) -> pbrs::MapView<'_, bool, bool> {
+        pub fn map_bool_bool(&self) -> ::pbrs::MapView<'_, bool, bool> {
             self.cold
                 .as_ref()
                 .map(|c| c.map_bool_bool.as_view())
-                .unwrap_or_else(pbrs::MapView::empty)
+                .unwrap_or_else(::pbrs::MapView::empty)
         }
         /// Returns a mutable view of field `map_bool_bool`.
-        pub fn map_bool_bool_mut(&mut self) -> pbrs::MapMut<'_, bool, bool> {
+        pub fn map_bool_bool_mut(&mut self) -> ::pbrs::MapMut<'_, bool, bool> {
             self.cached_size.dirty();
             self.cold_mut().map_bool_bool.as_mut()
         }
         /// Sets the value of `map_bool_bool`.
-        pub fn set_map_bool_bool(&mut self, v: pbrs::Map<bool, bool>) {
+        pub fn set_map_bool_bool(&mut self, v: ::pbrs::Map<bool, bool>) {
             self.cached_size.dirty();
             self.cold_mut().map_bool_bool = v;
         }
         /// Field `map_string_string` (number 10).
         ///
-        /// Map field with key `pbrs::rt::LazyStr` and value `pbrs::rt::LazyStr`. Empty by default.
-        pub fn map_string_string(&self) -> pbrs::MapView<'_, pbrs::rt::LazyStr, pbrs::rt::LazyStr> {
+        /// Map field with key `::pbrs::rt::LazyStr` and value `::pbrs::rt::LazyStr`. Empty by default.
+        pub fn map_string_string(
+            &self,
+        ) -> ::pbrs::MapView<'_, ::pbrs::rt::LazyStr, ::pbrs::rt::LazyStr> {
             self.cold
                 .as_ref()
                 .map(|c| c.map_string_string.as_view())
-                .unwrap_or_else(pbrs::MapView::empty)
+                .unwrap_or_else(::pbrs::MapView::empty)
         }
         /// Returns a mutable view of field `map_string_string`.
         pub fn map_string_string_mut(
             &mut self,
-        ) -> pbrs::MapMut<'_, pbrs::rt::LazyStr, pbrs::rt::LazyStr> {
+        ) -> ::pbrs::MapMut<'_, ::pbrs::rt::LazyStr, ::pbrs::rt::LazyStr> {
             self.cached_size.dirty();
             self.cold_mut().map_string_string.as_mut()
         }
         /// Sets the value of `map_string_string`.
         pub fn set_map_string_string(
             &mut self,
-            v: pbrs::Map<pbrs::rt::LazyStr, pbrs::rt::LazyStr>,
+            v: ::pbrs::Map<::pbrs::rt::LazyStr, ::pbrs::rt::LazyStr>,
         ) {
             self.cached_size.dirty();
             self.cold_mut().map_string_string = v;
         }
         /// Field `map_string_foreign_message` (number 11).
         ///
-        /// Map field with key `pbrs::rt::LazyStr` and value `ForeignMessageEditionUnstable`. Empty by default.
+        /// Map field with key `::pbrs::rt::LazyStr` and value `ForeignMessageEditionUnstable`. Empty by default.
         pub fn map_string_foreign_message(
             &self,
-        ) -> pbrs::MapView<'_, pbrs::rt::LazyStr, ForeignMessageEditionUnstable> {
+        ) -> ::pbrs::MapView<'_, ::pbrs::rt::LazyStr, ForeignMessageEditionUnstable> {
             self.cold
                 .as_ref()
                 .map(|c| c.map_string_foreign_message.as_view())
-                .unwrap_or_else(pbrs::MapView::empty)
+                .unwrap_or_else(::pbrs::MapView::empty)
         }
         /// Returns a mutable view of field `map_string_foreign_message`.
         pub fn map_string_foreign_message_mut(
             &mut self,
-        ) -> pbrs::MapMut<'_, pbrs::rt::LazyStr, ForeignMessageEditionUnstable> {
+        ) -> ::pbrs::MapMut<'_, ::pbrs::rt::LazyStr, ForeignMessageEditionUnstable> {
             self.cached_size.dirty();
             self.cold_mut().map_string_foreign_message.as_mut()
         }
         /// Sets the value of `map_string_foreign_message`.
         pub fn set_map_string_foreign_message(
             &mut self,
-            v: pbrs::Map<pbrs::rt::LazyStr, ForeignMessageEditionUnstable>,
+            v: ::pbrs::Map<::pbrs::rt::LazyStr, ForeignMessageEditionUnstable>,
         ) {
             self.cached_size.dirty();
             self.cold_mut().map_string_foreign_message = v;
         }
         /// Field `map_string_foreign_enum` (number 12).
         ///
-        /// Map field with key `pbrs::rt::LazyStr` and value `i32`. Empty by default.
-        pub fn map_string_foreign_enum(&self) -> pbrs::MapView<'_, pbrs::rt::LazyStr, i32> {
+        /// Map field with key `::pbrs::rt::LazyStr` and value `i32`. Empty by default.
+        pub fn map_string_foreign_enum(&self) -> ::pbrs::MapView<'_, ::pbrs::rt::LazyStr, i32> {
             self.cold
                 .as_ref()
                 .map(|c| c.map_string_foreign_enum.as_view())
-                .unwrap_or_else(pbrs::MapView::empty)
+                .unwrap_or_else(::pbrs::MapView::empty)
         }
         /// Returns a mutable view of field `map_string_foreign_enum`.
-        pub fn map_string_foreign_enum_mut(&mut self) -> pbrs::MapMut<'_, pbrs::rt::LazyStr, i32> {
+        pub fn map_string_foreign_enum_mut(
+            &mut self,
+        ) -> ::pbrs::MapMut<'_, ::pbrs::rt::LazyStr, i32> {
             self.cached_size.dirty();
             self.cold_mut().map_string_foreign_enum.as_mut()
         }
         /// Sets the value of `map_string_foreign_enum`.
-        pub fn set_map_string_foreign_enum(&mut self, v: pbrs::Map<pbrs::rt::LazyStr, i32>) {
+        pub fn set_map_string_foreign_enum(&mut self, v: ::pbrs::Map<::pbrs::rt::LazyStr, i32>) {
             self.cached_size.dirty();
             self.cold_mut().map_string_foreign_enum = v;
         }
@@ -1209,65 +1362,68 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                 .unwrap_or(b"")
         }
         /// Returns `Some` if field `optional_bytes` is set, or `None` if unset.
-        pub fn optional_bytes_opt(&self) -> Option<&[u8]> {
+        pub fn optional_bytes_opt(&self) -> ::core::option::Option<&[u8]> {
             self.cold
                 .as_ref()
                 .and_then(|c| c.optional_bytes.as_ref())
                 .map(|b| b.as_bytes())
         }
         /// Sets the value of `optional_bytes`.
-        pub fn set_optional_bytes(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
+        pub fn set_optional_bytes(&mut self, v: impl ::pbrs::IntoProxied<::pbrs::ProtoBytes>) {
             self.cached_size.dirty();
-            self.cold_mut().optional_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(
-                v.into_proxied(pbrs::__internal::Private),
-            )));
+            self.cold_mut().optional_bytes = ::core::option::Option::Some(::std::boxed::Box::new(
+                ::pbrs::rt::LazyBytes::owned(v.into_proxied(::pbrs::__internal::Private)),
+            ));
         }
         /// Clears field `optional_bytes`, marking it unset.
         pub fn clear_optional_bytes(&mut self) {
             self.cached_size.dirty();
-            self.cold_mut().optional_bytes = None;
+            self.cold_mut().optional_bytes = ::core::option::Option::None;
         }
         /// Field `repeated_bytes` (number 14).
         ///
-        /// Repeated field of `pbrs::rt::LazyBytes`. Empty by default.
-        pub fn repeated_bytes(&self) -> RepeatedView<'_, pbrs::rt::LazyBytes> {
+        /// Repeated field of `::pbrs::rt::LazyBytes`. Empty by default.
+        pub fn repeated_bytes(&self) -> ::pbrs::RepeatedView<'_, ::pbrs::rt::LazyBytes> {
             self.cold
                 .as_ref()
                 .map(|c| c.repeated_bytes.as_view())
-                .unwrap_or_else(|| RepeatedView::from_slice(&[]))
+                .unwrap_or_else(|| ::pbrs::RepeatedView::from_slice(&[]))
         }
         /// Returns a mutable view of field `repeated_bytes`.
-        pub fn repeated_bytes_mut(&mut self) -> RepeatedMut<'_, pbrs::rt::LazyBytes> {
+        pub fn repeated_bytes_mut(&mut self) -> ::pbrs::RepeatedMut<'_, ::pbrs::rt::LazyBytes> {
             self.cached_size.dirty();
             self.cold_mut().repeated_bytes.as_mut()
         }
         /// Sets the value of `repeated_bytes`.
-        pub fn set_repeated_bytes(&mut self, v: impl IntoIterator<Item = pbrs::rt::LazyBytes>) {
+        pub fn set_repeated_bytes(
+            &mut self,
+            v: impl ::core::iter::IntoIterator<Item = ::pbrs::rt::LazyBytes>,
+        ) {
             self.cached_size.dirty();
             self.cold_mut().repeated_bytes = v.into_iter().collect();
         }
         /// Field `map_string_bytes` (number 15).
         ///
-        /// Map field with key `pbrs::rt::LazyStr` and value `pbrs::rt::LazyBytes`. Empty by default.
+        /// Map field with key `::pbrs::rt::LazyStr` and value `::pbrs::rt::LazyBytes`. Empty by default.
         pub fn map_string_bytes(
             &self,
-        ) -> pbrs::MapView<'_, pbrs::rt::LazyStr, pbrs::rt::LazyBytes> {
+        ) -> ::pbrs::MapView<'_, ::pbrs::rt::LazyStr, ::pbrs::rt::LazyBytes> {
             self.cold
                 .as_ref()
                 .map(|c| c.map_string_bytes.as_view())
-                .unwrap_or_else(pbrs::MapView::empty)
+                .unwrap_or_else(::pbrs::MapView::empty)
         }
         /// Returns a mutable view of field `map_string_bytes`.
         pub fn map_string_bytes_mut(
             &mut self,
-        ) -> pbrs::MapMut<'_, pbrs::rt::LazyStr, pbrs::rt::LazyBytes> {
+        ) -> ::pbrs::MapMut<'_, ::pbrs::rt::LazyStr, ::pbrs::rt::LazyBytes> {
             self.cached_size.dirty();
             self.cold_mut().map_string_bytes.as_mut()
         }
         /// Sets the value of `map_string_bytes`.
         pub fn set_map_string_bytes(
             &mut self,
-            v: pbrs::Map<pbrs::rt::LazyStr, pbrs::rt::LazyBytes>,
+            v: ::pbrs::Map<::pbrs::rt::LazyStr, ::pbrs::rt::LazyBytes>,
         ) {
             self.cached_size.dirty();
             self.cold_mut().map_string_bytes = v;
@@ -1283,110 +1439,141 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
             self.extension_int32.unwrap_or(0)
         }
         /// Returns `Some` if field `extension_int32` is set, or `None` if unset.
-        pub fn extension_int32_opt(&self) -> Option<i32> {
+        pub fn extension_int32_opt(&self) -> ::core::option::Option<i32> {
             self.extension_int32.map(|v| v)
         }
         /// Sets the value of `extension_int32`.
         pub fn set_extension_int32(&mut self, v: i32) {
             self.cached_size.dirty();
-            self.extension_int32 = Some(v);
+            self.extension_int32 = ::core::option::Option::Some(v);
         }
         /// Clears field `extension_int32`, marking it unset.
         pub fn clear_extension_int32(&mut self) {
             self.cached_size.dirty();
-            self.extension_int32 = None;
+            self.extension_int32 = ::core::option::Option::None;
         }
         #[inline(always)]
-        pub fn check_required(&self) -> Result<(), ParseError> {
-            Ok(())
+        pub fn check_required(&self) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            ::core::result::Result::Ok(())
         }
-        pub fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+        pub fn merge_bytes(
+            &mut self,
+            data: &[u8],
+            depth: u32,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
                 return self.check_required();
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                true,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_bytes_dont_enforce(
             &mut self,
             data: &[u8],
             depth: u32,
-        ) -> Result<(), ParseError> {
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
-                return Ok(());
+                return ::core::result::Result::Ok(());
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                false,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_group(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            self.merge_inner(data, wire, pos, depth, false, Some(num))
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            self.merge_inner(
+                data,
+                wire,
+                pos,
+                depth,
+                false,
+                ::core::option::Option::Some(num),
+            )
         }
         pub fn merge_inner(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, false)
         }
         #[doc(hidden)]
         pub fn __pbrs_merge_prevalidated(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             self.__pbrs_merge_mode(data, wire, pos, depth, enforce, until, true)
         }
         fn __pbrs_merge_mode(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
-            until: Option<u32>,
+            until: ::core::option::Option<u32>,
             prevalidated: bool,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let _ = enforce;
             self.cached_size.dirty();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 if n == 1 {
                     match w {
-                        pbrs::rt::WIRE_I32 => {
-                            self.optional_int32 = Some(pbrs::rt::read_fixed32(data, pos)? as i32);
+                        ::pbrs::rt::WIRE_I32 => {
+                            self.optional_int32 = ::core::option::Option::Some(
+                                ::pbrs::rt::read_fixed32(data, pos)? as i32,
+                            );
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown_with_depth(
+                            .push(::pbrs::rt::capture_unknown_with_depth(
                                 data, pos, n, w, depth,
                             )?),
                     }
@@ -1394,14 +1581,15 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                 }
                 if n == 3 {
                     match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            self.optional_foreign_enum =
-                                Some(pbrs::rt::decode_varint(data, pos)? as i32);
+                        ::pbrs::rt::WIRE_VARINT => {
+                            self.optional_foreign_enum = ::core::option::Option::Some(
+                                ::pbrs::rt::decode_varint(data, pos)? as i32,
+                            );
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown_with_depth(
+                            .push(::pbrs::rt::capture_unknown_with_depth(
                                 data, pos, n, w, depth,
                             )?),
                     }
@@ -1409,13 +1597,15 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                 }
                 if n == 120 {
                     match w {
-                        pbrs::rt::WIRE_I32 => {
-                            self.extension_int32 = Some(pbrs::rt::read_fixed32(data, pos)? as i32);
+                        ::pbrs::rt::WIRE_I32 => {
+                            self.extension_int32 = ::core::option::Option::Some(
+                                ::pbrs::rt::read_fixed32(data, pos)? as i32,
+                            );
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown_with_depth(
+                            .push(::pbrs::rt::capture_unknown_with_depth(
                                 data, pos, n, w, depth,
                             )?),
                     }
@@ -1424,12 +1614,12 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                 self.__pbrs_merge_heavy(n, w, data, wire, pos, depth, prevalidated)?;
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
             if enforce {
                 self.check_required()?;
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         #[inline(never)]
         fn __pbrs_merge_heavy(
@@ -1437,18 +1627,18 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
             n: u32,
             w: u32,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             prevalidated: bool,
-        ) -> Result<(), ParseError> {
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             match n {
                 2 => match w {
-                    pbrs::rt::WIRE_LEN => {
-                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                    ::pbrs::rt::WIRE_LEN => {
+                        let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                         if self.cold_mut().optional_foreign_message.is_some() {
                             let mut ip = 0;
-                            let mut sw = None;
+                            let mut sw = ::core::option::Option::None;
                             self.cold_mut()
                                 .optional_foreign_message
                                 .get_or_insert()
@@ -1458,39 +1648,41 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                                     &mut ip,
                                     depth + 1,
                                     true,
-                                    None,
+                                    ::core::option::Option::None,
                                 )?;
                         } else {
                             let mut ip = 0;
-                            if depth >= pbrs::RECURSION_LIMIT {
-                                return Err(ParseError::new("recursion limit exceeded"));
+                            if depth >= ::pbrs::RECURSION_LIMIT {
+                                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                    "recursion limit exceeded",
+                                ));
                             }
                             if !prevalidated {
                                 ForeignMessageEditionUnstable::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    &::pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
                             }
                             self.cold_mut().optional_foreign_message =
-                                pbrs::rt::LazyMsg::from_validated_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                ::pbrs::rt::LazyMsg::from_validated_wire(
+                                    ::pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                 );
                         }
                     }
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 },
                 4 => match w {
-                    pbrs::rt::WIRE_LEN => {
-                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                    ::pbrs::rt::WIRE_LEN => {
+                        let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                         if self.cold_mut().recursive_message.is_some() {
                             let mut ip = 0;
-                            let mut sw = None;
+                            let mut sw = ::core::option::Option::None;
                             self.cold_mut()
                                 .recursive_message
                                 .get_or_insert()
@@ -1500,67 +1692,69 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                                     &mut ip,
                                     depth + 1,
                                     true,
-                                    None,
+                                    ::core::option::Option::None,
                                 )?;
                         } else {
                             let mut ip = 0;
-                            if depth >= pbrs::RECURSION_LIMIT {
-                                return Err(ParseError::new("recursion limit exceeded"));
+                            if depth >= ::pbrs::RECURSION_LIMIT {
+                                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                    "recursion limit exceeded",
+                                ));
                             }
                             if !prevalidated {
                                 TestAllTypesEditionUnstable::validate_inner(
-                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    &::pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
                             }
                             self.cold_mut().recursive_message =
-                                pbrs::rt::LazyMsg::from_validated_wire(
-                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                ::pbrs::rt::LazyMsg::from_validated_wire(
+                                    ::pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                 );
                         }
                     }
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 },
                 5 => match w {
-                    pbrs::rt::WIRE_LEN => {
-                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                    ::pbrs::rt::WIRE_LEN => {
+                        let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                         self.cold_mut()
                             .repeated_int32
-                            .append_wire(pbrs::rt::Wire::from_slice(&data[s..e]))?;
+                            .append_wire(::pbrs::rt::Wire::from_slice(&data[s..e]))?;
                     }
-                    pbrs::rt::WIRE_I32 => {
+                    ::pbrs::rt::WIRE_I32 => {
                         self.cold_mut()
                             .repeated_int32
-                            .push(pbrs::rt::read_fixed32(data, pos)? as i32);
+                            .push(::pbrs::rt::read_fixed32(data, pos)? as i32);
                         let rest = data.len().saturating_sub(*pos);
                         if rest > 2 {
                             self.cold_mut().repeated_int32.reserve(rest / 3);
                         }
                         while *pos < data.len()
-                            && data[*pos] == ((5 << 3) | pbrs::rt::WIRE_I32) as u8
+                            && data[*pos] == ((5 << 3) | ::pbrs::rt::WIRE_I32) as u8
                         {
                             *pos += 1;
                             self.cold_mut()
                                 .repeated_int32
-                                .push(pbrs::rt::read_fixed32(data, pos)? as i32);
+                                .push(::pbrs::rt::read_fixed32(data, pos)? as i32);
                         }
                     }
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 },
                 6 => match w {
-                    pbrs::rt::WIRE_LEN => {
-                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                    ::pbrs::rt::WIRE_LEN => {
+                        let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                         let rest = data.len().saturating_sub(e);
                         if rest > 2 {
                             self.cold_mut()
@@ -1569,24 +1763,31 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                         }
                         let mut inner = ForeignMessageEditionUnstable::default();
                         let mut ip = 0;
-                        let mut sw = None;
-                        inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?;
+                        let mut sw = ::core::option::Option::None;
+                        inner.merge_inner(
+                            &data[s..e],
+                            &mut sw,
+                            &mut ip,
+                            depth + 1,
+                            true,
+                            ::core::option::Option::None,
+                        )?;
                         self.cold_mut().repeated_foreign_message.push(inner);
                         while *pos < data.len()
-                            && data[*pos] == ((6 << 3) | pbrs::rt::WIRE_LEN) as u8
+                            && data[*pos] == ((6 << 3) | ::pbrs::rt::WIRE_LEN) as u8
                         {
                             *pos += 1;
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                             let mut inner = ForeignMessageEditionUnstable::default();
                             let mut ip = 0;
-                            let mut sw = None;
+                            let mut sw = ::core::option::Option::None;
                             inner.merge_inner(
                                 &data[s..e],
                                 &mut sw,
                                 &mut ip,
                                 depth + 1,
                                 true,
-                                None,
+                                ::core::option::Option::None,
                             )?;
                             self.cold_mut().repeated_foreign_message.push(inner);
                         }
@@ -1594,47 +1795,49 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 },
                 7 => match w {
-                    pbrs::rt::WIRE_LEN => {
-                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                    ::pbrs::rt::WIRE_LEN => {
+                        let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                         self.cold_mut()
                             .repeated_foreign_enum
-                            .append_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))?;
+                            .append_wire(::pbrs::rt::Wire::ensure(wire, data).window(s, e))?;
                     }
-                    pbrs::rt::WIRE_VARINT => {
+                    ::pbrs::rt::WIRE_VARINT => {
                         self.cold_mut()
                             .repeated_foreign_enum
-                            .push(pbrs::rt::decode_varint(data, pos)? as i32);
+                            .push(::pbrs::rt::decode_varint(data, pos)? as i32);
                         let rest = data.len().saturating_sub(*pos);
                         if rest > 2 {
                             self.cold_mut().repeated_foreign_enum.reserve(rest / 3);
                         }
                         while *pos < data.len()
-                            && data[*pos] == ((7 << 3) | pbrs::rt::WIRE_VARINT) as u8
+                            && data[*pos] == ((7 << 3) | ::pbrs::rt::WIRE_VARINT) as u8
                         {
                             *pos += 1;
                             self.cold_mut()
                                 .repeated_foreign_enum
-                                .push(pbrs::rt::decode_varint(data, pos)? as i32);
+                                .push(::pbrs::rt::decode_varint(data, pos)? as i32);
                         }
                     }
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 },
                 8 => match w {
-                    pbrs::rt::WIRE_LEN => {
-                        if depth >= pbrs::RECURSION_LIMIT {
-                            return Err(ParseError::new("recursion limit exceeded"));
+                    ::pbrs::rt::WIRE_LEN => {
+                        if depth >= ::pbrs::RECURSION_LIMIT {
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "recursion limit exceeded",
+                            ));
                         }
-                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                        let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                         let (kk, vv) =
                             decode_map_entry_TestAllTypesEditionUnstable_map_int32_int32_8(
                                 data,
@@ -1648,16 +1851,18 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 },
                 9 => match w {
-                    pbrs::rt::WIRE_LEN => {
-                        if depth >= pbrs::RECURSION_LIMIT {
-                            return Err(ParseError::new("recursion limit exceeded"));
+                    ::pbrs::rt::WIRE_LEN => {
+                        if depth >= ::pbrs::RECURSION_LIMIT {
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "recursion limit exceeded",
+                            ));
                         }
-                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                        let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                         let (kk, vv) =
                             decode_map_entry_TestAllTypesEditionUnstable_map_bool_bool_9(
                                 data,
@@ -1671,16 +1876,18 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 },
                 10 => match w {
-                    pbrs::rt::WIRE_LEN => {
-                        if depth >= pbrs::RECURSION_LIMIT {
-                            return Err(ParseError::new("recursion limit exceeded"));
+                    ::pbrs::rt::WIRE_LEN => {
+                        if depth >= ::pbrs::RECURSION_LIMIT {
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "recursion limit exceeded",
+                            ));
                         }
-                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                        let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                         let (kk, vv) =
                             decode_map_entry_TestAllTypesEditionUnstable_map_string_string_10(
                                 data,
@@ -1694,16 +1901,18 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 },
                 11 => match w {
-                    pbrs::rt::WIRE_LEN => {
-                        if depth >= pbrs::RECURSION_LIMIT {
-                            return Err(ParseError::new("recursion limit exceeded"));
+                    ::pbrs::rt::WIRE_LEN => {
+                        if depth >= ::pbrs::RECURSION_LIMIT {
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "recursion limit exceeded",
+                            ));
                         }
-                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                        let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                         let (kk, vv) = decode_map_entry_TestAllTypesEditionUnstable_map_string_foreign_message_11(data, wire, s, e, depth + 1)?;
                         self.cold_mut()
                             .map_string_foreign_message
@@ -1712,43 +1921,46 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 },
                 12 => match w {
-                    pbrs::rt::WIRE_LEN => {
-                        if depth >= pbrs::RECURSION_LIMIT {
-                            return Err(ParseError::new("recursion limit exceeded"));
+                    ::pbrs::rt::WIRE_LEN => {
+                        if depth >= ::pbrs::RECURSION_LIMIT {
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "recursion limit exceeded",
+                            ));
                         }
-                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                        let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                         let (kk, vv) = decode_map_entry_TestAllTypesEditionUnstable_map_string_foreign_enum_12(data, wire, s, e, depth + 1)?;
                         self.cold_mut().map_string_foreign_enum.push_entry(kk, vv);
                     }
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 },
                 13 => match w {
-                    pbrs::rt::WIRE_LEN => {
-                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                        self.cold_mut().optional_bytes = Some(Box::new(
-                            pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e),
-                        ));
+                    ::pbrs::rt::WIRE_LEN => {
+                        let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
+                        self.cold_mut().optional_bytes =
+                            ::core::option::Option::Some(::std::boxed::Box::new(
+                                ::pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e),
+                            ));
                     }
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 },
                 14 => match w {
-                    pbrs::rt::WIRE_LEN => {
-                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                    ::pbrs::rt::WIRE_LEN => {
+                        let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                         let rest = data.len().saturating_sub(e);
                         if rest > 2 {
                             self.cold_mut()
@@ -1757,30 +1969,32 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                         }
                         self.cold_mut()
                             .repeated_bytes
-                            .push(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e));
+                            .push(::pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e));
                         while *pos < data.len()
-                            && data[*pos] == ((14 << 3) | pbrs::rt::WIRE_LEN) as u8
+                            && data[*pos] == ((14 << 3) | ::pbrs::rt::WIRE_LEN) as u8
                         {
                             *pos += 1;
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .repeated_bytes
-                                .push(pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e));
+                                .push(::pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e));
                         }
                     }
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 },
                 15 => match w {
-                    pbrs::rt::WIRE_LEN => {
-                        if depth >= pbrs::RECURSION_LIMIT {
-                            return Err(ParseError::new("recursion limit exceeded"));
+                    ::pbrs::rt::WIRE_LEN => {
+                        if depth >= ::pbrs::RECURSION_LIMIT {
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "recursion limit exceeded",
+                            ));
                         }
-                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                        let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                         let (kk, vv) =
                             decode_map_entry_TestAllTypesEditionUnstable_map_string_bytes_15(
                                 data,
@@ -1794,56 +2008,60 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 },
                 _ => self
                     .unknown
                     .fields
-                    .push(pbrs::rt::capture_unknown_with_depth(
+                    .push(::pbrs::rt::capture_unknown_with_depth(
                         data, pos, n, w, depth,
                     )?),
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn validate_inner(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            Self::validate_until(wire, pos, depth, None)
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            Self::validate_until(wire, pos, depth, ::core::option::Option::None)
         }
         pub fn validate_until(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_I32 => {
-                            let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
+                        ::pbrs::rt::WIRE_I32 => {
+                            let _ = ::pbrs::rt::read_fixed32(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     2 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                        ::pbrs::rt::WIRE_LEN => {
+                            let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             ForeignMessageEditionUnstable::validate_inner(
                                 &wire.window(s, e),
@@ -1851,17 +2069,17 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     3 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
+                        ::pbrs::rt::WIRE_VARINT => {
+                            let _ = ::pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     4 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                        ::pbrs::rt::WIRE_LEN => {
+                            let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             TestAllTypesEditionUnstable::validate_inner(
                                 &wire.window(s, e),
@@ -1869,21 +2087,21 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     5 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            pbrs::rt::PackedSfx32::validate_bytes(&data[s..e])?;
+                        ::pbrs::rt::WIRE_LEN => {
+                            let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
+                            ::pbrs::rt::PackedSfx32::validate_bytes(&data[s..e])?;
                         }
-                        pbrs::rt::WIRE_I32 => {
-                            let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
+                        ::pbrs::rt::WIRE_I32 => {
+                            let _ = ::pbrs::rt::read_fixed32(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     6 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                        ::pbrs::rt::WIRE_LEN => {
+                            let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             ForeignMessageEditionUnstable::validate_inner(
                                 &wire.window(s, e),
@@ -1891,31 +2109,33 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                                 depth + 1,
                             )?;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     7 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            pbrs::rt::PackedI32::validate_bytes(&data[s..e])?;
+                        ::pbrs::rt::WIRE_LEN => {
+                            let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
+                            ::pbrs::rt::PackedI32::validate_bytes(&data[s..e])?;
                         }
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
+                        ::pbrs::rt::WIRE_VARINT => {
+                            let _ = ::pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     8 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            if depth >= pbrs::RECURSION_LIMIT {
-                                return Err(ParseError::new("recursion limit exceeded"));
+                        ::pbrs::rt::WIRE_LEN => {
+                            if depth >= ::pbrs::RECURSION_LIMIT {
+                                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                    "recursion limit exceeded",
+                                ));
                             }
                             let entry_depth = depth + 1;
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
-                                let (nn, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_number_and_depth(
+                                let (nn, ww) = ::pbrs::rt::decode_tag(d, &mut ip)?;
+                                ::pbrs::rt::skip_field_with_number_and_depth(
                                     d,
                                     &mut ip,
                                     nn,
@@ -1924,21 +2144,23 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                                 )?;
                             }
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     9 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            if depth >= pbrs::RECURSION_LIMIT {
-                                return Err(ParseError::new("recursion limit exceeded"));
+                        ::pbrs::rt::WIRE_LEN => {
+                            if depth >= ::pbrs::RECURSION_LIMIT {
+                                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                    "recursion limit exceeded",
+                                ));
                             }
                             let entry_depth = depth + 1;
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
-                                let (nn, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_number_and_depth(
+                                let (nn, ww) = ::pbrs::rt::decode_tag(d, &mut ip)?;
+                                ::pbrs::rt::skip_field_with_number_and_depth(
                                     d,
                                     &mut ip,
                                     nn,
@@ -1947,21 +2169,23 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                                 )?;
                             }
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     10 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            if depth >= pbrs::RECURSION_LIMIT {
-                                return Err(ParseError::new("recursion limit exceeded"));
+                        ::pbrs::rt::WIRE_LEN => {
+                            if depth >= ::pbrs::RECURSION_LIMIT {
+                                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                    "recursion limit exceeded",
+                                ));
                             }
                             let entry_depth = depth + 1;
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
-                                let (nn, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_number_and_depth(
+                                let (nn, ww) = ::pbrs::rt::decode_tag(d, &mut ip)?;
+                                ::pbrs::rt::skip_field_with_number_and_depth(
                                     d,
                                     &mut ip,
                                     nn,
@@ -1970,28 +2194,30 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                                 )?;
                             }
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     11 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            if depth >= pbrs::RECURSION_LIMIT {
-                                return Err(ParseError::new("recursion limit exceeded"));
+                        ::pbrs::rt::WIRE_LEN => {
+                            if depth >= ::pbrs::RECURSION_LIMIT {
+                                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                    "recursion limit exceeded",
+                                ));
                             }
                             let entry_depth = depth + 1;
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
-                                let (nn, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
+                                let (nn, ww) = ::pbrs::rt::decode_tag(d, &mut ip)?;
                                 match (nn, ww) {
-                                    (2, pbrs::rt::WIRE_LEN) => {
-                                        if entry_depth >= pbrs::RECURSION_LIMIT {
-                                            return Err(ParseError::new(
-                                                "recursion limit exceeded",
-                                            ));
+                                    (2, ::pbrs::rt::WIRE_LEN) => {
+                                        if entry_depth >= ::pbrs::RECURSION_LIMIT {
+                                            return ::core::result::Result::Err(
+                                                ::pbrs::ParseError::new("recursion limit exceeded"),
+                                            );
                                         }
-                                        let (vs, ve) = pbrs::rt::read_len_span(d, &mut ip)?;
+                                        let (vs, ve) = ::pbrs::rt::read_len_span(d, &mut ip)?;
                                         let mut vp = 0;
                                         ForeignMessageEditionUnstable::validate_inner(
                                             &w.window(vs, ve),
@@ -1999,7 +2225,7 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                                             entry_depth + 1,
                                         )?;
                                     }
-                                    _ => pbrs::rt::skip_field_with_number_and_depth(
+                                    _ => ::pbrs::rt::skip_field_with_number_and_depth(
                                         d,
                                         &mut ip,
                                         nn,
@@ -2009,21 +2235,23 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                                 }
                             }
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     12 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            if depth >= pbrs::RECURSION_LIMIT {
-                                return Err(ParseError::new("recursion limit exceeded"));
+                        ::pbrs::rt::WIRE_LEN => {
+                            if depth >= ::pbrs::RECURSION_LIMIT {
+                                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                    "recursion limit exceeded",
+                                ));
                             }
                             let entry_depth = depth + 1;
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
-                                let (nn, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_number_and_depth(
+                                let (nn, ww) = ::pbrs::rt::decode_tag(d, &mut ip)?;
+                                ::pbrs::rt::skip_field_with_number_and_depth(
                                     d,
                                     &mut ip,
                                     nn,
@@ -2032,33 +2260,35 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                                 )?;
                             }
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     13 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            pbrs::rt::read_len_span(data, pos)?;
+                        ::pbrs::rt::WIRE_LEN => {
+                            ::pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     14 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            pbrs::rt::read_len_span(data, pos)?;
+                        ::pbrs::rt::WIRE_LEN => {
+                            ::pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     15 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            if depth >= pbrs::RECURSION_LIMIT {
-                                return Err(ParseError::new("recursion limit exceeded"));
+                        ::pbrs::rt::WIRE_LEN => {
+                            if depth >= ::pbrs::RECURSION_LIMIT {
+                                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                    "recursion limit exceeded",
+                                ));
                             }
                             let entry_depth = depth + 1;
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
-                                let (nn, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
-                                pbrs::rt::skip_field_with_number_and_depth(
+                                let (nn, ww) = ::pbrs::rt::decode_tag(d, &mut ip)?;
+                                ::pbrs::rt::skip_field_with_number_and_depth(
                                     d,
                                     &mut ip,
                                     nn,
@@ -2067,329 +2297,357 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
                                 )?;
                             }
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
                     120 => match w {
-                        pbrs::rt::WIRE_I32 => {
-                            let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
+                        ::pbrs::rt::WIRE_I32 => {
+                            let _ = ::pbrs::rt::read_fixed32(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                    _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn compute_size(&self) -> u64 {
-            if let Some(n) = self.cached_size.get() {
+            if let ::core::option::Option::Some(n) = self.cached_size.get() {
                 return n;
             }
             let mut n = self.unknown.encoded_len();
-            if let Some(v) = self.optional_int32 {
-                n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_I32) + 4;
+            if let ::core::option::Option::Some(v) = self.optional_int32 {
+                n += ::pbrs::rt::tag_len(1, ::pbrs::rt::WIRE_I32) + 4;
             }
-            if let Some(v) = self.optional_foreign_enum {
-                n += pbrs::rt::tag_len(3, pbrs::rt::WIRE_VARINT) + pbrs::rt::varint_len((v) as u64);
+            if let ::core::option::Option::Some(v) = self.optional_foreign_enum {
+                n += ::pbrs::rt::tag_len(3, ::pbrs::rt::WIRE_VARINT)
+                    + ::pbrs::rt::varint_len((v) as u64);
             }
-            if let Some(v) = self.extension_int32 {
-                n += pbrs::rt::tag_len(120, pbrs::rt::WIRE_I32) + 4;
+            if let ::core::option::Option::Some(v) = self.extension_int32 {
+                n += ::pbrs::rt::tag_len(120, ::pbrs::rt::WIRE_I32) + 4;
             }
-            if let Some(c) = self.cold.as_deref() {
-                if let Some(p) = c.optional_foreign_message.wire_bytes() {
-                    n += pbrs::rt::key_len_value_len(2, p.len() as u64);
-                } else if let Some(m) = c.optional_foreign_message.as_deref() {
-                    n += pbrs::rt::key_len_value_len(2, m.compute_size());
+            if let ::core::option::Option::Some(c) = self.cold.as_deref() {
+                if let ::core::option::Option::Some(p) = c.optional_foreign_message.wire_bytes() {
+                    n += ::pbrs::rt::key_len_value_len(2, p.len() as u64);
+                } else if let ::core::option::Option::Some(m) =
+                    c.optional_foreign_message.as_deref()
+                {
+                    n += ::pbrs::rt::key_len_value_len(2, m.compute_size());
                 }
-                if let Some(p) = c.recursive_message.wire_bytes() {
-                    n += pbrs::rt::key_len_value_len(4, p.len() as u64);
-                } else if let Some(m) = c.recursive_message.as_deref() {
-                    n += pbrs::rt::key_len_value_len(4, m.compute_size());
+                if let ::core::option::Option::Some(p) = c.recursive_message.wire_bytes() {
+                    n += ::pbrs::rt::key_len_value_len(4, p.len() as u64);
+                } else if let ::core::option::Option::Some(m) = c.recursive_message.as_deref() {
+                    n += ::pbrs::rt::key_len_value_len(4, m.compute_size());
                 }
-                if let Some(p) = c.repeated_int32.packed_bytes() {
-                    n += pbrs::rt::key_len_value_len(5, p.len() as u64);
+                if let ::core::option::Option::Some(p) = c.repeated_int32.packed_bytes() {
+                    n += ::pbrs::rt::key_len_value_len(5, p.len() as u64);
                 } else if !c.repeated_int32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_int32.iter() {
                         payload += 4;
                     }
-                    n += pbrs::rt::key_len_value_len(5, payload);
+                    n += ::pbrs::rt::key_len_value_len(5, payload);
                 }
                 for t in c.repeated_foreign_message.iter() {
-                    n += pbrs::rt::key_len_value_len(6, t.compute_size());
+                    n += ::pbrs::rt::key_len_value_len(6, t.compute_size());
                 }
-                if let Some(p) = c.repeated_foreign_enum.packed_bytes() {
-                    n += pbrs::rt::key_len_value_len(7, p.len() as u64);
+                if let ::core::option::Option::Some(p) = c.repeated_foreign_enum.packed_bytes() {
+                    n += ::pbrs::rt::key_len_value_len(7, p.len() as u64);
                 } else if !c.repeated_foreign_enum.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_foreign_enum.iter() {
-                        payload += pbrs::rt::varint_len((*t) as u64);
+                        payload += ::pbrs::rt::varint_len((*t) as u64);
                     }
-                    n += pbrs::rt::key_len_value_len(7, payload);
+                    n += ::pbrs::rt::key_len_value_len(7, payload);
                 }
                 if !c.map_int32_int32.is_empty() {
                     for (k, v) in c.map_int32_int32.pairs() {
-                        let inner = pbrs::rt::tag_len(1, pbrs::rt::WIRE_I32)
+                        let inner = ::pbrs::rt::tag_len(1, ::pbrs::rt::WIRE_I32)
                             + 4
-                            + pbrs::rt::tag_len(2, pbrs::rt::WIRE_I32)
+                            + ::pbrs::rt::tag_len(2, ::pbrs::rt::WIRE_I32)
                             + 4;
-                        n += pbrs::rt::key_len_value_len(8, inner);
+                        n += ::pbrs::rt::key_len_value_len(8, inner);
                     }
                 }
                 if !c.map_bool_bool.is_empty() {
                     for (k, v) in c.map_bool_bool.pairs() {
-                        let inner = pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT)
-                            + pbrs::rt::varint_len(u64::from(*k))
-                            + pbrs::rt::tag_len(2, pbrs::rt::WIRE_VARINT)
-                            + pbrs::rt::varint_len(u64::from(*v));
-                        n += pbrs::rt::key_len_value_len(9, inner);
+                        let inner = ::pbrs::rt::tag_len(1, ::pbrs::rt::WIRE_VARINT)
+                            + ::pbrs::rt::varint_len(u64::from(*k))
+                            + ::pbrs::rt::tag_len(2, ::pbrs::rt::WIRE_VARINT)
+                            + ::pbrs::rt::varint_len(u64::from(*v));
+                        n += ::pbrs::rt::key_len_value_len(9, inner);
                     }
                 }
                 if !c.map_string_string.is_empty() {
                     for (k, v) in c.map_string_string.pairs() {
-                        let inner = pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
-                            + pbrs::rt::key_len_value_len(2, v.as_bytes().len() as u64);
-                        n += pbrs::rt::key_len_value_len(10, inner);
+                        let inner = ::pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
+                            + ::pbrs::rt::key_len_value_len(2, v.as_bytes().len() as u64);
+                        n += ::pbrs::rt::key_len_value_len(10, inner);
                     }
                 }
                 if !c.map_string_foreign_message.is_empty() {
                     for (k, v) in c.map_string_foreign_message.pairs() {
-                        let inner = pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
-                            + pbrs::rt::key_len_value_len(2, v.compute_size());
-                        n += pbrs::rt::key_len_value_len(11, inner);
+                        let inner = ::pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
+                            + ::pbrs::rt::key_len_value_len(2, v.compute_size());
+                        n += ::pbrs::rt::key_len_value_len(11, inner);
                     }
                 }
                 if !c.map_string_foreign_enum.is_empty() {
                     for (k, v) in c.map_string_foreign_enum.pairs() {
-                        let inner = pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
-                            + pbrs::rt::tag_len(2, pbrs::rt::WIRE_VARINT)
-                            + pbrs::rt::varint_len((*v) as u64);
-                        n += pbrs::rt::key_len_value_len(12, inner);
+                        let inner = ::pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
+                            + ::pbrs::rt::tag_len(2, ::pbrs::rt::WIRE_VARINT)
+                            + ::pbrs::rt::varint_len((*v) as u64);
+                        n += ::pbrs::rt::key_len_value_len(12, inner);
                     }
                 }
-                if let Some(s) = &c.optional_bytes {
-                    n += pbrs::rt::key_len_value_len(13, s.as_bytes().len() as u64);
+                if let ::core::option::Option::Some(s) = &c.optional_bytes {
+                    n += ::pbrs::rt::key_len_value_len(13, s.as_bytes().len() as u64);
                 }
                 for t in c.repeated_bytes.iter() {
-                    n += pbrs::rt::key_len_value_len(14, t.as_bytes().len() as u64);
+                    n += ::pbrs::rt::key_len_value_len(14, t.as_bytes().len() as u64);
                 }
                 if !c.map_string_bytes.is_empty() {
                     for (k, v) in c.map_string_bytes.pairs() {
-                        let inner = pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
-                            + pbrs::rt::key_len_value_len(2, v.as_bytes().len() as u64);
-                        n += pbrs::rt::key_len_value_len(15, inner);
+                        let inner = ::pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
+                            + ::pbrs::rt::key_len_value_len(2, v.as_bytes().len() as u64);
+                        n += ::pbrs::rt::key_len_value_len(15, inner);
                     }
                 }
             }
             self.cached_size.set(n);
             n
         }
-        pub fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
-            if let Some(c) = self.cold.as_deref() {
-                if let Some(v) = self.optional_int32 {
-                    pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_I32);
+        pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
+            if let ::core::option::Option::Some(c) = self.cold.as_deref() {
+                if let ::core::option::Option::Some(v) = self.optional_int32 {
+                    ::pbrs::rt::encode_tag(out, 1, ::pbrs::rt::WIRE_I32);
                     (out).extend_from_slice(&((v) as u32).to_le_bytes());
                 }
-                if let Some(p) = c.optional_foreign_message.wire_bytes() {
-                    pbrs::rt::encode_len_header(out, 2, p.len() as u64);
+                if let ::core::option::Option::Some(p) = c.optional_foreign_message.wire_bytes() {
+                    ::pbrs::rt::encode_len_header(out, 2, p.len() as u64);
                     out.extend_from_slice(p);
-                } else if let Some(m) = c.optional_foreign_message.as_deref() {
-                    pbrs::rt::encode_len_header(out, 2, m.compute_size());
+                } else if let ::core::option::Option::Some(m) =
+                    c.optional_foreign_message.as_deref()
+                {
+                    ::pbrs::rt::encode_len_header(out, 2, m.compute_size());
                     m.write_to(out);
                 }
-                if let Some(v) = self.optional_foreign_enum {
-                    pbrs::rt::encode_tag(out, 3, pbrs::rt::WIRE_VARINT);
-                    pbrs::rt::encode_varint(out, v as u64);
+                if let ::core::option::Option::Some(v) = self.optional_foreign_enum {
+                    ::pbrs::rt::encode_tag(out, 3, ::pbrs::rt::WIRE_VARINT);
+                    ::pbrs::rt::encode_varint(out, v as u64);
                 }
-                if let Some(p) = c.recursive_message.wire_bytes() {
-                    pbrs::rt::encode_len_header(out, 4, p.len() as u64);
+                if let ::core::option::Option::Some(p) = c.recursive_message.wire_bytes() {
+                    ::pbrs::rt::encode_len_header(out, 4, p.len() as u64);
                     out.extend_from_slice(p);
-                } else if let Some(m) = c.recursive_message.as_deref() {
-                    pbrs::rt::encode_len_header(out, 4, m.compute_size());
+                } else if let ::core::option::Option::Some(m) = c.recursive_message.as_deref() {
+                    ::pbrs::rt::encode_len_header(out, 4, m.compute_size());
                     m.write_to(out);
                 }
-                if let Some(p) = c.repeated_int32.packed_bytes() {
-                    pbrs::rt::encode_len_header(out, 5, p.len() as u64);
+                if let ::core::option::Option::Some(p) = c.repeated_int32.packed_bytes() {
+                    ::pbrs::rt::encode_len_header(out, 5, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.repeated_int32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_int32.iter() {
                         payload += 4;
                     }
-                    pbrs::rt::encode_len_header(out, 5, payload);
+                    ::pbrs::rt::encode_len_header(out, 5, payload);
                     for t in c.repeated_int32.iter() {
                         (out).extend_from_slice(&((*t) as u32).to_le_bytes());
                     }
                 }
                 for t in c.repeated_foreign_message.iter() {
-                    pbrs::rt::encode_len_header(out, 6, t.compute_size());
+                    ::pbrs::rt::encode_len_header(out, 6, t.compute_size());
                     t.write_to(out);
                 }
-                if let Some(p) = c.repeated_foreign_enum.packed_bytes() {
-                    pbrs::rt::encode_len_header(out, 7, p.len() as u64);
+                if let ::core::option::Option::Some(p) = c.repeated_foreign_enum.packed_bytes() {
+                    ::pbrs::rt::encode_len_header(out, 7, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.repeated_foreign_enum.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_foreign_enum.iter() {
-                        payload += pbrs::rt::varint_len((*t) as u64);
+                        payload += ::pbrs::rt::varint_len((*t) as u64);
                     }
-                    pbrs::rt::encode_len_header(out, 7, payload);
+                    ::pbrs::rt::encode_len_header(out, 7, payload);
                     for t in c.repeated_foreign_enum.iter() {
-                        pbrs::rt::encode_varint(out, *t as u64);
+                        ::pbrs::rt::encode_varint(out, *t as u64);
                     }
                 }
                 if !c.map_int32_int32.is_empty() {
                     for (k, v) in c.map_int32_int32.pairs() {
-                        let inner = pbrs::rt::tag_len(1, pbrs::rt::WIRE_I32)
+                        let inner = ::pbrs::rt::tag_len(1, ::pbrs::rt::WIRE_I32)
                             + 4
-                            + pbrs::rt::tag_len(2, pbrs::rt::WIRE_I32)
+                            + ::pbrs::rt::tag_len(2, ::pbrs::rt::WIRE_I32)
                             + 4;
-                        pbrs::rt::encode_tag(out, 8, pbrs::rt::WIRE_LEN);
-                        pbrs::rt::encode_varint(out, inner);
-                        pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_I32);
+                        ::pbrs::rt::encode_tag(out, 8, ::pbrs::rt::WIRE_LEN);
+                        ::pbrs::rt::encode_varint(out, inner);
+                        ::pbrs::rt::encode_tag(out, 1, ::pbrs::rt::WIRE_I32);
                         out.extend_from_slice(&(*k as u32).to_le_bytes());
-                        pbrs::rt::encode_tag(out, 2, pbrs::rt::WIRE_I32);
+                        ::pbrs::rt::encode_tag(out, 2, ::pbrs::rt::WIRE_I32);
                         out.extend_from_slice(&(*v as u32).to_le_bytes());
                     }
                 }
                 if !c.map_bool_bool.is_empty() {
                     for (k, v) in c.map_bool_bool.pairs() {
-                        let inner = pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT)
-                            + pbrs::rt::varint_len(u64::from(*k))
-                            + pbrs::rt::tag_len(2, pbrs::rt::WIRE_VARINT)
-                            + pbrs::rt::varint_len(u64::from(*v));
-                        pbrs::rt::encode_tag(out, 9, pbrs::rt::WIRE_LEN);
-                        pbrs::rt::encode_varint(out, inner);
-                        pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
-                        pbrs::rt::encode_varint(out, u64::from(*k));
-                        pbrs::rt::encode_tag(out, 2, pbrs::rt::WIRE_VARINT);
-                        pbrs::rt::encode_varint(out, u64::from(*v));
+                        let inner = ::pbrs::rt::tag_len(1, ::pbrs::rt::WIRE_VARINT)
+                            + ::pbrs::rt::varint_len(u64::from(*k))
+                            + ::pbrs::rt::tag_len(2, ::pbrs::rt::WIRE_VARINT)
+                            + ::pbrs::rt::varint_len(u64::from(*v));
+                        ::pbrs::rt::encode_tag(out, 9, ::pbrs::rt::WIRE_LEN);
+                        ::pbrs::rt::encode_varint(out, inner);
+                        ::pbrs::rt::encode_tag(out, 1, ::pbrs::rt::WIRE_VARINT);
+                        ::pbrs::rt::encode_varint(out, u64::from(*k));
+                        ::pbrs::rt::encode_tag(out, 2, ::pbrs::rt::WIRE_VARINT);
+                        ::pbrs::rt::encode_varint(out, u64::from(*v));
                     }
                 }
                 if !c.map_string_string.is_empty() {
                     for (k, v) in c.map_string_string.pairs() {
-                        let inner = pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
-                            + pbrs::rt::key_len_value_len(2, v.as_bytes().len() as u64);
-                        pbrs::rt::encode_tag(out, 10, pbrs::rt::WIRE_LEN);
-                        pbrs::rt::encode_varint(out, inner);
-                        pbrs::rt::encode_len_field(out, 1, k.as_bytes());
-                        pbrs::rt::encode_len_field(out, 2, v.as_bytes());
+                        let inner = ::pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
+                            + ::pbrs::rt::key_len_value_len(2, v.as_bytes().len() as u64);
+                        ::pbrs::rt::encode_tag(out, 10, ::pbrs::rt::WIRE_LEN);
+                        ::pbrs::rt::encode_varint(out, inner);
+                        ::pbrs::rt::encode_len_field(out, 1, k.as_bytes());
+                        ::pbrs::rt::encode_len_field(out, 2, v.as_bytes());
                     }
                 }
                 if !c.map_string_foreign_message.is_empty() {
                     for (k, v) in c.map_string_foreign_message.pairs() {
-                        let inner = pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
-                            + pbrs::rt::key_len_value_len(2, v.compute_size());
-                        pbrs::rt::encode_tag(out, 11, pbrs::rt::WIRE_LEN);
-                        pbrs::rt::encode_varint(out, inner);
-                        pbrs::rt::encode_len_field(out, 1, k.as_bytes());
-                        pbrs::rt::encode_len_header(out, 2, v.compute_size());
+                        let inner = ::pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
+                            + ::pbrs::rt::key_len_value_len(2, v.compute_size());
+                        ::pbrs::rt::encode_tag(out, 11, ::pbrs::rt::WIRE_LEN);
+                        ::pbrs::rt::encode_varint(out, inner);
+                        ::pbrs::rt::encode_len_field(out, 1, k.as_bytes());
+                        ::pbrs::rt::encode_len_header(out, 2, v.compute_size());
                         v.write_to(out);
                     }
                 }
                 if !c.map_string_foreign_enum.is_empty() {
                     for (k, v) in c.map_string_foreign_enum.pairs() {
-                        let inner = pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
-                            + pbrs::rt::tag_len(2, pbrs::rt::WIRE_VARINT)
-                            + pbrs::rt::varint_len((*v) as u64);
-                        pbrs::rt::encode_tag(out, 12, pbrs::rt::WIRE_LEN);
-                        pbrs::rt::encode_varint(out, inner);
-                        pbrs::rt::encode_len_field(out, 1, k.as_bytes());
-                        pbrs::rt::encode_tag(out, 2, pbrs::rt::WIRE_VARINT);
-                        pbrs::rt::encode_varint(out, *v as u64);
+                        let inner = ::pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
+                            + ::pbrs::rt::tag_len(2, ::pbrs::rt::WIRE_VARINT)
+                            + ::pbrs::rt::varint_len((*v) as u64);
+                        ::pbrs::rt::encode_tag(out, 12, ::pbrs::rt::WIRE_LEN);
+                        ::pbrs::rt::encode_varint(out, inner);
+                        ::pbrs::rt::encode_len_field(out, 1, k.as_bytes());
+                        ::pbrs::rt::encode_tag(out, 2, ::pbrs::rt::WIRE_VARINT);
+                        ::pbrs::rt::encode_varint(out, *v as u64);
                     }
                 }
-                if let Some(s) = &c.optional_bytes {
-                    pbrs::rt::encode_len_field_shared(out, 13, s);
+                if let ::core::option::Option::Some(s) = &c.optional_bytes {
+                    ::pbrs::rt::encode_len_field_shared(out, 13, s);
                 }
                 for t in c.repeated_bytes.iter() {
-                    pbrs::rt::encode_len_field_shared(out, 14, t);
+                    ::pbrs::rt::encode_len_field_shared(out, 14, t);
                 }
                 if !c.map_string_bytes.is_empty() {
                     for (k, v) in c.map_string_bytes.pairs() {
-                        let inner = pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
-                            + pbrs::rt::key_len_value_len(2, v.as_bytes().len() as u64);
-                        pbrs::rt::encode_tag(out, 15, pbrs::rt::WIRE_LEN);
-                        pbrs::rt::encode_varint(out, inner);
-                        pbrs::rt::encode_len_field(out, 1, k.as_bytes());
-                        pbrs::rt::encode_len_field(out, 2, v.as_bytes());
+                        let inner = ::pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
+                            + ::pbrs::rt::key_len_value_len(2, v.as_bytes().len() as u64);
+                        ::pbrs::rt::encode_tag(out, 15, ::pbrs::rt::WIRE_LEN);
+                        ::pbrs::rt::encode_varint(out, inner);
+                        ::pbrs::rt::encode_len_field(out, 1, k.as_bytes());
+                        ::pbrs::rt::encode_len_field(out, 2, v.as_bytes());
                     }
                 }
-                if let Some(v) = self.extension_int32 {
-                    pbrs::rt::encode_tag(out, 120, pbrs::rt::WIRE_I32);
+                if let ::core::option::Option::Some(v) = self.extension_int32 {
+                    ::pbrs::rt::encode_tag(out, 120, ::pbrs::rt::WIRE_I32);
                     (out).extend_from_slice(&((v) as u32).to_le_bytes());
                 }
             } else {
-                if let Some(v) = self.optional_int32 {
-                    pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_I32);
+                if let ::core::option::Option::Some(v) = self.optional_int32 {
+                    ::pbrs::rt::encode_tag(out, 1, ::pbrs::rt::WIRE_I32);
                     (out).extend_from_slice(&((v) as u32).to_le_bytes());
                 }
-                if let Some(v) = self.optional_foreign_enum {
-                    pbrs::rt::encode_tag(out, 3, pbrs::rt::WIRE_VARINT);
-                    pbrs::rt::encode_varint(out, v as u64);
+                if let ::core::option::Option::Some(v) = self.optional_foreign_enum {
+                    ::pbrs::rt::encode_tag(out, 3, ::pbrs::rt::WIRE_VARINT);
+                    ::pbrs::rt::encode_varint(out, v as u64);
                 }
-                if let Some(v) = self.extension_int32 {
-                    pbrs::rt::encode_tag(out, 120, pbrs::rt::WIRE_I32);
+                if let ::core::option::Option::Some(v) = self.extension_int32 {
+                    ::pbrs::rt::encode_tag(out, 120, ::pbrs::rt::WIRE_I32);
                     (out).extend_from_slice(&((v) as u32).to_le_bytes());
                 }
             }
             self.unknown.encode(out);
         }
-        pub fn to_json(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("json"))?;
+        pub fn to_json(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let b = ::pbrs::Serialize::serialize(self)
+                .map_err(|_| ::pbrs::SerializeError::new("json"))?;
             let pool = generated_pool();
             let desc = pool
                 .get_message("protobuf_test_messages.edition_unstable.TestAllTypesEditionUnstable")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("json"))?
+                .ok_or_else(|| ::pbrs::SerializeError::new("missing desc"))?;
+            ::pbrs::DynamicMessage::parse_with_pool(desc, ::core::option::Option::Some(pool), &b)
+                .map_err(|_| ::pbrs::SerializeError::new("json"))?
                 .to_json()
         }
-        pub fn from_json(json: &str) -> Result<Self, ParseError> {
+        pub fn from_json(json: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             Self::from_json_ignore(json, false)
         }
-        pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
+        pub fn from_json_ignore(
+            json: &str,
+            ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let pool = generated_pool();
             let desc = pool
                 .get_message("protobuf_test_messages.edition_unstable.TestAllTypesEditionUnstable")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_json_with_pool(desc, Some(pool), json, ignore)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+                .ok_or_else(|| ::pbrs::ParseError::owned("missing desc".into()))?;
+            let d = ::pbrs::DynamicMessage::from_json_with_pool(
+                desc,
+                ::core::option::Option::Some(pool),
+                json,
+                ignore,
+            )?;
+            let b = ::pbrs::Serialize::serialize(&d)
+                .map_err(|e| ::pbrs::ParseError::owned(e.to_string()))?;
+            <Self as ::pbrs::Parse>::parse(&b)
         }
-        pub fn to_text(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
+        pub fn to_text(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let b = ::pbrs::Serialize::serialize(self)
+                .map_err(|_| ::pbrs::SerializeError::new("text"))?;
             let pool = generated_pool();
             let desc = pool
                 .get_message("protobuf_test_messages.edition_unstable.TestAllTypesEditionUnstable")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
+                .ok_or_else(|| ::pbrs::SerializeError::new("missing desc"))?;
+            ::pbrs::DynamicMessage::parse_with_pool(desc, ::core::option::Option::Some(pool), &b)
+                .map_err(|_| ::pbrs::SerializeError::new("text"))?
                 .to_text()
         }
-        pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
+        pub fn to_text_with_unknown(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let b = ::pbrs::Serialize::serialize(self)
+                .map_err(|_| ::pbrs::SerializeError::new("text"))?;
             let pool = generated_pool();
             let desc = pool
                 .get_message("protobuf_test_messages.edition_unstable.TestAllTypesEditionUnstable")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
+                .ok_or_else(|| ::pbrs::SerializeError::new("missing desc"))?;
+            ::pbrs::DynamicMessage::parse_with_pool(desc, ::core::option::Option::Some(pool), &b)
+                .map_err(|_| ::pbrs::SerializeError::new("text"))?
                 .to_text_with_unknown()
         }
-        pub fn from_text(text: &str) -> Result<Self, ParseError> {
+        pub fn from_text(text: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let pool = generated_pool();
             let desc = pool
                 .get_message("protobuf_test_messages.edition_unstable.TestAllTypesEditionUnstable")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_text_with_pool(desc, Some(pool), text)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+                .ok_or_else(|| ::pbrs::ParseError::owned("missing desc".into()))?;
+            let d = ::pbrs::DynamicMessage::from_text_with_pool(
+                desc,
+                ::core::option::Option::Some(pool),
+                text,
+            )?;
+            let b = ::pbrs::Serialize::serialize(&d)
+                .map_err(|e| ::pbrs::ParseError::owned(e.to_string()))?;
+            <Self as ::pbrs::Parse>::parse(&b)
         }
     }
-    pbrs::impl_typed_message!(
+    ::pbrs::impl_typed_message!(
         TestAllTypesEditionUnstable,
         TestAllTypesEditionUnstableView,
         TestAllTypesEditionUnstableMut,
@@ -2397,209 +2655,242 @@ mod __gen_conformance_test_protos_test_messages_edition_unstable_proto {
     );
     fn decode_map_entry_TestAllTypesEditionUnstable_map_int32_int32_8(
         parent_data: &[u8],
-        wire: &mut Option<pbrs::rt::Wire>,
+        wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
         start: usize,
         end: usize,
         depth: u32,
-    ) -> Result<(i32, i32), ParseError> {
-        if depth > pbrs::RECURSION_LIMIT {
-            return Err(ParseError::new("recursion limit exceeded"));
+    ) -> ::core::result::Result<(i32, i32), ::pbrs::ParseError> {
+        if depth > ::pbrs::RECURSION_LIMIT {
+            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                "recursion limit exceeded",
+            ));
         }
         let data = &parent_data[start..end];
         let mut key = i32::default();
         let mut val = i32::default();
         let mut pos = 0;
         while pos < data.len() {
-            let (n, w) = pbrs::rt::decode_tag(data, &mut pos)?;
+            let (n, w) = ::pbrs::rt::decode_tag(data, &mut pos)?;
             match (n, w) {
-                (1, pbrs::rt::WIRE_I32) => key = pbrs::rt::read_fixed32(data, &mut pos)? as i32,
-                (2, pbrs::rt::WIRE_I32) => val = pbrs::rt::read_fixed32(data, &mut pos)? as i32,
-                _ => pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
+                (1, ::pbrs::rt::WIRE_I32) => key = ::pbrs::rt::read_fixed32(data, &mut pos)? as i32,
+                (2, ::pbrs::rt::WIRE_I32) => val = ::pbrs::rt::read_fixed32(data, &mut pos)? as i32,
+                _ => ::pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
             }
         }
-        Ok((key, val))
+        ::core::result::Result::Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesEditionUnstable_map_bool_bool_9(
         parent_data: &[u8],
-        wire: &mut Option<pbrs::rt::Wire>,
+        wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
         start: usize,
         end: usize,
         depth: u32,
-    ) -> Result<(bool, bool), ParseError> {
-        if depth > pbrs::RECURSION_LIMIT {
-            return Err(ParseError::new("recursion limit exceeded"));
+    ) -> ::core::result::Result<(bool, bool), ::pbrs::ParseError> {
+        if depth > ::pbrs::RECURSION_LIMIT {
+            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                "recursion limit exceeded",
+            ));
         }
         let data = &parent_data[start..end];
         let mut key = bool::default();
         let mut val = bool::default();
         let mut pos = 0;
         while pos < data.len() {
-            let (n, w) = pbrs::rt::decode_tag(data, &mut pos)?;
+            let (n, w) = ::pbrs::rt::decode_tag(data, &mut pos)?;
             match (n, w) {
-                (1, pbrs::rt::WIRE_VARINT) => key = pbrs::rt::decode_varint(data, &mut pos)? != 0,
-                (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)? != 0,
-                _ => pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
+                (1, ::pbrs::rt::WIRE_VARINT) => {
+                    key = ::pbrs::rt::decode_varint(data, &mut pos)? != 0
+                }
+                (2, ::pbrs::rt::WIRE_VARINT) => {
+                    val = ::pbrs::rt::decode_varint(data, &mut pos)? != 0
+                }
+                _ => ::pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
             }
         }
-        Ok((key, val))
+        ::core::result::Result::Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesEditionUnstable_map_string_string_10(
         parent_data: &[u8],
-        wire: &mut Option<pbrs::rt::Wire>,
+        wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
         start: usize,
         end: usize,
         depth: u32,
-    ) -> Result<(pbrs::rt::LazyStr, pbrs::rt::LazyStr), ParseError> {
-        if depth > pbrs::RECURSION_LIMIT {
-            return Err(ParseError::new("recursion limit exceeded"));
+    ) -> ::core::result::Result<(::pbrs::rt::LazyStr, ::pbrs::rt::LazyStr), ::pbrs::ParseError>
+    {
+        if depth > ::pbrs::RECURSION_LIMIT {
+            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                "recursion limit exceeded",
+            ));
         }
         let data = &parent_data[start..end];
-        let mut key = pbrs::rt::LazyStr::default();
-        let mut val = pbrs::rt::LazyStr::default();
+        let mut key = ::pbrs::rt::LazyStr::default();
+        let mut val = ::pbrs::rt::LazyStr::default();
         let mut pos = 0;
         while pos < data.len() {
-            let (n, w) = pbrs::rt::decode_tag(data, &mut pos)?;
+            let (n, w) = ::pbrs::rt::decode_tag(data, &mut pos)?;
             match (n, w) {
-                (1, pbrs::rt::WIRE_LEN) => {
-                    let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
-                    pbrs::rt::require_utf8(&data[s..e])?;
-                    key = pbrs::rt::LazyStr::from_map_parse_span(
+                (1, ::pbrs::rt::WIRE_LEN) => {
+                    let (s, e) = ::pbrs::rt::read_len_span(data, &mut pos)?;
+                    ::pbrs::rt::require_utf8(&data[s..e])?;
+                    key = ::pbrs::rt::LazyStr::from_map_parse_span(
                         wire,
                         parent_data,
                         start + s,
                         start + e,
                     );
                 }
-                (2, pbrs::rt::WIRE_LEN) => {
-                    let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
-                    pbrs::rt::require_utf8(&data[s..e])?;
-                    val = pbrs::rt::LazyStr::from_map_parse_span(
+                (2, ::pbrs::rt::WIRE_LEN) => {
+                    let (s, e) = ::pbrs::rt::read_len_span(data, &mut pos)?;
+                    ::pbrs::rt::require_utf8(&data[s..e])?;
+                    val = ::pbrs::rt::LazyStr::from_map_parse_span(
                         wire,
                         parent_data,
                         start + s,
                         start + e,
                     );
                 }
-                _ => pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
+                _ => ::pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
             }
         }
-        Ok((key, val))
+        ::core::result::Result::Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesEditionUnstable_map_string_foreign_message_11(
         parent_data: &[u8],
-        wire: &mut Option<pbrs::rt::Wire>,
+        wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
         start: usize,
         end: usize,
         depth: u32,
-    ) -> Result<(pbrs::rt::LazyStr, ForeignMessageEditionUnstable), ParseError> {
-        if depth > pbrs::RECURSION_LIMIT {
-            return Err(ParseError::new("recursion limit exceeded"));
+    ) -> ::core::result::Result<
+        (::pbrs::rt::LazyStr, ForeignMessageEditionUnstable),
+        ::pbrs::ParseError,
+    > {
+        if depth > ::pbrs::RECURSION_LIMIT {
+            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                "recursion limit exceeded",
+            ));
         }
         let data = &parent_data[start..end];
-        let mut key = pbrs::rt::LazyStr::default();
-        let mut val: Option<ForeignMessageEditionUnstable> = None;
+        let mut key = ::pbrs::rt::LazyStr::default();
+        let mut val: ::core::option::Option<ForeignMessageEditionUnstable> =
+            ::core::option::Option::None;
         let mut pos = 0;
         while pos < data.len() {
-            let (n, w) = pbrs::rt::decode_tag(data, &mut pos)?;
+            let (n, w) = ::pbrs::rt::decode_tag(data, &mut pos)?;
             match (n, w) {
-                (1, pbrs::rt::WIRE_LEN) => {
-                    let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
-                    pbrs::rt::require_utf8(&data[s..e])?;
-                    key = pbrs::rt::LazyStr::from_map_parse_span(
+                (1, ::pbrs::rt::WIRE_LEN) => {
+                    let (s, e) = ::pbrs::rt::read_len_span(data, &mut pos)?;
+                    ::pbrs::rt::require_utf8(&data[s..e])?;
+                    key = ::pbrs::rt::LazyStr::from_map_parse_span(
                         wire,
                         parent_data,
                         start + s,
                         start + e,
                     );
                 }
-                (2, pbrs::rt::WIRE_LEN) => {
-                    if depth >= pbrs::RECURSION_LIMIT {
-                        return Err(ParseError::new("recursion limit exceeded"));
+                (2, ::pbrs::rt::WIRE_LEN) => {
+                    if depth >= ::pbrs::RECURSION_LIMIT {
+                        return ::core::result::Result::Err(::pbrs::ParseError::new(
+                            "recursion limit exceeded",
+                        ));
                     }
-                    let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
+                    let (s, e) = ::pbrs::rt::read_len_span(data, &mut pos)?;
                     let mut ip = 0;
-                    let mut sw = None;
+                    let mut sw = ::core::option::Option::None;
                     val.get_or_insert_with(ForeignMessageEditionUnstable::default)
-                        .merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?;
+                        .merge_inner(
+                            &data[s..e],
+                            &mut sw,
+                            &mut ip,
+                            depth + 1,
+                            true,
+                            ::core::option::Option::None,
+                        )?;
                 }
-                _ => pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
+                _ => ::pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
             }
         }
-        Ok((key, val.unwrap_or_default()))
+        ::core::result::Result::Ok((key, val.unwrap_or_default()))
     }
     fn decode_map_entry_TestAllTypesEditionUnstable_map_string_foreign_enum_12(
         parent_data: &[u8],
-        wire: &mut Option<pbrs::rt::Wire>,
+        wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
         start: usize,
         end: usize,
         depth: u32,
-    ) -> Result<(pbrs::rt::LazyStr, i32), ParseError> {
-        if depth > pbrs::RECURSION_LIMIT {
-            return Err(ParseError::new("recursion limit exceeded"));
+    ) -> ::core::result::Result<(::pbrs::rt::LazyStr, i32), ::pbrs::ParseError> {
+        if depth > ::pbrs::RECURSION_LIMIT {
+            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                "recursion limit exceeded",
+            ));
         }
         let data = &parent_data[start..end];
-        let mut key = pbrs::rt::LazyStr::default();
+        let mut key = ::pbrs::rt::LazyStr::default();
         let mut val = i32::default();
         let mut pos = 0;
         while pos < data.len() {
-            let (n, w) = pbrs::rt::decode_tag(data, &mut pos)?;
+            let (n, w) = ::pbrs::rt::decode_tag(data, &mut pos)?;
             match (n, w) {
-                (1, pbrs::rt::WIRE_LEN) => {
-                    let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
-                    pbrs::rt::require_utf8(&data[s..e])?;
-                    key = pbrs::rt::LazyStr::from_map_parse_span(
+                (1, ::pbrs::rt::WIRE_LEN) => {
+                    let (s, e) = ::pbrs::rt::read_len_span(data, &mut pos)?;
+                    ::pbrs::rt::require_utf8(&data[s..e])?;
+                    key = ::pbrs::rt::LazyStr::from_map_parse_span(
                         wire,
                         parent_data,
                         start + s,
                         start + e,
                     );
                 }
-                (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)? as i32,
-                _ => pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
+                (2, ::pbrs::rt::WIRE_VARINT) => {
+                    val = ::pbrs::rt::decode_varint(data, &mut pos)? as i32
+                }
+                _ => ::pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
             }
         }
-        Ok((key, val))
+        ::core::result::Result::Ok((key, val))
     }
     fn decode_map_entry_TestAllTypesEditionUnstable_map_string_bytes_15(
         parent_data: &[u8],
-        wire: &mut Option<pbrs::rt::Wire>,
+        wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
         start: usize,
         end: usize,
         depth: u32,
-    ) -> Result<(pbrs::rt::LazyStr, pbrs::rt::LazyBytes), ParseError> {
-        if depth > pbrs::RECURSION_LIMIT {
-            return Err(ParseError::new("recursion limit exceeded"));
+    ) -> ::core::result::Result<(::pbrs::rt::LazyStr, ::pbrs::rt::LazyBytes), ::pbrs::ParseError>
+    {
+        if depth > ::pbrs::RECURSION_LIMIT {
+            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                "recursion limit exceeded",
+            ));
         }
         let data = &parent_data[start..end];
-        let mut key = pbrs::rt::LazyStr::default();
-        let mut val = pbrs::rt::LazyBytes::default();
+        let mut key = ::pbrs::rt::LazyStr::default();
+        let mut val = ::pbrs::rt::LazyBytes::default();
         let mut pos = 0;
         while pos < data.len() {
-            let (n, w) = pbrs::rt::decode_tag(data, &mut pos)?;
+            let (n, w) = ::pbrs::rt::decode_tag(data, &mut pos)?;
             match (n, w) {
-                (1, pbrs::rt::WIRE_LEN) => {
-                    let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
-                    pbrs::rt::require_utf8(&data[s..e])?;
-                    key = pbrs::rt::LazyStr::from_map_parse_span(
+                (1, ::pbrs::rt::WIRE_LEN) => {
+                    let (s, e) = ::pbrs::rt::read_len_span(data, &mut pos)?;
+                    ::pbrs::rt::require_utf8(&data[s..e])?;
+                    key = ::pbrs::rt::LazyStr::from_map_parse_span(
                         wire,
                         parent_data,
                         start + s,
                         start + e,
                     );
                 }
-                (2, pbrs::rt::WIRE_LEN) => {
-                    let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
-                    val = pbrs::rt::LazyBytes::from_parse_span(
+                (2, ::pbrs::rt::WIRE_LEN) => {
+                    let (s, e) = ::pbrs::rt::read_len_span(data, &mut pos)?;
+                    val = ::pbrs::rt::LazyBytes::from_parse_span(
                         wire,
                         parent_data,
                         start + s,
                         start + e,
                     );
                 }
-                _ => pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
+                _ => ::pbrs::rt::skip_field_with_number_and_depth(data, &mut pos, n, w, depth)?,
             }
         }
-        Ok((key, val))
+        ::core::result::Result::Ok((key, val))
     }
 }
 #[allow(unused_imports, reason = "generated re-exports may not all be used")]

@@ -1,0 +1,12 @@
+syntax = "proto3";
+package proof.bytes_prefix;
+
+message pbrs {
+  bytes payload = 1;
+  bytes payload_shared = 2;
+  optional bytes maybe = 3;
+  repeated bytes parts = 4;
+  map<string, bytes> lookup = 5;
+}
+
+message runtime_alias { bytes payload = 1; }

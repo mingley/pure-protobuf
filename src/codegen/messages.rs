@@ -9,16 +9,24 @@ pub(crate) fn emit_fields_struct<'a>(
     name: &str,
     message: &str,
     field_attributes: bool,
+    selected_bytes: bool,
     fields: impl Iterator<Item = &'a FieldDescriptor>,
 ) {
-    let safe_defaults = safe_message_defaults_enabled();
+    let runtime = runtime_crate_path();
+    let safe_defaults = safe_message_defaults_enabled() || selected_bytes;
     if safe_defaults {
         let _ = writeln!(src, "#[derive(::core::default::Default)]");
     }
     if skip_debug() {
-        let _ = writeln!(src, "#[derive(Clone, PartialEq)]");
+        let _ = writeln!(
+            src,
+            "#[derive(::core::clone::Clone, ::core::cmp::PartialEq)]"
+        );
     } else {
-        let _ = writeln!(src, "#[derive(Clone, Debug, PartialEq)]");
+        let _ = writeln!(
+            src,
+            "#[derive(::core::clone::Clone, ::core::fmt::Debug, ::core::cmp::PartialEq)]"
+        );
     }
     let _ = writeln!(src, "struct {name} {{");
     for f in fields {
@@ -33,7 +41,7 @@ pub(crate) fn emit_fields_struct<'a>(
         let _ = writeln!(src, "    #[inline(always)]");
         let _ = writeln!(
             src,
-            "    fn default() -> Self {{ unsafe {{ pbrs::rt::zeroed_message() }} }}"
+            "    fn default() -> Self {{ unsafe {{ {runtime}::rt::zeroed_message() }} }}"
         );
         let _ = writeln!(src, "}}");
     }
@@ -44,61 +52,72 @@ pub(crate) fn emit_box_eq(src: &mut String, field: &str, ty: &str) {
         src,
         "        match (self.{field}.as_deref(), other.{field}.as_deref()) {{"
     );
-    let _ = writeln!(src, "            (None, None) => {{}}");
     let _ = writeln!(
         src,
-        "            (Some(a), Some(b)) => if a != b {{ return false; }}"
+        "            (::core::option::Option::None, ::core::option::Option::None) => {{}}"
     );
     let _ = writeln!(
         src,
-        "            (None, Some(b)) => if *b != {ty}::default() {{ return false; }}"
+        "            (::core::option::Option::Some(a), ::core::option::Option::Some(b)) => if a != b {{ return false; }}"
     );
     let _ = writeln!(
         src,
-        "            (Some(a), None) => if *a != {ty}::default() {{ return false; }}"
+        "            (::core::option::Option::None, ::core::option::Option::Some(b)) => if *b != {ty}::default() {{ return false; }}"
+    );
+    let _ = writeln!(
+        src,
+        "            (::core::option::Option::Some(a), ::core::option::Option::None) => if *a != {ty}::default() {{ return false; }}"
     );
     let _ = writeln!(src, "        }}");
 }
 
-pub(crate) fn packed_storage_ty(f: &FieldDescriptor) -> &'static str {
+pub(crate) fn packed_storage_ty(f: &FieldDescriptor) -> Cow<'static, str> {
     match f.field_type {
-        FieldType::Int32 | FieldType::Enum => "pbrs::rt::PackedI32",
-        FieldType::Int64 => "pbrs::rt::PackedI64",
-        FieldType::Uint32 => "pbrs::rt::PackedU32",
-        FieldType::Uint64 => "pbrs::rt::PackedU64",
-        FieldType::Sint32 => "pbrs::rt::PackedS32",
-        FieldType::Sint64 => "pbrs::rt::PackedS64",
-        FieldType::Fixed32 => "pbrs::rt::PackedFx32",
-        FieldType::Sfixed32 => "pbrs::rt::PackedSfx32",
-        FieldType::Fixed64 => "pbrs::rt::PackedFx64",
-        FieldType::Sfixed64 => "pbrs::rt::PackedSfx64",
-        FieldType::Float => "pbrs::rt::PackedF32",
-        FieldType::Double => "pbrs::rt::PackedF64",
-        FieldType::Bool => "pbrs::rt::PackedBool",
-        _ => "pbrs::rt::PackedI32",
+        FieldType::Int32 | FieldType::Enum => runtime_path("::pbrs::rt::PackedI32"),
+        FieldType::Int64 => runtime_path("::pbrs::rt::PackedI64"),
+        FieldType::Uint32 => runtime_path("::pbrs::rt::PackedU32"),
+        FieldType::Uint64 => runtime_path("::pbrs::rt::PackedU64"),
+        FieldType::Sint32 => runtime_path("::pbrs::rt::PackedS32"),
+        FieldType::Sint64 => runtime_path("::pbrs::rt::PackedS64"),
+        FieldType::Fixed32 => runtime_path("::pbrs::rt::PackedFx32"),
+        FieldType::Sfixed32 => runtime_path("::pbrs::rt::PackedSfx32"),
+        FieldType::Fixed64 => runtime_path("::pbrs::rt::PackedFx64"),
+        FieldType::Sfixed64 => runtime_path("::pbrs::rt::PackedSfx64"),
+        FieldType::Float => runtime_path("::pbrs::rt::PackedF32"),
+        FieldType::Double => runtime_path("::pbrs::rt::PackedF64"),
+        FieldType::Bool => runtime_path("::pbrs::rt::PackedBool"),
+        _ => runtime_path("::pbrs::rt::PackedI32"),
     }
 }
 
 pub(crate) fn field_storage_ty(f: &FieldDescriptor) -> Cow<'static, str> {
+    let runtime = runtime_crate_path();
     if f.is_map {
         let (k, v) = map_kv(f);
-        return format!("pbrs::Map<{k}, {v}>").into();
+        return format!("{runtime}::Map<{k}, {v}>").into();
     }
     let t = scalar_type(f);
     if is_packed_scalar(f) {
-        packed_storage_ty(f).into()
+        packed_storage_ty(f)
     } else if f.cardinality == Cardinality::Repeated {
-        format!("Repeated<{t}>").into()
+        format!("{runtime}::Repeated<{t}>").into()
     } else if is_lazy_msg(f) {
-        format!("pbrs::rt::LazyMsg<{t}>").into()
+        format!("{runtime}::rt::LazyMsg<{t}>").into()
     } else if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
-        format!("Option<Box<{t}>>").into()
+        format!("::core::option::Option<::std::boxed::Box<{t}>>").into()
     } else if is_option(f) {
         match f.field_type {
-            FieldType::Bool => "pbrs::rt::OptBool".into(),
-            FieldType::String => "Option<Box<pbrs::rt::LazyStr>>".into(),
-            FieldType::Bytes => "Option<Box<pbrs::rt::LazyBytes>>".into(),
-            _ => format!("Option<{t}>").into(),
+            FieldType::Bool => runtime_path("::pbrs::rt::OptBool"),
+            FieldType::String => {
+                runtime_path("::core::option::Option<::std::boxed::Box<::pbrs::rt::LazyStr>>")
+            }
+            FieldType::Bytes if is_selected_bytes(f) => {
+                format!("::core::option::Option<::std::boxed::Box<{t}>>").into()
+            }
+            FieldType::Bytes => {
+                runtime_path("::core::option::Option<::std::boxed::Box<::pbrs::rt::LazyBytes>>")
+            }
+            _ => format!("::core::option::Option<{t}>").into(),
         }
     } else {
         t
@@ -515,6 +534,7 @@ pub(crate) fn emit_clear_doc(src: &mut String, f: &FieldDescriptor) {
 }
 
 pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition2024: bool) {
+    let runtime = runtime_crate_path();
     bind_field_idents(desc);
     let name = rust_ident(&desc.full_name);
     let view = format!("{name}View");
@@ -523,13 +543,24 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
     let cold = ColdPlacement::for_message(desc);
     let use_cold = cold.uses_cold_storage();
     let field_attributes = has_field_attributes();
-    let safe_defaults = safe_message_defaults_enabled();
+    let selected_bytes = HAS_BYTES_FIELDS.with(|has| has.get());
+    let safe_defaults = safe_message_defaults_enabled()
+        || (selected_bytes
+            && desc
+                .fields
+                .values()
+                .any(|field| cold.stored_hot(field) && direct_selected_bytes(field)));
     if use_cold {
         emit_fields_struct(
             src,
             &cold_name,
             &desc.full_name,
             field_attributes,
+            selected_bytes
+                && desc
+                    .fields
+                    .values()
+                    .any(|field| cold.stored_cold(field) && direct_selected_bytes(field)),
             desc.fields.values().filter(|f| cold.stored_cold(f)),
         );
     }
@@ -549,9 +580,9 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
         let _ = writeln!(src, "#[derive(::core::default::Default)]");
     }
     if skip_debug() {
-        let _ = writeln!(src, "#[derive(Clone)]");
+        let _ = writeln!(src, "#[derive(::core::clone::Clone)]");
     } else {
-        let _ = writeln!(src, "#[derive(Clone, Debug)]");
+        let _ = writeln!(src, "#[derive(::core::clone::Clone, ::core::fmt::Debug)]");
     }
     let _ = writeln!(src, "pub struct {name} {{");
     for f in desc.fields.values().filter(|f| cold.stored_hot(f)) {
@@ -562,16 +593,19 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
         let _ = writeln!(src, "    {}: {},", field_id(f), field_storage_ty(f));
     }
     if use_cold {
-        let _ = writeln!(src, "    cold: Option<Box<{cold_name}>>,");
+        let _ = writeln!(
+            src,
+            "    cold: ::core::option::Option<::std::boxed::Box<{cold_name}>>,"
+        );
     }
-    let _ = writeln!(src, "    unknown: UnknownFields,");
+    let _ = writeln!(src, "    unknown: {runtime}::UnknownFields,");
     if OWNED_MESSAGE_FIELDS.with(|owned| owned.get()) {
-        src.push_str("    cached_size: pbrs::rt::CachedSize32,\n");
+        src.push_str(&format!("    cached_size: {runtime}::rt::CachedSize32,\n"));
     } else {
-        src.push_str("    cached_size: pbrs::rt::CachedSize,\n");
+        src.push_str(&format!("    cached_size: {runtime}::rt::CachedSize,\n"));
     }
     let _ = writeln!(src, "}}");
-    let _ = writeln!(src, "impl PartialEq for {name} {{");
+    let _ = writeln!(src, "impl ::core::cmp::PartialEq for {name} {{");
     let _ = writeln!(src, "    fn eq(&self, other: &Self) -> bool {{");
     for f in desc.fields.values().filter(|f| cold.stored_hot(f)) {
         let id = field_id(f);
@@ -586,12 +620,12 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
     let _ = writeln!(src, "        self.unknown == other.unknown");
     let _ = writeln!(src, "    }}");
     let _ = writeln!(src, "}}");
-    let _ = writeln!(src, "impl Eq for {name} {{}}");
+    let _ = writeln!(src, "impl ::core::cmp::Eq for {name} {{}}");
     if !safe_defaults {
         let _ = writeln!(src, "impl ::core::default::Default for {name} {{");
         let _ = writeln!(src, "    #[inline(always)]");
         let _ = writeln!(src, "    fn default() -> Self {{");
-        let _ = writeln!(src, "        unsafe {{ pbrs::rt::zeroed_message() }}");
+        let _ = writeln!(src, "        unsafe {{ {runtime}::rt::zeroed_message() }}");
         let _ = writeln!(src, "    }}");
         let _ = writeln!(src, "}}");
     }
@@ -608,7 +642,7 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
     if use_cold {
         let _ = writeln!(
             src,
-            "    #[inline(always)] fn cold_mut(&mut self) -> &mut {cold_name} {{ self.cold.get_or_insert_with(|| Box::new({cold_name}::default())) }}"
+            "    #[inline(always)] fn cold_mut(&mut self) -> &mut {cold_name} {{ self.cold.get_or_insert_with(|| ::std::boxed::Box::new({cold_name}::default())) }}"
         );
     }
     let empty_ok = !desc
@@ -640,10 +674,13 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
     if parse::uses_prevalidated_merge(desc) {
         let _ = writeln!(
             src,
-            "pbrs::impl_typed_message!({name}, {view}, {mut_}, __pbrs_merge_prevalidated);"
+            "{runtime}::impl_typed_message!({name}, {view}, {mut_}, __pbrs_merge_prevalidated);"
         );
     } else {
-        let _ = writeln!(src, "pbrs::impl_typed_message!({name}, {view}, {mut_});");
+        let _ = writeln!(
+            src,
+            "{runtime}::impl_typed_message!({name}, {view}, {mut_});"
+        );
     }
     if ENABLE_TYPE_NAMES.with(|enabled| enabled.get()) {
         let package = TYPE_FILES.with(|files| {
@@ -655,10 +692,13 @@ pub(crate) fn emit_message(src: &mut String, desc: &MessageDescriptor, edition20
                 .unwrap_or_default()
         });
         let type_url = format!("{}/{}", type_name_domain(&desc.full_name), desc.full_name);
-        let _ = writeln!(src, "impl pbrs::Name for {name} {{");
+        let _ = writeln!(src, "impl {runtime}::Name for {name} {{");
         let _ = writeln!(src, "    const NAME: &'static str = {:?};", desc.name);
         let _ = writeln!(src, "    const PACKAGE: &'static str = {package:?};");
-        let _ = writeln!(src, "    fn type_url() -> String {{ {type_url:?}.into() }}");
+        let _ = writeln!(
+            src,
+            "    fn type_url() -> ::std::string::String {{ {type_url:?}.into() }}"
+        );
         let _ = writeln!(src, "}}");
     }
 }
@@ -669,6 +709,7 @@ pub(crate) fn emit_oneof_clear(
     f: &FieldDescriptor,
     cold: ColdPlacement,
 ) {
+    let runtime = runtime_crate_path();
     let Some(idx) = f.oneof_index else {
         return;
     };
@@ -686,9 +727,9 @@ pub(crate) fn emit_oneof_clear(
             if is_lazy_msg(sib) {
                 let _ = writeln!(src, "        {st} = ::core::default::Default::default();");
             } else if is_option(sib) && sib.field_type == FieldType::Bool {
-                let _ = writeln!(src, "        {st} = pbrs::rt::OptBool::NONE;");
+                let _ = writeln!(src, "        {st} = {runtime}::rt::OptBool::NONE;");
             } else if is_option(sib) {
-                let _ = writeln!(src, "        {st} = None;");
+                let _ = writeln!(src, "        {st} = ::core::option::Option::None;");
             } else if sib.cardinality == Cardinality::Repeated || sib.is_map {
                 let _ = writeln!(src, "        {st}.clear();");
             } else {
@@ -704,6 +745,7 @@ pub(crate) fn emit_accessors(
     f: &FieldDescriptor,
     cold: ColdPlacement,
 ) {
+    let runtime = runtime_crate_path();
     let id = field_id(f);
     let m = field_raw(f);
     if f.is_map {
@@ -713,24 +755,27 @@ pub(crate) fn emit_accessors(
         if cold.stored_cold(f) {
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> pbrs::MapView<'_, {k}, {v}> {{ self.cold.as_ref().map(|c| c.{id}.as_view()).unwrap_or_else(pbrs::MapView::empty) }}"
+                "    pub fn {id}(&self) -> {runtime}::MapView<'_, {k}, {v}> {{ self.cold.as_ref().map(|c| c.{id}.as_view()).unwrap_or_else({runtime}::MapView::empty) }}"
             );
         } else {
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> pbrs::MapView<'_, {k}, {v}> {{ self.{id}.as_view() }}"
+                "    pub fn {id}(&self) -> {runtime}::MapView<'_, {k}, {v}> {{ self.{id}.as_view() }}"
             );
         }
         emit_mut_doc(src, f, false);
         let _ = writeln!(
             src,
-            "    pub fn {id}_mut(&mut self) -> pbrs::MapMut<'_, {k}, {v}> {{ self.cached_size.dirty(); {st}.as_mut() }}"
+            "    pub fn {id}_mut(&mut self) -> {runtime}::MapMut<'_, {k}, {v}> {{ self.cached_size.dirty(); {st}.as_mut() }}"
         );
         emit_set_doc(src, desc, f);
         let _ = writeln!(
             src,
-            "    pub fn set_{m}(&mut self, v: pbrs::Map<{k}, {v}>) {{ self.cached_size.dirty(); {st} = v; }}"
+            "    pub fn set_{m}(&mut self, v: {runtime}::Map<{k}, {v}>) {{ self.cached_size.dirty(); {st} = v; }}"
         );
+        if is_selected_bytes(f) {
+            emit_bytes_shared_accessor(src, f, cold);
+        }
         return;
     }
     if f.cardinality == Cardinality::Repeated {
@@ -740,30 +785,33 @@ pub(crate) fn emit_accessors(
         if cold.stored_cold(f) {
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> RepeatedView<'_, {t}> {{ self.cold.as_ref().map(|c| c.{id}.as_view()).unwrap_or_else(|| RepeatedView::from_slice(&[])) }}"
+                "    pub fn {id}(&self) -> {runtime}::RepeatedView<'_, {t}> {{ self.cold.as_ref().map(|c| c.{id}.as_view()).unwrap_or_else(|| {runtime}::RepeatedView::from_slice(&[])) }}"
             );
         } else {
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> RepeatedView<'_, {t}> {{ self.{id}.as_view() }}"
+                "    pub fn {id}(&self) -> {runtime}::RepeatedView<'_, {t}> {{ self.{id}.as_view() }}"
             );
         }
         emit_mut_doc(src, f, false);
         let _ = writeln!(
             src,
-            "    pub fn {id}_mut(&mut self) -> RepeatedMut<'_, {t}> {{ self.cached_size.dirty(); {st}.as_mut() }}"
+            "    pub fn {id}_mut(&mut self) -> {runtime}::RepeatedMut<'_, {t}> {{ self.cached_size.dirty(); {st}.as_mut() }}"
         );
         emit_set_doc(src, desc, f);
         if is_packed_scalar(f) {
             let _ = writeln!(
                 src,
-                "    pub fn set_{m}(&mut self, v: impl IntoIterator<Item = {t}>) {{ self.cached_size.dirty(); {st} = pbrs::rt::Packed::from_repeated(v.into_iter().collect()); }}"
+                "    pub fn set_{m}(&mut self, v: impl ::core::iter::IntoIterator<Item = {t}>) {{ self.cached_size.dirty(); {st} = {runtime}::rt::Packed::from_repeated(v.into_iter().collect()); }}"
             );
         } else {
             let _ = writeln!(
                 src,
-                "    pub fn set_{m}(&mut self, v: impl IntoIterator<Item = {t}>) {{ self.cached_size.dirty(); {st} = v.into_iter().collect(); }}"
+                "    pub fn set_{m}(&mut self, v: impl ::core::iter::IntoIterator<Item = {t}>) {{ self.cached_size.dirty(); {st} = v.into_iter().collect(); }}"
             );
+        }
+        if f.field_type == FieldType::Bytes && is_selected_bytes(f) {
+            emit_bytes_shared_accessor(src, f, cold);
         }
         return;
     }
@@ -779,12 +827,12 @@ pub(crate) fn emit_accessors(
             emit_field_getter_doc(src, desc, f);
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> &{t} {{ static DEFAULT: std::sync::OnceLock<{t}> = std::sync::OnceLock::new(); self.cold.as_ref().and_then(|c| c.{id}.as_deref()).unwrap_or_else(|| pbrs::gen_support::default_instance(&DEFAULT)) }}"
+                "    pub fn {id}(&self) -> &{t} {{ static DEFAULT: ::std::sync::OnceLock<{t}> = ::std::sync::OnceLock::new(); self.cold.as_ref().and_then(|c| c.{id}.as_deref()).unwrap_or_else(|| {runtime}::gen_support::default_instance(&DEFAULT)) }}"
             );
             emit_opt_doc(src, f);
             let _ = writeln!(
                 src,
-                "    pub fn {id}_opt(&self) -> Option<&{t}> {{ self.cold.as_ref().and_then(|c| c.{id}.as_deref()) }}"
+                "    pub fn {id}_opt(&self) -> ::core::option::Option<&{t}> {{ self.cold.as_ref().and_then(|c| c.{id}.as_deref()) }}"
             );
         } else {
             emit_has_doc(src, f);
@@ -795,12 +843,12 @@ pub(crate) fn emit_accessors(
             emit_field_getter_doc(src, desc, f);
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> &{t} {{ static DEFAULT: std::sync::OnceLock<{t}> = std::sync::OnceLock::new(); self.{id}.as_deref().unwrap_or_else(|| pbrs::gen_support::default_instance(&DEFAULT)) }}"
+                "    pub fn {id}(&self) -> &{t} {{ static DEFAULT: ::std::sync::OnceLock<{t}> = ::std::sync::OnceLock::new(); self.{id}.as_deref().unwrap_or_else(|| {runtime}::gen_support::default_instance(&DEFAULT)) }}"
             );
             emit_opt_doc(src, f);
             let _ = writeln!(
                 src,
-                "    pub fn {id}_opt(&self) -> Option<&{t}> {{ self.{id}.as_deref() }}"
+                "    pub fn {id}_opt(&self) -> ::core::option::Option<&{t}> {{ self.{id}.as_deref() }}"
             );
         }
         emit_view_doc(src, f);
@@ -813,9 +861,12 @@ pub(crate) fn emit_accessors(
         let _ = writeln!(src, "        self.cached_size.dirty();");
         emit_oneof_clear(src, desc, f, cold);
         if is_lazy_msg(f) {
-            let _ = writeln!(src, "        {st} = pbrs::rt::LazyMsg::from_owned(v);");
+            let _ = writeln!(src, "        {st} = {runtime}::rt::LazyMsg::from_owned(v);");
         } else {
-            let _ = writeln!(src, "        {st} = Some(Box::new(v));");
+            let _ = writeln!(
+                src,
+                "        {st} = ::core::option::Option::Some(::std::boxed::Box::new(v));"
+            );
         }
         let _ = writeln!(src, "    }}");
         emit_mut_doc(src, f, true);
@@ -832,12 +883,12 @@ pub(crate) fn emit_accessors(
         } else {
             let _ = writeln!(
                 src,
-                "    pub fn {id}_mut(&mut self) -> &mut {t} {{ self.cached_size.dirty(); {st}.get_or_insert_with(|| Box::new({t}::default())).as_mut() }}"
+                "    pub fn {id}_mut(&mut self) -> &mut {t} {{ self.cached_size.dirty(); {st}.get_or_insert_with(|| ::std::boxed::Box::new({t}::default())).as_mut() }}"
             );
             emit_clear_doc(src, f);
             let _ = writeln!(
                 src,
-                "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); {st} = None; }}"
+                "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); {st} = ::core::option::Option::None; }}"
             );
         }
         return;
@@ -853,7 +904,7 @@ pub(crate) fn emit_accessors(
         let read_view = if cold.stored_cold(f) {
             format!("self.cold.as_ref().map(|c| c.{id}.as_view())")
         } else {
-            format!("Some(self.{id}.as_view())")
+            format!("::core::option::Option::Some(self.{id}.as_view())")
         };
         if is_option(f) {
             emit_has_doc(src, f);
@@ -864,45 +915,49 @@ pub(crate) fn emit_accessors(
             emit_field_getter_doc(src, desc, f);
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> &pbrs::ProtoStr {{ {read}.map(|s| s.as_view()).unwrap_or_else(|| pbrs::ProtoStr::from_bytes({fallback})) }}"
+                "    pub fn {id}(&self) -> &{runtime}::ProtoStr {{ {read}.map(|s| s.as_view()).unwrap_or_else(|| {runtime}::ProtoStr::from_bytes({fallback})) }}"
             );
             emit_opt_doc(src, f);
             let _ = writeln!(
                 src,
-                "    pub fn {id}_opt(&self) -> Option<&pbrs::ProtoStr> {{ {read}.map(|s| s.as_view()) }}"
+                "    pub fn {id}_opt(&self) -> ::core::option::Option<&{runtime}::ProtoStr> {{ {read}.map(|s| s.as_view()) }}"
             );
             emit_set_doc(src, desc, f);
             let _ = writeln!(
                 src,
-                "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {{"
+                "    pub fn set_{m}(&mut self, v: impl {runtime}::IntoProxied<{runtime}::ProtoString>) {{"
             );
             let _ = writeln!(src, "        self.cached_size.dirty();");
             emit_oneof_clear(src, desc, f, cold);
             let _ = writeln!(
                 src,
-                "        {st} = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied(pbrs::__internal::Private))));"
+                "        {st} = ::core::option::Option::Some(::std::boxed::Box::new({runtime}::rt::LazyStr::owned(v.into_proxied({runtime}::__internal::Private))));"
             );
             let _ = writeln!(src, "    }}");
             emit_clear_doc(src, f);
             let _ = writeln!(
                 src,
-                "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); {st} = None; }}"
+                "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); {st} = ::core::option::Option::None; }}"
             );
         } else {
             emit_field_getter_doc(src, desc, f);
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> &pbrs::ProtoStr {{ {read_view}.unwrap_or_else(|| pbrs::ProtoStr::from_bytes({fallback})) }}"
+                "    pub fn {id}(&self) -> &{runtime}::ProtoStr {{ {read_view}.unwrap_or_else(|| {runtime}::ProtoStr::from_bytes({fallback})) }}"
             );
             emit_set_doc(src, desc, f);
             let _ = writeln!(
                 src,
-                "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {{ self.cached_size.dirty(); {st} = pbrs::rt::LazyStr::owned(v.into_proxied(pbrs::__internal::Private)); }}"
+                "    pub fn set_{m}(&mut self, v: impl {runtime}::IntoProxied<{runtime}::ProtoString>) {{ self.cached_size.dirty(); {st} = {runtime}::rt::LazyStr::owned(v.into_proxied({runtime}::__internal::Private)); }}"
             );
         }
         return;
     }
     if f.field_type == FieldType::Bytes {
+        if is_selected_bytes(f) {
+            emit_selected_bytes_accessors(src, desc, f, cold);
+            return;
+        }
         let fallback = bytes_default_lit(f);
         let st = cold.store_mut(f);
         let read = if cold.stored_cold(f) {
@@ -913,7 +968,7 @@ pub(crate) fn emit_accessors(
         let read_bytes = if cold.stored_cold(f) {
             format!("self.cold.as_ref().map(|c| c.{id}.as_bytes())")
         } else {
-            format!("Some(self.{id}.as_bytes())")
+            format!("::core::option::Option::Some(self.{id}.as_bytes())")
         };
         if is_option(f) {
             emit_has_doc(src, f);
@@ -929,17 +984,17 @@ pub(crate) fn emit_accessors(
             emit_opt_doc(src, f);
             let _ = writeln!(
                 src,
-                "    pub fn {id}_opt(&self) -> Option<&[u8]> {{ {read}.map(|b| b.as_bytes()) }}"
+                "    pub fn {id}_opt(&self) -> ::core::option::Option<&[u8]> {{ {read}.map(|b| b.as_bytes()) }}"
             );
             emit_set_doc(src, desc, f);
             let _ = writeln!(
                 src,
-                "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); {st} = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied(pbrs::__internal::Private)))); }}"
+                "    pub fn set_{m}(&mut self, v: impl {runtime}::IntoProxied<{runtime}::ProtoBytes>) {{ self.cached_size.dirty(); {st} = ::core::option::Option::Some(::std::boxed::Box::new({runtime}::rt::LazyBytes::owned(v.into_proxied({runtime}::__internal::Private)))); }}"
             );
             emit_clear_doc(src, f);
             let _ = writeln!(
                 src,
-                "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); {st} = None; }}"
+                "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); {st} = ::core::option::Option::None; }}"
             );
         } else {
             emit_field_getter_doc(src, desc, f);
@@ -950,7 +1005,7 @@ pub(crate) fn emit_accessors(
             emit_set_doc(src, desc, f);
             let _ = writeln!(
                 src,
-                "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); {st} = pbrs::rt::LazyBytes::owned(v.into_proxied(pbrs::__internal::Private)); }}"
+                "    pub fn set_{m}(&mut self, v: impl {runtime}::IntoProxied<{runtime}::ProtoBytes>) {{ self.cached_size.dirty(); {st} = {runtime}::rt::LazyBytes::owned(v.into_proxied({runtime}::__internal::Private)); }}"
             );
         }
         return;
@@ -965,7 +1020,7 @@ pub(crate) fn emit_accessors(
     let wrap_close = if enum_ty.is_some() { ")" } else { "" };
     let def = scalar_default_expr(f);
     let set_ty = if enum_ty.is_some() {
-        format!("impl Into<{t}>").into()
+        format!("impl ::core::convert::Into<{t}>").into()
     } else {
         t.clone()
     };
@@ -984,18 +1039,18 @@ pub(crate) fn emit_accessors(
         emit_opt_doc(src, f);
         let _ = writeln!(
             src,
-            "    pub fn {id}_opt(&self) -> Option<bool> {{ self.{id}.get() }}"
+            "    pub fn {id}_opt(&self) -> ::core::option::Option<bool> {{ self.{id}.get() }}"
         );
         emit_set_doc(src, desc, f);
         let _ = writeln!(src, "    pub fn set_{m}(&mut self, v: bool) {{");
         let _ = writeln!(src, "        self.cached_size.dirty();");
         emit_oneof_clear(src, desc, f, cold);
-        let _ = writeln!(src, "        self.{id} = pbrs::rt::OptBool::some(v);");
+        let _ = writeln!(src, "        self.{id} = {runtime}::rt::OptBool::some(v);");
         let _ = writeln!(src, "    }}");
         emit_clear_doc(src, f);
         let _ = writeln!(
             src,
-            "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); self.{id} = pbrs::rt::OptBool::NONE; }}"
+            "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); self.{id} = {runtime}::rt::OptBool::NONE; }}"
         );
     } else if is_option(f) {
         emit_has_doc(src, f);
@@ -1011,18 +1066,21 @@ pub(crate) fn emit_accessors(
         emit_opt_doc(src, f);
         let _ = writeln!(
             src,
-            "    pub fn {id}_opt(&self) -> Option<{get_ty}> {{ self.{id}.map(|v| {wrap_open}v{wrap_close}) }}"
+            "    pub fn {id}_opt(&self) -> ::core::option::Option<{get_ty}> {{ self.{id}.map(|v| {wrap_open}v{wrap_close}) }}"
         );
         emit_set_doc(src, desc, f);
         let _ = writeln!(src, "    pub fn set_{m}(&mut self, v: {set_ty}) {{");
         let _ = writeln!(src, "        self.cached_size.dirty();");
         emit_oneof_clear(src, desc, f, cold);
-        let _ = writeln!(src, "        self.{id} = Some({set_val});");
+        let _ = writeln!(
+            src,
+            "        self.{id} = ::core::option::Option::Some({set_val});"
+        );
         let _ = writeln!(src, "    }}");
         emit_clear_doc(src, f);
         let _ = writeln!(
             src,
-            "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); self.{id} = None; }}"
+            "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); self.{id} = ::core::option::Option::None; }}"
         );
     } else {
         emit_field_getter_doc(src, desc, f);
@@ -1190,6 +1248,7 @@ pub(crate) fn bytes_default_lit(f: &FieldDescriptor) -> String {
 }
 
 pub(crate) fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
+    let runtime = runtime_crate_path();
     let name = rust_ident(&ed.full_name);
     // Keep caller diagnostics on the public type while allowing its own implementations
     // to name that type and read its tuple field under a strict consumer lint policy.
@@ -1220,7 +1279,7 @@ pub(crate) fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
     let _ = writeln!(src, "#[repr(transparent)]");
     let _ = writeln!(
         src,
-        "#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]"
+        "#[derive(::core::clone::Clone, ::core::marker::Copy, ::core::cmp::PartialEq, ::core::cmp::Eq, ::core::hash::Hash, ::core::cmp::PartialOrd, ::core::cmp::Ord)]"
     );
     let _ = writeln!(src, "pub struct {name}(pub i32);");
     let _ = writeln!(
@@ -1248,45 +1307,48 @@ pub(crate) fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
             let _ = writeln!(src, "    pub const {a}: {name} = {name}({});", v.number);
         }
     }
-    let _ = writeln!(src, "    fn constant_name(self) -> Option<&'static str> {{");
+    let _ = writeln!(
+        src,
+        "    fn constant_name(self) -> ::core::option::Option<&'static str> {{"
+    );
     let _ = writeln!(
         src,
         "        #[allow(unreachable_patterns, reason = \"open enums\")]"
     );
-    let _ = writeln!(src, "        Some(match self.0 {{");
+    let _ = writeln!(src, "        ::core::option::Option::Some(match self.0 {{");
     for v in &values {
         let _ = writeln!(src, "            {} => \"{}\",", v.number, v.name);
     }
-    let _ = writeln!(src, "            _ => return None,");
+    let _ = writeln!(src, "            _ => return ::core::option::Option::None,");
     let _ = writeln!(src, "        }})");
     let _ = writeln!(src, "    }}");
     let _ = writeln!(src, "}}");
     let _ = writeln!(
         src,
-        "{impl_deprecation_allowance}impl From<{name}> for i32 {{"
+        "{impl_deprecation_allowance}impl ::core::convert::From<{name}> for i32 {{"
     );
     let _ = writeln!(src, "    fn from(v: {name}) -> i32 {{ v.0 }}");
     let _ = writeln!(src, "}}");
     if ed.closed {
         let _ = writeln!(
             src,
-            "{impl_deprecation_allowance}impl TryFrom<i32> for {name} {{"
+            "{impl_deprecation_allowance}impl ::core::convert::TryFrom<i32> for {name} {{"
         );
-        let _ = writeln!(src, "    type Error = UnknownEnumValue<Self>;");
+        let _ = writeln!(src, "    type Error = {runtime}::UnknownEnumValue<Self>;");
         let _ = writeln!(
             src,
-            "    fn try_from(val: i32) -> Result<Self, Self::Error> {{"
+            "    fn try_from(val: i32) -> ::core::result::Result<Self, Self::Error> {{"
         );
         let _ = writeln!(
             src,
-            "        if <Self as pbrs::Enum>::is_known(val) {{ Ok(Self(val)) }} else {{ Err(UnknownEnumValue::new(pbrs::__internal::Private, val)) }}"
+            "        if <Self as {runtime}::Enum>::is_known(val) {{ ::core::result::Result::Ok(Self(val)) }} else {{ ::core::result::Result::Err({runtime}::UnknownEnumValue::new({runtime}::__internal::Private, val)) }}"
         );
         let _ = writeln!(src, "    }}");
         let _ = writeln!(src, "}}");
     } else {
         let _ = writeln!(
             src,
-            "{impl_deprecation_allowance}impl From<i32> for {name} {{"
+            "{impl_deprecation_allowance}impl ::core::convert::From<i32> for {name} {{"
         );
         let _ = writeln!(src, "    fn from(val: i32) -> Self {{ Self(val) }}");
         let _ = writeln!(src, "}}");
@@ -1299,36 +1361,36 @@ pub(crate) fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
     let _ = writeln!(src, "}}");
     let _ = writeln!(
         src,
-        "{impl_deprecation_allowance}impl std::fmt::Debug for {name} {{"
+        "{impl_deprecation_allowance}impl ::std::fmt::Debug for {name} {{"
     );
     let _ = writeln!(
         src,
-        "    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{"
+        "    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {{"
     );
     let _ = writeln!(
         src,
-        "        if let Some(n) = self.constant_name() {{ write!(f, \"{name}::{{n}}\") }} else {{ write!(f, \"{name}::from({{}})\", self.0) }}"
+        "        if let ::core::option::Option::Some(n) = self.constant_name() {{ write!(f, \"{name}::{{n}}\") }} else {{ write!(f, \"{name}::from({{}})\", self.0) }}"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(src, "}}");
     let _ = writeln!(
         src,
-        "{impl_deprecation_allowance}impl pbrs::__internal::SealedInternal for {name} {{}}"
+        "{impl_deprecation_allowance}impl {runtime}::__internal::SealedInternal for {name} {{}}"
     );
     let _ = writeln!(
         src,
-        "{impl_deprecation_allowance}impl pbrs::Proxied for {name} {{ type View<'msg> = {name}; }}"
+        "{impl_deprecation_allowance}impl {runtime}::Proxied for {name} {{ type View<'msg> = {name}; }}"
     );
     let _ = writeln!(
         src,
-        "{impl_deprecation_allowance}impl pbrs::AsView for {name} {{"
+        "{impl_deprecation_allowance}impl {runtime}::AsView for {name} {{"
     );
     let _ = writeln!(src, "    type Proxied = Self;");
     let _ = writeln!(src, "    fn as_view(&self) -> Self {{ *self }}");
     let _ = writeln!(src, "}}");
     let _ = writeln!(
         src,
-        "{impl_deprecation_allowance}impl<'msg> pbrs::IntoView<'msg> for {name} {{"
+        "{impl_deprecation_allowance}impl<'msg> {runtime}::IntoView<'msg> for {name} {{"
     );
     let _ = writeln!(
         src,
@@ -1337,7 +1399,7 @@ pub(crate) fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
     let _ = writeln!(src, "}}");
     let _ = writeln!(
         src,
-        "{impl_deprecation_allowance}impl pbrs::Enum for {name} {{"
+        "{impl_deprecation_allowance}impl {runtime}::Enum for {name} {{"
     );
     let _ = writeln!(src, "    const NAME: &'static str = \"{name}\";");
     if known.is_empty() {

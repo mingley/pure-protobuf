@@ -24,6 +24,10 @@ trait changes when replacing Prost messages; the [message migration
 example](migration.md#1-migrating-from-prost) shows both APIs. Protobuf wire
 compatibility does not make their Rust types interchangeable.
 
+`Config::bytes(paths)` selects `ProtoBytes` storage backed by `bytes::Bytes`
+and adds owned shared accessors. The [selected-bytes guide](bytes.md) explains
+selector differences and input lifetimes; pbrs retains its accessor-based API.
+
 Once a path works, choose [nested-message storage](codegen.md#owned-nested-message-fields)
 for how handlers use the data. Compare your payloads and call shapes with the
 [benchmark commands](../benchmarks/running.md) before choosing a performance

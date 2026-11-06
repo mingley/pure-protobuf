@@ -1,0 +1,5 @@
+syntax = "proto2";
+package proof.bytes_prefix;
+message Defaults {
+  optional bytes payload = 1 [default = "pbrs::literal runtime_alias::literal"];
+}

@@ -1,0 +1,4 @@
+syntax = "proto2";
+package proof.bytes_legacy;
+message Defaults { optional bytes data = 1 [default = "A\000\377"]; }
+message Required { required bytes data = 1; }

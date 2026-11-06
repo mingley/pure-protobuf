@@ -9,6 +9,7 @@ Start with a working example, then open the guide for your task.
 | Use streaming calls | [RPC shapes](guides/rpc-shapes.md) |
 | Tune connections and scheduling | [Transport controls](guides/transport-controls.md) |
 | Configure code generation | [Codegen guide](guides/codegen.md) |
+| Retain selected byte payloads | [Byte storage and input lifetimes](guides/bytes.md) |
 | Choose lazy or owned nested messages | [Storage choices](guides/codegen.md#owned-nested-message-fields), [codec benchmark commands](benchmarks/running.md#message-codecs) |
 | Move from tonic/prost | [Migration guide](guides/migration.md), [comparison](guides/comparison.md), [parity audit](parity.md) |
 | Add authentication and middleware | [Interceptors](guides/interceptors.md) |

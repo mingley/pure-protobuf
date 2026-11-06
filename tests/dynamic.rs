@@ -754,7 +754,9 @@ fn source_code_info_codegen_doc_comments() {
         "missing Outer trailing doc: {content}"
     );
     assert!(
-        content.contains("#[deprecated]\n#[derive(Clone, Debug)]\npub struct Outer"),
+        content.contains(
+            "#[deprecated]\n#[derive(::core::clone::Clone, ::core::fmt::Debug)]\npub struct Outer"
+        ),
         "missing Outer #[deprecated]: {content}"
     );
 

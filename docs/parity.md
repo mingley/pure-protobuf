@@ -1,9 +1,9 @@
 # Tonic/prost parity and performance proof
 
-Current source supports selected eager boxed fields, an opt-in generated
-forbid-unsafe policy, and direct endpoint URI origins. The consumer controls
-below establish those features' tested scope; remaining gaps and measured
-costs stay open.
+Current source supports selected eager boxed fields and shared byte storage,
+an opt-in generated forbid-unsafe policy, and direct endpoint URI origins.
+The consumer controls below establish those features' tested scope; remaining
+gaps and measured costs stay open.
 
 The [October 29 runtime and codegen record](evidence/runtime-and-codegen-20261029/README.md)
 measures `0a770792`. Of 52 standard thin-LTO CPU rows, 49 paired medians favor
@@ -31,6 +31,7 @@ their own source pins, controls, failures and full measured rows.
 | Generated consumers | Base roundtrips and configured naming, type-URL, Any, enum and attribute controls pass against pinned Prost; see the [consumer guide](../tests/proof/codegen_parity/README.md) for exact cases. |
 | Field view accessor names | [25 schema cases](../tests/proof/field_views/README.md) compile accessor APIs and exchange values with Prost 0.14.4 in lazy, owned, safe and owned+safe profiles; valid existing APIs keep their names. |
 | Selected boxed fields | Selected, default and global-owned consumers each pass eight groups; 18 message-field selector placement controls compare with Prost 0.14.4. |
+| Selected bytes storage | [Consumer controls](../tests/proof/codegen_parity/bytes.md) compare selectors, values and shared/borrowed input with Prost 0.14.4 in selected, owned and forbid-unsafe profiles. Old eager-parent copying and format-generation limits remain explicit. |
 | Generated forbid-unsafe policy | Twelve checks pass across lazy, owned and boxed consumers; the ordinary generated profile fails the intentional forbid-unsafe control. Runtime dependencies keep their own unsafe implementations. |
 | Endpoint URI origins | [Eight public tests](../pbrs-grpc/tests/endpoint_origin.rs) cover direct native and Tonic URI routing, all four call shapes, TLS/SNI and clone overrides. Static balance helpers reject per-endpoint origins. |
 | Embedded, alloc-only runtime | Prost compiles for `thumbv7em-none-eabi`; pbrs requires `std` and fails. |
@@ -71,10 +72,12 @@ and shares nested aliases with imported paths. Lazy, owned and explicitly
 mapped external consumers pass the focused collision controls; the
 [naming guide](guides/codegen.md#generated-names-and-regeneration) explains
 regeneration and the remaining module-name limits.
-Generator-owned traits, containers and macros are qualified so literal schema
-names `Default`, `Map` and `Enum` compile in the focused lazy and owned
-consumers. Other runtime and prelude name collisions remain outside that
-bounded proof.
+Generator-owned types, traits and value constructors use qualified paths. The
+[namespace consumer](../tests/proof/namespace_symbols/README.md) checks 34
+message names and enum names `Some`, `None`, `Ok` and `Err` in four
+storage/default profiles with four runtime paths. It covers lowercase
+`pbrs`/`std`/`core` shadows while preserving explicit user paths and
+attribute/documentation literals. RPC services are outside this fixture.
 
 `Config::boxed(path)` constructs selected singular children during parsing
 while preserving pbrs accessors. Repeated and map fields retain their storage;
@@ -85,9 +88,13 @@ generated bindings compile under `#![forbid(unsafe_code)]`; it remains
 opt-in and does not remove unsafe code from runtime dependencies. The
 [consumer proof](../tests/proof/safe_defaults/README.md) covers its behavior.
 
-Two configuration probes still reproduce representation/customization gaps:
-`btree_map` and `bytes`. These are distinct from wire-format failures.
-For ordered maps, nested lazy messages can forward their original wire bytes;
+[`Config::bytes(paths)`](guides/bytes.md) selects eager `ProtoBytes` storage
+and adds shared getters. Borrowed singular getters stay `&[u8]`; shared getters
+return owned handles. The guide explains input retention and the limits of
+regenerating only child messages.
+
+`btree_map` remains a representation/customization gap, distinct from a
+wire-format failure. For ordered maps, nested lazy messages can forward their original wire bytes;
 support must account for that path across separately generated crates as well
 as provide ordered storage.
 The alloc-only runtime also remains unsupported. HTTP/1.1 gRPC-Web is available

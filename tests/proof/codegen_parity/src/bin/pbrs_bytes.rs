@@ -1,3 +1,3 @@
-fn main() {
-    pbrs::codegen::Config::new().bytes(["."]);
-}
+include!(concat!(env!("OUT_DIR"), "/native-bytes/mod.rs"));
+const REPORT_SELECTORS: bool = true;
+include!("../bytes.rs");

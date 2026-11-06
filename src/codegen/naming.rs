@@ -630,6 +630,7 @@ fn avoid_view_accessor_collisions(
 
 pub(crate) fn bind_field_idents(desc: &MessageDescriptor) {
     bind_boxed_fields(desc);
+    bind_bytes_fields(desc);
     let mut used = std::collections::BTreeSet::new();
     let mut raw_used = std::collections::BTreeSet::new();
     let mut out = std::collections::BTreeMap::new();
@@ -659,6 +660,7 @@ pub(crate) fn bind_field_idents(desc: &MessageDescriptor) {
     avoid_view_accessor_collisions(desc, &mut out, &mut raws);
     FIELD_IDENTS.with(|c| *c.borrow_mut() = out);
     FIELD_RAWS.with(|c| *c.borrow_mut() = raws);
+    bind_bytes_accessors(desc);
 }
 
 pub(crate) fn field_id(f: &FieldDescriptor) -> Rc<str> {
@@ -711,8 +713,9 @@ pub(crate) fn scalar_type(field: &FieldDescriptor) -> Cow<'static, str> {
         FieldType::Uint64 | FieldType::Fixed64 => "u64".into(),
         FieldType::Uint32 | FieldType::Fixed32 => "u32".into(),
         FieldType::Bool => "bool".into(),
-        FieldType::String => "pbrs::rt::LazyStr".into(),
-        FieldType::Bytes => "pbrs::rt::LazyBytes".into(),
+        FieldType::String => runtime_path("::pbrs::rt::LazyStr"),
+        FieldType::Bytes if is_selected_bytes(field) => runtime_path("::pbrs::ProtoBytes"),
+        FieldType::Bytes => runtime_path("::pbrs::rt::LazyBytes"),
         FieldType::Message | FieldType::Group => rust_type_path(
             field
                 .type_name
@@ -729,10 +732,20 @@ pub(crate) fn map_kv(field: &FieldDescriptor) -> (Cow<'static, str>, Cow<'static
     let k = entry
         .and_then(|e| e.field(1))
         .map(scalar_type)
-        .unwrap_or_else(|| "ProtoString".into());
+        .unwrap_or_else(|| runtime_path("::pbrs::ProtoString"));
     let v = entry
         .and_then(|e| e.field(2))
-        .map(scalar_type)
+        .map(|value| {
+            if value.field_type == FieldType::Bytes {
+                if is_selected_bytes(field) {
+                    runtime_path("::pbrs::ProtoBytes")
+                } else {
+                    runtime_path("::pbrs::rt::LazyBytes")
+                }
+            } else {
+                scalar_type(value)
+            }
+        })
         .unwrap_or_else(|| "i32".into());
     (k, v)
 }

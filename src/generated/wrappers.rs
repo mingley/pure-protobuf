@@ -108,15 +108,10 @@ mod __gen_google_protobuf_wrappers_proto {
         clippy::let_underscore_must_use,
         reason = "ignoring results in generated wire helpers"
     )]
-    use pbrs::prelude::*;
-    use pbrs::UnknownFields;
-    use pbrs::{
-        ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut, RepeatedView, SerializeError,
-        UnknownEnumValue,
-    };
+    use ::pbrs::prelude::*;
 
-    fn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {
-        pbrs::gencode::conformance_pool()
+    fn generated_pool() -> ::std::sync::Arc<::pbrs::DescriptorPool> {
+        ::pbrs::gencode::conformance_pool()
     }
 
     /// Wrapper message for `bool`.
@@ -127,14 +122,14 @@ mod __gen_google_protobuf_wrappers_proto {
     /// has no plan to be removed.
     ///
     /// The `google.protobuf.BoolValue` protobuf message.
-    #[derive(Clone, Debug)]
+    #[derive(::core::clone::Clone, ::core::fmt::Debug)]
     pub struct BoolValue {
         /// The bool value.
         value: bool,
-        unknown: UnknownFields,
-        cached_size: pbrs::rt::CachedSize,
+        unknown: ::pbrs::UnknownFields,
+        cached_size: ::pbrs::rt::CachedSize,
     }
-    impl PartialEq for BoolValue {
+    impl ::core::cmp::PartialEq for BoolValue {
         fn eq(&self, other: &Self) -> bool {
             if self.value != other.value {
                 return false;
@@ -142,11 +137,11 @@ mod __gen_google_protobuf_wrappers_proto {
             self.unknown == other.unknown
         }
     }
-    impl Eq for BoolValue {}
+    impl ::core::cmp::Eq for BoolValue {}
     impl ::core::default::Default for BoolValue {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { pbrs::rt::zeroed_message() }
+            unsafe { ::pbrs::rt::zeroed_message() }
         }
     }
     impl BoolValue {
@@ -172,223 +167,283 @@ mod __gen_google_protobuf_wrappers_proto {
             self.value = v;
         }
         #[inline(always)]
-        pub fn check_required(&self) -> Result<(), ParseError> {
-            Ok(())
+        pub fn check_required(&self) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            ::core::result::Result::Ok(())
         }
-        pub fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+        pub fn merge_bytes(
+            &mut self,
+            data: &[u8],
+            depth: u32,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
                 return self.check_required();
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                true,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_bytes_dont_enforce(
             &mut self,
             data: &[u8],
             depth: u32,
-        ) -> Result<(), ParseError> {
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
-                return Ok(());
+                return ::core::result::Result::Ok(());
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                false,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_group(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            self.merge_inner(data, wire, pos, depth, false, Some(num))
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            self.merge_inner(
+                data,
+                wire,
+                pos,
+                depth,
+                false,
+                ::core::option::Option::Some(num),
+            )
         }
         pub fn merge_inner(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let _ = enforce;
             self.cached_size.dirty();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            self.value = pbrs::rt::decode_varint(data, pos)? != 0;
+                        ::pbrs::rt::WIRE_VARINT => {
+                            self.value = ::pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown_with_depth(
+                            .push(::pbrs::rt::capture_unknown_with_depth(
                                 data, pos, n, w, depth,
                             )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
             if enforce {
                 self.check_required()?;
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn validate_inner(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            Self::validate_until(wire, pos, depth, None)
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            Self::validate_until(wire, pos, depth, ::core::option::Option::None)
         }
         pub fn validate_until(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
+                        ::pbrs::rt::WIRE_VARINT => {
+                            let _ = ::pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                    _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn compute_size(&self) -> u64 {
-            if let Some(n) = self.cached_size.get() {
+            if let ::core::option::Option::Some(n) = self.cached_size.get() {
                 return n;
             }
             let mut n = self.unknown.encoded_len();
             if self.value {
-                n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT)
-                    + pbrs::rt::varint_len(u64::from(self.value));
+                n += ::pbrs::rt::tag_len(1, ::pbrs::rt::WIRE_VARINT)
+                    + ::pbrs::rt::varint_len(u64::from(self.value));
             }
             self.cached_size.set(n);
             n
         }
-        pub fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
+        pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if self.value {
-                pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
-                pbrs::rt::encode_varint(out, u64::from(self.value));
+                ::pbrs::rt::encode_tag(out, 1, ::pbrs::rt::WIRE_VARINT);
+                ::pbrs::rt::encode_varint(out, u64::from(self.value));
             }
             self.unknown.encode(out);
         }
-        pub fn to_json(&self) -> Result<String, SerializeError> {
-            Ok(self.to_json_value()?.to_string())
+        pub fn to_json(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(self.to_json_value()?.to_string())
         }
-        pub fn from_json(json: &str) -> Result<Self, ParseError> {
+        pub fn from_json(json: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             Self::from_json_ignore(json, false)
         }
-        pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let v = pbrs::json::parse(json)?;
+        pub fn from_json_ignore(
+            json: &str,
+            ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let v = ::pbrs::json::parse(json)?;
             Self::from_json_value(&v, ignore)
         }
-        pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
-            Ok(pbrs::json::boolean(self.value()))
+        pub fn to_json_value(
+            &self,
+        ) -> ::core::result::Result<::pbrs::json::Json, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(::pbrs::json::boolean(self.value()))
         }
-        pub fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+        pub fn from_json_value(
+            v: &::pbrs::json::Json,
+            _ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            msg.set_value(pbrs::json::as_bool(v)?);
-            Ok(msg)
+            msg.set_value(::pbrs::json::as_bool(v)?);
+            ::core::result::Result::Ok(msg)
         }
-        pub fn to_text(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            Ok(out)
+            ::core::result::Result::Ok(out)
         }
-        pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text_with_unknown(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
-            Ok(out)
+            ::pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            ::core::result::Result::Ok(out)
         }
-        pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let mut reader = pbrs::text::TextReader::new(text);
+        pub fn from_text(text: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let mut reader = ::pbrs::text::TextReader::new(text);
             let msg = Self::from_text_reader(&mut reader)?;
             reader.finish()?;
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
-        pub fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+        pub fn write_text(
+            &self,
+            out: &mut ::std::string::String,
+            indent: usize,
+        ) -> ::core::result::Result<(), ::pbrs::SerializeError> {
             if self.value() {
-                pbrs::text::write_named_bool(out, indent, "value", self.value());
+                ::pbrs::text::write_named_bool(out, indent, "value", self.value());
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn from_text_reader(
-            reader: &mut pbrs::text::TextReader<'_>,
-        ) -> Result<Self, ParseError> {
+            reader: &mut ::pbrs::text::TextReader<'_>,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            while let Some(field) = reader.next_field()? {
+            while let ::core::option::Option::Some(field) = reader.next_field()? {
                 match field.name() {
                     "value" => {
                         msg.set_value(reader.read_bool()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {}", field.name()))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {}",
+                            field.name()
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
         pub fn from_text_value(
-            fields: &[(String, pbrs::text::TextValue)],
-        ) -> Result<Self, ParseError> {
+            fields: &[(::std::string::String, ::pbrs::text::TextValue)],
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
             for (key, val) in fields {
                 match key.as_str() {
                     "value" => {
                         msg.set_value(val.as_bool()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {key}"
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
     }
-    pbrs::impl_typed_message!(BoolValue, BoolValueView, BoolValueMut);
+    ::pbrs::impl_typed_message!(BoolValue, BoolValueView, BoolValueMut);
     /// Wrapper message for `bytes`.
     ///
     /// The JSON representation for `BytesValue` is JSON string.
@@ -397,14 +452,14 @@ mod __gen_google_protobuf_wrappers_proto {
     /// has no plan to be removed.
     ///
     /// The `google.protobuf.BytesValue` protobuf message.
-    #[derive(Clone, Debug)]
+    #[derive(::core::clone::Clone, ::core::fmt::Debug)]
     pub struct BytesValue {
         /// The bytes value.
-        value: pbrs::rt::LazyBytes,
-        unknown: UnknownFields,
-        cached_size: pbrs::rt::CachedSize,
+        value: ::pbrs::rt::LazyBytes,
+        unknown: ::pbrs::UnknownFields,
+        cached_size: ::pbrs::rt::CachedSize,
     }
-    impl PartialEq for BytesValue {
+    impl ::core::cmp::PartialEq for BytesValue {
         fn eq(&self, other: &Self) -> bool {
             if self.value != other.value {
                 return false;
@@ -412,11 +467,11 @@ mod __gen_google_protobuf_wrappers_proto {
             self.unknown == other.unknown
         }
     }
-    impl Eq for BytesValue {}
+    impl ::core::cmp::Eq for BytesValue {}
     impl ::core::default::Default for BytesValue {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { pbrs::rt::zeroed_message() }
+            unsafe { ::pbrs::rt::zeroed_message() }
         }
     }
     impl BytesValue {
@@ -434,233 +489,293 @@ mod __gen_google_protobuf_wrappers_proto {
         ///
         /// Implicit presence bytes (empty by default).
         pub fn value(&self) -> &[u8] {
-            Some(self.value.as_bytes()).unwrap_or(b"")
+            ::core::option::Option::Some(self.value.as_bytes()).unwrap_or(b"")
         }
         /// Sets the value of `value`.
-        pub fn set_value(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
+        pub fn set_value(&mut self, v: impl ::pbrs::IntoProxied<::pbrs::ProtoBytes>) {
             self.cached_size.dirty();
-            self.value = pbrs::rt::LazyBytes::owned(v.into_proxied(pbrs::__internal::Private));
+            self.value = ::pbrs::rt::LazyBytes::owned(v.into_proxied(::pbrs::__internal::Private));
         }
         #[inline(always)]
-        pub fn check_required(&self) -> Result<(), ParseError> {
-            Ok(())
+        pub fn check_required(&self) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            ::core::result::Result::Ok(())
         }
-        pub fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+        pub fn merge_bytes(
+            &mut self,
+            data: &[u8],
+            depth: u32,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
                 return self.check_required();
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                true,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_bytes_dont_enforce(
             &mut self,
             data: &[u8],
             depth: u32,
-        ) -> Result<(), ParseError> {
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
-                return Ok(());
+                return ::core::result::Result::Ok(());
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                false,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_group(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            self.merge_inner(data, wire, pos, depth, false, Some(num))
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            self.merge_inner(
+                data,
+                wire,
+                pos,
+                depth,
+                false,
+                ::core::option::Option::Some(num),
+            )
         }
         pub fn merge_inner(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let _ = enforce;
             self.cached_size.dirty();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.value = pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e);
+                        ::pbrs::rt::WIRE_LEN => {
+                            let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
+                            self.value = ::pbrs::rt::LazyBytes::from_parse_span(wire, data, s, e);
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown_with_depth(
+                            .push(::pbrs::rt::capture_unknown_with_depth(
                                 data, pos, n, w, depth,
                             )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
             if enforce {
                 self.check_required()?;
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn validate_inner(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            Self::validate_until(wire, pos, depth, None)
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            Self::validate_until(wire, pos, depth, ::core::option::Option::None)
         }
         pub fn validate_until(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            pbrs::rt::read_len_span(data, pos)?;
+                        ::pbrs::rt::WIRE_LEN => {
+                            ::pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                    _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn compute_size(&self) -> u64 {
-            if let Some(n) = self.cached_size.get() {
+            if let ::core::option::Option::Some(n) = self.cached_size.get() {
                 return n;
             }
             let mut n = self.unknown.encoded_len();
             {
                 let bytes = self.value.as_bytes();
                 if !bytes.is_empty() {
-                    n += pbrs::rt::key_len_value_len(1, bytes.len() as u64);
+                    n += ::pbrs::rt::key_len_value_len(1, bytes.len() as u64);
                 }
             }
             self.cached_size.set(n);
             n
         }
-        pub fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
+        pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if !self.value.is_empty() {
-                pbrs::rt::encode_len_field_shared(out, 1, &self.value);
+                ::pbrs::rt::encode_len_field_shared(out, 1, &self.value);
             }
             self.unknown.encode(out);
         }
-        pub fn to_json(&self) -> Result<String, SerializeError> {
-            Ok(self.to_json_value()?.to_string())
+        pub fn to_json(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(self.to_json_value()?.to_string())
         }
-        pub fn from_json(json: &str) -> Result<Self, ParseError> {
+        pub fn from_json(json: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             Self::from_json_ignore(json, false)
         }
-        pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let v = pbrs::json::parse(json)?;
+        pub fn from_json_ignore(
+            json: &str,
+            ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let v = ::pbrs::json::parse(json)?;
             Self::from_json_value(&v, ignore)
         }
-        pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
-            Ok(pbrs::json::bytes(self.value()))
+        pub fn to_json_value(
+            &self,
+        ) -> ::core::result::Result<::pbrs::json::Json, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(::pbrs::json::bytes(self.value()))
         }
-        pub fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+        pub fn from_json_value(
+            v: &::pbrs::json::Json,
+            _ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            msg.set_value(pbrs::json::as_bytes(v)?);
-            Ok(msg)
+            msg.set_value(::pbrs::json::as_bytes(v)?);
+            ::core::result::Result::Ok(msg)
         }
-        pub fn to_text(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            Ok(out)
+            ::core::result::Result::Ok(out)
         }
-        pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text_with_unknown(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
-            Ok(out)
+            ::pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            ::core::result::Result::Ok(out)
         }
-        pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let mut reader = pbrs::text::TextReader::new(text);
+        pub fn from_text(text: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let mut reader = ::pbrs::text::TextReader::new(text);
             let msg = Self::from_text_reader(&mut reader)?;
             reader.finish()?;
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
-        pub fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+        pub fn write_text(
+            &self,
+            out: &mut ::std::string::String,
+            indent: usize,
+        ) -> ::core::result::Result<(), ::pbrs::SerializeError> {
             if !self.value().is_empty() {
-                pbrs::text::write_named_string(out, indent, "value", self.value());
+                ::pbrs::text::write_named_string(out, indent, "value", self.value());
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn from_text_reader(
-            reader: &mut pbrs::text::TextReader<'_>,
-        ) -> Result<Self, ParseError> {
+            reader: &mut ::pbrs::text::TextReader<'_>,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            while let Some(field) = reader.next_field()? {
+            while let ::core::option::Option::Some(field) = reader.next_field()? {
                 match field.name() {
                     "value" => {
                         msg.set_value(reader.read_bytes()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {}", field.name()))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {}",
+                            field.name()
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
         pub fn from_text_value(
-            fields: &[(String, pbrs::text::TextValue)],
-        ) -> Result<Self, ParseError> {
+            fields: &[(::std::string::String, ::pbrs::text::TextValue)],
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
             for (key, val) in fields {
                 match key.as_str() {
                     "value" => {
                         msg.set_value(val.as_bytes()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {key}"
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
     }
-    pbrs::impl_typed_message!(BytesValue, BytesValueView, BytesValueMut);
+    ::pbrs::impl_typed_message!(BytesValue, BytesValueView, BytesValueMut);
     /// Wrapper message for `double`.
     ///
     /// The JSON representation for `DoubleValue` is JSON number.
@@ -669,14 +784,14 @@ mod __gen_google_protobuf_wrappers_proto {
     /// has no plan to be removed.
     ///
     /// The `google.protobuf.DoubleValue` protobuf message.
-    #[derive(Clone, Debug)]
+    #[derive(::core::clone::Clone, ::core::fmt::Debug)]
     pub struct DoubleValue {
         /// The double value.
         value: f64,
-        unknown: UnknownFields,
-        cached_size: pbrs::rt::CachedSize,
+        unknown: ::pbrs::UnknownFields,
+        cached_size: ::pbrs::rt::CachedSize,
     }
-    impl PartialEq for DoubleValue {
+    impl ::core::cmp::PartialEq for DoubleValue {
         fn eq(&self, other: &Self) -> bool {
             if self.value != other.value {
                 return false;
@@ -684,11 +799,11 @@ mod __gen_google_protobuf_wrappers_proto {
             self.unknown == other.unknown
         }
     }
-    impl Eq for DoubleValue {}
+    impl ::core::cmp::Eq for DoubleValue {}
     impl ::core::default::Default for DoubleValue {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { pbrs::rt::zeroed_message() }
+            unsafe { ::pbrs::rt::zeroed_message() }
         }
     }
     impl DoubleValue {
@@ -714,222 +829,282 @@ mod __gen_google_protobuf_wrappers_proto {
             self.value = v;
         }
         #[inline(always)]
-        pub fn check_required(&self) -> Result<(), ParseError> {
-            Ok(())
+        pub fn check_required(&self) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            ::core::result::Result::Ok(())
         }
-        pub fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+        pub fn merge_bytes(
+            &mut self,
+            data: &[u8],
+            depth: u32,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
                 return self.check_required();
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                true,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_bytes_dont_enforce(
             &mut self,
             data: &[u8],
             depth: u32,
-        ) -> Result<(), ParseError> {
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
-                return Ok(());
+                return ::core::result::Result::Ok(());
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                false,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_group(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            self.merge_inner(data, wire, pos, depth, false, Some(num))
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            self.merge_inner(
+                data,
+                wire,
+                pos,
+                depth,
+                false,
+                ::core::option::Option::Some(num),
+            )
         }
         pub fn merge_inner(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let _ = enforce;
             self.cached_size.dirty();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_I64 => {
-                            self.value = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
+                        ::pbrs::rt::WIRE_I64 => {
+                            self.value = f64::from_bits(::pbrs::rt::read_fixed64(data, pos)?);
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown_with_depth(
+                            .push(::pbrs::rt::capture_unknown_with_depth(
                                 data, pos, n, w, depth,
                             )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
             if enforce {
                 self.check_required()?;
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn validate_inner(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            Self::validate_until(wire, pos, depth, None)
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            Self::validate_until(wire, pos, depth, ::core::option::Option::None)
         }
         pub fn validate_until(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_I64 => {
-                            let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
+                        ::pbrs::rt::WIRE_I64 => {
+                            let _ = f64::from_bits(::pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                    _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn compute_size(&self) -> u64 {
-            if let Some(n) = self.cached_size.get() {
+            if let ::core::option::Option::Some(n) = self.cached_size.get() {
                 return n;
             }
             let mut n = self.unknown.encoded_len();
             if self.value.to_bits() != 0 {
-                n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_I64) + 8;
+                n += ::pbrs::rt::tag_len(1, ::pbrs::rt::WIRE_I64) + 8;
             }
             self.cached_size.set(n);
             n
         }
-        pub fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
+        pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if self.value.to_bits() != 0 {
-                pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_I64);
+                ::pbrs::rt::encode_tag(out, 1, ::pbrs::rt::WIRE_I64);
                 (out).extend_from_slice(&(self.value).to_bits().to_le_bytes());
             }
             self.unknown.encode(out);
         }
-        pub fn to_json(&self) -> Result<String, SerializeError> {
-            Ok(self.to_json_value()?.to_string())
+        pub fn to_json(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(self.to_json_value()?.to_string())
         }
-        pub fn from_json(json: &str) -> Result<Self, ParseError> {
+        pub fn from_json(json: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             Self::from_json_ignore(json, false)
         }
-        pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let v = pbrs::json::parse(json)?;
+        pub fn from_json_ignore(
+            json: &str,
+            ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let v = ::pbrs::json::parse(json)?;
             Self::from_json_value(&v, ignore)
         }
-        pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
-            Ok(pbrs::json::double(self.value()))
+        pub fn to_json_value(
+            &self,
+        ) -> ::core::result::Result<::pbrs::json::Json, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(::pbrs::json::double(self.value()))
         }
-        pub fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+        pub fn from_json_value(
+            v: &::pbrs::json::Json,
+            _ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            msg.set_value(pbrs::json::as_f64(v)?);
-            Ok(msg)
+            msg.set_value(::pbrs::json::as_f64(v)?);
+            ::core::result::Result::Ok(msg)
         }
-        pub fn to_text(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            Ok(out)
+            ::core::result::Result::Ok(out)
         }
-        pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text_with_unknown(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
-            Ok(out)
+            ::pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            ::core::result::Result::Ok(out)
         }
-        pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let mut reader = pbrs::text::TextReader::new(text);
+        pub fn from_text(text: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let mut reader = ::pbrs::text::TextReader::new(text);
             let msg = Self::from_text_reader(&mut reader)?;
             reader.finish()?;
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
-        pub fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+        pub fn write_text(
+            &self,
+            out: &mut ::std::string::String,
+            indent: usize,
+        ) -> ::core::result::Result<(), ::pbrs::SerializeError> {
             if self.value().to_bits() != 0 {
-                pbrs::text::write_named_double(out, indent, "value", self.value());
+                ::pbrs::text::write_named_double(out, indent, "value", self.value());
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn from_text_reader(
-            reader: &mut pbrs::text::TextReader<'_>,
-        ) -> Result<Self, ParseError> {
+            reader: &mut ::pbrs::text::TextReader<'_>,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            while let Some(field) = reader.next_field()? {
+            while let ::core::option::Option::Some(field) = reader.next_field()? {
                 match field.name() {
                     "value" => {
                         msg.set_value(reader.read_f64()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {}", field.name()))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {}",
+                            field.name()
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
         pub fn from_text_value(
-            fields: &[(String, pbrs::text::TextValue)],
-        ) -> Result<Self, ParseError> {
+            fields: &[(::std::string::String, ::pbrs::text::TextValue)],
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
             for (key, val) in fields {
                 match key.as_str() {
                     "value" => {
                         msg.set_value(val.as_f64()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {key}"
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
     }
-    pbrs::impl_typed_message!(DoubleValue, DoubleValueView, DoubleValueMut);
+    ::pbrs::impl_typed_message!(DoubleValue, DoubleValueView, DoubleValueMut);
     /// Wrapper message for `float`.
     ///
     /// The JSON representation for `FloatValue` is JSON number.
@@ -938,14 +1113,14 @@ mod __gen_google_protobuf_wrappers_proto {
     /// has no plan to be removed.
     ///
     /// The `google.protobuf.FloatValue` protobuf message.
-    #[derive(Clone, Debug)]
+    #[derive(::core::clone::Clone, ::core::fmt::Debug)]
     pub struct FloatValue {
         /// The float value.
         value: f32,
-        unknown: UnknownFields,
-        cached_size: pbrs::rt::CachedSize,
+        unknown: ::pbrs::UnknownFields,
+        cached_size: ::pbrs::rt::CachedSize,
     }
-    impl PartialEq for FloatValue {
+    impl ::core::cmp::PartialEq for FloatValue {
         fn eq(&self, other: &Self) -> bool {
             if self.value != other.value {
                 return false;
@@ -953,11 +1128,11 @@ mod __gen_google_protobuf_wrappers_proto {
             self.unknown == other.unknown
         }
     }
-    impl Eq for FloatValue {}
+    impl ::core::cmp::Eq for FloatValue {}
     impl ::core::default::Default for FloatValue {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { pbrs::rt::zeroed_message() }
+            unsafe { ::pbrs::rt::zeroed_message() }
         }
     }
     impl FloatValue {
@@ -983,222 +1158,282 @@ mod __gen_google_protobuf_wrappers_proto {
             self.value = v;
         }
         #[inline(always)]
-        pub fn check_required(&self) -> Result<(), ParseError> {
-            Ok(())
+        pub fn check_required(&self) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            ::core::result::Result::Ok(())
         }
-        pub fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+        pub fn merge_bytes(
+            &mut self,
+            data: &[u8],
+            depth: u32,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
                 return self.check_required();
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                true,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_bytes_dont_enforce(
             &mut self,
             data: &[u8],
             depth: u32,
-        ) -> Result<(), ParseError> {
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
-                return Ok(());
+                return ::core::result::Result::Ok(());
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                false,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_group(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            self.merge_inner(data, wire, pos, depth, false, Some(num))
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            self.merge_inner(
+                data,
+                wire,
+                pos,
+                depth,
+                false,
+                ::core::option::Option::Some(num),
+            )
         }
         pub fn merge_inner(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let _ = enforce;
             self.cached_size.dirty();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_I32 => {
-                            self.value = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
+                        ::pbrs::rt::WIRE_I32 => {
+                            self.value = f32::from_bits(::pbrs::rt::read_fixed32(data, pos)?);
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown_with_depth(
+                            .push(::pbrs::rt::capture_unknown_with_depth(
                                 data, pos, n, w, depth,
                             )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
             if enforce {
                 self.check_required()?;
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn validate_inner(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            Self::validate_until(wire, pos, depth, None)
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            Self::validate_until(wire, pos, depth, ::core::option::Option::None)
         }
         pub fn validate_until(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_I32 => {
-                            let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
+                        ::pbrs::rt::WIRE_I32 => {
+                            let _ = f32::from_bits(::pbrs::rt::read_fixed32(data, pos)?);
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                    _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn compute_size(&self) -> u64 {
-            if let Some(n) = self.cached_size.get() {
+            if let ::core::option::Option::Some(n) = self.cached_size.get() {
                 return n;
             }
             let mut n = self.unknown.encoded_len();
             if self.value.to_bits() != 0 {
-                n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_I32) + 4;
+                n += ::pbrs::rt::tag_len(1, ::pbrs::rt::WIRE_I32) + 4;
             }
             self.cached_size.set(n);
             n
         }
-        pub fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
+        pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if self.value.to_bits() != 0 {
-                pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_I32);
+                ::pbrs::rt::encode_tag(out, 1, ::pbrs::rt::WIRE_I32);
                 (out).extend_from_slice(&(self.value).to_bits().to_le_bytes());
             }
             self.unknown.encode(out);
         }
-        pub fn to_json(&self) -> Result<String, SerializeError> {
-            Ok(self.to_json_value()?.to_string())
+        pub fn to_json(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(self.to_json_value()?.to_string())
         }
-        pub fn from_json(json: &str) -> Result<Self, ParseError> {
+        pub fn from_json(json: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             Self::from_json_ignore(json, false)
         }
-        pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let v = pbrs::json::parse(json)?;
+        pub fn from_json_ignore(
+            json: &str,
+            ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let v = ::pbrs::json::parse(json)?;
             Self::from_json_value(&v, ignore)
         }
-        pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
-            Ok(pbrs::json::float(self.value()))
+        pub fn to_json_value(
+            &self,
+        ) -> ::core::result::Result<::pbrs::json::Json, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(::pbrs::json::float(self.value()))
         }
-        pub fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+        pub fn from_json_value(
+            v: &::pbrs::json::Json,
+            _ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            msg.set_value(pbrs::json::as_f32(v)?);
-            Ok(msg)
+            msg.set_value(::pbrs::json::as_f32(v)?);
+            ::core::result::Result::Ok(msg)
         }
-        pub fn to_text(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            Ok(out)
+            ::core::result::Result::Ok(out)
         }
-        pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text_with_unknown(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
-            Ok(out)
+            ::pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            ::core::result::Result::Ok(out)
         }
-        pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let mut reader = pbrs::text::TextReader::new(text);
+        pub fn from_text(text: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let mut reader = ::pbrs::text::TextReader::new(text);
             let msg = Self::from_text_reader(&mut reader)?;
             reader.finish()?;
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
-        pub fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+        pub fn write_text(
+            &self,
+            out: &mut ::std::string::String,
+            indent: usize,
+        ) -> ::core::result::Result<(), ::pbrs::SerializeError> {
             if self.value().to_bits() != 0 {
-                pbrs::text::write_named_float(out, indent, "value", self.value());
+                ::pbrs::text::write_named_float(out, indent, "value", self.value());
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn from_text_reader(
-            reader: &mut pbrs::text::TextReader<'_>,
-        ) -> Result<Self, ParseError> {
+            reader: &mut ::pbrs::text::TextReader<'_>,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            while let Some(field) = reader.next_field()? {
+            while let ::core::option::Option::Some(field) = reader.next_field()? {
                 match field.name() {
                     "value" => {
                         msg.set_value(reader.read_f32()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {}", field.name()))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {}",
+                            field.name()
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
         pub fn from_text_value(
-            fields: &[(String, pbrs::text::TextValue)],
-        ) -> Result<Self, ParseError> {
+            fields: &[(::std::string::String, ::pbrs::text::TextValue)],
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
             for (key, val) in fields {
                 match key.as_str() {
                     "value" => {
                         msg.set_value(val.as_f32()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {key}"
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
     }
-    pbrs::impl_typed_message!(FloatValue, FloatValueView, FloatValueMut);
+    ::pbrs::impl_typed_message!(FloatValue, FloatValueView, FloatValueMut);
     /// Wrapper message for `int32`.
     ///
     /// The JSON representation for `Int32Value` is JSON number.
@@ -1207,14 +1442,14 @@ mod __gen_google_protobuf_wrappers_proto {
     /// has no plan to be removed.
     ///
     /// The `google.protobuf.Int32Value` protobuf message.
-    #[derive(Clone, Debug)]
+    #[derive(::core::clone::Clone, ::core::fmt::Debug)]
     pub struct Int32Value {
         /// The int32 value.
         value: i32,
-        unknown: UnknownFields,
-        cached_size: pbrs::rt::CachedSize,
+        unknown: ::pbrs::UnknownFields,
+        cached_size: ::pbrs::rt::CachedSize,
     }
-    impl PartialEq for Int32Value {
+    impl ::core::cmp::PartialEq for Int32Value {
         fn eq(&self, other: &Self) -> bool {
             if self.value != other.value {
                 return false;
@@ -1222,11 +1457,11 @@ mod __gen_google_protobuf_wrappers_proto {
             self.unknown == other.unknown
         }
     }
-    impl Eq for Int32Value {}
+    impl ::core::cmp::Eq for Int32Value {}
     impl ::core::default::Default for Int32Value {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { pbrs::rt::zeroed_message() }
+            unsafe { ::pbrs::rt::zeroed_message() }
         }
     }
     impl Int32Value {
@@ -1252,223 +1487,283 @@ mod __gen_google_protobuf_wrappers_proto {
             self.value = v;
         }
         #[inline(always)]
-        pub fn check_required(&self) -> Result<(), ParseError> {
-            Ok(())
+        pub fn check_required(&self) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            ::core::result::Result::Ok(())
         }
-        pub fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+        pub fn merge_bytes(
+            &mut self,
+            data: &[u8],
+            depth: u32,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
                 return self.check_required();
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                true,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_bytes_dont_enforce(
             &mut self,
             data: &[u8],
             depth: u32,
-        ) -> Result<(), ParseError> {
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
-                return Ok(());
+                return ::core::result::Result::Ok(());
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                false,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_group(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            self.merge_inner(data, wire, pos, depth, false, Some(num))
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            self.merge_inner(
+                data,
+                wire,
+                pos,
+                depth,
+                false,
+                ::core::option::Option::Some(num),
+            )
         }
         pub fn merge_inner(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let _ = enforce;
             self.cached_size.dirty();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            self.value = pbrs::rt::decode_varint(data, pos)? as i32;
+                        ::pbrs::rt::WIRE_VARINT => {
+                            self.value = ::pbrs::rt::decode_varint(data, pos)? as i32;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown_with_depth(
+                            .push(::pbrs::rt::capture_unknown_with_depth(
                                 data, pos, n, w, depth,
                             )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
             if enforce {
                 self.check_required()?;
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn validate_inner(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            Self::validate_until(wire, pos, depth, None)
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            Self::validate_until(wire, pos, depth, ::core::option::Option::None)
         }
         pub fn validate_until(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
+                        ::pbrs::rt::WIRE_VARINT => {
+                            let _ = ::pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                    _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn compute_size(&self) -> u64 {
-            if let Some(n) = self.cached_size.get() {
+            if let ::core::option::Option::Some(n) = self.cached_size.get() {
                 return n;
             }
             let mut n = self.unknown.encoded_len();
             if self.value != 0 {
-                n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT)
-                    + pbrs::rt::varint_len((self.value) as u64);
+                n += ::pbrs::rt::tag_len(1, ::pbrs::rt::WIRE_VARINT)
+                    + ::pbrs::rt::varint_len((self.value) as u64);
             }
             self.cached_size.set(n);
             n
         }
-        pub fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
+        pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if self.value != 0 {
-                pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
-                pbrs::rt::encode_varint(out, self.value as u64);
+                ::pbrs::rt::encode_tag(out, 1, ::pbrs::rt::WIRE_VARINT);
+                ::pbrs::rt::encode_varint(out, self.value as u64);
             }
             self.unknown.encode(out);
         }
-        pub fn to_json(&self) -> Result<String, SerializeError> {
-            Ok(self.to_json_value()?.to_string())
+        pub fn to_json(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(self.to_json_value()?.to_string())
         }
-        pub fn from_json(json: &str) -> Result<Self, ParseError> {
+        pub fn from_json(json: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             Self::from_json_ignore(json, false)
         }
-        pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let v = pbrs::json::parse(json)?;
+        pub fn from_json_ignore(
+            json: &str,
+            ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let v = ::pbrs::json::parse(json)?;
             Self::from_json_value(&v, ignore)
         }
-        pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
-            Ok(pbrs::json::int32(self.value()))
+        pub fn to_json_value(
+            &self,
+        ) -> ::core::result::Result<::pbrs::json::Json, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(::pbrs::json::int32(self.value()))
         }
-        pub fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+        pub fn from_json_value(
+            v: &::pbrs::json::Json,
+            _ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            msg.set_value(pbrs::json::as_i32(v)?);
-            Ok(msg)
+            msg.set_value(::pbrs::json::as_i32(v)?);
+            ::core::result::Result::Ok(msg)
         }
-        pub fn to_text(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            Ok(out)
+            ::core::result::Result::Ok(out)
         }
-        pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text_with_unknown(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
-            Ok(out)
+            ::pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            ::core::result::Result::Ok(out)
         }
-        pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let mut reader = pbrs::text::TextReader::new(text);
+        pub fn from_text(text: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let mut reader = ::pbrs::text::TextReader::new(text);
             let msg = Self::from_text_reader(&mut reader)?;
             reader.finish()?;
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
-        pub fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+        pub fn write_text(
+            &self,
+            out: &mut ::std::string::String,
+            indent: usize,
+        ) -> ::core::result::Result<(), ::pbrs::SerializeError> {
             if self.value() != 0 {
-                pbrs::text::write_named_int32(out, indent, "value", self.value());
+                ::pbrs::text::write_named_int32(out, indent, "value", self.value());
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn from_text_reader(
-            reader: &mut pbrs::text::TextReader<'_>,
-        ) -> Result<Self, ParseError> {
+            reader: &mut ::pbrs::text::TextReader<'_>,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            while let Some(field) = reader.next_field()? {
+            while let ::core::option::Option::Some(field) = reader.next_field()? {
                 match field.name() {
                     "value" => {
                         msg.set_value(reader.read_i32()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {}", field.name()))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {}",
+                            field.name()
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
         pub fn from_text_value(
-            fields: &[(String, pbrs::text::TextValue)],
-        ) -> Result<Self, ParseError> {
+            fields: &[(::std::string::String, ::pbrs::text::TextValue)],
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
             for (key, val) in fields {
                 match key.as_str() {
                     "value" => {
                         msg.set_value(val.as_i32()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {key}"
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
     }
-    pbrs::impl_typed_message!(Int32Value, Int32ValueView, Int32ValueMut);
+    ::pbrs::impl_typed_message!(Int32Value, Int32ValueView, Int32ValueMut);
     /// Wrapper message for `int64`.
     ///
     /// The JSON representation for `Int64Value` is JSON string.
@@ -1477,14 +1772,14 @@ mod __gen_google_protobuf_wrappers_proto {
     /// has no plan to be removed.
     ///
     /// The `google.protobuf.Int64Value` protobuf message.
-    #[derive(Clone, Debug)]
+    #[derive(::core::clone::Clone, ::core::fmt::Debug)]
     pub struct Int64Value {
         /// The int64 value.
         value: i64,
-        unknown: UnknownFields,
-        cached_size: pbrs::rt::CachedSize,
+        unknown: ::pbrs::UnknownFields,
+        cached_size: ::pbrs::rt::CachedSize,
     }
-    impl PartialEq for Int64Value {
+    impl ::core::cmp::PartialEq for Int64Value {
         fn eq(&self, other: &Self) -> bool {
             if self.value != other.value {
                 return false;
@@ -1492,11 +1787,11 @@ mod __gen_google_protobuf_wrappers_proto {
             self.unknown == other.unknown
         }
     }
-    impl Eq for Int64Value {}
+    impl ::core::cmp::Eq for Int64Value {}
     impl ::core::default::Default for Int64Value {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { pbrs::rt::zeroed_message() }
+            unsafe { ::pbrs::rt::zeroed_message() }
         }
     }
     impl Int64Value {
@@ -1522,223 +1817,283 @@ mod __gen_google_protobuf_wrappers_proto {
             self.value = v;
         }
         #[inline(always)]
-        pub fn check_required(&self) -> Result<(), ParseError> {
-            Ok(())
+        pub fn check_required(&self) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            ::core::result::Result::Ok(())
         }
-        pub fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+        pub fn merge_bytes(
+            &mut self,
+            data: &[u8],
+            depth: u32,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
                 return self.check_required();
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                true,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_bytes_dont_enforce(
             &mut self,
             data: &[u8],
             depth: u32,
-        ) -> Result<(), ParseError> {
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
-                return Ok(());
+                return ::core::result::Result::Ok(());
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                false,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_group(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            self.merge_inner(data, wire, pos, depth, false, Some(num))
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            self.merge_inner(
+                data,
+                wire,
+                pos,
+                depth,
+                false,
+                ::core::option::Option::Some(num),
+            )
         }
         pub fn merge_inner(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let _ = enforce;
             self.cached_size.dirty();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            self.value = pbrs::rt::decode_varint(data, pos)? as i64;
+                        ::pbrs::rt::WIRE_VARINT => {
+                            self.value = ::pbrs::rt::decode_varint(data, pos)? as i64;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown_with_depth(
+                            .push(::pbrs::rt::capture_unknown_with_depth(
                                 data, pos, n, w, depth,
                             )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
             if enforce {
                 self.check_required()?;
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn validate_inner(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            Self::validate_until(wire, pos, depth, None)
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            Self::validate_until(wire, pos, depth, ::core::option::Option::None)
         }
         pub fn validate_until(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? as i64;
+                        ::pbrs::rt::WIRE_VARINT => {
+                            let _ = ::pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                    _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn compute_size(&self) -> u64 {
-            if let Some(n) = self.cached_size.get() {
+            if let ::core::option::Option::Some(n) = self.cached_size.get() {
                 return n;
             }
             let mut n = self.unknown.encoded_len();
             if self.value != 0 {
-                n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT)
-                    + pbrs::rt::varint_len((self.value) as u64);
+                n += ::pbrs::rt::tag_len(1, ::pbrs::rt::WIRE_VARINT)
+                    + ::pbrs::rt::varint_len((self.value) as u64);
             }
             self.cached_size.set(n);
             n
         }
-        pub fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
+        pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if self.value != 0 {
-                pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
-                pbrs::rt::encode_varint(out, self.value as u64);
+                ::pbrs::rt::encode_tag(out, 1, ::pbrs::rt::WIRE_VARINT);
+                ::pbrs::rt::encode_varint(out, self.value as u64);
             }
             self.unknown.encode(out);
         }
-        pub fn to_json(&self) -> Result<String, SerializeError> {
-            Ok(self.to_json_value()?.to_string())
+        pub fn to_json(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(self.to_json_value()?.to_string())
         }
-        pub fn from_json(json: &str) -> Result<Self, ParseError> {
+        pub fn from_json(json: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             Self::from_json_ignore(json, false)
         }
-        pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let v = pbrs::json::parse(json)?;
+        pub fn from_json_ignore(
+            json: &str,
+            ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let v = ::pbrs::json::parse(json)?;
             Self::from_json_value(&v, ignore)
         }
-        pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
-            Ok(pbrs::json::int64(self.value()))
+        pub fn to_json_value(
+            &self,
+        ) -> ::core::result::Result<::pbrs::json::Json, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(::pbrs::json::int64(self.value()))
         }
-        pub fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+        pub fn from_json_value(
+            v: &::pbrs::json::Json,
+            _ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            msg.set_value(pbrs::json::as_i64(v)?);
-            Ok(msg)
+            msg.set_value(::pbrs::json::as_i64(v)?);
+            ::core::result::Result::Ok(msg)
         }
-        pub fn to_text(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            Ok(out)
+            ::core::result::Result::Ok(out)
         }
-        pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text_with_unknown(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
-            Ok(out)
+            ::pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            ::core::result::Result::Ok(out)
         }
-        pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let mut reader = pbrs::text::TextReader::new(text);
+        pub fn from_text(text: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let mut reader = ::pbrs::text::TextReader::new(text);
             let msg = Self::from_text_reader(&mut reader)?;
             reader.finish()?;
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
-        pub fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+        pub fn write_text(
+            &self,
+            out: &mut ::std::string::String,
+            indent: usize,
+        ) -> ::core::result::Result<(), ::pbrs::SerializeError> {
             if self.value() != 0 {
-                pbrs::text::write_named_int64(out, indent, "value", self.value());
+                ::pbrs::text::write_named_int64(out, indent, "value", self.value());
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn from_text_reader(
-            reader: &mut pbrs::text::TextReader<'_>,
-        ) -> Result<Self, ParseError> {
+            reader: &mut ::pbrs::text::TextReader<'_>,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            while let Some(field) = reader.next_field()? {
+            while let ::core::option::Option::Some(field) = reader.next_field()? {
                 match field.name() {
                     "value" => {
                         msg.set_value(reader.read_i64()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {}", field.name()))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {}",
+                            field.name()
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
         pub fn from_text_value(
-            fields: &[(String, pbrs::text::TextValue)],
-        ) -> Result<Self, ParseError> {
+            fields: &[(::std::string::String, ::pbrs::text::TextValue)],
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
             for (key, val) in fields {
                 match key.as_str() {
                     "value" => {
                         msg.set_value(val.as_i64()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {key}"
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
     }
-    pbrs::impl_typed_message!(Int64Value, Int64ValueView, Int64ValueMut);
+    ::pbrs::impl_typed_message!(Int64Value, Int64ValueView, Int64ValueMut);
     /// Wrapper message for `string`.
     ///
     /// The JSON representation for `StringValue` is JSON string.
@@ -1747,14 +2102,14 @@ mod __gen_google_protobuf_wrappers_proto {
     /// has no plan to be removed.
     ///
     /// The `google.protobuf.StringValue` protobuf message.
-    #[derive(Clone, Debug)]
+    #[derive(::core::clone::Clone, ::core::fmt::Debug)]
     pub struct StringValue {
         /// The string value.
-        value: pbrs::rt::LazyStr,
-        unknown: UnknownFields,
-        cached_size: pbrs::rt::CachedSize,
+        value: ::pbrs::rt::LazyStr,
+        unknown: ::pbrs::UnknownFields,
+        cached_size: ::pbrs::rt::CachedSize,
     }
-    impl PartialEq for StringValue {
+    impl ::core::cmp::PartialEq for StringValue {
         fn eq(&self, other: &Self) -> bool {
             if self.value != other.value {
                 return false;
@@ -1762,11 +2117,11 @@ mod __gen_google_protobuf_wrappers_proto {
             self.unknown == other.unknown
         }
     }
-    impl Eq for StringValue {}
+    impl ::core::cmp::Eq for StringValue {}
     impl ::core::default::Default for StringValue {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { pbrs::rt::zeroed_message() }
+            unsafe { ::pbrs::rt::zeroed_message() }
         }
     }
     impl StringValue {
@@ -1783,238 +2138,299 @@ mod __gen_google_protobuf_wrappers_proto {
         /// Field `value` (number 1).
         ///
         /// Implicit presence string (default: "").
-        pub fn value(&self) -> &pbrs::ProtoStr {
-            Some(self.value.as_view()).unwrap_or_else(|| pbrs::ProtoStr::from_bytes(b""))
+        pub fn value(&self) -> &::pbrs::ProtoStr {
+            ::core::option::Option::Some(self.value.as_view())
+                .unwrap_or_else(|| ::pbrs::ProtoStr::from_bytes(b""))
         }
         /// Sets the value of `value`.
-        pub fn set_value(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
+        pub fn set_value(&mut self, v: impl ::pbrs::IntoProxied<::pbrs::ProtoString>) {
             self.cached_size.dirty();
-            self.value = pbrs::rt::LazyStr::owned(v.into_proxied(pbrs::__internal::Private));
+            self.value = ::pbrs::rt::LazyStr::owned(v.into_proxied(::pbrs::__internal::Private));
         }
         #[inline(always)]
-        pub fn check_required(&self) -> Result<(), ParseError> {
-            Ok(())
+        pub fn check_required(&self) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            ::core::result::Result::Ok(())
         }
-        pub fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+        pub fn merge_bytes(
+            &mut self,
+            data: &[u8],
+            depth: u32,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
                 return self.check_required();
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                true,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_bytes_dont_enforce(
             &mut self,
             data: &[u8],
             depth: u32,
-        ) -> Result<(), ParseError> {
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
-                return Ok(());
+                return ::core::result::Result::Ok(());
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                false,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_group(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            self.merge_inner(data, wire, pos, depth, false, Some(num))
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            self.merge_inner(
+                data,
+                wire,
+                pos,
+                depth,
+                false,
+                ::core::option::Option::Some(num),
+            )
         }
         pub fn merge_inner(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let _ = enforce;
             self.cached_size.dirty();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.value = pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?;
+                        ::pbrs::rt::WIRE_LEN => {
+                            let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
+                            self.value = ::pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown_with_depth(
+                            .push(::pbrs::rt::capture_unknown_with_depth(
                                 data, pos, n, w, depth,
                             )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
             if enforce {
                 self.check_required()?;
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn validate_inner(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            Self::validate_until(wire, pos, depth, None)
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            Self::validate_until(wire, pos, depth, ::core::option::Option::None)
         }
         pub fn validate_until(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_LEN => {
-                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            pbrs::rt::require_utf8(&data[s..e])?;
+                        ::pbrs::rt::WIRE_LEN => {
+                            let (s, e) = ::pbrs::rt::read_len_span(data, pos)?;
+                            ::pbrs::rt::require_utf8(&data[s..e])?;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                    _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn compute_size(&self) -> u64 {
-            if let Some(n) = self.cached_size.get() {
+            if let ::core::option::Option::Some(n) = self.cached_size.get() {
                 return n;
             }
             let mut n = self.unknown.encoded_len();
             {
                 let bytes = self.value.as_bytes();
                 if !bytes.is_empty() {
-                    n += pbrs::rt::key_len_value_len(1, bytes.len() as u64);
+                    n += ::pbrs::rt::key_len_value_len(1, bytes.len() as u64);
                 }
             }
             self.cached_size.set(n);
             n
         }
-        pub fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
+        pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             {
                 let bytes = self.value.as_bytes();
                 if !bytes.is_empty() {
-                    pbrs::rt::encode_len_field(out, 1, bytes);
+                    ::pbrs::rt::encode_len_field(out, 1, bytes);
                 }
             }
             self.unknown.encode(out);
         }
-        pub fn to_json(&self) -> Result<String, SerializeError> {
-            Ok(self.to_json_value()?.to_string())
+        pub fn to_json(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(self.to_json_value()?.to_string())
         }
-        pub fn from_json(json: &str) -> Result<Self, ParseError> {
+        pub fn from_json(json: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             Self::from_json_ignore(json, false)
         }
-        pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let v = pbrs::json::parse(json)?;
+        pub fn from_json_ignore(
+            json: &str,
+            ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let v = ::pbrs::json::parse(json)?;
             Self::from_json_value(&v, ignore)
         }
-        pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
-            Ok(pbrs::json::string(self.value().as_bytes()))
+        pub fn to_json_value(
+            &self,
+        ) -> ::core::result::Result<::pbrs::json::Json, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(::pbrs::json::string(self.value().as_bytes()))
         }
-        pub fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+        pub fn from_json_value(
+            v: &::pbrs::json::Json,
+            _ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            msg.set_value(pbrs::json::as_str(v)?);
-            Ok(msg)
+            msg.set_value(::pbrs::json::as_str(v)?);
+            ::core::result::Result::Ok(msg)
         }
-        pub fn to_text(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            Ok(out)
+            ::core::result::Result::Ok(out)
         }
-        pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text_with_unknown(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
-            Ok(out)
+            ::pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            ::core::result::Result::Ok(out)
         }
-        pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let mut reader = pbrs::text::TextReader::new(text);
+        pub fn from_text(text: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let mut reader = ::pbrs::text::TextReader::new(text);
             let msg = Self::from_text_reader(&mut reader)?;
             reader.finish()?;
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
-        pub fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+        pub fn write_text(
+            &self,
+            out: &mut ::std::string::String,
+            indent: usize,
+        ) -> ::core::result::Result<(), ::pbrs::SerializeError> {
             if !self.value().as_bytes().is_empty() {
-                pbrs::text::write_named_string(out, indent, "value", self.value().as_bytes());
+                ::pbrs::text::write_named_string(out, indent, "value", self.value().as_bytes());
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn from_text_reader(
-            reader: &mut pbrs::text::TextReader<'_>,
-        ) -> Result<Self, ParseError> {
+            reader: &mut ::pbrs::text::TextReader<'_>,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            while let Some(field) = reader.next_field()? {
+            while let ::core::option::Option::Some(field) = reader.next_field()? {
                 match field.name() {
                     "value" => {
                         msg.set_value(reader.read_string()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {}", field.name()))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {}",
+                            field.name()
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
         pub fn from_text_value(
-            fields: &[(String, pbrs::text::TextValue)],
-        ) -> Result<Self, ParseError> {
+            fields: &[(::std::string::String, ::pbrs::text::TextValue)],
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
             for (key, val) in fields {
                 match key.as_str() {
                     "value" => {
                         msg.set_value(val.as_str()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {key}"
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
     }
-    pbrs::impl_typed_message!(StringValue, StringValueView, StringValueMut);
+    ::pbrs::impl_typed_message!(StringValue, StringValueView, StringValueMut);
     /// Wrapper message for `uint32`.
     ///
     /// The JSON representation for `UInt32Value` is JSON number.
@@ -2023,14 +2439,14 @@ mod __gen_google_protobuf_wrappers_proto {
     /// has no plan to be removed.
     ///
     /// The `google.protobuf.UInt32Value` protobuf message.
-    #[derive(Clone, Debug)]
+    #[derive(::core::clone::Clone, ::core::fmt::Debug)]
     pub struct UInt32Value {
         /// The uint32 value.
         value: u32,
-        unknown: UnknownFields,
-        cached_size: pbrs::rt::CachedSize,
+        unknown: ::pbrs::UnknownFields,
+        cached_size: ::pbrs::rt::CachedSize,
     }
-    impl PartialEq for UInt32Value {
+    impl ::core::cmp::PartialEq for UInt32Value {
         fn eq(&self, other: &Self) -> bool {
             if self.value != other.value {
                 return false;
@@ -2038,11 +2454,11 @@ mod __gen_google_protobuf_wrappers_proto {
             self.unknown == other.unknown
         }
     }
-    impl Eq for UInt32Value {}
+    impl ::core::cmp::Eq for UInt32Value {}
     impl ::core::default::Default for UInt32Value {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { pbrs::rt::zeroed_message() }
+            unsafe { ::pbrs::rt::zeroed_message() }
         }
     }
     impl UInt32Value {
@@ -2068,223 +2484,283 @@ mod __gen_google_protobuf_wrappers_proto {
             self.value = v;
         }
         #[inline(always)]
-        pub fn check_required(&self) -> Result<(), ParseError> {
-            Ok(())
+        pub fn check_required(&self) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            ::core::result::Result::Ok(())
         }
-        pub fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+        pub fn merge_bytes(
+            &mut self,
+            data: &[u8],
+            depth: u32,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
                 return self.check_required();
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                true,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_bytes_dont_enforce(
             &mut self,
             data: &[u8],
             depth: u32,
-        ) -> Result<(), ParseError> {
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
-                return Ok(());
+                return ::core::result::Result::Ok(());
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                false,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_group(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            self.merge_inner(data, wire, pos, depth, false, Some(num))
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            self.merge_inner(
+                data,
+                wire,
+                pos,
+                depth,
+                false,
+                ::core::option::Option::Some(num),
+            )
         }
         pub fn merge_inner(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let _ = enforce;
             self.cached_size.dirty();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            self.value = pbrs::rt::decode_varint(data, pos)? as u32;
+                        ::pbrs::rt::WIRE_VARINT => {
+                            self.value = ::pbrs::rt::decode_varint(data, pos)? as u32;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown_with_depth(
+                            .push(::pbrs::rt::capture_unknown_with_depth(
                                 data, pos, n, w, depth,
                             )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
             if enforce {
                 self.check_required()?;
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn validate_inner(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            Self::validate_until(wire, pos, depth, None)
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            Self::validate_until(wire, pos, depth, ::core::option::Option::None)
         }
         pub fn validate_until(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)? as u32;
+                        ::pbrs::rt::WIRE_VARINT => {
+                            let _ = ::pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                    _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn compute_size(&self) -> u64 {
-            if let Some(n) = self.cached_size.get() {
+            if let ::core::option::Option::Some(n) = self.cached_size.get() {
                 return n;
             }
             let mut n = self.unknown.encoded_len();
             if self.value != 0 {
-                n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT)
-                    + pbrs::rt::varint_len((self.value) as u64);
+                n += ::pbrs::rt::tag_len(1, ::pbrs::rt::WIRE_VARINT)
+                    + ::pbrs::rt::varint_len((self.value) as u64);
             }
             self.cached_size.set(n);
             n
         }
-        pub fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
+        pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if self.value != 0 {
-                pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
-                pbrs::rt::encode_varint(out, self.value as u64);
+                ::pbrs::rt::encode_tag(out, 1, ::pbrs::rt::WIRE_VARINT);
+                ::pbrs::rt::encode_varint(out, self.value as u64);
             }
             self.unknown.encode(out);
         }
-        pub fn to_json(&self) -> Result<String, SerializeError> {
-            Ok(self.to_json_value()?.to_string())
+        pub fn to_json(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(self.to_json_value()?.to_string())
         }
-        pub fn from_json(json: &str) -> Result<Self, ParseError> {
+        pub fn from_json(json: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             Self::from_json_ignore(json, false)
         }
-        pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let v = pbrs::json::parse(json)?;
+        pub fn from_json_ignore(
+            json: &str,
+            ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let v = ::pbrs::json::parse(json)?;
             Self::from_json_value(&v, ignore)
         }
-        pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
-            Ok(pbrs::json::uint32(self.value()))
+        pub fn to_json_value(
+            &self,
+        ) -> ::core::result::Result<::pbrs::json::Json, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(::pbrs::json::uint32(self.value()))
         }
-        pub fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+        pub fn from_json_value(
+            v: &::pbrs::json::Json,
+            _ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            msg.set_value(pbrs::json::as_u32(v)?);
-            Ok(msg)
+            msg.set_value(::pbrs::json::as_u32(v)?);
+            ::core::result::Result::Ok(msg)
         }
-        pub fn to_text(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            Ok(out)
+            ::core::result::Result::Ok(out)
         }
-        pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text_with_unknown(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
-            Ok(out)
+            ::pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            ::core::result::Result::Ok(out)
         }
-        pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let mut reader = pbrs::text::TextReader::new(text);
+        pub fn from_text(text: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let mut reader = ::pbrs::text::TextReader::new(text);
             let msg = Self::from_text_reader(&mut reader)?;
             reader.finish()?;
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
-        pub fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+        pub fn write_text(
+            &self,
+            out: &mut ::std::string::String,
+            indent: usize,
+        ) -> ::core::result::Result<(), ::pbrs::SerializeError> {
             if self.value() != 0 {
-                pbrs::text::write_named_uint32(out, indent, "value", self.value());
+                ::pbrs::text::write_named_uint32(out, indent, "value", self.value());
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn from_text_reader(
-            reader: &mut pbrs::text::TextReader<'_>,
-        ) -> Result<Self, ParseError> {
+            reader: &mut ::pbrs::text::TextReader<'_>,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            while let Some(field) = reader.next_field()? {
+            while let ::core::option::Option::Some(field) = reader.next_field()? {
                 match field.name() {
                     "value" => {
                         msg.set_value(reader.read_u32()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {}", field.name()))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {}",
+                            field.name()
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
         pub fn from_text_value(
-            fields: &[(String, pbrs::text::TextValue)],
-        ) -> Result<Self, ParseError> {
+            fields: &[(::std::string::String, ::pbrs::text::TextValue)],
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
             for (key, val) in fields {
                 match key.as_str() {
                     "value" => {
                         msg.set_value(val.as_u32()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {key}"
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
     }
-    pbrs::impl_typed_message!(UInt32Value, UInt32ValueView, UInt32ValueMut);
+    ::pbrs::impl_typed_message!(UInt32Value, UInt32ValueView, UInt32ValueMut);
     /// Wrapper message for `uint64`.
     ///
     /// The JSON representation for `UInt64Value` is JSON string.
@@ -2293,14 +2769,14 @@ mod __gen_google_protobuf_wrappers_proto {
     /// has no plan to be removed.
     ///
     /// The `google.protobuf.UInt64Value` protobuf message.
-    #[derive(Clone, Debug)]
+    #[derive(::core::clone::Clone, ::core::fmt::Debug)]
     pub struct UInt64Value {
         /// The uint64 value.
         value: u64,
-        unknown: UnknownFields,
-        cached_size: pbrs::rt::CachedSize,
+        unknown: ::pbrs::UnknownFields,
+        cached_size: ::pbrs::rt::CachedSize,
     }
-    impl PartialEq for UInt64Value {
+    impl ::core::cmp::PartialEq for UInt64Value {
         fn eq(&self, other: &Self) -> bool {
             if self.value != other.value {
                 return false;
@@ -2308,11 +2784,11 @@ mod __gen_google_protobuf_wrappers_proto {
             self.unknown == other.unknown
         }
     }
-    impl Eq for UInt64Value {}
+    impl ::core::cmp::Eq for UInt64Value {}
     impl ::core::default::Default for UInt64Value {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { pbrs::rt::zeroed_message() }
+            unsafe { ::pbrs::rt::zeroed_message() }
         }
     }
     impl UInt64Value {
@@ -2338,223 +2814,283 @@ mod __gen_google_protobuf_wrappers_proto {
             self.value = v;
         }
         #[inline(always)]
-        pub fn check_required(&self) -> Result<(), ParseError> {
-            Ok(())
+        pub fn check_required(&self) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            ::core::result::Result::Ok(())
         }
-        pub fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+        pub fn merge_bytes(
+            &mut self,
+            data: &[u8],
+            depth: u32,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
                 return self.check_required();
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                true,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_bytes_dont_enforce(
             &mut self,
             data: &[u8],
             depth: u32,
-        ) -> Result<(), ParseError> {
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
             if data.is_empty() {
-                return Ok(());
+                return ::core::result::Result::Ok(());
             }
             let mut pos = 0;
-            let mut wire = None;
-            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
+            let mut wire = ::core::option::Option::None;
+            self.merge_inner(
+                data,
+                &mut wire,
+                &mut pos,
+                depth,
+                false,
+                ::core::option::Option::None,
+            )
         }
         pub fn merge_group(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            self.merge_inner(data, wire, pos, depth, false, Some(num))
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            self.merge_inner(
+                data,
+                wire,
+                pos,
+                depth,
+                false,
+                ::core::option::Option::Some(num),
+            )
         }
         pub fn merge_inner(
             &mut self,
             data: &[u8],
-            wire: &mut Option<pbrs::rt::Wire>,
+            wire: &mut ::core::option::Option<::pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let _ = enforce;
             self.cached_size.dirty();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            self.value = pbrs::rt::decode_varint(data, pos)?;
+                        ::pbrs::rt::WIRE_VARINT => {
+                            self.value = ::pbrs::rt::decode_varint(data, pos)?;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(pbrs::rt::capture_unknown_with_depth(
+                            .push(::pbrs::rt::capture_unknown_with_depth(
                                 data, pos, n, w, depth,
                             )?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(pbrs::rt::capture_unknown_with_depth(
+                        .push(::pbrs::rt::capture_unknown_with_depth(
                             data, pos, n, w, depth,
                         )?),
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
             if enforce {
                 self.check_required()?;
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn validate_inner(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-        ) -> Result<(), ParseError> {
-            Self::validate_until(wire, pos, depth, None)
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            Self::validate_until(wire, pos, depth, ::core::option::Option::None)
         }
         pub fn validate_until(
-            wire: &pbrs::rt::Wire,
+            wire: &::pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > pbrs::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
+            until: ::core::option::Option<u32>,
+        ) -> ::core::result::Result<(), ::pbrs::ParseError> {
+            if depth > ::pbrs::RECURSION_LIMIT {
+                return ::core::result::Result::Err(::pbrs::ParseError::new(
+                    "recursion limit exceeded",
+                ));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == pbrs::rt::WIRE_EGROUP {
+                let (n, w) = ::pbrs::rt::decode_tag(data, pos)?;
+                if let ::core::option::Option::Some(g) = until {
+                    if w == ::pbrs::rt::WIRE_EGROUP {
                         if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
+                            return ::core::result::Result::Err(::pbrs::ParseError::new(
+                                "mismatched end-group",
+                            ));
                         }
-                        return Ok(());
+                        return ::core::result::Result::Ok(());
                     }
                 }
                 match n {
                     1 => match w {
-                        pbrs::rt::WIRE_VARINT => {
-                            let _ = pbrs::rt::decode_varint(data, pos)?;
+                        ::pbrs::rt::WIRE_VARINT => {
+                            let _ = ::pbrs::rt::decode_varint(data, pos)?;
                         }
-                        _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                        _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                     },
-                    _ => pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
+                    _ => ::pbrs::rt::skip_field_with_number_and_depth(data, pos, n, w, depth)?,
                 }
             }
             if until.is_some() {
-                return Err(ParseError::new("truncated group"));
+                return ::core::result::Result::Err(::pbrs::ParseError::new("truncated group"));
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn compute_size(&self) -> u64 {
-            if let Some(n) = self.cached_size.get() {
+            if let ::core::option::Option::Some(n) = self.cached_size.get() {
                 return n;
             }
             let mut n = self.unknown.encoded_len();
             if self.value != 0 {
-                n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT)
-                    + pbrs::rt::varint_len((self.value) as u64);
+                n += ::pbrs::rt::tag_len(1, ::pbrs::rt::WIRE_VARINT)
+                    + ::pbrs::rt::varint_len((self.value) as u64);
             }
             self.cached_size.set(n);
             n
         }
-        pub fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
+        pub fn write_to(&self, out: &mut impl ::pbrs::rt::WireOut) {
             if self.value != 0 {
-                pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
-                pbrs::rt::encode_varint(out, self.value as u64);
+                ::pbrs::rt::encode_tag(out, 1, ::pbrs::rt::WIRE_VARINT);
+                ::pbrs::rt::encode_varint(out, self.value as u64);
             }
             self.unknown.encode(out);
         }
-        pub fn to_json(&self) -> Result<String, SerializeError> {
-            Ok(self.to_json_value()?.to_string())
+        pub fn to_json(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(self.to_json_value()?.to_string())
         }
-        pub fn from_json(json: &str) -> Result<Self, ParseError> {
+        pub fn from_json(json: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             Self::from_json_ignore(json, false)
         }
-        pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let v = pbrs::json::parse(json)?;
+        pub fn from_json_ignore(
+            json: &str,
+            ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let v = ::pbrs::json::parse(json)?;
             Self::from_json_value(&v, ignore)
         }
-        pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
-            Ok(pbrs::json::uint64(self.value()))
+        pub fn to_json_value(
+            &self,
+        ) -> ::core::result::Result<::pbrs::json::Json, ::pbrs::SerializeError> {
+            ::core::result::Result::Ok(::pbrs::json::uint64(self.value()))
         }
-        pub fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+        pub fn from_json_value(
+            v: &::pbrs::json::Json,
+            _ignore: bool,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            msg.set_value(pbrs::json::as_u64(v)?);
-            Ok(msg)
+            msg.set_value(::pbrs::json::as_u64(v)?);
+            ::core::result::Result::Ok(msg)
         }
-        pub fn to_text(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            Ok(out)
+            ::core::result::Result::Ok(out)
         }
-        pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let mut out = String::new();
+        pub fn to_text_with_unknown(
+            &self,
+        ) -> ::core::result::Result<::std::string::String, ::pbrs::SerializeError> {
+            let mut out = ::std::string::String::new();
             self.write_text(&mut out, 0)?;
-            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
-            Ok(out)
+            ::pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            ::core::result::Result::Ok(out)
         }
-        pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let mut reader = pbrs::text::TextReader::new(text);
+        pub fn from_text(text: &str) -> ::core::result::Result<Self, ::pbrs::ParseError> {
+            let mut reader = ::pbrs::text::TextReader::new(text);
             let msg = Self::from_text_reader(&mut reader)?;
             reader.finish()?;
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
-        pub fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+        pub fn write_text(
+            &self,
+            out: &mut ::std::string::String,
+            indent: usize,
+        ) -> ::core::result::Result<(), ::pbrs::SerializeError> {
             if self.value() != 0 {
-                pbrs::text::write_named_uint64(out, indent, "value", self.value());
+                ::pbrs::text::write_named_uint64(out, indent, "value", self.value());
             }
-            Ok(())
+            ::core::result::Result::Ok(())
         }
         pub fn from_text_reader(
-            reader: &mut pbrs::text::TextReader<'_>,
-        ) -> Result<Self, ParseError> {
+            reader: &mut ::pbrs::text::TextReader<'_>,
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
-            while let Some(field) = reader.next_field()? {
+            while let ::core::option::Option::Some(field) = reader.next_field()? {
                 match field.name() {
                     "value" => {
                         msg.set_value(reader.read_u64()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {}", field.name()))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {}",
+                            field.name()
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
         pub fn from_text_value(
-            fields: &[(String, pbrs::text::TextValue)],
-        ) -> Result<Self, ParseError> {
+            fields: &[(::std::string::String, ::pbrs::text::TextValue)],
+        ) -> ::core::result::Result<Self, ::pbrs::ParseError> {
             let mut msg = Self::new();
             for (key, val) in fields {
                 match key.as_str() {
                     "value" => {
                         msg.set_value(val.as_u64()?);
                     }
-                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                    _ => {
+                        return ::core::result::Result::Err(::pbrs::ParseError::owned(format!(
+                            "unknown field {key}"
+                        )))
+                    }
                 }
             }
-            Ok(msg)
+            ::core::result::Result::Ok(msg)
         }
     }
-    pbrs::impl_typed_message!(UInt64Value, UInt64ValueView, UInt64ValueMut);
+    ::pbrs::impl_typed_message!(UInt64Value, UInt64ValueView, UInt64ValueMut);
 }
 #[allow(unused_imports, reason = "generated re-exports may not all be used")]
 pub use __gen_google_protobuf_wrappers_proto::*;

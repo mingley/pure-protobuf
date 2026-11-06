@@ -1,0 +1,8 @@
+syntax = "proto3";
+package proof.bytes_old;
+import "bytes.proto";
+message OldEnvelope {
+  repeated proof.bytes.Child children = 1;
+  map<int32, proof.bytes.Child> nodes = 2;
+  proof.bytes.Child singular = 3;
+}

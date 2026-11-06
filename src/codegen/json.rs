@@ -165,42 +165,53 @@ pub(crate) fn field_supports_typed_json(f: &FieldDescriptor, depth: u32) -> bool
 
 pub(crate) fn enum_name_from_i32(f: &FieldDescriptor, expr: &str) -> String {
     let Some(en) = f.enum_ty.as_ref() else {
-        return "None".into();
+        return "::core::option::Option::None".into();
     };
     let mut arms = String::new();
     for (n, name) in &en.values {
-        let _ = write!(arms, "{n} => Some(\"{}\"), ", name.escape_default());
+        let _ = write!(
+            arms,
+            "{n} => ::core::option::Option::Some(\"{}\"), ",
+            name.escape_default()
+        );
     }
-    format!("match {expr} {{ {arms}_ => None }}")
+    format!("match {expr} {{ {arms}_ => ::core::option::Option::None }}")
 }
 
 pub(crate) fn enum_lookup_closure(f: &FieldDescriptor) -> String {
     let Some(en) = f.enum_ty.as_ref() else {
-        return "|_| None".into();
+        return "|_| ::core::option::Option::None".into();
     };
     let mut arms = String::new();
     for (name, n) in &en.names {
-        let _ = write!(arms, "\"{}\" => Some({n}), ", name.escape_default());
+        let _ = write!(
+            arms,
+            "\"{}\" => ::core::option::Option::Some({n}), ",
+            name.escape_default()
+        );
     }
-    format!("|s| match s {{ {arms}_ => None }}")
+    format!("|s| match s {{ {arms}_ => ::core::option::Option::None }}")
 }
 
 pub(crate) fn json_encode_leaf(f: &FieldDescriptor, expr: &str, view: bool) -> String {
+    let runtime = runtime_crate_path();
     match f.field_type {
-        FieldType::Bool => format!("pbrs::json::boolean({expr})"),
+        FieldType::Bool => format!("{runtime}::json::boolean({expr})"),
         FieldType::Int32 | FieldType::Sint32 | FieldType::Sfixed32 => {
-            format!("pbrs::json::int32({expr})")
+            format!("{runtime}::json::int32({expr})")
         }
         FieldType::Int64 | FieldType::Sint64 | FieldType::Sfixed64 => {
-            format!("pbrs::json::int64({expr})")
+            format!("{runtime}::json::int64({expr})")
         }
-        FieldType::Uint32 | FieldType::Fixed32 => format!("pbrs::json::uint32({expr})"),
-        FieldType::Uint64 | FieldType::Fixed64 => format!("pbrs::json::uint64({expr})"),
-        FieldType::Float => format!("pbrs::json::float({expr})"),
-        FieldType::Double => format!("pbrs::json::double({expr})"),
-        FieldType::String => format!("pbrs::json::string({expr}.as_bytes())"),
-        FieldType::Bytes if view => format!("pbrs::json::bytes({expr}.as_bytes())"),
-        FieldType::Bytes => format!("pbrs::json::bytes({expr})"),
+        FieldType::Uint32 | FieldType::Fixed32 => format!("{runtime}::json::uint32({expr})"),
+        FieldType::Uint64 | FieldType::Fixed64 => format!("{runtime}::json::uint64({expr})"),
+        FieldType::Float => format!("{runtime}::json::float({expr})"),
+        FieldType::Double => format!("{runtime}::json::double({expr})"),
+        FieldType::String => format!("{runtime}::json::string({expr}.as_bytes())"),
+        FieldType::Bytes if view && !is_selected_bytes(f) => {
+            format!("{runtime}::json::bytes({expr}.as_bytes())")
+        }
+        FieldType::Bytes => format!("{runtime}::json::bytes({expr})"),
         FieldType::Enum => {
             let n = if view {
                 expr.to_string()
@@ -208,7 +219,7 @@ pub(crate) fn json_encode_leaf(f: &FieldDescriptor, expr: &str, view: bool) -> S
                 format!("i32::from({expr})")
             };
             format!(
-                "{{ let n = {n}; pbrs::json::enumeration({}, n) }}",
+                "{{ let n = {n}; {runtime}::json::enumeration({}, n) }}",
                 enum_name_from_i32(f, "n")
             )
         }
@@ -217,22 +228,23 @@ pub(crate) fn json_encode_leaf(f: &FieldDescriptor, expr: &str, view: bool) -> S
 }
 
 pub(crate) fn json_decode_leaf(f: &FieldDescriptor, val: &str) -> String {
+    let runtime = runtime_crate_path();
     match f.field_type {
-        FieldType::Bool => format!("pbrs::json::as_bool({val})?"),
+        FieldType::Bool => format!("{runtime}::json::as_bool({val})?"),
         FieldType::Int32 | FieldType::Sint32 | FieldType::Sfixed32 => {
-            format!("pbrs::json::as_i32({val})?")
+            format!("{runtime}::json::as_i32({val})?")
         }
         FieldType::Int64 | FieldType::Sint64 | FieldType::Sfixed64 => {
-            format!("pbrs::json::as_i64({val})?")
+            format!("{runtime}::json::as_i64({val})?")
         }
-        FieldType::Uint32 | FieldType::Fixed32 => format!("pbrs::json::as_u32({val})?"),
-        FieldType::Uint64 | FieldType::Fixed64 => format!("pbrs::json::as_u64({val})?"),
-        FieldType::Float => format!("pbrs::json::as_f32({val})?"),
-        FieldType::Double => format!("pbrs::json::as_f64({val})?"),
-        FieldType::String => format!("pbrs::json::as_str({val})?"),
-        FieldType::Bytes => format!("pbrs::json::as_bytes({val})?"),
+        FieldType::Uint32 | FieldType::Fixed32 => format!("{runtime}::json::as_u32({val})?"),
+        FieldType::Uint64 | FieldType::Fixed64 => format!("{runtime}::json::as_u64({val})?"),
+        FieldType::Float => format!("{runtime}::json::as_f32({val})?"),
+        FieldType::Double => format!("{runtime}::json::as_f64({val})?"),
+        FieldType::String => format!("{runtime}::json::as_str({val})?"),
+        FieldType::Bytes => format!("{runtime}::json::as_bytes({val})?"),
         FieldType::Enum => format!(
-            "pbrs::json::as_enum({val}, ignore, {})?",
+            "{runtime}::json::as_enum({val}, ignore, {})?",
             enum_lookup_closure(f)
         ),
         FieldType::Message | FieldType::Group => {
@@ -243,24 +255,25 @@ pub(crate) fn json_decode_leaf(f: &FieldDescriptor, val: &str) -> String {
 
 pub(crate) fn json_map_key_encode(ty: FieldType, k: &str) -> String {
     if ty == FieldType::String {
-        format!("String::from_utf8_lossy({k}.as_bytes()).into_owned()")
+        format!("::std::string::String::from_utf8_lossy({k}.as_bytes()).into_owned()")
     } else {
         format!("{k}.to_string()")
     }
 }
 
 pub(crate) fn json_map_key_decode(ty: FieldType, k: &str) -> String {
+    let runtime = runtime_crate_path();
     match ty {
         FieldType::String => format!("{k}.as_str()"),
-        FieldType::Bool => format!("pbrs::json::map_key_bool({k})?"),
+        FieldType::Bool => format!("{runtime}::json::map_key_bool({k})?"),
         FieldType::Int32 | FieldType::Sint32 | FieldType::Sfixed32 => {
-            format!("pbrs::json::map_key_i32({k})?")
+            format!("{runtime}::json::map_key_i32({k})?")
         }
         FieldType::Int64 | FieldType::Sint64 | FieldType::Sfixed64 => {
-            format!("pbrs::json::map_key_i64({k})?")
+            format!("{runtime}::json::map_key_i64({k})?")
         }
-        FieldType::Uint32 | FieldType::Fixed32 => format!("pbrs::json::map_key_u32({k})?"),
-        FieldType::Uint64 | FieldType::Fixed64 => format!("pbrs::json::map_key_u64({k})?"),
+        FieldType::Uint32 | FieldType::Fixed32 => format!("{runtime}::json::map_key_u32({k})?"),
+        FieldType::Uint64 | FieldType::Fixed64 => format!("{runtime}::json::map_key_u64({k})?"),
         _ => format!("{k}.as_str()"),
     }
 }
@@ -295,6 +308,7 @@ pub(crate) fn emit_json_oneof_guard(
     desc: &MessageDescriptor,
     f: &FieldDescriptor,
 ) {
+    let runtime = runtime_crate_path();
     if !is_real_oneof(desc, f) {
         return;
     }
@@ -316,7 +330,7 @@ pub(crate) fn emit_json_oneof_guard(
         let raw = field_raw(sib);
         let _ = writeln!(
             src,
-            "                    if msg.has_{raw}() {{ return Err(ParseError::new(\"duplicate oneof member\")); }}"
+            "                    if msg.has_{raw}() {{ return ::core::result::Result::Err({runtime}::ParseError::new(\"duplicate oneof member\")); }}"
         );
     }
 }
@@ -373,78 +387,89 @@ pub(crate) fn emit_json_text(src: &mut String, desc: &MessageDescriptor) {
 
 /// Official proto3 JSON string mapping for Timestamp / Duration.
 pub(crate) fn emit_wkt_string_json(src: &mut String, helper: &str) {
+    let runtime = runtime_crate_path();
     let _ = writeln!(
         src,
-        "    pub fn to_json(&self) -> Result<String, SerializeError> {{"
+        "    pub fn to_json(&self) -> ::core::result::Result<::std::string::String, {runtime}::SerializeError> {{"
     );
-    let _ = writeln!(src, "        Ok(self.to_json_value()?.to_string())");
+    let _ = writeln!(
+        src,
+        "        ::core::result::Result::Ok(self.to_json_value()?.to_string())"
+    );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    pub fn from_json(json: &str) -> Result<Self, ParseError> {{ Self::from_json_ignore(json, false) }}"
+        "    pub fn from_json(json: &str) -> ::core::result::Result<Self, {runtime}::ParseError> {{ Self::from_json_ignore(json, false) }}"
     );
     let _ = writeln!(
         src,
-        "    pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {{"
+        "    pub fn from_json_ignore(json: &str, ignore: bool) -> ::core::result::Result<Self, {runtime}::ParseError> {{"
     );
-    let _ = writeln!(src, "        let v = pbrs::json::parse(json)?;");
+    let _ = writeln!(src, "        let v = {runtime}::json::parse(json)?;");
     let _ = writeln!(src, "        Self::from_json_value(&v, ignore)");
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {{"
+        "    pub fn to_json_value(&self) -> ::core::result::Result<{runtime}::json::Json, {runtime}::SerializeError> {{"
     );
     let _ = writeln!(
         src,
-        "        pbrs::json::{helper}(self.seconds(), self.nanos())"
+        "        {runtime}::json::{helper}(self.seconds(), self.nanos())"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    pub fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {{"
+        "    pub fn from_json_value(v: &{runtime}::json::Json, _ignore: bool) -> ::core::result::Result<Self, {runtime}::ParseError> {{"
     );
     let _ = writeln!(
         src,
-        "        let (seconds, nanos) = pbrs::json::as_{helper}(v)?;"
+        "        let (seconds, nanos) = {runtime}::json::as_{helper}(v)?;"
     );
     let _ = writeln!(src, "        let mut msg = Self::new();");
     let _ = writeln!(src, "        msg.set_seconds(seconds);");
     let _ = writeln!(src, "        msg.set_nanos(nanos);");
-    let _ = writeln!(src, "        Ok(msg)");
+    let _ = writeln!(src, "        ::core::result::Result::Ok(msg)");
     let _ = writeln!(src, "    }}");
 }
 
 /// Official proto3 JSON for Empty (`{}`).
 pub(crate) fn emit_wkt_empty_json(src: &mut String) {
+    let runtime = runtime_crate_path();
     let _ = writeln!(
         src,
-        "    pub fn to_json(&self) -> Result<String, SerializeError> {{"
+        "    pub fn to_json(&self) -> ::core::result::Result<::std::string::String, {runtime}::SerializeError> {{"
     );
-    let _ = writeln!(src, "        Ok(self.to_json_value()?.to_string())");
+    let _ = writeln!(
+        src,
+        "        ::core::result::Result::Ok(self.to_json_value()?.to_string())"
+    );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    pub fn from_json(json: &str) -> Result<Self, ParseError> {{ Self::from_json_ignore(json, false) }}"
+        "    pub fn from_json(json: &str) -> ::core::result::Result<Self, {runtime}::ParseError> {{ Self::from_json_ignore(json, false) }}"
     );
     let _ = writeln!(
         src,
-        "    pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {{"
+        "    pub fn from_json_ignore(json: &str, ignore: bool) -> ::core::result::Result<Self, {runtime}::ParseError> {{"
     );
-    let _ = writeln!(src, "        let v = pbrs::json::parse(json)?;");
+    let _ = writeln!(src, "        let v = {runtime}::json::parse(json)?;");
     let _ = writeln!(src, "        Self::from_json_value(&v, ignore)");
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {{"
+        "    pub fn to_json_value(&self) -> ::core::result::Result<{runtime}::json::Json, {runtime}::SerializeError> {{"
     );
-    let _ = writeln!(src, "        Ok(pbrs::json::empty())");
+    let _ = writeln!(
+        src,
+        "        ::core::result::Result::Ok({runtime}::json::empty())"
+    );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    pub fn from_json_value(v: &pbrs::json::Json, ignore: bool) -> Result<Self, ParseError> {{"
+        "    pub fn from_json_value(v: &{runtime}::json::Json, ignore: bool) -> ::core::result::Result<Self, {runtime}::ParseError> {{"
     );
-    let _ = writeln!(src, "        pbrs::json::as_empty(v, ignore)?;");
-    let _ = writeln!(src, "        Ok(Self::new())");
+    let _ = writeln!(src, "        {runtime}::json::as_empty(v, ignore)?;");
+    let _ = writeln!(src, "        ::core::result::Result::Ok(Self::new())");
     let _ = writeln!(src, "    }}");
 }
 
@@ -455,86 +480,98 @@ pub(crate) fn emit_wkt_wrapper_json(
     decode: &str,
     value_expr: &str,
 ) {
+    let runtime = runtime_crate_path();
     let _ = writeln!(
         src,
-        "    pub fn to_json(&self) -> Result<String, SerializeError> {{"
+        "    pub fn to_json(&self) -> ::core::result::Result<::std::string::String, {runtime}::SerializeError> {{"
     );
-    let _ = writeln!(src, "        Ok(self.to_json_value()?.to_string())");
+    let _ = writeln!(
+        src,
+        "        ::core::result::Result::Ok(self.to_json_value()?.to_string())"
+    );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    pub fn from_json(json: &str) -> Result<Self, ParseError> {{ Self::from_json_ignore(json, false) }}"
+        "    pub fn from_json(json: &str) -> ::core::result::Result<Self, {runtime}::ParseError> {{ Self::from_json_ignore(json, false) }}"
     );
     let _ = writeln!(
         src,
-        "    pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {{"
+        "    pub fn from_json_ignore(json: &str, ignore: bool) -> ::core::result::Result<Self, {runtime}::ParseError> {{"
     );
-    let _ = writeln!(src, "        let v = pbrs::json::parse(json)?;");
+    let _ = writeln!(src, "        let v = {runtime}::json::parse(json)?;");
     let _ = writeln!(src, "        Self::from_json_value(&v, ignore)");
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {{"
+        "    pub fn to_json_value(&self) -> ::core::result::Result<{runtime}::json::Json, {runtime}::SerializeError> {{"
     );
-    let _ = writeln!(src, "        Ok(pbrs::json::{encode}({value_expr}))");
+    let _ = writeln!(
+        src,
+        "        ::core::result::Result::Ok({runtime}::json::{encode}({value_expr}))"
+    );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    pub fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {{"
+        "    pub fn from_json_value(v: &{runtime}::json::Json, _ignore: bool) -> ::core::result::Result<Self, {runtime}::ParseError> {{"
     );
     let _ = writeln!(src, "        let mut msg = Self::new();");
-    let _ = writeln!(src, "        msg.set_value(pbrs::json::{decode}(v)?);");
-    let _ = writeln!(src, "        Ok(msg)");
+    let _ = writeln!(src, "        msg.set_value({runtime}::json::{decode}(v)?);");
+    let _ = writeln!(src, "        ::core::result::Result::Ok(msg)");
     let _ = writeln!(src, "    }}");
 }
 
 /// Emit the allocation-light official FieldMask JSON mapping.
 pub(crate) fn emit_wkt_field_mask_json(src: &mut String) {
+    let runtime = runtime_crate_path();
     let _ = writeln!(
         src,
-        "    pub fn to_json(&self) -> Result<String, SerializeError> {{ Ok(self.to_json_value()?.to_string()) }}"
+        "    pub fn to_json(&self) -> ::core::result::Result<::std::string::String, {runtime}::SerializeError> {{ ::core::result::Result::Ok(self.to_json_value()?.to_string()) }}"
     );
     let _ = writeln!(
         src,
-        "    pub fn from_json(json: &str) -> Result<Self, ParseError> {{ Self::from_json_ignore(json, false) }}"
+        "    pub fn from_json(json: &str) -> ::core::result::Result<Self, {runtime}::ParseError> {{ Self::from_json_ignore(json, false) }}"
     );
     let _ = writeln!(
         src,
-        "    pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {{ let v = pbrs::json::parse(json)?; Self::from_json_value(&v, ignore) }}"
+        "    pub fn from_json_ignore(json: &str, ignore: bool) -> ::core::result::Result<Self, {runtime}::ParseError> {{ let v = {runtime}::json::parse(json)?; Self::from_json_value(&v, ignore) }}"
     );
     let _ = writeln!(
         src,
-        "    pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {{ pbrs::json::field_mask(self.paths().iter().map(|p| p.0.as_bytes())) }}"
+        "    pub fn to_json_value(&self) -> ::core::result::Result<{runtime}::json::Json, {runtime}::SerializeError> {{ {runtime}::json::field_mask(self.paths().iter().map(|p| p.0.as_bytes())) }}"
     );
     let _ = writeln!(
         src,
-        "    pub fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {{"
+        "    pub fn from_json_value(v: &{runtime}::json::Json, _ignore: bool) -> ::core::result::Result<Self, {runtime}::ParseError> {{"
     );
     let _ = writeln!(src, "        let mut msg = Self::new();");
     let _ = writeln!(
         src,
-        "        for path in pbrs::json::as_field_mask(v)? {{ msg.paths_mut().push(path); }}"
+        "        for path in {runtime}::json::as_field_mask(v)? {{ msg.paths_mut().push(path); }}"
     );
-    let _ = writeln!(src, "        Ok(msg)");
+    let _ = writeln!(src, "        ::core::result::Result::Ok(msg)");
     let _ = writeln!(src, "    }}");
 }
 
 pub(crate) fn emit_typed_json(src: &mut String, desc: &MessageDescriptor) {
+    let runtime = runtime_crate_path();
     let _ = writeln!(
         src,
-        "    pub fn to_json(&self) -> Result<String, SerializeError> {{"
+        "    pub fn to_json(&self) -> ::core::result::Result<::std::string::String, {runtime}::SerializeError> {{"
     );
-    let _ = writeln!(src, "        Ok(self.to_json_value()?.to_string())");
+    let _ = writeln!(
+        src,
+        "        ::core::result::Result::Ok(self.to_json_value()?.to_string())"
+    );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    pub fn from_json(json: &str) -> Result<Self, ParseError> {{ Self::from_json_ignore(json, false) }}"
+        "    pub fn from_json(json: &str) -> ::core::result::Result<Self, {runtime}::ParseError> {{ Self::from_json_ignore(json, false) }}"
     );
     let _ = writeln!(
         src,
-        "    pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {{"
+        "    pub fn from_json_ignore(json: &str, ignore: bool) -> ::core::result::Result<Self, {runtime}::ParseError> {{"
     );
-    let _ = writeln!(src, "        let v = pbrs::json::parse(json)?;");
+    let _ = writeln!(src, "        let v = {runtime}::json::parse(json)?;");
     let _ = writeln!(src, "        Self::from_json_value(&v, ignore)");
     let _ = writeln!(src, "    }}");
     emit_to_json_value(src, desc);
@@ -542,11 +579,15 @@ pub(crate) fn emit_typed_json(src: &mut String, desc: &MessageDescriptor) {
 }
 
 pub(crate) fn emit_to_json_value(src: &mut String, desc: &MessageDescriptor) {
+    let runtime = runtime_crate_path();
     let _ = writeln!(
         src,
-        "    pub fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {{"
+        "    pub fn to_json_value(&self) -> ::core::result::Result<{runtime}::json::Json, {runtime}::SerializeError> {{"
     );
-    let _ = writeln!(src, "        let mut map = pbrs::json::JsonMap::new();");
+    let _ = writeln!(
+        src,
+        "        let mut map = {runtime}::json::JsonMap::new();"
+    );
     for f in desc.fields.values() {
         let id = field_id(f);
         let m = field_raw(f);
@@ -555,11 +596,21 @@ pub(crate) fn emit_to_json_value(src: &mut String, desc: &MessageDescriptor) {
         if f.is_map {
             let kt = map_key_ty(f);
             let vf = map_value_field(f);
-            let val = vf
-                .map(|v| json_encode_leaf(v, "v", true))
-                .unwrap_or_else(|| json_encode_leaf(f, "v", true));
+            let val = if map_val_ty(f) == FieldType::Bytes {
+                if is_selected_bytes(f) {
+                    format!("{runtime}::json::bytes(v)")
+                } else {
+                    format!("{runtime}::json::bytes(v.as_bytes())")
+                }
+            } else {
+                vf.map(|v| json_encode_leaf(v, "v", true))
+                    .unwrap_or_else(|| json_encode_leaf(f, "v", true))
+            };
             let _ = writeln!(src, "        if !self.{id}().is_empty() {{");
-            let _ = writeln!(src, "            let mut obj = pbrs::json::JsonMap::new();");
+            let _ = writeln!(
+                src,
+                "            let mut obj = {runtime}::json::JsonMap::new();"
+            );
             let _ = writeln!(src, "            for (k, v) in self.{id}() {{");
             let _ = writeln!(
                 src,
@@ -569,19 +620,19 @@ pub(crate) fn emit_to_json_value(src: &mut String, desc: &MessageDescriptor) {
             let _ = writeln!(src, "            }}");
             let _ = writeln!(
                 src,
-                "            let _ = map.insert({key}.into(), pbrs::json::Json::Object(obj));"
+                "            let _ = map.insert({key}.into(), {runtime}::json::Json::Object(obj));"
             );
             let _ = writeln!(src, "        }}");
         } else if f.cardinality == Cardinality::Repeated {
             let item = json_encode_leaf(f, "item", true);
             let _ = writeln!(src, "        if !self.{id}().is_empty() {{");
-            let _ = writeln!(src, "            let mut arr = Vec::new();");
+            let _ = writeln!(src, "            let mut arr = ::std::vec::Vec::new();");
             let _ = writeln!(src, "            for item in self.{id}() {{");
             let _ = writeln!(src, "                arr.push({item});");
             let _ = writeln!(src, "            }}");
             let _ = writeln!(
                 src,
-                "            let _ = map.insert({key}.into(), pbrs::json::Json::Array(arr));"
+                "            let _ = map.insert({key}.into(), {runtime}::json::Json::Array(arr));"
             );
             let _ = writeln!(src, "        }}");
         } else if f.field_type == FieldType::Message {
@@ -602,23 +653,27 @@ pub(crate) fn emit_to_json_value(src: &mut String, desc: &MessageDescriptor) {
             let _ = writeln!(src, "        }}");
         }
     }
-    let _ = writeln!(src, "        Ok(pbrs::json::Json::Object(map))");
+    let _ = writeln!(
+        src,
+        "        ::core::result::Result::Ok({runtime}::json::Json::Object(map))"
+    );
     let _ = writeln!(src, "    }}");
 }
 
 pub(crate) fn emit_from_json_value(src: &mut String, desc: &MessageDescriptor) {
+    let runtime = runtime_crate_path();
     let _ = writeln!(
         src,
-        "    pub fn from_json_value(v: &pbrs::json::Json, ignore: bool) -> Result<Self, ParseError> {{"
+        "    pub fn from_json_value(v: &{runtime}::json::Json, ignore: bool) -> ::core::result::Result<Self, {runtime}::ParseError> {{"
     );
     let _ = writeln!(
         src,
-        "        let obj = v.as_object().ok_or_else(|| ParseError::new(\"json message must be an object\"))?;"
+        "        let obj = v.as_object().ok_or_else(|| {runtime}::ParseError::new(\"json message must be an object\"))?;"
     );
     let _ = writeln!(src, "        let mut msg = Self::new();");
     let _ = writeln!(
         src,
-        "        let mut seen = std::collections::BTreeSet::<u32>::new();"
+        "        let mut seen = ::std::collections::BTreeSet::<u32>::new();"
     );
     let _ = writeln!(src, "        for (key, val) in obj {{");
     let _ = writeln!(src, "            match key.as_str() {{");
@@ -630,7 +685,7 @@ pub(crate) fn emit_from_json_value(src: &mut String, desc: &MessageDescriptor) {
         let _ = writeln!(src, "                {keys} => {{");
         let _ = writeln!(
             src,
-            "                    if !seen.insert({num}u32) {{ return Err(ParseError::owned(format!(\"duplicate json field {{key}}\"))); }}"
+            "                    if !seen.insert({num}u32) {{ return ::core::result::Result::Err({runtime}::ParseError::owned(format!(\"duplicate json field {{key}}\"))); }}"
         );
         let _ = writeln!(src, "                    if val.is_null() {{ continue; }}");
         emit_json_oneof_guard(src, desc, f);
@@ -640,14 +695,14 @@ pub(crate) fn emit_from_json_value(src: &mut String, desc: &MessageDescriptor) {
             let val_ty = vf.map(|v| v.field_type);
             let _ = writeln!(
                 src,
-                "                    let obj = val.as_object().ok_or_else(|| ParseError::new(\"json map must be an object\"))?;"
+                "                    let obj = val.as_object().ok_or_else(|| {runtime}::ParseError::new(\"json map must be an object\"))?;"
             );
             let _ = writeln!(src, "                    for (k, v) in obj {{");
             if val_ty == Some(FieldType::Enum) {
                 let Some(vf) = vf else { continue };
                 let _ = writeln!(
                     src,
-                    "                        if let Some(val) = {} {{",
+                    "                        if let ::core::option::Option::Some(val) = {} {{",
                     json_decode_leaf(vf, "v")
                 );
                 let _ = writeln!(
@@ -659,7 +714,7 @@ pub(crate) fn emit_from_json_value(src: &mut String, desc: &MessageDescriptor) {
             } else {
                 let decode = vf
                     .map(|v| json_decode_leaf(v, "v"))
-                    .unwrap_or_else(|| "pbrs::json::as_i32(v)?".into());
+                    .unwrap_or_else(|| runtime_path("::pbrs::json::as_i32(v)?").into());
                 let _ = writeln!(
                     src,
                     "                        msg.{id}_mut().insert({}, {decode});",
@@ -670,13 +725,13 @@ pub(crate) fn emit_from_json_value(src: &mut String, desc: &MessageDescriptor) {
         } else if f.cardinality == Cardinality::Repeated {
             let _ = writeln!(
                 src,
-                "                    let arr = val.as_array().ok_or_else(|| ParseError::new(\"json repeated must be an array\"))?;"
+                "                    let arr = val.as_array().ok_or_else(|| {runtime}::ParseError::new(\"json repeated must be an array\"))?;"
             );
             let _ = writeln!(src, "                    for item in arr {{");
             if f.field_type == FieldType::Enum {
                 let _ = writeln!(
                     src,
-                    "                        if let Some(item) = {} {{",
+                    "                        if let ::core::option::Option::Some(item) = {} {{",
                     json_decode_leaf(f, "item")
                 );
                 let _ = writeln!(
@@ -695,7 +750,7 @@ pub(crate) fn emit_from_json_value(src: &mut String, desc: &MessageDescriptor) {
         } else if f.field_type == FieldType::Enum {
             let _ = writeln!(
                 src,
-                "                    if let Some(n) = {} {{",
+                "                    if let ::core::option::Option::Some(n) = {} {{",
                 json_decode_leaf(f, "val")
             );
             let _ = writeln!(src, "                        msg.set_{m}(n);");
@@ -712,55 +767,56 @@ pub(crate) fn emit_from_json_value(src: &mut String, desc: &MessageDescriptor) {
     let _ = writeln!(src, "                _ => {{");
     let _ = writeln!(
         src,
-        "                    if !ignore {{ return Err(ParseError::owned(format!(\"unknown json field {{key}}\"))); }}"
+        "                    if !ignore {{ return ::core::result::Result::Err({runtime}::ParseError::owned(format!(\"unknown json field {{key}}\"))); }}"
     );
     let _ = writeln!(src, "                }}");
     let _ = writeln!(src, "            }}");
     let _ = writeln!(src, "        }}");
-    let _ = writeln!(src, "        Ok(msg)");
+    let _ = writeln!(src, "        ::core::result::Result::Ok(msg)");
     let _ = writeln!(src, "    }}");
 }
 
 pub(crate) fn emit_dynamic_json(src: &mut String, full_name: &str) {
+    let runtime = runtime_crate_path();
     let _ = writeln!(
         src,
-        "    pub fn to_json(&self) -> Result<String, SerializeError> {{"
+        "    pub fn to_json(&self) -> ::core::result::Result<::std::string::String, {runtime}::SerializeError> {{"
     );
     let _ = writeln!(
         src,
-        "        let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new(\"json\"))?;"
+        "        let b = {runtime}::Serialize::serialize(self).map_err(|_| {runtime}::SerializeError::new(\"json\"))?;"
     );
     let _ = writeln!(src, "        let pool = generated_pool();");
     let _ = writeln!(
         src,
-        "        let desc = pool.get_message(\"{full_name}\").ok_or_else(|| SerializeError::new(\"missing desc\"))?;"
+        "        let desc = pool.get_message(\"{full_name}\").ok_or_else(|| {runtime}::SerializeError::new(\"missing desc\"))?;"
     );
     let _ = writeln!(
         src,
-        "        pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b).map_err(|_| SerializeError::new(\"json\"))?.to_json()"
+        "        {runtime}::DynamicMessage::parse_with_pool(desc, ::core::option::Option::Some(pool), &b).map_err(|_| {runtime}::SerializeError::new(\"json\"))?.to_json()"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    pub fn from_json(json: &str) -> Result<Self, ParseError> {{ Self::from_json_ignore(json, false) }}"
+        "    pub fn from_json(json: &str) -> ::core::result::Result<Self, {runtime}::ParseError> {{ Self::from_json_ignore(json, false) }}"
     );
     let _ = writeln!(
         src,
-        "    pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {{"
+        "    pub fn from_json_ignore(json: &str, ignore: bool) -> ::core::result::Result<Self, {runtime}::ParseError> {{"
     );
     let _ = writeln!(src, "        let pool = generated_pool();");
     let _ = writeln!(
         src,
-        "        let desc = pool.get_message(\"{full_name}\").ok_or_else(|| ParseError::owned(\"missing desc\".into()))?;"
+        "        let desc = pool.get_message(\"{full_name}\").ok_or_else(|| {runtime}::ParseError::owned(\"missing desc\".into()))?;"
     );
     let _ = writeln!(
         src,
-        "        let d = pbrs::DynamicMessage::from_json_with_pool(desc, Some(pool), json, ignore)?;"
+        "        let d = {runtime}::DynamicMessage::from_json_with_pool(desc, ::core::option::Option::Some(pool), json, ignore)?;"
     );
     let _ = writeln!(
         src,
-        "        let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;"
+        "        let b = {runtime}::Serialize::serialize(&d).map_err(|e| {runtime}::ParseError::owned(e.to_string()))?;"
     );
-    let _ = writeln!(src, "        <Self as pbrs::Parse>::parse(&b)");
+    let _ = writeln!(src, "        <Self as {runtime}::Parse>::parse(&b)");
     let _ = writeln!(src, "    }}");
 }

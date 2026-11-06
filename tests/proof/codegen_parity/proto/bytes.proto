@@ -1,0 +1,46 @@
+syntax = "proto3";
+package proof.bytes;
+import "bytes_external.proto";
+import "bytes_legacy.proto";
+
+message Child { bytes payload = 1; }
+
+message Example {
+  bytes chosen = 1;
+  bytes ordinary = 2;
+  optional bytes maybe = 3;
+  repeated bytes chunks = 4;
+  map<string, bytes> lookup = 5;
+  oneof choice {
+    bytes raw = 6;
+    int32 marker = 7;
+  }
+  Child nested = 8;
+  repeated Child children = 9;
+  map<int32, Child> nodes = 10;
+  proof.bytes_external.Imported imported = 11;
+  proof.bytes_legacy.Required required_child = 12;
+  bytes chosen_shared = 13;
+  bytes chosen_shared_2 = 14;
+  bytes chosen_shared_opt = 15;
+  bytes type = 16;
+  bytes maybe_shared_opt = 17;
+}
+
+message Cold {
+  int32 id = 1;
+  bytes first = 2;
+  bytes second = 3;
+  bytes third = 4;
+}
+
+message Flat {
+  bytes chosen = 1;
+  optional bytes maybe = 2;
+  repeated bytes chunks = 3;
+  map<string, bytes> lookup = 4;
+  oneof choice {
+    bytes raw = 5;
+    int32 marker = 6;
+  }
+}

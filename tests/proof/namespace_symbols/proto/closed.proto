@@ -1,0 +1,26 @@
+syntax = "proto2";
+package proof.closed;
+
+message From { optional int32 value = 1; }
+message TryFrom { optional int32 value = 1; }
+message UnknownEnumValue { optional int32 value = 1; }
+message ParseError { optional int32 value = 1; }
+
+enum Some { SOME_ZERO = 0; SOME_ONE = 1; }
+enum None { NONE_ZERO = 0; NONE_ONE = 1; }
+enum Ok { OK_ZERO = 0; OK_ONE = 1; }
+enum Err { ERR_ZERO = 0; ERR_ONE = 1; }
+
+message Record {
+  required int32 required_value = 1;
+  optional Some some_value = 2 [default = SOME_ONE];
+  optional None none_value = 3;
+  optional Ok ok_value = 4;
+  optional Err err_value = 5;
+  repeated Some values = 6 [packed = true];
+  map<string, None> entries = 7;
+  optional From from_value = 8;
+  optional TryFrom try_from_value = 9;
+  optional UnknownEnumValue error_value = 10;
+  optional ParseError parse_value = 11;
+}

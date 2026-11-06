@@ -46,7 +46,7 @@ pub use crate::dynamic::{
 pub const RECURSION_LIMIT: u32 = 100;
 pub use crate::error::{ParseError, SerializeError};
 pub use crate::extension::{Extension, ExtensionHost, ExtensionValue};
-pub use crate::map::{Map, MapIter, MapKey, MapMut, MapValue, MapView};
+pub use crate::map::{Map, MapIter, MapKey, MapMut, MapQuery, MapValue, MapView};
 pub use crate::message::{
     Clear, ClearAndParse, CopyFrom, Enum, MergeFrom, Message, MessageMut, MessageName, MessageType,
     MessageView, Name, Parse, Serialize, TakeFrom, UnknownEnumValue, message_eq,

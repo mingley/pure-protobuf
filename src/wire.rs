@@ -600,6 +600,23 @@ pub fn encode_len_field_shared(
     out.extend_from_slice(field.as_bytes());
 }
 
+/// Encode an eager Bytes-backed field, retaining large buffers on shared sinks.
+#[doc(hidden)]
+#[inline(always)]
+pub fn encode_proto_bytes_field_shared(
+    out: &mut impl WireOut,
+    number: u32,
+    field: &crate::ProtoBytes,
+) {
+    let len = field.as_bytes().len();
+    encode_len_header(out, number, len as u64);
+    if len >= SHARED_SEND_THRESHOLD && out.supports_shared() {
+        out.put_shared(&field.as_shared());
+    } else {
+        out.extend_from_slice(field.as_bytes());
+    }
+}
+
 pub fn encode_zigzag32(n: i32) -> u64 {
     ((n << 1) ^ (n >> 31)) as u32 as u64
 }

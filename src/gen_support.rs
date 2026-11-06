@@ -396,29 +396,41 @@ mod dynamic_support {
 
     /// Typed message wrapping a `DynamicMessage`. Used by plugin gencode and
     /// the TestAllTypes wrappers the conformance program drives.
+    ///
+    /// The five-argument form leaves the view's `Default` implementation to
+    /// the caller. Append `default_view` to emit a shared default view instead.
     #[macro_export]
     macro_rules! impl_generated_message {
+        ($Owned:ident, $View:ident, $Mut:ident, $full:expr_2021, $pool:expr_2021, default_view) => {
+            $crate::impl_generated_message!($Owned, $View, $Mut, $full, $pool);
+            impl ::core::default::Default for $View<'_> {
+                fn default() -> Self {
+                    static DEFAULT: ::std::sync::OnceLock<$Owned> = ::std::sync::OnceLock::new();
+                    $View($crate::gen_support::default_instance(&DEFAULT))
+                }
+            }
+        };
         ($Owned:ident, $View:ident, $Mut:ident, $full:expr_2021, $pool:expr_2021) => {
-            #[derive(Clone, Debug, PartialEq)]
+            #[derive(::core::clone::Clone, ::core::fmt::Debug, ::core::cmp::PartialEq)]
             pub struct $Owned {
                 inner: $crate::DynamicMessage,
             }
-            #[derive(Clone, Copy, Debug)]
+            #[derive(::core::clone::Clone, ::core::marker::Copy, ::core::fmt::Debug)]
             pub struct $View<'msg>(pub &'msg $Owned);
             pub struct $Mut<'msg>(pub &'msg mut $Owned);
-            impl std::ops::Deref for $View<'_> {
+            impl ::std::ops::Deref for $View<'_> {
                 type Target = $Owned;
                 fn deref(&self) -> &Self::Target {
                     self.0
                 }
             }
-            impl std::ops::Deref for $Mut<'_> {
+            impl ::std::ops::Deref for $Mut<'_> {
                 type Target = $Owned;
                 fn deref(&self) -> &Self::Target {
                     self.0
                 }
             }
-            impl std::ops::DerefMut for $Mut<'_> {
+            impl ::std::ops::DerefMut for $Mut<'_> {
                 fn deref_mut(&mut self) -> &mut Self::Target {
                     self.0
                 }
@@ -427,7 +439,7 @@ mod dynamic_support {
             impl $Owned {
                 pub const FULL_NAME: &'static str = $full;
                 pub fn new() -> Self {
-                    Self::default()
+                    <Self as ::core::default::Default>::default()
                 }
                 pub fn from_dynamic(inner: $crate::DynamicMessage) -> Self {
                     Self { inner }
@@ -441,42 +453,52 @@ mod dynamic_support {
                 pub fn into_dynamic(self) -> $crate::DynamicMessage {
                     self.inner
                 }
-                pub fn to_json(&self) -> Result<String, $crate::SerializeError> {
+                pub fn to_json(
+                    &self,
+                ) -> ::core::result::Result<::std::string::String, $crate::SerializeError> {
                     self.inner.to_json()
                 }
-                pub fn from_json(json: &str) -> Result<Self, $crate::ParseError> {
+                pub fn from_json(json: &str) -> ::core::result::Result<Self, $crate::ParseError> {
                     Self::from_json_ignore(json, false)
                 }
                 pub fn from_json_ignore(
                     json: &str,
                     ignore_unknown: bool,
-                ) -> Result<Self, $crate::ParseError> {
+                ) -> ::core::result::Result<Self, $crate::ParseError> {
                     let pool = $pool;
                     let desc = pool.get_message($full).ok_or_else(|| {
                         $crate::ParseError::owned(format!("missing descriptor {}", $full))
                     })?;
-                    Ok(Self {
+                    ::core::result::Result::Ok(Self {
                         inner: $crate::DynamicMessage::from_json_with_pool(
                             desc,
-                            Some(pool),
+                            ::core::option::Option::Some(pool),
                             json,
                             ignore_unknown,
                         )?,
                     })
                 }
-                pub fn to_text(&self) -> Result<String, $crate::SerializeError> {
+                pub fn to_text(
+                    &self,
+                ) -> ::core::result::Result<::std::string::String, $crate::SerializeError> {
                     self.inner.to_text()
                 }
-                pub fn to_text_with_unknown(&self) -> Result<String, $crate::SerializeError> {
+                pub fn to_text_with_unknown(
+                    &self,
+                ) -> ::core::result::Result<::std::string::String, $crate::SerializeError> {
                     self.inner.to_text_with_unknown()
                 }
-                pub fn from_text(text: &str) -> Result<Self, $crate::ParseError> {
+                pub fn from_text(text: &str) -> ::core::result::Result<Self, $crate::ParseError> {
                     let pool = $pool;
                     let desc = pool.get_message($full).ok_or_else(|| {
                         $crate::ParseError::owned(format!("missing descriptor {}", $full))
                     })?;
-                    Ok(Self {
-                        inner: $crate::DynamicMessage::from_text_with_pool(desc, Some(pool), text)?,
+                    ::core::result::Result::Ok(Self {
+                        inner: $crate::DynamicMessage::from_text_with_pool(
+                            desc,
+                            ::core::option::Option::Some(pool),
+                            text,
+                        )?,
                     })
                 }
             }
@@ -561,7 +583,9 @@ mod dynamic_support {
                 }
             }
             impl $crate::Serialize for $Owned {
-                fn serialize(&self) -> Result<Vec<u8>, $crate::SerializeError> {
+                fn serialize(
+                    &self,
+                ) -> ::core::result::Result<::std::vec::Vec<u8>, $crate::SerializeError> {
                     $crate::Serialize::serialize(&self.inner)
                 }
                 fn serialized_len(&self) -> usize {
@@ -570,12 +594,14 @@ mod dynamic_support {
                 fn encode(
                     &self,
                     out: &mut impl $crate::rt::WireOut,
-                ) -> Result<(), $crate::SerializeError> {
+                ) -> ::core::result::Result<(), $crate::SerializeError> {
                     $crate::Serialize::encode(&self.inner, out)
                 }
             }
             impl $crate::Serialize for $View<'_> {
-                fn serialize(&self) -> Result<Vec<u8>, $crate::SerializeError> {
+                fn serialize(
+                    &self,
+                ) -> ::core::result::Result<::std::vec::Vec<u8>, $crate::SerializeError> {
                     $crate::Serialize::serialize(self.0)
                 }
                 fn serialized_len(&self) -> usize {
@@ -584,12 +610,14 @@ mod dynamic_support {
                 fn encode(
                     &self,
                     out: &mut impl $crate::rt::WireOut,
-                ) -> Result<(), $crate::SerializeError> {
+                ) -> ::core::result::Result<(), $crate::SerializeError> {
                     $crate::Serialize::encode(self.0, out)
                 }
             }
             impl $crate::Serialize for $Mut<'_> {
-                fn serialize(&self) -> Result<Vec<u8>, $crate::SerializeError> {
+                fn serialize(
+                    &self,
+                ) -> ::core::result::Result<::std::vec::Vec<u8>, $crate::SerializeError> {
                     $crate::Serialize::serialize(self.0)
                 }
                 fn serialized_len(&self) -> usize {
@@ -598,7 +626,7 @@ mod dynamic_support {
                 fn encode(
                     &self,
                     out: &mut impl $crate::rt::WireOut,
-                ) -> Result<(), $crate::SerializeError> {
+                ) -> ::core::result::Result<(), $crate::SerializeError> {
                     $crate::Serialize::encode(self.0, out)
                 }
             }
@@ -613,31 +641,37 @@ mod dynamic_support {
                 }
             }
             impl $crate::ClearAndParse for $Owned {
-                fn clear_and_parse(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
+                fn clear_and_parse(
+                    &mut self,
+                    data: &[u8],
+                ) -> ::core::result::Result<(), $crate::ParseError> {
                     $crate::ClearAndParse::clear_and_parse(&mut self.inner, data)
                 }
                 fn clear_and_parse_dont_enforce_required(
                     &mut self,
                     data: &[u8],
-                ) -> Result<(), $crate::ParseError> {
+                ) -> ::core::result::Result<(), $crate::ParseError> {
                     $crate::ClearAndParse::clear_and_parse_dont_enforce_required(
                         &mut self.inner,
                         data,
                     )
                 }
-                fn merge_from_bytes(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
+                fn merge_from_bytes(
+                    &mut self,
+                    data: &[u8],
+                ) -> ::core::result::Result<(), $crate::ParseError> {
                     $crate::ClearAndParse::merge_from_bytes(&mut self.inner, data)
                 }
                 fn merge_from_bytes_shared(
                     &mut self,
                     data: $crate::rt::Bytes,
-                ) -> Result<(), $crate::ParseError> {
+                ) -> ::core::result::Result<(), $crate::ParseError> {
                     $crate::ClearAndParse::merge_from_bytes_shared(&mut self.inner, data)
                 }
                 fn merge_from_bytes_dont_enforce_required(
                     &mut self,
                     data: &[u8],
-                ) -> Result<(), $crate::ParseError> {
+                ) -> ::core::result::Result<(), $crate::ParseError> {
                     $crate::ClearAndParse::merge_from_bytes_dont_enforce_required(
                         &mut self.inner,
                         data,
@@ -645,23 +679,35 @@ mod dynamic_support {
                 }
             }
             impl $crate::ClearAndParse for $Mut<'_> {
-                fn clear_and_parse(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
+                fn clear_and_parse(
+                    &mut self,
+                    data: &[u8],
+                ) -> ::core::result::Result<(), $crate::ParseError> {
                     $crate::ClearAndParse::clear_and_parse(self.0, data)
                 }
                 fn clear_and_parse_dont_enforce_required(
                     &mut self,
                     data: &[u8],
-                ) -> Result<(), $crate::ParseError> {
+                ) -> ::core::result::Result<(), $crate::ParseError> {
                     $crate::ClearAndParse::clear_and_parse_dont_enforce_required(self.0, data)
                 }
-                fn merge_from_bytes(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
+                fn merge_from_bytes(
+                    &mut self,
+                    data: &[u8],
+                ) -> ::core::result::Result<(), $crate::ParseError> {
                     $crate::ClearAndParse::merge_from_bytes(self.0, data)
                 }
                 fn merge_from_bytes_shared(
                     &mut self,
                     data: $crate::rt::Bytes,
-                ) -> Result<(), $crate::ParseError> {
+                ) -> ::core::result::Result<(), $crate::ParseError> {
                     $crate::ClearAndParse::merge_from_bytes_shared(self.0, data)
+                }
+                fn merge_from_bytes_dont_enforce_required(
+                    &mut self,
+                    data: &[u8],
+                ) -> ::core::result::Result<(), $crate::ParseError> {
+                    $crate::ClearAndParse::merge_from_bytes_dont_enforce_required(self.0, data)
                 }
             }
             impl $crate::CopyFrom for $Owned {
@@ -676,12 +722,12 @@ mod dynamic_support {
             }
             impl $crate::TakeFrom for $Owned {
                 fn take_from(&mut self, mut src: impl $crate::AsMut<MutProxied = Self>) {
-                    self.inner = std::mem::take(&mut src.as_mut().0.inner);
+                    self.inner = ::std::mem::take(&mut src.as_mut().0.inner);
                 }
             }
             impl $crate::TakeFrom for $Mut<'_> {
                 fn take_from(&mut self, mut src: impl $crate::AsMut<MutProxied = $Owned>) {
-                    self.0.inner = std::mem::take(&mut src.as_mut().0.inner);
+                    self.0.inner = ::std::mem::take(&mut src.as_mut().0.inner);
                 }
             }
             impl $crate::MergeFrom for $Owned {
@@ -704,9 +750,9 @@ mod dynamic_support {
             impl<'msg> $crate::MessageMut<'msg> for $Mut<'msg> {
                 type Message = $Owned;
             }
-            impl std::fmt::Debug for $Mut<'_> {
-                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                    std::fmt::Debug::fmt(self.0, f)
+            impl ::std::fmt::Debug for $Mut<'_> {
+                fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                    ::std::fmt::Debug::fmt(self.0, f)
                 }
             }
             impl $crate::gen_support::IntoFieldValue for $Owned {
@@ -715,10 +761,12 @@ mod dynamic_support {
                 }
             }
             impl $crate::gen_support::FromFieldValue for $Owned {
-                fn from_field_value(v: &$crate::Value) -> Option<Self> {
+                fn from_field_value(v: &$crate::Value) -> ::core::option::Option<Self> {
                     match v {
-                        $crate::Value::Message(m) => Some(Self::from_dynamic(m.clone())),
-                        _ => None,
+                        $crate::Value::Message(m) => {
+                            ::core::option::Option::Some(Self::from_dynamic(m.clone()))
+                        }
+                        _ => ::core::option::Option::None,
                     }
                 }
             }
@@ -733,22 +781,22 @@ pub use dynamic_support::*;
 #[macro_export]
 macro_rules! impl_typed_message {
     ($Owned:ident, $View:ident, $Mut:ident $(, $prevalidated:ident)?) => {
-        #[derive(Clone, Copy, Debug)]
+        #[derive(::core::clone::Clone, ::core::marker::Copy, ::core::fmt::Debug)]
         pub struct $View<'msg>(pub &'msg $Owned);
         pub struct $Mut<'msg>(pub &'msg mut $Owned);
-        impl std::ops::Deref for $View<'_> {
+        impl ::std::ops::Deref for $View<'_> {
             type Target = $Owned;
             fn deref(&self) -> &Self::Target {
                 self.0
             }
         }
-        impl std::ops::Deref for $Mut<'_> {
+        impl ::std::ops::Deref for $Mut<'_> {
             type Target = $Owned;
             fn deref(&self) -> &Self::Target {
                 self.0
             }
         }
-        impl std::ops::DerefMut for $Mut<'_> {
+        impl ::std::ops::DerefMut for $Mut<'_> {
             fn deref_mut(&mut self) -> &mut Self::Target {
                 self.0
             }
@@ -772,7 +820,7 @@ macro_rules! impl_typed_message {
         }
         impl ::core::default::Default for $View<'_> {
             fn default() -> Self {
-                static DEFAULT: std::sync::OnceLock<$Owned> = std::sync::OnceLock::new();
+                static DEFAULT: ::std::sync::OnceLock<$Owned> = ::std::sync::OnceLock::new();
                 $View($crate::gen_support::default_instance(&DEFAULT))
             }
         }
@@ -783,10 +831,10 @@ macro_rules! impl_typed_message {
                 pos: &mut usize,
                 depth: u32,
                 enforce: bool,
-                until: Option<u32>,
-            ) -> Result<(), $crate::ParseError> {
+                until: ::core::option::Option<u32>,
+            ) -> ::core::result::Result<(), $crate::ParseError> {
                 let data = wire.as_slice();
-                let mut w = Some(wire.clone());
+                let mut w = ::core::option::Option::Some(wire.clone());
                 $Owned::merge_inner(self, data, &mut w, pos, depth, enforce, until)
             }
             $(
@@ -796,10 +844,10 @@ macro_rules! impl_typed_message {
                     pos: &mut usize,
                     depth: u32,
                     enforce: bool,
-                    until: Option<u32>,
-                ) -> Result<(), $crate::ParseError> {
+                    until: ::core::option::Option<u32>,
+                ) -> ::core::result::Result<(), $crate::ParseError> {
                     let data = wire.as_slice();
-                    let mut w = Some(wire.clone());
+                    let mut w = ::core::option::Option::Some(wire.clone());
                     $Owned::$prevalidated(self, data, &mut w, pos, depth, enforce, until)
                 }
             )?
@@ -858,11 +906,11 @@ macro_rules! impl_typed_message {
             const ENCODE_APPEND_ONLY: bool = true;
 
             #[inline]
-            fn serialize(&self) -> Result<Vec<u8>, $crate::SerializeError> {
-                let mut out = Vec::with_capacity(self.compute_size() as usize);
+            fn serialize(&self) -> ::core::result::Result<::std::vec::Vec<u8>, $crate::SerializeError> {
+                let mut out = ::std::vec::Vec::with_capacity(self.compute_size() as usize);
                 self.write_to(&mut out);
                 $crate::rt::check_size(out.len() as u64)?;
-                Ok(out)
+                ::core::result::Result::Ok(out)
             }
             fn serialized_len(&self) -> usize {
                 self.compute_size() as usize
@@ -871,16 +919,16 @@ macro_rules! impl_typed_message {
             fn encode(
                 &self,
                 out: &mut impl $crate::rt::WireOut,
-            ) -> Result<(), $crate::SerializeError> {
+            ) -> ::core::result::Result<(), $crate::SerializeError> {
                 $crate::rt::check_size(self.compute_size())?;
                 self.write_to(out);
-                Ok(())
+                ::core::result::Result::Ok(())
             }
         }
         impl $crate::Serialize for $View<'_> {
             const ENCODE_APPEND_ONLY: bool = <$Owned as $crate::Serialize>::ENCODE_APPEND_ONLY;
 
-            fn serialize(&self) -> Result<Vec<u8>, $crate::SerializeError> {
+            fn serialize(&self) -> ::core::result::Result<::std::vec::Vec<u8>, $crate::SerializeError> {
                 $crate::Serialize::serialize(self.0)
             }
             fn serialized_len(&self) -> usize {
@@ -889,14 +937,14 @@ macro_rules! impl_typed_message {
             fn encode(
                 &self,
                 out: &mut impl $crate::rt::WireOut,
-            ) -> Result<(), $crate::SerializeError> {
+            ) -> ::core::result::Result<(), $crate::SerializeError> {
                 $crate::Serialize::encode(self.0, out)
             }
         }
         impl $crate::Serialize for $Mut<'_> {
             const ENCODE_APPEND_ONLY: bool = <$Owned as $crate::Serialize>::ENCODE_APPEND_ONLY;
 
-            fn serialize(&self) -> Result<Vec<u8>, $crate::SerializeError> {
+            fn serialize(&self) -> ::core::result::Result<::std::vec::Vec<u8>, $crate::SerializeError> {
                 $crate::Serialize::serialize(self.0)
             }
             fn serialized_len(&self) -> usize {
@@ -905,7 +953,7 @@ macro_rules! impl_typed_message {
             fn encode(
                 &self,
                 out: &mut impl $crate::rt::WireOut,
-            ) -> Result<(), $crate::SerializeError> {
+            ) -> ::core::result::Result<(), $crate::SerializeError> {
                 $crate::Serialize::encode(self.0, out)
             }
         }
@@ -921,19 +969,19 @@ macro_rules! impl_typed_message {
         }
         impl $crate::ClearAndParse for $Owned {
             const EMPTY_PARSE_OK: bool = $Owned::EMPTY_PARSE_OK;
-            fn clear_and_parse(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
+            fn clear_and_parse(&mut self, data: &[u8]) -> ::core::result::Result<(), $crate::ParseError> {
                 $crate::Clear::clear(self);
                 self.merge_bytes(data, 0)
             }
             fn clear_and_parse_dont_enforce_required(
                 &mut self,
                 data: &[u8],
-            ) -> Result<(), $crate::ParseError> {
+            ) -> ::core::result::Result<(), $crate::ParseError> {
                 $crate::Clear::clear(self);
                 self.merge_bytes_dont_enforce(data, 0)
             }
             #[inline(always)]
-            fn merge_from_bytes(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
+            fn merge_from_bytes(&mut self, data: &[u8]) -> ::core::result::Result<(), $crate::ParseError> {
                 if data.is_empty() {
                     return self.check_required();
                 }
@@ -942,58 +990,70 @@ macro_rules! impl_typed_message {
             fn merge_from_bytes_shared(
                 &mut self,
                 data: $crate::rt::Bytes,
-            ) -> Result<(), $crate::ParseError> {
+            ) -> ::core::result::Result<(), $crate::ParseError> {
                 if data.is_empty() {
                     return self.check_required();
                 }
-                // Pre-fill the Wire slot with shared backing: large fields
-                // window it with zero copies, small fields copy out (PK-09).
+                // Preserve shared backing; generated fields apply their
+                // selected or default byte-ownership policy.
                 let wire = $crate::rt::Wire::from_bytes(data);
                 let mut pos = 0;
-                $crate::rt::MergeBytes::merge_inner(self, &wire, &mut pos, 0, true, None)
+                $crate::rt::MergeBytes::merge_inner(self, &wire, &mut pos, 0, true, ::core::option::Option::None)
             }
             fn merge_from_bytes_dont_enforce_required(
                 &mut self,
                 data: &[u8],
-            ) -> Result<(), $crate::ParseError> {
+            ) -> ::core::result::Result<(), $crate::ParseError> {
                 if data.is_empty() {
-                    return Ok(());
+                    return ::core::result::Result::Ok(());
                 }
                 self.merge_bytes_dont_enforce(data, 0)
             }
         }
         impl $crate::ClearAndParse for $Mut<'_> {
-            fn clear_and_parse(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
+            fn clear_and_parse(&mut self, data: &[u8]) -> ::core::result::Result<(), $crate::ParseError> {
                 $crate::ClearAndParse::clear_and_parse(self.0, data)
             }
             fn clear_and_parse_dont_enforce_required(
                 &mut self,
                 data: &[u8],
-            ) -> Result<(), $crate::ParseError> {
+            ) -> ::core::result::Result<(), $crate::ParseError> {
                 $crate::ClearAndParse::clear_and_parse_dont_enforce_required(self.0, data)
             }
-            fn merge_from_bytes(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
+            fn merge_from_bytes(&mut self, data: &[u8]) -> ::core::result::Result<(), $crate::ParseError> {
                 $crate::ClearAndParse::merge_from_bytes(self.0, data)
+            }
+            fn merge_from_bytes_shared(
+                &mut self,
+                data: $crate::rt::Bytes,
+            ) -> ::core::result::Result<(), $crate::ParseError> {
+                $crate::ClearAndParse::merge_from_bytes_shared(self.0, data)
+            }
+            fn merge_from_bytes_dont_enforce_required(
+                &mut self,
+                data: &[u8],
+            ) -> ::core::result::Result<(), $crate::ParseError> {
+                $crate::ClearAndParse::merge_from_bytes_dont_enforce_required(self.0, data)
             }
         }
         impl $crate::CopyFrom for $Owned {
             fn copy_from(&mut self, src: impl $crate::AsView<Proxied = Self>) {
-                *self = Clone::clone(src.as_view().0);
+                *self = ::core::clone::Clone::clone(src.as_view().0);
             }
         }
         impl $crate::CopyFrom for $Mut<'_> {
             fn copy_from(&mut self, src: impl $crate::AsView<Proxied = $Owned>) {
-                *self.0 = Clone::clone(src.as_view().0);
+                *self.0 = ::core::clone::Clone::clone(src.as_view().0);
             }
         }
         impl $crate::TakeFrom for $Owned {
             fn take_from(&mut self, mut src: impl $crate::AsMut<MutProxied = Self>) {
-                *self = std::mem::take(src.as_mut().0);
+                *self = ::std::mem::take(src.as_mut().0);
             }
         }
         impl $crate::TakeFrom for $Mut<'_> {
             fn take_from(&mut self, mut src: impl $crate::AsMut<MutProxied = $Owned>) {
-                *self.0 = std::mem::take(src.as_mut().0);
+                *self.0 = ::std::mem::take(src.as_mut().0);
             }
         }
         impl $crate::MergeFrom for $Owned {
@@ -1017,9 +1077,9 @@ macro_rules! impl_typed_message {
         impl<'msg> $crate::MessageMut<'msg> for $Mut<'msg> {
             type Message = $Owned;
         }
-        impl std::fmt::Debug for $Mut<'_> {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                std::fmt::Debug::fmt(self.0, f)
+        impl ::std::fmt::Debug for $Mut<'_> {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                ::std::fmt::Debug::fmt(self.0, f)
             }
         }
     };

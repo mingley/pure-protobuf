@@ -164,7 +164,7 @@ fn plugin_generates_test_all_types_proto3() {
     );
     assert!(
         generated.contains("optional_int32: i32")
-            || generated.contains("optional_int32: Option<i32>"),
+            || generated.contains("optional_int32: ::core::option::Option<i32>"),
         "TestAllTypes must use per-field storage"
     );
     assert!(
@@ -177,15 +177,15 @@ fn plugin_generates_test_all_types_proto3() {
     );
     assert!(generated.contains("set_optional_int32"), "{generated}");
     assert!(
-        generated.contains("repeated_int32: pbrs::rt::PackedI32"),
+        generated.contains("repeated_int32: ::pbrs::rt::PackedI32"),
         "packed repeated_int32 storage"
     );
     assert!(
-        generated.contains("optional_nested_message: pbrs::rt::LazyMsg<NestedMessage>"),
+        generated.contains("optional_nested_message: ::pbrs::rt::LazyMsg<NestedMessage>"),
         "nested LEN stored as LazyMsg"
     );
     assert!(
-        generated.contains("map_int32_int32: Map<i32, i32>"),
+        generated.contains("map_int32_int32: ::pbrs::Map<i32, i32>"),
         "map field storage"
     );
 
@@ -249,7 +249,7 @@ fn gen_script_emits_person() {
     assert!(status.success(), "gen.sh failed");
     let generated = std::fs::read_to_string(tmp.join("person.rs")).expect("person.rs");
     assert!(generated.contains("pub struct Person"), "{generated}");
-    assert!(generated.contains("use pbrs::prelude::*"), "{generated}");
+    assert!(generated.contains("use ::pbrs::prelude::*"), "{generated}");
 }
 
 fn generate_hello_with_options(
@@ -304,7 +304,7 @@ fn plugin_generates_grpc_stubs() {
         &generated[..generated.len().min(1500)]
     );
     assert!(
-        generated.contains("name: pbrs::rt::LazyStr"),
+        generated.contains("name: ::pbrs::rt::LazyStr"),
         "HelloRequest must store name as a field"
     );
     assert!(
@@ -1484,7 +1484,7 @@ fn protoc_plugin_custom_runtime_and_adapter_crate_aliases() {
     assert!(status.success(), "protoc plugin failed with runtime_crate");
     let generated = std::fs::read_to_string(tmp.join("person.rs")).expect("generated person.rs");
     assert!(
-        generated.contains("use my_pbrs::prelude::*;"),
+        generated.contains("use ::my_pbrs::prelude::*;"),
         "must import from my_pbrs prelude:\n{generated}"
     );
     assert!(
@@ -1810,12 +1810,12 @@ fn protoc_plugin_emits_useful_rustdoc_and_passes_denied_warnings() {
         "count has_count must be documented:\n{generated}"
     );
     assert!(
-        generated.contains("/// Repeated field of `pbrs::rt::LazyStr`. Empty by default."),
+        generated.contains("/// Repeated field of `::pbrs::rt::LazyStr`. Empty by default."),
         "repeated tags must document repeated presence and default:\n{generated}"
     );
     assert!(
         generated.contains(
-            "/// Map field with key `pbrs::rt::LazyStr` and value `i32`. Empty by default."
+            "/// Map field with key `::pbrs::rt::LazyStr` and value `i32`. Empty by default."
         ),
         "map scores must document map presence and default:\n{generated}"
     );
@@ -1836,7 +1836,7 @@ fn protoc_plugin_emits_useful_rustdoc_and_passes_denied_warnings() {
         "old_id setter must annotate deprecation:\n{generated}"
     );
     assert!(
-        generated.contains("/// # Deprecated\n#[deprecated]\n#[derive(Clone, Debug)]\npub struct DeprecatedHostileMessage"),
+        generated.contains("/// # Deprecated\n#[deprecated]\n#[derive(::core::clone::Clone, ::core::fmt::Debug)]\npub struct DeprecatedHostileMessage"),
         "deprecated message must document and annotate deprecation:\n{generated}"
     );
     assert!(
@@ -2300,7 +2300,7 @@ fn protoc_plugin_enum_deprecation_is_independent_of_allow_alias() {
     );
     let generated = std::fs::read_to_string(tmp.join("enum_option_cases.rs"))
         .expect("read enum option fixture");
-    let deprecated_type = "#[deprecated]\n#[repr(transparent)]\n#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]\npub struct UnaliasedDeprecatedEnum";
+    let deprecated_type = "#[deprecated]\n#[repr(transparent)]\n#[derive(::core::clone::Clone, ::core::marker::Copy, ::core::cmp::PartialEq, ::core::cmp::Eq, ::core::hash::Hash, ::core::cmp::PartialOrd, ::core::cmp::Ord)]\npub struct UnaliasedDeprecatedEnum";
     assert!(
         generated.contains(deprecated_type),
         "actual enum deprecation was lost:\n{generated}"
@@ -3362,7 +3362,7 @@ fn edition2024_map_decoder_uses_entry_utf8_feature() {
 fn edition2024_extension_fields_remain_unknown_until_typed_api() {
     let generated = edition2024_generated_fixture("extensions");
     assert!(generated.contains("pub struct ExtendableMessage"));
-    assert!(generated.contains("unknown: UnknownFields"));
+    assert!(generated.contains("unknown: ::pbrs::UnknownFields"));
     for extension in [
         "nested_scoped_extension",
         "ext_int32",
@@ -3419,7 +3419,7 @@ fn edition2024_selected_int32_extensions_generate_checked_identifiers() {
         assert!(source.contains(&format!("pub const {identifier}:")));
     }
     assert!(source.contains("pub fn get_extension<"));
-    assert!(source.contains("unknown: UnknownFields"));
+    assert!(source.contains("unknown: ::pbrs::UnknownFields"));
     assert!(!source.contains("pub fn ext_string("));
 }
 
@@ -4275,6 +4275,8 @@ fn edition2024_selected_extensions_custom_runtime_alias_generated_consumer() {
         .find(|(name, _)| name == "scalar.rs")
         .unwrap()
         .1;
+    assert!(default.contains("::pbrs::Extension<"));
+    let mut previous_alias_source = None;
     for (name, alias) in [("relative.rs", "my_pbrs"), ("absolute.rs", "::my_pbrs")] {
         let parameter = format!("typed_extension=test.value,runtime_crate={alias}");
         let output = typed_extension_result(&["scalar.proto"], &fds, &parameter).unwrap();
@@ -4283,9 +4285,17 @@ fn edition2024_selected_extensions_custom_runtime_alias_generated_consumer() {
             .find(|(name, _)| name == "scalar.rs")
             .unwrap()
             .1;
-        assert_eq!(source, &default.replace("pbrs::", &format!("{alias}::")));
-        assert!(source.contains(&format!("{alias}::Extension<")));
-        assert!(source.contains(&format!("{alias}::ExtensionHost")));
+        assert!(source.contains("use ::my_pbrs::prelude::*;"));
+        assert!(source.contains("::my_pbrs::Extension<"));
+        assert!(source.contains("::my_pbrs::ExtensionHost"));
+        if let Some(previous) = &previous_alias_source {
+            assert_eq!(
+                source, previous,
+                "bare and absolute aliases name the same crate"
+            );
+        } else {
+            previous_alias_source = Some(source.clone());
+        }
         std::fs::write(consumer.join("src").join(name), source).unwrap();
     }
     std::fs::write(consumer.join("Cargo.toml"), format!(
