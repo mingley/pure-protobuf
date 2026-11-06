@@ -14,6 +14,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 const SCRIPT: &str = include_str!("../build.rs");
 const DESCRIPTORS: &[u8] = include_bytes!("../vendor/google/conformance_fds.bin");
+const CHECK_CFG: &str = "cargo:rustc-check-cfg=cfg(pbrs_std)\n";
+const STD_CFG: &str = concat!(
+    "cargo:rustc-check-cfg=cfg(pbrs_std)\n",
+    "cargo:rustc-cfg=pbrs_std\n"
+);
 static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
 
 struct Fixture {
@@ -56,8 +61,29 @@ impl Fixture {
     }
 
     fn run(&self, case: &Path, out: &Path, conformance: bool) -> Output {
+        self.run_with_features(case, out, conformance, false, false)
+    }
+
+    fn run_with_features(
+        &self,
+        case: &Path,
+        out: &Path,
+        conformance: bool,
+        alloc_only: bool,
+        explicit_std: bool,
+    ) -> Output {
         let mut command = Command::new(&self.script);
-        command.current_dir(case).env("OUT_DIR", out);
+        command
+            .current_dir(case)
+            .env("OUT_DIR", out)
+            .env_remove("CARGO_FEATURE_ALLOC_ONLY")
+            .env_remove("CARGO_FEATURE_STD");
+        if alloc_only {
+            command.env("CARGO_FEATURE_ALLOC_ONLY", "1");
+        }
+        if explicit_std {
+            command.env("CARGO_FEATURE_STD", "1");
+        }
         if conformance {
             command.env("CARGO_FEATURE_CONFORMANCE", "1");
         } else {
@@ -122,7 +148,7 @@ fn actual_build_script_repeats_read_only_fallback_and_watches_existing_inputs() 
         );
         assert_eq!(
             String::from_utf8(result.stdout).unwrap(),
-            "cargo:rerun-if-changed=vendor/google/conformance_fds.bin\n"
+            format!("{STD_CFG}cargo:rerun-if-changed=vendor/google/conformance_fds.bin\n")
         );
     }
 
@@ -131,7 +157,9 @@ fn actual_build_script_repeats_read_only_fallback_and_watches_existing_inputs() 
     assert!(result.status.success());
     assert_eq!(
         String::from_utf8(result.stdout).unwrap(),
-        "cargo:rerun-if-changed=third_party\ncargo:rerun-if-changed=vendor/google/conformance_fds.bin\n"
+        format!(
+            "{STD_CFG}cargo:rerun-if-changed=third_party\ncargo:rerun-if-changed=vendor/google/conformance_fds.bin\n"
+        )
     );
 
     std::fs::create_dir(package.join("third_party/protobuf")).unwrap();
@@ -141,7 +169,9 @@ fn actual_build_script_repeats_read_only_fallback_and_watches_existing_inputs() 
     assert!(result.status.success());
     assert_eq!(
         String::from_utf8(result.stdout).unwrap(),
-        "cargo:rerun-if-changed=proto/person.proto\ncargo:rerun-if-changed=third_party/protobuf\ncargo:rerun-if-changed=vendor/google/conformance_fds.bin\n"
+        format!(
+            "{STD_CFG}cargo:rerun-if-changed=proto/person.proto\ncargo:rerun-if-changed=third_party/protobuf\ncargo:rerun-if-changed=vendor/google/conformance_fds.bin\n"
+        )
     );
 
     let missing = fixture.root.join("missing-vendor");
@@ -158,7 +188,34 @@ fn actual_build_script_repeats_read_only_fallback_and_watches_existing_inputs() 
     assert!(result.status.success());
     assert_eq!(
         String::from_utf8(result.stdout).unwrap(),
-        "cargo:rerun-if-changed=build.rs\n"
+        format!("{STD_CFG}cargo:rerun-if-changed=build.rs\n")
     );
     assert!(!disabled_out.exists());
+}
+
+#[test]
+fn runtime_cfg_is_emitted_before_the_no_conformance_return() {
+    let fixture = Fixture::new();
+    for (alloc_only, explicit_std) in [(false, false), (true, false), (false, true), (true, true)] {
+        let out = fixture
+            .root
+            .join(format!("out-{alloc_only}-{explicit_std}"));
+        let result =
+            fixture.run_with_features(&fixture.root, &out, false, alloc_only, explicit_std);
+        assert!(
+            result.status.success(),
+            "alloc-only={alloc_only}, std={explicit_std}: {}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let cfg = if explicit_std || !alloc_only {
+            STD_CFG
+        } else {
+            CHECK_CFG
+        };
+        assert_eq!(
+            String::from_utf8(result.stdout).unwrap(),
+            format!("{cfg}cargo:rerun-if-changed=build.rs\n")
+        );
+        assert!(!out.exists(), "runtime-only build must not create output");
+    }
 }

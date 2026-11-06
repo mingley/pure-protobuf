@@ -42,6 +42,7 @@ jobs:
       - name: Build and select the pinned protobuf compiler
         run: |
           scripts/build-pinned-protoc.sh
+          ln -sfnT ../../third_party/protobuf/src target/pinned-protoc-build/include
           echo "$PWD/target/pinned-protoc-build" >> "$GITHUB_PATH"
           echo "PROTOC=$PWD/target/pinned-protoc-build/protoc" >> "$GITHUB_ENV"
       - name: Fetch locked consumer dependencies
