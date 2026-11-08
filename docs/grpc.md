@@ -357,7 +357,7 @@ See the [interceptors and context guide](guides/interceptors.md).
 - **Health checking (`grpc.health.v1`)**: built-in `HealthReporter`, `Check`, `Watch`, and `Health::list`.
 - **Server reflection (`grpc.reflection.v1`)**: dynamic service discovery for tools such as `grpcurl`.
 - **Channelz (`grpc.channelz.v1`)**: opt into serving `ChannelzService::shared_global()` to expose bounded channel, server, subchannel, socket, and trace snapshots.
-- **Binary logging**: attach `binlog::BinaryLogger` to a `Channel`, `Server`, or `Router`. Filters and `{h;m}` caps keep logging explicit and bounded.
+- **Binary logging**: attach `binlog::BinaryLogger` to a `Channel`, `Server`, or `Router`. Filters select calls; `{h;m}` sets no byte caps, while numeric `{h:N;m:M}` limits each header value and message payload. Client retry and hedge logging has [known limitations](grfc.md).
 - **OpenTelemetry**: optional `otel` Cargo feature. Install `otel::Metrics` and tracing observers explicitly; without the feature the module compiles out.
 - **ORCA**: backends can publish per-call or out-of-band load reports, and `weighted_round_robin` consumes them when selected.
 - **Keepalive and sockets**: HTTP/2 PINGs and TCP `SO_KEEPALIVE` with `TCP_NODELAY`.

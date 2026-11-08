@@ -73,17 +73,30 @@ how configured channel getters differ from selected wire routing.
 See the [parity summary](parity.md) and
 [API comparison](guides/comparison.md) for tested behavior and boundaries.
 
-The core `0.2.1` and adapter `0.1.0-alpha.3` candidates remain unpublished.
+The source declares core `0.2.1` and adapter `0.1.0-alpha.3` candidates;
+check the registry before treating them as published.
 An exact-source [hosted rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42205359709)
 packaged all three at `10d94697`. The
 [retained artifact](https://github.com/mingley/pure-protobuf/actions/runs/42205359709/artifacts/13495653395)
 contains the packages, SBOM and release-context record. The context names that
 commit's successful CI, and all 430 mapped package files match its Git bytes.
 The workflow reported creating a [provenance attestation](https://github.com/mingley/pure-protobuf/attestations/64451418)
-and performed no registry authentication or upload. Sustained production
-qualification remains open; use the [release checklist](release-readiness.md)
-to track candidate evidence, the [release policy](RELEASE.md) for requirements,
-and the [work queue](../TODO.md) for implementation work.
+and performed no registry authentication or upload.
+
+Later, [required CI](https://github.com/mingley/pure-protobuf/actions/runs/42525994650)
+passed at [`1472791`](https://github.com/mingley/pure-protobuf/commit/1472791888e3366ca08cb4dfcfce075f9483f9a3).
+Its [automatic release rehearsal](https://github.com/mingley/pure-protobuf/actions/runs/42530248925)
+used that commit and CI run, packaged all three candidate crates, and produced
+an SBOM and [provenance attestation](https://github.com/mingley/pure-protobuf/attestations/65141236).
+The [retained artifact](https://github.com/mingley/pure-protobuf/actions/runs/42530248925/artifacts/13636762331)
+contains the packages and release context; GitHub lists its expiration as
+February 6, 2027. The rehearsal did not authenticate to crates.io or upload the
+crates.
+
+Sustained production qualification remains open; use the
+[release checklist](release-readiness.md) to track candidate evidence, the
+[release policy](RELEASE.md) for requirements, and the [work queue](../TODO.md)
+for implementation work.
 
 The [November 5 status history](evidence/status-history-20261105.md) preserves
 earlier checks and measurements with their original source revisions. The
@@ -311,9 +324,9 @@ transport backends: TCP/h2c, TLS, mTLS, Unix Domain Sockets, and in-process
 - **Resolver URI channels are opt-in**: `Channel::connect_uri` accepts `dns:`, `passthrough:`, `ipv4:`, `ipv6:`, `unix:`, and `unix-abstract:`. DNS hostnames need explicit `DnsConfig` refresh and retry bounds.
 - **Service config adoption**: DNS TXT service configs can be adopted by resolver-managed channels; invalid updates keep the last good document.
 - **Load balancing**: resolver-managed channels default to `pick_first`. `loadBalancingConfig` can select `round_robin`, `weighted_round_robin`, `ring_hash`, `least_request`, `random_subsetting_experimental`, `priority`, or `outlier_detection`. These are source- and test-covered, not production-qualified traffic management.
-- **Transparent retry**: at most once before stream commitment.
+- **Transparent retry**: Sequential calls retry transparently at most once per attempt with proof of non-execution. Hedged attempts do not always retain response commitment when deciding a redial; see the [retry contract](retry-contract.md).
 - **Service-config retry**: `Channel::service_config` and resolver service config support `retryPolicy` with backoff, throttling, per-attempt receive timeout, pushback, and retry stats. Unary and server-streaming calls retry before response commitment; client-streaming and bidirectional calls keep only transparent setup redial.
-- **Hedging**: unary `hedgingPolicy` ships, bounded by `maxAttempts` and gated by throttling after the first send. Streaming hedging is not applicable.
+- **Hedging**: Unary `hedgingPolicy` is opt-in and bounded by `maxAttempts`. Another hedge can continue or win after ordinary response headers. Hedging ignores non-negative pushback delays and may delay a scheduled attempt after a non-fatal result; see the [retry contract](retry-contract.md). Streaming hedging is not supported.
 - **HTTP CONNECT proxy**: TCP dials consult `HTTPS_PROXY` / `NO_PROXY` and tunnel with CONNECT, including TLS end-to-end through the tunnel. There is no per-channel proxy option.
 - **xDS**: xDS target URIs and the xDS control plane are not implemented.
 
@@ -327,7 +340,7 @@ transport backends: TCP/h2c, TLS, mTLS, Unix Domain Sockets, and in-process
 ### Observability, ORCA, and Authorization
 
 - **channelz**: the registry tracks live channels, subchannels, servers, sockets, and bounded channel traces; `ChannelzService` serves `grpc.channelz.v1`.
-- **binary logging**: `binlog::BinaryLogger` attaches to channels, servers, and routers with explicit filters and header/message caps.
+- **binary logging**: `binlog::BinaryLogger` attaches to channels, servers, and routers with filters and optional header/message caps; full payload logging is supported. Client logs may include uncommitted attempts or omit early rejection trailers; see the [gRFC coverage](grfc.md).
 - **OpenTelemetry**: the optional `otel` feature provides metrics and tracing observers. Implemented metrics are the A66/A94 basics documented in `otel::Metrics`; retry, message-size, full connection, WRR gauge, xDS, and dynamic-label instruments are still incomplete.
 - **ORCA**: per-call trailers and out-of-band ORCA service support `weighted_round_robin`.
 - **Authorization**: A43 JSON authorization policies can be enforced on `Server` and `Router`; A59 audit logging hooks ship.

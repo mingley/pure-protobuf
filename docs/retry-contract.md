@@ -1,9 +1,11 @@
 # gRPC Retry Safety & Commitment Boundaries Contract
 
-Transparent retry requires proof that the server application never processed
-the request. Once request bytes reach `BodyStarted`, an ambiguous connection
-failure cannot be retried transparently. An explicit service-config policy
-may allow re-execution; the application must make that safe.
+Sequential transparent retry requires proof that the server application never
+processed the request. Once request bytes reach `BodyStarted`, an ambiguous
+connection failure cannot be retried transparently. Hedged attempts do not
+always retain response commitment when deciding a redial; their limitations are
+described below. An explicit service-config policy may allow re-execution; the
+application must make that safe.
 
 This contract defines the implementation states and evidence needed to enforce
 that distinction. For application setup, start with the
@@ -25,8 +27,9 @@ gRPC has two retry mechanisms:
    and hedging, and it names retryable gRPC status codes such as
    `UNAVAILABLE`.
 2. **Transparent retries:** automatic transport-kernel retries that need no
-   user configuration. They are allowed **only when the client can prove that
-   server application logic never saw or processed the request**.
+   user configuration. They are permitted **only when the client can prove that
+   server application logic never saw or processed the request**. The current
+   hedged-redial limitation is described below.
 
 The central hazard is **ambiguous connection loss**. If an HTTP/2 connection
 or TCP socket drops after request bytes were sent, no response does **not**
@@ -35,9 +38,9 @@ committed database mutations, charged a customer, or triggered external side
 effects.
 
 Before RT-01, the `pbrs-grpc` client kernel treated "transport connection
-died" as "safe to transparently retry." This page fixes that boundary. It
-defines the call lifecycle states, records the baseline bug, maps gRFC A6
-commitment rules, and approves the transport-evidence replay rules for RT-02.
+died" as "safe to transparently retry." This page defines that boundary,
+records the baseline bug and current hedge limitation, maps gRFC A6 commitment
+rules, and describes the transport-evidence replay rules for RT-02.
 
 ## 1b. Shipped policy engine (unary)
 

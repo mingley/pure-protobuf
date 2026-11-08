@@ -215,7 +215,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | HTTP/2 defenses | Mitigations for rapid reset (CVE-2023-44487), CONTINUATION floods, and oversize frames. |
 | Name resolution | Default direct `host:port`; opt-in `Channel::connect_uri` for `dns:`, `passthrough:`, `ipv4:`, `ipv6:`, `unix:`, and `unix-abstract:` targets. DNS refresh needs explicit `DnsConfig` bounds. |
 | Load balancing | Default `pick_first`; opt-in `loadBalancingConfig` supports `pick_first`, `round_robin`, `weighted_round_robin`, `ring_hash`, `least_request`, `random_subsetting_experimental`, `priority`, and `outlier_detection`. |
-| Retries and hedging | Transparent retry is automatic and at most once before commitment. Service-config `retryPolicy` and unary `hedgingPolicy` are opt-in through `Channel::service_config` or resolver service config. |
+| Retries and hedging | Sequential transparent retry is at most once per attempt and requires proof of non-execution. Service-config `retryPolicy` and unary `hedgingPolicy` are opt-in through `Channel::service_config` or resolver service config. Hedging has response-commitment and pushback limitations; see the [retry contract](../docs/retry-contract.md). |
 | HTTP CONNECT proxy | `HTTPS_PROXY` / `NO_PROXY` env support with CONNECT tunneling, optional Basic auth, and TLS end-to-end through the tunnel. |
 | Interceptors | Client and server interceptor pipelines with request context extensions. See the [interceptors guide](../docs/guides/interceptors.md). |
 | Operations | Built-in gRPC health checking (`grpc.health.v1`), server reflection (`grpc.reflection.v1`), channelz (`grpc.channelz.v1`), binary logging, ORCA load reports, and optional OpenTelemetry observers. See the [operations guide](../docs/guides/operations.md). |
@@ -235,7 +235,7 @@ do not bound application allocations or total process memory. See the
 | Addressing | `host:port` string or opt-in resolver URI | Tonic uses `http://` or `https://` URIs. gRPC-Go also supports xDS resolver schemes; `pbrs-grpc` does not. |
 | Concurrency | `ServerConfig::max_concurrent_rpcs` enforces a cap | Overflow fails fast with `RESOURCE_EXHAUSTED` instead of unbounded queuing. |
 | Keepalive | HTTP/2 PINGs and TCP OS keepalives are configured separately | Idle PINGs default on once an interval is set; `ChannelConfig::keep_alive_while_idle(false)` limits them to active RPCs. |
-| Retries | Transparent retry is at most once; service-config retry/hedging is opt-in and bounded | Application retries still use `Code::is_retryable` when no service-config policy applies. |
+| Retries | Sequential transparent retry is at most once per attempt; service-config retries and hedges are opt-in with bounded attempt counts | Application retries can use `Code::is_retryable`. Hedging has known commitment and pushback limitations; see the [retry contract](../docs/retry-contract.md). |
 
 xDS targets and async OAuth2/JWT credential providers are planned work.
 HTTP CONNECT proxy selection currently uses `HTTPS_PROXY` / `NO_PROXY`

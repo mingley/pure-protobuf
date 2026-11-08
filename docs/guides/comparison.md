@@ -112,11 +112,11 @@ the [implementation contract](../xds-contract.md).
 
 | Feature area | Current support | Boundary |
 |---|---|---|
-| **Transparent Retries** | At most one automatic retry per attempt, with proof the server did not process the request. | Ambiguous connection loss after transmission is not proof; see the [retry contract](../retry-contract.md). |
+| **Transparent Retries** | Sequential calls have at most one automatic retry per attempt, with proof the server did not process the request. | Hedged redials do not reliably retain response commitment; see the [retry contract](../retry-contract.md). |
 | **Service-Config Retries** | **Opt-in**: `retryPolicy` via `Channel::service_config` or resolver service config, with attempts, backoff, throttling, per-attempt timeout, pushback, and retry stats. | Bounded to configured policies; calls without a policy stay at call sites using `Code::is_retryable`. |
-| **Hedging** | **Opt-in unary**: bounded `hedgingPolicy`; no streaming hedging. | Speculation is explicit and capped by `maxAttempts` plus throttling. |
+| **Hedging** | **Opt-in unary**: `hedgingPolicy` caps attempts; no streaming hedging. | Ordinary response headers do not stop competing attempts; pushback and non-fatal scheduling are incomplete. See the [retry contract](../retry-contract.md). |
 | **xDS Protocol** | Planned; no native xDS implementation. | Use an external control plane or proxy until the XD qualification work completes. |
-| **Channelz & Binary Logging** | **Shipped, opt-in**: mount `ChannelzService` or attach `BinaryLogger`; optional OTel observers require the `otel` feature. | Observability surfaces stay explicit and bounded. |
+| **Channelz & Binary Logging** | **Opt-in**: mount `ChannelzService` or attach `BinaryLogger`; optional OTel observers require the `otel` feature. | Binary log caps are optional; full payloads may be logged. Attempt logging is partial; see [gRFC coverage](../grfc.md). |
 | **Dynamic Config Reload** | Resolver endpoints and service config can update; authorization has a reloadable provider. | Listener/TLS builder configuration is replaced by constructing new instances. |
 
 ## 6. Benchmark fairness (SB-01)
