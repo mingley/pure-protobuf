@@ -43,7 +43,8 @@ contains the later source-scoped transport comparison.
 
 ## Optional features
 
-Features are opt-in:
+These opt-in features describe the unreleased checkout, planned for the next
+release. Published `0.1.0-alpha.2` provides only `otel` and `copy-counts`.
 
 | Feature | Use it for |
 |---|---|
@@ -53,17 +54,17 @@ Features are opt-in:
 | `tonic-gzip` | Tonic's gzip codec; requires Rust 1.88. Native gzip needs no feature. |
 | `grpc-web` | Unary and server-streaming gRPC-Web on the native HTTP/2 listener. |
 | `otel` | OpenTelemetry metrics and traces with explicitly installed observers. |
+| `copy-counts` | User-space copy counters for benchmarks. |
 | `native-roots` | Client certificate trust from the operating system. |
 | `zstd` | Zstandard message compression; requires Rust 1.87. |
 
-The following dependency examples use the published preview. For example,
-enable `tower` for Tower integration:
+For a checkout next to your project, enable the features you need, for example:
 
 ```toml
-pbrs-grpc = { version = "0.1.0-alpha.2", features = ["tower"] } # Published preview
+pbrs-grpc = { path = "../pure-protobuf/pbrs-grpc", features = ["grpc-web"] }
 ```
 
-With that feature, `Router::into_tower_service()` exposes native services as
+With `tower`, `Router::into_tower_service()` exposes native services as
 `tower::Service<http::Request<B>>` for axum/hyper co-hosting; health and
 reflection use the same router path. `Channel::tower_unary()`,
 `tower_server_streaming()`, `tower_client_streaming()` and `tower_bidi()` expose
@@ -72,29 +73,37 @@ load-shed and tracing layers wrap those services; the default `Channel` remains
 unbuffered. See [the gRPC guide](../docs/grpc.md#message-codecs-and-tower-integration)
 and [axum co-host example](../examples/axum-cohost/).
 
-Enable `zstd` only when you need `grpc-encoding: zstd`:
+Enable `zstd` only when you need `grpc-encoding: zstd`. The default feature
+set keeps the crate MSRV at Rust 1.85. The `zstd` feature uses `ruzstd` 0.9
+and therefore has MSRV 1.87; all requested compression levels map to
+`ruzstd`'s implemented `Fastest` mode (roughly zstd level 1).
 
-```toml
-pbrs-grpc = { version = "0.1.0-alpha.2", features = ["zstd"] } # Published preview
-```
+Published `0.1.0-alpha.2` does not support native gRPC-Web or its CORS
+builders. For browser clients on that release, use a proxy that translates
+gRPC-Web to native gRPC and handles CORS.
 
-The default feature set keeps the crate MSRV at Rust 1.85. The `zstd` feature
-uses `ruzstd` 0.9 and therefore has MSRV 1.87; all requested compression levels
-map to `ruzstd`'s implemented `Fastest` mode (roughly zstd level 1).
+The unreleased `grpc-web` feature and response-header builder shown below are
+available in this checkout and planned for the next release. The feature
+supports binary and text gRPC-Web content types for unary and server-streaming
+methods. Native preflight denies all origins by default.
+Configure an allowed origin with `ServerConfig::grpc_web_allow_origin` or allow
+all origins with `grpc_web_allow_any_origin`. These settings affect preflight;
+automatic response headers are off by default. Enable them with
+`grpc_web_cors_response_headers(true)` to apply the policy to recognized Web
+responses, including early errors and deadlines.
 
-Enable `grpc-web` when browser gRPC-Web clients must call the same HTTP/2
-server:
-
-```toml
-pbrs-grpc = { version = "0.1.0-alpha.2", features = ["grpc-web"] } # Published preview
-```
-
-The feature supports binary and text gRPC-Web content types for unary and
-server-streaming methods. CORS preflight is deny-all by default; configure an
-allowed origin with `ServerConfig::grpc_web_allow_origin` or allow all origins
-with `grpc_web_allow_any_origin`. These settings handle preflight only.
-Configure a proxy to add appropriate CORS response headers to every cross-origin
-POST response, including errors returned before handler dispatch.
+Application-provided `access-control-allow-origin` and
+`access-control-expose-headers` metadata take precedence. If the application
+provides allow-origin, the server does not add default exposure; when it adds
+allow-origin itself, it adds `access-control-expose-headers: *` only if that
+header is absent. If a proxy appends CORS headers, leave automatic response
+headers off or have the proxy remove or replace upstream headers to avoid
+duplicate allow-origin values. Same-origin calls do not need CORS. Native
+preflight does not emit `access-control-allow-credentials`, and wildcard
+allow-origin cannot be used with credentials. In Fetch credentials mode
+`include`, `access-control-expose-headers: *` names a literal header rather
+than exposing all headers. Use a CORS layer or proxy for credentialed preflight
+and responses.
 For browser HTTP/1.1, use the [Tower/Hyper recipe](../docs/decisions/http1-grpc-web.md).
 
 ## Installation
@@ -198,7 +207,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | Area | What is available |
 |---|---|
 | RPC shapes | Unary, server-streaming, client-streaming, and bidirectional streaming. See the [RPC shapes guide](../docs/guides/rpc-shapes.md). |
-| gRPC-Web | Optional `grpc-web` feature for HTTP/2 unary and server-streaming gRPC-Web, including `grpc-web-text` and explicit CORS preflight policy. |
+| gRPC-Web | Unreleased checkout: optional `grpc-web` feature for HTTP/2 unary and server-streaming gRPC-Web, including `grpc-web-text` and an explicit CORS policy. |
 | Message codec | The `CodecMessage` trait abstracts native messages. pbrs messages use the default fast path: direct encode into frames, `Bytes` parsing, and shared large `bytes` segments. |
 | TLS and mTLS | Built-in constructors use `rustls` + Graviola and WebPKI verification. Caller-owned rustls configs/providers/resolvers are supported through `ServerTls::from_rustls` / `ClientTls::from_rustls`, with enforced ALPN `h2`; callers own custom verifier security and rotation/session policy. See the [caller-config contract](../docs/decisions/caller-rustls-config.md) and [production service guide](../docs/guides/production-service.md). |
 | Routing | `Router` composes multiple services on one TCP/TLS port. With the optional `tower` feature it can also be mounted as a tower service next to REST routes. |

@@ -61,7 +61,7 @@ pub struct Rpc {
     pub(crate) peer_cred: Option<PeerCred>,
     pub(crate) transport_scheme: Option<&'static str>,
     #[cfg(feature = "grpc-web")]
-    pub(crate) web: Option<crate::web::Mode>,
+    pub(crate) web: Option<crate::web::WebContext>,
     pub(crate) extensions: http::Extensions,
     pub(crate) metadata: Metadata,
     pub(crate) diagnostic_config: Option<DiagnosticConfig>,
@@ -1420,7 +1420,7 @@ struct InboundRpc {
     channelz_server: Option<crate::channelz::ServerId>,
     channelz_socket: Option<crate::channelz::SocketId>,
     #[cfg(feature = "grpc-web")]
-    web: Option<crate::web::Mode>,
+    web: Option<crate::web::WebContext>,
     call_start: tokio::time::Instant,
     owned_labels: Option<OwnedCallLabels>,
     deadline: Option<tokio::time::Instant>,
@@ -1701,7 +1701,7 @@ impl InboundRpc {
         let accept = self.config.accepts_compressed();
         let codec = self.request_codec;
         #[cfg(feature = "grpc-web")]
-        let text = self.web.is_some_and(crate::web::Mode::is_text);
+        let text = self.web.is_some_and(|web| web.mode.is_text());
         let recv = self
             .recv
             .as_mut()

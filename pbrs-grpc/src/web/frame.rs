@@ -41,15 +41,17 @@ const TEXT_BASE64: GeneralPurpose = GeneralPurpose::new(
 const ACCESS_CONTROL_ALLOW_ORIGIN: &str = "access-control-allow-origin";
 const ACCESS_CONTROL_ALLOW_METHODS: &str = "access-control-allow-methods";
 const ACCESS_CONTROL_ALLOW_HEADERS: &str = "access-control-allow-headers";
+const ACCESS_CONTROL_EXPOSE_HEADERS: &str = "access-control-expose-headers";
 const ACCESS_CONTROL_MAX_AGE: &str = "access-control-max-age";
 const VARY: &str = "vary";
 const DEFAULT_ALLOW_HEADERS: &str =
     "content-type,x-grpc-web,grpc-timeout,grpc-encoding,grpc-accept-encoding";
 
-/// CORS policy for gRPC-Web preflight requests.
+/// CORS policy for gRPC-Web preflight requests and optional response defaults.
 ///
 /// Default is [`Self::DenyAll`]. Use [`crate::ServerConfig::grpc_web_allow_any_origin`]
-/// or [`crate::ServerConfig::grpc_web_allow_origin`] to opt in.
+/// or [`crate::ServerConfig::grpc_web_allow_origin`] to opt in. Response
+/// defaults require [`crate::ServerConfig::grpc_web_cors_response_headers`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum CorsPolicy {
     /// Reject every browser preflight.
@@ -62,18 +64,20 @@ pub enum CorsPolicy {
 }
 
 impl CorsPolicy {
-    fn allowed_origin(self, origin: &HeaderValue) -> Option<HeaderValue> {
+    fn matched_origin(self, origin: &HeaderValue) -> Option<&'static str> {
         match self {
             Self::DenyAll => None,
-            Self::AllowAny => Some(HeaderValue::from_static("*")),
-            Self::AllowOrigin(allowed) => {
-                let origin = origin.to_str().ok()?;
-                if origin == allowed {
-                    HeaderValue::from_str(allowed).ok()
-                } else {
-                    None
-                }
-            }
+            Self::AllowAny => Some("*"),
+            Self::AllowOrigin(allowed) => (origin.to_str().ok()? == allowed).then_some(allowed),
+        }
+    }
+
+    fn allowed_origin(self, origin: &HeaderValue) -> Option<HeaderValue> {
+        let matched = self.matched_origin(origin)?;
+        if matched == "*" {
+            Some(HeaderValue::from_static("*"))
+        } else {
+            HeaderValue::from_str(matched).ok()
         }
     }
 }
@@ -138,6 +142,76 @@ impl Mode {
     }
 }
 
+/// Request-local Web response context, captured before request metadata can
+/// be changed by an interceptor. Configured origins are static, so this can
+/// be copied into the deadline owner without retaining the request headers.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct WebContext {
+    pub(crate) mode: Mode,
+    enabled: bool,
+    allow_origin: Option<&'static str>,
+}
+
+impl WebContext {
+    pub(crate) fn new(
+        mode: Mode,
+        headers: &HeaderMap,
+        policy: CorsPolicy,
+        enabled: bool,
+    ) -> Self {
+        let allow_origin = if enabled {
+            headers
+                .get(http::header::ORIGIN)
+                .and_then(|origin| policy.matched_origin(origin))
+        } else {
+            None
+        };
+        Self {
+            mode,
+            enabled,
+            allow_origin,
+        }
+    }
+
+    /// Supply CORS defaults after application metadata is added. Explicit
+    /// application headers remain authoritative.
+    pub(crate) fn apply_cors(self, headers: &mut HeaderMap) {
+        if !self.enabled {
+            return;
+        }
+        let varies = headers.get_all(VARY).iter().any(|value| {
+            value.to_str().is_ok_and(|value| {
+                value.split(',').any(|token| {
+                    let token = token.trim();
+                    token == "*" || token.eq_ignore_ascii_case("origin")
+                })
+            })
+        });
+        if !varies {
+            headers.append(VARY, HeaderValue::from_static("origin"));
+        }
+        let origin = if headers.contains_key(ACCESS_CONTROL_ALLOW_ORIGIN) {
+            None
+        } else {
+            self.allow_origin.and_then(|origin| {
+                if origin == "*" {
+                    Some(HeaderValue::from_static("*"))
+                } else {
+                    HeaderValue::from_str(origin).ok()
+                }
+            })
+        };
+        if let Some(origin) = origin {
+            headers.insert(ACCESS_CONTROL_ALLOW_ORIGIN, origin);
+            if !headers.contains_key(ACCESS_CONTROL_EXPOSE_HEADERS) {
+                // Native CORS does not opt in to credentials. For ordinary
+                // browser requests this exposes custom response metadata too.
+                headers.insert(ACCESS_CONTROL_EXPOSE_HEADERS, HeaderValue::from_static("*"));
+            }
+        }
+    }
+}
+
 /// Whether this content type is a supported binary gRPC-Web variant.
 pub(crate) fn is_supported_content_type(value: &str) -> bool {
     Mode::from_content_type(value).is_some()
@@ -190,7 +264,12 @@ fn send_cors_status(
         Err(_) => return,
     };
     let headers = res.headers_mut();
-    headers.insert(VARY, HeaderValue::from_static("origin"));
+    headers.insert(
+        VARY,
+        HeaderValue::from_static(
+            "origin, access-control-request-method, access-control-request-headers",
+        ),
+    );
     if let Some(origin) = allow_origin {
         headers.insert(ACCESS_CONTROL_ALLOW_ORIGIN, origin);
         headers.insert(
@@ -206,10 +285,27 @@ fn send_cors_status(
     respond.send_response(res, true).ok();
 }
 
+/// Send an HTTP-level rejection for a request identified as gRPC-Web.
+pub(crate) fn send_http_rejection(
+    respond: &mut backend::SendResponse,
+    web: WebContext,
+    status: StatusCode,
+) {
+    let mut response = Response::new(());
+    *response.status_mut() = status;
+    if status == StatusCode::METHOD_NOT_ALLOWED {
+        response
+            .headers_mut()
+            .insert(http::header::ALLOW, HeaderValue::from_static("POST"));
+    }
+    web.apply_cors(response.headers_mut());
+    respond.send_response(response, true).ok();
+}
+
 /// Send initial gRPC-Web response headers.
 pub(crate) fn send_ok_headers(
     respond: &mut backend::SendResponse,
-    mode: Mode,
+    web: WebContext,
     md: &Metadata,
     send_codec: Option<CompressionAlgorithm>,
     accept_gzip: bool,
@@ -218,12 +314,13 @@ pub(crate) fn send_ok_headers(
     *res.status_mut() = StatusCode::OK;
     *res.headers_mut() = HeaderMap::with_capacity(HEADER_CAPACITY);
     let headers = res.headers_mut();
-    headers.insert(http::header::CONTENT_TYPE, mode.content_type());
+    headers.insert(http::header::CONTENT_TYPE, web.mode.content_type());
     headers.insert(GRPC_ACCEPT_ENCODING, accept_encoding_value(accept_gzip));
     if let Some(codec) = send_codec {
         headers.insert(GRPC_ENCODING, encoding_value(codec));
     }
     md.write_to(headers)?;
+    web.apply_cors(headers);
     respond
         .send_response(res, false)
         .map_err(|e| Status::internal(e.to_string()))
@@ -232,23 +329,23 @@ pub(crate) fn send_ok_headers(
 /// Send a gRPC-Web trailers-only body response.
 pub(crate) fn send_trailers_only(
     respond: &mut backend::SendResponse,
-    mode: Mode,
+    web: WebContext,
     status: Status,
     extra_headers: &Metadata,
 ) {
-    send_trailers_only_inner(respond, mode, status, extra_headers, None);
+    send_trailers_only_inner(respond, web, status, extra_headers, None);
 }
 
 /// Reject an unsupported request coding and advertise the supported codings.
 pub(crate) fn send_encoding_rejection(
     respond: &mut backend::SendResponse,
-    mode: Mode,
+    web: WebContext,
     status: Status,
     accept_compressed: bool,
 ) {
     send_trailers_only_inner(
         respond,
-        mode,
+        web,
         status,
         &Metadata::new(),
         Some(accept_compressed),
@@ -257,20 +354,21 @@ pub(crate) fn send_encoding_rejection(
 
 fn send_trailers_only_inner(
     respond: &mut backend::SendResponse,
-    mode: Mode,
+    web: WebContext,
     status: Status,
     extra_headers: &Metadata,
     accept_compressed: Option<bool>,
 ) {
     let mut res = match Response::builder()
         .status(StatusCode::OK)
-        .header(http::header::CONTENT_TYPE, mode.content_type())
+        .header(http::header::CONTENT_TYPE, web.mode.content_type())
         .body(())
     {
         Ok(r) => r,
         Err(_) => return,
     };
     extra_headers.write_to(res.headers_mut()).ok();
+    web.apply_cors(res.headers_mut());
     if let Some(accept_compressed) = accept_compressed {
         res.headers_mut().insert(
             GRPC_ACCEPT_ENCODING,
@@ -281,7 +379,7 @@ fn send_trailers_only_inner(
         return;
     };
     if let Ok(frame) = trailer_frame(&status) {
-        let frame = if mode.is_text() {
+        let frame = if web.mode.is_text() {
             TEXT_BASE64.encode(frame).into()
         } else {
             frame
@@ -293,17 +391,18 @@ fn send_trailers_only_inner(
 /// Queue a trailers-only body while preserving serialization and send errors.
 pub(crate) fn try_send_trailers_only(
     respond: &mut backend::SendResponse,
-    mode: Mode,
+    web: WebContext,
     status: &Status,
     extra_headers: &Metadata,
 ) -> Result<(), Status> {
     let mut response = Response::new(());
     response
         .headers_mut()
-        .insert(http::header::CONTENT_TYPE, mode.content_type());
+        .insert(http::header::CONTENT_TYPE, web.mode.content_type());
     extra_headers.write_to(response.headers_mut())?;
+    web.apply_cors(response.headers_mut());
     let frame = trailer_frame(status)?;
-    let frame = if mode.is_text() {
+    let frame = if web.mode.is_text() {
         TEXT_BASE64.encode(frame).into()
     } else {
         frame
@@ -495,12 +594,147 @@ fn trailer_frame(status: &Status) -> Result<Bytes, Status> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Mode, TextEncoder, deadline_response, trailer_frame};
+    use super::{CorsPolicy, Mode, TextEncoder, WebContext, deadline_response, trailer_frame};
     use crate::status::{Code, Status};
     use base64::Engine;
     use base64::engine::general_purpose::STANDARD;
     use bytes::{BufMut, BytesMut};
-    use http::StatusCode;
+    use http::{HeaderMap, HeaderValue, StatusCode};
+
+    #[test]
+    fn response_cors_matches_origin_and_preserves_vary() {
+        for (policy, origin, expected) in [
+            (CorsPolicy::DenyAll, Some("https://app.example"), None),
+            (CorsPolicy::AllowAny, Some("https://app.example"), Some("*")),
+            (CorsPolicy::AllowAny, None, None),
+            (
+                CorsPolicy::AllowOrigin("https://app.example"),
+                Some("https://app.example"),
+                Some("https://app.example"),
+            ),
+            (
+                CorsPolicy::AllowOrigin("https://app.example"),
+                Some("https://other.example"),
+                None,
+            ),
+            (CorsPolicy::AllowOrigin("https://app.example"), None, None),
+            (CorsPolicy::AllowOrigin("null"), Some("null"), Some("null")),
+        ] {
+            let mut request = HeaderMap::new();
+            if let Some(origin) = origin {
+                request.insert(http::header::ORIGIN, HeaderValue::from_static(origin));
+            }
+            let web = WebContext::new(Mode::Binary, &request, policy, true);
+            let mut response = HeaderMap::new();
+            response.insert(http::header::VARY, HeaderValue::from_static("accept-encoding"));
+            web.apply_cors(&mut response);
+            assert_eq!(
+                response
+                    .get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                    .and_then(|value| value.to_str().ok()),
+                expected
+            );
+            assert_eq!(
+                response
+                    .get_all(http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                    .iter()
+                    .count(),
+                if expected.is_some() { 1 } else { 0 }
+            );
+            let vary: Vec<_> = response
+                .get_all(http::header::VARY)
+                .iter()
+                .map(|value| value.to_str().expect("vary"))
+                .collect();
+            assert_eq!(vary, ["accept-encoding", "origin"]);
+            assert_eq!(
+                response
+                    .get(http::header::ACCESS_CONTROL_EXPOSE_HEADERS)
+                    .and_then(|value| value.to_str().ok()),
+                expected.map(|_| "*")
+            );
+
+            let mut explicit = HeaderMap::new();
+            explicit.insert(
+                http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("https://override.example"),
+            );
+            explicit.insert(
+                http::header::ACCESS_CONTROL_EXPOSE_HEADERS,
+                HeaderValue::from_static("x-custom"),
+            );
+            web.apply_cors(&mut explicit);
+            assert_eq!(
+                explicit
+                    .get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                    .and_then(|value| value.to_str().ok()),
+                Some("https://override.example")
+            );
+            assert_eq!(
+                explicit
+                    .get(http::header::ACCESS_CONTROL_EXPOSE_HEADERS)
+                    .and_then(|value| value.to_str().ok()),
+                Some("x-custom")
+            );
+
+            let mut origin_only = HeaderMap::new();
+            origin_only.insert(
+                http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("https://override.example"),
+            );
+            web.apply_cors(&mut origin_only);
+            assert_eq!(
+                origin_only
+                    .get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                    .and_then(|value| value.to_str().ok()),
+                Some("https://override.example")
+            );
+            assert!(
+                !origin_only.contains_key(http::header::ACCESS_CONTROL_EXPOSE_HEADERS),
+                "application-managed origins must not gain automatic exposure"
+            );
+
+            let mut exposure_only = HeaderMap::new();
+            exposure_only.insert(
+                http::header::ACCESS_CONTROL_EXPOSE_HEADERS,
+                HeaderValue::from_static("x-custom"),
+            );
+            web.apply_cors(&mut exposure_only);
+            assert_eq!(
+                exposure_only
+                    .get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                    .and_then(|value| value.to_str().ok()),
+                expected
+            );
+            assert_eq!(
+                exposure_only
+                    .get(http::header::ACCESS_CONTROL_EXPOSE_HEADERS)
+                    .and_then(|value| value.to_str().ok()),
+                Some("x-custom")
+            );
+
+            let disabled = WebContext::new(Mode::Binary, &request, policy, false);
+            let mut unchanged = HeaderMap::new();
+            unchanged.insert(http::header::VARY, HeaderValue::from_static("accept-encoding"));
+            unchanged.insert(
+                http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                HeaderValue::from_static("https://override.example"),
+            );
+            let before = unchanged.clone();
+            disabled.apply_cors(&mut unchanged);
+            assert_eq!(unchanged, before);
+            let mut empty = HeaderMap::new();
+            disabled.apply_cors(&mut empty);
+            assert!(empty.is_empty());
+        }
+
+        let web = WebContext::new(Mode::Binary, &HeaderMap::new(), CorsPolicy::DenyAll, true);
+        let mut response = HeaderMap::new();
+        response.insert(http::header::VARY, HeaderValue::from_static("*"));
+        web.apply_cors(&mut response);
+        assert_eq!(response.get_all(http::header::VARY).iter().count(), 1);
+        assert_eq!(response.get(http::header::VARY), Some(&HeaderValue::from_static("*")));
+    }
 
     #[test]
     fn parses_content_types() {

@@ -337,7 +337,7 @@ pub(crate) struct Prepared<T> {
     /// Channelz socket serving this RPC, for stream/message counters.
     pub(crate) channelz_socket: Option<crate::channelz::SocketId>,
     #[cfg(feature = "grpc-web")]
-    pub(crate) web: Option<crate::web::Mode>,
+    pub(crate) web: Option<crate::web::WebContext>,
 }
 
 #[allow(
@@ -501,7 +501,7 @@ impl Drop for WebWriter<'_> {
 pub(crate) async fn send_web_unary_response<Resp: CodecMessage>(
     response: Response<Resp>,
     mut respond: backend::SendResponse,
-    web: crate::web::Mode,
+    web: crate::web::WebContext,
     wire: Wire,
     prefer_gzip: bool,
     peer_accepts_gzip: bool,
@@ -578,7 +578,7 @@ pub(crate) async fn send_web_unary_response<Resp: CodecMessage>(
     let mut text = WebWriter::new(call);
     call.deadline.web_frame_started();
     if let Err(status) =
-        crate::web::send_frame(&mut send, web, &mut text, frame, wire.send_buffer).await
+        crate::web::send_frame(&mut send, web.mode, &mut text, frame, wire.send_buffer).await
     {
         return status;
     }
@@ -594,7 +594,8 @@ pub(crate) async fn send_web_unary_response<Resp: CodecMessage>(
     }
     super::deadline::before_commit(call).await;
     call.deadline.web_frame_started();
-    match crate::web::send_trailers(&mut send, web, &mut text, &status, wire.send_buffer).await {
+    match crate::web::send_trailers(&mut send, web.mode, &mut text, &status, wire.send_buffer).await
+    {
         Ok(()) => {
             call.deadline.web_frame_finished();
             status
@@ -713,7 +714,7 @@ pub(crate) async fn send_stream_response<Resp: CodecMessage + Send>(
 pub(crate) async fn send_web_stream_response<Resp: CodecMessage + Send>(
     response: Response<Streaming<Resp>>,
     mut respond: backend::SendResponse,
-    web: crate::web::Mode,
+    web: crate::web::WebContext,
     wire: Wire,
     deadline: Option<tokio::time::Instant>,
     prefer_gzip: bool,
@@ -749,11 +750,11 @@ pub(crate) async fn send_web_stream_response<Resp: CodecMessage + Send>(
     super::deadline::before_commit(call).await;
     let mut status = Status::ok();
     let mut text = WebWriter::new(call);
-    let drained = if web.is_text() {
+    let drained = if web.mode.is_text() {
         drain_to_web_text(
             &mut stream,
             &mut send,
-            web,
+            web.mode,
             &mut text,
             wire,
             compress,
@@ -810,7 +811,7 @@ pub(crate) async fn send_web_stream_response<Resp: CodecMessage + Send>(
     }
     super::deadline::before_commit(call).await;
     call.deadline.web_frame_started();
-    if crate::web::send_trailers(&mut send, web, &mut text, &status, wire.send_buffer)
+    if crate::web::send_trailers(&mut send, web.mode, &mut text, &status, wire.send_buffer)
         .await
         .is_ok()
     {

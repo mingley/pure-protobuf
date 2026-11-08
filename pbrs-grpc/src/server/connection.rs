@@ -322,7 +322,14 @@ pub(crate) fn incoming_rpc(
 ) -> Rpc {
     // Rebinding `request` copied all 248 bytes before the struct moved it.
     #[cfg(feature = "grpc-web")]
-    let web = crate::web::Mode::from_headers(request.headers());
+    let web = crate::web::Mode::from_headers(request.headers()).map(|mode| {
+        crate::web::WebContext::new(
+            mode,
+            request.headers(),
+            config.grpc_web_cors(),
+            config.grpc_web_cors_response_headers_enabled(),
+        )
+    });
     // One map. The request keeps the body; protocol readers use metadata.
     let metadata = if let Some(shared) = shared_headers {
         Metadata::from_shared_headers(shared)
@@ -656,15 +663,26 @@ where
                         }
                         note_rejected_call(channelz_server, channelz_socket_id);
                         #[cfg(feature = "grpc-web")]
-                        if let (Some(web), crate::wire::RequestReject::Grpc(status)) =
-                            (crate::web::Mode::from_headers(request.headers()), &err)
-                        {
-                            crate::web::send_encoding_rejection(
-                                &mut respond,
-                                web,
-                                status.clone(),
-                                config.accepts_compressed(),
+                        if let Some(mode) = crate::web::Mode::from_headers(request.headers()) {
+                            let web = crate::web::WebContext::new(
+                                mode,
+                                request.headers(),
+                                config.grpc_web_cors(),
+                                config.grpc_web_cors_response_headers_enabled(),
                             );
+                            match &err {
+                                crate::wire::RequestReject::Grpc(status) => {
+                                    crate::web::send_encoding_rejection(
+                                        &mut respond,
+                                        web,
+                                        status.clone(),
+                                        config.accepts_compressed(),
+                                    );
+                                }
+                                crate::wire::RequestReject::Http(status) => {
+                                    crate::web::send_http_rejection(&mut respond, web, *status);
+                                }
+                            }
                             continue;
                         }
                         reject_request(&mut respond, err, config.accepts_compressed());
@@ -695,7 +713,13 @@ where
                     }
                     note_rejected_call(channelz_server, channelz_socket_id);
                     #[cfg(feature = "grpc-web")]
-                    if let Some(web) = crate::web::Mode::from_headers(request.headers()) {
+                    if let Some(mode) = crate::web::Mode::from_headers(request.headers()) {
+                        let web = crate::web::WebContext::new(
+                            mode,
+                            request.headers(),
+                            config.grpc_web_cors(),
+                            config.grpc_web_cors_response_headers_enabled(),
+                        );
                         crate::web::send_trailers_only(&mut respond, web, status, &Metadata::new());
                         continue;
                     }
@@ -723,7 +747,13 @@ where
                             }
                             note_rejected_call(channelz_server, channelz_socket_id);
                             #[cfg(feature = "grpc-web")]
-                            if let Some(web) = crate::web::Mode::from_headers(request.headers()) {
+                            if let Some(mode) = crate::web::Mode::from_headers(request.headers()) {
+                                let web = crate::web::WebContext::new(
+                                    mode,
+                                    request.headers(),
+                                    config.grpc_web_cors(),
+                                    config.grpc_web_cors_response_headers_enabled(),
+                                );
                                 crate::web::send_trailers_only(
                                     &mut respond,
                                     web,

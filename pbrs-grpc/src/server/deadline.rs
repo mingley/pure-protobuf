@@ -373,8 +373,12 @@ pub(crate) fn serve<R: Runtime, D: Dispatch>(
             if let (true, Some(capability)) = (expired, owner.response.as_mut()) {
                 #[cfg(feature = "grpc-web")]
                 let terminal = match web {
-                    Some(mode) => match carry.0.get(..carry.1) {
-                        Some(carry) => crate::web::deadline_response(mode, &status, carry),
+                    Some(web) => match carry.0.get(..carry.1) {
+                        Some(carry) => crate::web::deadline_response(web.mode, &status, carry)
+                            .map(|(mut response, trailers, body)| {
+                                web.apply_cors(response.headers_mut());
+                                (response, trailers, body)
+                            }),
                         None => Err(Status::internal("invalid retained grpc-web text carry")),
                     },
                     None => native_terminal(&status),

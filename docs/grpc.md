@@ -145,11 +145,12 @@ segments for large `bytes` values. Hand-written or foreign message types can
 implement `CodecMessage` and then use the same `Channel`, `Rpc`, `Streaming`,
 and `StreamSender` APIs for all four RPC shapes.
 
-The optional `tower` feature adds integration points without changing the
-default dependency graph:
+The optional `tower` feature in the unreleased checkout adds integration points
+without changing the default dependency graph. Published `0.1.0-alpha.2`
+does not include it. For a checkout next to your project:
 
 ```toml
-pbrs-grpc = { version = "0.1.0-alpha.2", features = ["tower"] } # Published preview
+pbrs-grpc = { path = "../pure-protobuf/pbrs-grpc", features = ["tower"] }
 ```
 
 - `Router::into_tower_service()` exposes a native router as
@@ -207,11 +208,15 @@ and bidirectional calls that future ends at response headers. Use
 
 ## gRPC-Web
 
-Enable the optional `grpc-web` feature to serve gRPC-Web over the existing
-HTTP/2 transport:
+The native `grpc-web` feature and CORS builders below are unreleased, available
+in this checkout and planned for the next release. Published
+`0.1.0-alpha.2` has no native gRPC-Web support or preflight builders. For that
+release, use a proxy that translates gRPC-Web to native gRPC and handles CORS.
+
+For a checkout next to your project, enable `grpc-web`:
 
 ```toml
-pbrs-grpc = { version = "0.1.0-alpha.2", features = ["grpc-web"] } # Published preview
+pbrs-grpc = { path = "../pure-protobuf/pbrs-grpc", features = ["grpc-web"] }
 ```
 
 With the feature enabled, the server accepts `application/grpc-web`,
@@ -225,18 +230,34 @@ browser-facing limits.
 The native listener serves HTTP/2. For browser HTTP/1.1, the
 [axum co-host example](../examples/axum-cohost/) wraps the Tower adapter in
 `tonic_web::GrpcWebLayer` and uses Hyper's automatic connection server;
-see the [HTTP/1.1 decision](decisions/http1-grpc-web.md). The native gRPC-Web
-CORS preflight policy defaults to deny-all; opt in explicitly:
+see the [HTTP/1.1 decision](decisions/http1-grpc-web.md). Native gRPC-Web
+preflight denies all origins by default. In the unreleased checkout, allow an
+origin and opt into automatic response headers with:
 
 ```rust
 let config = pbrs_grpc::ServerConfig::new()
-    .grpc_web_allow_origin("https://app.example");
+    .grpc_web_allow_origin("https://app.example")
+    .grpc_web_cors_response_headers(true);
 ```
 
 Use `grpc_web_allow_any_origin()` only for public APIs that intentionally allow
-all browser origins. These settings handle preflight only. Configure a proxy to
-add appropriate CORS response headers to every cross-origin POST response,
-including errors returned before handler dispatch.
+all browser origins. Without `grpc_web_cors_response_headers(true)`, the
+configured policy handles preflight only and leaves response metadata unchanged.
+With it, the policy supplies CORS headers for recognized Web response types,
+including early errors and deadlines. If the application supplies
+`access-control-allow-origin`, it remains authoritative and the server does
+not add default exposure. Otherwise, when the server adds an allow-origin
+header, it also supplies `access-control-expose-headers: *` unless the
+application supplied that header.
+
+A proxy that appends CORS headers can produce invalid duplicate allow-origin
+headers when automatic response headers are enabled. Leave the option off, or
+configure the proxy to remove or replace upstream headers before adding its
+own. Same-origin calls do not require CORS. The native preflight does not emit
+`access-control-allow-credentials`, and a wildcard allow-origin cannot be used
+with credentials. With Fetch's credentials mode set to `include`,
+`access-control-expose-headers: *` names a literal header instead of exposing
+all headers. Use a CORS layer or proxy for credentialed preflight and responses.
 
 ## Production Capabilities & How-to Guides
 

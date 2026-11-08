@@ -174,6 +174,8 @@ pub struct ServerConfig {
     compression_algorithm: CompressionAlgorithm,
     #[cfg(feature = "grpc-web")]
     grpc_web_cors: crate::web::CorsPolicy,
+    #[cfg(feature = "grpc-web")]
+    grpc_web_response_cors: bool,
 }
 
 impl Default for ServerConfig {
@@ -215,6 +217,8 @@ impl Default for ServerConfig {
             compression_algorithm: CompressionAlgorithm::default(),
             #[cfg(feature = "grpc-web")]
             grpc_web_cors: crate::web::CorsPolicy::DenyAll,
+            #[cfg(feature = "grpc-web")]
+            grpc_web_response_cors: false,
         }
     }
 }
@@ -254,8 +258,9 @@ impl ServerConfig {
 
     /// Allow gRPC-Web CORS preflight requests from any origin.
     ///
-    /// Default is deny-all. Applies only when the `grpc-web` feature is
-    /// enabled; native gRPC requests do not use CORS.
+    /// Preflight denies all origins by default. With
+    /// [`Self::grpc_web_cors_response_headers`] enabled, this policy also
+    /// supplies default response headers. Native gRPC does not use CORS.
     #[cfg(feature = "grpc-web")]
     #[must_use]
     pub fn grpc_web_allow_any_origin(mut self) -> Self {
@@ -265,8 +270,9 @@ impl ServerConfig {
 
     /// Allow gRPC-Web CORS preflight requests from one static origin.
     ///
-    /// Default is deny-all. Applies only when the `grpc-web` feature is
-    /// enabled; native gRPC requests do not use CORS.
+    /// Preflight denies all origins by default. With
+    /// [`Self::grpc_web_cors_response_headers`] enabled, this policy also
+    /// supplies default response headers. Native gRPC does not use CORS.
     #[cfg(feature = "grpc-web")]
     #[must_use]
     pub fn grpc_web_allow_origin(mut self, origin: &'static str) -> Self {
@@ -274,11 +280,30 @@ impl ServerConfig {
         self
     }
 
-    /// Configured gRPC-Web CORS preflight policy.
+    /// Configured gRPC-Web CORS policy.
     #[cfg(feature = "grpc-web")]
     #[must_use]
     pub fn grpc_web_cors(&self) -> crate::web::CorsPolicy {
         self.grpc_web_cors
+    }
+
+    /// Enable policy-derived CORS headers on gRPC-Web responses.
+    ///
+    /// Disabled by default, so existing response metadata and CORS proxies
+    /// retain their behavior. When enabled, application-supplied allow-origin
+    /// and expose-headers metadata remains authoritative. An application
+    /// allow-origin prevents automatic exposure. This does not enable
+    /// credentialed cross-origin requests.
+    #[cfg(feature = "grpc-web")]
+    #[must_use]
+    pub fn grpc_web_cors_response_headers(mut self, enabled: bool) -> Self {
+        self.grpc_web_response_cors = enabled;
+        self
+    }
+
+    #[cfg(feature = "grpc-web")]
+    pub(crate) fn grpc_web_cors_response_headers_enabled(&self) -> bool {
+        self.grpc_web_response_cors
     }
 
     /// Set the HTTP/2 receive window for each stream. Default 16 MiB.

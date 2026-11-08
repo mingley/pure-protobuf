@@ -10,6 +10,8 @@
 )]
 
 use bytes::Bytes;
+#[cfg(feature = "grpc-web")]
+use pbrs_grpc::ServerConfig;
 use pbrs_grpc::telemetry::{CallLabels, LifecycleObserver};
 use pbrs_grpc::{
     Code, HelloReply, HelloRequest, Metadata, Parts, Request, Response, Rpc, Server, Service,
@@ -288,6 +290,27 @@ impl Peer {
     }
 
     async fn with_route(kind: Kind, response_window: u32, routed: bool, overrun: bool) -> Self {
+        Self::with_route_and_cors(kind, response_window, routed, overrun, false).await
+    }
+
+    async fn with_route_and_cors(
+        kind: Kind,
+        response_window: u32,
+        routed: bool,
+        overrun: bool,
+        cors: bool,
+    ) -> Self {
+        Self::with_route_and_cors_settings(kind, response_window, routed, overrun, cors, cors).await
+    }
+
+    async fn with_route_and_cors_settings(
+        kind: Kind,
+        response_window: u32,
+        routed: bool,
+        overrun: bool,
+        allow_origin: bool,
+        response_headers: bool,
+    ) -> Self {
         let (gate, receiver) = watch::channel(false);
         let probe = Arc::new(Probe {
             entered: AtomicBool::new(false),
@@ -312,9 +335,20 @@ impl Peer {
         let observer = Observer(Arc::clone(&probe));
         let interceptor_probe = Arc::clone(&probe);
         let server = tokio::spawn(async move {
-            let mut server = Server::new(service)
-                .observer(observer)
-                .max_concurrent_rpcs(1);
+            let server = Server::new(service);
+            #[cfg(feature = "grpc-web")]
+            let server = if allow_origin {
+                server.config(
+                    ServerConfig::new()
+                        .grpc_web_allow_origin("https://app.example")
+                        .grpc_web_cors_response_headers(response_headers),
+                )
+            } else {
+                server
+            };
+            #[cfg(not(feature = "grpc-web"))]
+            let (_allow_origin, _response_headers) = (allow_origin, response_headers);
+            let mut server = server.observer(observer).max_concurrent_rpcs(1);
             if matches!(kind, Kind::EmptyUnary) {
                 // Deliberately prevent the complete status body from fitting
                 // in the send buffer before the deadline. A small peer window
@@ -372,6 +406,16 @@ impl Peer {
         timeout: Option<&str>,
         content_type: &str,
     ) -> h2::client::ResponseFuture {
+        self.request_with_origin(method, timeout, content_type, None).await
+    }
+
+    async fn request_with_origin(
+        &mut self,
+        method: &str,
+        timeout: Option<&str>,
+        content_type: &str,
+        origin: Option<&str>,
+    ) -> h2::client::ResponseFuture {
         let mut request = http::Request::builder()
             .method("POST")
             .uri(format!("http://local/deadline.Extended/{method}"))
@@ -379,6 +423,9 @@ impl Peer {
             .header("te", "trailers");
         if let Some(timeout) = timeout {
             request = request.header("grpc-timeout", timeout);
+        }
+        if let Some(origin) = origin {
+            request = request.header(http::header::ORIGIN, origin);
         }
         self.send = drive(self.send.clone().ready()).await.unwrap();
         let (response, mut body) = self
@@ -701,6 +748,42 @@ fn web_frames_with_status(
 }
 
 #[cfg(feature = "grpc-web")]
+fn assert_web_cors(headers: &http::HeaderMap) {
+    assert_web_cors_for(headers, Some("https://app.example"));
+}
+
+#[cfg(feature = "grpc-web")]
+fn assert_web_cors_for(headers: &http::HeaderMap, expected: Option<&str>) {
+    assert_eq!(
+        headers
+            .get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+            .and_then(|value| value.to_str().ok()),
+        expected
+    );
+    assert!(
+        headers
+            .get_all(http::header::VARY)
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+            .flat_map(|value| value.split(','))
+            .any(|token| token.trim().eq_ignore_ascii_case("origin"))
+    );
+    assert_eq!(
+        headers
+            .get(http::header::ACCESS_CONTROL_EXPOSE_HEADERS)
+            .and_then(|value| value.to_str().ok()),
+        expected.map(|_| "*")
+    );
+}
+
+#[cfg(feature = "grpc-web")]
+fn assert_web_cors_disabled(headers: &http::HeaderMap) {
+    assert!(headers.get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN).is_none());
+    assert!(headers.get(http::header::ACCESS_CONTROL_EXPOSE_HEADERS).is_none());
+    assert!(headers.get(http::header::VARY).is_none());
+}
+
+#[cfg(feature = "grpc-web")]
 fn web_frames(content_type: &str, encoded: &[u8]) -> Vec<Vec<u8>> {
     web_frames_with_status(content_type, encoded, "4")
 }
@@ -722,6 +805,7 @@ async fn web_pre_shape_deadlines_emit_body_status_in_every_mode() {
             content_type
         );
         assert!(response.headers().get("grpc-status").is_none());
+        assert_web_cors_disabled(response.headers());
         let (body, trailers) = collect(response.into_body()).await;
         assert!(trailers.is_none());
         assert!(web_frames(content_type, &body).is_empty());
@@ -743,6 +827,121 @@ async fn web_boundary_deadlines_preserve_complete_messages_and_text_carry() {
                 response.headers().get("content-type").unwrap(),
                 content_type
             );
+            assert_web_cors_disabled(response.headers());
+            let mut body = response.into_body();
+            let frame_length = 7 + length;
+            let emitted = if content_type.contains("-text") {
+                (frame_length / 3) * 4
+            } else {
+                frame_length
+            };
+            let mut encoded = Vec::new();
+            while encoded.len() < emitted {
+                let data = drive(body.data()).await.unwrap().unwrap();
+                encoded.extend_from_slice(&data);
+                body.flow_control().release_capacity(data.len()).unwrap();
+            }
+            assert_eq!(encoded.len(), emitted);
+            turn().await;
+            assert_eq!(peer.probe.dropped.load(Ordering::SeqCst), 0);
+            tokio::time::advance(Duration::from_millis(21)).await;
+            peer.expired().await;
+            let (tail, trailers) = collect(body).await;
+            encoded.extend_from_slice(&tail);
+            assert!(trailers.is_none());
+            let messages = web_frames(content_type, &encoded);
+            let mut expected = vec![0x0a, u8::try_from(length).unwrap()];
+            expected.extend(std::iter::repeat_n(b'x', length));
+            assert_eq!(messages, [expected]);
+            witnessed(|| peer.probe.producer_dropped.load(Ordering::SeqCst) == 1).await;
+            peer.recovery().await;
+        }
+    }
+}
+
+#[cfg(feature = "grpc-web")]
+#[tokio::test(start_paused = true)]
+async fn web_default_deadlines_leave_cors_headers_unchanged_for_each_origin() {
+    for origin in [Some("https://app.example"), Some("https://other.example"), None] {
+        for content_type in WEB_TYPES {
+            let mut peer =
+                Peer::with_route_and_cors_settings(Kind::Hold, 65535, false, false, true, false)
+                    .await;
+            let response = peer
+                .request_with_origin("Call", Some("20m"), content_type, origin)
+                .await;
+            peer.entered().await;
+            tokio::time::advance(Duration::from_millis(21)).await;
+            peer.expired().await;
+            let response = drive(response)
+                .await
+                .expect("valid pre-header web deadline response");
+            assert_web_cors_disabled(response.headers());
+            let (body, trailers) = collect(response.into_body()).await;
+            assert!(trailers.is_none());
+            assert!(web_frames(content_type, &body).is_empty());
+            peer.recovery().await;
+        }
+    }
+}
+
+#[cfg(feature = "grpc-web")]
+#[tokio::test(start_paused = true)]
+async fn web_cors_pre_shape_deadlines_emit_body_status_in_every_mode() {
+    for (origin, expected) in [
+        (Some("https://app.example"), Some("https://app.example")),
+        (Some("https://other.example"), None),
+        (None, None),
+    ] {
+        for content_type in WEB_TYPES {
+            let mut peer = Peer::with_route_and_cors(Kind::Hold, 65535, false, false, true).await;
+            let response = peer
+                .request_with_origin("Call", Some("20m"), content_type, origin)
+                .await;
+            peer.entered().await;
+            tokio::time::advance(Duration::from_millis(21)).await;
+            peer.expired().await;
+            let response = drive(response)
+                .await
+                .expect("valid pre-header web deadline response");
+            assert_eq!(
+                response.headers().get("content-type").unwrap(),
+                content_type
+            );
+            assert!(response.headers().get("grpc-status").is_none());
+            assert_web_cors_for(response.headers(), expected);
+            let (body, trailers) = collect(response.into_body()).await;
+            assert!(trailers.is_none());
+            assert!(web_frames(content_type, &body).is_empty());
+            peer.recovery().await;
+        }
+    }
+}
+
+#[cfg(feature = "grpc-web")]
+#[tokio::test(start_paused = true)]
+async fn web_cors_boundary_deadlines_preserve_complete_messages_and_text_carry() {
+    for content_type in WEB_TYPES {
+        // The complete 5-byte frame + tag/length + payload has raw lengths
+        // 9,10,11, exercising text carries of 0,1,2 bytes respectively.
+        for length in [2, 3, 4] {
+            let mut peer = Peer::with_route_and_cors(
+                Kind::Output(Shape::ServerStream, length),
+                65535,
+                false,
+                false,
+                true,
+            )
+            .await;
+            let response = peer
+                .request_with_origin("Call", Some("20m"), content_type, Some("https://app.example"))
+                .await;
+            let response = drive(response).await.expect("web response headers");
+            assert_eq!(
+                response.headers().get("content-type").unwrap(),
+                content_type
+            );
+            assert_web_cors(response.headers());
             let mut body = response.into_body();
             let frame_length = 7 + length;
             let emitted = if content_type.contains("-text") {

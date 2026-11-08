@@ -111,9 +111,11 @@ streaming calls generated this way with `tonic-prost-build` 0.14.6.
 An application may still use both representations. Run the generator once for
 each package or message set: retain the default tonic/prost codec for existing
 packages, and set `codec_path` only for pbrs-backed packages. Both generated
-service modules can be mounted on the same tonic server. Native services use
-the same pattern by combining the normal pbrs generator with
-`pbrs::codegen::prost_stubs` (and the `pbrs-grpc/prost` feature).
+service modules can be mounted on the same tonic server. In the unreleased
+checkout, native services can use the same pattern by combining the normal
+pbrs generator with `pbrs::codegen::prost_stubs` and the `pbrs-grpc/prost`
+feature. This is planned for the next release. Published `0.1.0-alpha.2`
+does not include the `prost` feature.
 
 At a migration boundary, convert wire-compatible representations without a
 generated field-by-field adapter:
@@ -159,7 +161,15 @@ The generated client/server names stay familiar, but they run on
 
 #### Mount a native service in a Tonic transport
 
-Enable `pbrs-grpc`'s `tonic` feature when an existing framework requires
+The `tonic` feature is available in the unreleased checkout, planned for the
+next release. Published `0.1.0-alpha.2` does not include it. For a checkout
+next to your project, enable it with:
+
+```toml
+pbrs-grpc = { path = "../pure-protobuf/pbrs-grpc", features = ["tonic"] }
+```
+
+This feature requires Rust 1.88. Use it when an existing framework requires
 Tonic's `NamedService`, `Body`, or connection-info types. Convert a generated
 native server with `TonicServiceExt` and register it normally:
 
@@ -305,11 +315,12 @@ request when the peer omits gzip from `grpc-accept-encoding`.
 
 ### Tower middleware parity
 
-Enable `pbrs-grpc`'s optional `tower` feature when you want Tonic-style
-middleware composition without moving back to Tonic's transport:
+The unreleased checkout's optional `tower` feature supports Tonic-style
+middleware composition on the native transport. Published `0.1.0-alpha.2`
+does not include it. For a checkout next to your project:
 
 ```toml
-pbrs-grpc = { version = "0.1.0-alpha.2", features = ["tower"] } # Published preview
+pbrs-grpc = { path = "../pure-protobuf/pbrs-grpc", features = ["tower"] }
 ```
 
 | Tonic middleware | Native migration path | Delta |

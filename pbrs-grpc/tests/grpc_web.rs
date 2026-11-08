@@ -40,8 +40,20 @@ struct RawWebPeer {
 
 impl RawWebPeer {
     async fn connect(addr: SocketAddr) -> Self {
-        let tcp = tokio::net::TcpStream::connect(addr).await.expect("connect");
-        let (send, conn) = h2::client::handshake(tcp).await.expect("handshake");
+        let tcp = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            tokio::net::TcpStream::connect(addr),
+        )
+        .await
+        .expect("gRPC-Web TCP connection timed out")
+        .expect("connect");
+        let (send, conn) = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            h2::client::handshake(tcp),
+        )
+        .await
+        .expect("gRPC-Web HTTP/2 handshake timed out")
+        .expect("handshake");
         drop(tokio::spawn(async move {
             conn.await.ok();
         }));
@@ -77,78 +89,86 @@ impl RawWebPeer {
     where
         I: IntoIterator<Item = Bytes>,
     {
-        let mut send = self.send.clone().ready().await.expect("ready");
-        let (response, mut stream) = send.send_request(request, false).expect("send_request");
-        let mut chunks = chunks.into_iter().peekable();
-        while let Some(chunk) = chunks.next() {
-            let end = chunks.peek().is_none();
-            stream.send_data(chunk, end).expect("send_data");
-        }
-        let response = response.await.expect("response");
-        let status = response.status();
-        let headers = response.headers().clone();
-        let content_type = response
-            .headers()
-            .get(http::header::CONTENT_TYPE)
-            .and_then(|value| value.to_str().ok())
-            .map(str::to_owned);
-        let header_grpc_status = response
-            .headers()
-            .get("grpc-status")
-            .and_then(|value| value.to_str().ok())
-            .map(str::to_owned);
-        let mut body = response.into_body();
-        let mut data = BytesMut::new();
-        while let Some(chunk) = body.data().await {
-            let chunk = chunk.expect("data");
-            data.extend_from_slice(&chunk);
-            body.flow_control().release_capacity(chunk.len()).ok();
-        }
-        let h2_trailers = body.trailers().await.expect("trailers");
-        WebAnswer {
-            status,
-            headers,
-            content_type,
-            header_grpc_status,
-            body: data.freeze(),
-            h2_trailers,
-        }
+        tokio::time::timeout(std::time::Duration::from_secs(30), async {
+            let mut send = self.send.clone().ready().await.expect("ready");
+            let (response, mut stream) = send.send_request(request, false).expect("send_request");
+            let mut chunks = chunks.into_iter().peekable();
+            while let Some(chunk) = chunks.next() {
+                let end = chunks.peek().is_none();
+                stream.send_data(chunk, end).expect("send_data");
+            }
+            let response = response.await.expect("response");
+            let status = response.status();
+            let headers = response.headers().clone();
+            let content_type = response
+                .headers()
+                .get(http::header::CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_owned);
+            let header_grpc_status = response
+                .headers()
+                .get("grpc-status")
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_owned);
+            let mut body = response.into_body();
+            let mut data = BytesMut::new();
+            while let Some(chunk) = body.data().await {
+                let chunk = chunk.expect("data");
+                data.extend_from_slice(&chunk);
+                body.flow_control().release_capacity(chunk.len()).ok();
+            }
+            let h2_trailers = body.trailers().await.expect("trailers");
+            WebAnswer {
+                status,
+                headers,
+                content_type,
+                header_grpc_status,
+                body: data.freeze(),
+                h2_trailers,
+            }
+        })
+        .await
+        .expect("gRPC-Web request timed out")
     }
 
     async fn preflight(&mut self, path: &str, origin: &str) -> WebAnswer {
-        let uri = format!("http://{}{path}", self.authority);
-        let request = HttpRequest::builder()
-            .method(Method::OPTIONS)
-            .uri(uri)
-            .header(http::header::ORIGIN, origin)
-            .header(http::header::ACCESS_CONTROL_REQUEST_METHOD, "POST")
-            .header(
-                http::header::ACCESS_CONTROL_REQUEST_HEADERS,
-                "content-type,x-grpc-web",
-            )
-            .body(())
-            .expect("preflight");
-        let mut send = self.send.clone().ready().await.expect("ready");
-        let (response, _body) = send.send_request(request, true).expect("send_request");
-        let response = response.await.expect("response");
-        let status = response.status();
-        let headers = response.headers().clone();
-        let mut body = response.into_body();
-        let mut data = BytesMut::new();
-        while let Some(chunk) = body.data().await {
-            let chunk = chunk.expect("data");
-            data.extend_from_slice(&chunk);
-            body.flow_control().release_capacity(chunk.len()).ok();
-        }
-        let h2_trailers = body.trailers().await.expect("trailers");
-        WebAnswer {
-            status,
-            headers,
-            content_type: None,
-            header_grpc_status: None,
-            body: data.freeze(),
-            h2_trailers,
-        }
+        tokio::time::timeout(std::time::Duration::from_secs(30), async {
+            let uri = format!("http://{}{path}", self.authority);
+            let request = HttpRequest::builder()
+                .method(Method::OPTIONS)
+                .uri(uri)
+                .header(http::header::ORIGIN, origin)
+                .header(http::header::ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                .header(
+                    http::header::ACCESS_CONTROL_REQUEST_HEADERS,
+                    "content-type,x-grpc-web",
+                )
+                .body(())
+                .expect("preflight");
+            let mut send = self.send.clone().ready().await.expect("ready");
+            let (response, _body) = send.send_request(request, true).expect("send_request");
+            let response = response.await.expect("response");
+            let status = response.status();
+            let headers = response.headers().clone();
+            let mut body = response.into_body();
+            let mut data = BytesMut::new();
+            while let Some(chunk) = body.data().await {
+                let chunk = chunk.expect("data");
+                data.extend_from_slice(&chunk);
+                body.flow_control().release_capacity(chunk.len()).ok();
+            }
+            let h2_trailers = body.trailers().await.expect("trailers");
+            WebAnswer {
+                status,
+                headers,
+                content_type: None,
+                header_grpc_status: None,
+                body: data.freeze(),
+                h2_trailers,
+            }
+        })
+        .await
+        .expect("gRPC-Web preflight timed out")
     }
 }
 
@@ -207,6 +227,20 @@ impl WebAnswer {
                 .and_then(|value| value.to_str().ok()),
             Some("content-type,x-grpc-web")
         );
+        for name in [
+            "origin",
+            "access-control-request-method",
+            "access-control-request-headers",
+        ] {
+            assert!(
+                self.headers
+                    .get_all(http::header::VARY)
+                    .iter()
+                    .filter_map(|value| value.to_str().ok())
+                    .flat_map(|value| value.split(','))
+                    .any(|token| token.trim().eq_ignore_ascii_case(name))
+            );
+        }
         assert!(self.body.is_empty());
     }
 }
@@ -618,4 +652,601 @@ async fn grpc_web_cors_preflight_allows_configured_origin() {
     peer.preflight(SAY_HELLO, "https://app.example")
         .await
         .expect_preflight_allowed("https://app.example");
+}
+
+const CORS_ORIGIN: &str = "https://app.example";
+
+fn cors_request(
+    peer: &RawWebPeer,
+    path: &str,
+    content_type: &str,
+    origin: Option<&'static str>,
+) -> HttpRequest<()> {
+    let mut request = peer.request(path, content_type);
+    if let Some(origin) = origin {
+        request
+            .headers_mut()
+            .insert(http::header::ORIGIN, HeaderValue::from_static(origin));
+    }
+    request
+}
+
+fn assert_cors(answer: &WebAnswer, expected: Option<&str>) {
+    assert!(answer.headers.get(http::header::ACCESS_CONTROL_ALLOW_CREDENTIALS).is_none());
+    let origins: Vec<_> = answer
+        .headers
+        .get_all(http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+        .iter()
+        .map(|value| value.to_str().expect("allow origin"))
+        .collect();
+    assert_eq!(origins, expected.into_iter().collect::<Vec<_>>());
+    assert!(
+        answer
+            .headers
+            .get_all(http::header::VARY)
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+            .flat_map(|value| value.split(','))
+            .any(|token| token.trim().eq_ignore_ascii_case("origin")),
+        "Web responses vary by origin"
+    );
+    if expected.is_some() {
+        assert!(
+            answer
+                .headers
+                .get_all(http::header::ACCESS_CONTROL_EXPOSE_HEADERS)
+                .iter()
+                .filter_map(|value| value.to_str().ok())
+                .flat_map(|value| value.split(','))
+                .any(|token| token.trim() == "*"),
+            "custom response metadata is exposed to noncredentialed browsers"
+        );
+    }
+}
+
+#[tokio::test]
+async fn actual_web_responses_apply_origin_policy_for_unary_and_streaming() {
+    for (config, origin, expected) in [
+        (
+            ServerConfig::new().grpc_web_allow_origin(CORS_ORIGIN),
+            Some(CORS_ORIGIN),
+            Some(CORS_ORIGIN),
+        ),
+        (
+            ServerConfig::new().grpc_web_allow_origin(CORS_ORIGIN),
+            Some("https://other.example"),
+            None,
+        ),
+        (
+            ServerConfig::new().grpc_web_allow_any_origin(),
+            Some(CORS_ORIGIN),
+            Some("*"),
+        ),
+        (ServerConfig::new().grpc_web_allow_any_origin(), None, None),
+        (ServerConfig::new(), Some(CORS_ORIGIN), None),
+    ] {
+        let (addr, _guard) =
+            spawn_greeter_server(config.grpc_web_cors_response_headers(true)).await;
+        let mut peer = RawWebPeer::connect(addr).await;
+        if let Some(origin) = origin {
+            let preflight = peer.preflight(SAY_HELLO, origin).await;
+            if let Some(expected) = expected {
+                preflight.expect_preflight_allowed(expected);
+            } else {
+                preflight.expect_http(StatusCode::FORBIDDEN);
+            }
+        }
+        for content_type in ["application/grpc-web", "application/grpc-web-text"] {
+            for path in [SAY_HELLO, SERVER_HELLO] {
+                let request = cors_request(&peer, path, content_type, origin);
+                let message = if path == SAY_HELLO { "ada" } else { "ada,bob" };
+                let answer = peer
+                    .call_request(
+                        request,
+                        [request_body(content_type, &hello_request(message), false)],
+                    )
+                    .await;
+                assert_cors(&answer, expected);
+                let body = answer.expect_ok_web(content_type);
+                body.expect_status(Code::Ok);
+                assert_eq!(body.messages.len(), if path == SAY_HELLO { 1 } else { 2 });
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn legacy_web_responses_leave_cors_to_the_application_or_proxy() {
+    for (config, origin, allowed) in [
+        (
+            ServerConfig::new().grpc_web_allow_origin(CORS_ORIGIN),
+            Some(CORS_ORIGIN),
+            Some(CORS_ORIGIN),
+        ),
+        (
+            ServerConfig::new().grpc_web_allow_origin(CORS_ORIGIN),
+            Some("https://other.example"),
+            None,
+        ),
+        (ServerConfig::new().grpc_web_allow_origin(CORS_ORIGIN), None, None),
+        (
+            ServerConfig::new().grpc_web_allow_any_origin(),
+            Some(CORS_ORIGIN),
+            Some("*"),
+        ),
+    ] {
+        let (addr, _guard) = spawn_greeter_server(config).await;
+        let mut peer = RawWebPeer::connect(addr).await;
+        if let Some(origin) = origin {
+            let preflight = peer.preflight(SAY_HELLO, origin).await;
+            if let Some(allowed) = allowed {
+                preflight.expect_preflight_allowed(allowed);
+            } else {
+                preflight.expect_http(StatusCode::FORBIDDEN);
+            }
+        }
+        for content_type in ["application/grpc-web", "application/grpc-web-text"] {
+            for path in [SAY_HELLO, SERVER_HELLO] {
+                let request = cors_request(&peer, path, content_type, origin);
+                let answer = peer
+                    .call_request(
+                        request,
+                        [request_body(content_type, &hello_request("ada"), false)],
+                    )
+                    .await;
+                assert_no_automatic_cors(&answer);
+                answer.expect_ok_web(content_type).expect_status(Code::Ok);
+            }
+            let mut request = cors_request(&peer, SAY_HELLO, content_type, origin);
+            request
+                .headers_mut()
+                .insert("grpc-encoding", HeaderValue::from_static("snappy"));
+            let answer = peer
+                .call_request(request, [request_body(content_type, &hello_request("ada"), false)])
+                .await;
+            assert_no_automatic_cors(&answer);
+            answer.expect_ok_web(content_type).expect_status(Code::Unimplemented);
+
+            let mut request = cors_request(&peer, SAY_HELLO, content_type, origin);
+            request
+                .headers_mut()
+                .insert("grpc-timeout", HeaderValue::from_static("0n"));
+            let answer = peer
+                .call_request(request, [request_body(content_type, &hello_request("ada"), false)])
+                .await;
+            assert_no_automatic_cors(&answer);
+            answer.expect_ok_web(content_type).expect_status(Code::DeadlineExceeded);
+        }
+    }
+}
+
+fn assert_no_automatic_cors(answer: &WebAnswer) {
+    assert!(
+        answer
+            .headers
+            .get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+            .is_none()
+    );
+    assert!(
+        answer
+            .headers
+            .get(http::header::ACCESS_CONTROL_EXPOSE_HEADERS)
+            .is_none()
+    );
+    assert!(answer.headers.get(http::header::VARY).is_none());
+}
+
+#[tokio::test]
+async fn opted_in_pre_dispatch_errors_track_origin() {
+    let config = ServerConfig::new()
+        .grpc_web_allow_origin(CORS_ORIGIN)
+        .grpc_web_cors_response_headers(true);
+    let (addr, _guard) = spawn_greeter_server(config).await;
+    let mut peer = RawWebPeer::connect(addr).await;
+    for (origin, expected) in [
+        (Some(CORS_ORIGIN), Some(CORS_ORIGIN)),
+        (Some("https://other.example"), None),
+        (None, None),
+    ] {
+        for content_type in ["application/grpc-web", "application/grpc-web-text"] {
+            let mut request = cors_request(&peer, SAY_HELLO, content_type, origin);
+            request
+                .headers_mut()
+                .insert("grpc-encoding", HeaderValue::from_static("snappy"));
+            let answer = peer
+                .call_request(request, [request_body(content_type, &hello_request("ada"), false)])
+                .await;
+            assert_cors(&answer, expected);
+            answer.expect_ok_web(content_type).expect_status(Code::Unimplemented);
+
+            let mut request = cors_request(&peer, SAY_HELLO, content_type, origin);
+            request
+                .headers_mut()
+                .insert("grpc-timeout", HeaderValue::from_static("0n"));
+            let answer = peer
+                .call_request(request, [request_body(content_type, &hello_request("ada"), false)])
+                .await;
+            assert_cors(&answer, expected);
+            answer.expect_ok_web(content_type).expect_status(Code::DeadlineExceeded);
+        }
+    }
+}
+
+#[tokio::test]
+async fn web_error_responses_keep_the_original_origin_decision() {
+    let config = ServerConfig::new()
+        .grpc_web_allow_origin(CORS_ORIGIN)
+        .grpc_web_cors_response_headers(true);
+    let (addr, _guard) = spawn_greeter_server(config).await;
+    let mut peer = RawWebPeer::connect(addr).await;
+
+    for content_type in ["application/grpc-web", "application/grpc-web-text"] {
+        for path in ["/helloworld.Greeter/Nope", SAY_HELLO] {
+            let request = cors_request(&peer, path, content_type, Some(CORS_ORIGIN));
+            let message = if path == SAY_HELLO {
+                vec![0xff]
+            } else {
+                hello_request("ada")
+            };
+            let answer = peer
+                .call_request(request, [request_body(content_type, &message, false)])
+                .await;
+            assert_cors(&answer, Some(CORS_ORIGIN));
+            let body = answer.expect_ok_web(content_type);
+            assert_ne!(body.trailers.get("grpc-status").expect("error status"), "0");
+            assert!(body.messages.is_empty());
+        }
+
+        let mut request = cors_request(&peer, SAY_HELLO, content_type, Some(CORS_ORIGIN));
+        request.headers_mut().insert("grpc-encoding", HeaderValue::from_static("snappy"));
+        let answer = peer
+            .call_request(request, [request_body(content_type, &hello_request("ada"), false)])
+            .await;
+        assert_cors(&answer, Some(CORS_ORIGIN));
+        answer.expect_ok_web(content_type).expect_status(Code::Unimplemented);
+
+        let mut request = cors_request(&peer, SAY_HELLO, content_type, Some(CORS_ORIGIN));
+        request.headers_mut().insert("grpc-timeout", HeaderValue::from_static("0n"));
+        let answer = peer
+            .call_request(request, [request_body(content_type, &hello_request("ada"), false)])
+            .await;
+        assert_cors(&answer, Some(CORS_ORIGIN));
+        answer.expect_ok_web(content_type).expect_status(Code::DeadlineExceeded);
+    }
+
+    let mut request = cors_request(&peer, SAY_HELLO, "application/grpc-web", Some(CORS_ORIGIN));
+    *request.method_mut() = Method::GET;
+    let answer = peer.call_request(request, [Bytes::new()]).await;
+    assert_cors(&answer, Some(CORS_ORIGIN));
+    assert_eq!(answer.headers.get(http::header::ALLOW).unwrap(), "POST");
+    answer.expect_http(StatusCode::METHOD_NOT_ALLOWED);
+
+    // Non-Web responses with Origin continue down the native path.
+    let request = cors_request(&peer, SAY_HELLO, "application/grpc", Some(CORS_ORIGIN));
+    let answer = peer
+        .call_request(request, [request_body("application/grpc", &hello_request("ada"), false)])
+        .await;
+    assert_eq!(answer.status, StatusCode::OK);
+    assert!(answer.headers.get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN).is_none());
+    assert!(answer.headers.get(http::header::VARY).is_none());
+}
+
+#[tokio::test]
+async fn web_encode_rejection_keeps_cors_headers() {
+    let config = ServerConfig::new()
+        .grpc_web_allow_origin(CORS_ORIGIN)
+        .grpc_web_cors_response_headers(true)
+        .max_encoding_message_size(0);
+    let (addr, _guard) = spawn_greeter_server(config).await;
+    let mut peer = RawWebPeer::connect(addr).await;
+    for content_type in ["application/grpc-web", "application/grpc-web-text"] {
+        let request = cors_request(&peer, SAY_HELLO, content_type, Some(CORS_ORIGIN));
+        let answer = peer
+            .call_request(request, [request_body(content_type, &hello_request("ada"), false)])
+            .await;
+        assert_cors(&answer, Some(CORS_ORIGIN));
+        answer.expect_ok_web(content_type).expect_status(Code::ResourceExhausted);
+    }
+}
+
+struct CorsMetadataService {
+    explicit_origin: bool,
+    explicit_exposure: bool,
+    explicit_credentials: bool,
+}
+
+impl Service for CorsMetadataService {
+    const NAME: &'static str = "helloworld.Greeter";
+
+    async fn call(&self, mut rpc: Rpc) {
+        // Interceptors may edit metadata; CORS uses the received Origin.
+        let replacement = if rpc.metadata().get("origin") == Some(CORS_ORIGIN) {
+            "https://other.example"
+        } else {
+            CORS_ORIGIN
+        };
+        rpc.metadata_mut().set("origin", replacement).expect("replace origin");
+        let explicit_origin = self.explicit_origin;
+        let explicit_exposure = self.explicit_exposure;
+        let explicit_credentials = self.explicit_credentials;
+        rpc.unary(move |_: Request<HelloRequest>| async move {
+            let mut reply = HelloReply::new();
+            reply.set_message("ada");
+            let mut response = Response::new(reply);
+            response.metadata_mut().insert("vary", "accept-encoding")?;
+            if explicit_origin {
+                response
+                    .metadata_mut()
+                    .insert("access-control-allow-origin", "https://override.example")?;
+            }
+            if explicit_exposure {
+                response
+                    .metadata_mut()
+                    .insert("access-control-expose-headers", "x-custom-metadata")?;
+            }
+            if explicit_credentials {
+                response
+                    .metadata_mut()
+                    .insert("access-control-allow-credentials", "true")?;
+            }
+            response.metadata_mut().insert("x-custom-metadata", "visible")?;
+            Ok::<_, Status>(response)
+        })
+        .await;
+    }
+}
+
+#[tokio::test]
+async fn web_cors_preserves_explicit_metadata_and_received_origin() {
+    for (origin, expected, explicit) in [
+        (Some(CORS_ORIGIN), Some(CORS_ORIGIN), false),
+        (Some("https://other.example"), None, false),
+        (Some(CORS_ORIGIN), Some(CORS_ORIGIN), true),
+        (Some("https://other.example"), None, true),
+    ] {
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await.expect("bind");
+        let addr = listener.local_addr().expect("local address");
+        let task = tokio::spawn(async move {
+            Server::new(CorsMetadataService {
+                explicit_origin: explicit,
+                explicit_exposure: explicit,
+                explicit_credentials: false,
+            })
+            .config(
+                ServerConfig::new()
+                    .grpc_web_allow_origin(CORS_ORIGIN)
+                    .grpc_web_cors_response_headers(true),
+            )
+            .serve_listener(listener)
+            .await
+            .expect("server");
+        });
+        let _guard = ServerGuard(task);
+        let mut peer = RawWebPeer::connect(addr).await;
+        let request = cors_request(&peer, SAY_HELLO, "application/grpc-web", origin);
+        let answer = peer.call_request(request, [frame(&hello_request("ada"))]).await;
+        if explicit {
+            assert_eq!(
+                answer.headers.get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN).unwrap(),
+                "https://override.example"
+            );
+            assert_eq!(
+                answer.headers.get(http::header::ACCESS_CONTROL_EXPOSE_HEADERS).unwrap(),
+                "x-custom-metadata"
+            );
+            assert!(
+                answer
+                    .headers
+                    .get_all(http::header::VARY)
+                    .iter()
+                    .any(|value| value == "origin")
+            );
+        } else {
+            assert_cors(&answer, expected);
+        }
+        assert!(
+            answer
+                .headers
+                .get_all(http::header::VARY)
+                .iter()
+                .any(|value| value == "accept-encoding")
+        );
+        assert_eq!(answer.headers.get("x-custom-metadata").unwrap(), "visible");
+        answer.expect_ok_web("application/grpc-web").expect_status(Code::Ok);
+    }
+}
+
+#[tokio::test]
+async fn application_origin_does_not_gain_default_exposure() {
+    for enabled in [false, true] {
+        for (config, origin) in [
+            (
+                ServerConfig::new().grpc_web_allow_origin(CORS_ORIGIN),
+                Some(CORS_ORIGIN),
+            ),
+            (
+                ServerConfig::new().grpc_web_allow_origin(CORS_ORIGIN),
+                Some("https://other.example"),
+            ),
+            (ServerConfig::new().grpc_web_allow_origin(CORS_ORIGIN), None),
+            (
+                ServerConfig::new().grpc_web_allow_any_origin(),
+                Some(CORS_ORIGIN),
+            ),
+        ] {
+            let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+                .await
+                .expect("bind");
+            let addr = listener.local_addr().expect("local address");
+            let task = tokio::spawn(async move {
+                Server::new(CorsMetadataService {
+                    explicit_origin: true,
+                    explicit_exposure: false,
+                    explicit_credentials: false,
+                })
+                .config(config.grpc_web_cors_response_headers(enabled))
+                .serve_listener(listener)
+                .await
+                .expect("server");
+            });
+            let _guard = ServerGuard(task);
+            let mut peer = RawWebPeer::connect(addr).await;
+            for content_type in ["application/grpc-web", "application/grpc-web-text"] {
+                let request = cors_request(&peer, SAY_HELLO, content_type, origin);
+                let answer = peer
+                    .call_request(
+                        request,
+                        [request_body(content_type, &hello_request("ada"), false)],
+                    )
+                    .await;
+                assert_eq!(
+                    answer
+                        .headers
+                        .get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                        .unwrap(),
+                    "https://override.example"
+                );
+                assert!(
+                    answer
+                        .headers
+                        .get(http::header::ACCESS_CONTROL_EXPOSE_HEADERS)
+                        .is_none()
+                );
+                let varies: Vec<_> = answer
+                    .headers
+                    .get_all(http::header::VARY)
+                    .iter()
+                    .map(|value| value.to_str().expect("vary"))
+                    .collect();
+                if enabled {
+                    assert_eq!(varies, ["accept-encoding", "origin"]);
+                } else {
+                    assert_eq!(varies, ["accept-encoding"]);
+                }
+                assert_eq!(answer.headers.get("x-custom-metadata").unwrap(), "visible");
+                answer.expect_ok_web(content_type).expect_status(Code::Ok);
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn web_cors_preserves_application_allow_credentials() {
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local address");
+    let task = tokio::spawn(async move {
+        Server::new(CorsMetadataService {
+            explicit_origin: false,
+            explicit_exposure: false,
+            explicit_credentials: true,
+        })
+        .config(
+            ServerConfig::new()
+                .grpc_web_allow_origin(CORS_ORIGIN)
+                .grpc_web_cors_response_headers(true),
+        )
+        .serve_listener(listener)
+        .await
+        .expect("server");
+    });
+    let _guard = ServerGuard(task);
+    let mut peer = RawWebPeer::connect(addr).await;
+
+    let preflight = peer.preflight(SAY_HELLO, CORS_ORIGIN).await;
+    assert!(
+        preflight
+            .headers
+            .get(http::header::ACCESS_CONTROL_ALLOW_CREDENTIALS)
+            .is_none()
+    );
+    preflight.expect_preflight_allowed(CORS_ORIGIN);
+
+    for content_type in ["application/grpc-web", "application/grpc-web-text"] {
+        let request = cors_request(&peer, SAY_HELLO, content_type, Some(CORS_ORIGIN));
+        let answer = peer
+            .call_request(request, [request_body(content_type, &hello_request("ada"), false)])
+            .await;
+        assert_eq!(
+            answer.headers.get(http::header::ACCESS_CONTROL_ALLOW_CREDENTIALS),
+            Some(&HeaderValue::from_static("true"))
+        );
+        assert_eq!(
+            answer.headers.get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN),
+            Some(&HeaderValue::from_static(CORS_ORIGIN))
+        );
+        assert_eq!(
+            answer.headers.get(http::header::ACCESS_CONTROL_EXPOSE_HEADERS),
+            Some(&HeaderValue::from_static("*"))
+        );
+        answer.expect_ok_web(content_type).expect_status(Code::Ok);
+    }
+}
+
+struct HeldCorsService(Arc<tokio::sync::Notify>);
+
+impl Service for HeldCorsService {
+    const NAME: &'static str = "helloworld.Greeter";
+
+    async fn call(&self, rpc: Rpc) {
+        let _rpc = rpc;
+        self.0.notify_one();
+        std::future::pending::<()>().await;
+    }
+}
+
+async fn spawn_held_cors_server(
+    config: ServerConfig,
+) -> (SocketAddr, ServerGuard, Arc<tokio::sync::Notify>) {
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local address");
+    let entered = Arc::new(tokio::sync::Notify::new());
+    let service = HeldCorsService(Arc::clone(&entered));
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .config(config)
+            .serve_listener(listener)
+            .await
+            .expect("server");
+    });
+    (addr, ServerGuard(task), entered)
+}
+
+#[tokio::test]
+async fn web_concurrency_rejection_keeps_cors_headers() {
+    let config = ServerConfig::new()
+        .grpc_web_allow_origin(CORS_ORIGIN)
+        .grpc_web_cors_response_headers(true)
+        .max_concurrent_rpcs(1);
+    let (addr, _guard, entered) = spawn_held_cors_server(config).await;
+    let mut peer = RawWebPeer::connect(addr).await;
+    let request = cors_request(&peer, SAY_HELLO, "application/grpc-web", Some(CORS_ORIGIN));
+    let mut send = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        peer.send.clone().ready(),
+    )
+    .await
+    .expect("gRPC-Web held-call readiness timed out")
+    .expect("ready");
+    let (first_response, mut first_body) = send.send_request(request, false).expect("request");
+    first_body.send_data(frame(&hello_request("ada")), true).expect("send");
+    tokio::time::timeout(std::time::Duration::from_secs(3), entered.notified())
+        .await
+        .expect("first call admitted");
+
+    let request = cors_request(&peer, SAY_HELLO, "application/grpc-web", Some(CORS_ORIGIN));
+    let answer = tokio::time::timeout(
+        std::time::Duration::from_secs(3),
+        peer.call_request(request, [frame(&hello_request("bob"))]),
+    )
+    .await
+    .expect("concurrency response");
+    assert_cors(&answer, Some(CORS_ORIGIN));
+    answer.expect_ok_web("application/grpc-web").expect_status(Code::ResourceExhausted);
+    drop(first_response);
+    drop(first_body);
+    drop(peer);
 }
