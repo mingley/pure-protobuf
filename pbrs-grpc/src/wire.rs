@@ -340,6 +340,91 @@ mod tests {
     }
 
     #[test]
+    fn retry_pushback_delay_uses_bounded_rounded_milliseconds() {
+        use super::{grpc_trailers, status_from};
+        use crate::status::{Pushback, Status};
+        use http::HeaderMap;
+        use std::time::Duration;
+
+        let max = Duration::from_millis(2_147_483_647);
+        let cases = [
+            (Duration::ZERO, "0", Pushback::Delay(Duration::ZERO)),
+            (
+                Duration::from_nanos(1),
+                "1",
+                Pushback::Delay(Duration::from_millis(1)),
+            ),
+            (
+                Duration::from_micros(999),
+                "1",
+                Pushback::Delay(Duration::from_millis(1)),
+            ),
+            (
+                Duration::from_millis(1),
+                "1",
+                Pushback::Delay(Duration::from_millis(1)),
+            ),
+            (
+                Duration::from_millis(1) + Duration::from_nanos(1),
+                "2",
+                Pushback::Delay(Duration::from_millis(2)),
+            ),
+            (
+                max - Duration::from_nanos(1),
+                "2147483647",
+                Pushback::Delay(max),
+            ),
+            (max, "2147483647", Pushback::Delay(max)),
+            (max + Duration::from_nanos(1), "-1", Pushback::DoNotRetry),
+            (
+                Duration::from_millis(2_147_483_648),
+                "-1",
+                Pushback::DoNotRetry,
+            ),
+            (Duration::MAX, "-1", Pushback::DoNotRetry),
+        ];
+
+        for (delay, expected_wire, expected_decoded) in cases {
+            let mut status = Status::unavailable("slow");
+            status.set_retry_pushback(Pushback::Delay(delay));
+            assert!(
+                status
+                    .metadata_mut()
+                    .insert("grpc-retry-pushback-ms", "0")
+                    .is_err()
+            );
+            assert_eq!(status.retry_pushback(), Some(Pushback::Delay(delay)));
+            let mut received = HeaderMap::new();
+            received.insert(
+                "grpc-retry-pushback-ms",
+                http::HeaderValue::from_static("0"),
+            );
+            *status.metadata_mut() = crate::metadata::Metadata::from_headers(&received);
+            let trailers = grpc_trailers(&status).expect("trailers");
+            let values = trailers.get_all("grpc-retry-pushback-ms");
+            assert_eq!(values.iter().count(), 1);
+            assert_eq!(
+                values.iter().next().and_then(|value| value.to_str().ok()),
+                Some(expected_wire)
+            );
+            let decoded = status_from(&HeaderMap::new(), Some(&trailers));
+            assert_eq!(decoded.code(), Code::Unavailable);
+            assert_eq!(decoded.retry_pushback(), Some(expected_decoded));
+        }
+
+        let stopped = Status::unavailable("stop").with_retry_pushback(Pushback::DoNotRetry);
+        let trailers = grpc_trailers(&stopped).expect("trailers");
+        assert_eq!(
+            trailers
+                .get("grpc-retry-pushback-ms")
+                .and_then(|value| value.to_str().ok()),
+            Some("-1")
+        );
+        let plain = grpc_trailers(&Status::unavailable("plain")).expect("trailers");
+        assert!(!plain.contains_key("grpc-retry-pushback-ms"));
+    }
+
+    #[test]
     fn status_details_round_trip_on_the_wire() {
         use super::{grpc_trailers, status_from};
         use crate::status::Status;

@@ -800,6 +800,7 @@ enum Step {
 enum StreamStep {
     Messages(&'static [&'static str]),
     FailAfter(&'static [&'static str], Code),
+    FailAfterPushback(&'static [&'static str], Pushback),
     Fail(Code),
     FailPushback(Code, Pushback),
     SleepFail(Duration, Code),
@@ -918,6 +919,21 @@ impl Greeter for Scripted {
                         }
                     }
                     tx.fail(Status::new(code, "scripted")).await;
+                }));
+                Ok(Response::new(rx))
+            }
+            StreamStep::FailAfterPushback(messages, pushback) => {
+                let (tx, rx) = Streaming::channel(8);
+                drop(tokio::spawn(async move {
+                    for message in messages {
+                        let mut reply = HelloReply::new();
+                        reply.set_message(*message);
+                        if tx.send(reply).await.is_err() {
+                            return;
+                        }
+                    }
+                    tx.fail(Status::unavailable("scripted").with_retry_pushback(pushback))
+                        .await;
                 }));
                 Ok(Response::new(rx))
             }
@@ -1521,6 +1537,108 @@ async fn pushback_do_not_retry_stops_after_one_attempt() {
     assert_eq!(err.code(), Code::Unavailable);
     assert_eq!(err.retry_pushback(), Some(Pushback::DoNotRetry));
     assert_eq!(service.calls(), 1);
+}
+
+#[tokio::test]
+async fn server_emits_representable_pushback_on_the_wire() {
+    use pbrs::Serialize;
+
+    let max = Duration::from_millis(2_147_483_647);
+    let cases = [
+        (Duration::ZERO, "0"),
+        (Duration::from_nanos(1), "1"),
+        (Duration::from_millis(1) + Duration::from_nanos(1), "2"),
+        (max, "2147483647"),
+        (max + Duration::from_nanos(1), "-1"),
+        (Duration::from_millis(2_147_483_648), "-1"),
+        (Duration::MAX, "-1"),
+    ];
+    tokio::time::timeout(CALL_BUDGET, async {
+        for (delay, expected) in cases {
+            let service =
+                Scripted::new(vec![Step::FailPushback(Code::Unavailable, Pushback::Delay(delay))]);
+            let (addr, _guard) = serve(service, ServerConfig::default())
+                .await
+                .expect("server");
+            let socket = tokio::net::TcpStream::connect(addr).await.expect("connect");
+            let (sender, connection) = h2::client::handshake(socket).await.expect("handshake");
+            drop(tokio::spawn(async move {
+                let _connection_result = connection.await;
+            }));
+            let request = http::Request::builder()
+                .method(http::Method::POST)
+                .uri(format!("http://{addr}{SAY_HELLO}"))
+                .header(http::header::CONTENT_TYPE, "application/grpc")
+                .header(http::header::TE, "trailers")
+                .body(())
+                .expect("request");
+            let mut sender = sender.ready().await.expect("ready");
+            let (response, mut request_body) =
+                sender.send_request(request, false).expect("send request");
+            let payload = req("ada").serialize().expect("encode request");
+            request_body
+                .send_data(
+                    pbrs_grpc::codec::encode(&payload, false).expect("request frame"),
+                    true,
+                )
+                .expect("send request body");
+
+            let response = response.await.expect("response");
+            assert_eq!(response.status(), http::StatusCode::OK);
+            assert_eq!(
+                response
+                    .headers()
+                    .get("grpc-status")
+                    .and_then(|value| value.to_str().ok()),
+                Some("14")
+            );
+            let pushback = response.headers().get_all("grpc-retry-pushback-ms");
+            assert_eq!(pushback.iter().count(), 1);
+            assert_eq!(
+                pushback.iter().next().and_then(|value| value.to_str().ok()),
+                Some(expected)
+            );
+            let mut body = response.into_body();
+            assert!(body.data().await.is_none(), "trailers-only response");
+            assert!(body.trailers().await.expect("trailers").is_none());
+        }
+    })
+    .await
+    .expect("wire pushback cases completed");
+}
+
+#[tokio::test]
+async fn streaming_pushback_rounds_up_in_trailers() {
+    let service = Scripted::new(vec![Step::Fail(Code::Internal)]).with_streams(vec![
+        StreamStep::FailAfterPushback(&["first"], Pushback::Delay(Duration::from_nanos(1))),
+    ]);
+    let (addr, _guard) = serve(service, ServerConfig::default())
+        .await
+        .expect("server");
+    let channel = Channel::connect(addr).await.expect("connect");
+    let mut stream = tokio::time::timeout(
+        CALL_BUDGET,
+        channel.server_streaming::<_, HelloReply>(SERVER_HELLO, Request::new(req("ada"))),
+    )
+    .await
+    .expect("stream headers")
+    .expect("response")
+    .into_inner();
+    let first = tokio::time::timeout(CALL_BUDGET, stream.message())
+        .await
+        .expect("first message timeout")
+        .expect("first message")
+        .expect("item");
+    assert_eq!(name_of(&first), "first");
+    let status = tokio::time::timeout(CALL_BUDGET, stream.message())
+        .await
+        .expect("terminal status timeout")
+        .expect_err("terminal status");
+    assert_eq!(status.code(), Code::Unavailable);
+    assert_eq!(
+        status.retry_pushback(),
+        Some(Pushback::Delay(Duration::from_millis(1)))
+    );
 }
 
 #[tokio::test]

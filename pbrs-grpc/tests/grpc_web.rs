@@ -327,6 +327,64 @@ const WEB_CONTENT_TYPES: [&str; 4] = [
     "application/grpc-web-text+proto",
 ];
 
+struct PushbackService(std::time::Duration);
+
+impl Service for PushbackService {
+    const NAME: &'static str = "helloworld.Greeter";
+
+    async fn call(&self, rpc: Rpc) {
+        let delay = self.0;
+        rpc.unary(move |_: Request<HelloRequest>| async move {
+            Err::<Response<HelloReply>, Status>(
+                Status::unavailable("slow").with_retry_pushback(pbrs_grpc::Pushback::Delay(delay)),
+            )
+        })
+        .await;
+    }
+}
+
+#[tokio::test]
+async fn grpc_web_pushback_uses_bounded_rounded_milliseconds() {
+    use std::time::Duration;
+
+    let max = Duration::from_millis(2_147_483_647);
+    for content_type in ["application/grpc-web", "application/grpc-web-text"] {
+        for (delay, expected) in [
+            (Duration::from_nanos(1), "1"),
+            (max + Duration::from_nanos(1), "-1"),
+        ] {
+            let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+                .await
+                .expect("bind");
+            let addr = listener.local_addr().expect("address");
+            let task = tokio::spawn(async move {
+                Server::new(PushbackService(delay))
+                    .serve_listener(listener)
+                    .await
+                    .expect("server");
+            });
+            let _guard = ServerGuard(task);
+            let mut peer = RawWebPeer::connect(addr).await;
+            let answer = peer
+                .call(
+                    SAY_HELLO,
+                    content_type,
+                    request_body(content_type, &hello_request("ada"), false),
+                )
+                .await
+                .expect_ok_web(content_type);
+            answer.expect_status(Code::Unavailable);
+            assert_eq!(
+                answer
+                    .trailers
+                    .get("grpc-retry-pushback-ms")
+                    .map(String::as_str),
+                Some(expected)
+            );
+        }
+    }
+}
+
 struct CountingService(Arc<AtomicUsize>);
 
 impl Service for CountingService {

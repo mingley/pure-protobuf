@@ -171,8 +171,16 @@ pub(crate) fn grpc_trailers(status: &Status) -> Result<HeaderMap, Status> {
     }
     match status.retry_pushback() {
         Some(Pushback::Delay(delay)) => {
-            let val = HeaderValue::from_str(&delay.as_millis().to_string())
-                .map_err(|e| Status::internal(e.to_string()))?;
+            // A6 accepts only signed 32-bit whole milliseconds. Round up so
+            // a fractional delay never asks the client to retry early.
+            let millis = delay.as_nanos().div_ceil(1_000_000);
+            let val = if millis > 2_147_483_647 {
+                // No representable delay is long enough; ask for no retry.
+                HeaderValue::from_static("-1")
+            } else {
+                HeaderValue::from_str(&millis.to_string())
+                    .map_err(|e| Status::internal(e.to_string()))?
+            };
             map.insert(GRPC_RETRY_PUSHBACK_MS, val);
         }
         Some(Pushback::DoNotRetry) => {

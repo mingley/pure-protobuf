@@ -208,6 +208,11 @@ impl std::str::FromStr for Code {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Pushback {
     /// Retry after this delay instead of the computed backoff.
+    ///
+    /// On the wire, fractional milliseconds round up. A delay exceeding
+    /// 2,147,483,647 milliseconds after rounding emits a do-not-retry signal,
+    /// because A6 cannot represent a longer delay without retrying early.
+    /// The delay stored on the status remains unchanged.
     Delay(Duration),
     /// The server asked the client not to retry this call.
     DoNotRetry,
