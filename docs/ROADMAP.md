@@ -35,9 +35,12 @@ coverage continues through the [API comparison](guides/comparison.md) and
 All five surfaces have scoped consumers, including explicit
 [alloc-only native messages](guides/alloc-only.md) on Cortex. Their runtime and
 migration implementations passed the [exact-source semantic and packaging
-checks](status.md) at `10d94697`. The next milestone closes the remaining
-[API comparison rows](guides/comparison.md) and measured losses against pinned
-tonic/prost, then completes sustained release qualification.
+checks](status.md) at `10d94697`. The next milestone is a qualified coordinated
+release: freeze supported profiles, pass final-source validation and provenance
+checks, and complete their sustained qualification, adoption, rollback and
+support evidence. Follow the [release checklist](release-readiness.md).
+Feature work and measured losses remain tracked in the
+[API comparison](guides/comparison.md) and [benchmark results](benchmarks.md).
 
 | Track | Evidence needed to finish |
 |---|---|

@@ -118,6 +118,10 @@ jobs:
             echo "::error::GitHub did not verify the release tag signature"
             exit 1
           fi
+          if [[ "$(jq -r .tag <<<"$tag")" != "$GITHUB_REF_NAME" ]]; then
+            echo "::error::signed tag name does not match the requested release tag"
+            exit 1
+          fi
           if [[ "$(jq -r .object.type <<<"$tag")" != "commit" || "$(jq -r .object.sha <<<"$tag")" != "$RELEASE_SOURCE_SHA" ]]; then
             echo "::error::verified release tag does not target the checked-out CI commit"
             exit 1
@@ -138,8 +142,26 @@ jobs:
       - name: Collect packaged crates
         run: |
           set -euo pipefail
-          mkdir -p dist
-          cp target/package/*.crate dist/
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import shutil
+          import tomllib
+
+          package_dir = Path(os.environ.get("CARGO_TARGET_DIR", "target")) / "package"
+          archives = []
+          for manifest_path in ("Cargo.toml", "protobuf-tonic/Cargo.toml", "pbrs-grpc/Cargo.toml"):
+              package = tomllib.loads(Path(manifest_path).read_text())["package"]
+              archive = package_dir / f"{package['name']}-{package['version']}.crate"
+              if not archive.is_file():
+                  raise SystemExit(f"missing release archive: {archive}")
+              archives.append(archive)
+
+          destination = Path("dist")
+          destination.mkdir(parents=True, exist_ok=True)
+          for archive in archives:
+              shutil.copy2(archive, destination / archive.name)
+          PY
 
       - name: Generate CycloneDX SBOM
         uses: anchore/sbom-action@v0

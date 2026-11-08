@@ -192,7 +192,11 @@ for i in "${!NAMES[@]}"; do
   ver="${VERS[$i]}"
 
   if already_on_index "$name" "$ver"; then
-    echo "${name} ${ver} already on crates.io — skipping (idempotent)"
+    echo "${name} ${ver} already on crates.io — skipping upload (idempotent)"
+    # A fresh-runner retry has no archive from the earlier upload. Retain a
+    # package from this checkout for complete release artifacts, without a token.
+    # Repacking does not establish equality with the registry's existing bytes.
+    cargo package -p "$name" --no-verify
     continue
   else
     status=$?

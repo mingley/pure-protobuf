@@ -3,6 +3,9 @@
 There is **one** crates.io publisher: [`.github/workflows/release.yml`](../.github/workflows/release.yml).
 Incremental pushes to `main` do **not** publish.
 
+Use the [release readiness checklist](release-readiness.md) to collect
+candidate evidence before following this policy.
+
 [`.github/workflows/release-plz.yml`](../.github/workflows/release-plz.yml) used to
 publish on every `main` push when `CRATES_IO_TOKEN` was set. It is disabled.
 [`.github/workflows/first-publish.yml`](../.github/workflows/first-publish.yml) is
@@ -160,7 +163,8 @@ development push; the publisher still requires every job on its exact SHA.
    git push origin v0.2.1
    ```
    The workflow rejects lightweight tags, unsigned tags, and signatures that
-   GitHub does not mark verified. The verified annotated tag must point
+   GitHub does not mark verified. The signed tag object's name must match
+   the requested release tag. The verified annotated tag must point
    directly to the commit that passed CI and was checked out for publication.
 4. The tag run re-executes required CI, obtains a short-lived crates.io token
    through OIDC, then runs `./scripts/publish-crates.sh`
@@ -244,7 +248,10 @@ If `pbrs` reached crates.io and an adapter failed (index lag, token, network):
    `dry_run=false` and `confirm=publish` on that SHA).
 3. The script probes `https://crates.io/api/v1/crates/<name>/<version>` from
    the manifests. Versions already on the index succeed without
-   `cargo publish`. Missing versions are published and waited on.
+   `cargo publish`. Existing versions are packaged again from the selected
+   checkout so retries retain all three archives. These are local rebuilds;
+   the retry does not compare their bytes with the registry archives.
+   Missing versions are published and waited on.
    Only an explicit HTTP 404 means a version is missing: network failures,
    rate limits and other HTTP responses stop the publisher before any upload.
 

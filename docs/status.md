@@ -81,8 +81,9 @@ contains the packages, SBOM and release-context record. The context names that
 commit's successful CI, and all 430 mapped package files match its Git bytes.
 The workflow reported creating a [provenance attestation](https://github.com/mingley/pure-protobuf/attestations/64451418)
 and performed no registry authentication or upload. Sustained production
-qualification remains open; use the [release policy](RELEASE.md) for readiness
-requirements and the [work queue](../TODO.md) for implementation work.
+qualification remains open; use the [release checklist](release-readiness.md)
+to track candidate evidence, the [release policy](RELEASE.md) for requirements,
+and the [work queue](../TODO.md) for implementation work.
 
 The [November 5 status history](evidence/status-history-20261105.md) preserves
 earlier checks and measurements with their original source revisions. The

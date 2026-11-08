@@ -1,0 +1,66 @@
+# Release readiness
+
+The next milestone is a qualified release of all three crates. Use this
+checklist to collect the evidence, then follow the [release policy](RELEASE.md).
+The [promotion matrix](ROADMAP.md#product-scope-and-promotion) defines the
+requirements for each supported profile.
+
+## Candidate versions
+
+These versions are declared at [`da75f352`](https://github.com/mingley/pure-protobuf/commit/da75f352056167b213eb2642cb485d23895819c5):
+
+| Crate | Candidate | Scope |
+|---|---|---|
+| `pbrs` | `0.2.1` | Core protobuf |
+| `pbrs-grpc` | `0.1.0-alpha.3` | Native gRPC preview |
+| `protobuf-tonic` | `0.1.0-alpha.3` | Tonic adapter preview |
+
+Both adapters require `pbrs 0.2.1` at runtime and build time. Recheck the
+manifests and registry before tagging. The next coordinated release requires
+three new versions; skipping an existing upload does not meet that goal.
+Keep adapter alpha warnings until their promotion evidence supports a change.
+
+## Release checklist
+
+1. **Freeze the supported profiles and known gaps.** Core has no transport
+   requirement. Bounded native deployments may use external discovery and load
+   balancing; dynamic endpoint and retry claims have additional gates. The
+   tonic adapter needs its own interoperability evidence.
+2. **Complete sustained qualification.** Apply
+   [GR-11](ROADMAP.md#gr-11-promote-narrowly-then-stabilize-the-public-api):
+   24-hour qualification, a 7-day controlled soak, two independent adopter
+   workloads, rollback triggers and a rollback rehearsal. Meet the applicable
+   [QG-06 and QG-08 requirements](plan/world-class/tasks.json), including finite
+   resource and recovery bounds and the security packet with at least
+   24 aggregate CPU-hours of fuzzing. Retain failures, seeds and exclusions.
+3. **Record promotion and support decisions.** Obtain operator and maintainer
+   signoff for each profile. Approve the maintenance owner, response
+   expectations, supported versions and upgrade policy. The
+   [support policy](support-policy.md) remains proposed. A 1.0 proposal also
+   needs API compatibility review and a maintenance commitment.
+4. **Pass every required CI job on the final SHA.** The
+   [required checks](RELEASE.md#required-ci) include semver, interop,
+   conformance, toolchains, dependency audit and isolated package consumers.
+   Failed or skipped required jobs block publication. Later commits need
+   their own checks.
+5. **Rehearse the final packages and provenance.** Verify all three archives,
+   the SBOM, `release-context.json`, its CI authority and the
+   [artifact attestations](RELEASE.md#provenance-rehearsal-and-verification).
+   Local packaging does not replace hosted rehearsal. Recorded checks in
+   [status](status.md) apply to the source revisions they name.
+6. **Publish through the sole release workflow.** Confirm Trusted Publisher
+   settings separately for all three crates. Follow
+   [cutting a release](RELEASE.md#cutting-a-release) with an annotated signed
+   tag that GitHub marks verified and whose version matches a manifest.
+7. **Verify all three uploads.** Confirm each new crates.io version and the
+   release artifacts identify the qualified source. Follow
+   [same-tag recovery](RELEASE.md#recovery) after a partial upload.
+
+## Performance claims
+
+Production promotion needs a benchmark baseline; benchmark victory is not a
+GR-11 requirement. Speed claims also need the [benchmark contract](benchmark-contract.md),
+named workloads and retained wins, losses and uncertainty. A green perf
+workflow validates its configured checks; it does not establish overall
+performance leadership. Start with the [results](benchmarks.md) and
+[benchmark commands](benchmarks/running.md).

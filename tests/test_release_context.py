@@ -286,7 +286,7 @@ class ReleaseWorkflowWiringTest(unittest.TestCase):
         self.assertIn("subject-path: dist/*", publish)
 
     @unittest.skipUnless(shutil.which("jq"), "the existing tag step requires jq")
-    def test_actual_tag_step_rejects_unsigned_lightweight_or_retargeted_tags(self):
+    def test_actual_tag_step_rejects_unsigned_lightweight_misnamed_or_retargeted_tags(self):
         step = workflow_step("Require a signed and GitHub-verified release tag")
         script = textwrap.dedent(step.split("        run: |\n", 1)[1])
         with tempfile.TemporaryDirectory() as directory:
@@ -294,10 +294,21 @@ class ReleaseWorkflowWiringTest(unittest.TestCase):
             gh = root / "gh"
             gh.write_text("#!/usr/bin/env python3\nimport json,os,sys\np=sys.argv[2]\nif '/git/ref/tags/' in p: print(json.dumps(json.loads(os.environ['FAKE_REF'])['object']))\nelif '/git/tags/' in p: print(os.environ['FAKE_TAG'])\nelse: raise SystemExit(99)\n")
             gh.chmod(0o755)
-            for kind, verified, target_type, target_sha, expected in (("tag", True, "commit", SHA, 0), ("commit", True, "commit", SHA, 1), ("tag", False, "commit", SHA, 1), ("tag", True, "commit", "b" * 40, 1), ("tag", True, "tag", SHA, 1)):
-                with self.subTest(kind=kind, verified=verified, target_type=target_type, target_sha=target_sha):
+            cases = (
+                ("tag", True, "v0.2.1", "commit", SHA, 0),
+                ("commit", True, "v0.2.1", "commit", SHA, 1),
+                ("tag", False, "v0.2.1", "commit", SHA, 1),
+                ("tag", True, "v0.2.1", "commit", "b" * 40, 1),
+                ("tag", True, "v0.2.1", "tag", SHA, 1),
+                # A ref alias must not reuse a valid signature for another name.
+                ("tag", True, "review-candidate", "commit", SHA, 1),
+                ("tag", True, "v0.2.0", "commit", SHA, 1),
+                ("tag", True, None, "commit", SHA, 1),
+            )
+            for kind, verified, signed_name, target_type, target_sha, expected in cases:
+                with self.subTest(kind=kind, verified=verified, signed_name=signed_name, target_type=target_type, target_sha=target_sha):
                     env = os.environ.copy()
-                    env.update({"PATH": str(root) + os.pathsep + env["PATH"], "GH_TOKEN": "", "GITHUB_REPOSITORY": REPOSITORY, "GITHUB_REF_NAME": "v0.2.1", "RELEASE_SOURCE_SHA": SHA, "FAKE_REF": json.dumps({"object": {"type": kind, "sha": "c" * 40}}), "FAKE_TAG": json.dumps({"verification": {"verified": verified}, "object": {"type": target_type, "sha": target_sha}})})
+                    env.update({"PATH": str(root) + os.pathsep + env["PATH"], "GH_TOKEN": "", "GITHUB_REPOSITORY": REPOSITORY, "GITHUB_REF_NAME": "v0.2.1", "RELEASE_SOURCE_SHA": SHA, "FAKE_REF": json.dumps({"object": {"type": kind, "sha": "c" * 40}}), "FAKE_TAG": json.dumps({"tag": signed_name, "verification": {"verified": verified}, "object": {"type": target_type, "sha": target_sha}})})
                     result = subprocess.run(["bash", "-c", script], env=env, capture_output=True, text=True, timeout=20)
                     self.assertEqual(result.returncode, expected, result.stderr + result.stdout)
 
