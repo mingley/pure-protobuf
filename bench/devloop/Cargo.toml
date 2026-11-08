@@ -11,6 +11,7 @@ exclude = ["adoption"]
 [features]
 default = []
 bridge = ["pbrs-adoption-corpus/bridge"]
+stream-burst-diagnostic = []
 
 [dependencies]
 pbrs = { path = "../..", features = ["copy-counts"] }
@@ -35,6 +36,11 @@ pbrs = { path = "../.." }
 [[bin]]
 name = "devloop"
 path = "src/main.rs"
+
+[[bin]]
+name = "stream-burst"
+path = "src/stream_burst.rs"
+required-features = ["stream-burst-diagnostic"]
 
 [profile.release]
 lto = "thin"

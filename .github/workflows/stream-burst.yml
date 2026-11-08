@@ -1,0 +1,168 @@
+name: stream-burst diagnostic
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/stream-burst.yml"
+      - ".cargo/**"
+      - "rustfmt.toml"
+      - "rust-toolchain*"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build.rs"
+      - "src/**"
+      - "proto/**"
+      - "pbrs-grpc/**"
+      - "protobuf-tonic/**"
+      - "prost_tat/**"
+      - "v4_tat/**"
+      - "bench/devloop/**"
+      - "bench/corpora/otlp/protos/**"
+      - "scripts/build-pinned-protoc.sh"
+      - "scripts/fetch-protobuf.sh"
+      - "vendor/google/**"
+  pull_request:
+    paths:
+      - ".github/workflows/stream-burst.yml"
+      - ".cargo/**"
+      - "rustfmt.toml"
+      - "rust-toolchain*"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build.rs"
+      - "src/**"
+      - "proto/**"
+      - "pbrs-grpc/**"
+      - "protobuf-tonic/**"
+      - "prost_tat/**"
+      - "v4_tat/**"
+      - "bench/devloop/**"
+      - "bench/corpora/otlp/protos/**"
+      - "scripts/build-pinned-protoc.sh"
+      - "scripts/fetch-protobuf.sh"
+      - "vendor/google/**"
+  workflow_dispatch:
+    inputs:
+      head_sha:
+        description: Full 40-character head SHA (empty uses the selected workflow revision)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+# Superseded push/PR checks can stop; manually requested exact-head runs do not
+# cancel or queue behind one another.
+concurrency:
+  group: stream-burst-${{ github.event_name }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'latest' }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
+env:
+  CARGO_BUILD_JOBS: "2"
+  PBRS_PROTOC_JOBS: "2"
+
+jobs:
+  stream-burst-diagnostic:
+    name: Opt-in server-stream burst diagnostics
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      STREAM_BURST_HEAD: ${{ inputs.head_sha || github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.head_sha || github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify selected head and detect diagnostic
+        id: probe
+        run: |
+          if [[ ! "$STREAM_BURST_HEAD" =~ ^[0-9a-f]{40}$ ]] || [[ "$STREAM_BURST_HEAD" == 0000000000000000000000000000000000000000 ]]; then
+            echo 'expected a full nonzero head commit SHA' >&2
+            exit 1
+          fi
+          test "$(git rev-parse --verify HEAD)" = "$STREAM_BURST_HEAD"
+          if test -f bench/devloop/Cargo.toml && grep -Fqx 'stream-burst-diagnostic = []' bench/devloop/Cargo.toml; then
+            test -f bench/devloop/src/stream_burst.rs
+            echo 'present=true' >> "$GITHUB_OUTPUT"
+          elif test -f bench/devloop/src/stream_burst.rs; then
+            echo 'stream-burst source exists without its manifest feature' >&2
+            exit 1
+          else
+            echo 'selected head predates the opt-in stream-burst diagnostic'
+            echo 'present=false' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ steps.probe.outputs.present == 'true' }}
+        with:
+          components: rustfmt
+      - name: Check diagnostic Rust formatting
+        if: ${{ steps.probe.outputs.present == 'true' }}
+        run: rustfmt --check --edition 2024 bench/devloop/src/stream_burst.rs
+      - name: Install pinned-compiler build tools
+        if: ${{ steps.probe.outputs.present == 'true' }}
+        run: sudo apt-get update && sudo apt-get install -y cmake g++
+      - uses: actions/cache@v4
+        if: ${{ steps.probe.outputs.present == 'true' }}
+        with:
+          path: third_party/protobuf
+          key: stream-burst-protobuf-src-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
+      - uses: actions/cache@v4
+        if: ${{ steps.probe.outputs.present == 'true' }}
+        with:
+          path: target/pinned-protoc-build
+          key: stream-burst-pinned-protoc-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
+      - uses: actions/cache@v4
+        if: ${{ steps.probe.outputs.present == 'true' }}
+        with:
+          path: bench/devloop/target
+          key: stream-burst-target-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bench/devloop/Cargo.lock', 'Cargo.lock') }}
+      - name: Build compiler with pinned Rust code generation
+        if: ${{ steps.probe.outputs.present == 'true' }}
+        run: |
+          scripts/build-pinned-protoc.sh
+          echo "$PWD/target/pinned-protoc-build" >> "$GITHUB_PATH"
+      - name: Test opt-in server-stream burst diagnostic
+        if: ${{ steps.probe.outputs.present == 'true' }}
+        run: cargo test --locked --manifest-path bench/devloop/Cargo.toml --features stream-burst-diagnostic --bin stream-burst
+      - name: Smoke release diagnostic
+        if: ${{ steps.probe.outputs.present == 'true' }}
+        run: |
+          cargo run --locked --release --manifest-path bench/devloop/Cargo.toml --features stream-burst-diagnostic --bin stream-burst -- sparse-v0 live8 4 1 0 > "$RUNNER_TEMP/stream-burst-smoke.json"
+          python3 - "$RUNNER_TEMP/stream-burst-smoke.json" <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import sys
+          with open(sys.argv[1], encoding="utf-8") as source:
+              sample = json.load(source)
+          assert sample["schema"] == "devloop/stream-burst/1"
+          assert sample["id"] == "stream-burst/v1/sparse-v0/live8/4"
+          assert sample["iterations"] == 1 and sample["warmup"] == 0
+          assert sample["reply_count"] == 4
+          assert sample["measurement"]["allocations"] > 0
+          assert sample["measurement"]["allocated_bytes"] > 0
+          assert not sample["measurement"]["overflow_sampled"]
+          assert sample["provenance"]["runtime_git_head"] == os.environ["STREAM_BURST_HEAD"]
+          files = {
+              "harness": "bench/devloop/src/stream_burst.rs",
+              "manifest": "bench/devloop/Cargo.toml",
+              "lockfile": "bench/devloop/Cargo.lock",
+              "corpus_rpc": "bench/devloop/adoption/src/rpc.rs",
+              "corpus_manifest": "bench/devloop/adoption/Cargo.toml",
+              "corpus_build": "bench/devloop/adoption/build.rs",
+              "corpus_lib": "bench/devloop/adoption/src/lib.rs",
+              "workloads": "bench/devloop/adoption/src/workloads.rs",
+              "devloop_build": "bench/devloop/build.rs",
+              "corpus": "bench/devloop/adoption/src/corpus.rs",
+              "sparse_walks": "bench/devloop/adoption/src/sparse_walks.rs",
+              "sparse_proto": "bench/devloop/adoption/proto/sparse.proto",
+              "adoption_proto": "bench/devloop/adoption/proto/adoption.proto",
+              "subject_server_drain": "pbrs-grpc/src/server/drain.rs",
+          }
+          embedded = sample["provenance"]["embedded_sources_sha256"]
+          assert set(embedded) == set(files)
+          for name, filename in files.items():
+              assert embedded[name] == hashlib.sha256(Path(filename).read_bytes()).hexdigest()
+          PY

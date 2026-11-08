@@ -103,6 +103,66 @@ allocations fall ≥2% on targeted cells; no primary cell regresses
 thresholds from at least 30 usable measured runs; missing metrics and error
 placeholder reports are not successful measurements.
 
+## Opt-in server-stream burst diagnostic
+
+The separate `stream-burst` binary measures 4, 64, or 128 cloned Prost
+responses of the existing sparse-v0 fixture. It also offers the smaller
+query-d3-v0 fixture as a control. It does not add or alter any `devloop/1`
+cells. Build and run it explicitly:
+
+```sh
+# From the repository root; requires cmake and a C++ compiler.
+scripts/build-pinned-protoc.sh
+export PATH="$PWD/target/pinned-protoc-build:$PATH"
+cargo build --locked --release --manifest-path bench/devloop/Cargo.toml \
+  --features stream-burst-diagnostic --bin stream-burst
+bench/devloop/target/release/stream-burst sparse-v0 live8 4 100 100
+bench/devloop/target/release/stream-burst sparse-v0 live8 64 100 100
+bench/devloop/target/release/stream-burst sparse-v0 ready128 128 100 100
+```
+
+Arguments are case (`sparse-v0` or `query-d3-v0`), producer (`live8`
+or `ready128`), reply count (4, 64, or 128), measured RPCs, and warmup
+RPCs. Measured iterations must be 1–400 and warmup 0–1000, allowing an N/2N
+pair up to 200/400. `live8` matches the existing four-reply fixture's spawned
+producer and channel depth; `ready128` fills and closes a 128-slot channel before returning
+headers, forcing a full available burst. A preflight checks every decoded
+response for full equality before warmup. The timed loop retains the original
+read checksum and response-count checks. Identical replies cannot establish
+ordering; the separate server-stream integration tests use numbered replies.
+
+The JSON is a `devloop/stream-burst/1` diagnostic, not a `devloop/1` report.
+It records raw process-wide allocation counts and requested bytes, including
+both client and server; reallocations count their full new size. Counter updates
+are checked for overflow; a sampled overflow rejects the sample. Counter fields
+and `overflow_sampled` are read separately with relaxed atomics while recording
+is armed. Hooks can update between or after reads, so a false sampled flag does
+not prove that no racing hook overflowed. Asynchronous work near the window
+boundaries can be included or missed; these are non-atomic, process-wide
+diagnostic samples, not exact per-side totals. Wall time is instrumented and
+secondary. The devloop crate enables copy counters, so this is not a
+counters-off latency measurement. Setup, input validation, warmup,
+printing, and teardown are outside the allocation window.
+
+For a comparison, use isolated baseline and candidate source trees. Apply the
+identical manifest addition and diagnostic source to each tree; do not replace
+an older manifest that differs. Build each with `--locked`, separate target
+directories, the same Rust/protoc versions and flags, and no dependency
+changes. Worktrees do not automatically contain the ignored
+`third_party/protobuf` checkout; each needs the verified pinned source or a
+link to that same checkout. Preserve source commit IDs, any candidate diff,
+build commands, toolchain versions, and binary hashes. The binary requires `git` and
+`sha256sum`; it records embedded harness, manifest, lock, corpus and server
+drain hashes, plus runtime Git head/dirty and diff observations. Runtime Git
+state is not a substitute for the source tree used at compilation.
+
+Compare only matching case IDs, full input wire bytes, message and item sizes,
+reply counts, producer mode, warmup, embedded harness/manifest/lock/corpus
+hashes and build settings. The subject drain hash and tracked diff should
+differ when testing a drain patch. Capture repeated matched N and 2N runs;
+treat unavailable instruction counters as unavailable. These diagnostics are
+not directly comparable to historical adoption rows or a controlled ranking.
+
 ## CI comparisons and retained evidence
 
 The performance workflow runs on relevant pushes to `main`, relevant pull

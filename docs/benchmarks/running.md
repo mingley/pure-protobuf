@@ -96,6 +96,9 @@ input and its encoded length. Compare those fields across processes, while
 keeping semantic and wire-length checks enabled. Map serialization order can
 vary without changing the prepared message.
 
+For short and full server-stream bursts, use the [opt-in burst
+diagnostic](../../bench/devloop/README.md#opt-in-server-stream-burst-diagnostic).
+
 Use a fresh inventory when collecting the standalone tonic transport matrix.
 The collector derives qualified and blocked counts from that inventory; an old
 488-cell selection does not describe the current 512 qualified states. Legacy
