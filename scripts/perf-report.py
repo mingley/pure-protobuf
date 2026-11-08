@@ -224,14 +224,20 @@ def summary(result, base, head):
     if result["qualified_for_noise"]:
         old = {cell["id"]: cell for cell in base["cells"]}
         new = {cell["id"]: cell for cell in head["cells"]}
-        lines += ["", "| Cell | Instructions base → head | Allocations base → head |",
-                  "|---|---|---|"]
+        lines += ["", "| Cell | Instructions base → head | Allocations base → head | Allocation bytes base → head | Reported unit |",
+                  "|---|---|---|---|---|"]
         for name in result["common_cells"]:
             values = []
-            for metric in ("instructions", "allocs"):
+            for metric in ("instructions", "allocs", "alloc_bytes"):
                 pair = [measured(report[name].get(metric)) for report in (old, new)]
-                values.append(" → ".join("not_run" if value is None else f"{value:.3f}" for value in pair))
-            lines.append(f"| {name} | {values[0]} | {values[1]} |")
+                values.append(" → ".join(
+                    "not_run" if value is None else
+                    (str(value) if metric == "alloc_bytes" else f"{value:.3f}")
+                    for value in pair
+                ))
+            unit = old[name]["alloc_bytes"]["data"]["unit"]
+            unit = unit.replace("\\", "\\\\").replace("|", "\\|").replace("\r", "\\r").replace("\n", "\\n")
+            lines.append(f"| {name} | {values[0]} | {values[1]} | {values[2]} | {unit} |")
     return "\n".join(lines) + "\n"
 
 

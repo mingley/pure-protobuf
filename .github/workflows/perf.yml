@@ -194,8 +194,10 @@ jobs:
         if: always()
         run: |
           if [ -f perf-artifacts/summary.md ]; then
+            cat perf-artifacts/summary.md
             cat perf-artifacts/summary.md >> "$GITHUB_STEP_SUMMARY"
           else
+            echo "Measurement setup did not complete; no qualifying evidence."
             echo "Measurement setup did not complete; no qualifying evidence." >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Retain reports and failures

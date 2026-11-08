@@ -55,6 +55,54 @@ class EvidenceTests(unittest.TestCase):
         self.assertTrue(result["qualified_for_noise"])
         self.assertIn("allocs", result["eligible_metrics"]["codec.test"])
 
+    def test_summary_reports_requested_bytes_for_every_qualified_cell(self):
+        base, head = report(BASE), report(HEAD)
+        base["cells"][0]["alloc_bytes"]["data"]["value"] = 317585.0
+        head["cells"][0]["alloc_bytes"]["data"]["value"] = 137308.0
+        for item in (base, head):
+            item["cells"][0]["alloc_bytes"]["data"]["unit"] = "heap bytes per RPC (median)"
+        base["cells"][0]["instructions"] = {
+            "status": "not_run", "data": {"reason": "counter unavailable"}
+        }
+        base_extra = copy.deepcopy(base["cells"][0])
+        head_extra = copy.deepcopy(head["cells"][0])
+        base_extra["id"] = head_extra["id"] = "codec.tiny"
+        base_extra["alloc_bytes"]["data"]["value"] = 1e-8
+        head_extra["alloc_bytes"]["data"]["value"] = 2e-8
+        base_extra["alloc_bytes"]["data"]["unit"] = "heap bytes per op (exact)"
+        head_extra["alloc_bytes"]["data"]["unit"] = "heap bytes per op (exact)"
+        base_other = copy.deepcopy(base_extra)
+        head_other = copy.deepcopy(head_extra)
+        base_other["id"] = head_other["id"] = "codec.other"
+        base_other["alloc_bytes"]["data"]["unit"] = "custom | unit"
+        head_other["alloc_bytes"]["data"]["unit"] = "custom | unit"
+        base["cells"].extend((base_extra, base_other))
+        head["cells"].extend((head_extra, head_other))
+
+        result = self.verify(base, head)
+        self.assertTrue(result["qualified_for_noise"], result["errors"])
+        text = PERF.summary(result, base, head)
+        self.assertIn("Allocation bytes base → head | Reported unit", text)
+        rows = {line.split("|")[1].strip(): line for line in text.splitlines()
+                if line.startswith("| codec.")}
+        self.assertEqual(set(rows), {"codec.test", "codec.tiny", "codec.other"})
+        self.assertIn("not_run → 1.000", rows["codec.test"])
+        self.assertIn("317585.0 → 137308.0 | heap bytes per RPC (median)", rows["codec.test"])
+        self.assertIn("1e-08 → 2e-08 | heap bytes per op (exact)", rows["codec.tiny"])
+        self.assertIn(r"custom \| unit", rows["codec.other"])
+
+    def test_missing_requested_bytes_does_not_publish_a_qualified_table(self):
+        base, head = report(BASE), report(HEAD)
+        head["cells"][0]["alloc_bytes"] = {
+            "status": "not_run", "data": {"reason": "measurement unavailable"}
+        }
+        result = self.verify(base, head)
+        self.assertFalse(result["qualified_for_noise"])
+        self.assertEqual(result["eligible_metrics"], {})
+        text = PERF.summary(result, base, head)
+        self.assertIn("must not count", text)
+        self.assertNotIn("Allocation bytes base → head", text)
+
     def test_empty_error_and_stale_revision_reports_never_qualify(self):
         for change in ({"cells": []}, {"error": "build failed"}, {"devloop_commit": BASE}):
             with self.subTest(change=change):
