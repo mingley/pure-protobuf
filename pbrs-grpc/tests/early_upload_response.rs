@@ -198,7 +198,6 @@ async fn server_stream_retains_initial_headers_while_finishing_upload() {
     completed_after_initial_headers(true).await;
 }
 
-
 #[derive(Clone, Copy, Debug)]
 enum CompletedShape {
     Unary,
@@ -225,7 +224,11 @@ fn inspect_unary_response(response: Response<HelloReply>, peer_body: PeerBody) -
         assert_eq!(response.trailers().get("x-trailer"), Some("kept"));
     }
     assert_eq!(
-        response.into_inner().message().to_str().expect("reply UTF-8"),
+        response
+            .into_inner()
+            .message()
+            .to_str()
+            .expect("reply UTF-8"),
         "reply"
     );
     1
@@ -269,9 +272,7 @@ async fn response_after_complete_upload(
 ) -> Result<usize, Status> {
     let (client, server) = tokio::io::duplex(64 * 1024);
     let peer = tokio::spawn(async move {
-        let mut connection = h2::server::handshake(server)
-            .await
-            .expect("peer handshake");
+        let mut connection = h2::server::handshake(server).await.expect("peer handshake");
         let (request, mut respond) = connection
             .accept()
             .await
@@ -369,10 +370,7 @@ async fn response_after_complete_upload(
             }
             tokio::time::timeout(
                 Duration::from_secs(5),
-                channel.unary::<HelloRequest, HelloReply>(
-                    "/helloworld.Greeter/SayHello",
-                    request,
-                ),
+                channel.unary::<HelloRequest, HelloReply>("/helloworld.Greeter/SayHello", request),
             )
             .await
             .expect("unary response timed out")
@@ -455,9 +453,16 @@ async fn completed_upload_maps_http_errors_without_grpc_status() {
                 response_after_complete_upload(http_status, None, PeerBody::HeadersOnly, shape)
                     .await
                     .expect_err("HTTP error must fail");
-            assert_eq!(status.code(), expected, "http={http_status}, shape={shape:?}");
+            assert_eq!(
+                status.code(),
+                expected,
+                "http={http_status}, shape={shape:?}"
+            );
             assert_eq!(status.metadata().get("x-terminal"), Some("kept"));
-            assert_eq!(status.metadata().get_bin("x-trace-bin"), Some(vec![0, 1, 255]));
+            assert_eq!(
+                status.metadata().get_bin("x-trace-bin"),
+                Some(vec![0, 1, 255])
+            );
         }
         let status = response_after_complete_upload(503, None, PeerBody::Hold, shape)
             .await
@@ -493,10 +498,14 @@ async fn completed_upload_prefers_present_grpc_status_on_http_error() {
 
 #[tokio::test]
 async fn completed_upload_honors_initial_ok_and_validates_later_status() {
-    let unary =
-        response_after_complete_upload(503, Some("0"), PeerBody::HeadersOnly, CompletedShape::Unary)
-            .await
-            .expect_err("a unary response still needs a message");
+    let unary = response_after_complete_upload(
+        503,
+        Some("0"),
+        PeerBody::HeadersOnly,
+        CompletedShape::Unary,
+    )
+    .await
+    .expect_err("a unary response still needs a message");
     assert_eq!(unary.code(), Code::Internal);
     assert_eq!(unary.message(), "Missing response message.");
     assert_eq!(
@@ -567,14 +576,11 @@ async fn initial_ok_with_open_body_remains_deadline_bounded() {
     }
 }
 
-
 #[tokio::test]
 async fn mapped_http_error_with_open_body_preserves_the_connection() {
     let (client, server) = tokio::io::duplex(64 * 1024);
     let peer = tokio::spawn(async move {
-        let mut connection = h2::server::handshake(server)
-            .await
-            .expect("peer handshake");
+        let mut connection = h2::server::handshake(server).await.expect("peer handshake");
         let mut handlers = tokio::task::JoinSet::new();
         let mut accepted = 0;
         loop {
@@ -670,7 +676,10 @@ async fn mapped_http_error_with_open_body_preserves_the_connection() {
     .await
     .expect("recovery call timed out")
     .expect("connection must remain usable");
-    assert_eq!(response.into_inner().message().to_str().expect("UTF-8"), "reply");
+    assert_eq!(
+        response.into_inner().message().to_str().expect("UTF-8"),
+        "reply"
+    );
     drop(channel);
     peer.abort();
 }
