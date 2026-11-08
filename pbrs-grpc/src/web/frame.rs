@@ -153,12 +153,7 @@ pub(crate) struct WebContext {
 }
 
 impl WebContext {
-    pub(crate) fn new(
-        mode: Mode,
-        headers: &HeaderMap,
-        policy: CorsPolicy,
-        enabled: bool,
-    ) -> Self {
+    pub(crate) fn new(mode: Mode, headers: &HeaderMap, policy: CorsPolicy, enabled: bool) -> Self {
         let allow_origin = if enabled {
             headers
                 .get(http::header::ORIGIN)
@@ -626,7 +621,10 @@ mod tests {
             }
             let web = WebContext::new(Mode::Binary, &request, policy, true);
             let mut response = HeaderMap::new();
-            response.insert(http::header::VARY, HeaderValue::from_static("accept-encoding"));
+            response.insert(
+                http::header::VARY,
+                HeaderValue::from_static("accept-encoding"),
+            );
             web.apply_cors(&mut response);
             assert_eq!(
                 response
@@ -715,7 +713,10 @@ mod tests {
 
             let disabled = WebContext::new(Mode::Binary, &request, policy, false);
             let mut unchanged = HeaderMap::new();
-            unchanged.insert(http::header::VARY, HeaderValue::from_static("accept-encoding"));
+            unchanged.insert(
+                http::header::VARY,
+                HeaderValue::from_static("accept-encoding"),
+            );
             unchanged.insert(
                 http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
                 HeaderValue::from_static("https://override.example"),
@@ -733,7 +734,10 @@ mod tests {
         response.insert(http::header::VARY, HeaderValue::from_static("*"));
         web.apply_cors(&mut response);
         assert_eq!(response.get_all(http::header::VARY).iter().count(), 1);
-        assert_eq!(response.get(http::header::VARY), Some(&HeaderValue::from_static("*")));
+        assert_eq!(
+            response.get(http::header::VARY),
+            Some(&HeaderValue::from_static("*"))
+        );
     }
 
     #[test]

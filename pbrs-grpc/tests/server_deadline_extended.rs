@@ -406,7 +406,8 @@ impl Peer {
         timeout: Option<&str>,
         content_type: &str,
     ) -> h2::client::ResponseFuture {
-        self.request_with_origin(method, timeout, content_type, None).await
+        self.request_with_origin(method, timeout, content_type, None)
+            .await
     }
 
     async fn request_with_origin(
@@ -778,8 +779,16 @@ fn assert_web_cors_for(headers: &http::HeaderMap, expected: Option<&str>) {
 
 #[cfg(feature = "grpc-web")]
 fn assert_web_cors_disabled(headers: &http::HeaderMap) {
-    assert!(headers.get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN).is_none());
-    assert!(headers.get(http::header::ACCESS_CONTROL_EXPOSE_HEADERS).is_none());
+    assert!(
+        headers
+            .get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+            .is_none()
+    );
+    assert!(
+        headers
+            .get(http::header::ACCESS_CONTROL_EXPOSE_HEADERS)
+            .is_none()
+    );
     assert!(headers.get(http::header::VARY).is_none());
 }
 
@@ -862,7 +871,11 @@ async fn web_boundary_deadlines_preserve_complete_messages_and_text_carry() {
 #[cfg(feature = "grpc-web")]
 #[tokio::test(start_paused = true)]
 async fn web_default_deadlines_leave_cors_headers_unchanged_for_each_origin() {
-    for origin in [Some("https://app.example"), Some("https://other.example"), None] {
+    for origin in [
+        Some("https://app.example"),
+        Some("https://other.example"),
+        None,
+    ] {
         for content_type in WEB_TYPES {
             let mut peer =
                 Peer::with_route_and_cors_settings(Kind::Hold, 65535, false, false, true, false)
@@ -934,7 +947,12 @@ async fn web_cors_boundary_deadlines_preserve_complete_messages_and_text_carry()
             )
             .await;
             let response = peer
-                .request_with_origin("Call", Some("20m"), content_type, Some("https://app.example"))
+                .request_with_origin(
+                    "Call",
+                    Some("20m"),
+                    content_type,
+                    Some("https://app.example"),
+                )
                 .await;
             let response = drive(response).await.expect("web response headers");
             assert_eq!(

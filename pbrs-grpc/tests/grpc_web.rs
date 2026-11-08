@@ -672,7 +672,12 @@ fn cors_request(
 }
 
 fn assert_cors(answer: &WebAnswer, expected: Option<&str>) {
-    assert!(answer.headers.get(http::header::ACCESS_CONTROL_ALLOW_CREDENTIALS).is_none());
+    assert!(
+        answer
+            .headers
+            .get(http::header::ACCESS_CONTROL_ALLOW_CREDENTIALS)
+            .is_none()
+    );
     let origins: Vec<_> = answer
         .headers
         .get_all(http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
@@ -768,7 +773,11 @@ async fn legacy_web_responses_leave_cors_to_the_application_or_proxy() {
             Some("https://other.example"),
             None,
         ),
-        (ServerConfig::new().grpc_web_allow_origin(CORS_ORIGIN), None, None),
+        (
+            ServerConfig::new().grpc_web_allow_origin(CORS_ORIGIN),
+            None,
+            None,
+        ),
         (
             ServerConfig::new().grpc_web_allow_any_origin(),
             Some(CORS_ORIGIN),
@@ -802,20 +811,30 @@ async fn legacy_web_responses_leave_cors_to_the_application_or_proxy() {
                 .headers_mut()
                 .insert("grpc-encoding", HeaderValue::from_static("snappy"));
             let answer = peer
-                .call_request(request, [request_body(content_type, &hello_request("ada"), false)])
+                .call_request(
+                    request,
+                    [request_body(content_type, &hello_request("ada"), false)],
+                )
                 .await;
             assert_no_automatic_cors(&answer);
-            answer.expect_ok_web(content_type).expect_status(Code::Unimplemented);
+            answer
+                .expect_ok_web(content_type)
+                .expect_status(Code::Unimplemented);
 
             let mut request = cors_request(&peer, SAY_HELLO, content_type, origin);
             request
                 .headers_mut()
                 .insert("grpc-timeout", HeaderValue::from_static("0n"));
             let answer = peer
-                .call_request(request, [request_body(content_type, &hello_request("ada"), false)])
+                .call_request(
+                    request,
+                    [request_body(content_type, &hello_request("ada"), false)],
+                )
                 .await;
             assert_no_automatic_cors(&answer);
-            answer.expect_ok_web(content_type).expect_status(Code::DeadlineExceeded);
+            answer
+                .expect_ok_web(content_type)
+                .expect_status(Code::DeadlineExceeded);
         }
     }
 }
@@ -854,20 +873,30 @@ async fn opted_in_pre_dispatch_errors_track_origin() {
                 .headers_mut()
                 .insert("grpc-encoding", HeaderValue::from_static("snappy"));
             let answer = peer
-                .call_request(request, [request_body(content_type, &hello_request("ada"), false)])
+                .call_request(
+                    request,
+                    [request_body(content_type, &hello_request("ada"), false)],
+                )
                 .await;
             assert_cors(&answer, expected);
-            answer.expect_ok_web(content_type).expect_status(Code::Unimplemented);
+            answer
+                .expect_ok_web(content_type)
+                .expect_status(Code::Unimplemented);
 
             let mut request = cors_request(&peer, SAY_HELLO, content_type, origin);
             request
                 .headers_mut()
                 .insert("grpc-timeout", HeaderValue::from_static("0n"));
             let answer = peer
-                .call_request(request, [request_body(content_type, &hello_request("ada"), false)])
+                .call_request(
+                    request,
+                    [request_body(content_type, &hello_request("ada"), false)],
+                )
                 .await;
             assert_cors(&answer, expected);
-            answer.expect_ok_web(content_type).expect_status(Code::DeadlineExceeded);
+            answer
+                .expect_ok_web(content_type)
+                .expect_status(Code::DeadlineExceeded);
         }
     }
 }
@@ -898,20 +927,34 @@ async fn web_error_responses_keep_the_original_origin_decision() {
         }
 
         let mut request = cors_request(&peer, SAY_HELLO, content_type, Some(CORS_ORIGIN));
-        request.headers_mut().insert("grpc-encoding", HeaderValue::from_static("snappy"));
+        request
+            .headers_mut()
+            .insert("grpc-encoding", HeaderValue::from_static("snappy"));
         let answer = peer
-            .call_request(request, [request_body(content_type, &hello_request("ada"), false)])
+            .call_request(
+                request,
+                [request_body(content_type, &hello_request("ada"), false)],
+            )
             .await;
         assert_cors(&answer, Some(CORS_ORIGIN));
-        answer.expect_ok_web(content_type).expect_status(Code::Unimplemented);
+        answer
+            .expect_ok_web(content_type)
+            .expect_status(Code::Unimplemented);
 
         let mut request = cors_request(&peer, SAY_HELLO, content_type, Some(CORS_ORIGIN));
-        request.headers_mut().insert("grpc-timeout", HeaderValue::from_static("0n"));
+        request
+            .headers_mut()
+            .insert("grpc-timeout", HeaderValue::from_static("0n"));
         let answer = peer
-            .call_request(request, [request_body(content_type, &hello_request("ada"), false)])
+            .call_request(
+                request,
+                [request_body(content_type, &hello_request("ada"), false)],
+            )
             .await;
         assert_cors(&answer, Some(CORS_ORIGIN));
-        answer.expect_ok_web(content_type).expect_status(Code::DeadlineExceeded);
+        answer
+            .expect_ok_web(content_type)
+            .expect_status(Code::DeadlineExceeded);
     }
 
     let mut request = cors_request(&peer, SAY_HELLO, "application/grpc-web", Some(CORS_ORIGIN));
@@ -924,10 +967,22 @@ async fn web_error_responses_keep_the_original_origin_decision() {
     // Non-Web responses with Origin continue down the native path.
     let request = cors_request(&peer, SAY_HELLO, "application/grpc", Some(CORS_ORIGIN));
     let answer = peer
-        .call_request(request, [request_body("application/grpc", &hello_request("ada"), false)])
+        .call_request(
+            request,
+            [request_body(
+                "application/grpc",
+                &hello_request("ada"),
+                false,
+            )],
+        )
         .await;
     assert_eq!(answer.status, StatusCode::OK);
-    assert!(answer.headers.get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN).is_none());
+    assert!(
+        answer
+            .headers
+            .get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+            .is_none()
+    );
     assert!(answer.headers.get(http::header::VARY).is_none());
 }
 
@@ -942,10 +997,15 @@ async fn web_encode_rejection_keeps_cors_headers() {
     for content_type in ["application/grpc-web", "application/grpc-web-text"] {
         let request = cors_request(&peer, SAY_HELLO, content_type, Some(CORS_ORIGIN));
         let answer = peer
-            .call_request(request, [request_body(content_type, &hello_request("ada"), false)])
+            .call_request(
+                request,
+                [request_body(content_type, &hello_request("ada"), false)],
+            )
             .await;
         assert_cors(&answer, Some(CORS_ORIGIN));
-        answer.expect_ok_web(content_type).expect_status(Code::ResourceExhausted);
+        answer
+            .expect_ok_web(content_type)
+            .expect_status(Code::ResourceExhausted);
     }
 }
 
@@ -965,7 +1025,9 @@ impl Service for CorsMetadataService {
         } else {
             CORS_ORIGIN
         };
-        rpc.metadata_mut().set("origin", replacement).expect("replace origin");
+        rpc.metadata_mut()
+            .set("origin", replacement)
+            .expect("replace origin");
         let explicit_origin = self.explicit_origin;
         let explicit_exposure = self.explicit_exposure;
         let explicit_credentials = self.explicit_credentials;
@@ -989,7 +1051,9 @@ impl Service for CorsMetadataService {
                     .metadata_mut()
                     .insert("access-control-allow-credentials", "true")?;
             }
-            response.metadata_mut().insert("x-custom-metadata", "visible")?;
+            response
+                .metadata_mut()
+                .insert("x-custom-metadata", "visible")?;
             Ok::<_, Status>(response)
         })
         .await;
@@ -1004,7 +1068,9 @@ async fn web_cors_preserves_explicit_metadata_and_received_origin() {
         (Some(CORS_ORIGIN), Some(CORS_ORIGIN), true),
         (Some("https://other.example"), None, true),
     ] {
-        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await.expect("bind");
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .expect("bind");
         let addr = listener.local_addr().expect("local address");
         let task = tokio::spawn(async move {
             Server::new(CorsMetadataService {
@@ -1024,14 +1090,22 @@ async fn web_cors_preserves_explicit_metadata_and_received_origin() {
         let _guard = ServerGuard(task);
         let mut peer = RawWebPeer::connect(addr).await;
         let request = cors_request(&peer, SAY_HELLO, "application/grpc-web", origin);
-        let answer = peer.call_request(request, [frame(&hello_request("ada"))]).await;
+        let answer = peer
+            .call_request(request, [frame(&hello_request("ada"))])
+            .await;
         if explicit {
             assert_eq!(
-                answer.headers.get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN).unwrap(),
+                answer
+                    .headers
+                    .get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                    .unwrap(),
                 "https://override.example"
             );
             assert_eq!(
-                answer.headers.get(http::header::ACCESS_CONTROL_EXPOSE_HEADERS).unwrap(),
+                answer
+                    .headers
+                    .get(http::header::ACCESS_CONTROL_EXPOSE_HEADERS)
+                    .unwrap(),
                 "x-custom-metadata"
             );
             assert!(
@@ -1052,7 +1126,9 @@ async fn web_cors_preserves_explicit_metadata_and_received_origin() {
                 .any(|value| value == "accept-encoding")
         );
         assert_eq!(answer.headers.get("x-custom-metadata").unwrap(), "visible");
-        answer.expect_ok_web("application/grpc-web").expect_status(Code::Ok);
+        answer
+            .expect_ok_web("application/grpc-web")
+            .expect_status(Code::Ok);
     }
 }
 
@@ -1166,18 +1242,27 @@ async fn web_cors_preserves_application_allow_credentials() {
     for content_type in ["application/grpc-web", "application/grpc-web-text"] {
         let request = cors_request(&peer, SAY_HELLO, content_type, Some(CORS_ORIGIN));
         let answer = peer
-            .call_request(request, [request_body(content_type, &hello_request("ada"), false)])
+            .call_request(
+                request,
+                [request_body(content_type, &hello_request("ada"), false)],
+            )
             .await;
         assert_eq!(
-            answer.headers.get(http::header::ACCESS_CONTROL_ALLOW_CREDENTIALS),
+            answer
+                .headers
+                .get(http::header::ACCESS_CONTROL_ALLOW_CREDENTIALS),
             Some(&HeaderValue::from_static("true"))
         );
         assert_eq!(
-            answer.headers.get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN),
+            answer
+                .headers
+                .get(http::header::ACCESS_CONTROL_ALLOW_ORIGIN),
             Some(&HeaderValue::from_static(CORS_ORIGIN))
         );
         assert_eq!(
-            answer.headers.get(http::header::ACCESS_CONTROL_EXPOSE_HEADERS),
+            answer
+                .headers
+                .get(http::header::ACCESS_CONTROL_EXPOSE_HEADERS),
             Some(&HeaderValue::from_static("*"))
         );
         answer.expect_ok_web(content_type).expect_status(Code::Ok);
@@ -1232,7 +1317,9 @@ async fn web_concurrency_rejection_keeps_cors_headers() {
     .expect("gRPC-Web held-call readiness timed out")
     .expect("ready");
     let (first_response, mut first_body) = send.send_request(request, false).expect("request");
-    first_body.send_data(frame(&hello_request("ada")), true).expect("send");
+    first_body
+        .send_data(frame(&hello_request("ada")), true)
+        .expect("send");
     tokio::time::timeout(std::time::Duration::from_secs(3), entered.notified())
         .await
         .expect("first call admitted");
@@ -1245,7 +1332,9 @@ async fn web_concurrency_rejection_keeps_cors_headers() {
     .await
     .expect("concurrency response");
     assert_cors(&answer, Some(CORS_ORIGIN));
-    answer.expect_ok_web("application/grpc-web").expect_status(Code::ResourceExhausted);
+    answer
+        .expect_ok_web("application/grpc-web")
+        .expect_status(Code::ResourceExhausted);
     drop(first_response);
     drop(first_body);
     drop(peer);
