@@ -151,10 +151,12 @@ client reports non-200 error headers without waiting for upload credit, subject
 to cancellation and deadlines. An initial `grpc-status: 0` does not complete
 an unfinished upload. Non-200 responses remain committed for retry. Binary
 logging may omit the response-trailer event when a peer rejects a call before
-the request upload completes. If headers become visible only after a local
-reset, the client also treats them as committed because the reset can hide
-whether they ended the stream. A trailers-only rejection in that narrow race
-may therefore not be retried.
+the request upload completes. Retry and hedge logs can also include events from
+uncommitted attempts, contrary to A16's committed-stream rule. A peer
+`CANCELLED` status can be logged as a client cancellation. If headers become
+visible only after a local reset, the client also treats them as committed
+because the reset can hide whether they ended the stream. A trailers-only
+rejection in that narrow race may therefore not be retried.
 
 ## Message codecs and Tower integration
 
@@ -390,7 +392,7 @@ See the [code generation guide](guides/codegen.md) and [migration guide](guides/
 `pbrs-grpc` keeps retry behavior explicit and bounded.
 
 - **Transparent retry**: Transparent retry is at most once. It happens only when a connection drops before request headers or body transmission commits.
-- **Service-config retries**: attach an A6 document with `Channel::service_config` for `retryPolicy` settings: backoff, throttling, per-attempt timeouts, and server pushback. Unary and server-streaming calls use the policy before response commitment. Unary calls also accept bounded `hedgingPolicy`.
+- **Service-config retries**: attach an A6 document with `Channel::service_config` for `retryPolicy` settings: backoff, throttling, per-attempt timeouts, and server pushback. Unary and server-streaming calls use the policy before response commitment. Unary calls also accept bounded `hedgingPolicy`, but an opt-in hedge can continue or win after another attempt receives ordinary response headers. The hedging path does not yet enforce A6 header commitment.
 - **No policy fallback**: without a policy, application retries stay at the call site and should be evaluated with `Code::is_retryable`.
 - **In-process bypass**: in-process connections (`from_io`) have no transparent retry.
 

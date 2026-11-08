@@ -61,7 +61,7 @@ The matrix covers cross-language (`A`) and protocol-level (`G`) proposals in
 
 | gRFC | Title | Status | Notes |
 |---|---|---|---|
-| A6 hedging | Hedging (part of A6) | shipped | Unary `hedgingPolicy` ships: bounded by `maxAttempts`, opt-in per method, first OK/fatal commits, non-fatal waits (`tests/policy_retry.rs`). Streaming hedging is not applicable (grpc-go is unary-only too). |
+| A6 hedging | Hedging (part of A6) | partial | Opt-in unary `hedgingPolicy` is bounded by `maxAttempts`; the first completed OK/fatal outcome wins. Ordinary response headers do not yet stop competing attempts, so a different hedge can win after header commitment. Streaming hedging is not supported. |
 | A44 | xDS retry | planned | With the xDS client (route-level retry policy). |
 | A45 | Retry stats | planned | Per-call retry attempt counters. |
 | A96 | Retry OTel stats | planned | With OTel metrics. |
@@ -72,7 +72,7 @@ The matrix covers cross-language (`A`) and protocol-level (`G`) proposals in
 |---|---|---|---|
 | A3 | Channel tracing | shipped | Bounded per-entity channel traces in the channelz registry; descriptions are capped and owner drop unregisters entities (`channelz::Trace`, `DEFAULT_MAX_TRACE_EVENTS`, `tests/channelz.rs`). |
 | A14 | Channelz | shipped | Process-global registry for channels, subchannels, servers and sockets plus `grpc.channelz.v1.Channelz` service (`ChannelzService::shared_global`, `tests/channelz.rs`). |
-| A16 | Binary logging | shipped | `binlog::{BinaryLogger, BinaryLogFilter, Sink}`; `Channel`/`Server`/`Router::binary_logger`; `{h;m}` caps; attempts share one call id; client peer + `grpc-trace-bin` omitted at taps. |
+| A16 | Binary logging | partial | `binlog::{BinaryLogger, BinaryLogFilter, Sink}`; `Channel`/`Server`/`Router::binary_logger`; `{h;m}` caps. Retry or hedge logs can include uncommitted attempt events, and early upload rejections may omit trailers. Client peer + `grpc-trace-bin` are omitted at taps. |
 | A38 | Admin interface API | planned | Admin server exposing channelz/CSDS. |
 | A40 | CSDS support | planned | With the xDS client. |
 | A59 | Audit logging | shipped | `authz::{AuditEvent, AuditLogger, AuditLoggerFactory, StdoutAuditLogger}` + `register_audit_logger_factory`; `audit_logging_options` (NONE/ON_DENY/ON_ALLOW/ON_DENY_AND_ALLOW, `is_optional`); records are exactly the five A59 fields + timestamp, no metadata (OB-03). |

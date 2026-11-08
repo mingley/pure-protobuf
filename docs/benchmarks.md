@@ -5,6 +5,7 @@
 
 | Read | Scope |
 |---|---|
+| [Stream-batch capacity diagnostic](benchmarks/stream-batch-capacity-20261108.md) | Historical 16 KiB candidate with paired allocation tradeoffs, November 8 |
 | [Latest full hosted comparison](evidence/hosted-devloop-10d94697-20261106/README.md) | All 1,634 cells at `10d94697`, with selected wins, remaining Prost losses and instrumentation limits, November 6 |
 | [Earlier full hosted comparison](evidence/hosted-devloop-20261106/README.md) | All 1,634 cells and repaired fresh lifecycle at `05a3cca5`, November 6 |
 | [Balanced authority storage](evidence/balanced-authority-storage-20261106/README.md) | Dev/test layout and constructor allocations for the routing fix; remaining costs included, November 6 |

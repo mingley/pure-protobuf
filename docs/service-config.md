@@ -214,23 +214,25 @@ re-serializes the message:
 
 Commitment here means "this call will not be re-sent by the kernel":
 
-- **Unary:** the call commits when response headers arrive (success or
-  application status) — a policy retry then happens only as a *new attempt*
-  evaluated against §4/§6, never as transparent replay. Transport failure
-  before commitment follows the [retry-contract.md](retry-contract.md)
-  evidence matrix exactly once, then falls through to the policy decision.
-- **Server-streaming:** the call commits when the first response message
-  arrives (or on success completion). Only trailers-only failures before
-  any message take the retry path, reusing the unary decision helper.
-  Mid-stream failures never retry.
+- **Sequential unary and server-streaming retries:** ordinary initial response
+  headers commit the attempt before any response message. Non-200 responses
+  also commit. A valid non-OK gRPC trailers-only response can remain eligible
+  for a policy retry. A head first observed after a local reset is treated as
+  committed because the reset can hide whether it ended the stream.
+  Transparent retry still requires the evidence in
+  [retry-contract.md](retry-contract.md).
+- **Opt-in unary hedging:** the current executor does not stop competing
+  attempts when an attempt receives ordinary response headers. Another hedge
+  can continue or win after those headers, so this path does not yet enforce
+  the A6 response-header commitment rule.
 - **Client-streaming and bidirectional:** arbitrary replay stays
   **unsupported**. The kernel holds no replay buffer for caller-driven
   outbound streams; application code that wants retries re-invokes the call
   (call-site retry). FL-08/FL-09 must not smuggle kernel replay into these
   shapes.
-- Committed, oversized, cancelled, or expired calls cannot retry. A retryable
-  code on an already-committed stream is a terminal outcome, not a retry
-  trigger.
+- In the sequential retry path, committed, oversized, cancelled, or expired
+  calls cannot retry. A retryable code on an already-committed stream is a
+  terminal outcome.
 
 ## 8. Throttling
 
@@ -280,14 +282,18 @@ the first, `throttled`, `pushback_delays`, `pushback_refusals`,
 Invariant: `committed_ok + committed_err == calls` once in-flight calls
 settle.
 
-Further surface, all per-attempt aware:
+Other observability surfaces include:
 
-- `Channel::retry_stats()` snapshot (always on, no sampling flag).
-- Lifecycle observer hooks (`on_attempt_start`, attempt guards) and binary
-  logging (attempts share one call id) for per-attempt traces.
+- `Channel::retry_stats()` snapshots (always on, no sampling flag).
+- Lifecycle observer hooks (`on_attempt_start` and attempt guards).
 - Channelz stream/message accounting per attempt.
 - OTel export of these counters is GF-01/A96 work; this card approves the
   counter meanings, not the exporter.
+
+Client binary logging can emit events from retry or hedging attempts under one
+call ID, including attempts that do not commit. This does not yet meet A16's
+committed-stream rule. Early peer rejections during an upload can also omit the
+response-trailer event, so binary logs are not a complete per-attempt trace.
 
 ## 11. No exactly-once promise
 

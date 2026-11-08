@@ -1,7 +1,7 @@
 //! Streaming call shapes.
 
 use super::call::{
-    AttemptCommitment, UploadHead, cancel_attempt, finish_attempt, first_of,
+    AttemptCommitment, UploadHead, cancel_attempt, cancel_requested, finish_attempt, first_of,
     is_direct_cancellation, open, peer_rejection_from_head, poll_now, prefer_deadline,
     prefer_peer_rejection_with_commitment, reject_attempt, reset_send_on_cancel, response_commits,
     send_request_frame,
@@ -627,6 +627,8 @@ enum ClosedUpload {
     /// RST_STREAM(NO_ERROR). Read and validate that response before deciding
     /// the RPC result; a local CANCEL here would discard queued trailers.
     PeerFinished,
+    /// A transport write failed; a queued response may explain the failure.
+    TransportFailed { status: Status, permit: BytePermit },
     /// A prefix may already be queued. `rest` is the unsent payload, in order.
     Rest(EncodedUpload),
 }
@@ -700,7 +702,10 @@ fn write_closed_upload<T: CodecMessage>(
                 if err.is_remote() && err.is_reset() && err.reason() == Some(Reason::NO_ERROR) {
                     return Ok(ClosedUpload::PeerFinished);
                 }
-                return Err(fail(send, Status::from_h2_send(err)));
+                return Ok(ClosedUpload::TransportFailed {
+                    status: Status::from_h2_send(err),
+                    permit,
+                });
             }
             Err(seg) => {
                 // Rebuild the unsent suffix once, only when the send buffer
@@ -719,12 +724,84 @@ fn write_closed_upload<T: CodecMessage>(
         if err.is_remote() && err.is_reset() && err.reason() == Some(Reason::NO_ERROR) {
             return Ok(ClosedUpload::PeerFinished);
         }
-        return Err(fail(send, Status::from_h2_send(err)));
+        return Ok(ClosedUpload::TransportFailed {
+            status: Status::from_h2_send(err),
+            permit,
+        });
     }
     if let Some(tap) = tap {
         tap.log_half_close();
     }
     Ok(ClosedUpload::Sent)
+}
+
+// Prefer an already-queued peer rejection to a transport write failure.
+// Never wait for the peer: local failures return directly from the encoder.
+fn closed_upload_transport_failure(
+    mut response: backend::ResponseFuture,
+    send: &mut backend::SendStream,
+    cancel_rx: &crate::rpc_cancel::RpcCancel,
+    deadline: Option<tokio::time::Instant>,
+    mut status: Status,
+    permit: BytePermit,
+) -> Status {
+    // Like the biased streaming selects, an already-ready local signal wins
+    // before a queued response. Do not reselect cancellation after a peer
+    // result has won this synchronous poll.
+    let direct = if remaining_timeout(deadline).is_err() {
+        Some(Status::deadline_exceeded())
+    } else if cancel_requested(cancel_rx) {
+        Some(Status::cancelled())
+    } else {
+        None
+    };
+    if let Some(direct) = direct {
+        send.send_reset(Reason::CANCEL);
+        drop(permit);
+        return prefer_closed_deadline(direct, deadline);
+    }
+
+    let ready = poll_now(Pin::new(&mut response));
+    let observed = ready.is_some();
+    if let Some(head) = ready {
+        prefer_closed_upload_head(&mut status, head, false);
+    }
+    // Linearize the failed upload before releasing its budget charge.
+    send.send_reset(Reason::CANCEL);
+    drop(permit);
+    if !observed {
+        if let Some(head) = poll_now(Pin::new(&mut response)) {
+            prefer_closed_upload_head(&mut status, head, true);
+        }
+    }
+    prefer_closed_deadline(status, deadline)
+}
+
+fn prefer_closed_deadline(status: Status, deadline: Option<tokio::time::Instant>) -> Status {
+    match prefer_deadline::<std::convert::Infallible>(Err(status), deadline) {
+        Err(status) => status,
+        Ok(never) => match never {},
+    }
+}
+
+fn prefer_closed_upload_head(
+    status: &mut Status,
+    head: Result<http::Response<backend::RecvStream>, TransportError>,
+    reset: bool,
+) {
+    match head {
+        // Reset can erase EOS: after it, only HTTP status and headers are
+        // reliable enough to interpret.
+        Ok(head) if !reset || head.status() != http::StatusCode::OK => {
+            if let Some(rejection) = peer_rejection_from_head(&head, reset.then_some(true)) {
+                *status = rejection;
+            }
+        }
+        Err(error) if error.reason() == Some(Reason::REFUSED_STREAM) => {
+            *status = Status::from_h2_post_dispatch(error);
+        }
+        _ => {}
+    }
 }
 
 /// Unary response after a closed client-streaming upload is fully queued.
@@ -1151,6 +1228,16 @@ where
                         socket,
                     )
                     .await;
+                }
+                Ok(ClosedUpload::TransportFailed { status, permit }) => {
+                    return Err(closed_upload_transport_failure(
+                        resp_fut,
+                        &mut send_stream,
+                        &cancel_rx,
+                        deadline,
+                        status,
+                        permit,
+                    ));
                 }
                 Err(status) => return Err(status),
             }
@@ -2112,6 +2199,16 @@ impl super::Channel {
                                     ))
                                     .await
                                 }
+                                Ok(ClosedUpload::TransportFailed { status, permit }) => {
+                                    Err(closed_upload_transport_failure(
+                                        resp_fut,
+                                        &mut send,
+                                        &cancel_rx,
+                                        deadline,
+                                        status,
+                                        permit,
+                                    ))
+                                }
                                 Err(status) => Err(status),
                             }
                         } else {
@@ -2453,6 +2550,16 @@ impl super::Channel {
                                 )
                                 .await
                             }
+                            Ok(ClosedUpload::TransportFailed { status, permit }) => {
+                                Err(closed_upload_transport_failure(
+                                    resp_fut,
+                                    &mut send,
+                                    &cancel_rx,
+                                    deadline,
+                                    status,
+                                    permit,
+                                ))
+                            }
                             Err(status) => Err(status),
                         }
                     } else {
@@ -2524,3 +2631,8 @@ impl super::Channel {
         (tx, call)
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::panic, reason = "transport unit tests")]
+#[path = "streaming_closed_tests.rs"]
+mod closed_upload_tests;
