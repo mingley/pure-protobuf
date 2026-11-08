@@ -136,6 +136,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 For complete examples, channel setup, and cancellation behavior, see the
 [RPC shapes guide](guides/rpc-shapes.md).
 
+In the unreleased checkout, the native response decoder uses an initial
+`grpc-status` on non-200 HTTP responses when present. If it is absent, the
+client maps the HTTP status using the [gRPC fallback table](https://github.com/grpc/grpc/blob/master/doc/http-grpc-status-mapping.md)
+without waiting for the error body. A malformed initial `grpc-status` yields
+`UNKNOWN`. An initial OK permits normal message decoding. When framing and
+transport complete cleanly, a later error or malformed trailer status is
+reported; trailers without a status preserve the initial OK. A truncated frame
+or transport error can take precedence. This conservative handling of
+contradictory status blocks differs from tonic. A status sent only in later
+trailers on a non-200 response without an initial status is not currently
+considered. If a unary or server-streaming request is still uploading,
+early-response and cancellation rules apply; a non-200 response is treated as
+committed for retry.
+
 ## Message codecs and Tower integration
 
 Generated pbrs messages implement `pbrs_grpc::CodecMessage` automatically.

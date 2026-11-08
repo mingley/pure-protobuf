@@ -462,6 +462,16 @@ type DecodeFrame<T> = fn(
     &mut Option<Box<DecodedWorkspace>>,
 ) -> Result<Framed<T>, Status>;
 
+/// Whether a stream must obtain status from trailers or already has an OK
+/// status in the initial response headers.
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+enum StatusRequirement {
+    Optional,
+    Trailers,
+    InitialOk,
+}
+
 /// An inbound message stream, decoded straight off its HTTP/2 stream.
 ///
 /// There is no pump task and no intermediate queue: reading a message reads the
@@ -486,9 +496,9 @@ pub(crate) struct WireStream<T> {
     sleep: Option<Pin<Box<tokio::time::Sleep>>>,
     ended: bool,
     trailers_done: bool,
-    /// Requests may half-close without status; body responses must finish
-    /// with grpc-status unless it was validated in Trailers-Only headers.
-    require_response_status: bool,
+    /// Requests may half-close without status; responses normally require a
+    /// status in trailers unless the initial response already supplied OK.
+    status_requirement: StatusRequirement,
     trailers: Metadata,
     tap: Option<CallLogger>,
 }
@@ -514,7 +524,7 @@ impl<T: CodecMessage> WireStream<T> {
             sleep: deadline.map(|at| Box::pin(tokio::time::sleep_until(at))),
             ended: false,
             trailers_done: false,
-            require_response_status: false,
+            status_requirement: StatusRequirement::Optional,
             trailers: Metadata::new(),
             tap,
         }
@@ -523,7 +533,18 @@ impl<T: CodecMessage> WireStream<T> {
 
 impl<T> WireStream<T> {
     fn requiring_response_status(mut self, required: bool) -> Self {
-        self.require_response_status = required;
+        self.status_requirement = if required {
+            StatusRequirement::Trailers
+        } else {
+            StatusRequirement::Optional
+        };
+        self
+    }
+
+    fn accepting_initial_ok(mut self, initial_ok: bool) -> Self {
+        if initial_ok {
+            self.status_requirement = StatusRequirement::InitialOk;
+        }
         self
     }
 
@@ -638,7 +659,7 @@ impl<T> WireStream<T> {
                 Poll::Ready(Ok(None)) => {
                     self.ended = true;
                     self.release_workspace();
-                    if !self.require_response_status {
+                    if self.status_requirement == StatusRequirement::Optional {
                         if let Err(e) = self.reader.finish() {
                             return Poll::Ready(Err(e));
                         }
@@ -666,7 +687,7 @@ impl<T> WireStream<T> {
                 Poll::Ready(Err(status))
             }
             Poll::Ready(Ok(None)) => {
-                if self.require_response_status {
+                if self.status_requirement == StatusRequirement::Trailers {
                     let status = self
                         .reader
                         .finish()
@@ -674,6 +695,13 @@ impl<T> WireStream<T> {
                         .unwrap_or_else(|| Status::unknown("missing grpc-status"));
                     self.log_response_trailer(&status);
                     Poll::Ready(Err(status))
+                } else if self.status_requirement == StatusRequirement::InitialOk {
+                    if let Err(status) = self.reader.finish() {
+                        self.log_response_trailer(&status);
+                        return Poll::Ready(Err(status));
+                    }
+                    self.log_response_trailer(&Status::ok());
+                    Poll::Ready(Ok(()))
                 } else {
                     self.log_response_trailer(&Status::from_code(Code::Ok));
                     Poll::Ready(Ok(()))
@@ -683,14 +711,19 @@ impl<T> WireStream<T> {
                 // `status_from` repeats this check. A bare OK trailer is the
                 // common block, so classify it once and recycle from that.
                 let bare_ok = crate::h2_backend::header_pool::is_bare_ok_trailer(&map);
-                let mut status = if bare_ok {
+                let mut status = if bare_ok
+                    || (self.status_requirement == StatusRequirement::InitialOk
+                        && !map.contains_key(GRPC_STATUS))
+                {
                     Status::ok()
                 } else {
                     status_from(&map, Some(&map))
                 };
-                if self.require_response_status {
+                if self.status_requirement != StatusRequirement::Optional {
                     if let Err(framing_error) = self.reader.finish() {
-                        if !has_error_status(&map) {
+                        if self.status_requirement == StatusRequirement::InitialOk
+                            || !has_error_status(&map)
+                        {
                             status = framing_error;
                         }
                     }
@@ -756,6 +789,43 @@ pub(crate) fn refuse_encoding_reply(token: Option<&str>, accept_gzip: bool) -> R
     Ok(())
 }
 
+/// Map a non-200 response without waiting on an arbitrary error body.
+///
+/// An explicit grpc-status in the initial headers takes precedence, including
+/// malformed values, which retain the normal UNKNOWN parsing result. This
+/// cannot observe a status delivered only in later HTTP trailers.
+#[cold]
+#[inline(never)]
+fn status_from_http_error(http_status: StatusCode, headers: &HeaderMap) -> Status {
+    if let Some(value) = headers.get(GRPC_STATUS) {
+        let mut status = status_from(headers, None);
+        if value
+            .to_str()
+            .ok()
+            .and_then(|raw| raw.parse::<i32>().ok())
+            .is_none()
+        {
+            *status.metadata_mut() = Metadata::from_headers(headers);
+        }
+        return status;
+    }
+
+    let code = match http_status {
+        StatusCode::BAD_REQUEST => Code::Internal,
+        StatusCode::UNAUTHORIZED => Code::Unauthenticated,
+        StatusCode::FORBIDDEN => Code::PermissionDenied,
+        StatusCode::NOT_FOUND => Code::Unimplemented,
+        StatusCode::TOO_MANY_REQUESTS
+        | StatusCode::BAD_GATEWAY
+        | StatusCode::SERVICE_UNAVAILABLE
+        | StatusCode::GATEWAY_TIMEOUT => Code::Unavailable,
+        _ => Code::Unknown,
+    };
+    let mut status = Status::new(code, format!("http {http_status}"));
+    *status.metadata_mut() = Metadata::from_headers(headers);
+    status
+}
+
 struct PreparedUnary {
     parts: http::response::Parts,
     body: backend::RecvStream,
@@ -770,11 +840,13 @@ fn prepare_unary(
     tap: Option<&CallLogger>,
 ) -> Result<PreparedUnary, Status> {
     if response.status() != StatusCode::OK {
-        let status = Status::unknown(format!("http {}", response.status()));
-        if let Some(tap) = tap {
-            tap.log_trailer(&Metadata::new(), &status);
+        let status = status_from_http_error(response.status(), response.headers());
+        if status.code() != Code::Ok {
+            if let Some(tap) = tap {
+                tap.log_trailer(status.metadata(), &status);
+            }
+            return Err(status);
         }
-        return Err(status);
     }
     let (parts, body) = response.into_parts();
     if body.is_end_stream() {
@@ -839,16 +911,25 @@ async fn complete_unary<Resp: CodecMessage>(
         stock_response,
         encoding,
     } = prepared;
-    let framed =
-        match read_one_message::<Resp>(&mut body, limits, accept_gzip, codec, tap, true).await {
-            Ok(framed) => framed,
-            Err(status) => {
-                if let Some(tap) = tap {
-                    tap.log_trailer(status.metadata(), &status);
-                }
-                return Err(status);
+    let non_200_initial_ok = parts.status != StatusCode::OK;
+    let framed = read_one_message::<Resp>(
+        &mut body,
+        limits,
+        accept_gzip,
+        codec,
+        tap,
+        !non_200_initial_ok,
+    )
+    .await;
+    let framed = match framed {
+        Ok(framed) => framed,
+        Err(status) => {
+            if let Some(tap) = tap {
+                tap.log_trailer(status.metadata(), &status);
             }
-        };
+            return Err(status);
+        }
+    };
     let trailers = match read_trailers(&mut body).await {
         Ok(trailers) => trailers,
         Err(status) => {
@@ -863,6 +944,12 @@ async fn complete_unary<Resp: CodecMessage>(
             let bare_ok = crate::h2_backend::header_pool::is_bare_ok_trailer(&map);
             let status = if bare_ok {
                 Status::ok()
+            } else if non_200_initial_ok {
+                if map.contains_key(GRPC_STATUS) {
+                    status_from(&map, Some(&map))
+                } else {
+                    status_from(&parts.headers, None)
+                }
             } else {
                 status_from(&parts.headers, Some(&map))
             };
@@ -905,12 +992,16 @@ pub(crate) fn finish_stream<Resp: CodecMessage + Send + 'static>(
     accept_gzip: bool,
     tap: Option<CallLogger>,
 ) -> Result<crate::request::Response<Streaming<Resp>>, Status> {
+    let mut non_200_initial_ok = false;
     if response.status() != StatusCode::OK {
-        let status = Status::unknown(format!("http {}", response.status()));
-        if let Some(tap) = &tap {
-            tap.log_trailer(&Metadata::new(), &status);
+        let status = status_from_http_error(response.status(), response.headers());
+        if status.code() != Code::Ok {
+            if let Some(tap) = &tap {
+                tap.log_trailer(status.metadata(), &status);
+            }
+            return Err(status);
         }
-        return Err(status);
+        non_200_initial_ok = true;
     }
     let (parts, body) = response.into_parts();
     let trailers_only = body.is_end_stream();
@@ -951,7 +1042,8 @@ pub(crate) fn finish_stream<Resp: CodecMessage + Send + 'static>(
     Ok(crate::request::Response::from_parts(
         Streaming::from_wire(
             WireStream::<Resp>::new(body, limits, deadline, accept_gzip, codec, tap)
-                .requiring_response_status(!trailers_only),
+                .requiring_response_status(!trailers_only)
+                .accepting_initial_ok(non_200_initial_ok),
         ),
         header_md,
         Metadata::new(),
